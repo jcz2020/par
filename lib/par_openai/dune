@@ -1,0 +1,6 @@
+(library
+ (name par_openai)
+ (public_name par_openai)
+ (libraries eio yojson par_core tls-eio)
+ (preprocess
+  (pps ppx_deriving_yojson)))

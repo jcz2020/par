@@ -1,0 +1,6 @@
+(library
+ (name par_core)
+ (public_name par_core)
+ (libraries base yojson eio uuidm unix)
+ (preprocess
+  (pps ppx_deriving_yojson ppx_sexp_conv)))

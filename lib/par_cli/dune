@@ -1,0 +1,6 @@
+(library
+ (name par_cli)
+ (public_name par_cli)
+ (libraries cmdliner par_core par_eio)
+ (preprocess
+  (pps ppx_deriving_yojson)))
