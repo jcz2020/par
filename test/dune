@@ -1,0 +1,4 @@
+(test
+ (name test_par)
+ (libraries par_core alcotest)
+ (modules test_par test_state_machine test_expression test_types))

@@ -120,16 +120,49 @@ let cancel_workflow rt wf_id =
   htbl_set rt.workflows wf_id (Wf_failed (Internal "Cancelled"));
   Ok ()
 
-let create ~config switch =
+module Noop_persistence : PERSISTENCE_SERVICE = struct
+  type t = unit
+  let save_events () _events =
+    prerr_endline "[WARN] Noop_persistence.save_events called — no persistence configured";
+    Ok ()
+  let load_events () _task_id =
+    prerr_endline "[WARN] Noop_persistence.load_events called — no persistence configured";
+    Ok []
+  let save_task_state () _ts =
+    prerr_endline "[WARN] Noop_persistence.save_task_state called — no persistence configured";
+    Ok ()
+  let load_task_state () _task_id =
+    prerr_endline "[WARN] Noop_persistence.load_task_state called — no persistence configured";
+    Ok None
+  let transaction () f =
+    prerr_endline "[WARN] Noop_persistence.transaction called — no persistence configured";
+    Ok (f ())
+end
+
+module Noop_event_bus : EVENT_BUS_SERVICE = struct
+  type t = unit
+  type subscription = unit
+  let publish () _event =
+    prerr_endline "[WARN] Noop_event_bus.publish called — no event_bus configured"
+  let subscribe () _handler =
+    prerr_endline "[WARN] Noop_event_bus.subscribe called — no event_bus configured";
+    ()
+  let unsubscribe () _subscription =
+    prerr_endline "[WARN] Noop_event_bus.unsubscribe called — no event_bus configured"
+end
+
+let create ?(persistence = (module Noop_persistence : PERSISTENCE_SERVICE))
+           ?(event_bus = (module Noop_event_bus : EVENT_BUS_SERVICE))
+           ~config switch =
   let semaphore = Eio.Semaphore.make config.default_quota.max_concurrent_tasks in
   let rt = {
     agents = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
     services = {
-      persistence = failwith "persistence not initialized";
+      persistence;
       llm = { complete_fn = (fun _ _ -> Result.Error (Internal "LLM not initialized"));
                stream_fn = (fun _ _ _ _ -> Result.Error (Internal "LLM not initialized"));
                close_fn = ignore };
-      event_bus = failwith "event_bus not initialized";
+      event_bus;
       config;
     };
     cancellation_root = switch;
