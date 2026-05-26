@@ -33,6 +33,7 @@ module Workflow_run_id = struct
     Uuidm.to_string uuid
 
   let to_string t = t
+  let of_string s = s
   let equal = String.equal
 end
 

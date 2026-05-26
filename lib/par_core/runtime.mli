@@ -9,6 +9,7 @@ val default_quota : resource_quota
 val create :
   ?persistence:(module PERSISTENCE_SERVICE) ->
   ?event_bus:(module EVENT_BUS_SERVICE) ->
+  ?llm:llm_service ->
   config:runtime_config ->
   Eio.Switch.t ->
   (runtime, error_category) result

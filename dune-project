@@ -90,4 +90,9 @@
   dune
   cmdliner
   par_core
-  par_eio))
+  par_eio
+  par_sqlite
+  par_openai
+  par_anthropic
+  yojson
+  eio))

@@ -12,6 +12,11 @@ depends: [
   "cmdliner"
   "par_core"
   "par_eio"
+  "par_sqlite"
+  "par_openai"
+  "par_anthropic"
+  "yojson"
+  "eio"
   "odoc" {with-doc}
 ]
 build: [
