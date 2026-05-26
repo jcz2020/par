@@ -1,14 +1,13 @@
-open Types
+open Par_core.Types
 
-let timeout_middleware ~default_timeout = {
+let timeout_middleware ~default_timeout:_ = {
   name = "timeout";
-  on_before_tool = Some (fun call ->
-    (* timeout is enforced at handler level via cancellable_handler — this is informational *)
+  on_before_tool = Some (fun _call ->
     None
   );
   on_error = Some (fun err ->
     (match err with
-     | Timeout -> Some (Error {
+     | Timeout -> Some (Par_core.Types.Error {
          category = Timeout;
          message = "Operation timed out";
          retryable = true;

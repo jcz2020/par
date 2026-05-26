@@ -1,6 +1,6 @@
 (* §7 — Persistence: SQLite backend *)
 
-open Types
+open Par_core.Types
 
 type t
 

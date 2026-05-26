@@ -1,6 +1,6 @@
 (* §7 — Persistence: SQLite backend *)
 
-open Types
+open Par_core.Types
 
 type t = {
   db : Sqlite3.db;
@@ -14,7 +14,7 @@ type t = {
 let exec_sql db sql =
   match Sqlite3.exec db sql with
   | Sqlite3.Rc.OK -> Ok ()
-  | rc -> Error (Internal (Printf.sprintf "SQLite error: %s" (Sqlite3.Rc.to_string rc)))
+  | rc -> Result.Error (Internal (Printf.sprintf "SQLite error: %s" (Sqlite3.Rc.to_string rc)))
 
 let init_schema db =
   let statements = [
@@ -33,10 +33,10 @@ let init_schema db =
        )|};
   ] in
   List.find_map (fun sql ->
-    match exec_sql db sql with
-    | Error e -> Some (Error e)
-    | Ok () -> None
-  ) statements
+     match exec_sql db sql with
+     | Result.Error e -> Some (Result.Error e)
+     | Ok () -> None
+   ) statements
   |> function
   | Some e -> e
   | None -> Ok ()
@@ -49,9 +49,9 @@ let create db_path =
   let db = Sqlite3.db_open db_path in
   match init_schema db with
   | Ok () -> Ok { db; mutex = Eio.Mutex.create () }
-  | Error e -> Sqlite3.close db; Error e
+  | Result.Error e -> ignore (Sqlite3.db_close db); Result.Error e
 
-let close t = Sqlite3.close t.db
+let close t = ignore (Sqlite3.db_close t.db)
 
 (* -------------------------------------------------------------------------- *)
 (* §7 Event extraction helpers                                                *)
@@ -95,42 +95,42 @@ let insert_event db ev =
   let id = Printf.sprintf "evt_%s_%.6f" task_id ts in
   let idem_key = Printf.sprintf "idem_%s_%.6f" task_id ts in
   let json = Yojson.Safe.to_string (event_to_yojson ev) in
-  let _ = Sqlite3.bind_text stmt ~pos:1 id in
-  let _ = Sqlite3.bind_text stmt ~pos:2 task_id in
-  let _ = Sqlite3.bind_text stmt ~pos:3 json in
-  let _ = Sqlite3.bind_float stmt ~pos:4 ts in
-  let _ = Sqlite3.bind_text stmt ~pos:5 idem_key in
+  let _ = Sqlite3.bind_text stmt 1 id in
+  let _ = Sqlite3.bind_text stmt 2 task_id in
+  let _ = Sqlite3.bind_text stmt 3 json in
+  let _ = Sqlite3.bind_double stmt 4 ts in
+  let _ = Sqlite3.bind_text stmt 5 idem_key in
   let step_result = Sqlite3.step stmt in
   let _ = Sqlite3.finalize stmt in
   match step_result with
   | Sqlite3.Rc.DONE | Sqlite3.Rc.ROW -> Ok ()
-  | rc -> Error (Internal (Printf.sprintf "Event insert: %s" (Sqlite3.Rc.to_string rc)))
+  | rc -> Result.Error (Internal (Printf.sprintf "Event insert: %s" (Sqlite3.Rc.to_string rc)))
 
-let upsert_task_state db ts =
+let upsert_task_state db (ts : task_state) =
   let stmt =
     Sqlite3.prepare db
       "INSERT OR REPLACE INTO task_states (id, state, updated_at) VALUES (?, ?, ?)"
   in
   let id = Task_id.to_string ts.id in
   let json = Yojson.Safe.to_string (task_state_to_yojson ts) in
-  let _ = Sqlite3.bind_text stmt ~pos:1 id in
-  let _ = Sqlite3.bind_text stmt ~pos:2 json in
-  let _ = Sqlite3.bind_float stmt ~pos:3 ts.updated_at in
+  let _ = Sqlite3.bind_text stmt 1 id in
+  let _ = Sqlite3.bind_text stmt 2 json in
+  let _ = Sqlite3.bind_double stmt 3 ts.updated_at in
   let step_result = Sqlite3.step stmt in
   let _ = Sqlite3.finalize stmt in
   match step_result with
   | Sqlite3.Rc.DONE | Sqlite3.Rc.ROW -> Ok ()
-  | rc -> Error (Internal (Printf.sprintf "Task upsert: %s" (Sqlite3.Rc.to_string rc)))
+  | rc -> Result.Error (Internal (Printf.sprintf "Task upsert: %s" (Sqlite3.Rc.to_string rc)))
 
 (* -------------------------------------------------------------------------- *)
 (* §7 PERSISTENCE_SERVICE implementation                                      *)
 (* -------------------------------------------------------------------------- *)
 
 let save_events t events =
-  Eio.Mutex.use_rw t.mutex (fun () ->
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
     let results = List.map (insert_event t.db) events in
-    match List.find_map (function Error e -> Some e | _ -> None) results with
-    | Some e -> Error e
+    match List.find_map (function Result.Error e -> Some e | _ -> None) results with
+    | Some e -> Result.Error e
     | None -> Ok ()
   )
 
@@ -141,7 +141,7 @@ let load_events t task_id =
       Sqlite3.prepare t.db
         "SELECT payload FROM events WHERE task_id = ? ORDER BY timestamp ASC"
     in
-    let _ = Sqlite3.bind_text stmt ~pos:1 tid in
+    let _ = Sqlite3.bind_text stmt 1 tid in
     let acc = ref [] in
     let result =
       let stop = ref false in
@@ -149,14 +149,15 @@ let load_events t task_id =
       while not !stop do
         match Sqlite3.step stmt with
         | Sqlite3.Rc.ROW ->
-          let payload = Sqlite3.column_text stmt ~pos:0 in
+          let payload = Sqlite3.column_text stmt 0 in
           (match event_of_yojson (Yojson.Safe.from_string payload) with
-          | ev -> acc := ev :: !acc
-          | exception Yojson.Safe.Json_error _ -> ())
+          | Ok ev -> acc := ev :: !acc
+          | Error _ -> ()
+          | exception Yojson.Json_error _ -> ())
         | Sqlite3.Rc.DONE -> stop := true
         | rc ->
           stop := true;
-          error := Some (Error (Internal (Printf.sprintf "Load events: %s" (Sqlite3.Rc.to_string rc))))
+          error := Some (Result.Error (Internal (Printf.sprintf "Load events: %s" (Sqlite3.Rc.to_string rc))))
       done;
       match !error with
       | Some e -> e
@@ -167,7 +168,7 @@ let load_events t task_id =
   )
 
 let save_task_state t ts =
-  Eio.Mutex.use_rw t.mutex (fun () ->
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
     upsert_task_state t.db ts
   )
 
@@ -177,33 +178,33 @@ let load_task_state t task_id =
     let stmt =
       Sqlite3.prepare t.db "SELECT state FROM task_states WHERE id = ?"
     in
-    let _ = Sqlite3.bind_text stmt ~pos:1 tid in
+    let _ = Sqlite3.bind_text stmt 1 tid in
     let result =
       match Sqlite3.step stmt with
       | Sqlite3.Rc.ROW ->
-        let state_json = Sqlite3.column_text stmt ~pos:0 in
+        let state_json = Sqlite3.column_text stmt 0 in
         (match task_state_of_yojson (Yojson.Safe.from_string state_json) with
-        | ts -> Ok (Some ts)
-        | exception Yojson.Safe.Json_error msg ->
-          Error (Internal (Printf.sprintf "Task state decode: %s" msg)))
+        | Ok ts -> Ok (Some ts)
+        | Error msg ->
+          Result.Error (Internal (Printf.sprintf "Task state decode: %s" msg)))
       | Sqlite3.Rc.DONE -> Ok None
-      | rc -> Error (Internal (Printf.sprintf "Load task state: %s" (Sqlite3.Rc.to_string rc)))
+      | rc -> Result.Error (Internal (Printf.sprintf "Load task state: %s" (Sqlite3.Rc.to_string rc)))
     in
     let _ = Sqlite3.finalize stmt in
     result
   )
 
 let transaction t f =
-  Eio.Mutex.use_rw t.mutex (fun () ->
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
     match exec_sql t.db "BEGIN IMMEDIATE" with
-    | Error e -> Error e
+    | Result.Error e -> Result.Error e
     | Ok () ->
       match f t with
       | result ->
         (match exec_sql t.db "COMMIT" with
         | Ok () -> Ok result
-        | Error e -> Error e)
+        | Result.Error e -> Result.Error e)
       | exception ex ->
         exec_sql t.db "ROLLBACK" |> ignore;
-        Error (Internal (Printexc.to_string ex))
+        Result.Error (Internal (Printexc.to_string ex))
   )

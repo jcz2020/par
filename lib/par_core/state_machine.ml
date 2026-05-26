@@ -16,14 +16,14 @@ let transition_error_to_string = function
 
 let validate from to_ =
   let is_terminal = function Completed | Failed | Cancelled -> true | _ -> false in
-  if from = to_ then Error (Self_transition from)
-  else if is_terminal from then Error (Terminal_source from)
+  if from = to_ then Result.Error (Self_transition from)
+  else if is_terminal from then Result.Error (Terminal_source from)
   else if List.mem (from, to_) valid_transitions then Ok ()
-  else Error (Invalid (from, to_))
+  else Result.Error (Invalid (from, to_))
 
-let transition persist_fn task new_status =
+let transition persist_fn (task : task_state) new_status =
   match validate task.status new_status with
-  | Error e -> Error (transition_error_to_string e)
+  | Result.Error e -> Result.Error (transition_error_to_string e)
   | Ok () ->
     let updated = { task with status = new_status; updated_at = Unix.time () } in
     persist_fn updated;
@@ -43,18 +43,20 @@ let apply_jitter delay = function
     delay *. random_factor
   | None -> delay
 
-let should_retry policy error_cat =
-  List.exists (function
+let _should_retry policy (error_cat : error_category) =
+  List.exists (fun (cond : retryable_condition) ->
+    match cond with
     | Any_retryable -> true
     | Timeout -> error_cat = Timeout
     | Rate_limited -> error_cat = Rate_limited
-    | External_failure -> match error_cat with External_failure _ -> true | _ -> false
-    | Connection_error -> match error_cat with External_failure _ -> true | _ -> false
+    | External_failure ->
+      (match error_cat with Types.External_failure _ -> true | _ -> false)
+    | Connection_error -> false
   ) policy.retry_on
 
 let apply_retry task policy =
   if task.retry_count >= policy.max_attempts then
-    Error `Max_retries_exceeded
+    Result.Error `Max_retries_exceeded
   else
     let backoff = apply_backoff policy task.retry_count in
     let delay = apply_jitter backoff policy.jitter in

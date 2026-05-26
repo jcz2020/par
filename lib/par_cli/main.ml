@@ -1,5 +1,3 @@
-open Par_core
-
 let run config_path =
   Printf.printf "P-A-R Runtime starting with config: %s\n" config_path;
   0

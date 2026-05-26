@@ -1,18 +1,20 @@
-open Types
+open Par_core.Types
 
-type subscription = {
+type internal_subscription = {
   id : string;
-  handler : event -> unit Eio.Fiber.t;
+  handler : event -> unit;
   nonce : string;
-}
+} [@@warning "-69"]
+
+type subscription = string
 
 type t = {
   config : event_bus_config;
-  subscribers : (string, subscription) protected_hashtbl;
+  subscribers : (string, internal_subscription) protected_hashtbl;
   buffer : event_envelope Eio.Stream.t;
   dead_letters : dead_letter_entry list ref;
   mutex : Eio.Mutex.t;
-}
+} [@@warning "-69"]
 
 let create config =
   let buffer = Eio.Stream.create config.buffer_capacity in
@@ -28,8 +30,9 @@ let create config =
   }
 
 let publish bus event =
+  let id = Task_id.to_string (Task_id.create ()) in
   let envelope = {
-    id = Task_id.create ();
+    id;
     metadata = {
       trace_id = None;
       span_id = None;
@@ -37,14 +40,14 @@ let publish bus event =
       source = "event_bus";
     };
     payload = event;
-    idempotency_key = Task_id.create ();
+    idempotency_key = Task_id.to_string (Task_id.create ());
     delivery_attempt = 0;
   } in
   Eio.Stream.add bus.buffer envelope
 
 let subscribe bus handler =
-  let sub_id = Task_id.create () in
-  let nonce = Task_id.create () in
+  let sub_id = Task_id.to_string (Task_id.create ()) in
+  let nonce = Task_id.to_string (Task_id.create ()) in
   let sub = { id = sub_id; handler; nonce } in
   htbl_set bus.subscribers sub_id sub;
   sub_id
@@ -68,12 +71,12 @@ let deliver_to_subscribers bus envelope =
         failed_at = Unix.time ();
         attempt_count = envelope.delivery_attempt + 1;
       } in
-      Eio.Mutex.use_rw bus.mutex (fun () ->
+      Eio.Mutex.use_rw ~protect:false bus.mutex (fun () ->
         bus.dead_letters := entry :: !(bus.dead_letters)
       )
   ) !handlers
 
-let rec start_dispatcher bus switch =
+let start_dispatcher bus switch =
   Eio.Fiber.fork ~sw:switch (fun () ->
     let rec loop () =
       let envelope = Eio.Stream.take bus.buffer in

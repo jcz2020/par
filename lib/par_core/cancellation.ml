@@ -1,22 +1,19 @@
 open Types
 
-type t = cancellation_token = {
-  switch : Eio.Switch.t;
-  mutable cancelled : bool;
-}
+type t = cancellation_token
 
 let create_token switch = { switch; cancelled = false }
 
 let is_cancelled token = token.cancelled
 
 let check_cancel token =
-  if token.cancelled then raise Eio.Cancelled
+  if token.cancelled then raise (Eio.Cancel.Cancelled (Failure "cancelled"))
   else Eio.Fiber.yield ()
 
 let request_cancel token =
   token.cancelled <- true
 
-let with_timeout seconds token f =
+let with_timeout _seconds token f =
   let result = ref None in
   Eio.Fiber.first
     (fun () ->

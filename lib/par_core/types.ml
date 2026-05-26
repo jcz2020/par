@@ -5,7 +5,7 @@
 (* -------------------------------------------------------------------------- *)
 
 module Task_id = struct
-  type t = string [@@deriving yojson, compare, sexp_of]
+  type t = string [@@deriving yojson]
 
   let create () =
     let uuid = Uuidm.v4_gen (Random.State.make_self_init ()) () in
@@ -16,9 +16,13 @@ module Task_id = struct
   let of_string s =
     match Uuidm.of_string s with
     | Some _ -> Ok s
-    | None -> Error (`Invalid_id s)
+    | None -> Result.Error (`Invalid_id s)
 
   let equal = String.equal
+
+  let compare a b = String.compare a b
+
+  let sexp_of_t s = Sexplib0.Sexp.Atom s
 end
 
 module Workflow_run_id = struct
@@ -54,7 +58,7 @@ type error_category =
   | Rate_limited
   | Permission_denied of string
   | Internal of string
-[@@deriving yojson, sexp_of]
+[@@deriving yojson]
 
 type handler_result =
   | Success of Yojson.Safe.t
@@ -102,7 +106,7 @@ type llm_response = {
 
 let llm_response_validate resp =
   match (resp.text, resp.tool_calls) with
-  | None, None | None, Some [] -> Error "llm_response must have text or tool_calls"
+  | None, None | None, Some [] -> Result.Error "llm_response must have text or tool_calls"
   | _ -> Ok ()
 
 (* -------------------------------------------------------------------------- *)
@@ -132,7 +136,7 @@ and conversation = {
 (* -------------------------------------------------------------------------- *)
 
 type model_config = {
-  provider : [> `Openai | `Anthropic | `Ollama | `Custom of string ];
+  provider : [ `Openai | `Anthropic | `Ollama | `Custom of string ];
   model_name : string;
   api_base : string option;
   temperature : float;
@@ -175,7 +179,7 @@ type tool_binding = {
   name : string;
   description : string;
   input_schema : Yojson.Safe.t;
-  handler : Yojson.Safe.t -> cancellation_token -> handler_result Eio.Fiber.t;
+  handler : Yojson.Safe.t -> cancellation_token -> handler_result;
   permission : tool_permission;
   timeout : float option;
   concurrency_limit : int option;
@@ -296,13 +300,13 @@ let status_to_string = function
 let validate_transition from_status to_status =
   let is_terminal = function Completed | Failed | Cancelled -> true | _ -> false in
   if from_status = to_status then
-    Error (Printf.sprintf "Self-transition not allowed: %s" (status_to_string from_status))
+    Result.Error (Printf.sprintf "Self-transition not allowed: %s" (status_to_string from_status))
   else if is_terminal from_status then
-    Error (Printf.sprintf "Terminal state cannot transition: %s" (status_to_string from_status))
+    Result.Error (Printf.sprintf "Terminal state cannot transition: %s" (status_to_string from_status))
   else if List.mem (from_status, to_status) valid_transitions then
     Ok ()
   else
-    Error
+    Result.Error
       (Printf.sprintf "Invalid transition: %s -> %s"
          (status_to_string from_status)
          (status_to_string to_status))
@@ -316,6 +320,7 @@ type task_input =
   | Tool_input of { tool_name : string; arguments : Yojson.Safe.t }
   | Approval_input of { prompt : string; timeout : float; allowed_roles : string list }
   | Workflow_input of { workflow_id : string; variables : (string * Yojson.Safe.t) list }
+[@@deriving yojson]
 
 type task_state = {
   id : Task_id.t;
@@ -484,19 +489,19 @@ module type PERSISTENCE_SERVICE = sig
   type t
 
   val save_events :
-    t -> event list -> (unit, error_category) result Eio.Fiber.t
+    t -> event list -> (unit, error_category) result
 
   val load_events :
-    t -> Task_id.t -> (event list, error_category) result Eio.Fiber.t
+    t -> Task_id.t -> (event list, error_category) result
 
   val save_task_state :
-    t -> task_state -> (unit, error_category) result Eio.Fiber.t
+    t -> task_state -> (unit, error_category) result
 
   val load_task_state :
-    t -> Task_id.t -> (task_state option, error_category) result Eio.Fiber.t
+    t -> Task_id.t -> (task_state option, error_category) result
 
   val transaction :
-    t -> (t -> 'a Eio.Fiber.t) -> ('a, error_category) result Eio.Fiber.t
+    t -> (t -> 'a) -> ('a, error_category) result
 end
 
 module type LLM_SERVICE = sig
@@ -506,14 +511,14 @@ module type LLM_SERVICE = sig
 
   val complete :
     t -> model_config -> conversation ->
-    (llm_response, error_category) result Eio.Fiber.t
+    (llm_response, error_category) result
 
   val stream :
     t -> model_config -> conversation -> stream_config ->
-    (llm_response_chunk -> unit Eio.Fiber.t) ->
-    (stream_complete, error_category) result Eio.Fiber.t
+    (llm_response_chunk -> unit) ->
+    (stream_complete, error_category) result
 
-  val close : t -> unit Eio.Fiber.t
+  val close : t -> unit
 end
 
 module type EVENT_BUS_SERVICE = sig
@@ -521,17 +526,25 @@ module type EVENT_BUS_SERVICE = sig
 
   type subscription
 
-  val publish : t -> event -> unit Eio.Fiber.t
+  val publish : t -> event -> unit
 
-  val subscribe : t -> (event -> unit Eio.Fiber.t) -> subscription
+  val subscribe : t -> (event -> unit) -> subscription
 
   val unsubscribe : t -> subscription -> unit
 end
 
+type llm_service = {
+  complete_fn : model_config -> conversation -> (llm_response, error_category) result;
+  stream_fn : model_config -> conversation -> stream_config ->
+    (llm_response_chunk -> unit) ->
+    (stream_complete, error_category) result;
+  close_fn : unit -> unit;
+}
+
 type service_registry = {
-  persistence : (module PERSISTENCE_SERVICE with type t = 'p);
-  llm : (module LLM_SERVICE with type t = 'l);
-  event_bus : (module EVENT_BUS_SERVICE with type t = 'e);
+  persistence : (module PERSISTENCE_SERVICE);
+  llm : llm_service;
+  event_bus : (module EVENT_BUS_SERVICE);
   config : runtime_config;
 }
 
@@ -548,10 +561,10 @@ let htbl_get tbl key =
   Eio.Mutex.use_ro tbl.mutex (fun () -> Hashtbl.find_opt tbl.data key)
 
 let htbl_set tbl key value =
-  Eio.Mutex.use_rw tbl.mutex (fun () -> Hashtbl.replace tbl.data key value)
+  Eio.Mutex.use_rw ~protect:false tbl.mutex (fun () -> Hashtbl.replace tbl.data key value)
 
 let htbl_remove tbl key =
-  Eio.Mutex.use_rw tbl.mutex (fun () -> Hashtbl.remove tbl.data key)
+  Eio.Mutex.use_rw ~protect:false tbl.mutex (fun () -> Hashtbl.remove tbl.data key)
 
 let htbl_iter tbl f =
   Eio.Mutex.use_ro tbl.mutex (fun () -> Hashtbl.iter f tbl.data)
@@ -621,7 +634,39 @@ type task_completion = {
   result : (Yojson.Safe.t, error_category) result;
   elapsed : float;
 }
-[@@deriving yojson]
+
+let task_completion_to_yojson tc =
+  let result_json = match tc.result with
+    | Ok v -> `Assoc [ ("Ok", v) ]
+    | Error e -> `Assoc [ ("Error", error_category_to_yojson e) ]
+  in
+  `Assoc [
+    ("task_id", Task_id.to_yojson tc.task_id);
+    ("result", result_json);
+    ("elapsed", `Float tc.elapsed);
+  ]
+
+let task_completion_of_yojson = function
+  | `Assoc xs ->
+    let task_id = match List.assoc_opt "task_id" xs with
+      | Some v -> (match Task_id.of_yojson v with Ok t -> t | Error _ -> failwith "task_completion: invalid task_id")
+      | None -> failwith "task_completion: missing task_id"
+    in
+    let result = match List.assoc_opt "result" xs with
+      | Some (`Assoc [ ("Ok", v) ]) -> Ok v
+      | Some (`Assoc [ ("Error", e) ]) ->
+        (match error_category_of_yojson e with
+        | Ok ec -> Error ec
+        | Error _ -> failwith "task_completion: invalid error category")
+      | _ -> failwith "task_completion: invalid result"
+    in
+    let elapsed = match List.assoc_opt "elapsed" xs with
+      | Some (`Float f) -> f
+      | Some (`Int i) -> float_of_int i
+      | _ -> failwith "task_completion: invalid elapsed"
+    in
+    { task_id; result; elapsed }
+  | _ -> failwith "task_completion: expected object"
 
 type workflow = {
   id : string;
@@ -632,5 +677,5 @@ type workflow = {
   failure_policy : failure_policy;
   parallel_limit : int;
   timeout : float;
-  on_complete : (workflow_result -> unit Eio.Fiber.t) option;
+  on_complete : (workflow_result -> unit) option;
 }

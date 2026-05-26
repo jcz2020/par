@@ -1,4 +1,4 @@
-open Types
+open Par_core.Types
 
 let logging = {
   name = "logging";
@@ -23,7 +23,7 @@ let logging = {
      | Error e -> Logs.warn (fun m -> m "Tool error: %s — %s" call.name e.message));
     None
   );
-  on_error = Some (fun err ->
+  on_error = Some (fun _err ->
     Logs.err (fun m -> m "Error: %s" (Printexc.to_string (Failure "error")));
     None
   );

@@ -16,9 +16,10 @@
   yojson
   eio
   uuidm
-  ppx_deriving
-  ppx_deriving_yojson
-  ppx_sexp_conv))
+   ppx_deriving
+   ppx_deriving_yojson
+   ppx_sexp_conv
+   ppx_compare))
 
 (package
  (name par_eio)
@@ -43,6 +44,7 @@
 (package
  (name par_postgres)
  (synopsis "Programmable Agent Runtime - PostgreSQL persistence backend")
+ (allow_empty)
  (depends
   ocaml
   dune
@@ -65,6 +67,7 @@
 (package
  (name par_anthropic)
  (synopsis "Programmable Agent Runtime - Anthropic LLM provider")
+ (allow_empty)
  (depends
   ocaml
   dune

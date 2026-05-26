@@ -17,7 +17,7 @@ val register_tool :
   name:string ->
   description:string ->
   input_schema:Yojson.Safe.t ->
-  handler:(Yojson.Safe.t -> cancellation_token -> handler_result Eio.Fiber.t) ->
+  handler:(Yojson.Safe.t -> cancellation_token -> handler_result) ->
   ?permission:tool_permission ->
   ?timeout:float ->
   ?concurrency_limit:int ->
@@ -29,13 +29,14 @@ val invoke :
   agent_id:string ->
   message:string ->
   ?cancellation_token:cancellation_token ->
-  (llm_response, error_category) result Eio.Fiber.t
+  unit ->
+  (llm_response, error_category) result
 
 val submit_task :
   runtime ->
-  task_input ->
   ?priority:int ->
   ?timeout:float ->
+  task_input ->
   Task_id.t
 
 val get_task_status :

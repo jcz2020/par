@@ -1,4 +1,4 @@
-open Types
+open Par_core.Types
 
 (* §8 — LLM Client *)
 
@@ -6,7 +6,7 @@ type t = {
   api_key : string;
   base_url : string;
   organization : string option;
-  mutable net : Eio.Net.t option;
+  mutable net : [ `Generic] Eio.Net.ty Eio.Net.t option;
 }
 
 let set_network t net = t.net <- Some net
@@ -19,7 +19,7 @@ let create = function
       organization;
       net = None;
     }
-  | _ -> Error (Invalid_input "OpenAI provider requires Openai configuration")
+  | _ -> Result.Error (Invalid_input "OpenAI provider requires Openai configuration")
 
 (* -------------------------------------------------------------------------- *)
 (* §8.1 URL parsing                                                           *)
@@ -73,7 +73,7 @@ let build_message_json msg =
     | Some tcs ->
       let tc_json =
         List.map
-          (fun tc ->
+          (fun (tc:tool_call) ->
             `Assoc
               [ ("id", `String tc.id)
               ; ("type", `String "function")
@@ -220,15 +220,16 @@ let map_http_status status body =
 (* -------------------------------------------------------------------------- *)
 
 let tls_config =
+  let no_auth ?ip:_ ~host:_ _certs = Ok None in
   lazy
-    (match Tls.Config.client () with
+    (match Tls.Config.client ~authenticator:no_auth () with
     | Ok cfg -> cfg
-    | Error (`Msg msg) -> failwith ("TLS configuration error: " ^ msg))
+    | Result.Error (`Msg msg) -> failwith ("TLS configuration error: " ^ msg))
 
 let tls_host_of_string host =
   match Domain_name.of_string host with
-  | None -> None
-  | Some dn -> ( match Domain_name.host dn with Ok h -> Some h | Error _ -> None )
+  | Error _ -> None
+  | Ok dn -> ( match Domain_name.host dn with Ok h -> Some h | Error _ -> None )
 
 (* -------------------------------------------------------------------------- *)
 (* §8.5 Connection                                                            *)
@@ -237,7 +238,7 @@ let tls_host_of_string host =
 let do_request net url request =
   Eio.Net.with_tcp_connect
     ~host:url.host
-    ~service:string_of_int url.port
+    ~service:(string_of_int url.port)
     net
     (fun flow ->
       let cfg = Lazy.force tls_config in
@@ -248,7 +249,7 @@ let do_request net url request =
       in
       Eio.Flow.copy_string request tls;
       Eio.Flow.shutdown tls `Send;
-      Eio.Flow.read_all tls ~max_size:max_int)
+      Eio.Flow.read_all tls)
 
 (* -------------------------------------------------------------------------- *)
 (* §8.6 JSON response parsing                                                 *)
@@ -280,7 +281,7 @@ let parse_tool_calls json =
       })
     (json |> to_list)
 
-let parse_llm_response json =
+let parse_llm_response json : (llm_response, error_category) result =
   let open Yojson.Safe.Util in
   let choices = json |> member "choices" |> to_list in
   let model = json |> member "model" |> to_string in
@@ -304,7 +305,7 @@ let parse_llm_response json =
       try Some (parse_tool_calls (message |> member "tool_calls")) with _ -> None
     in
     Ok { text; tool_calls; finish_reason = finish; usage; model }
-  | [] -> Error (External_failure "No choices in OpenAI response")
+  | [] -> Result.Error (External_failure "No choices in OpenAI response")
 
 (* -------------------------------------------------------------------------- *)
 (* §8.7 SSE parsing                                                           *)
@@ -360,7 +361,7 @@ let parse_stream_delta json =
 
 let complete t model_config conversation =
   match t.net with
-  | None -> Error (Internal "Network not initialized; call set_network first")
+  | None -> Result.Error (Internal "Network not initialized; call set_network first")
   | Some net ->
     let url = parse_url t.base_url in
     let body = build_request_body ~model_config ~conversation ~stream:false in
@@ -374,18 +375,18 @@ let complete t model_config conversation =
         let headers, raw_body = split_response raw in
         let status = parse_status_line headers in
         let resp_body = decode_body headers raw_body in
-        if status <> 200 then Error (map_http_status status resp_body)
+        if status <> 200 then Result.Error (map_http_status status resp_body)
         else
           let json = Yojson.Safe.from_string resp_body in
           parse_llm_response json
       with
-      | Eio.Io _ -> Error (External_failure "Network error during OpenAI request")
-      | Failure msg -> Error (Invalid_input msg)
-      | exn -> Error (Internal (Printexc.to_string exn)) )
+      | Eio.Io _ -> Result.Error (External_failure "Network error during OpenAI request")
+      | Failure msg -> Result.Error (Invalid_input msg)
+      | exn -> Result.Error (Internal (Printexc.to_string exn)) )
 
 let stream t model_config conversation _stream_config callback =
   match t.net with
-  | None -> Error (Internal "Network not initialized; call set_network first")
+  | None -> Result.Error (Internal "Network not initialized; call set_network first")
   | Some net ->
     let url = parse_url t.base_url in
     let body = build_request_body ~model_config ~conversation ~stream:true in
@@ -399,7 +400,7 @@ let stream t model_config conversation _stream_config callback =
         let headers, raw_body = split_response raw in
         let status = parse_status_line headers in
         let resp_body = decode_body headers raw_body in
-        if status <> 200 then Error (map_http_status status resp_body)
+        if status <> 200 then Result.Error (map_http_status status resp_body)
         else begin
           let chunks = ref 0 in
           let usage = ref { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 } in
@@ -435,8 +436,8 @@ let stream t model_config conversation _stream_config callback =
           Ok { final_usage = !usage; finish_reason = !finish; chunks_received = !chunks }
         end
       with
-      | Eio.Io _ -> Error (External_failure "Network error during OpenAI stream")
-      | Failure msg -> Error (Invalid_input msg)
-      | exn -> Error (Internal (Printexc.to_string exn)) )
+      | Eio.Io _ -> Result.Error (External_failure "Network error during OpenAI stream")
+      | Failure msg -> Result.Error (Invalid_input msg)
+      | exn -> Result.Error (Internal (Printexc.to_string exn)) )
 
 let close _t = ()

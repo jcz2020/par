@@ -7,12 +7,14 @@
 (* -------------------------------------------------------------------------- *)
 
 module Task_id : sig
-  type t [@@deriving yojson, compare, sexp_of]
+  type t [@@deriving yojson]
 
   val create : unit -> t
   val to_string : t -> string
   val of_string : string -> (t, [> `Invalid_id of string ]) result
   val equal : t -> t -> bool
+  val compare : t -> t -> int
+  val sexp_of_t : t -> Sexplib0.Sexp.t
 end
 
 module Workflow_run_id : sig
@@ -42,7 +44,7 @@ type error_category =
   | Rate_limited
   | Permission_denied of string
   | Internal of string
-[@@deriving yojson, sexp_of]
+[@@deriving yojson]
 
 type handler_result =
   | Success of Yojson.Safe.t
@@ -117,7 +119,7 @@ and conversation = {
 (* -------------------------------------------------------------------------- *)
 
 type model_config = {
-  provider : [> `Openai | `Anthropic | `Ollama | `Custom of string ];
+  provider : [ `Openai | `Anthropic | `Ollama | `Custom of string ];
   model_name : string;
   api_base : string option;
   temperature : float;
@@ -152,14 +154,16 @@ type tool_permission =
   | Condition_based of expression
 [@@deriving yojson]
 
-(* Opaque cancellation token — implemented in cancellation.ml *)
-type cancellation_token
+type cancellation_token = {
+  switch : Eio.Switch.t;
+  mutable cancelled : bool;
+}
 
 type tool_binding = {
   name : string;
   description : string;
   input_schema : Yojson.Safe.t;
-  handler : Yojson.Safe.t -> cancellation_token -> handler_result Eio.Fiber.t;
+  handler : Yojson.Safe.t -> cancellation_token -> handler_result;
   permission : tool_permission;
   timeout : float option;
   concurrency_limit : int option;
@@ -249,6 +253,10 @@ type task_type =
 
 val validate_transition : task_status -> task_status -> (unit, string) result
 
+val status_to_string : task_status -> string
+
+val valid_transitions : (task_status * task_status) list
+
 (* -------------------------------------------------------------------------- *)
 (* §2.9 Task types                                                            *)
 (* -------------------------------------------------------------------------- *)
@@ -258,6 +266,7 @@ type task_input =
   | Tool_input of { tool_name : string; arguments : Yojson.Safe.t }
   | Approval_input of { prompt : string; timeout : float; allowed_roles : string list }
   | Workflow_input of { workflow_id : string; variables : (string * Yojson.Safe.t) list }
+[@@deriving yojson]
 
 type task_state = {
   id : Task_id.t;
@@ -426,19 +435,19 @@ module type PERSISTENCE_SERVICE = sig
   type t
 
   val save_events :
-    t -> event list -> (unit, error_category) result Eio.Fiber.t
+    t -> event list -> (unit, error_category) result
 
   val load_events :
-    t -> Task_id.t -> (event list, error_category) result Eio.Fiber.t
+    t -> Task_id.t -> (event list, error_category) result
 
   val save_task_state :
-    t -> task_state -> (unit, error_category) result Eio.Fiber.t
+    t -> task_state -> (unit, error_category) result
 
   val load_task_state :
-    t -> Task_id.t -> (task_state option, error_category) result Eio.Fiber.t
+    t -> Task_id.t -> (task_state option, error_category) result
 
   val transaction :
-    t -> (t -> 'a Eio.Fiber.t) -> ('a, error_category) result Eio.Fiber.t
+    t -> (t -> 'a) -> ('a, error_category) result
 end
 
 module type LLM_SERVICE = sig
@@ -448,14 +457,14 @@ module type LLM_SERVICE = sig
 
   val complete :
     t -> model_config -> conversation ->
-    (llm_response, error_category) result Eio.Fiber.t
+    (llm_response, error_category) result
 
   val stream :
     t -> model_config -> conversation -> stream_config ->
-    (llm_response_chunk -> unit Eio.Fiber.t) ->
-    (stream_complete, error_category) result Eio.Fiber.t
+    (llm_response_chunk -> unit) ->
+    (stream_complete, error_category) result
 
-  val close : t -> unit Eio.Fiber.t
+  val close : t -> unit
 end
 
 module type EVENT_BUS_SERVICE = sig
@@ -463,17 +472,25 @@ module type EVENT_BUS_SERVICE = sig
 
   type subscription
 
-  val publish : t -> event -> unit Eio.Fiber.t
+  val publish : t -> event -> unit
 
-  val subscribe : t -> (event -> unit Eio.Fiber.t) -> subscription
+  val subscribe : t -> (event -> unit) -> subscription
 
   val unsubscribe : t -> subscription -> unit
 end
 
+type llm_service = {
+  complete_fn : model_config -> conversation -> (llm_response, error_category) result;
+  stream_fn : model_config -> conversation -> stream_config ->
+    (llm_response_chunk -> unit) ->
+    (stream_complete, error_category) result;
+  close_fn : unit -> unit;
+}
+
 type service_registry = {
-  persistence : (module PERSISTENCE_SERVICE with type t = 'p);
-  llm : (module LLM_SERVICE with type t = 'l);
-  event_bus : (module EVENT_BUS_SERVICE with type t = 'e);
+  persistence : (module PERSISTENCE_SERVICE);
+  llm : llm_service;
+  event_bus : (module EVENT_BUS_SERVICE);
   config : runtime_config;
 }
 
@@ -556,7 +573,9 @@ type task_completion = {
   result : (Yojson.Safe.t, error_category) result;
   elapsed : float;
 }
-[@@deriving yojson]
+
+val task_completion_to_yojson : task_completion -> Yojson.Safe.t
+val task_completion_of_yojson : Yojson.Safe.t -> task_completion
 
 type workflow = {
   id : string;
@@ -567,5 +586,5 @@ type workflow = {
   failure_policy : failure_policy;
   parallel_limit : int;
   timeout : float;
-  on_complete : (workflow_result -> unit Eio.Fiber.t) option;
+  on_complete : (workflow_result -> unit) option;
 }

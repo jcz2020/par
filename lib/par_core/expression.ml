@@ -7,7 +7,7 @@ let max_node_visits = 1000
 
 type eval_context = (string * Yojson.Safe.t) list
 
-let rec visit_count = ref 0
+let visit_count = ref 0
 
 let reset_visit () = visit_count := 0
 
@@ -138,8 +138,8 @@ let evaluate ctx expr =
     let result = eval ctx expr 0 in
     Ok result
   with
-  | Resource_limit msg -> Error (Internal msg)
-  | Failure msg -> Error (Invalid_input msg)
+  | Resource_limit msg -> Result.Error (Internal msg)
+  | Failure msg -> Result.Error (Invalid_input msg)
 
 let evaluate_to_bool ctx expr =
   match evaluate ctx expr with
