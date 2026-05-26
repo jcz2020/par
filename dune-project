@@ -44,11 +44,9 @@
 (package
  (name par_postgres)
  (synopsis "Programmable Agent Runtime - PostgreSQL persistence backend")
- (allow_empty)
  (depends
   ocaml
   dune
-  caqti-eio
   postgresql
   par_core
   par_eio))
@@ -67,7 +65,6 @@
 (package
  (name par_anthropic)
  (synopsis "Programmable Agent Runtime - Anthropic LLM provider")
- (allow_empty)
  (depends
   ocaml
   dune

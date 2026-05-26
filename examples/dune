@@ -1,0 +1,5 @@
+(executable
+ (name basic_agent)
+ (libraries par_core eio eio_main)
+ (preprocess
+  (pps ppx_deriving_yojson)))

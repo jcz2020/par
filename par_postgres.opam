@@ -9,7 +9,6 @@ bug-reports: "https://github.com/username/par/issues"
 depends: [
   "ocaml"
   "dune" {>= "3.16"}
-  "caqti-eio"
   "postgresql"
   "par_core"
   "par_eio"

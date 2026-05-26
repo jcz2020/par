@@ -8,21 +8,19 @@ let () =
     shutdown = Runtime.default_shutdown_config;
     llm_providers = [];
   } in
-  Eio_main.run (fun env ->
-    Eio.Switch.with (fun switch ->
+  Eio_main.run (fun _env ->
+    Eio.Switch.run (fun switch ->
       match Runtime.create ~config switch with
-      | Error err ->
+      | Error _err ->
         Printf.eprintf "Failed to create runtime: %s\n"
           (Printexc.to_string (Failure "error"))
       | Ok rt ->
-        let handler input _token =
-          Types.Success (`String (Printf.sprintf "Echo: %s" (Yojson.Safe.to_string input)))
-        in
         let tool = Runtime.register_tool rt
           ~name:"echo"
           ~description:"Echoes back the input"
-          ~input_schema:`Assoc [ ("type", `String "object"); ("properties", `Assoc []) ]
-          ~handler
+          ~input_schema:(`Assoc [ ("type", `String "object"); ("properties", `Assoc []) ])
+          ~handler:(fun input _token ->
+            Types.Success (`String (Printf.sprintf "Echo: %s" (Yojson.Safe.to_string input))))
           () in
         let agent = {
           Types.id = "echo-agent";

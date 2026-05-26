@@ -1,0 +1,6 @@
+(library
+ (name par_postgres)
+ (public_name par_postgres)
+ (libraries eio par_core par_eio postgresql)
+ (preprocess
+  (pps ppx_deriving_yojson)))
