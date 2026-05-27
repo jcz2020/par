@@ -106,10 +106,34 @@ let approve_task rt task_id ~approver:_ =
       Ok ()
     | _ -> Result.Error (Invalid_input "Task is not waiting for approval")
 
-let submit_workflow rt _wf =
+let find_tool_across_agents rt tool_name =
+  let result = ref None in
+  htbl_iter rt.agents (fun _id (agent : agent_config) ->
+    if result.contents = None then
+      result := List.find_opt (fun (tb : tool_binding) -> tb.name = tool_name) agent.tools
+  );
+  result.contents
+
+let submit_workflow rt wf =
   let id = Workflow_run_id.create () in
-  htbl_set rt.workflows id Wf_pending;
-  Ok id
+  htbl_set rt.workflows id Wf_running;
+  let token = Cancellation.create_token rt.cancellation_root in
+  let ctx = {
+    Workflow_engine.variables = wf.variables;
+    token;
+    agent_resolver = (fun aid -> htbl_get rt.agents aid);
+    tool_resolver = find_tool_across_agents rt;
+    llm = rt.services.llm;
+    parallel_limit = wf.parallel_limit;
+    failure_policy = wf.failure_policy;
+  } in
+  match Workflow_engine.execute_workflow ctx wf with
+  | Ok result ->
+    htbl_set rt.workflows id (Wf_completed result);
+    Ok id
+  | Error err ->
+    htbl_set rt.workflows id (Wf_failed err);
+    Ok id
 
 let get_workflow_status rt wf_id =
   match htbl_get rt.workflows wf_id with

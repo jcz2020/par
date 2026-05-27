@@ -1,6 +1,6 @@
 (library
  (name par_middleware)
  (public_name par_middleware)
- (libraries eio par_core logs)
+ (libraries eio par_core logs str unix)
  (preprocess
   (pps ppx_deriving_yojson)))
