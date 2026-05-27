@@ -26,8 +26,8 @@ let mock_llm responses =
     | Some resp -> resp
     | None -> text_response "default"
   in
-  { complete_fn = (fun _model _conv -> Ok (next ()));
-    stream_fn = (fun _ _ _ _ -> Ok {
+  { complete_fn = (fun _model _tools _conv -> Ok (next ()));
+    stream_fn = (fun _ _tools _ _ _ -> Ok {
         final_usage = dummy_usage; finish_reason = Stop; chunks_received = 0 });
     close_fn = (fun () -> ());
   }

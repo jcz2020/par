@@ -111,7 +111,7 @@ let run_agent token agent user_message llm =
            | Error _ -> conv)
       in
       let conv = apply_before_llm agent.middleware conv (fun c -> c) in
-      match llm.complete_fn agent.model conv with
+      match llm.complete_fn agent.model agent.tools conv with
       | Result.Error err -> Result.Error err
       | Ok resp ->
         let resp = apply_after_llm agent.middleware resp (fun r -> r) in

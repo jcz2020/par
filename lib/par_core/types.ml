@@ -511,11 +511,11 @@ module type LLM_SERVICE = sig
   val create : llm_provider_config -> (t, error_category) result
 
   val complete :
-    t -> model_config -> conversation ->
+    t -> model_config -> tool_binding list -> conversation ->
     (llm_response, error_category) result
 
   val stream :
-    t -> model_config -> conversation -> stream_config ->
+    t -> model_config -> tool_binding list -> conversation -> stream_config ->
     (llm_response_chunk -> unit) ->
     (stream_complete, error_category) result
 
@@ -535,8 +535,8 @@ module type EVENT_BUS_SERVICE = sig
 end
 
 type llm_service = {
-  complete_fn : model_config -> conversation -> (llm_response, error_category) result;
-  stream_fn : model_config -> conversation -> stream_config ->
+  complete_fn : model_config -> tool_binding list -> conversation -> (llm_response, error_category) result;
+  stream_fn : model_config -> tool_binding list -> conversation -> stream_config ->
     (llm_response_chunk -> unit) ->
     (stream_complete, error_category) result;
   close_fn : unit -> unit;

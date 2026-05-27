@@ -181,8 +181,8 @@ end
 
 let create ?(persistence = noop_persistence)
            ?(event_bus = (module Noop_event_bus : EVENT_BUS_SERVICE))
-           ?(llm = { complete_fn = (fun _ _ -> Result.Error (Internal "LLM not initialized"));
-                      stream_fn = (fun _ _ _ _ -> Result.Error (Internal "LLM not initialized"));
+           ?(llm = { complete_fn = (fun _ _tools _ -> Result.Error (Internal "LLM not initialized"));
+                      stream_fn = (fun _ _tools _ _ _ -> Result.Error (Internal "LLM not initialized"));
                       close_fn = ignore })
            ~config switch =
   let semaphore = Eio.Semaphore.make config.default_quota.max_concurrent_tasks in

@@ -117,7 +117,14 @@ let extract_system_prompt conversation =
   let system_opt = if system_text = "" then None else Some system_text in
   (system_opt, { conversation with messages = rest })
 
-let build_request_body ~model_config ~conversation ~stream =
+let tool_binding_to_json (tb : tool_binding) =
+  `Assoc [
+    ("name", `String tb.name);
+    ("description", `String tb.description);
+    ("input_schema", tb.input_schema);
+  ]
+
+let build_request_body ~model_config ~tools ~conversation ~stream =
   let system_text, conv = extract_system_prompt conversation in
   let fields =
     [ ("model", `String model_config.model_name)
@@ -140,6 +147,10 @@ let build_request_body ~model_config ~conversation ~stream =
     | None -> fields
   in
   let fields = if stream then ("stream", `Bool true) :: fields else fields in
+  let fields = if tools <> [] then
+    ("tools", `List (List.map tool_binding_to_json tools)) :: fields
+  else fields
+  in
   Yojson.Safe.to_string (`Assoc fields)
 
 (* -------------------------------------------------------------------------- *)
@@ -435,12 +446,12 @@ let parse_stream_events events callback =
 (* §8.8 LLM_SERVICE implementation                                            *)
 (* -------------------------------------------------------------------------- *)
 
-let complete t model_config conversation =
+let complete t model_config tools conversation =
   match t.net with
   | None -> Result.Error (Internal "Network not initialized; call set_network first")
   | Some net ->
     let url = parse_url t.base_url in
-    let body = build_request_body ~model_config ~conversation ~stream:false in
+    let body = build_request_body ~model_config ~tools ~conversation ~stream:false in
     let request =
       build_http_request ~host:url.host ~path:url.path ~api_key:t.api_key ~body
     in
@@ -458,12 +469,12 @@ let complete t model_config conversation =
       | Failure msg -> Result.Error (Invalid_input msg)
       | exn -> Result.Error (Internal (Printexc.to_string exn)) )
 
-let stream t model_config conversation _stream_config callback =
+let stream t model_config tools conversation _stream_config callback =
   match t.net with
   | None -> Result.Error (Internal "Network not initialized; call set_network first")
   | Some net ->
     let url = parse_url t.base_url in
-    let body = build_request_body ~model_config ~conversation ~stream:true in
+    let body = build_request_body ~model_config ~tools ~conversation ~stream:true in
     let request =
       build_http_request ~host:url.host ~path:url.path ~api_key:t.api_key ~body
     in

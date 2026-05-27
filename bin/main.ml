@@ -147,11 +147,11 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
      | Error e ->
        Printf.eprintf "Error creating OpenAI provider: %s\n" (error_category_to_string e);
        exit 1
-     | Ok t ->
-       Par_openai.Openai_provider.set_network t net_gen;
-       { complete_fn = (fun mc conv -> Par_openai.Openai_provider.complete t mc conv);
-         stream_fn = (fun mc conv sc cb -> Par_openai.Openai_provider.stream t mc conv sc cb);
-         close_fn = (fun () -> Par_openai.Openai_provider.close t) })
+      | Ok t ->
+        Par_openai.Openai_provider.set_network t net_gen;
+        { complete_fn = (fun mc tools conv -> Par_openai.Openai_provider.complete t mc tools conv);
+          stream_fn = (fun mc tools conv sc cb -> Par_openai.Openai_provider.stream t mc tools conv sc cb);
+          close_fn = (fun () -> Par_openai.Openai_provider.close t) })
   | `Anthropic ->
     let cfg = Anthropic { api_key = api_key_val; base_url = api_base_val } in
     (match Par_anthropic.Anthropic_provider.create cfg with
@@ -160,8 +160,8 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
        exit 1
      | Ok t ->
        Par_anthropic.Anthropic_provider.set_network t net_gen;
-       { complete_fn = (fun mc conv -> Par_anthropic.Anthropic_provider.complete t mc conv);
-         stream_fn = (fun mc conv sc cb -> Par_anthropic.Anthropic_provider.stream t mc conv sc cb);
+       { complete_fn = (fun mc tools conv -> Par_anthropic.Anthropic_provider.complete t mc tools conv);
+         stream_fn = (fun mc tools conv sc cb -> Par_anthropic.Anthropic_provider.stream t mc tools conv sc cb);
          close_fn = (fun () -> Par_anthropic.Anthropic_provider.close t) })
 
 let make_runtime_config persistence_val =
@@ -172,7 +172,135 @@ let make_runtime_config persistence_val =
     shutdown = Runtime.default_shutdown_config;
     llm_providers = [] }
 
-let make_agent_config id prompt provider_tag model temp max_iter =
+(* -------------------------------------------------------------------------- *)
+(* Built-in tools                                                              *)
+(* -------------------------------------------------------------------------- *)
+
+let builtin_tools ~switch =
+  let open Types in
+  let token = Cancellation.create_token switch in
+
+  (* calculator: evaluates arithmetic expressions *)
+  let calculator =
+    { name = "calculator"
+    ; description = "Evaluate a mathematical expression and return the numeric result. \
+                     Input: {\"expression\": \"2 + 3 * 4\"}. Supports +, -, *, /, parentheses."
+    ; input_schema = `Assoc
+        [ ("type", `String "object")
+        ; ("properties", `Assoc
+            [("expression", `Assoc [("type", `String "string"); ("description", `String "Math expression to evaluate")])])
+        ; ("required", `List [`String "expression"])
+        ]
+    ; handler = (fun input _tok ->
+        let expr = match Yojson.Safe.Util.(input |> member "expression" |> to_string_option) with
+          | Some e -> e | None -> ""
+        in
+        let ops = [("+", ( +. )); ("-", ( -. )); ("*", ( *. )); ("/", ( /. ))] in
+        let clean = String.trim expr in
+        if clean = "" then
+          Error { category = Invalid_input "Empty expression"; message = "Empty"; retryable = false; metadata = [] }
+        else
+          (try
+            (* Use OCaml's expression parser via a safe subset *)
+            let tokens = ref [] in
+            let buf = Buffer.create 16 in
+            let flush_buf () =
+              if Buffer.length buf > 0 then
+                (tokens := Buffer.contents buf :: !tokens; Buffer.clear buf)
+            in
+            String.iter (fun c ->
+              if c = ' ' then flush_buf ()
+              else if List.exists (fun (op, _) -> String.make 1 c = op) ops then begin
+                flush_buf ();
+                tokens := String.make 1 c :: !tokens
+              end else Buffer.add_char buf c
+            ) clean;
+            flush_buf ();
+            let toks = List.filter (fun s -> s <> "") !tokens in
+            (* Simple recursive descent for +/- with *// precedence *)
+            let parse_num s =
+              match float_of_string_opt s with
+              | Some f -> f
+              | None -> 0.0
+            in
+            let rec parse_addsub acc = function
+              | [] -> acc
+              | "+" :: rest ->
+                let (v, rest') = collect_muldiv rest in
+                parse_addsub (acc +. v) rest'
+              | "-" :: rest ->
+                let (v, rest') = collect_muldiv rest in
+                parse_addsub (acc -. v) rest'
+              | _ :: _ as rest ->
+                let (v, rest') = collect_muldiv rest in
+                parse_addsub v rest'
+            and collect_muldiv toks =
+              let rec gather acc toks =
+                match toks with
+                | "*" :: n :: rest -> gather (acc *. parse_num n) rest
+                | "/" :: n :: rest -> gather (acc /. parse_num n) rest
+                | "+" :: _ | "-" :: _ | [] -> (acc, toks)
+                | n :: rest -> gather (parse_num n) rest
+              in
+              match toks with
+              | n :: rest -> gather (parse_num n) rest
+              | [] -> (0.0, [])
+            in
+            let r = parse_addsub 0.0 toks in
+            if Float.is_integer r then
+              Success (`Float (Float.of_int (int_of_float r)))
+            else
+              Success (`Float r)
+          with _ ->
+            Error { category = Invalid_input "Failed to parse expression"; message = "Parse error"; retryable = false; metadata = [] }))
+    ; permission = Allow
+    ; timeout = Some 5.0
+    ; concurrency_limit = None
+    }
+  in
+
+  (* get_time: returns current UTC time *)
+  let get_time =
+    { name = "get_time"
+    ; description = "Get the current date and time in UTC. Input: {}"
+    ; input_schema = `Assoc [("type", `String "object"); ("properties", `Assoc [])]
+    ; handler = (fun _input _tok ->
+        let tm = Unix.gmtime (Unix.time ()) in
+        let iso = Printf.sprintf "%04d-%02d-%02dT%02d:%02d:%02dZ"
+          (1900 + tm.Unix.tm_year) (1 + tm.Unix.tm_mon) tm.Unix.tm_mday
+          tm.Unix.tm_hour tm.Unix.tm_min tm.Unix.tm_sec
+        in
+        Success (`String iso))
+    ; permission = Allow
+    ; timeout = Some 2.0
+    ; concurrency_limit = None
+    }
+  in
+
+  (* echo: returns the input as-is *)
+  let echo =
+    { name = "echo"
+    ; description = "Echo back the input text. Input: {\"text\": \"...\"}"
+    ; input_schema = `Assoc
+        [ ("type", `String "object")
+        ; ("properties", `Assoc [("text", `Assoc [("type", `String "string")])])
+        ; ("required", `List [`String "text"])
+        ]
+    ; handler = (fun input _tok ->
+        let txt = match Yojson.Safe.Util.(input |> member "text" |> to_string_option) with
+          | Some s -> s | None -> Yojson.Safe.to_string input
+        in
+        Success (`String txt))
+    ; permission = Allow
+    ; timeout = Some 2.0
+    ; concurrency_limit = None
+    }
+  in
+
+  ignore token;
+  [calculator; get_time; echo]
+
+let make_agent_config id prompt provider_tag model temp max_iter tools =
   { Types.
     id; system_prompt = prompt;
     model = {
@@ -180,7 +308,7 @@ let make_agent_config id prompt provider_tag model temp max_iter =
       model_name = model; api_base = None; temperature = temp;
       max_tokens = None; top_p = None; stop_sequences = None;
     };
-    tools = []; max_iterations = max_iter; middleware = [];
+    tools; max_iterations = max_iter; middleware = [];
     retry_policy = None; context_strategy = None; resource_quota = None }
 
 let print_error (e : Types.error_category) =
@@ -242,11 +370,12 @@ let cmd_run persistence_val db_path_val db_uri_val provider_val
   match Runtime.create ~persistence:pers ~llm ~config switch with
   | Error e -> die_error e
   | Ok rt ->
-    let agent = make_agent_config agent_id_val prompt provider_tag model_val temp max_iter in
+    let tools = builtin_tools ~switch in
+    let agent = make_agent_config agent_id_val prompt provider_tag model_val temp max_iter tools in
     (match Runtime.register_agent rt agent with
      | Error e -> die_error e
      | Ok () ->
-       repl rt agent_id_val;
+        repl rt agent_id_val;
        ignore (Runtime.close rt))
 
 let term_run =
@@ -276,7 +405,8 @@ let cmd_invoke persistence_val db_path_val db_uri_val provider_val
   match Runtime.create ~persistence:pers ~llm ~config switch with
   | Error e -> die (error_to_json e)
   | Ok rt ->
-    let agent = make_agent_config agent_id_val "" provider_tag model_val temp 10 in
+    let tools = builtin_tools ~switch in
+    let agent = make_agent_config agent_id_val "" provider_tag model_val temp 10 tools in
     (match Runtime.register_agent rt agent with
      | Error e -> die (error_to_json e)
      | Ok () ->
@@ -412,7 +542,13 @@ let cmd_workflow_submit persistence_val db_path_val db_uri_val provider_val
   match Runtime.create ~persistence:pers ~llm ~config switch with
   | Error e -> die (error_to_json e)
   | Ok rt ->
-    let agent = make_agent_config "default-agent" "You are a helpful assistant." provider_tag model_val temp max_iter in
+    let tools = builtin_tools ~switch in
+    let prompt = "You are a helpful assistant. You have access to these tools:\n\
+                  - calculator: evaluate math expressions like \"2 + 3 * 4\"\n\
+                  - get_time: get current UTC date/time\n\
+                  - echo: echo back text\n\
+                  Use tools when they are helpful." in
+    let agent = make_agent_config "default-agent" prompt provider_tag model_val temp max_iter tools in
     (match Runtime.register_agent rt agent with
      | Error e -> die (error_to_json e)
      | Ok () ->

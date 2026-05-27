@@ -101,7 +101,7 @@ let apply_summarize max_tokens summary_model conv llm_opt =
           ];
           metadata = [];
         } in
-        (match llm.complete_fn model summary_conv with
+        (match llm.complete_fn model [] summary_conv with
          | Ok resp ->
            (match resp.text with
             | Some summary_text ->
