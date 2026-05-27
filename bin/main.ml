@@ -9,11 +9,6 @@ let persistence_arg =
   Arg.(value & opt (some string) None &
     info [ "persistence" ] ~docv:"BACKEND" ~doc:"Storage backend: sqlite|postgres (default: sqlite)")
 
-let db_path =
-  let open Cmdliner in
-  Arg.(value & opt (some string) None &
-    info [ "db-path" ] ~docv:"PATH" ~doc:"SQLite database path (default: par.db)")
-
 let db_uri =
   let open Cmdliner in
   Arg.(value & opt (some string) None &
@@ -24,60 +19,40 @@ let provider_arg =
   Arg.(value & opt (some string) None &
     info [ "provider" ] ~docv:"PROVIDER" ~doc:"LLM provider: openai|anthropic (default: openai)")
 
-let api_key =
+let api_key_arg =
   let open Cmdliner in
-  Arg.(required & opt (some string) None &
-    info [ "api-key" ] ~docv:"KEY" ~doc:"API key for LLM provider")
+  Arg.(value & opt (some string) None &
+    info [ "api-key" ] ~docv:"KEY" ~doc:"API key for LLM provider (overrides config)")
 
 let api_base =
   let open Cmdliner in
   Arg.(value & opt (some string) None &
-    info [ "api-base" ] ~docv:"URL" ~doc:"Custom API base URL")
+    info [ "api-base" ] ~docv:"URL" ~doc:"Custom API base URL (overrides config)")
 
 let model_name =
   let open Cmdliner in
-  Arg.(value & opt string "gpt-4" &
-    info [ "model" ] ~docv:"NAME" ~doc:"Model name (default: gpt-4)")
+  Arg.(value & opt (some string) None &
+    info [ "model" ] ~docv:"NAME" ~doc:"Model name (overrides config)")
 
 let system_prompt =
   let open Cmdliner in
-  Arg.(value & opt string "You are a helpful assistant." &
-    info [ "system-prompt" ] ~docv:"PROMPT" ~doc:"Agent system prompt")
-
-let agent_id =
-  let open Cmdliner in
-  Arg.(value & opt string "default-agent" &
-    info [ "agent-id" ] ~docv:"ID" ~doc:"Agent ID (default: default-agent)")
+  Arg.(value & opt (some string) None &
+    info [ "system-prompt" ] ~docv:"PROMPT" ~doc:"Agent system prompt (overrides config)")
 
 let max_iterations =
   let open Cmdliner in
   Arg.(value & opt int 10 &
     info [ "max-iterations" ] ~docv:"N" ~doc:"Max ReAct iterations (default: 10)")
 
-let temperature =
+let temperature_arg =
   let open Cmdliner in
-  Arg.(value & opt float 0.7 &
-    info [ "temperature" ] ~docv:"FLOAT" ~doc:"Temperature (default: 0.7)")
+  Arg.(value & opt (some float) None &
+    info [ "temperature" ] ~docv:"FLOAT" ~doc:"Temperature (overrides config)")
 
-let message_opt =
+let question_arg =
   let open Cmdliner in
-  Arg.(required & opt (some string) None &
-    info [ "message"; "m" ] ~docv:"MSG" ~doc:"Message to send to the agent")
-
-let task_id_arg =
-  let open Cmdliner in
-  Arg.(required & opt (some string) None &
-    info [ "task-id" ] ~docv:"ID" ~doc:"Task ID")
-
-let run_id_arg =
-  let open Cmdliner in
-  Arg.(required & opt (some string) None &
-    info [ "run-id" ] ~docv:"ID" ~doc:"Workflow run ID")
-
-let workflow_file =
-  let open Cmdliner in
-  Arg.(required & opt (some string) None &
-    info [ "workflow-file" ] ~docv:"PATH" ~doc:"Path to workflow JSON file")
+  Arg.(required & pos 0 (some string) None &
+    info [] ~docv:"QUESTION" ~doc:"Question to ask")
 
 (* -------------------------------------------------------------------------- *)
 (* Shared helpers                                                             *)
@@ -91,18 +66,6 @@ let error_category_to_string (e : Types.error_category) =
   | Types.Rate_limited -> "Rate limited"
   | Types.Permission_denied s -> Printf.sprintf "Permission denied: %s" s
   | Types.Internal s -> Printf.sprintf "Internal error: %s" s
-
-let resolve_persistence_config backend db_path_val db_uri_val =
-  match backend with
-  | Some "postgres" ->
-    let uri = match db_uri_val with Some u -> u | None -> "postgresql://localhost/par" in
-    `Postgresql uri
-  | Some "sqlite" | None ->
-    let path = match db_path_val with Some p -> p | None -> "par.db" in
-    `Sqlite path
-  | Some other ->
-    Printf.eprintf "Error: unknown persistence backend '%s'\n" other;
-    exit 1
 
 let make_sqlite_persistence db_path =
   match Par_sqlite.Sqlite_persistence.create db_path with
@@ -132,25 +95,14 @@ let make_postgres_persistence conninfo =
       close_fn = (fun () -> Par_postgres.Postgres_persistence.close t);
     }
 
-let make_persistence_service backend db_path_val db_uri_val =
-  match backend with
-  | Some "postgres" ->
+let make_persistence_service persistence _backend db_uri_val =
+  match String.lowercase_ascii persistence with
+  | "postgres" ->
     let conninfo = match db_uri_val with Some u -> u | None -> "postgresql://localhost/par" in
     make_postgres_persistence conninfo
-  | Some "sqlite" | None ->
-    let path = match db_path_val with Some p -> p | None -> "par.db" in
+  | _ ->
+    let path = "par.db" in
     make_sqlite_persistence path
-  | Some other ->
-    Printf.eprintf "Error: unknown persistence backend '%s'\n" other;
-    exit 1
-
-let resolve_provider provider_val =
-  match provider_val with
-  | Some "anthropic" -> `Anthropic
-  | Some "openai" | None -> `Openai
-  | Some other ->
-    Printf.eprintf "Error: unknown provider '%s'\n" other;
-    exit 1
 
 let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | `Unix > `Generic ] Eio.Net.ty Eio.Resource.t) =
   let open Types in
@@ -195,7 +147,6 @@ let builtin_tools ~switch ~net =
   let open Types in
   let token = Cancellation.create_token switch in
 
-  (* calculator: evaluates arithmetic expressions *)
   let calculator =
     { name = "calculator"
     ; description = "Evaluate a mathematical expression and return the numeric result. \
@@ -216,65 +167,62 @@ let builtin_tools ~switch ~net =
           Error { category = Invalid_input "Empty expression"; message = "Empty"; retryable = false; metadata = [] }
         else
           (try
-            (* Use OCaml's expression parser via a safe subset *)
-            let tokens = ref [] in
-            let buf = Buffer.create 16 in
-            let flush_buf () =
-              if Buffer.length buf > 0 then
-                (tokens := Buffer.contents buf :: !tokens; Buffer.clear buf)
-            in
-            String.iter (fun c ->
-              if c = ' ' then flush_buf ()
-              else if List.exists (fun (op, _) -> String.make 1 c = op) ops then begin
-                flush_buf ();
-                tokens := String.make 1 c :: !tokens
-              end else Buffer.add_char buf c
-            ) clean;
-            flush_buf ();
-            let toks = List.filter (fun s -> s <> "") !tokens in
-            (* Simple recursive descent for +/- with *// precedence *)
-            let parse_num s =
-              match float_of_string_opt s with
-              | Some f -> f
-              | None -> 0.0
-            in
-            let rec parse_addsub acc = function
-              | [] -> acc
-              | "+" :: rest ->
-                let (v, rest') = collect_muldiv rest in
-                parse_addsub (acc +. v) rest'
-              | "-" :: rest ->
-                let (v, rest') = collect_muldiv rest in
-                parse_addsub (acc -. v) rest'
-              | _ :: _ as rest ->
-                let (v, rest') = collect_muldiv rest in
-                parse_addsub v rest'
-            and collect_muldiv toks =
-              let rec gather acc toks =
-                match toks with
-                | "*" :: n :: rest -> gather (acc *. parse_num n) rest
-                | "/" :: n :: rest -> gather (acc /. parse_num n) rest
-                | "+" :: _ | "-" :: _ | [] -> (acc, toks)
-                | n :: rest -> gather (parse_num n) rest
-              in
-              match toks with
-              | n :: rest -> gather (parse_num n) rest
-              | [] -> (0.0, [])
-            in
-            let r = parse_addsub 0.0 toks in
-            if Float.is_integer r then
-              Success (`Float (Float.of_int (int_of_float r)))
-            else
-              Success (`Float r)
-          with _ ->
-            Error { category = Invalid_input "Failed to parse expression"; message = "Parse error"; retryable = false; metadata = [] }))
+             let tokens = ref [] in
+             let buf = Buffer.create 16 in
+             let flush_buf () =
+               if Buffer.length buf > 0 then
+                 (tokens := Buffer.contents buf :: !tokens; Buffer.clear buf)
+             in
+             String.iter (fun c ->
+               if c = ' ' then flush_buf ()
+               else if List.exists (fun (op, _) -> String.make 1 c = op) ops then begin
+                 flush_buf ();
+                 tokens := String.make 1 c :: !tokens
+               end else Buffer.add_char buf c
+             ) clean;
+             flush_buf ();
+             let toks = List.filter (fun s -> s <> "") !tokens in
+             let parse_num s =
+               match float_of_string_opt s with
+               | Some f -> f
+               | None -> 0.0
+             in
+             let rec parse_addsub acc = function
+               | [] -> acc
+               | "+" :: rest ->
+                 let (v, rest') = collect_muldiv rest in
+                 parse_addsub (acc +. v) rest'
+               | "-" :: rest ->
+                 let (v, rest') = collect_muldiv rest in
+                 parse_addsub (acc -. v) rest'
+               | _ :: _ as rest ->
+                 let (v, rest') = collect_muldiv rest in
+                 parse_addsub v rest'
+             and collect_muldiv toks =
+               let rec gather acc toks =
+                 match toks with
+                 | "*" :: n :: rest -> gather (acc *. parse_num n) rest
+                 | "/" :: n :: rest -> gather (acc /. parse_num n) rest
+                 | "+" :: _ | "-" :: _ | [] -> (acc, toks)
+                 | n :: rest -> gather (parse_num n) rest
+               in
+               match toks with
+               | n :: rest -> gather (parse_num n) rest
+               | [] -> (0.0, [])
+             in
+             let r = parse_addsub 0.0 toks in
+             if Float.is_integer r then
+               Success (`Float (Float.of_int (int_of_float r)))
+             else
+               Success (`Float r)
+           with _ ->
+             Error { category = Invalid_input "Failed to parse expression"; message = "Parse error"; retryable = false; metadata = [] }))
     ; permission = Allow
     ; timeout = Some 5.0
     ; concurrency_limit = None
     }
   in
 
-  (* get_time: returns current UTC time *)
   let get_time =
     { name = "get_time"
     ; description = "Get the current date and time in UTC. Input: {}"
@@ -292,7 +240,6 @@ let builtin_tools ~switch ~net =
     }
   in
 
-  (* echo: returns the input as-is *)
   let echo =
     { name = "echo"
     ; description = "Echo back the input text. Input: {\"text\": \"...\"}"
@@ -312,7 +259,6 @@ let builtin_tools ~switch ~net =
     }
   in
 
-  (* generate_uuid: UUID v4 *)
   let generate_uuid_tool =
     { name = "generate_uuid"
     ; description = "Generate a random UUID v4. Input: {}"
@@ -326,7 +272,6 @@ let builtin_tools ~switch ~net =
     }
   in
 
-  (* hash_text: hash of text *)
   let hash_text =
     { name = "hash_text"
     ; description = "Compute a hash of text. Input: {\"text\": \"...\", \"algorithm\": \"sha256\"}. \
@@ -358,7 +303,6 @@ let builtin_tools ~switch ~net =
     }
   in
 
-  (* generate_password: random secure password *)
   let generate_password_tool =
     { name = "generate_password"
     ; description = "Generate a random password. Input: {\"length\": 16, \"include_symbols\": true}"
@@ -393,7 +337,6 @@ let builtin_tools ~switch ~net =
     }
   in
 
-  (* string_stats: word/char/line count *)
   let string_stats =
     { name = "string_stats"
     ; description = "Count characters, words, and lines in text. Input: {\"text\": \"...\"}"
@@ -421,7 +364,6 @@ let builtin_tools ~switch ~net =
     }
   in
 
-  (* json_format: pretty print JSON *)
   let json_format =
     { name = "json_format"
     ; description = "Format and validate a JSON string. Input: {\"json\": \"{\\\"key\\\": \\\"value\\\"}\"}"
@@ -445,7 +387,6 @@ let builtin_tools ~switch ~net =
     }
   in
 
-  (* convert_temperature: C/F/K conversion *)
   let convert_temperature_tool =
     { name = "convert_temperature"
     ; description = "Convert temperature between Celsius, Fahrenheit, and Kelvin. \
@@ -492,7 +433,6 @@ let builtin_tools ~switch ~net =
     }
   in
 
-  (* url_encode: URL encode/decode *)
   let url_encode_tool =
     { name = "url_encode"
     ; description = "URL-encode or URL-decode a string. Input: {\"text\": \"hello world\", \"decode\": false}"
@@ -546,11 +486,6 @@ let builtin_tools ~switch ~net =
     }
   in
 
-  (* -------------------------------------------------------------------------- *)
-  (* HTTP helper for web tools                                                  *)
-  (* -------------------------------------------------------------------------- *)
-
-  (* Hard cap for HTTP response body: 10 MB *)
   let max_download_size = 10 * 1024 * 1024 in
 
   let default_headers = Http.Header.of_list [("user-agent", "P-A-R/0.1 (OCaml agent runtime)")] in
@@ -611,10 +546,6 @@ let builtin_tools ~switch ~net =
          Error ("HTTP request failed: " ^ Printexc.to_string exn))
   in
 
-  (* -------------------------------------------------------------------------- *)
-  (* fetch_url: fetch raw content from a URL                                    *)
-  (* -------------------------------------------------------------------------- *)
-
   let fetch_url_tool =
     { name = "fetch_url"
     ; description = "Fetch the content of a URL and return the raw text. \
@@ -648,19 +579,15 @@ let builtin_tools ~switch ~net =
                ("url", `String url);
                ("status", `Int status);
                ("content", `String result);
-               ("content_length", `Int (String.length result));
-                ("truncated", `Bool truncated);
-              ]))
+                ("content_length", `Int (String.length result));
+                 ("truncated", `Bool truncated);
+               ]))
     )
     ; permission = Allow
     ; timeout = Some 15.0
     ; concurrency_limit = None
     }
   in
-
-  (* -------------------------------------------------------------------------- *)
-  (* read_webpage: fetch URL and extract readable text from HTML                *)
-  (* -------------------------------------------------------------------------- *)
 
   let read_webpage_tool =
     { name = "read_webpage"
@@ -712,18 +639,14 @@ let builtin_tools ~switch ~net =
                  ("title", `String title);
                  ("text", `String result);
                  ("text_length", `Int (String.length result));
-                 ("truncated", `Bool truncated);
-                ]))
+                  ("truncated", `Bool truncated);
+                 ]))
     )
     ; permission = Allow
     ; timeout = Some 15.0
     ; concurrency_limit = None
     }
   in
-
-  (* -------------------------------------------------------------------------- *)
-  (* web_search: search DuckDuckGo and extract results                          *)
-  (* -------------------------------------------------------------------------- *)
 
   let web_search_tool =
     { name = "web_search"
@@ -790,8 +713,8 @@ let builtin_tools ~switch ~net =
              Success (`Assoc [
                ("query", `String query);
                ("results", `List json_results);
-               ("result_count", `Int (List.length json_results));
-              ]))
+                ("result_count", `Int (List.length json_results));
+               ]))
     )
     ; permission = Allow
     ; timeout = Some 15.0
@@ -829,23 +752,73 @@ let make_agent_config id prompt provider_tag model temp max_iter tools =
 let print_error (e : Types.error_category) =
   Printf.eprintf "Error: %s\n" (error_category_to_string e)
 
-let error_to_json (e : Types.error_category) =
-  `Assoc [ ("error", `String (error_category_to_string e)) ]
-
 let print_json json =
   Printf.printf "%s\n" (Yojson.Safe.pretty_to_string ~std:true json)
 
-let die json = print_json json; exit 1
-let die_error e = print_error e; exit 1
+(* -------------------------------------------------------------------------- *)
+(* Config merge: CLI overrides on top of file config                          *)
+(* -------------------------------------------------------------------------- *)
+
+let merge_config
+    (cfg : Par_config.config)
+    provider_opt api_key_opt api_base_opt model_opt
+    persistence_opt db_uri_opt temp_opt prompt_opt =
+  { Par_config.
+    provider = (match provider_opt with Some p -> p | None -> cfg.provider);
+    api_key = (match api_key_opt with Some k -> k | None -> cfg.api_key);
+    api_base = (match api_base_opt with Some b -> Some b | None -> cfg.api_base);
+    model = (match model_opt with Some m -> m | None -> cfg.model);
+    persistence = (match persistence_opt with Some p -> p | None -> cfg.persistence);
+    db_uri = (match db_uri_opt with Some u -> Some u | None -> cfg.db_uri);
+    temperature = (match temp_opt with Some t -> t | None -> cfg.temperature);
+    system_prompt = (match prompt_opt with Some p -> p | None -> cfg.system_prompt);
+  }
+
+let require_config () =
+  match Par_config.load () with
+  | Some cfg -> cfg
+  | None ->
+    Printf.eprintf "未找到配置文件。请先运行 `par config` 进行配置。\n";
+    exit 1
+
+let ensure_rng () =
+  Mirage_crypto_rng_unix.use_default ()
+
+let setup_runtime cfg ~f =
+  ensure_rng ();
+  let pers = make_persistence_service cfg.Par_config.persistence
+               (Par_config.resolve_persistence cfg) cfg.Par_config.db_uri in
+  let persistence_config = Par_config.to_persistence_config cfg in
+  let provider_tag = Par_config.to_provider_tag cfg in
+  let config = make_runtime_config persistence_config in
+  Eio_main.run @@ fun env ->
+  Eio.Switch.run @@ fun switch ->
+  let net = Eio.Stdenv.net env in
+  let llm = make_llm_service provider_tag cfg.Par_config.api_key cfg.Par_config.api_base net in
+  match Runtime.create ~persistence:pers ~llm ~config switch with
+  | Error e ->
+    Printf.eprintf "Error creating runtime: %s\n" (error_category_to_string e);
+    exit 1
+  | Ok rt ->
+    let tools = builtin_tools ~switch ~net in
+    let agent = make_agent_config "default-agent" cfg.Par_config.system_prompt
+                  provider_tag cfg.Par_config.model cfg.Par_config.temperature 10 tools in
+    (match Runtime.register_agent rt agent with
+     | Error e ->
+       Printf.eprintf "Error registering agent: %s\n" (error_category_to_string e);
+       exit 1
+     | Ok () ->
+       f rt;
+       ignore (Runtime.close rt))
 
 (* -------------------------------------------------------------------------- *)
-(* REPL loop for 'par run'                                                    *)
+(* REPL loop                                                                  *)
 (* -------------------------------------------------------------------------- *)
 
 let repl rt agent_id_val =
-  Printf.printf "par> Enter messages (Ctrl+D to exit)\n";
+  Printf.printf "输入消息开始对话（Ctrl+D 退出）\n";
   let rec loop () =
-    Printf.printf "par> ";
+    Printf.printf "> ";
     flush stdout;
     (try
        match input_line stdin with
@@ -859,328 +832,73 @@ let repl rt agent_id_val =
              | None -> print_json (Types.llm_response_to_yojson resp));
             flush stdout);
          loop ()
-     with End_of_file -> Printf.printf "\nGoodbye.\n")
+     with End_of_file -> Printf.printf "\n再见！\n")
   in
   loop ()
 
 (* -------------------------------------------------------------------------- *)
-(* 'par run' subcommand                                                       *)
+(* 'par' default command — REPL                                               *)
 (* -------------------------------------------------------------------------- *)
 
-let ensure_rng () =
-  Mirage_crypto_rng_unix.use_default ()
+let cmd_chat
+    provider_opt api_key_opt api_base_opt model_opt
+    persistence_opt db_uri_opt temp_opt prompt_opt _max_iter =
+  let cfg = require_config () in
+  let cfg = merge_config cfg provider_opt api_key_opt api_base_opt model_opt
+              persistence_opt db_uri_opt temp_opt prompt_opt in
+  setup_runtime cfg ~f:(fun rt -> repl rt "default-agent")
 
-let cmd_run persistence_val db_path_val db_uri_val provider_val
-      api_key_val api_base_val model_val prompt agent_id_val
-      max_iter temp =
-  ensure_rng ();
-  let pers = make_persistence_service persistence_val db_path_val db_uri_val in
-  let persistence_config = resolve_persistence_config persistence_val db_path_val db_uri_val in
-  let provider_tag = resolve_provider provider_val in
-  let config = make_runtime_config persistence_config in
-  Eio_main.run @@ fun env ->
-  Eio.Switch.run @@ fun switch ->
-  let net = Eio.Stdenv.net env in
-  let llm = make_llm_service provider_tag api_key_val api_base_val net in
-  match Runtime.create ~persistence:pers ~llm ~config switch with
-  | Error e -> die_error e
-  | Ok rt ->
-    let tools = builtin_tools ~switch ~net in
-    let agent = make_agent_config agent_id_val prompt provider_tag model_val temp max_iter tools in
-    (match Runtime.register_agent rt agent with
-     | Error e -> die_error e
-     | Ok () ->
-        repl rt agent_id_val;
-       ignore (Runtime.close rt))
-
-let term_run =
+let term_chat =
   let open Cmdliner.Term in
-  const cmd_run
-  $ persistence_arg $ db_path $ db_uri $ provider_arg
-  $ api_key $ api_base $ model_name $ system_prompt $ agent_id
-  $ max_iterations $ temperature
-
-let info_run = Cmdliner.Cmd.info "run" ~doc:"Start runtime and run agent interactively"
+  const cmd_chat
+  $ provider_arg $ api_key_arg $ api_base $ model_name
+  $ persistence_arg $ db_uri $ temperature_arg $ system_prompt $ max_iterations
 
 (* -------------------------------------------------------------------------- *)
-(* 'par invoke' subcommand                                                    *)
+(* 'par config' command — interactive wizard                                  *)
 (* -------------------------------------------------------------------------- *)
 
-let cmd_invoke persistence_val db_path_val db_uri_val provider_val
-      api_key_val api_base_val model_val agent_id_val msg temp =
-  ensure_rng ();
-  let pers = make_persistence_service persistence_val db_path_val db_uri_val in
-  let persistence_config = resolve_persistence_config persistence_val db_path_val db_uri_val in
-  let provider_tag = resolve_provider provider_val in
-  let config = make_runtime_config persistence_config in
-  Eio_main.run @@ fun env ->
-  Eio.Switch.run @@ fun switch ->
-  let net = Eio.Stdenv.net env in
-  let llm = make_llm_service provider_tag api_key_val api_base_val net in
-  match Runtime.create ~persistence:pers ~llm ~config switch with
-  | Error e -> die (error_to_json e)
-  | Ok rt ->
-    let tools = builtin_tools ~switch ~net in
-    let agent = make_agent_config agent_id_val "" provider_tag model_val temp 10 tools in
-    (match Runtime.register_agent rt agent with
-     | Error e -> die (error_to_json e)
-     | Ok () ->
-       (match Runtime.invoke rt ~agent_id:agent_id_val ~message:msg () with
-        | Error e -> die (error_to_json e)
-        | Ok resp ->
-          print_json (Types.llm_response_to_yojson resp);
-          ignore (Runtime.close rt)))
+let cmd_config () =
+  Par_config.run_wizard ()
 
-let term_invoke =
+let term_config =
   let open Cmdliner.Term in
-  const cmd_invoke
-  $ persistence_arg $ db_path $ db_uri $ provider_arg
-  $ api_key $ api_base $ model_name $ agent_id $ message_opt $ temperature
+  const (fun () -> cmd_config ()) $ const ()
 
-let info_invoke = Cmdliner.Cmd.info "invoke" ~doc:"Send a single message to an agent and print response as JSON"
+let info_config = Cmdliner.Cmd.info "config"
+  ~doc:"Configure provider and model settings"
 
 (* -------------------------------------------------------------------------- *)
-(* 'par task submit' subcommand                                               *)
+(* 'par ask' command — single-shot Q&A                                        *)
 (* -------------------------------------------------------------------------- *)
 
-let cmd_task_submit persistence_val db_path_val db_uri_val _provider_val
-      _api_key_val _api_base_val agent_id_val msg =
-  let pers = make_persistence_service persistence_val db_path_val db_uri_val in
-  let persistence_config = resolve_persistence_config persistence_val db_path_val db_uri_val in
-  let config = make_runtime_config persistence_config in
-  Eio_main.run @@ fun _env ->
-  Eio.Switch.run @@ fun switch ->
-  match Runtime.create ~persistence:pers ~config switch with
-  | Error e -> die (error_to_json e)
-  | Ok rt ->
-    let input = Types.Agent_input { agent_id = agent_id_val; message = msg } in
-    let task_id = Runtime.submit_task rt input in
-    print_json (`Assoc [ ("task_id", `String (Types.Task_id.to_string task_id)) ]);
-    ignore (Runtime.close rt)
+let cmd_ask
+    question
+    provider_opt api_key_opt api_base_opt model_opt
+    persistence_opt db_uri_opt temp_opt prompt_opt _max_iter =
+  let cfg = require_config () in
+  let cfg = merge_config cfg provider_opt api_key_opt api_base_opt model_opt
+              persistence_opt db_uri_opt temp_opt prompt_opt in
+  setup_runtime cfg ~f:(fun rt ->
+    match Runtime.invoke rt ~agent_id:"default-agent" ~message:question () with
+    | Error e ->
+      Printf.eprintf "Error: %s\n" (error_category_to_string e);
+      exit 1
+    | Ok resp ->
+      (match resp.Types.text with
+       | Some txt -> Printf.printf "%s\n" txt
+       | None -> print_json (Types.llm_response_to_yojson resp));
+      flush stdout)
 
-let term_task_submit =
+let term_ask =
   let open Cmdliner.Term in
-  const cmd_task_submit
-  $ persistence_arg $ db_path $ db_uri $ provider_arg $ api_key $ api_base
-  $ agent_id $ message_opt
+  const cmd_ask
+  $ question_arg
+  $ provider_arg $ api_key_arg $ api_base $ model_name
+  $ persistence_arg $ db_uri $ temperature_arg $ system_prompt $ max_iterations
 
-let info_task_submit = Cmdliner.Cmd.info "submit" ~doc:"Submit a task to the runtime"
-
-(* -------------------------------------------------------------------------- *)
-(* 'par task status' subcommand                                               *)
-(* -------------------------------------------------------------------------- *)
-
-let cmd_task_status persistence_val db_path_val db_uri_val tid =
-  let pers = make_persistence_service persistence_val db_path_val db_uri_val in
-  let persistence_config = resolve_persistence_config persistence_val db_path_val db_uri_val in
-  let config = make_runtime_config persistence_config in
-  Eio_main.run @@ fun _env ->
-  Eio.Switch.run @@ fun switch ->
-  match Runtime.create ~persistence:pers ~config switch with
-  | Error e -> die (error_to_json e)
-  | Ok rt ->
-    (match Runtime.get_task_status rt tid with
-     | Error e -> die (error_to_json e)
-     | Ok None ->
-       print_json (`Assoc [ ("status", `String "not_found") ]);
-       ignore (Runtime.close rt)
-     | Ok (Some status) ->
-       print_json (`Assoc [ ("status", `String (Types.status_to_string status)) ]);
-       ignore (Runtime.close rt))
-
-let term_task_status =
-  let open Cmdliner.Term in
-  const (fun p db u tid_s ->
-    match Types.Task_id.of_string tid_s with
-    | Error (`Invalid_id s) -> Printf.eprintf "Invalid task ID: %s\n" s; exit 1
-    | Ok tid -> cmd_task_status p db u tid)
-  $ persistence_arg $ db_path $ db_uri $ task_id_arg
-
-let info_task_status = Cmdliner.Cmd.info "status" ~doc:"Get task status"
-
-(* -------------------------------------------------------------------------- *)
-(* 'par task cancel' subcommand                                               *)
-(* -------------------------------------------------------------------------- *)
-
-let cmd_task_cancel persistence_val db_path_val db_uri_val tid =
-  let pers = make_persistence_service persistence_val db_path_val db_uri_val in
-  let persistence_config = resolve_persistence_config persistence_val db_path_val db_uri_val in
-  let config = make_runtime_config persistence_config in
-  Eio_main.run @@ fun _env ->
-  Eio.Switch.run @@ fun switch ->
-  match Runtime.create ~persistence:pers ~config switch with
-  | Error e -> die (error_to_json e)
-  | Ok rt ->
-    (match Runtime.cancel_task rt tid with
-     | Error e -> die (error_to_json e)
-     | Ok () ->
-       print_json (`Assoc [ ("result", `String "cancelled") ]);
-       ignore (Runtime.close rt))
-
-let term_task_cancel =
-  let open Cmdliner.Term in
-  const (fun p db u tid_s ->
-    match Types.Task_id.of_string tid_s with
-    | Error (`Invalid_id s) -> Printf.eprintf "Invalid task ID: %s\n" s; exit 1
-    | Ok tid -> cmd_task_cancel p db u tid)
-  $ persistence_arg $ db_path $ db_uri $ task_id_arg
-
-let info_task_cancel = Cmdliner.Cmd.info "cancel" ~doc:"Cancel a task"
-
-(* -------------------------------------------------------------------------- *)
-(* 'par task' group                                                           *)
-(* -------------------------------------------------------------------------- *)
-
-let cmd_task =
-  let open Cmdliner.Cmd in
-  group (info "task" ~doc:"Task management") [
-    v info_task_submit term_task_submit;
-    v info_task_status term_task_status;
-    v info_task_cancel term_task_cancel;
-  ]
-
-(* -------------------------------------------------------------------------- *)
-(* 'par workflow submit' subcommand                                           *)
-(* -------------------------------------------------------------------------- *)
-
-let cmd_workflow_submit persistence_val db_path_val db_uri_val provider_val
-      api_key_val api_base_val model_val temp max_iter wf_path =
-  ensure_rng ();
-  let pers = make_persistence_service persistence_val db_path_val db_uri_val in
-  let persistence_config = resolve_persistence_config persistence_val db_path_val db_uri_val in
-  let provider_tag = resolve_provider provider_val in
-  let config = make_runtime_config persistence_config in
-  Eio_main.run @@ fun env ->
-  Eio.Switch.run @@ fun switch ->
-  let net = Eio.Stdenv.net env in
-  let llm = make_llm_service provider_tag api_key_val api_base_val net in
-  match Runtime.create ~persistence:pers ~llm ~config switch with
-  | Error e -> die (error_to_json e)
-  | Ok rt ->
-    let tools = builtin_tools ~switch ~net in
-    let prompt = "You are a helpful assistant. You have access to these tools:\n\
-                  - calculator: evaluate math expressions (e.g. \"2 + 3 * 4\")\n\
-                  - get_time: get current UTC date/time\n\
-                  - echo: echo back text\n\
-                  - generate_uuid: generate a random UUID v4\n\
-                  - hash_sha256: compute SHA256 hash of text\n\
-                  - generate_password: generate a random password (configurable length, optional symbols)\n\
-                  - string_stats: count characters, words, lines in text\n\
-                  - json_format: format and validate JSON\n\
-                  - convert_temperature: convert between C/F/K\n\
-                  - url_encode: URL-encode or URL-decode text\n\
-                  Use tools when they are helpful to answer the user's question." in
-    let agent = make_agent_config "default-agent" prompt provider_tag model_val temp max_iter tools in
-    (match Runtime.register_agent rt agent with
-     | Error e -> die (error_to_json e)
-     | Ok () ->
-       let json_str =
-         let ic = open_in wf_path in
-         let n = in_channel_length ic in
-         let s = Bytes.create n in
-         really_input ic s 0 n;
-         close_in ic;
-         Bytes.to_string s
-       in
-       let json = Yojson.Safe.from_string json_str in
-       let workflow : Types.workflow = {
-         id = (match Yojson.Safe.Util.(json |> member "id" |> to_string_option) with
-               | Some s -> s | None -> Types.Task_id.to_string (Types.Task_id.create ()));
-         name = (match Yojson.Safe.Util.(json |> member "name" |> to_string_option) with
-                 | Some s -> s | None -> "unnamed");
-         version = (match Yojson.Safe.Util.(json |> member "version" |> to_int_option) with
-                    | Some v -> v | None -> 1);
-         steps = (match Types.workflow_step_of_yojson
-                        (Yojson.Safe.Util.member "steps" json) with
-                  | Ok s -> s | Error _ -> Types.Sequential []);
-         variables = [];
-         failure_policy = Types.Fail_fast;
-         parallel_limit = 5;
-         timeout = 300.0;
-         on_complete = None;
-       } in
-       (match Runtime.submit_workflow rt workflow with
-        | Error e -> die (error_to_json e)
-        | Ok run_id ->
-          print_json (`Assoc [ ("run_id", `String (Types.Workflow_run_id.to_string run_id)) ]);
-          ignore (Runtime.close rt)))
-
-let term_workflow_submit =
-  let open Cmdliner.Term in
-  const cmd_workflow_submit
-  $ persistence_arg $ db_path $ db_uri $ provider_arg
-  $ api_key $ api_base $ model_name $ temperature $ max_iterations
-  $ workflow_file
-
-let info_workflow_submit = Cmdliner.Cmd.info "submit" ~doc:"Submit a workflow from a JSON file"
-
-(* -------------------------------------------------------------------------- *)
-(* 'par workflow status' subcommand                                           *)
-(* -------------------------------------------------------------------------- *)
-
-let cmd_workflow_status persistence_val db_path_val db_uri_val rid =
-  let pers = make_persistence_service persistence_val db_path_val db_uri_val in
-  let persistence_config = resolve_persistence_config persistence_val db_path_val db_uri_val in
-  let config = make_runtime_config persistence_config in
-  Eio_main.run @@ fun _env ->
-  Eio.Switch.run @@ fun switch ->
-  match Runtime.create ~persistence:pers ~config switch with
-  | Error e -> die (error_to_json e)
-  | Ok rt ->
-    (match Runtime.get_workflow_status rt rid with
-     | Error e -> die (error_to_json e)
-     | Ok status ->
-       print_json (Types.workflow_status_to_yojson status);
-       ignore (Runtime.close rt))
-
-let term_workflow_status =
-  let open Cmdliner.Term in
-  const (fun p db u rid_s ->
-    let rid = Types.Workflow_run_id.of_string rid_s in
-    cmd_workflow_status p db u rid)
-  $ persistence_arg $ db_path $ db_uri $ run_id_arg
-
-let info_workflow_status = Cmdliner.Cmd.info "status" ~doc:"Get workflow run status"
-
-(* -------------------------------------------------------------------------- *)
-(* 'par workflow cancel' subcommand                                           *)
-(* -------------------------------------------------------------------------- *)
-
-let cmd_workflow_cancel persistence_val db_path_val db_uri_val rid =
-  let pers = make_persistence_service persistence_val db_path_val db_uri_val in
-  let persistence_config = resolve_persistence_config persistence_val db_path_val db_uri_val in
-  let config = make_runtime_config persistence_config in
-  Eio_main.run @@ fun _env ->
-  Eio.Switch.run @@ fun switch ->
-  match Runtime.create ~persistence:pers ~config switch with
-  | Error e -> die (error_to_json e)
-  | Ok rt ->
-    (match Runtime.cancel_workflow rt rid with
-     | Error e -> die (error_to_json e)
-     | Ok () ->
-       print_json (`Assoc [ ("result", `String "cancelled") ]);
-       ignore (Runtime.close rt))
-
-let term_workflow_cancel =
-  let open Cmdliner.Term in
-  const (fun p db u rid_s ->
-    let rid = Types.Workflow_run_id.of_string rid_s in
-    cmd_workflow_cancel p db u rid)
-  $ persistence_arg $ db_path $ db_uri $ run_id_arg
-
-let info_workflow_cancel = Cmdliner.Cmd.info "cancel" ~doc:"Cancel a workflow run"
-
-(* -------------------------------------------------------------------------- *)
-(* 'par workflow' group                                                       *)
-(* -------------------------------------------------------------------------- *)
-
-let cmd_workflow =
-  let open Cmdliner.Cmd in
-  group (info "workflow" ~doc:"Workflow management") [
-    v info_workflow_submit term_workflow_submit;
-    v info_workflow_status term_workflow_status;
-    v info_workflow_cancel term_workflow_cancel;
-  ]
+let info_ask = Cmdliner.Cmd.info "ask"
+  ~doc:"Ask a single question and print the answer"
 
 (* -------------------------------------------------------------------------- *)
 (* Root command                                                               *)
@@ -1188,19 +906,17 @@ let cmd_workflow =
 
 let cmd =
   let open Cmdliner.Cmd in
-  group
+  group ~default:term_chat
     (info "par" ~version:"0.1.0"
        ~doc:"P-A-R: Programmable Agent Runtime"
        ~man:[
          `S "DESCRIPTION";
          `P "P-A-R is a Programmable Agent Runtime for building AI agent systems.";
-         `P "Use subcommands to interact with the runtime.";
+         `P "Run 'par' to start a REPL, 'par config' to configure, or 'par ask \"question\"' for one-shot.";
        ])
     [
-      v info_run term_run;
-      v info_invoke term_invoke;
-      cmd_task;
-      cmd_workflow;
+      v info_config term_config;
+      v info_ask term_ask;
     ]
 
 let () =
