@@ -297,8 +297,252 @@ let builtin_tools ~switch =
     }
   in
 
+  (* generate_uuid: UUID v4 *)
+  let generate_uuid_tool =
+    { name = "generate_uuid"
+    ; description = "Generate a random UUID v4. Input: {}"
+    ; input_schema = `Assoc [("type", `String "object"); ("properties", `Assoc [])]
+    ; handler = (fun _input _tok ->
+        let uuid = Uuidm.v4_gen (Random.State.make_self_init ()) () in
+        Success (`String (Uuidm.to_string uuid)))
+    ; permission = Allow
+    ; timeout = Some 1.0
+    ; concurrency_limit = None
+    }
+  in
+
+  (* hash_text: hash of text *)
+  let hash_text =
+    { name = "hash_text"
+    ; description = "Compute a hash of text. Input: {\"text\": \"...\", \"algorithm\": \"sha256\"}. \
+                     Supported: md5, sha1, sha256 (default)."
+    ; input_schema = `Assoc
+        [ ("type", `String "object")
+        ; ("properties", `Assoc
+            [ ("text", `Assoc [("type", `String "string"); ("description", `String "Text to hash")])
+            ; ("algorithm", `Assoc [("type", `String "string"); ("description", `String "md5, sha1, or sha256 (default)")])
+            ])
+        ; ("required", `List [`String "text"])
+        ]
+    ; handler = (fun input _tok ->
+        let txt = match Yojson.Safe.Util.(input |> member "text" |> to_string_option) with
+          | Some s -> s | None -> ""
+        in
+        let algo = match Yojson.Safe.Util.(input |> member "algorithm" |> to_string_option) with
+          | Some a -> String.lowercase_ascii a | None -> "sha256"
+        in
+        let hex =
+          if algo = "md5" then Digest.to_hex (Digest.string txt)
+          else if algo = "sha1" then Digestif.SHA1.to_hex (Digestif.SHA1.digest_string txt)
+          else Digestif.SHA256.to_hex (Digestif.SHA256.digest_string txt)
+        in
+        Success (`Assoc [("hash", `String hex); ("algorithm", `String algo)]))
+    ; permission = Allow
+    ; timeout = Some 2.0
+    ; concurrency_limit = None
+    }
+  in
+
+  (* generate_password: random secure password *)
+  let generate_password_tool =
+    { name = "generate_password"
+    ; description = "Generate a random password. Input: {\"length\": 16, \"include_symbols\": true}"
+    ; input_schema = `Assoc
+        [ ("type", `String "object")
+        ; ("properties", `Assoc
+            [ ("length", `Assoc [("type", `String "integer"); ("description", `String "Password length (default 16)")])
+            ; ("include_symbols", `Assoc [("type", `String "boolean"); ("description", `String "Include !@#$%^&* symbols (default true)")])
+            ])
+        ]
+    ; handler = (fun input _tok ->
+        let len = match Yojson.Safe.Util.(input |> member "length" |> to_int_option) with
+          | Some n -> max 4 (min 128 n)
+          | None -> 16
+        in
+        let with_symbols = match Yojson.Safe.Util.(input |> member "include_symbols" |> to_bool_option) with
+          | Some b -> b | None -> true
+        in
+        let chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+          ^ if with_symbols then "!@#$%^&*" else ""
+        in
+        let chars_len = String.length chars in
+        let rng = Random.State.make_self_init () in
+        let buf = Bytes.create len in
+        for i = 0 to len - 1 do
+          Bytes.set buf i chars.[Random.State.int rng chars_len]
+        done;
+        Success (`String (Bytes.to_string buf)))
+    ; permission = Allow
+    ; timeout = Some 1.0
+    ; concurrency_limit = None
+    }
+  in
+
+  (* string_stats: word/char/line count *)
+  let string_stats =
+    { name = "string_stats"
+    ; description = "Count characters, words, and lines in text. Input: {\"text\": \"...\"}"
+    ; input_schema = `Assoc
+        [ ("type", `String "object")
+        ; ("properties", `Assoc [("text", `Assoc [("type", `String "string"); ("description", `String "Text to analyze")])])
+        ; ("required", `List [`String "text"])
+        ]
+    ; handler = (fun input _tok ->
+        let txt = match Yojson.Safe.Util.(input |> member "text" |> to_string_option) with
+          | Some s -> s | None -> ""
+        in
+        let char_count = String.length txt in
+        let line_count = List.length (String.split_on_char '\n' txt) in
+        let words = String.split_on_char ' ' (String.concat " " (String.split_on_char '\n' txt)) in
+        let word_count = List.length (List.filter (fun w -> String.length (String.trim w) > 0) words) in
+        Success (`Assoc [
+          ("characters", `Int char_count);
+          ("words", `Int word_count);
+          ("lines", `Int line_count);
+        ]))
+    ; permission = Allow
+    ; timeout = Some 1.0
+    ; concurrency_limit = None
+    }
+  in
+
+  (* json_format: pretty print JSON *)
+  let json_format =
+    { name = "json_format"
+    ; description = "Format and validate a JSON string. Input: {\"json\": \"{\\\"key\\\": \\\"value\\\"}\"}"
+    ; input_schema = `Assoc
+        [ ("type", `String "object")
+        ; ("properties", `Assoc [("json", `Assoc [("type", `String "string"); ("description", `String "JSON string to format")])])
+        ; ("required", `List [`String "json"])
+        ]
+    ; handler = (fun input _tok ->
+        let json_str = match Yojson.Safe.Util.(input |> member "json" |> to_string_option) with
+          | Some s -> s | None -> "{}"
+        in
+        (try
+           let json = Yojson.Safe.from_string json_str in
+           Success (`String (Yojson.Safe.pretty_to_string ~std:true json))
+         with Yojson.Json_error msg ->
+           Error { category = Invalid_input ("Invalid JSON: " ^ msg); message = msg; retryable = false; metadata = [] }))
+    ; permission = Allow
+    ; timeout = Some 2.0
+    ; concurrency_limit = None
+    }
+  in
+
+  (* convert_temperature: C/F/K conversion *)
+  let convert_temperature_tool =
+    { name = "convert_temperature"
+    ; description = "Convert temperature between Celsius, Fahrenheit, and Kelvin. \
+                     Input: {\"value\": 100, \"from\": \"C\", \"to\": \"F\"}"
+    ; input_schema = `Assoc
+        [ ("type", `String "object")
+        ; ("properties", `Assoc
+            [ ("value", `Assoc [("type", `String "number"); ("description", `String "Temperature value")])
+            ; ("from", `Assoc [("type", `String "string"); ("description", `String "Unit: C, F, or K")])
+            ; ("to", `Assoc [("type", `String "string"); ("description", `String "Unit: C, F, or K")])
+            ])
+        ; ("required", `List [`String "value"; `String "from"; `String "to"])
+        ]
+    ; handler = (fun input _tok ->
+        let value = match Yojson.Safe.Util.(input |> member "value") with
+          | `Float f -> f | `Int n -> float_of_int n | _ -> 0.0
+        in
+        let from_unit = match Yojson.Safe.Util.(input |> member "from" |> to_string_option) with
+          | Some s -> String.uppercase_ascii s | None -> "C"
+        in
+        let to_unit = match Yojson.Safe.Util.(input |> member "to" |> to_string_option) with
+          | Some s -> String.uppercase_ascii s | None -> "F"
+        in
+        let to_celsius v = match from_unit with
+          | "F" -> (v -. 32.0) *. 5.0 /. 9.0
+          | "K" -> v -. 273.15
+          | _ -> v
+        in
+        let from_celsius c = match to_unit with
+          | "F" -> c *. 9.0 /. 5.0 +. 32.0
+          | "K" -> c +. 273.15
+          | _ -> c
+        in
+        let result = from_celsius (to_celsius value) in
+        Success (`Assoc [
+          ("value", `Float result);
+          ("unit", `String to_unit);
+          ("original_value", `Float value);
+          ("original_unit", `String from_unit);
+        ]))
+    ; permission = Allow
+    ; timeout = Some 1.0
+    ; concurrency_limit = None
+    }
+  in
+
+  (* url_encode: URL encode/decode *)
+  let url_encode_tool =
+    { name = "url_encode"
+    ; description = "URL-encode or URL-decode a string. Input: {\"text\": \"hello world\", \"decode\": false}"
+    ; input_schema = `Assoc
+        [ ("type", `String "object")
+        ; ("properties", `Assoc
+            [ ("text", `Assoc [("type", `String "string"); ("description", `String "Text to encode/decode")])
+            ; ("decode", `Assoc [("type", `String "boolean"); ("description", `String "true to decode, false to encode (default)")])
+            ])
+        ; ("required", `List [`String "text"])
+        ]
+    ; handler = (fun input _tok ->
+        let text = match Yojson.Safe.Util.(input |> member "text" |> to_string_option) with
+          | Some s -> s | None -> ""
+        in
+        let decode = match Yojson.Safe.Util.(input |> member "decode" |> to_bool_option) with
+          | Some b -> b | None -> false
+        in
+        if decode then begin
+          let len = String.length text in
+          let buf = Buffer.create len in
+          let i = ref 0 in
+          while !i < len do
+            let c = String.get text !i in
+            if Char.equal c '%' && !i + 2 < len then begin
+              let hex = String.sub text (!i + 1) 2 in
+              (try Buffer.add_char buf (Char.chr (int_of_string ("0x" ^ hex)))
+               with _ -> Buffer.add_char buf c);
+              i := !i + 3
+            end else if Char.equal c '+' then begin
+              Buffer.add_char buf ' ';
+              incr i
+            end else begin
+              Buffer.add_char buf c;
+              incr i
+            end
+          done;
+          Success (`String (Buffer.contents buf))
+        end else begin
+          let safe = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~" in
+          let buf = Buffer.create (String.length text * 3) in
+          String.iter (fun c ->
+            if String.contains safe c then Buffer.add_char buf c
+            else Printf.bprintf buf "%%%02X" (Char.code c)
+          ) text;
+          Success (`String (Buffer.contents buf))
+        end)
+    ; permission = Allow
+    ; timeout = Some 1.0
+    ; concurrency_limit = None
+    }
+  in
+
   ignore token;
-  [calculator; get_time; echo]
+  [ calculator
+  ; get_time
+  ; echo
+  ; generate_uuid_tool
+  ; hash_text
+  ; generate_password_tool
+  ; string_stats
+  ; json_format
+  ; convert_temperature_tool
+  ; url_encode_tool
+  ]
 
 let make_agent_config id prompt provider_tag model temp max_iter tools =
   { Types.
@@ -544,10 +788,17 @@ let cmd_workflow_submit persistence_val db_path_val db_uri_val provider_val
   | Ok rt ->
     let tools = builtin_tools ~switch in
     let prompt = "You are a helpful assistant. You have access to these tools:\n\
-                  - calculator: evaluate math expressions like \"2 + 3 * 4\"\n\
+                  - calculator: evaluate math expressions (e.g. \"2 + 3 * 4\")\n\
                   - get_time: get current UTC date/time\n\
                   - echo: echo back text\n\
-                  Use tools when they are helpful." in
+                  - generate_uuid: generate a random UUID v4\n\
+                  - hash_sha256: compute SHA256 hash of text\n\
+                  - generate_password: generate a random password (configurable length, optional symbols)\n\
+                  - string_stats: count characters, words, lines in text\n\
+                  - json_format: format and validate JSON\n\
+                  - convert_temperature: convert between C/F/K\n\
+                  - url_encode: URL-encode or URL-decode text\n\
+                  Use tools when they are helpful to answer the user's question." in
     let agent = make_agent_config "default-agent" prompt provider_tag model_val temp max_iter tools in
     (match Runtime.register_agent rt agent with
      | Error e -> die (error_to_json e)
