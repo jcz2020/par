@@ -2,3 +2,8 @@
  (name test_par)
  (libraries par_core alcotest)
  (modules test_par test_state_machine test_expression test_types))
+
+(test
+ (name test_integration)
+ (libraries par_core par_eio par_middleware eio_main alcotest)
+ (modules test_integration))

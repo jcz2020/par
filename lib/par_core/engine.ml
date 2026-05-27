@@ -103,6 +103,13 @@ let run_agent token agent user_message llm =
       Result.Error (Internal "Max iterations exceeded")
     else begin
       Cancellation.check_cancel token;
+      let conv = match agent.context_strategy with
+        | None -> conv
+        | Some strategy ->
+          (match Context_manager.apply_strategy strategy conv (Some llm) with
+           | Ok conv' -> conv'
+           | Error _ -> conv)
+      in
       let conv = apply_before_llm agent.middleware conv (fun c -> c) in
       match llm.complete_fn agent.model conv with
       | Result.Error err -> Result.Error err
