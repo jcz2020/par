@@ -92,7 +92,7 @@ let error_category_to_string (e : Types.error_category) =
   | Types.Permission_denied s -> Printf.sprintf "Permission denied: %s" s
   | Types.Internal s -> Printf.sprintf "Internal error: %s" s
 
-let resolve_persistence backend db_path_val db_uri_val =
+let resolve_persistence_config backend db_path_val db_uri_val =
   match backend with
   | Some "postgres" ->
     let uri = match db_uri_val with Some u -> u | None -> "postgresql://localhost/par" in
@@ -100,6 +100,31 @@ let resolve_persistence backend db_path_val db_uri_val =
   | Some "sqlite" | None ->
     let path = match db_path_val with Some p -> p | None -> "par.db" in
     `Sqlite path
+  | Some other ->
+    Printf.eprintf "Error: unknown persistence backend '%s'\n" other;
+    exit 1
+
+let make_sqlite_persistence db_path =
+  match Par_sqlite.Sqlite_persistence.create db_path with
+  | Error e ->
+    Printf.eprintf "Error opening SQLite database: %s\n" (error_category_to_string e);
+    exit 1
+  | Ok t ->
+    { Types.
+      save_events_fn = (fun events -> Par_sqlite.Sqlite_persistence.save_events t events);
+      load_events_fn = (fun task_id -> Par_sqlite.Sqlite_persistence.load_events t task_id);
+      save_task_state_fn = (fun ts -> Par_sqlite.Sqlite_persistence.save_task_state t ts);
+      load_task_state_fn = (fun task_id -> Par_sqlite.Sqlite_persistence.load_task_state t task_id);
+      close_fn = (fun () -> Par_sqlite.Sqlite_persistence.close t);
+    }
+
+let make_persistence_service backend db_path_val _db_uri_val =
+  match backend with
+  | Some "postgres" ->
+    Printf.eprintf "PostgreSQL not yet implemented\n"; exit 1
+  | Some "sqlite" | None ->
+    let path = match db_path_val with Some p -> p | None -> "par.db" in
+    make_sqlite_persistence path
   | Some other ->
     Printf.eprintf "Error: unknown persistence backend '%s'\n" other;
     exit 1
@@ -206,14 +231,15 @@ let cmd_run persistence_val db_path_val db_uri_val provider_val
       api_key_val api_base_val model_val prompt agent_id_val
       max_iter temp =
   ensure_rng ();
-  let persistence = resolve_persistence persistence_val db_path_val db_uri_val in
+  let pers = make_persistence_service persistence_val db_path_val db_uri_val in
+  let persistence_config = resolve_persistence_config persistence_val db_path_val db_uri_val in
   let provider_tag = resolve_provider provider_val in
-  let config = make_runtime_config persistence in
+  let config = make_runtime_config persistence_config in
   Eio_main.run @@ fun env ->
   Eio.Switch.run @@ fun switch ->
   let net = Eio.Stdenv.net env in
   let llm = make_llm_service provider_tag api_key_val api_base_val net in
-  match Runtime.create ~llm ~config switch with
+  match Runtime.create ~persistence:pers ~llm ~config switch with
   | Error e -> die_error e
   | Ok rt ->
     let agent = make_agent_config agent_id_val prompt provider_tag model_val temp max_iter in
@@ -239,14 +265,15 @@ let info_run = Cmdliner.Cmd.info "run" ~doc:"Start runtime and run agent interac
 let cmd_invoke persistence_val db_path_val db_uri_val provider_val
       api_key_val api_base_val model_val agent_id_val msg temp =
   ensure_rng ();
-  let persistence = resolve_persistence persistence_val db_path_val db_uri_val in
+  let pers = make_persistence_service persistence_val db_path_val db_uri_val in
+  let persistence_config = resolve_persistence_config persistence_val db_path_val db_uri_val in
   let provider_tag = resolve_provider provider_val in
-  let config = make_runtime_config persistence in
+  let config = make_runtime_config persistence_config in
   Eio_main.run @@ fun env ->
   Eio.Switch.run @@ fun switch ->
   let net = Eio.Stdenv.net env in
   let llm = make_llm_service provider_tag api_key_val api_base_val net in
-  match Runtime.create ~llm ~config switch with
+  match Runtime.create ~persistence:pers ~llm ~config switch with
   | Error e -> die (error_to_json e)
   | Ok rt ->
     let agent = make_agent_config agent_id_val "" provider_tag model_val temp 10 in
@@ -273,11 +300,12 @@ let info_invoke = Cmdliner.Cmd.info "invoke" ~doc:"Send a single message to an a
 
 let cmd_task_submit persistence_val db_path_val db_uri_val _provider_val
       _api_key_val _api_base_val agent_id_val msg =
-  let persistence = resolve_persistence persistence_val db_path_val db_uri_val in
-  let config = make_runtime_config persistence in
+  let pers = make_persistence_service persistence_val db_path_val db_uri_val in
+  let persistence_config = resolve_persistence_config persistence_val db_path_val db_uri_val in
+  let config = make_runtime_config persistence_config in
   Eio_main.run @@ fun _env ->
   Eio.Switch.run @@ fun switch ->
-  match Runtime.create ~config switch with
+  match Runtime.create ~persistence:pers ~config switch with
   | Error e -> die (error_to_json e)
   | Ok rt ->
     let input = Types.Agent_input { agent_id = agent_id_val; message = msg } in
@@ -298,11 +326,12 @@ let info_task_submit = Cmdliner.Cmd.info "submit" ~doc:"Submit a task to the run
 (* -------------------------------------------------------------------------- *)
 
 let cmd_task_status persistence_val db_path_val db_uri_val tid =
-  let persistence = resolve_persistence persistence_val db_path_val db_uri_val in
-  let config = make_runtime_config persistence in
+  let pers = make_persistence_service persistence_val db_path_val db_uri_val in
+  let persistence_config = resolve_persistence_config persistence_val db_path_val db_uri_val in
+  let config = make_runtime_config persistence_config in
   Eio_main.run @@ fun _env ->
   Eio.Switch.run @@ fun switch ->
-  match Runtime.create ~config switch with
+  match Runtime.create ~persistence:pers ~config switch with
   | Error e -> die (error_to_json e)
   | Ok rt ->
     (match Runtime.get_task_status rt tid with
@@ -329,11 +358,12 @@ let info_task_status = Cmdliner.Cmd.info "status" ~doc:"Get task status"
 (* -------------------------------------------------------------------------- *)
 
 let cmd_task_cancel persistence_val db_path_val db_uri_val tid =
-  let persistence = resolve_persistence persistence_val db_path_val db_uri_val in
-  let config = make_runtime_config persistence in
+  let pers = make_persistence_service persistence_val db_path_val db_uri_val in
+  let persistence_config = resolve_persistence_config persistence_val db_path_val db_uri_val in
+  let config = make_runtime_config persistence_config in
   Eio_main.run @@ fun _env ->
   Eio.Switch.run @@ fun switch ->
-  match Runtime.create ~config switch with
+  match Runtime.create ~persistence:pers ~config switch with
   | Error e -> die (error_to_json e)
   | Ok rt ->
     (match Runtime.cancel_task rt tid with
@@ -368,48 +398,61 @@ let cmd_task =
 (* 'par workflow submit' subcommand                                           *)
 (* -------------------------------------------------------------------------- *)
 
-let cmd_workflow_submit persistence_val db_path_val db_uri_val wf_path =
-  let persistence = resolve_persistence persistence_val db_path_val db_uri_val in
-  let config = make_runtime_config persistence in
-  Eio_main.run @@ fun _env ->
+let cmd_workflow_submit persistence_val db_path_val db_uri_val provider_val
+      api_key_val api_base_val model_val temp max_iter wf_path =
+  ensure_rng ();
+  let pers = make_persistence_service persistence_val db_path_val db_uri_val in
+  let persistence_config = resolve_persistence_config persistence_val db_path_val db_uri_val in
+  let provider_tag = resolve_provider provider_val in
+  let config = make_runtime_config persistence_config in
+  Eio_main.run @@ fun env ->
   Eio.Switch.run @@ fun switch ->
-  match Runtime.create ~config switch with
+  let net = Eio.Stdenv.net env in
+  let llm = make_llm_service provider_tag api_key_val api_base_val net in
+  match Runtime.create ~persistence:pers ~llm ~config switch with
   | Error e -> die (error_to_json e)
   | Ok rt ->
-    let json_str =
-      let ic = open_in wf_path in
-      let n = in_channel_length ic in
-      let s = Bytes.create n in
-      really_input ic s 0 n;
-      close_in ic;
-      Bytes.to_string s
-    in
-    let json = Yojson.Safe.from_string json_str in
-    let workflow : Types.workflow = {
-      id = (match Yojson.Safe.Util.(json |> member "id" |> to_string_option) with
-            | Some s -> s | None -> Types.Task_id.to_string (Types.Task_id.create ()));
-      name = (match Yojson.Safe.Util.(json |> member "name" |> to_string_option) with
-              | Some s -> s | None -> "unnamed");
-      version = (match Yojson.Safe.Util.(json |> member "version" |> to_int_option) with
-                 | Some v -> v | None -> 1);
-      steps = (match Types.workflow_step_of_yojson
-                     (Yojson.Safe.Util.member "steps" json) with
-               | Ok s -> s | Error _ -> Types.Sequential []);
-      variables = [];
-      failure_policy = Types.Fail_fast;
-      parallel_limit = 5;
-      timeout = 300.0;
-      on_complete = None;
-    } in
-    (match Runtime.submit_workflow rt workflow with
+    let agent = make_agent_config "default-agent" "You are a helpful assistant." provider_tag model_val temp max_iter in
+    (match Runtime.register_agent rt agent with
      | Error e -> die (error_to_json e)
-     | Ok run_id ->
-       print_json (`Assoc [ ("run_id", `String (Types.Workflow_run_id.to_string run_id)) ]);
-       ignore (Runtime.close rt))
+     | Ok () ->
+       let json_str =
+         let ic = open_in wf_path in
+         let n = in_channel_length ic in
+         let s = Bytes.create n in
+         really_input ic s 0 n;
+         close_in ic;
+         Bytes.to_string s
+       in
+       let json = Yojson.Safe.from_string json_str in
+       let workflow : Types.workflow = {
+         id = (match Yojson.Safe.Util.(json |> member "id" |> to_string_option) with
+               | Some s -> s | None -> Types.Task_id.to_string (Types.Task_id.create ()));
+         name = (match Yojson.Safe.Util.(json |> member "name" |> to_string_option) with
+                 | Some s -> s | None -> "unnamed");
+         version = (match Yojson.Safe.Util.(json |> member "version" |> to_int_option) with
+                    | Some v -> v | None -> 1);
+         steps = (match Types.workflow_step_of_yojson
+                        (Yojson.Safe.Util.member "steps" json) with
+                  | Ok s -> s | Error _ -> Types.Sequential []);
+         variables = [];
+         failure_policy = Types.Fail_fast;
+         parallel_limit = 5;
+         timeout = 300.0;
+         on_complete = None;
+       } in
+       (match Runtime.submit_workflow rt workflow with
+        | Error e -> die (error_to_json e)
+        | Ok run_id ->
+          print_json (`Assoc [ ("run_id", `String (Types.Workflow_run_id.to_string run_id)) ]);
+          ignore (Runtime.close rt)))
 
 let term_workflow_submit =
   let open Cmdliner.Term in
-  const cmd_workflow_submit $ persistence_arg $ db_path $ db_uri $ workflow_file
+  const cmd_workflow_submit
+  $ persistence_arg $ db_path $ db_uri $ provider_arg
+  $ api_key $ api_base $ model_name $ temperature $ max_iterations
+  $ workflow_file
 
 let info_workflow_submit = Cmdliner.Cmd.info "submit" ~doc:"Submit a workflow from a JSON file"
 
@@ -418,11 +461,12 @@ let info_workflow_submit = Cmdliner.Cmd.info "submit" ~doc:"Submit a workflow fr
 (* -------------------------------------------------------------------------- *)
 
 let cmd_workflow_status persistence_val db_path_val db_uri_val rid =
-  let persistence = resolve_persistence persistence_val db_path_val db_uri_val in
-  let config = make_runtime_config persistence in
+  let pers = make_persistence_service persistence_val db_path_val db_uri_val in
+  let persistence_config = resolve_persistence_config persistence_val db_path_val db_uri_val in
+  let config = make_runtime_config persistence_config in
   Eio_main.run @@ fun _env ->
   Eio.Switch.run @@ fun switch ->
-  match Runtime.create ~config switch with
+  match Runtime.create ~persistence:pers ~config switch with
   | Error e -> die (error_to_json e)
   | Ok rt ->
     (match Runtime.get_workflow_status rt rid with
@@ -445,11 +489,12 @@ let info_workflow_status = Cmdliner.Cmd.info "status" ~doc:"Get workflow run sta
 (* -------------------------------------------------------------------------- *)
 
 let cmd_workflow_cancel persistence_val db_path_val db_uri_val rid =
-  let persistence = resolve_persistence persistence_val db_path_val db_uri_val in
-  let config = make_runtime_config persistence in
+  let pers = make_persistence_service persistence_val db_path_val db_uri_val in
+  let persistence_config = resolve_persistence_config persistence_val db_path_val db_uri_val in
+  let config = make_runtime_config persistence_config in
   Eio_main.run @@ fun _env ->
   Eio.Switch.run @@ fun switch ->
-  match Runtime.create ~config switch with
+  match Runtime.create ~persistence:pers ~config switch with
   | Error e -> die (error_to_json e)
   | Ok rt ->
     (match Runtime.cancel_workflow rt rid with

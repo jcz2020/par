@@ -1,0 +1,10 @@
+{
+  "id": "test-wf-1",
+  "name": "Hello Workflow",
+  "version": 1,
+  "steps": ["Agent_call", {"agent_id": "default-agent", "prompt_template": "用一句话回答：什么是P-A-R？"}],
+  "variables": [],
+  "failure_policy": "Fail_fast",
+  "parallel_limit": 5,
+  "timeout": 30.0
+}

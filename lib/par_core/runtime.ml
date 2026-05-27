@@ -80,20 +80,33 @@ let submit_task rt ?(priority = 5) ?(timeout = 300.0) input =
     error = None;
   } in
   htbl_set rt.tasks id task;
+  (match rt.services.persistence.save_task_state_fn task with
+   | Ok () -> () | Error _ -> ());
   id
 
 let get_task_status rt task_id =
   match htbl_get rt.tasks task_id with
-  | None -> Ok None
   | Some task -> Ok (Some task.status)
+  | None ->
+    (match rt.services.persistence.load_task_state_fn task_id with
+     | Ok (Some ts) -> Ok (Some ts.status)
+     | Ok None -> Ok None
+     | Error _ -> Ok None)
 
 let cancel_task rt task_id =
-  match htbl_get rt.tasks task_id with
-  | None -> Result.Error (Invalid_input "Task not found")
-  | Some task ->
-    let updated = { task with status = Cancelled; updated_at = Unix.time () } in
-    htbl_set rt.tasks task_id updated;
-    Ok ()
+  let task =
+    match htbl_get rt.tasks task_id with
+    | Some t -> t
+    | None ->
+      (match rt.services.persistence.load_task_state_fn task_id with
+       | Ok (Some t) -> t
+       | Ok None | Error _ -> raise (Invalid_argument "Task not found"))
+  in
+  let updated = { task with status = Cancelled; updated_at = Unix.time () } in
+  htbl_set rt.tasks task_id updated;
+  (match rt.services.persistence.save_task_state_fn updated with
+   | Ok () -> () | Error _ -> ());
+  Ok ()
 
 let approve_task rt task_id ~approver:_ =
   match htbl_get rt.tasks task_id with
@@ -103,6 +116,8 @@ let approve_task rt task_id ~approver:_ =
     | Waiting_input ->
       let updated = { task with status = Scheduled; updated_at = Unix.time () } in
       htbl_set rt.tasks task_id updated;
+      (match rt.services.persistence.save_task_state_fn updated with
+       | Ok () -> () | Error _ -> ());
       Ok ()
     | _ -> Result.Error (Invalid_input "Task is not waiting for approval")
 
@@ -144,24 +159,13 @@ let cancel_workflow rt wf_id =
   htbl_set rt.workflows wf_id (Wf_failed (Internal "Cancelled"));
   Ok ()
 
-module Noop_persistence : PERSISTENCE_SERVICE = struct
-  type t = unit
-  let save_events () _events =
-    prerr_endline "[WARN] Noop_persistence.save_events called — no persistence configured";
-    Ok ()
-  let load_events () _task_id =
-    prerr_endline "[WARN] Noop_persistence.load_events called — no persistence configured";
-    Ok []
-  let save_task_state () _ts =
-    prerr_endline "[WARN] Noop_persistence.save_task_state called — no persistence configured";
-    Ok ()
-  let load_task_state () _task_id =
-    prerr_endline "[WARN] Noop_persistence.load_task_state called — no persistence configured";
-    Ok None
-  let transaction () f =
-    prerr_endline "[WARN] Noop_persistence.transaction called — no persistence configured";
-    Ok (f ())
-end
+let noop_persistence : Types.persistence_service = {
+  save_events_fn = (fun _events -> Ok ());
+  load_events_fn = (fun _task_id -> Ok []);
+  save_task_state_fn = (fun _ts -> Ok ());
+  load_task_state_fn = (fun _task_id -> Ok None);
+  close_fn = ignore;
+}
 
 module Noop_event_bus : EVENT_BUS_SERVICE = struct
   type t = unit
@@ -175,7 +179,7 @@ module Noop_event_bus : EVENT_BUS_SERVICE = struct
     prerr_endline "[WARN] Noop_event_bus.unsubscribe called — no event_bus configured"
 end
 
-let create ?(persistence = (module Noop_persistence : PERSISTENCE_SERVICE))
+let create ?(persistence = noop_persistence)
            ?(event_bus = (module Noop_event_bus : EVENT_BUS_SERVICE))
            ?(llm = { complete_fn = (fun _ _ -> Result.Error (Internal "LLM not initialized"));
                       stream_fn = (fun _ _ _ _ -> Result.Error (Internal "LLM not initialized"));
@@ -203,4 +207,6 @@ let close rt =
   Eio.Mutex.use_rw ~protect:false rt.shutdown_mutex (fun () ->
     rt.shutdown_requested := true
   );
+  rt.services.persistence.close_fn ();
+  rt.services.llm.close_fn ();
   0

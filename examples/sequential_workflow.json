@@ -1,0 +1,13 @@
+{
+  "id": "test-wf-seq",
+  "name": "Sequential Workflow",
+  "version": 1,
+  "steps": ["Sequential", [
+    ["Agent_call", {"agent_id": "default-agent", "prompt_template": "用3个词描述OCaml语言"}],
+    ["Agent_call", {"agent_id": "default-agent", "prompt_template": "用3个词描述Rust语言"}]
+  ]],
+  "variables": [],
+  "failure_policy": "Fail_fast",
+  "parallel_limit": 5,
+  "timeout": 60.0
+}

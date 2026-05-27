@@ -542,8 +542,16 @@ type llm_service = {
   close_fn : unit -> unit;
 }
 
+type persistence_service = {
+  save_events_fn : event list -> (unit, error_category) result;
+  load_events_fn : Task_id.t -> (event list, error_category) result;
+  save_task_state_fn : task_state -> (unit, error_category) result;
+  load_task_state_fn : Task_id.t -> (task_state option, error_category) result;
+  close_fn : unit -> unit;
+}
+
 type service_registry = {
-  persistence : (module PERSISTENCE_SERVICE);
+  persistence : persistence_service;
   llm : llm_service;
   event_bus : (module EVENT_BUS_SERVICE);
   config : runtime_config;

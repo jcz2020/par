@@ -7,7 +7,7 @@ val default_shutdown_config : shutdown_config
 val default_quota : resource_quota
 
 val create :
-  ?persistence:(module PERSISTENCE_SERVICE) ->
+  ?persistence:persistence_service ->
   ?event_bus:(module EVENT_BUS_SERVICE) ->
   ?llm:llm_service ->
   config:runtime_config ->
