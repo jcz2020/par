@@ -92,7 +92,14 @@
   par_core
   par_eio
   par_sqlite
+  par_postgres
   par_openai
   par_anthropic
+  postgresql
+  cohttp-eio
+  lambdasoup
+  tls-eio
+  ca-certs
+  x509
   yojson
   eio))
