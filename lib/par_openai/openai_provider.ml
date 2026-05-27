@@ -15,7 +15,7 @@ let create = function
   | Openai { api_key; base_url; organization } ->
     Ok {
       api_key;
-      base_url = Option.value base_url ~default:"https://api.openai.com";
+      base_url = Option.value base_url ~default:"https://api.openai.com/v1";
       organization;
       net = None;
     }
@@ -124,7 +124,7 @@ let build_http_request ~host ~path ~api_key ~organization ~body =
     match organization with Some o -> Printf.sprintf "OpenAI-Organization: %s\r\n" o | None -> ""
   in
   Printf.sprintf
-    "POST %sv1/chat/completions HTTP/1.1\r\n\
+    "POST %schat/completions HTTP/1.1\r\n\
      Host: %s\r\n\
      Authorization: Bearer %s\r\n\
      %s\

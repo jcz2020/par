@@ -2,6 +2,6 @@
  (name main)
  (public_name par)
  (package par_cli)
- (libraries cmdliner par_core par_eio par_sqlite par_openai par_anthropic yojson eio eio_main)
+ (libraries cmdliner par_core par_eio par_sqlite par_openai par_anthropic yojson eio eio_main mirage-crypto-rng.unix)
  (preprocess
   (pps ppx_deriving_yojson)))

@@ -199,9 +199,13 @@ let repl rt agent_id_val =
 (* 'par run' subcommand                                                       *)
 (* -------------------------------------------------------------------------- *)
 
+let ensure_rng () =
+  Mirage_crypto_rng_unix.use_default ()
+
 let cmd_run persistence_val db_path_val db_uri_val provider_val
       api_key_val api_base_val model_val prompt agent_id_val
       max_iter temp =
+  ensure_rng ();
   let persistence = resolve_persistence persistence_val db_path_val db_uri_val in
   let provider_tag = resolve_provider provider_val in
   let config = make_runtime_config persistence in
@@ -234,6 +238,7 @@ let info_run = Cmdliner.Cmd.info "run" ~doc:"Start runtime and run agent interac
 
 let cmd_invoke persistence_val db_path_val db_uri_val provider_val
       api_key_val api_base_val model_val agent_id_val msg temp =
+  ensure_rng ();
   let persistence = resolve_persistence persistence_val db_path_val db_uri_val in
   let provider_tag = resolve_provider provider_val in
   let config = make_runtime_config persistence in
