@@ -2,20 +2,20 @@
 
 A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM support, workflow orchestration, and persistent state management.
 
-[![Build Status](https://img.shields.io/badge/build-placeholder-yellow)](https://github.com/username/par)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/par-runtime/par)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ## Features
 
-- Multi-provider LLM: OpenAI, Anthropic, Ollama, and custom providers via a unified interface
-- ReAct agent loop with configurable middleware pipeline
-- Workflow engine supporting Sequential, Parallel, Conditional, and Map-reduce steps
-- 6 built-in middleware: logging, timeout, retry, rate limiting, PII masking, validation
-- Context management: Truncate, Summarize, and Sliding window strategies
-- Dual persistence backends: SQLite for development, PostgreSQL for production
-- Cooperative cancellation via Eio fibers
-- CLI tool with run, invoke, task, and workflow subcommands
-- Safe expression evaluator for conditional routing
+- 多provider LLM：OpenAI兼容接口 + Anthropic Messages API，支持通过ZhipuAI等中转调用Anthropic
+- SSE流式响应（已验证，OpenAI provider）
+- ReAct agent循环，支持工具调用
+- 工作流引擎：顺序执行、并行执行、条件分支、map-reduce
+- 6个内置中间件：日志、超时、重试、限速、PII掩码、数据校验
+- 双重持久化：SQLite（开发）/ PostgreSQL（生产）
+- 交互式REPL（`par run`）
+- 安全URL抓取：TLS证书验证、系统CA store、URL scheme校验、10MB容量限制
+- 111个测试用例通过
 
 ## Architecture
 
@@ -34,27 +34,26 @@ A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM suppor
 | (Event Bus)|(Persist )|(Persist )|  OpenAI / Anthropic      |
 |    +DLQ    |          |          |                          |
 +------------+----------+-----------+--------------------------+
+|                      Web Tools (cohttp-eio + lambdasoup)    |
++-------------------------------------------------------------+
 ```
 
 ## Quick Start
 
 ```bash
-# Prerequisites: OCaml 5.4+, opam 2.1+
+# 依赖：OCaml 5.4+, dune 3.23+
 opam switch create . 5.4.1
 eval $(opam env)
 opam install . --deps-only
 
-# Build
+# 构建
 dune build
 
-# Run tests
+# 运行测试
 dune runtest
 
-# Run the example
-dune exec examples/basic_agent.exe
-
-# Use the CLI
-dune exec par -- run --config runtime_config.json
+# CLI交互式REPL
+dune exec par -- run --provider openai --api-key $OPENAI_API_KEY --model gpt-4
 ```
 
 ## Usage Example (OCaml SDK)
@@ -109,14 +108,30 @@ See `examples/basic_agent.ml` for the complete example.
 
 | Command | Description |
 |---------|-------------|
-| `par run --config <path>` | Start an interactive REPL with the runtime |
-| `par invoke --agent <id> --input <json>` | Single-shot agent invocation |
-| `par task submit --agent <id> --input <json>` | Submit a task to the queue |
-| `par task status --task-id <id>` | Check task status |
-| `par task cancel --task-id <id>` | Cancel a running task |
-| `par workflow submit --definition <file>` | Submit a workflow definition |
-| `par workflow status --run-id <id>` | Check workflow run status |
-| `par workflow cancel --run-id <id>` | Cancel a workflow run |
+| `par run --provider <openai\|anthropic> --api-key <key> --api-base <url> --model <model>` | 交互式REPL |
+| `par invoke --agent-id <id> --input <json>` | 单次调用 |
+| `par task submit/status/cancel --task-id <id>` | 异步任务管理 |
+| `par workflow submit/status/cancel --run-id <id>` | 工作流执行 |
+
+所有命令支持 `--persistence sqlite\|postgres` 和 `--db-uri <uri>` 配置持久化后端。
+
+## Built-in Tools
+
+| Tool | Description |
+|------|-------------|
+| `calculator` | 算术表达式求值 |
+| `get_time` | 当前UTC日期/时间 |
+| `echo` | 回显输入 |
+| `generate_uuid` | UUID v4生成 |
+| `hash_text` | MD5/SHA1/SHA256哈希 |
+| `generate_password` | 安全随机密码 |
+| `string_stats` | 字符/单词/行数统计 |
+| `json_format` | JSON验证和格式化 |
+| `convert_temperature` | C/F/K温度转换 |
+| `url_encode` | URL编码/解码 |
+| `fetch_url` | HTTP GET，内容提取（10MB上限） |
+| `read_webpage` | 抓取 + HTML解析 + 文本提取（剥离script/style） |
+| `web_search` | DuckDuckGo搜索 |
 
 ## Module Reference
 
@@ -150,46 +165,14 @@ par/
 +-- schema/            Database schemas
 ```
 
-## Configuration
+## Dependencies
 
-```json
-{
-  "persistence": "sqlite",
-  "db_path": "par.db",
-  "event_bus": {
-    "queue_size": 1000,
-    "retry_attempts": 3,
-    "dead_letter_queue": true
-  },
-  "default_quota": {
-    "max_steps": 50,
-    "max_time_seconds": 300
-  },
-  "shutdown": {
-    "grace_period_seconds": 10,
-    "force_timeout_seconds": 30
-  },
-  "llm_providers": [
-    {
-      "name": "openai",
-      "provider": "openai",
-      "model": "gpt-4",
-      "api_key_env": "OPENAI_API_KEY"
-    },
-    {
-      "name": "anthropic",
-      "provider": "anthropic",
-      "model": "claude-3-sonnet-20240229",
-      "api_key_env": "ANTHROPIC_API_KEY"
-    }
-  ],
-  "middleware": ["logging", "timeout", "retry"],
-  "context_strategy": {
-    "type": "sliding_window",
-    "max_tokens": 8192
-  }
-}
-```
+OCaml 5.4+, dune 3.23+, cohttp-eio, lambdasoup, tls-eio, ca-certs, postgresql（PG后端可选）
+
+## Project Size
+
+- 约6000行代码
+- 111个测试用例
 
 ## License
 

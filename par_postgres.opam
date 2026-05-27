@@ -4,8 +4,8 @@ synopsis: "Programmable Agent Runtime - PostgreSQL persistence backend"
 maintainer: ["P-A-R Contributors"]
 authors: ["P-A-R Contributors"]
 license: "MIT"
-homepage: "https://github.com/username/par"
-bug-reports: "https://github.com/username/par/issues"
+homepage: "https://github.com/par-runtime/par"
+bug-reports: "https://github.com/par-runtime/par/issues"
 depends: [
   "ocaml"
   "dune" {>= "3.16"}
@@ -28,4 +28,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/username/par.git"
+dev-repo: "git+https://github.com/par-runtime/par.git"
