@@ -41,19 +41,18 @@ A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM suppor
 ## Quick Start
 
 ```bash
-# 依赖：OCaml 5.4+, dune 3.23+
-opam switch create . 5.4.1
-eval $(opam env)
-opam install . --deps-only
+# 一键安装（自动安装系统依赖 + OCaml + 构建 + 安装到 /usr/local/bin）
+curl -fsSL https://raw.githubusercontent.com/par-runtime/par/main/install.sh | bash
 
-# 构建
-dune build
+# 或手动安装
+git clone https://github.com/par-runtime/par.git && cd par
+make install
 
-# 运行测试
-dune runtest
+# 配置
+par config
 
-# CLI交互式REPL
-dune exec par -- run --provider openai --api-key $OPENAI_API_KEY --model gpt-4
+# 开聊
+par
 ```
 
 ## Usage Example (OCaml SDK)
@@ -108,12 +107,11 @@ See `examples/basic_agent.ml` for the complete example.
 
 | Command | Description |
 |---------|-------------|
-| `par run --provider <openai\|anthropic> --api-key <key> --api-base <url> --model <model>` | 交互式REPL |
-| `par invoke --agent-id <id> --input <json>` | 单次调用 |
-| `par task submit/status/cancel --task-id <id>` | 异步任务管理 |
-| `par workflow submit/status/cancel --run-id <id>` | 工作流执行 |
+| `par` | 交互式对话（读取配置文件，零参数） |
+| `par config` | 配置 provider / API key / model |
+| `par ask "问题"` | 单次问答，直接输出答案 |
 
-所有命令支持 `--persistence sqlite\|postgres` 和 `--db-uri <uri>` 配置持久化后端。
+所有命令支持可选覆盖参数：`--provider`、`--api-key`、`--model`、`--persistence`、`--db-uri`、`--temperature`
 
 ## Built-in Tools
 
