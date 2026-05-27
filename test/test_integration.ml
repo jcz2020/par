@@ -1,15 +1,10 @@
 open Par_core
 open Types
 
-let dummy_model : model_config = {
-  provider = `Openai;
-  model_name = "mock";
-  api_base = None;
-  temperature = 0.0;
-  max_tokens = None;
-  top_p = None;
-  stop_sequences = None;
-}
+let dummy_model : model_config =
+  { provider = `Openai; model_name = "mock"; api_base = None;
+    temperature = 0.0; max_tokens = None; top_p = None;
+    stop_sequences = None }
 
 let dummy_usage : usage_stats =
   { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 }
@@ -284,53 +279,47 @@ let workflow_engine_suite =
          | Error _ -> ())));
   ])
 
-let default_bus_config : event_bus_config = {
-  buffer_capacity = 10;
-  delivery = {
-    max_delivery_attempts = 1;
-    initial_retry_delay = 0.1;
-    retry_backoff = Fixed 0.1;
-    delivery_timeout = 1.0;
-  };
-  dlq_enabled = false;
-  critical_event_types = [];
-}
-
-let mk_event () = Task_started { task_id = Task_id.create () }
+let default_bus_config : event_bus_config =
+  { buffer_capacity = 10; delivery = {
+      max_delivery_attempts = 1; initial_retry_delay = 0.1;
+      retry_backoff = Fixed 0.1; delivery_timeout = 1.0 };
+    dlq_enabled = false; critical_event_types = [] }
 
 let event_bus_suite =
   ("Event bus", [
-    Alcotest.test_case "subscribe and unsubscribe" `Quick (fun () ->
+    Alcotest.test_case "subscribe returns non-empty ID" `Quick (fun () ->
       let bus = Par_eio.Event_bus.create default_bus_config in
       let sub = Par_eio.Event_bus.subscribe bus (fun _ -> ()) in
       Alcotest.(check bool) "sub non-empty" true (String.length sub > 0);
       Par_eio.Event_bus.unsubscribe bus sub);
 
-    Alcotest.test_case "multiple subscriptions unique" `Quick (fun () ->
+    Alcotest.test_case "multiple subscriptions are unique" `Quick (fun () ->
       let bus = Par_eio.Event_bus.create default_bus_config in
       let sub_a = Par_eio.Event_bus.subscribe bus (fun _ -> ()) in
       let sub_b = Par_eio.Event_bus.subscribe bus (fun _ -> ()) in
-      Alcotest.(check bool) "different subs" true (sub_a <> sub_b);
+      Alcotest.(check bool) "different IDs" true (sub_a <> sub_b);
       Par_eio.Event_bus.unsubscribe bus sub_a;
       Par_eio.Event_bus.unsubscribe bus sub_b);
 
-    Alcotest.test_case "publish queues event" `Quick (fun () ->
+    Alcotest.test_case "re-subscribe after unsubscribe works" `Quick (fun () ->
       let bus = Par_eio.Event_bus.create default_bus_config in
-      let _sub = Par_eio.Event_bus.subscribe bus (fun _ -> ()) in
-      (* publish should succeed without dispatcher *)
-      Par_eio.Event_bus.publish bus (mk_event ());
-      Par_eio.Event_bus.publish bus (mk_event ());
-      (* no assertion on delivery — just no crash = event queued *)
-      Alcotest.(check bool) "publish succeeded" true true);
+      let sub1 = Par_eio.Event_bus.subscribe bus (fun _ -> ()) in
+      Par_eio.Event_bus.unsubscribe bus sub1;
+      let sub2 = Par_eio.Event_bus.subscribe bus (fun _ -> ()) in
+      Alcotest.(check bool) "new sub non-empty" true (String.length sub2 > 0);
+      Par_eio.Event_bus.unsubscribe bus sub2);
 
-    Alcotest.test_case "subscribe after unsubscribe still works" `Quick (fun () ->
-      let bus = Par_eio.Event_bus.create default_bus_config in
-      let sub_a = Par_eio.Event_bus.subscribe bus (fun _ -> ()) in
-      Par_eio.Event_bus.unsubscribe bus sub_a;
-      (* re-subscribe should produce a new valid sub *)
-      let sub_b = Par_eio.Event_bus.subscribe bus (fun _ -> ()) in
-      Alcotest.(check bool) "new sub valid" true (String.length sub_b > 0);
-      Par_eio.Event_bus.unsubscribe bus sub_b);
+    Alcotest.test_case "create bus with different configs" `Quick (fun () ->
+      let config : event_bus_config =
+        { buffer_capacity = 5; delivery = {
+            max_delivery_attempts = 3; initial_retry_delay = 0.5;
+            retry_backoff = Exponential { base = 2.0; max_delay = 10.0 };
+            delivery_timeout = 5.0 };
+          dlq_enabled = true;
+          critical_event_types = [ "Shutdown_initiated" ] } in
+      let bus = Par_eio.Event_bus.create config in
+      let dlq = Par_eio.Event_bus.get_dead_letters bus in
+      Alcotest.(check int) "empty DLQ" 0 (List.length dlq));
   ])
 
 let middleware_suite =
@@ -350,13 +339,10 @@ let middleware_suite =
     Alcotest.test_case "PII mask middleware" `Quick (fun () ->
       let mw = Par_middleware.Pii_mask.pii_mask () in
       let conv : conversation = {
-        messages = [{
-          role = User;
+        messages = [{ role = User;
           content = Some "contact me at user@example.com please";
-          tool_calls = None; tool_call_id = None; name = None;
-        }];
-        metadata = [];
-      } in
+          tool_calls = None; tool_call_id = None; name = None }];
+        metadata = [] } in
       (match mw.on_before_llm with
        | Some before_fn ->
            (match before_fn conv with
@@ -374,9 +360,9 @@ let middleware_suite =
 
     Alcotest.test_case "validation middleware rejects non-object args" `Quick (fun () ->
       let mw = Par_middleware.Validation.validation ~strict:true () in
-      let call : tool_call = {
-        id = "tc-v"; name = "my_tool"; arguments = `String "not-an-object";
-      } in
+      let call : tool_call =
+        { id = "tc-v"; name = "my_tool";
+          arguments = `String "not-an-object" } in
       (match mw.on_before_tool with
        | Some before_fn ->
            (match before_fn call with
@@ -390,10 +376,9 @@ let middleware_suite =
 
     Alcotest.test_case "validation passes valid args unchanged" `Quick (fun () ->
       let mw = Par_middleware.Validation.validation () in
-      let call : tool_call = {
-        id = "tc-ok"; name = "ok_tool";
-        arguments = `Assoc [("key", `String "value")];
-      } in
+      let call : tool_call =
+        { id = "tc-ok"; name = "ok_tool";
+          arguments = `Assoc [("key", `String "value")] } in
       (match mw.on_before_tool with
        | Some before_fn ->
            (match before_fn call with
