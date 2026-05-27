@@ -118,10 +118,25 @@ let make_sqlite_persistence db_path =
       close_fn = (fun () -> Par_sqlite.Sqlite_persistence.close t);
     }
 
-let make_persistence_service backend db_path_val _db_uri_val =
+let make_postgres_persistence conninfo =
+  match Par_postgres.Postgres_persistence.create conninfo with
+  | Error e ->
+    Printf.eprintf "Error connecting to PostgreSQL: %s\n" (error_category_to_string e);
+    exit 1
+  | Ok t ->
+    { Types.
+      save_events_fn = (fun events -> Par_postgres.Postgres_persistence.save_events t events);
+      load_events_fn = (fun task_id -> Par_postgres.Postgres_persistence.load_events t task_id);
+      save_task_state_fn = (fun ts -> Par_postgres.Postgres_persistence.save_task_state t ts);
+      load_task_state_fn = (fun task_id -> Par_postgres.Postgres_persistence.load_task_state t task_id);
+      close_fn = (fun () -> Par_postgres.Postgres_persistence.close t);
+    }
+
+let make_persistence_service backend db_path_val db_uri_val =
   match backend with
   | Some "postgres" ->
-    Printf.eprintf "PostgreSQL not yet implemented\n"; exit 1
+    let conninfo = match db_uri_val with Some u -> u | None -> "postgresql://localhost/par" in
+    make_postgres_persistence conninfo
   | Some "sqlite" | None ->
     let path = match db_path_val with Some p -> p | None -> "par.db" in
     make_sqlite_persistence path
