@@ -176,7 +176,7 @@ let make_runtime_config persistence_val =
 (* Built-in tools                                                              *)
 (* -------------------------------------------------------------------------- *)
 
-let builtin_tools ~switch =
+let builtin_tools ~switch ~net =
   let open Types in
   let token = Cancellation.create_token switch in
 
@@ -531,6 +531,259 @@ let builtin_tools ~switch =
     }
   in
 
+  (* -------------------------------------------------------------------------- *)
+  (* HTTP helper for web tools                                                  *)
+  (* -------------------------------------------------------------------------- *)
+
+  (* Hard cap for HTTP response body: 10 MB *)
+  let max_download_size = 10 * 1024 * 1024 in
+
+  let default_headers = Http.Header.of_list [("user-agent", "P-A-R/0.1 (OCaml agent runtime)")] in
+
+  let tls_config =
+    lazy
+      (let authenticator =
+         match Ca_certs.authenticator () with
+         | Ok auth -> auth
+         | Error (`Msg msg) ->
+           Printf.eprintf "Warning: failed to load system CA certs: %s, using no-auth\n" msg;
+           (fun ?ip:_ ~host:_ _certs -> Ok None)
+       in
+       match Tls.Config.client ~authenticator () with
+       | Ok cfg -> cfg
+       | Result.Error (`Msg msg) -> failwith ("TLS configuration error: " ^ msg))
+  in
+
+  let tls_host_of_string host =
+    match Domain_name.of_string host with
+    | Error _ -> None
+    | Ok dn -> (match Domain_name.host dn with Ok h -> Some h | Error _ -> None)
+  in
+
+  let https_fn uri flow =
+    let cfg = Lazy.force tls_config in
+    let host = Uri.host uri in
+    (match host with
+     | Some h ->
+       (match tls_host_of_string h with
+        | Some dh -> Tls_eio.client_of_flow cfg ~host:dh flow
+        | None -> failwith ("Cannot parse hostname for TLS SNI: " ^ h))
+     | None -> failwith "No host in URL for TLS connection")
+  in
+
+  let http_client = Cohttp_eio.Client.make ~https:(Some https_fn) net in
+
+  let validate_url url =
+    let uri = Uri.of_string url in
+    match Uri.scheme uri with
+    | Some ("http" | "https") -> Ok uri
+    | Some s -> Error ("Unsupported URL scheme: " ^ s ^ ". Only http and https are allowed.")
+    | None -> Error "URL must include a scheme (http:// or https://)"
+  in
+
+  let http_get url sw : ((int * string), string) result =
+    match validate_url url with
+    | Error msg -> Error msg
+    | Ok uri ->
+      (try
+         let resp, body = Cohttp_eio.Client.get http_client ~sw ~headers:default_headers uri in
+         let status = (resp.Http.Response.status :> Cohttp.Code.status_code) |> Cohttp.Code.code_of_status in
+         let body_str =
+           Eio.Buf_read.parse_exn ~max_size:max_download_size Eio.Buf_read.take_all body
+         in
+         Ok (status, body_str)
+       with exn ->
+         Error ("HTTP request failed: " ^ Printexc.to_string exn))
+  in
+
+  (* -------------------------------------------------------------------------- *)
+  (* fetch_url: fetch raw content from a URL                                    *)
+  (* -------------------------------------------------------------------------- *)
+
+  let fetch_url_tool =
+    { name = "fetch_url"
+    ; description = "Fetch the content of a URL and return the raw text. \
+                     Input: {\"url\": \"https://example.com\", \"max_length\": 10000}"
+    ; input_schema = `Assoc
+        [ ("type", `String "object")
+        ; ("properties", `Assoc
+            [ ("url", `Assoc [("type", `String "string"); ("description", `String "URL to fetch")])
+            ; ("max_length", `Assoc [("type", `String "integer"); ("description", `String "Max response length (default 50000)")])
+            ])
+        ; ("required", `List [`String "url"])
+        ]
+    ; handler = (fun input _tok ->
+        let url = match Yojson.Safe.Util.(input |> member "url" |> to_string_option) with
+          | Some u -> u | None -> ""
+        in
+        let max_len = match Yojson.Safe.Util.(input |> member "max_length" |> to_int_option) with
+          | Some n -> max 100 (min n 500_000) | None -> 50000
+        in
+        if url = "" then
+          Error { category = Invalid_input "Missing url parameter"; message = "Missing url"; retryable = false; metadata = [] }
+        else
+          Eio.Switch.run @@ fun sw ->
+          (match http_get url sw with
+           | Error msg ->
+             Error { category = External_failure msg; message = msg; retryable = true; metadata = [] }
+           | Ok (status, body) ->
+             let truncated = String.length body > max_len in
+             let result = if truncated then String.sub body 0 max_len else body in
+             Success (`Assoc [
+               ("url", `String url);
+               ("status", `Int status);
+               ("content", `String result);
+               ("content_length", `Int (String.length result));
+                ("truncated", `Bool truncated);
+              ]))
+    )
+    ; permission = Allow
+    ; timeout = Some 15.0
+    ; concurrency_limit = None
+    }
+  in
+
+  (* -------------------------------------------------------------------------- *)
+  (* read_webpage: fetch URL and extract readable text from HTML                *)
+  (* -------------------------------------------------------------------------- *)
+
+  let read_webpage_tool =
+    { name = "read_webpage"
+    ; description = "Fetch a URL, parse the HTML, and extract readable text content. \
+                     Input: {\"url\": \"https://example.com\", \"max_length\": 10000}"
+    ; input_schema = `Assoc
+        [ ("type", `String "object")
+        ; ("properties", `Assoc
+            [ ("url", `Assoc [("type", `String "string"); ("description", `String "URL to fetch")])
+            ; ("max_length", `Assoc [("type", `String "integer"); ("description", `String "Max text length (default 10000)")])
+            ])
+        ; ("required", `List [`String "url"])
+        ]
+    ; handler = (fun input _tok ->
+        let url = match Yojson.Safe.Util.(input |> member "url" |> to_string_option) with
+          | Some u -> u | None -> ""
+        in
+        let max_len = match Yojson.Safe.Util.(input |> member "max_length" |> to_int_option) with
+          | Some n -> max 100 (min n 500_000) | None -> 10000
+        in
+        if url = "" then
+          Error { category = Invalid_input "Missing url parameter"; message = "Missing url"; retryable = false; metadata = [] }
+        else
+          Eio.Switch.run @@ fun sw ->
+          (match http_get url sw with
+           | Error msg ->
+             Error { category = External_failure msg; message = msg; retryable = true; metadata = [] }
+           | Ok (status, html) ->
+             if status < 200 || status >= 300 then
+               Error { category = External_failure (Printf.sprintf "HTTP %d" status);
+                       message = Printf.sprintf "HTTP %d fetching %s" status url;
+                       retryable = (status >= 500 || status = 429); metadata = [] }
+             else
+               let soup = Soup.parse html in
+               Soup.iter Soup.delete (Soup.select "script" soup);
+               Soup.iter Soup.delete (Soup.select "style" soup);
+               Soup.iter Soup.delete (Soup.select "noscript" soup);
+               let title =
+                 match Soup.select_one "title" soup with
+                 | Some el -> (match Soup.leaf_text el with Some t -> t | None -> "")
+                 | None -> ""
+               in
+               let text_parts = Soup.trimmed_texts soup in
+               let full_text = String.concat " " text_parts in
+               let truncated = String.length full_text > max_len in
+               let result = if truncated then String.sub full_text 0 max_len else full_text in
+               Success (`Assoc [
+                 ("url", `String url);
+                 ("title", `String title);
+                 ("text", `String result);
+                 ("text_length", `Int (String.length result));
+                 ("truncated", `Bool truncated);
+                ]))
+    )
+    ; permission = Allow
+    ; timeout = Some 15.0
+    ; concurrency_limit = None
+    }
+  in
+
+  (* -------------------------------------------------------------------------- *)
+  (* web_search: search DuckDuckGo and extract results                          *)
+  (* -------------------------------------------------------------------------- *)
+
+  let web_search_tool =
+    { name = "web_search"
+    ; description = "Search the web using DuckDuckGo and return results. \
+                     Input: {\"query\": \"search terms\", \"max_results\": 5}"
+    ; input_schema = `Assoc
+        [ ("type", `String "object")
+        ; ("properties", `Assoc
+            [ ("query", `Assoc [("type", `String "string"); ("description", `String "Search query")])
+            ; ("max_results", `Assoc [("type", `String "integer"); ("description", `String "Max number of results (default 5)")])
+            ])
+        ; ("required", `List [`String "query"])
+        ]
+    ; handler = (fun input _tok ->
+        let query = match Yojson.Safe.Util.(input |> member "query" |> to_string_option) with
+          | Some q -> q | None -> ""
+        in
+        let max_res = match Yojson.Safe.Util.(input |> member "max_results" |> to_int_option) with
+          | Some n -> max 1 (min n 20) | None -> 5
+        in
+        if query = "" then
+          Error { category = Invalid_input "Missing query parameter"; message = "Missing query"; retryable = false; metadata = [] }
+        else
+          Eio.Switch.run @@ fun sw ->
+          let encoded_query = Uri.pct_encode query in
+          let search_url = "https://lite.duckduckgo.com/lite?q=" ^ encoded_query in
+          (match http_get search_url sw with
+           | Error msg ->
+             Error { category = External_failure msg; message = msg; retryable = true; metadata = [] }
+           | Ok (_status, html) ->
+             let soup = Soup.parse html in
+             let results =
+               let result_links = Soup.select "a.result-link" soup in
+               let result_snippets = Soup.select "td.result-snippet" soup in
+               let links =
+                 Soup.fold (fun acc el ->
+                   let title = match Soup.leaf_text el with Some t -> t | None -> "" in
+                   let href = match Soup.attribute "href" el with Some h -> h | None -> "" in
+                   (title, href) :: acc
+                 ) [] result_links |> List.rev
+               in
+               let snippets =
+                 Soup.fold (fun acc el ->
+                   let text = String.concat " " (Soup.trimmed_texts el) in
+                   text :: acc
+                 ) [] result_snippets |> List.rev
+               in
+               let combine links snippets =
+                 let rec go acc = function
+                 | [], _ | _, [] -> List.rev acc
+                 | (t, u) :: ls, s :: ss ->
+                   go ((t, u, s) :: acc) (ls, ss)
+                 in
+                 go [] (links, snippets)
+               in
+               combine links snippets
+             in
+             let json_results =
+               results
+               |> List.filteri (fun i _ -> i < max_res)
+               |> List.map (fun (title, url, snippet) ->
+                 `Assoc [("title", `String title); ("url", `String url); ("snippet", `String snippet)])
+             in
+             Success (`Assoc [
+               ("query", `String query);
+               ("results", `List json_results);
+               ("result_count", `Int (List.length json_results));
+              ]))
+    )
+    ; permission = Allow
+    ; timeout = Some 15.0
+    ; concurrency_limit = None
+    }
+  in
+
   ignore token;
   [ calculator
   ; get_time
@@ -542,6 +795,9 @@ let builtin_tools ~switch =
   ; json_format
   ; convert_temperature_tool
   ; url_encode_tool
+  ; fetch_url_tool
+  ; read_webpage_tool
+  ; web_search_tool
   ]
 
 let make_agent_config id prompt provider_tag model temp max_iter tools =
@@ -614,7 +870,7 @@ let cmd_run persistence_val db_path_val db_uri_val provider_val
   match Runtime.create ~persistence:pers ~llm ~config switch with
   | Error e -> die_error e
   | Ok rt ->
-    let tools = builtin_tools ~switch in
+    let tools = builtin_tools ~switch ~net in
     let agent = make_agent_config agent_id_val prompt provider_tag model_val temp max_iter tools in
     (match Runtime.register_agent rt agent with
      | Error e -> die_error e
@@ -649,7 +905,7 @@ let cmd_invoke persistence_val db_path_val db_uri_val provider_val
   match Runtime.create ~persistence:pers ~llm ~config switch with
   | Error e -> die (error_to_json e)
   | Ok rt ->
-    let tools = builtin_tools ~switch in
+    let tools = builtin_tools ~switch ~net in
     let agent = make_agent_config agent_id_val "" provider_tag model_val temp 10 tools in
     (match Runtime.register_agent rt agent with
      | Error e -> die (error_to_json e)
@@ -786,7 +1042,7 @@ let cmd_workflow_submit persistence_val db_path_val db_uri_val provider_val
   match Runtime.create ~persistence:pers ~llm ~config switch with
   | Error e -> die (error_to_json e)
   | Ok rt ->
-    let tools = builtin_tools ~switch in
+    let tools = builtin_tools ~switch ~net in
     let prompt = "You are a helpful assistant. You have access to these tools:\n\
                   - calculator: evaluate math expressions (e.g. \"2 + 3 * 4\")\n\
                   - get_time: get current UTC date/time\n\
