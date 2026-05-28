@@ -2,7 +2,7 @@
 
 A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM support, workflow orchestration, and persistent state management.
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/par-runtime/par)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/jcz2020/par)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ## Features
@@ -42,10 +42,10 @@ A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM suppor
 
 ```bash
 # 一键安装（自动安装系统依赖 + OCaml + 构建 + 安装到 /usr/local/bin）
-curl -fsSL https://raw.githubusercontent.com/par-runtime/par/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
 
 # 或手动安装
-git clone https://github.com/par-runtime/par.git && cd par
+git clone https://github.com/jcz2020/par.git && cd par
 make install
 
 # 配置

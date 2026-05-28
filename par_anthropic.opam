@@ -4,8 +4,8 @@ synopsis: "Programmable Agent Runtime - Anthropic LLM provider"
 maintainer: ["P-A-R Contributors"]
 authors: ["P-A-R Contributors"]
 license: "MIT"
-homepage: "https://github.com/par-runtime/par"
-bug-reports: "https://github.com/par-runtime/par/issues"
+homepage: "https://github.com/jcz2020/par"
+bug-reports: "https://github.com/jcz2020/par/issues"
 depends: [
   "ocaml"
   "dune" {>= "3.16"}
@@ -29,4 +29,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/par-runtime/par.git"
+dev-repo: "git+https://github.com/jcz2020/par.git"
