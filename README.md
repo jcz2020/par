@@ -13,29 +13,30 @@ A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM suppor
 - 工作流引擎：顺序执行、并行执行、条件分支、map-reduce
 - 6个内置中间件：日志、超时、重试、限速、PII掩码、数据校验
 - 双重持久化：SQLite（开发）/ PostgreSQL（生产）
-- 交互式REPL（`par run`）
+- 交互式REPL（`par`）
 - 安全URL抓取：TLS证书验证、系统CA store、URL scheme校验、10MB容量限制
 - 111个测试用例通过
 
 ## Architecture
 
 ```
-+-------------------------------------------------------------+
-|                         CLI (par)                            |
-+-------------------------------------------------------------+
-|                     SDK (Runtime API)                        |
-+------------+--------+-----------+--------------------------+
-|   Engine   |Workflow|  Context  |       Middleware          |
-|  (ReAct)   |Engine  |  Manager  |     (6 built-in)          |
-+------------+--------+-----------+--------------------------+
-|                     Core Types (par_core)                   |
-+------------+----------+-----------+--------------------------+
-|  par_eio   |par_sqlite|par_pgsql |        LLM Providers      |
-| (Event Bus)|(Persist )|(Persist )|  OpenAI / Anthropic      |
-|    +DLQ    |          |          |                          |
-+------------+----------+-----------+--------------------------+
-|                      Web Tools (cohttp-eio + lambdasoup)    |
-+-------------------------------------------------------------+
++-----------------------------------------------------------+
+|                      CLI (par_cli)                        |
+|            par / par config / par ask                     |
++-----------------------------------------------------------+
+|                       SDK (par)                           |
++----------+----------+----------+----------+--------------+
+|  Core    |Providers |Persist   |Event_bus |  Middleware  |
+| Types    |OpenAI    |SQLite    |Eio+DLQ   |  Logging     |
+| Runtime  |Anthropic |PostgreSQL|          |  Retry       |
+| Engine   |          |          |          |  Rate_limit  |
+| Workflow |          |          |          |  Timeout     |
+| Expr     |          |          |          |  Validation  |
+| State_m  |          |          |          |  Pii_mask    |
++----------+----------+----------+----------+------+-------+
+|                   Tools (13 builtin)                     |
+|       calculator / web_search / fetch_url / ...          |
++-----------------------------------------------------------+
 ```
 
 ## Quick Start
@@ -58,10 +59,10 @@ par
 ## Usage Example (OCaml SDK)
 
 ```ocaml
-open Par_core
+open Par
 
 let config = {
-  Types.persistence = `Sqlite "par.db";
+  persistence = `Sqlite "par.db";
   event_bus = Runtime.default_event_bus_config;
   default_quota = Runtime.default_quota;
   shutdown = Runtime.default_shutdown_config;
@@ -78,11 +79,11 @@ let () = Eio_main.run (fun env ->
         ~description:"Echoes back the input"
         ~input_schema:(`Assoc [("type", `String "object"); ("properties", `Assoc [])])
         ~handler:(fun input _token ->
-          Types.Success (`String (Printf.sprintf "Echo: %s" (Yojson.Safe.to_string input))))
+          Success (`String (Printf.sprintf "Echo: %s" (Yojson.Safe.to_string input))))
         ()
       in
       let agent = {
-        Types.id = "my-agent";
+        id = "my-agent";
         system_prompt = "You are a helpful assistant.";
         model = { provider = `Openai; model_name = "gpt-4"; api_base = None;
                   temperature = 0.7; max_tokens = None; top_p = None;
@@ -135,29 +136,22 @@ See `examples/basic_agent.ml` for the complete example.
 
 | Package | Description |
 |---------|-------------|
-| `par_core` | Core types, ReAct engine, runtime, SDK, expression evaluator, state machine, workflow engine, context manager |
-| `par_eio` | Eio-based event bus with dead-letter queue (DLQ) support |
-| `par_sqlite` | SQLite persistence backend for development |
-| `par_postgres` | PostgreSQL persistence backend for production |
-| `par_openai` | OpenAI and OpenAI-compatible LLM provider |
-| `par_anthropic` | Anthropic Messages API provider |
-| `par_middleware` | Retry, rate limiting, PII masking, validation, logging, timeout middleware |
-| `par_cli` | Command-line interface (`par`) |
+| `par` | SDK: Core types, ReAct engine, runtime, workflow, expression evaluator, state machine, context manager, event bus, OpenAI/Anthropic providers, SQLite/PostgreSQL persistence, 13 builtin tools, 6 middleware |
+| `par_cli` | CLI tool: `par` (REPL), `par config` (wizard), `par ask` (single-shot) |
 
 ## Project Structure
 
 ```
 par/
-+-- bin/              CLI entry point
++-- bin/              CLI entry point (par, par config, par ask)
 +-- lib/
-|   +-- par_core/      Core types, engine, runtime, SDK
-|   +-- par_eio/       Event bus (Eio-based)
-|   +-- par_sqlite/    SQLite persistence
-|   +-- par_postgres/  PostgreSQL persistence
-|   +-- par_openai/    OpenAI LLM provider
-|   +-- par_anthropic/ Anthropic LLM provider
-|   +-- par_middleware/ Built-in middleware
-|   +-- par_cli/       CLI implementation
+|   +-- core/          Types, Runtime, Engine, SDK, Expression, State machine, Workflow, Context manager, Cancellation
+|   +-- providers/     OpenAI and Anthropic LLM providers
+|   +-- persistence/   SQLite and PostgreSQL backends
+|   +-- event_bus/     Eio-based event bus with DLQ
+|   +-- middleware/    Logging, Retry, Rate_limit, Timeout, Validation, Pii_mask
+|   +-- tools/         13 builtin tools (calculator, web tools, etc.)
+|   +-- par.ml         Facade module (re-exports all sub-modules for `open Par`)
 +-- test/              Unit and integration tests
 +-- examples/          Example agents and workflows
 +-- schema/            Database schemas
