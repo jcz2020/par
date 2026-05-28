@@ -8,8 +8,9 @@ type exec_context = {
   variables : (string * Yojson.Safe.t) list;
   token : cancellation_token;
   agent_resolver : string -> agent_config option;
-  tool_resolver : string -> tool_binding option;
+  tool_resolver : string -> tool_descriptor option;
   llm : llm_service;
+  registry : Tool_registry.t;
   parallel_limit : int;
   failure_policy : failure_policy;
 }
@@ -45,17 +46,20 @@ let rec execute_step ctx step =
      | None -> Result.Error (Invalid_input (Printf.sprintf "Agent not found: %s" agent_id))
      | Some agent ->
        let prompt = substitute prompt_template ctx.variables in
-       match Engine.run_agent ctx.token agent prompt ctx.llm with
+       match Engine.run_agent ctx.token agent prompt ctx.llm ctx.registry with
        | Ok resp -> Ok (match resp.text with Some t -> `String t | None -> `Null)
        | Result.Error err -> Result.Error err)
 
   | Tool_call { tool_name; input } ->
     (match ctx.tool_resolver tool_name with
      | None -> Result.Error (Invalid_input (Printf.sprintf "Tool not found: %s" tool_name))
-     | Some binding ->
-       match binding.handler input ctx.token with
-       | Success json -> Ok json
-       | Types.Error { category; _ } -> Result.Error category)
+     | Some _ ->
+       (match Tool_registry.resolve ctx.registry tool_name with
+        | None -> Result.Error (Internal (Printf.sprintf "Tool handler not registered: %s" tool_name))
+        | Some handler ->
+          match handler input ctx.token with
+          | Success json -> Ok json
+          | Types.Error { category; _ } -> Result.Error category))
 
   | Sequential steps ->
     execute_sequential ctx steps

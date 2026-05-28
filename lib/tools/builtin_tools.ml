@@ -3,16 +3,22 @@ let builtin_tools ~switch ~net =
   let token = Cancellation.create_token switch in
 
   let calculator =
-    { name = "calculator"
-    ; description = "Evaluate a mathematical expression and return the numeric result. \
-                     Input: {\"expression\": \"2 + 3 * 4\"}. Supports +, -, *, /, parentheses."
-    ; input_schema = `Assoc
-        [ ("type", `String "object")
-        ; ("properties", `Assoc
-            [("expression", `Assoc [("type", `String "string"); ("description", `String "Math expression to evaluate")])])
-        ; ("required", `List [`String "expression"])
-        ]
-    ; handler = (fun input _tok ->
+    let descriptor =
+      { name = "calculator"
+      ; description = "Evaluate a mathematical expression and return the numeric result. \
+                       Input: {\"expression\": \"2 + 3 * 4\"}. Supports +, -, *, /, parentheses."
+      ; input_schema = `Assoc
+          [ ("type", `String "object")
+          ; ("properties", `Assoc
+              [("expression", `Assoc [("type", `String "string"); ("description", `String "Math expression to evaluate")])])
+          ; ("required", `List [`String "expression"])
+          ]
+      ; permission = Allow
+      ; timeout = Some 5.0
+      ; concurrency_limit = None
+      }
+    in
+    let handler = (fun input _tok ->
         let expr = match Yojson.Safe.Util.(input |> member "expression" |> to_string_option) with
           | Some e -> e | None -> ""
         in
@@ -72,74 +78,90 @@ let builtin_tools ~switch ~net =
                Success (`Float r)
            with _ ->
              Error { category = Invalid_input "Failed to parse expression"; message = "Parse error"; retryable = false; metadata = [] }))
-    ; permission = Allow
-    ; timeout = Some 5.0
-    ; concurrency_limit = None
-    }
+    in
+    { descriptor; handler }
   in
 
   let get_time =
-    { name = "get_time"
-    ; description = "Get the current date and time in UTC. Input: {}"
-    ; input_schema = `Assoc [("type", `String "object"); ("properties", `Assoc [])]
-    ; handler = (fun _input _tok ->
+    let descriptor =
+      { name = "get_time"
+      ; description = "Get the current date and time in UTC. Input: {}"
+      ; input_schema = `Assoc [("type", `String "object"); ("properties", `Assoc [])]
+      ; permission = Allow
+      ; timeout = Some 2.0
+      ; concurrency_limit = None
+      }
+    in
+    let handler = (fun _input _tok ->
         let tm = Unix.gmtime (Unix.time ()) in
         let iso = Printf.sprintf "%04d-%02d-%02dT%02d:%02d:%02dZ"
           (1900 + tm.Unix.tm_year) (1 + tm.Unix.tm_mon) tm.Unix.tm_mday
           tm.Unix.tm_hour tm.Unix.tm_min tm.Unix.tm_sec
         in
         Success (`String iso))
-    ; permission = Allow
-    ; timeout = Some 2.0
-    ; concurrency_limit = None
-    }
+    in
+    { descriptor; handler }
   in
 
   let echo =
-    { name = "echo"
-    ; description = "Echo back the input text. Input: {\"text\": \"...\"}"
-    ; input_schema = `Assoc
-        [ ("type", `String "object")
-        ; ("properties", `Assoc [("text", `Assoc [("type", `String "string")])])
-        ; ("required", `List [`String "text"])
-        ]
-    ; handler = (fun input _tok ->
+    let descriptor =
+      { name = "echo"
+      ; description = "Echo back the input text. Input: {\"text\": \"...\"}"
+      ; input_schema = `Assoc
+          [ ("type", `String "object")
+          ; ("properties", `Assoc [("text", `Assoc [("type", `String "string")])])
+          ; ("required", `List [`String "text"])
+          ]
+      ; permission = Allow
+      ; timeout = Some 2.0
+      ; concurrency_limit = None
+      }
+    in
+    let handler = (fun input _tok ->
         let txt = match Yojson.Safe.Util.(input |> member "text" |> to_string_option) with
           | Some s -> s | None -> Yojson.Safe.to_string input
         in
         Success (`String txt))
-    ; permission = Allow
-    ; timeout = Some 2.0
-    ; concurrency_limit = None
-    }
+    in
+    { descriptor; handler }
   in
 
   let generate_uuid_tool =
-    { name = "generate_uuid"
-    ; description = "Generate a random UUID v4. Input: {}"
-    ; input_schema = `Assoc [("type", `String "object"); ("properties", `Assoc [])]
-    ; handler = (fun _input _tok ->
+    let descriptor =
+      { name = "generate_uuid"
+      ; description = "Generate a random UUID v4. Input: {}"
+      ; input_schema = `Assoc [("type", `String "object"); ("properties", `Assoc [])]
+      ; permission = Allow
+      ; timeout = Some 1.0
+      ; concurrency_limit = None
+      }
+    in
+    let handler = (fun _input _tok ->
         let uuid = Uuidm.v4_gen (Random.State.make_self_init ()) () in
         Success (`String (Uuidm.to_string uuid)))
-    ; permission = Allow
-    ; timeout = Some 1.0
-    ; concurrency_limit = None
-    }
+    in
+    { descriptor; handler }
   in
 
   let hash_text =
-    { name = "hash_text"
-    ; description = "Compute a hash of text. Input: {\"text\": \"...\", \"algorithm\": \"sha256\"}. \
-                     Supported: md5, sha1, sha256 (default)."
-    ; input_schema = `Assoc
-        [ ("type", `String "object")
-        ; ("properties", `Assoc
-            [ ("text", `Assoc [("type", `String "string"); ("description", `String "Text to hash")])
-            ; ("algorithm", `Assoc [("type", `String "string"); ("description", `String "md5, sha1, or sha256 (default)")])
-            ])
-        ; ("required", `List [`String "text"])
-        ]
-    ; handler = (fun input _tok ->
+    let descriptor =
+      { name = "hash_text"
+      ; description = "Compute a hash of text. Input: {\"text\": \"...\", \"algorithm\": \"sha256\"}. \
+                       Supported: md5, sha1, sha256 (default)."
+      ; input_schema = `Assoc
+          [ ("type", `String "object")
+          ; ("properties", `Assoc
+              [ ("text", `Assoc [("type", `String "string"); ("description", `String "Text to hash")])
+              ; ("algorithm", `Assoc [("type", `String "string"); ("description", `String "md5, sha1, or sha256 (default)")])
+              ])
+          ; ("required", `List [`String "text"])
+          ]
+      ; permission = Allow
+      ; timeout = Some 2.0
+      ; concurrency_limit = None
+      }
+    in
+    let handler = (fun input _tok ->
         let txt = match Yojson.Safe.Util.(input |> member "text" |> to_string_option) with
           | Some s -> s | None -> ""
         in
@@ -152,23 +174,27 @@ let builtin_tools ~switch ~net =
           else Digestif.SHA256.to_hex (Digestif.SHA256.digest_string txt)
         in
         Success (`Assoc [("hash", `String hex); ("algorithm", `String algo)]))
-    ; permission = Allow
-    ; timeout = Some 2.0
-    ; concurrency_limit = None
-    }
+    in
+    { descriptor; handler }
   in
 
   let generate_password_tool =
-    { name = "generate_password"
-    ; description = "Generate a random password. Input: {\"length\": 16, \"include_symbols\": true}"
-    ; input_schema = `Assoc
-        [ ("type", `String "object")
-        ; ("properties", `Assoc
-            [ ("length", `Assoc [("type", `String "integer"); ("description", `String "Password length (default 16)")])
-            ; ("include_symbols", `Assoc [("type", `String "boolean"); ("description", `String "Include !@#$%^&* symbols (default true)")])
-            ])
-        ]
-    ; handler = (fun input _tok ->
+    let descriptor =
+      { name = "generate_password"
+      ; description = "Generate a random password. Input: {\"length\": 16, \"include_symbols\": true}"
+      ; input_schema = `Assoc
+          [ ("type", `String "object")
+          ; ("properties", `Assoc
+              [ ("length", `Assoc [("type", `String "integer"); ("description", `String "Password length (default 16)")])
+              ; ("include_symbols", `Assoc [("type", `String "boolean"); ("description", `String "Include !@#$%^&* symbols (default true)")])
+              ])
+          ]
+      ; permission = Allow
+      ; timeout = Some 1.0
+      ; concurrency_limit = None
+      }
+    in
+    let handler = (fun input _tok ->
         let len = match Yojson.Safe.Util.(input |> member "length" |> to_int_option) with
           | Some n -> max 4 (min 128 n)
           | None -> 16
@@ -186,21 +212,25 @@ let builtin_tools ~switch ~net =
           Bytes.set buf i chars.[Random.State.int rng chars_len]
         done;
         Success (`String (Bytes.to_string buf)))
-    ; permission = Allow
-    ; timeout = Some 1.0
-    ; concurrency_limit = None
-    }
+    in
+    { descriptor; handler }
   in
 
   let string_stats =
-    { name = "string_stats"
-    ; description = "Count characters, words, and lines in text. Input: {\"text\": \"...\"}"
-    ; input_schema = `Assoc
-        [ ("type", `String "object")
-        ; ("properties", `Assoc [("text", `Assoc [("type", `String "string"); ("description", `String "Text to analyze")])])
-        ; ("required", `List [`String "text"])
-        ]
-    ; handler = (fun input _tok ->
+    let descriptor =
+      { name = "string_stats"
+      ; description = "Count characters, words, and lines in text. Input: {\"text\": \"...\"}"
+      ; input_schema = `Assoc
+          [ ("type", `String "object")
+          ; ("properties", `Assoc [("text", `Assoc [("type", `String "string"); ("description", `String "Text to analyze")])])
+          ; ("required", `List [`String "text"])
+          ]
+      ; permission = Allow
+      ; timeout = Some 1.0
+      ; concurrency_limit = None
+      }
+    in
+    let handler = (fun input _tok ->
         let txt = match Yojson.Safe.Util.(input |> member "text" |> to_string_option) with
           | Some s -> s | None -> ""
         in
@@ -213,21 +243,25 @@ let builtin_tools ~switch ~net =
           ("words", `Int word_count);
           ("lines", `Int line_count);
         ]))
-    ; permission = Allow
-    ; timeout = Some 1.0
-    ; concurrency_limit = None
-    }
+    in
+    { descriptor; handler }
   in
 
   let json_format =
-    { name = "json_format"
-    ; description = "Format and validate a JSON string. Input: {\"json\": \"{\\\"key\\\": \\\"value\\\"}\"}"
-    ; input_schema = `Assoc
-        [ ("type", `String "object")
-        ; ("properties", `Assoc [("json", `Assoc [("type", `String "string"); ("description", `String "JSON string to format")])])
-        ; ("required", `List [`String "json"])
-        ]
-    ; handler = (fun input _tok ->
+    let descriptor =
+      { name = "json_format"
+      ; description = "Format and validate a JSON string. Input: {\"json\": \"{\\\"key\\\": \\\"value\\\"}\"}"
+      ; input_schema = `Assoc
+          [ ("type", `String "object")
+          ; ("properties", `Assoc [("json", `Assoc [("type", `String "string"); ("description", `String "JSON string to format")])])
+          ; ("required", `List [`String "json"])
+          ]
+      ; permission = Allow
+      ; timeout = Some 2.0
+      ; concurrency_limit = None
+      }
+    in
+    let handler = (fun input _tok ->
         let json_str = match Yojson.Safe.Util.(input |> member "json" |> to_string_option) with
           | Some s -> s | None -> "{}"
         in
@@ -236,26 +270,30 @@ let builtin_tools ~switch ~net =
            Success (`String (Yojson.Safe.pretty_to_string ~std:true json))
          with Yojson.Json_error msg ->
            Error { category = Invalid_input ("Invalid JSON: " ^ msg); message = msg; retryable = false; metadata = [] }))
-    ; permission = Allow
-    ; timeout = Some 2.0
-    ; concurrency_limit = None
-    }
+    in
+    { descriptor; handler }
   in
 
   let convert_temperature_tool =
-    { name = "convert_temperature"
-    ; description = "Convert temperature between Celsius, Fahrenheit, and Kelvin. \
-                     Input: {\"value\": 100, \"from\": \"C\", \"to\": \"F\"}"
-    ; input_schema = `Assoc
-        [ ("type", `String "object")
-        ; ("properties", `Assoc
-            [ ("value", `Assoc [("type", `String "number"); ("description", `String "Temperature value")])
-            ; ("from", `Assoc [("type", `String "string"); ("description", `String "Unit: C, F, or K")])
-            ; ("to", `Assoc [("type", `String "string"); ("description", `String "Unit: C, F, or K")])
-            ])
-        ; ("required", `List [`String "value"; `String "from"; `String "to"])
-        ]
-    ; handler = (fun input _tok ->
+    let descriptor =
+      { name = "convert_temperature"
+      ; description = "Convert temperature between Celsius, Fahrenheit, and Kelvin. \
+                       Input: {\"value\": 100, \"from\": \"C\", \"to\": \"F\"}"
+      ; input_schema = `Assoc
+          [ ("type", `String "object")
+          ; ("properties", `Assoc
+              [ ("value", `Assoc [("type", `String "number"); ("description", `String "Temperature value")])
+              ; ("from", `Assoc [("type", `String "string"); ("description", `String "Unit: C, F, or K")])
+              ; ("to", `Assoc [("type", `String "string"); ("description", `String "Unit: C, F, or K")])
+              ])
+          ; ("required", `List [`String "value"; `String "from"; `String "to"])
+          ]
+      ; permission = Allow
+      ; timeout = Some 1.0
+      ; concurrency_limit = None
+      }
+    in
+    let handler = (fun input _tok ->
         let value = match Yojson.Safe.Util.(input |> member "value") with
           | `Float f -> f | `Int n -> float_of_int n | _ -> 0.0
         in
@@ -282,24 +320,28 @@ let builtin_tools ~switch ~net =
           ("original_value", `Float value);
           ("original_unit", `String from_unit);
         ]))
-    ; permission = Allow
-    ; timeout = Some 1.0
-    ; concurrency_limit = None
-    }
+    in
+    { descriptor; handler }
   in
 
   let url_encode_tool =
-    { name = "url_encode"
-    ; description = "URL-encode or URL-decode a string. Input: {\"text\": \"hello world\", \"decode\": false}"
-    ; input_schema = `Assoc
-        [ ("type", `String "object")
-        ; ("properties", `Assoc
-            [ ("text", `Assoc [("type", `String "string"); ("description", `String "Text to encode/decode")])
-            ; ("decode", `Assoc [("type", `String "boolean"); ("description", `String "true to decode, false to encode (default)")])
-            ])
-        ; ("required", `List [`String "text"])
-        ]
-    ; handler = (fun input _tok ->
+    let descriptor =
+      { name = "url_encode"
+      ; description = "URL-encode or URL-decode a string. Input: {\"text\": \"hello world\", \"decode\": false}"
+      ; input_schema = `Assoc
+          [ ("type", `String "object")
+          ; ("properties", `Assoc
+              [ ("text", `Assoc [("type", `String "string"); ("description", `String "Text to encode/decode")])
+              ; ("decode", `Assoc [("type", `String "boolean"); ("description", `String "true to decode, false to encode (default)")])
+              ])
+          ; ("required", `List [`String "text"])
+          ]
+      ; permission = Allow
+      ; timeout = Some 1.0
+      ; concurrency_limit = None
+      }
+    in
+    let handler = (fun input _tok ->
         let text = match Yojson.Safe.Util.(input |> member "text" |> to_string_option) with
           | Some s -> s | None -> ""
         in
@@ -335,10 +377,8 @@ let builtin_tools ~switch ~net =
           ) text;
           Success (`String (Buffer.contents buf))
         end)
-    ; permission = Allow
-    ; timeout = Some 1.0
-    ; concurrency_limit = None
-    }
+    in
+    { descriptor; handler }
   in
 
   let max_download_size = 10 * 1024 * 1024 in
@@ -402,18 +442,24 @@ let builtin_tools ~switch ~net =
   in
 
   let fetch_url_tool =
-    { name = "fetch_url"
-    ; description = "Fetch the content of a URL and return the raw text. \
-                     Input: {\"url\": \"https://example.com\", \"max_length\": 10000}"
-    ; input_schema = `Assoc
-        [ ("type", `String "object")
-        ; ("properties", `Assoc
-            [ ("url", `Assoc [("type", `String "string"); ("description", `String "URL to fetch")])
-            ; ("max_length", `Assoc [("type", `String "integer"); ("description", `String "Max response length (default 50000)")])
-            ])
-        ; ("required", `List [`String "url"])
-        ]
-    ; handler = (fun input _tok ->
+    let descriptor =
+      { name = "fetch_url"
+      ; description = "Fetch the content of a URL and return the raw text. \
+                       Input: {\"url\": \"https://example.com\", \"max_length\": 10000}"
+      ; input_schema = `Assoc
+          [ ("type", `String "object")
+          ; ("properties", `Assoc
+              [ ("url", `Assoc [("type", `String "string"); ("description", `String "URL to fetch")])
+              ; ("max_length", `Assoc [("type", `String "integer"); ("description", `String "Max response length (default 50000)")])
+              ])
+          ; ("required", `List [`String "url"])
+          ]
+      ; permission = Allow
+      ; timeout = Some 15.0
+      ; concurrency_limit = None
+      }
+    in
+    let handler = (fun input _tok ->
         let url = match Yojson.Safe.Util.(input |> member "url" |> to_string_option) with
           | Some u -> u | None -> ""
         in
@@ -436,27 +482,31 @@ let builtin_tools ~switch ~net =
                ("content", `String result);
                 ("content_length", `Int (String.length result));
                  ("truncated", `Bool truncated);
-               ]))
+                ]))
     )
-    ; permission = Allow
-    ; timeout = Some 15.0
-    ; concurrency_limit = None
-    }
+    in
+    { descriptor; handler }
   in
 
   let read_webpage_tool =
-    { name = "read_webpage"
-    ; description = "Fetch a URL, parse the HTML, and extract readable text content. \
-                     Input: {\"url\": \"https://example.com\", \"max_length\": 10000}"
-    ; input_schema = `Assoc
-        [ ("type", `String "object")
-        ; ("properties", `Assoc
-            [ ("url", `Assoc [("type", `String "string"); ("description", `String "URL to fetch")])
-            ; ("max_length", `Assoc [("type", `String "integer"); ("description", `String "Max text length (default 10000)")])
-            ])
-        ; ("required", `List [`String "url"])
-        ]
-    ; handler = (fun input _tok ->
+    let descriptor =
+      { name = "read_webpage"
+      ; description = "Fetch a URL, parse the HTML, and extract readable text content. \
+                       Input: {\"url\": \"https://example.com\", \"max_length\": 10000}"
+      ; input_schema = `Assoc
+          [ ("type", `String "object")
+          ; ("properties", `Assoc
+              [ ("url", `Assoc [("type", `String "string"); ("description", `String "URL to fetch")])
+              ; ("max_length", `Assoc [("type", `String "integer"); ("description", `String "Max text length (default 10000)")])
+              ])
+          ; ("required", `List [`String "url"])
+          ]
+      ; permission = Allow
+      ; timeout = Some 15.0
+      ; concurrency_limit = None
+      }
+    in
+    let handler = (fun input _tok ->
         let url = match Yojson.Safe.Util.(input |> member "url" |> to_string_option) with
           | Some u -> u | None -> ""
         in
@@ -494,28 +544,32 @@ let builtin_tools ~switch ~net =
                  ("title", `String title);
                  ("text", `String result);
                  ("text_length", `Int (String.length result));
-                  ("truncated", `Bool truncated);
-                 ]))
+                   ("truncated", `Bool truncated);
+                  ]))
     )
-    ; permission = Allow
-    ; timeout = Some 15.0
-    ; concurrency_limit = None
-    }
+    in
+    { descriptor; handler }
   in
 
   let web_search_tool =
-    { name = "web_search"
-    ; description = "Search the web using DuckDuckGo and return results. \
-                     Input: {\"query\": \"search terms\", \"max_results\": 5}"
-    ; input_schema = `Assoc
-        [ ("type", `String "object")
-        ; ("properties", `Assoc
-            [ ("query", `Assoc [("type", `String "string"); ("description", `String "Search query")])
-            ; ("max_results", `Assoc [("type", `String "integer"); ("description", `String "Max number of results (default 5)")])
-            ])
-        ; ("required", `List [`String "query"])
-        ]
-    ; handler = (fun input _tok ->
+    let descriptor =
+      { name = "web_search"
+      ; description = "Search the web using DuckDuckGo and return results. \
+                       Input: {\"query\": \"search terms\", \"max_results\": 5}"
+      ; input_schema = `Assoc
+          [ ("type", `String "object")
+          ; ("properties", `Assoc
+              [ ("query", `Assoc [("type", `String "string"); ("description", `String "Search query")])
+              ; ("max_results", `Assoc [("type", `String "integer"); ("description", `String "Max number of results (default 5)")])
+              ])
+          ; ("required", `List [`String "query"])
+          ]
+      ; permission = Allow
+      ; timeout = Some 15.0
+      ; concurrency_limit = None
+      }
+    in
+    let handler = (fun input _tok ->
         let query = match Yojson.Safe.Util.(input |> member "query" |> to_string_option) with
           | Some q -> q | None -> ""
         in
@@ -568,13 +622,11 @@ let builtin_tools ~switch ~net =
              Success (`Assoc [
                ("query", `String query);
                ("results", `List json_results);
-                ("result_count", `Int (List.length json_results));
-               ]))
+                 ("result_count", `Int (List.length json_results));
+                ]))
     )
-    ; permission = Allow
-    ; timeout = Some 15.0
-    ; concurrency_limit = None
-    }
+    in
+    { descriptor; handler }
   in
 
   ignore token;

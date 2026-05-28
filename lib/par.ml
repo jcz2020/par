@@ -3,7 +3,7 @@
     [open Par] brings all SDK modules into scope:
     Types, Runtime, Engine, Expression, Workflow_engine,
     State_machine, Context_manager, Cancellation,
-    Openai_provider, Anthropic_provider,
+    Tool_registry, Openai_provider, Anthropic_provider,
     Sqlite_persistence, Postgres_persistence,
     Event_bus, Builtin_tools,
     Logging, Retry, Rate_limit, Timeout, Validation, Pii_mask *)
@@ -16,6 +16,7 @@ module Workflow_engine = Workflow_engine
 module State_machine = State_machine
 module Context_manager = Context_manager
 module Cancellation = Cancellation
+module Tool_registry = Tool_registry
 
 module Openai_provider = Openai_provider
 module Anthropic_provider = Anthropic_provider

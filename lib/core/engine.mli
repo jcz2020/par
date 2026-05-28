@@ -32,7 +32,8 @@ val apply_on_error :
 
 val execute_tool :
   cancellation_token ->
-  tool_binding ->
+  tool_descriptor ->
+  Tool_registry.handler_fn ->
   Yojson.Safe.t ->
   middleware_hook list ->
   handler_result
@@ -42,4 +43,5 @@ val run_agent :
   agent_config ->
   string ->
   llm_service ->
+  Tool_registry.t ->
   (llm_response, error_category) result

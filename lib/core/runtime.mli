@@ -68,3 +68,5 @@ val cancel_workflow :
   runtime ->
   Workflow_run_id.t ->
   (unit, error_category) result
+
+val tool_registry : runtime -> Tool_registry.t

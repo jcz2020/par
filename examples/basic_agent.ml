@@ -34,7 +34,7 @@ let () =
             top_p = None;
             stop_sequences = None;
           };
-          tools = [ tool ];
+          tools = [ tool.descriptor ];
           max_iterations = 5;
           middleware = [];
           retry_policy = None;

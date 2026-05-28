@@ -13,6 +13,7 @@ type runtime = {
   shutdown_mutex : Eio.Mutex.t;
   tasks : (Task_id.t, task_state) protected_hashtbl;
   workflows : (Workflow_run_id.t, workflow_status) protected_hashtbl;
+  tool_registry : Tool_registry.t;
 } [@@warning "-69"]
 
 let default_event_bus_config = {
@@ -44,9 +45,11 @@ let register_agent rt (agent : agent_config) =
   htbl_set rt.agents agent.id agent;
   Ok ()
 
-let register_tool _rt ~name ~description ~input_schema ~handler
+let register_tool rt ~name ~description ~input_schema ~handler
     ?(permission = Allow) ?timeout ?concurrency_limit () =
-  { name; description; input_schema; handler; permission; timeout; concurrency_limit }
+  let descriptor = { Types.name; description; input_schema; permission; timeout; concurrency_limit } in
+  Tool_registry.register rt.tool_registry descriptor handler;
+  { descriptor; handler }
 
 let invoke rt ~agent_id ~message ?cancellation_token () =
   let agent = htbl_get rt.agents agent_id in
@@ -57,7 +60,7 @@ let invoke rt ~agent_id ~message ?cancellation_token () =
       | Some t -> t
       | None -> Cancellation.create_token rt.cancellation_root
     in
-    Engine.run_agent token config message rt.services.llm
+    Engine.run_agent token config message rt.services.llm rt.tool_registry
 
 let submit_task rt ?(priority = 5) ?(timeout = 300.0) input =
   let id = Task_id.create () in
@@ -125,7 +128,7 @@ let find_tool_across_agents rt tool_name =
   let result = ref None in
   htbl_iter rt.agents (fun _id (agent : agent_config) ->
     if result.contents = None then
-      result := List.find_opt (fun (tb : tool_binding) -> tb.name = tool_name) agent.tools
+      result := List.find_opt (fun (td : tool_descriptor) -> td.name = tool_name) agent.tools
   );
   result.contents
 
@@ -139,6 +142,7 @@ let submit_workflow rt wf =
     agent_resolver = (fun aid -> htbl_get rt.agents aid);
     tool_resolver = find_tool_across_agents rt;
     llm = rt.services.llm;
+    registry = rt.tool_registry;
     parallel_limit = wf.parallel_limit;
     failure_policy = wf.failure_policy;
   } in
@@ -200,6 +204,7 @@ let create ?(persistence = noop_persistence)
     shutdown_mutex = Eio.Mutex.create ();
     tasks = { data = Hashtbl.create 256; mutex = Eio.Mutex.create () };
     workflows = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
+    tool_registry = Tool_registry.create ();
   } in
   Ok rt
 
@@ -210,3 +215,5 @@ let close rt =
   rt.services.persistence.close_fn ();
   rt.services.llm.close_fn ();
   0
+
+let tool_registry rt = rt.tool_registry

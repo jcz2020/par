@@ -39,13 +39,22 @@ let with_token f =
       f token))
 
 let dummy_tool ?(name = "test_tool") handler =
-  { name; description = "A test tool"; input_schema = `Assoc [];
-    handler; permission = Allow; timeout = None; concurrency_limit = None }
+  let descriptor = { name; description = "A test tool"; input_schema = `Assoc [];
+    permission = Allow; timeout = None; concurrency_limit = None } in
+  { descriptor; handler }
 
 let basic_agent ?(tools = []) ?(middleware = []) ?(max_iterations = 10) () =
+  let descriptors = List.map (fun (tb : tool_binding) -> tb.descriptor) tools in
   { id = "test-agent"; system_prompt = "You are a test agent.";
-    model = dummy_model; tools; max_iterations; middleware;
+    model = dummy_model; tools = descriptors; max_iterations; middleware;
     retry_policy = None; context_strategy = None; resource_quota = None }
+
+let make_registry tools =
+  let reg = Tool_registry.create () in
+  List.iter (fun (tb : tool_binding) ->
+    Tool_registry.register reg tb.descriptor tb.handler
+  ) tools;
+  reg
 
 let check_ok_text resp expected =
   match resp with
@@ -60,8 +69,9 @@ let agent_loop_suite =
     Alcotest.test_case "mock LLM returns text response" `Quick (fun () ->
       let llm = mock_llm [ text_response "hello world" ] in
       let agent = basic_agent () in
+      let reg = make_registry [] in
       with_token (fun token ->
-        check_ok_text (Engine.run_agent token agent "hi" llm) "hello world"));
+        check_ok_text (Engine.run_agent token agent "hi" llm reg) "hello world"));
 
     Alcotest.test_case "mock LLM triggers tool call then stops" `Quick (fun () ->
       let tool = dummy_tool (fun _ _ -> Success (`String "tool-result")) in
@@ -73,9 +83,10 @@ let agent_loop_suite =
         text_response "done after tool";
       ] in
       let agent = basic_agent ~tools:[ tool ] () in
+      let reg = make_registry [ tool ] in
       with_token (fun token ->
         check_ok_text
-          (Engine.run_agent token agent "do something" llm)
+          (Engine.run_agent token agent "do something" llm reg)
           "done after tool"));
 
     Alcotest.test_case "max iterations exceeded" `Quick (fun () ->
@@ -89,8 +100,9 @@ let agent_loop_suite =
       ] in
       let tool = dummy_tool (fun _ _ -> Success `Null) in
       let agent = basic_agent ~tools:[ tool ] ~max_iterations:2 () in
+      let reg = make_registry [ tool ] in
       with_token (fun token ->
-        (match Engine.run_agent token agent "loop" llm with
+        (match Engine.run_agent token agent "loop" llm reg with
          | Error (Internal msg) ->
              Alcotest.check Alcotest.bool "contains 'Max'" true
                (String.contains msg 'M')
@@ -106,8 +118,9 @@ let agent_loop_suite =
         text_response "recovered";
       ] in
       let agent = basic_agent () in
+      let reg = make_registry [] in
       with_token (fun token ->
-        (match Engine.run_agent token agent "bad tool" llm with
+        (match Engine.run_agent token agent "bad tool" llm reg with
          | Ok _ -> ()
          | Error e ->
              Alcotest.fail ("unexpected error: " ^ (match e with
@@ -143,8 +156,9 @@ let agent_loop_suite =
       } in
       let llm = mock_llm [ text_response "original" ] in
       let agent = basic_agent ~middleware:[ mw_before; mw_after ] () in
+      let reg = make_registry [] in
       with_token (fun token ->
-        check_ok_text (Engine.run_agent token agent "test" llm) "original [modified]";
+        check_ok_text (Engine.run_agent token agent "test" llm reg) "original [modified]";
         Alcotest.check Alcotest.bool "before_mw_ran" true !transformed));
   ])
 
@@ -155,12 +169,13 @@ let workflow_engine_suite =
         (fun _ _ -> Success (`String "tool-returned")) in
       let llm = mock_llm [ text_response "agent-returned" ] in
       let agent = basic_agent () in
+      let reg = make_registry [ tool ] in
       with_token (fun token ->
         let ctx : Workflow_engine.exec_context = {
           variables = []; token;
           agent_resolver = (fun _ -> Some agent);
-          tool_resolver = (fun _ -> Some tool);
-          llm; parallel_limit = 4; failure_policy = Fail_fast;
+          tool_resolver = (fun _ -> Some tool.descriptor);
+          llm; registry = reg; parallel_limit = 4; failure_policy = Fail_fast;
         } in
         let steps : workflow_step = Sequential [
           Tool_call { tool_name = "my_tool"; input = `Assoc [] };
@@ -181,11 +196,12 @@ let workflow_engine_suite =
       let tool = dummy_tool (fun _ _ -> Success (`String "then-result")) in
       with_token (fun token ->
         let llm = mock_llm [] in
+        let reg = make_registry [ tool ] in
         let ctx : Workflow_engine.exec_context = {
           variables = [("x", `Int 10)]; token;
           agent_resolver = (fun _ -> None);
-          tool_resolver = (fun _ -> Some tool);
-          llm; parallel_limit = 4; failure_policy = Fail_fast;
+          tool_resolver = (fun _ -> Some tool.descriptor);
+          llm; registry = reg; parallel_limit = 4; failure_policy = Fail_fast;
         } in
         let step : workflow_step = Conditional {
           condition = Greater_than (Variable "x", Literal (`Int 5));
@@ -208,11 +224,12 @@ let workflow_engine_suite =
         | _ -> Success (`String "then-result")) in
       with_token (fun token ->
         let llm = mock_llm [] in
+        let reg = make_registry [ tool ] in
         let ctx : Workflow_engine.exec_context = {
           variables = [("x", `Int 1)]; token;
           agent_resolver = (fun _ -> None);
-          tool_resolver = (fun _ -> Some tool);
-          llm; parallel_limit = 4; failure_policy = Fail_fast;
+          tool_resolver = (fun _ -> Some tool.descriptor);
+          llm; registry = reg; parallel_limit = 4; failure_policy = Fail_fast;
         } in
         let step : workflow_step = Conditional {
           condition = Greater_than (Variable "x", Literal (`Int 5));
@@ -235,6 +252,7 @@ let workflow_engine_suite =
         | _ -> Success `Null) in
       with_token (fun token ->
         let llm = mock_llm [] in
+        let reg = make_registry [ tool ] in
         let ctx : Workflow_engine.exec_context = {
           variables = [("items", `List [
               `Assoc [("item", `String "a")];
@@ -243,8 +261,8 @@ let workflow_engine_suite =
             ])];
           token;
           agent_resolver = (fun _ -> None);
-          tool_resolver = (fun _ -> Some tool);
-          llm; parallel_limit = 4; failure_policy = Fail_fast;
+          tool_resolver = (fun _ -> Some tool.descriptor);
+          llm; registry = reg; parallel_limit = 4; failure_policy = Fail_fast;
         } in
         let step : workflow_step = Map_reduce {
           over = "items";
@@ -262,11 +280,12 @@ let workflow_engine_suite =
     Alcotest.test_case "agent not found" `Quick (fun () ->
       with_token (fun token ->
         let llm = mock_llm [] in
+        let reg = Tool_registry.create () in
         let ctx : Workflow_engine.exec_context = {
           variables = []; token;
           agent_resolver = (fun _ -> None);
           tool_resolver = (fun _ -> None);
-          llm; parallel_limit = 4; failure_policy = Fail_fast;
+          llm; registry = reg; parallel_limit = 4; failure_policy = Fail_fast;
         } in
         let step : workflow_step =
           Agent_call { agent_id = "nonexistent"; prompt_template = "hi" }

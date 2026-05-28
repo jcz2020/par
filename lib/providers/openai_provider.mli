@@ -5,11 +5,11 @@ type t
 val create : llm_provider_config -> (t, error_category) result
 
 val complete :
-  t -> model_config -> tool_binding list -> conversation ->
+  t -> model_config -> tool_descriptor list -> conversation ->
   (llm_response, error_category) result
 
 val stream :
-  t -> model_config -> tool_binding list -> conversation -> stream_config ->
+  t -> model_config -> tool_descriptor list -> conversation -> stream_config ->
   (llm_response_chunk -> unit) ->
   (stream_complete, error_category) result
 

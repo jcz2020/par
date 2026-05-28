@@ -171,13 +171,8 @@ type tool_descriptor = {
 [@@deriving yojson]
 
 type tool_binding = {
-  name : string;
-  description : string;
-  input_schema : Yojson.Safe.t;
+  descriptor : tool_descriptor;
   handler : Yojson.Safe.t -> cancellation_token -> handler_result;
-  permission : tool_permission;
-  timeout : float option;
-  concurrency_limit : int option;
 }
 (* Note: handler is a function type, not derivable *)
 
@@ -232,7 +227,7 @@ type agent_config = {
   id : string;
   system_prompt : string;
   model : model_config;
-  tools : tool_binding list;
+  tools : tool_descriptor list;
   max_iterations : int;
   middleware : middleware_hook list;
   retry_policy : retry_policy option;
@@ -467,11 +462,11 @@ module type LLM_SERVICE = sig
   val create : llm_provider_config -> (t, error_category) result
 
   val complete :
-    t -> model_config -> tool_binding list -> conversation ->
+    t -> model_config -> tool_descriptor list -> conversation ->
     (llm_response, error_category) result
 
   val stream :
-    t -> model_config -> tool_binding list -> conversation -> stream_config ->
+    t -> model_config -> tool_descriptor list -> conversation -> stream_config ->
     (llm_response_chunk -> unit) ->
     (stream_complete, error_category) result
 
@@ -491,8 +486,8 @@ module type EVENT_BUS_SERVICE = sig
 end
 
 type llm_service = {
-  complete_fn : model_config -> tool_binding list -> conversation -> (llm_response, error_category) result;
-  stream_fn : model_config -> tool_binding list -> conversation -> stream_config ->
+  complete_fn : model_config -> tool_descriptor list -> conversation -> (llm_response, error_category) result;
+  stream_fn : model_config -> tool_descriptor list -> conversation -> stream_config ->
     (llm_response_chunk -> unit) ->
     (stream_complete, error_category) result;
   close_fn : unit -> unit;

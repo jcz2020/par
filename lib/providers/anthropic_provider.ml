@@ -20,36 +20,15 @@ let create = function
   | _ -> Result.Error (Invalid_input "Anthropic provider requires Anthropic configuration")
 
 (* -------------------------------------------------------------------------- *)
-(* §8.1 URL parsing (shared with openai — duplicated for independence)        *)
+(* §8.1 Error conversion                                                      *)
 (* -------------------------------------------------------------------------- *)
 
-type parsed_url = { host : string; port : int; path : string }
-
-let parse_url url =
-  let without_proto =
-    if String.starts_with ~prefix:"https://" url then
-      String.sub url 8 (String.length url - 8)
-    else if String.starts_with ~prefix:"http://" url then
-      String.sub url 7 (String.length url - 7)
-    else url
-  in
-  let host_part, path =
-    match String.index_opt without_proto '/' with
-    | Some i ->
-      (String.sub without_proto 0 i,
-       String.sub without_proto i (String.length without_proto - i))
-    | None -> (without_proto, "/")
-  in
-  let host, port =
-    match String.rindex_opt host_part ':' with
-    | Some i ->
-      ( String.sub host_part 0 i,
-        int_of_string
-          (String.sub host_part (i + 1) (String.length host_part - i - 1)) )
-    | None -> (host_part, 443)
-  in
-  let path = if String.ends_with ~suffix:"/" path then path else path ^ "/" in
-  { host; port; path }
+let http_error_to_error_category = function
+  | Http_client.Invalid_input s -> Types.Invalid_input s
+  | Http_client.Permission_denied s -> Types.Permission_denied s
+  | Http_client.Rate_limited -> Types.Rate_limited
+  | Http_client.Timeout -> Types.Timeout
+  | Http_client.External_failure s -> Types.External_failure s
 
 (* -------------------------------------------------------------------------- *)
 (* §8.2 JSON request building                                                 *)
@@ -117,11 +96,11 @@ let extract_system_prompt conversation =
   let system_opt = if system_text = "" then None else Some system_text in
   (system_opt, { conversation with messages = rest })
 
-let tool_binding_to_json (tb : tool_binding) =
+let tool_descriptor_to_json (td : tool_descriptor) =
   `Assoc [
-    ("name", `String tb.name);
-    ("description", `String tb.description);
-    ("input_schema", tb.input_schema);
+    ("name", `String td.name);
+    ("description", `String td.description);
+    ("input_schema", td.input_schema);
   ]
 
 let build_request_body ~model_config ~tools ~conversation ~stream =
@@ -148,146 +127,20 @@ let build_request_body ~model_config ~tools ~conversation ~stream =
   in
   let fields = if stream then ("stream", `Bool true) :: fields else fields in
   let fields = if tools <> [] then
-    ("tools", `List (List.map tool_binding_to_json tools)) :: fields
+    ("tools", `List (List.map tool_descriptor_to_json tools)) :: fields
   else fields
   in
   Yojson.Safe.to_string (`Assoc fields)
 
 (* -------------------------------------------------------------------------- *)
-(* §8.3 HTTP layer                                                            *)
+(* §8.3 HTTP helpers                                                          *)
 (* -------------------------------------------------------------------------- *)
 
-let build_http_request ~host ~path ~api_key ~body =
-  Printf.sprintf
-    "POST %sv1/messages HTTP/1.1\r\n\
-     Host: %s\r\n\
-     x-api-key: %s\r\n\
-     anthropic-version: 2023-06-01\r\n\
-     Content-Type: application/json\r\n\
-     Content-Length: %d\r\n\
-     Connection: close\r\n\
-     \r\n\
-     %s"
-    path host api_key (String.length body) body
-
-let split_response data =
-  let sep = "\r\n\r\n" in
-  let sep_len = String.length sep in
-  let data_len = String.length data in
-  let rec find i =
-    if i + sep_len > data_len then data_len
-    else if String.sub data i sep_len = sep then i
-    else find (i + 1)
-  in
-  let header_end = find 0 in
-  let headers = String.sub data 0 header_end in
-  let body =
-    if header_end + sep_len < data_len then
-      String.sub data (header_end + sep_len) (data_len - header_end - sep_len)
-    else ""
-  in
-  (headers, body)
-
-let parse_status_line header_data =
-  let line_end =
-    match String.index_opt header_data '\r' with Some i -> i | None -> String.length header_data
-  in
-  let status_line = String.sub header_data 0 line_end in
-  match String.split_on_char ' ' status_line with
-  | _ :: code :: _ -> int_of_string code
-  | _ -> 0
-
-let headers_contain ~needle headers =
-  let lower = String.lowercase_ascii headers in
-  let lneedle = String.lowercase_ascii needle in
-  let nlen = String.length lneedle in
-  let hlen = String.length lower in
-  let rec search i =
-    if i + nlen > hlen then false
-    else String.sub lower i nlen = lneedle || search (i + 1)
-  in
-  nlen = 0 || search 0
-
-let decode_chunked data =
-  let buf = Buffer.create 4096 in
-  let pos = ref 0 in
-  let len = String.length data in
-  let skip_crlf () =
-    if !pos < len && Char.equal (String.get data !pos) '\r' then incr pos;
-    if !pos < len && Char.equal (String.get data !pos) '\n' then incr pos
-  in
-  let read_chunk_size () =
-    let start = !pos in
-    while !pos < len && not (Char.equal (String.get data !pos) '\r') do incr pos done;
-    let hex = String.sub data start (!pos - start) in
-    skip_crlf ();
-    int_of_string ("0x" ^ hex)
-  in
-  ( try
-      while !pos < len do
-        let size = read_chunk_size () in
-        if size = 0 then raise Exit;
-        if !pos + size > len then raise Exit;
-        Buffer.add_substring buf data !pos size;
-        pos := !pos + size;
-        skip_crlf ()
-      done
-    with Exit -> () );
-  Buffer.contents buf
-
-let decode_body headers raw_body =
-  if headers_contain ~needle:"transfer-encoding: chunked" headers then
-    decode_chunked raw_body
-  else raw_body
-
-let map_http_status status body =
-  match status with
-  | 400 -> Invalid_input body
-  | 401 -> Permission_denied "Invalid API key"
-  | 403 -> Permission_denied body
-  | 429 -> Rate_limited
-  | 408 | 504 -> Timeout
-  | s when s >= 500 -> External_failure (Printf.sprintf "Server error %d: %s" s body)
-  | s -> External_failure (Printf.sprintf "Unexpected HTTP %d: %s" s body)
+let auth_headers t =
+  [ ("x-api-key", t.api_key); ("anthropic-version", "2023-06-01") ]
 
 (* -------------------------------------------------------------------------- *)
-(* §8.4 TLS setup                                                             *)
-(* -------------------------------------------------------------------------- *)
-
-let tls_config =
-  let no_auth ?ip:_ ~host:_ _certs = Ok None in
-  lazy
-    (match Tls.Config.client ~authenticator:no_auth () with
-    | Ok cfg -> cfg
-    | Result.Error (`Msg msg) -> failwith ("TLS configuration error: " ^ msg))
-
-let tls_host_of_string host =
-  match Domain_name.of_string host with
-  | Error _ -> None
-  | Ok dn -> ( match Domain_name.host dn with Ok h -> Some h | Error _ -> None )
-
-(* -------------------------------------------------------------------------- *)
-(* §8.5 Connection                                                            *)
-(* -------------------------------------------------------------------------- *)
-
-let do_request net url request =
-  Eio.Net.with_tcp_connect
-    ~host:url.host
-    ~service:(string_of_int url.port)
-    net
-    (fun flow ->
-      let cfg = Lazy.force tls_config in
-      let tls =
-        match tls_host_of_string url.host with
-        | Some h -> Tls_eio.client_of_flow cfg ~host:h flow
-        | None -> Tls_eio.client_of_flow cfg flow
-      in
-      Eio.Flow.copy_string request tls;
-      Eio.Flow.shutdown tls `Send;
-      Eio.Flow.read_all tls)
-
-(* -------------------------------------------------------------------------- *)
-(* §8.6 JSON response parsing                                                 *)
+(* §8.4 JSON response parsing                                                 *)
 (* -------------------------------------------------------------------------- *)
 
 let parse_stop_reason = function
@@ -354,7 +207,7 @@ let parse_llm_response json : (llm_response, error_category) result =
   Ok { text; tool_calls; finish_reason = stop_reason; usage; model }
 
 (* -------------------------------------------------------------------------- *)
-(* §8.7 SSE parsing                                                           *)
+(* §8.5 SSE parsing                                                           *)
 (* -------------------------------------------------------------------------- *)
 
 let parse_sse_lines resp_body =
@@ -443,24 +296,28 @@ let parse_stream_events events callback =
   (!usage, !finish, !chunks)
 
 (* -------------------------------------------------------------------------- *)
-(* §8.8 LLM_SERVICE implementation                                            *)
+(* §8.6 LLM_SERVICE implementation                                            *)
 (* -------------------------------------------------------------------------- *)
 
 let complete t model_config tools conversation =
   match t.net with
   | None -> Result.Error (Internal "Network not initialized; call set_network first")
   | Some net ->
-    let url = parse_url t.base_url in
+    let url = Http_client.parse_url t.base_url in
     let body = build_request_body ~model_config ~tools ~conversation ~stream:false in
+    let headers = auth_headers t in
     let request =
-      build_http_request ~host:url.host ~path:url.path ~api_key:t.api_key ~body
+      Http_client.build_http_request
+        ~host:url.Http_client.host
+        ~path:(url.Http_client.path ^ "v1/messages")
+        ~headers ~body
     in
     ( try
-        let raw = do_request net url request in
-        let headers, raw_body = split_response raw in
-        let status = parse_status_line headers in
-        let resp_body = decode_body headers raw_body in
-        if status <> 200 then Result.Error (map_http_status status resp_body)
+        let raw = Http_client.do_request net url request in
+        let headers, raw_body = Http_client.split_response raw in
+        let status = Http_client.parse_status_line headers in
+        let resp_body = Http_client.decode_body headers raw_body in
+        if status <> 200 then Result.Error (http_error_to_error_category (Http_client.map_http_status status resp_body))
         else
           let json = Yojson.Safe.from_string resp_body in
           parse_llm_response json
@@ -473,17 +330,21 @@ let stream t model_config tools conversation _stream_config callback =
   match t.net with
   | None -> Result.Error (Internal "Network not initialized; call set_network first")
   | Some net ->
-    let url = parse_url t.base_url in
+    let url = Http_client.parse_url t.base_url in
     let body = build_request_body ~model_config ~tools ~conversation ~stream:true in
+    let headers = auth_headers t in
     let request =
-      build_http_request ~host:url.host ~path:url.path ~api_key:t.api_key ~body
+      Http_client.build_http_request
+        ~host:url.Http_client.host
+        ~path:(url.Http_client.path ^ "v1/messages")
+        ~headers ~body
     in
     ( try
-        let raw = do_request net url request in
-        let headers, raw_body = split_response raw in
-        let status = parse_status_line headers in
-        let resp_body = decode_body headers raw_body in
-        if status <> 200 then Result.Error (map_http_status status resp_body)
+        let raw = Http_client.do_request net url request in
+        let headers, raw_body = Http_client.split_response raw in
+        let status = Http_client.parse_status_line headers in
+        let resp_body = Http_client.decode_body headers raw_body in
+        if status <> 200 then Result.Error (http_error_to_error_category (Http_client.map_http_status status resp_body))
         else
           let events = parse_sse_lines resp_body in
           let usage, finish, chunks = parse_stream_events events callback in

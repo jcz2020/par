@@ -54,12 +54,17 @@ let apply_on_error hooks err next =
 (* -------------------------------------------------------------------------- *)
 
 let find_tool (agent : agent_config) tool_name =
-  List.find_opt (fun (tb : tool_binding) -> tb.name = tool_name) agent.tools
+  List.find_opt (fun (td : tool_descriptor) -> td.name = tool_name) agent.tools
 
-let execute_tool (token : cancellation_token) (binding : tool_binding) input middleware =
-  let (call : tool_call) = { id = Task_id.to_string (Task_id.create ()); name = binding.name; arguments = input } in
+let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
+    handler input middleware =
+  let (call : tool_call) = {
+    id = Task_id.to_string (Task_id.create ());
+    name = descriptor.name;
+    arguments = input
+  } in
   apply_before_tool middleware call (fun (call' : tool_call) ->
-    apply_after_tool middleware (call', binding.handler input token) (fun ((_:tool_call), result) ->
+    apply_after_tool middleware (call', handler input token) (fun ((_:tool_call), result) ->
       result
     )
   )
@@ -97,7 +102,7 @@ let add_tool_result_message conv (call : tool_call) result =
   } in
   { conv with messages = conv.messages @ [ msg ] }
 
-let run_agent token agent user_message llm =
+let run_agent token agent user_message llm registry =
   let rec loop conv iterations =
     if iterations >= agent.max_iterations then
       Result.Error (Internal "Max iterations exceeded")
@@ -128,8 +133,18 @@ let run_agent token agent user_message llm =
                 metadata = [];
               } in
               (call, err)
-            | Some binding ->
-              (call, execute_tool token binding call.arguments agent.middleware)
+            | Some descriptor ->
+              (match Tool_registry.resolve registry call.name with
+               | None ->
+                 let err = Error {
+                   category = Internal (Printf.sprintf "Tool handler not registered: %s" call.name);
+                   message = "Handler not registered";
+                   retryable = false;
+                   metadata = [];
+                 } in
+                 (call, err)
+               | Some handler ->
+                 (call, execute_tool token descriptor handler call.arguments agent.middleware))
           ) calls in
           let conv = List.fold_left (fun conv ((call:tool_call), result) ->
             add_tool_result_message conv call result

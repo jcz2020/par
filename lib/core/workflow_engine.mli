@@ -8,8 +8,9 @@ type exec_context = {
   variables : (string * Yojson.Safe.t) list;
   token : cancellation_token;
   agent_resolver : string -> agent_config option;
-  tool_resolver : string -> tool_binding option;
+  tool_resolver : string -> tool_descriptor option;
   llm : llm_service;
+  registry : Tool_registry.t;
   parallel_limit : int;
   failure_policy : failure_policy;
 }

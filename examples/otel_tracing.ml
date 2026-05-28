@@ -81,16 +81,18 @@ let () =
   let rs = [
     { Types.text = None; tool_calls = Some [{ Types.id = "c1"; name = "echo"; arguments = `Null }]; finish_reason = Types.Tool_calls; usage = { prompt_tokens = 42; completion_tokens = 8; total_tokens = 50 }; model = "gpt-4" };
     { text = Some "Hello, world!"; tool_calls = None; finish_reason = Types.Stop; usage = { prompt_tokens = 50; completion_tokens = 128; total_tokens = 178 }; model = "gpt-4" } ] in
-  let echo = { Types.name = "echo"; description = "Echo back input"; input_schema = `Null;
-               handler = (fun j _ -> Types.Success (`String ("Echo: " ^ Yojson.Safe.to_string j)));
-               permission = Types.Allow; timeout = None; concurrency_limit = None } in
+  let echo_desc = { Types.name = "echo"; description = "Echo back input"; input_schema = `Null;
+                permission = Types.Allow; timeout = None; concurrency_limit = None } in
+  let echo_handler = (fun j _ -> Types.Success (`String ("Echo: " ^ Yojson.Safe.to_string j))) in
   let agent = { Types.id = "demo"; system_prompt = "You are a helpful assistant.";
                 model = { provider = `Openai; model_name = "gpt-4"; api_base = None; temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None };
-                tools = [ echo ]; max_iterations = 5; middleware = [ create_tracing_middleware () ];
+                tools = [ echo_desc ]; max_iterations = 5; middleware = [ create_tracing_middleware () ];
                 retry_policy = None; context_strategy = None; resource_quota = None } in
   Eio_main.run (fun _ -> Eio.Switch.run (fun sw ->
     let tok = { Types.switch = sw; cancelled = false } in
-    match Engine.run_agent tok agent "Hello" (mock_llm rs) with
+    let reg = Tool_registry.create () in
+    Tool_registry.register reg echo_desc echo_handler;
+    match Engine.run_agent tok agent "Hello" (mock_llm rs) reg with
     | Ok r -> Printf.printf "Agent: %s\n" (match r.Types.text with Some t -> t | None -> "no text")
     | Error e -> Printf.eprintf "Error: %s\n" (match e with
       | Types.Internal s -> s

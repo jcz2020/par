@@ -206,8 +206,12 @@ let setup_runtime cfg ~f =
     exit 1
   | Ok rt ->
     let tools = Builtin_tools.builtin_tools ~switch ~net in
+    List.iter (fun (tb : Types.tool_binding) ->
+      Tool_registry.register (Runtime.tool_registry rt) tb.descriptor tb.handler
+    ) tools;
+    let descriptors = List.map (fun (tb : Types.tool_binding) -> tb.descriptor) tools in
     let agent = make_agent_config "default-agent" cfg.Par_config.system_prompt
-                  provider_tag cfg.Par_config.model cfg.Par_config.temperature 10 tools in
+                   provider_tag cfg.Par_config.model cfg.Par_config.temperature 10 descriptors in
     (match Runtime.register_agent rt agent with
      | Error e ->
        Printf.eprintf "Error registering agent: %s\n" (error_category_to_string e);
