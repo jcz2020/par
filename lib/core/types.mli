@@ -160,6 +160,16 @@ type cancellation_token = {
   mutable cancelled : bool;
 }
 
+type tool_descriptor = {
+  name : string;
+  description : string;
+  input_schema : Yojson.Safe.t;
+  permission : tool_permission;
+  timeout : float option;
+  concurrency_limit : int option;
+}
+[@@deriving yojson]
+
 type tool_binding = {
   name : string;
   description : string;
