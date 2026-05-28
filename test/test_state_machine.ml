@@ -1,4 +1,4 @@
-open Par_core
+open Par
 open Types
 
 let dummy_task ?(retry_count = 0) ?(status = Pending) () : task_state =

@@ -1,9 +1,9 @@
 (executable
  (name basic_agent)
- (libraries par_core eio eio_main)
+ (libraries par eio eio_main)
  (preprocess
   (pps ppx_deriving_yojson)))
 
 (executable
  (name otel_tracing)
- (libraries par_core eio eio_main yojson unix))
+ (libraries par eio eio_main yojson unix))

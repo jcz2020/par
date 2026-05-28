@@ -1,14 +1,14 @@
 (test
  (name test_par)
- (libraries par_core alcotest)
+ (libraries par alcotest)
  (modules test_par test_state_machine test_expression test_types))
 
 (test
  (name test_integration)
- (libraries par_core par_eio par_middleware eio_main alcotest)
+ (libraries par eio_main alcotest)
  (modules test_integration))
 
 (test
  (name test_stream)
- (libraries par_core par_openai par_eio eio_main mirage-crypto-rng.unix alcotest)
+ (libraries par eio_main mirage-crypto-rng.unix alcotest)
  (modules test_stream))

@@ -1,6 +1,0 @@
-(library
- (name par_sqlite)
- (public_name par_sqlite)
- (libraries eio par_core par_eio caqti-eio sqlite3)
- (preprocess
-  (pps ppx_deriving_yojson)))

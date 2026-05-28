@@ -1,4 +1,4 @@
-open Par_core
+open Par
 open Types
 
 let eval_ok ctx expr =

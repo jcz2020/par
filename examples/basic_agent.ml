@@ -1,4 +1,4 @@
-open Par_core
+open Par
 
 let () =
   let config = {

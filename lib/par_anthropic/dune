@@ -1,6 +1,0 @@
-(library
- (name par_anthropic)
- (public_name par_anthropic)
- (libraries eio yojson par_core tls-eio)
- (preprocess
-  (pps ppx_deriving_yojson)))

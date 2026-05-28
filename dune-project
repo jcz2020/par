@@ -7,8 +7,8 @@
 (maintainers "P-A-R Contributors")
 
 (package
- (name par_core)
- (synopsis "Programmable Agent Runtime - Core types and engine")
+ (name par)
+ (synopsis "Programmable Agent Runtime - SDK")
  (depends
   ocaml
   dune
@@ -16,71 +16,24 @@
   yojson
   eio
   uuidm
-   ppx_deriving
-   ppx_deriving_yojson
-   ppx_sexp_conv
-   ppx_compare))
-
-(package
- (name par_eio)
- (synopsis "Programmable Agent Runtime - Eio concurrency primitives")
- (depends
-  ocaml
-  dune
-  eio
-  par_core))
-
-(package
- (name par_sqlite)
- (synopsis "Programmable Agent Runtime - SQLite persistence backend")
- (depends
-  ocaml
-  dune
+  ppx_deriving
+  ppx_deriving_yojson
+  ppx_sexp_conv
+  ppx_compare
   caqti-eio
   sqlite3
-  par_core
-  par_eio))
-
-(package
- (name par_postgres)
- (synopsis "Programmable Agent Runtime - PostgreSQL persistence backend")
- (depends
-  ocaml
-  dune
   postgresql
-  par_core
-  par_eio))
-
-(package
- (name par_openai)
- (synopsis "Programmable Agent Runtime - OpenAI LLM provider")
- (depends
-  ocaml
-  dune
-  eio
-  yojson
+  logs
+  str
+  unix
   tls-eio
-  par_core))
-
-(package
- (name par_anthropic)
- (synopsis "Programmable Agent Runtime - Anthropic LLM provider")
- (depends
-  ocaml
-  dune
-  eio
-  yojson
-  tls-eio
-  par_core))
-
-(package
- (name par_middleware)
- (synopsis "Programmable Agent Runtime - Default middleware collection")
- (depends
-  ocaml
-  dune
-  eio
-  par_core))
+  cohttp-eio
+  lambdasoup
+  ca-certs
+  x509
+  mirage-crypto-rng
+  base64
+  digestif))
 
 (package
  (name par_cli)
@@ -89,17 +42,8 @@
   ocaml
   dune
   cmdliner
-  par_core
-  par_eio
-  par_sqlite
-  par_postgres
-  par_openai
-  par_anthropic
-  postgresql
-  cohttp-eio
-  lambdasoup
-  tls-eio
-  ca-certs
-  x509
+  par
+  eio
+  eio_main
   yojson
-  eio))
+   mirage-crypto-rng))

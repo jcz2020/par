@@ -1,4 +1,4 @@
-open Par_core
+open Par
 
 type span = {
   name : string; kind : string; start_time : string; end_time : string;

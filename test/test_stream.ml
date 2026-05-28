@@ -1,4 +1,5 @@
-open Par_core.Types
+open Par
+open Types
 
 let () = Mirage_crypto_rng_unix.use_default ()
 
@@ -15,15 +16,15 @@ let test_openai_stream () =
   if api_key = "" then (Printf.printf "SKIP: ZAI_API_KEY not set\n"; exit 0);
   Eio_main.run @@ fun env ->
   let net = (Eio.Stdenv.net env :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
-  let t = match Par_openai.Openai_provider.create (Openai {
+  let t = match Openai_provider.create (Openai {
       api_key; base_url = Some "https://open.bigmodel.cn/api/paas/v4"; organization = None
     }) with
-    | Ok t -> Par_openai.Openai_provider.set_network t net; t
+    | Ok t -> Openai_provider.set_network t net; t
     | Error e -> Alcotest.fail ("create: " ^ show_error e)
   in
   let llm : llm_service = {
-    complete_fn = (fun mc tools conv -> Par_openai.Openai_provider.complete t mc tools conv);
-    stream_fn = (fun mc tools conv sc cb -> Par_openai.Openai_provider.stream t mc tools conv sc cb);
+    complete_fn = (fun mc tools conv -> Openai_provider.complete t mc tools conv);
+    stream_fn = (fun mc tools conv sc cb -> Openai_provider.stream t mc tools conv sc cb);
     close_fn = (fun _ -> ());
   } in
   let model = {

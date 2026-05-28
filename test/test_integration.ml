@@ -1,4 +1,4 @@
-open Par_core
+open Par
 open Types
 
 let dummy_model : model_config =
@@ -288,26 +288,26 @@ let default_bus_config : event_bus_config =
 let event_bus_suite =
   ("Event bus", [
     Alcotest.test_case "subscribe returns non-empty ID" `Quick (fun () ->
-      let bus = Par_eio.Event_bus.create default_bus_config in
-      let sub = Par_eio.Event_bus.subscribe bus (fun _ -> ()) in
+      let bus = Event_bus.create default_bus_config in
+      let sub = Event_bus.subscribe bus (fun _ -> ()) in
       Alcotest.(check bool) "sub non-empty" true (String.length sub > 0);
-      Par_eio.Event_bus.unsubscribe bus sub);
+      Event_bus.unsubscribe bus sub);
 
     Alcotest.test_case "multiple subscriptions are unique" `Quick (fun () ->
-      let bus = Par_eio.Event_bus.create default_bus_config in
-      let sub_a = Par_eio.Event_bus.subscribe bus (fun _ -> ()) in
-      let sub_b = Par_eio.Event_bus.subscribe bus (fun _ -> ()) in
+      let bus = Event_bus.create default_bus_config in
+      let sub_a = Event_bus.subscribe bus (fun _ -> ()) in
+      let sub_b = Event_bus.subscribe bus (fun _ -> ()) in
       Alcotest.(check bool) "different IDs" true (sub_a <> sub_b);
-      Par_eio.Event_bus.unsubscribe bus sub_a;
-      Par_eio.Event_bus.unsubscribe bus sub_b);
+      Event_bus.unsubscribe bus sub_a;
+      Event_bus.unsubscribe bus sub_b);
 
     Alcotest.test_case "re-subscribe after unsubscribe works" `Quick (fun () ->
-      let bus = Par_eio.Event_bus.create default_bus_config in
-      let sub1 = Par_eio.Event_bus.subscribe bus (fun _ -> ()) in
-      Par_eio.Event_bus.unsubscribe bus sub1;
-      let sub2 = Par_eio.Event_bus.subscribe bus (fun _ -> ()) in
+      let bus = Event_bus.create default_bus_config in
+      let sub1 = Event_bus.subscribe bus (fun _ -> ()) in
+      Event_bus.unsubscribe bus sub1;
+      let sub2 = Event_bus.subscribe bus (fun _ -> ()) in
       Alcotest.(check bool) "new sub non-empty" true (String.length sub2 > 0);
-      Par_eio.Event_bus.unsubscribe bus sub2);
+      Event_bus.unsubscribe bus sub2);
 
     Alcotest.test_case "create bus with different configs" `Quick (fun () ->
       let config : event_bus_config =
@@ -317,15 +317,15 @@ let event_bus_suite =
             delivery_timeout = 5.0 };
           dlq_enabled = true;
           critical_event_types = [ "Shutdown_initiated" ] } in
-      let bus = Par_eio.Event_bus.create config in
-      let dlq = Par_eio.Event_bus.get_dead_letters bus in
+      let bus = Event_bus.create config in
+      let dlq = Event_bus.get_dead_letters bus in
       Alcotest.(check int) "empty DLQ" 0 (List.length dlq));
   ])
 
 let middleware_suite =
   ("Middleware", [
     Alcotest.test_case "retry middleware tracks attempts" `Quick (fun () ->
-      let mw = Par_middleware.Retry.retry () in
+      let mw = Retry.retry () in
       (match mw.on_error with
        | Some on_error_fn ->
            (match on_error_fn Timeout with
@@ -337,7 +337,7 @@ let middleware_suite =
        | None -> Alcotest.fail "on_error should be Some"));
 
     Alcotest.test_case "PII mask middleware" `Quick (fun () ->
-      let mw = Par_middleware.Pii_mask.pii_mask () in
+      let mw = Pii_mask.pii_mask () in
       let conv : conversation = {
         messages = [{ role = User;
           content = Some "contact me at user@example.com please";
@@ -359,7 +359,7 @@ let middleware_suite =
        | None -> Alcotest.fail "on_before_llm should be Some"));
 
     Alcotest.test_case "validation middleware rejects non-object args" `Quick (fun () ->
-      let mw = Par_middleware.Validation.validation ~strict:true () in
+      let mw = Validation.validation ~strict:true () in
       let call : tool_call =
         { id = "tc-v"; name = "my_tool";
           arguments = `String "not-an-object" } in
@@ -375,7 +375,7 @@ let middleware_suite =
        | None -> Alcotest.fail "on_before_tool should be Some"));
 
     Alcotest.test_case "validation passes valid args unchanged" `Quick (fun () ->
-      let mw = Par_middleware.Validation.validation () in
+      let mw = Validation.validation () in
       let call : tool_call =
         { id = "tc-ok"; name = "ok_tool";
           arguments = `Assoc [("key", `String "value")] } in
