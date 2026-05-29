@@ -1,0 +1,6 @@
+(include_subdirs no)
+
+(library
+ (name par_benchmark)
+ (wrapped false)
+ (libraries par unix))

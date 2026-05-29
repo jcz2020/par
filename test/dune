@@ -12,3 +12,13 @@
  (name test_stream)
  (libraries par eio_main mirage-crypto-rng.unix alcotest)
  (modules test_stream))
+
+(test
+ (name test_mock_provider)
+ (libraries par alcotest)
+ (modules test_mock_provider))
+
+(test
+ (name test_benchmark)
+ (libraries par par_benchmark alcotest)
+ (modules test_benchmark))
