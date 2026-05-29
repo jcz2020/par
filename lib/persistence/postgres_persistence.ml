@@ -25,12 +25,19 @@ let init_schema (db : Postgresql.connection) =
        )|};
     {|CREATE INDEX IF NOT EXISTS idx_events_task_id ON events(task_id)|};
     {|CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)|};
-    {|CREATE TABLE IF NOT EXISTS task_states (
-         id          TEXT PRIMARY KEY,
-         state       JSONB NOT NULL,
-         updated_at  DOUBLE PRECISION NOT NULL
-       )|};
-  ] in
+     {|CREATE TABLE IF NOT EXISTS task_states (
+          id          TEXT PRIMARY KEY,
+          state       JSONB NOT NULL,
+          updated_at  DOUBLE PRECISION NOT NULL
+        )|};
+     {|CREATE TABLE IF NOT EXISTS workflow_states (
+          id          TEXT PRIMARY KEY,
+          workflow_id TEXT NOT NULL,
+          status      TEXT NOT NULL,
+          checkpoint  JSONB,
+          updated_at  DOUBLE PRECISION NOT NULL
+        )|};
+   ] in
   List.find_map (fun sql ->
     match exec_sql db sql with
     | Result.Error e -> Some (Result.Error e)
@@ -166,6 +173,73 @@ let load_task_state t task_id =
            Result.Error (Internal (Printf.sprintf "Task state decode: %s" msg))))
     | Postgresql.Command_ok -> Ok None
     | _ -> Result.Error (Internal (Printf.sprintf "Load task state: %s" res#error))
+  )
+
+(* -------------------------------------------------------------------------- *)
+(* §7.4 Workflow state persistence                                             *)
+(* -------------------------------------------------------------------------- *)
+
+let upsert_workflow_state (db : Postgresql.connection) run_id status checkpoint =
+  let id = Workflow_run_id.to_string run_id in
+  let status_str = match status with
+    | Wf_pending -> "pending"
+    | Wf_running -> "running"
+    | Wf_suspended _ -> "suspended"
+    | Wf_completed _ -> "completed"
+    | Wf_failed _ -> "failed"
+  in
+  let now = Unix.gettimeofday () in
+  let params = match checkpoint with
+    | Some cp ->
+      let json = Yojson.Safe.to_string (workflow_checkpoint_to_yojson cp) in
+      [| id; id; status_str; json; string_of_float now |]
+    | None ->
+      [| id; id; status_str; string_of_float now |]
+  in
+  let query = match checkpoint with
+    | Some _ ->
+      "INSERT INTO workflow_states (id, workflow_id, status, checkpoint, updated_at) \
+       VALUES ($1, $2, $3, $4::jsonb, $5) \
+       ON CONFLICT (id) DO UPDATE SET status = $3, checkpoint = $4::jsonb, updated_at = $5"
+    | None ->
+      "INSERT INTO workflow_states (id, workflow_id, status, checkpoint, updated_at) \
+       VALUES ($1, $2, $3, NULL, $4) \
+       ON CONFLICT (id) DO UPDATE SET status = $3, checkpoint = NULL, updated_at = $4"
+  in
+  let res = db#exec ~params query in
+  match res#status with
+  | Postgresql.Command_ok | Postgresql.Tuples_ok -> Ok ()
+  | _ -> Result.Error (Internal (Printf.sprintf "Workflow state upsert: %s" res#error))
+
+let load_workflow_state_from_db (db : Postgresql.connection) run_id =
+  let id = Workflow_run_id.to_string run_id in
+  let res =
+    db#exec
+      ~params:[| id |]
+      "SELECT checkpoint::text FROM workflow_states WHERE id = $1"
+  in
+  match res#status with
+  | Postgresql.Tuples_ok ->
+    (if res#ntuples = 0 then Ok None
+     else
+       let col = res#getvalue 0 0 in
+       if col = "" || col = "null" then Ok None
+       else
+         (match workflow_checkpoint_of_yojson (Yojson.Safe.from_string col) with
+          | Ok cp -> Ok (Some cp)
+          | Error msg ->
+            Result.Error (Internal (Printf.sprintf "Workflow checkpoint decode: %s" msg))))
+  | Postgresql.Command_ok -> Ok None
+  | _ -> Result.Error (Internal (Printf.sprintf "Load workflow state: %s" res#error))
+
+let save_workflow_state t run_id status checkpoint =
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
+    upsert_workflow_state t.db run_id status checkpoint
+  )
+
+let load_workflow_state t run_id =
+  Eio.Mutex.use_ro t.mutex (fun () ->
+    load_workflow_state_from_db t.db run_id
   )
 
 let transaction t f =

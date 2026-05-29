@@ -176,6 +176,9 @@ let workflow_engine_suite =
           agent_resolver = (fun _ -> Some agent);
           tool_resolver = (fun _ -> Some tool.descriptor);
           llm; registry = reg; parallel_limit = 4; failure_policy = Fail_fast;
+          workflow_resolver = (fun _ -> None);
+          on_step_complete = None;
+          workflow_run_id = None;
         } in
         let steps : workflow_step = Sequential [
           Tool_call { tool_name = "my_tool"; input = `Assoc [] };
@@ -202,6 +205,9 @@ let workflow_engine_suite =
           agent_resolver = (fun _ -> None);
           tool_resolver = (fun _ -> Some tool.descriptor);
           llm; registry = reg; parallel_limit = 4; failure_policy = Fail_fast;
+          workflow_resolver = (fun _ -> None);
+          on_step_complete = None;
+          workflow_run_id = None;
         } in
         let step : workflow_step = Conditional {
           condition = Greater_than (Variable "x", Literal (`Int 5));
@@ -230,6 +236,9 @@ let workflow_engine_suite =
           agent_resolver = (fun _ -> None);
           tool_resolver = (fun _ -> Some tool.descriptor);
           llm; registry = reg; parallel_limit = 4; failure_policy = Fail_fast;
+          workflow_resolver = (fun _ -> None);
+          on_step_complete = None;
+          workflow_run_id = None;
         } in
         let step : workflow_step = Conditional {
           condition = Greater_than (Variable "x", Literal (`Int 5));
@@ -263,6 +272,9 @@ let workflow_engine_suite =
           agent_resolver = (fun _ -> None);
           tool_resolver = (fun _ -> Some tool.descriptor);
           llm; registry = reg; parallel_limit = 4; failure_policy = Fail_fast;
+          workflow_resolver = (fun _ -> None);
+          on_step_complete = None;
+          workflow_run_id = None;
         } in
         let step : workflow_step = Map_reduce {
           over = "items";
@@ -286,6 +298,9 @@ let workflow_engine_suite =
           agent_resolver = (fun _ -> None);
           tool_resolver = (fun _ -> None);
           llm; registry = reg; parallel_limit = 4; failure_policy = Fail_fast;
+          workflow_resolver = (fun _ -> None);
+          on_step_complete = None;
+          workflow_run_id = None;
         } in
         let step : workflow_step =
           Agent_call { agent_id = "nonexistent"; prompt_template = "hi" }

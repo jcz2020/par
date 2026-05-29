@@ -13,7 +13,23 @@ type exec_context = {
   registry : Tool_registry.t;
   parallel_limit : int;
   failure_policy : failure_policy;
+  workflow_resolver : string -> workflow option;
+  on_step_complete : (string -> Yojson.Safe.t -> unit) option;
+  workflow_run_id : Workflow_run_id.t option;
 }
+
+exception Workflow_suspended of {
+  prompt : string;
+  allowed_roles : string list;
+  checkpoint : workflow_checkpoint;
+}
+
+let make_checkpoint ?(step_path = []) ?(step_results = []) ctx =
+  {
+    step_path;
+    variables = ctx.variables;
+    step_results;
+  }
 
 (* -------------------------------------------------------------------------- *)
 (* Variable substitution — replace {{key}} with JSON value in template        *)
@@ -79,33 +95,56 @@ let rec execute_step ctx step =
   | Map_reduce { over; step = inner_step; reduce } ->
     execute_map_reduce ctx over inner_step reduce
 
-  | Human_approval { prompt_template; timeout = _; allowed_roles = _ } ->
-    let _prompt = substitute prompt_template ctx.variables in
-    Ok (`Bool true)
+  | Human_approval { prompt_template; timeout = _; allowed_roles } ->
+    let prompt = substitute prompt_template ctx.variables in
+    (match ctx.workflow_run_id with
+     | None -> Ok (`Bool true)
+     | Some _ ->
+       let checkpoint = make_checkpoint ctx in
+       raise (Workflow_suspended { prompt; allowed_roles; checkpoint }))
 
-  | Sub_workflow { workflow_id; variables = _ } ->
-    Result.Error (Internal (Printf.sprintf "Sub-workflow not yet supported: %s" workflow_id))
+  | Sub_workflow { workflow_id; variables } ->
+    (match ctx.workflow_resolver workflow_id with
+     | None ->
+       Result.Error (Invalid_input (Printf.sprintf "Sub-workflow not found: %s" workflow_id))
+     | Some child_wf ->
+       let merged_vars = variables @ ctx.variables in
+       let child_ctx = { ctx with variables = merged_vars } in
+       (match execute_workflow child_ctx child_wf with
+        | Ok wf_result ->
+          (match List.assoc_opt "result" wf_result.outputs with
+           | Some v -> Ok v
+           | None -> Ok `Null)
+        | Error err -> Error err))
 
 (* -------------------------------------------------------------------------- *)
 (* Sequential execution — left-to-right, respects failure_policy              *)
 (* -------------------------------------------------------------------------- *)
 
 and execute_sequential ctx steps =
-  let rec loop acc = function
+  let rec loop acc idx = function
     | [] -> Ok (`List (List.rev acc))
     | step :: rest ->
       match execute_step ctx step with
-      | Ok result -> loop (result :: acc) rest
+      | Ok result ->
+        (match ctx.on_step_complete with
+         | Some cb -> cb (string_of_int idx) result
+         | None -> ());
+        loop (result :: acc) (idx + 1) rest
       | Result.Error err ->
         match ctx.failure_policy with
         | Fail_fast -> Result.Error err
-        | Continue_on_failure -> loop acc rest
+        | Continue_on_failure ->
+          (match ctx.on_step_complete with
+           | Some cb -> cb (string_of_int idx) `Null
+           | None -> ());
+          loop acc (idx + 1) rest
         | Conditional { on_failure } ->
           match execute_step ctx on_failure with
-          | Ok _ -> loop acc rest
+          | Ok _ -> loop acc (idx + 1) rest
           | Result.Error e -> Result.Error e
   in
-  loop [] steps
+  loop [] 0 steps
 
 (* -------------------------------------------------------------------------- *)
 (* Parallel execution — Eio fibers with semaphore-limited concurrency         *)
@@ -196,7 +235,7 @@ and apply_reduce reduce results =
 (* Top-level workflow execution                                               *)
 (* -------------------------------------------------------------------------- *)
 
-let execute_workflow ctx wf =
+and execute_workflow ctx wf =
   let start_time = Unix.gettimeofday () in
   match execute_step ctx wf.steps with
   | Ok value ->

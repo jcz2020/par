@@ -547,21 +547,6 @@ type llm_service = {
   close_fn : unit -> unit;
 }
 
-type persistence_service = {
-  save_events_fn : event list -> (unit, error_category) result;
-  load_events_fn : Task_id.t -> (event list, error_category) result;
-  save_task_state_fn : task_state -> (unit, error_category) result;
-  load_task_state_fn : Task_id.t -> (task_state option, error_category) result;
-  close_fn : unit -> unit;
-}
-
-type service_registry = {
-  persistence : persistence_service;
-  llm : llm_service;
-  event_bus : (module EVENT_BUS_SERVICE);
-  config : runtime_config;
-}
-
 (* -------------------------------------------------------------------------- *)
 (* §4.3 Concurrent hashtbl                                                    *)
 (* -------------------------------------------------------------------------- *)
@@ -635,13 +620,51 @@ type workflow_result = {
 }
 [@@deriving yojson]
 
+(* -------------------------------------------------------------------------- *)
+(* §11.2 Workflow checkpoint and run tracking                                  *)
+(* -------------------------------------------------------------------------- *)
+
+type workflow_checkpoint = {
+  step_path : int list;
+  variables : (string * Yojson.Safe.t) list;
+  step_results : Yojson.Safe.t list;
+}
+[@@deriving yojson]
+
 type workflow_status =
   | Wf_pending
   | Wf_running
-  | Wf_suspended
+  | Wf_suspended of workflow_checkpoint
   | Wf_completed of workflow_result
   | Wf_failed of error_category
+ [@@deriving yojson]
+
+type workflow_run = {
+  id : Workflow_run_id.t;
+  workflow_id : string;
+  status : workflow_status;
+  checkpoint : workflow_checkpoint option;
+  created_at : float;
+  updated_at : float;
+}
 [@@deriving yojson]
+
+type persistence_service = {
+  save_events_fn : event list -> (unit, error_category) result;
+  load_events_fn : Task_id.t -> (event list, error_category) result;
+  save_task_state_fn : task_state -> (unit, error_category) result;
+  load_task_state_fn : Task_id.t -> (task_state option, error_category) result;
+  save_workflow_state_fn : Workflow_run_id.t -> workflow_status -> workflow_checkpoint option -> (unit, error_category) result;
+  load_workflow_state_fn : Workflow_run_id.t -> (workflow_checkpoint option, error_category) result;
+  close_fn : unit -> unit;
+}
+
+type service_registry = {
+  persistence : persistence_service;
+  llm : llm_service;
+  event_bus : (module EVENT_BUS_SERVICE);
+  config : runtime_config;
+}
 
 type task_completion = {
   task_id : Task_id.t;

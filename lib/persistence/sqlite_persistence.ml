@@ -26,12 +26,19 @@ let init_schema db =
          idempotency_key   TEXT UNIQUE NOT NULL
        )|};
     {|CREATE INDEX IF NOT EXISTS idx_events_task_id ON events(task_id, timestamp)|};
-    {|CREATE TABLE IF NOT EXISTS task_states (
+     {|CREATE TABLE IF NOT EXISTS task_states (
          id          TEXT PRIMARY KEY,
          state       TEXT NOT NULL,
          updated_at  REAL NOT NULL
        )|};
-  ] in
+     {|CREATE TABLE IF NOT EXISTS workflow_states (
+         id          TEXT PRIMARY KEY,
+         workflow_id TEXT NOT NULL,
+         status      TEXT NOT NULL,
+         checkpoint  TEXT,
+         updated_at  REAL NOT NULL
+       )|};
+   ] in
   List.find_map (fun sql ->
      match exec_sql db sql with
      | Result.Error e -> Some (Result.Error e)
@@ -192,6 +199,75 @@ let load_task_state t task_id =
     in
     let _ = Sqlite3.finalize stmt in
     result
+  )
+
+(* -------------------------------------------------------------------------- *)
+(* §7.4 Workflow state persistence                                             *)
+(* -------------------------------------------------------------------------- *)
+
+let upsert_workflow_state db run_id status checkpoint =
+  let id = Workflow_run_id.to_string run_id in
+  let status_str = match status with
+    | Wf_pending -> "pending"
+    | Wf_running -> "running"
+    | Wf_suspended _ -> "suspended"
+    | Wf_completed _ -> "completed"
+    | Wf_failed _ -> "failed"
+  in
+  let checkpoint_json = match checkpoint with
+    | Some cp -> Some (Yojson.Safe.to_string (workflow_checkpoint_to_yojson cp))
+    | None -> None
+  in
+  let now = Unix.gettimeofday () in
+  let stmt =
+    Sqlite3.prepare db
+      "INSERT OR REPLACE INTO workflow_states (id, workflow_id, status, checkpoint, updated_at) \
+       VALUES (?, ?, ?, ?, ?)"
+  in
+  let _ = Sqlite3.bind_text stmt 1 id in
+  let _ = Sqlite3.bind_text stmt 2 id in
+  let _ = Sqlite3.bind_text stmt 3 status_str in
+  (match checkpoint_json with
+   | Some json -> ignore (Sqlite3.bind_text stmt 4 json)
+   | None -> ignore (Sqlite3.bind stmt 4 Sqlite3.Data.NULL));
+  let _ = Sqlite3.bind_double stmt 5 now in
+  let step_result = Sqlite3.step stmt in
+  let _ = Sqlite3.finalize stmt in
+  match step_result with
+  | Sqlite3.Rc.DONE | Sqlite3.Rc.ROW -> Ok ()
+  | rc -> Result.Error (Internal (Printf.sprintf "Workflow state upsert: %s" (Sqlite3.Rc.to_string rc)))
+
+let load_workflow_state_from_db db run_id =
+  let id = Workflow_run_id.to_string run_id in
+  let stmt =
+    Sqlite3.prepare db "SELECT checkpoint FROM workflow_states WHERE id = ?"
+  in
+  let _ = Sqlite3.bind_text stmt 1 id in
+  let result =
+    match Sqlite3.step stmt with
+    | Sqlite3.Rc.ROW ->
+      (match Sqlite3.column stmt 0 with
+       | Sqlite3.Data.TEXT json ->
+         (match workflow_checkpoint_of_yojson (Yojson.Safe.from_string json) with
+          | Ok cp -> Ok (Some cp)
+          | Error msg ->
+            Result.Error (Internal (Printf.sprintf "Workflow checkpoint decode: %s" msg)))
+       | Sqlite3.Data.NULL -> Ok None
+       | _ -> Result.Error (Internal "Workflow checkpoint: unexpected column type"))
+    | Sqlite3.Rc.DONE -> Ok None
+    | rc -> Result.Error (Internal (Printf.sprintf "Load workflow state: %s" (Sqlite3.Rc.to_string rc)))
+  in
+  let _ = Sqlite3.finalize stmt in
+  result
+
+let save_workflow_state t run_id status checkpoint =
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
+    upsert_workflow_state t.db run_id status checkpoint
+  )
+
+let load_workflow_state t run_id =
+  Eio.Mutex.use_ro t.mutex (fun () ->
+    load_workflow_state_from_db t.db run_id
   )
 
 let transaction t f =

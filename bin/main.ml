@@ -78,6 +78,10 @@ let make_sqlite_persistence db_path =
       load_events_fn = (fun task_id -> Sqlite_persistence.load_events t task_id);
       save_task_state_fn = (fun ts -> Sqlite_persistence.save_task_state t ts);
       load_task_state_fn = (fun task_id -> Sqlite_persistence.load_task_state t task_id);
+      save_workflow_state_fn = (fun id status ckpt ->
+        Sqlite_persistence.save_workflow_state t id status ckpt);
+      load_workflow_state_fn = (fun id ->
+        Sqlite_persistence.load_workflow_state t id);
       close_fn = (fun () -> Sqlite_persistence.close t);
     }
 
@@ -92,6 +96,10 @@ let make_postgres_persistence conninfo =
       load_events_fn = (fun task_id -> Postgres_persistence.load_events t task_id);
       save_task_state_fn = (fun ts -> Postgres_persistence.save_task_state t ts);
       load_task_state_fn = (fun task_id -> Postgres_persistence.load_task_state t task_id);
+      save_workflow_state_fn = (fun id status ckpt ->
+        Postgres_persistence.save_workflow_state t id status ckpt);
+      load_workflow_state_fn = (fun id ->
+        Postgres_persistence.load_workflow_state t id);
       close_fn = (fun () -> Postgres_persistence.close t);
     }
 

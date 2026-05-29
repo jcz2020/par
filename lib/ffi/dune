@@ -1,0 +1,18 @@
+(include_subdirs no)
+
+; Shared object build — optional, requires eio_main
+; Build with: dune build lib/ffi/par_capi.so
+(executable
+ (name par_capi)
+ (libraries par eio_main)
+ (foreign_stubs
+  (language c)
+  (names par_ffi))
+ (modes (native shared_object))
+ (link_flags :standard -linkall))
+
+; Install the C header alongside the library
+(install
+ (package par)
+ (section lib)
+ (files (par_ffi.h as include/par_ffi.h)))

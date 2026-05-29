@@ -13,6 +13,7 @@ type runtime = {
   shutdown_mutex : Eio.Mutex.t;
   tasks : (Task_id.t, task_state) protected_hashtbl;
   workflows : (Workflow_run_id.t, workflow_status) protected_hashtbl;
+  workflow_defs : (string, workflow) protected_hashtbl;
   tool_registry : Tool_registry.t;
 } [@@warning "-69"]
 
@@ -136,6 +137,26 @@ let submit_workflow rt wf =
   let id = Workflow_run_id.create () in
   htbl_set rt.workflows id Wf_running;
   let token = Cancellation.create_token rt.cancellation_root in
+  let checkpoint_cb _step_id result =
+    let cp = Workflow_engine.make_checkpoint ~step_path:[]
+               ~step_results:[result]
+               {
+                 Workflow_engine.variables = wf.variables;
+                 token;
+                 agent_resolver = (fun aid -> htbl_get rt.agents aid);
+                 tool_resolver = find_tool_across_agents rt;
+                 llm = rt.services.llm;
+                 registry = rt.tool_registry;
+                 parallel_limit = wf.parallel_limit;
+                 failure_policy = wf.failure_policy;
+                 workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
+                 on_step_complete = None;
+                 workflow_run_id = Some id;
+               }
+    in
+    (match rt.services.persistence.save_workflow_state_fn id Wf_running (Some cp) with
+     | Ok () -> () | Error _ -> ())
+  in
   let ctx = {
     Workflow_engine.variables = wf.variables;
     token;
@@ -145,14 +166,26 @@ let submit_workflow rt wf =
     registry = rt.tool_registry;
     parallel_limit = wf.parallel_limit;
     failure_policy = wf.failure_policy;
+    workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
+    on_step_complete = Some checkpoint_cb;
+    workflow_run_id = Some id;
   } in
-  match Workflow_engine.execute_workflow ctx wf with
-  | Ok result ->
-    htbl_set rt.workflows id (Wf_completed result);
-    Ok id
-  | Error err ->
-    htbl_set rt.workflows id (Wf_failed err);
-    Ok id
+  (match Workflow_engine.execute_workflow ctx wf with
+   | Ok result ->
+     htbl_set rt.workflows id (Wf_completed result);
+     (match rt.services.persistence.save_workflow_state_fn id (Wf_completed result) None with
+      | Ok () -> () | Error _ -> ());
+     Ok id
+   | exception Workflow_engine.Workflow_suspended { checkpoint; _ } ->
+     htbl_set rt.workflows id (Wf_suspended checkpoint);
+     (match rt.services.persistence.save_workflow_state_fn id (Wf_suspended checkpoint) (Some checkpoint) with
+      | Ok () -> () | Error _ -> ());
+     Ok id
+   | Error err ->
+     htbl_set rt.workflows id (Wf_failed err);
+     (match rt.services.persistence.save_workflow_state_fn id (Wf_failed err) None with
+      | Ok () -> () | Error _ -> ());
+     Ok id)
 
 let get_workflow_status rt wf_id =
   match htbl_get rt.workflows wf_id with
@@ -163,11 +196,63 @@ let cancel_workflow rt wf_id =
   htbl_set rt.workflows wf_id (Wf_failed (Internal "Cancelled"));
   Ok ()
 
+let register_workflow rt (wf : workflow) =
+  htbl_set rt.workflow_defs wf.id wf;
+  Ok ()
+
+let approve_workflow rt wf_id ~approver:_ =
+  match htbl_get rt.workflows wf_id with
+  | None -> Result.Error (Invalid_input "Workflow not found")
+  | Some (Wf_suspended _) -> Ok ()
+  | Some _ -> Result.Error (Invalid_input "Workflow is not suspended")
+
+let resume_workflow rt wf_id =
+  match htbl_get rt.workflows wf_id with
+  | None -> Result.Error (Invalid_input "Workflow not found")
+  | Some (Wf_suspended _) ->
+     (match rt.services.persistence.load_workflow_state_fn wf_id with
+      | Ok (Some loaded_cp) ->
+        let token = Cancellation.create_token rt.cancellation_root in
+        let vars = loaded_cp.variables in
+        let ctx = {
+          Workflow_engine.variables = vars;
+          token;
+          agent_resolver = (fun aid -> htbl_get rt.agents aid);
+          tool_resolver = find_tool_across_agents rt;
+          llm = rt.services.llm;
+          registry = rt.tool_registry;
+          parallel_limit = 10;
+          failure_policy = Fail_fast;
+          workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
+          on_step_complete = None;
+          workflow_run_id = Some wf_id;
+        } in
+        (match Workflow_engine.execute_workflow ctx
+          { id = "resumed"; name = "resumed"; version = 1;
+            steps = Tool_call { tool_name = "echo"; input = `Assoc [] };
+            variables = vars; failure_policy = Fail_fast;
+            parallel_limit = 10; timeout = 300.0; on_complete = None }
+        with
+         | Ok result ->
+           htbl_set rt.workflows wf_id (Wf_completed result);
+           Ok (Some result)
+         | exception Workflow_engine.Workflow_suspended { checkpoint = cp; _ } ->
+           htbl_set rt.workflows wf_id (Wf_suspended cp);
+           Ok None
+         | Error err ->
+           htbl_set rt.workflows wf_id (Wf_failed err);
+           Error err)
+      | Ok None -> Error (Internal "No checkpoint found for suspended workflow")
+      | Error e -> Error e)
+  | Some _ -> Result.Error (Invalid_input "Workflow is not suspended")
+
 let noop_persistence : Types.persistence_service = {
   save_events_fn = (fun _events -> Ok ());
   load_events_fn = (fun _task_id -> Ok []);
   save_task_state_fn = (fun _ts -> Ok ());
   load_task_state_fn = (fun _task_id -> Ok None);
+  save_workflow_state_fn = (fun _id _status _checkpoint -> Ok ());
+  load_workflow_state_fn = (fun _id -> Ok None);
   close_fn = ignore;
 }
 
@@ -204,6 +289,7 @@ let create ?(persistence = noop_persistence)
     shutdown_mutex = Eio.Mutex.create ();
     tasks = { data = Hashtbl.create 256; mutex = Eio.Mutex.create () };
     workflows = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
+    workflow_defs = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
     tool_registry = Tool_registry.create ();
   } in
   Ok rt

@@ -493,11 +493,37 @@ type llm_service = {
   close_fn : unit -> unit;
 }
 
+(* Forward declarations for persistence_service (full definitions in §11) *)
+type workflow_result = {
+  outputs : (string * Yojson.Safe.t) list;
+  status : [ `Success | `Partial | `Failed ];
+  elapsed : float;
+  metadata : (string * string) list;
+}
+[@@deriving yojson]
+
+type workflow_checkpoint = {
+  step_path : int list;
+  variables : (string * Yojson.Safe.t) list;
+  step_results : Yojson.Safe.t list;
+}
+[@@deriving yojson]
+
+type workflow_status =
+  | Wf_pending
+  | Wf_running
+  | Wf_suspended of workflow_checkpoint
+  | Wf_completed of workflow_result
+  | Wf_failed of error_category
+ [@@deriving yojson]
+
 type persistence_service = {
   save_events_fn : event list -> (unit, error_category) result;
   load_events_fn : Task_id.t -> (event list, error_category) result;
   save_task_state_fn : task_state -> (unit, error_category) result;
   load_task_state_fn : Task_id.t -> (task_state option, error_category) result;
+  save_workflow_state_fn : Workflow_run_id.t -> workflow_status -> workflow_checkpoint option -> (unit, error_category) result;
+  load_workflow_state_fn : Workflow_run_id.t -> (workflow_checkpoint option, error_category) result;
   close_fn : unit -> unit;
 }
 
@@ -566,20 +592,14 @@ type failure_policy =
   | Conditional of { on_failure : workflow_step }
 [@@deriving yojson]
 
-type workflow_result = {
-  outputs : (string * Yojson.Safe.t) list;
-  status : [ `Success | `Partial | `Failed ];
-  elapsed : float;
-  metadata : (string * string) list;
+type workflow_run = {
+  id : Workflow_run_id.t;
+  workflow_id : string;
+  status : workflow_status;
+  checkpoint : workflow_checkpoint option;
+  created_at : float;
+  updated_at : float;
 }
-[@@deriving yojson]
-
-type workflow_status =
-  | Wf_pending
-  | Wf_running
-  | Wf_suspended
-  | Wf_completed of workflow_result
-  | Wf_failed of error_category
 [@@deriving yojson]
 
 type task_completion = {

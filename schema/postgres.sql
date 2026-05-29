@@ -26,3 +26,11 @@ CREATE TABLE IF NOT EXISTS dead_letters (
   failed_at       DOUBLE PRECISION NOT NULL,
   attempt_count   INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS workflow_states (
+  id          TEXT PRIMARY KEY,
+  workflow_id TEXT NOT NULL,
+  status      TEXT NOT NULL,
+  checkpoint  JSONB,
+  updated_at  DOUBLE PRECISION NOT NULL
+);

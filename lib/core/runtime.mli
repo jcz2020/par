@@ -69,4 +69,12 @@ val cancel_workflow :
   Workflow_run_id.t ->
   (unit, error_category) result
 
+val register_workflow : runtime -> workflow -> (unit, error_category) result
+
+val approve_workflow :
+  runtime -> Workflow_run_id.t -> approver:string -> (unit, error_category) result
+
+val resume_workflow :
+  runtime -> Workflow_run_id.t -> (workflow_result option, error_category) result
+
 val tool_registry : runtime -> Tool_registry.t
