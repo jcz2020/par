@@ -56,13 +56,20 @@ let make_registry tools =
   ) tools;
   reg
 
+let error_to_string = function
+  | Internal s -> s
+  | Invalid_input s -> s
+  | External_failure s -> s
+  | Permission_denied s -> s
+  | Timeout -> "Timeout"
+  | Rate_limited -> "Rate_limited"
+
 let check_ok_text resp expected =
   match resp with
   | Ok r ->
       Alcotest.(check (option string)) "text" (Some expected) r.text
   | Error e ->
-      Alcotest.fail ("expected Ok, got Error: " ^ (match e with
-        | Internal s -> s | Invalid_input s -> s | _ -> "other"))
+      Alcotest.fail ("expected Ok, got Error: " ^ error_to_string e)
 
 let agent_loop_suite =
   ("Agent loop", [
@@ -313,6 +320,189 @@ let workflow_engine_suite =
          | Error _ -> ())));
   ])
 
+let workflow_persistence_suite =
+  ("Workflow persistence", [
+    Alcotest.test_case "Human_approval suspends workflow" `Quick (fun () ->
+      let tool = dummy_tool (fun _input _token ->
+        Success (`String "ok")) in
+      let agent = basic_agent ~tools:[tool] () in
+      let llm = mock_llm [text_response "approved"] in
+      let reg = make_registry [tool] in
+      with_token (fun token ->
+        let ctx : Workflow_engine.exec_context = {
+          variables = [];
+          token;
+          agent_resolver = (fun _ -> Some agent);
+          tool_resolver = (fun _ -> Some tool.descriptor);
+          llm;
+          registry = reg;
+          parallel_limit = 4;
+          failure_policy = Fail_fast;
+          workflow_resolver = (fun _ -> None);
+          on_step_complete = None;
+          workflow_run_id = Some (Workflow_run_id.create ());
+        } in
+        let step = Human_approval {
+          prompt_template = "Approve this action?";
+          timeout = 60.0;
+          allowed_roles = ["admin"];
+        } in
+        (try
+          match Workflow_engine.execute_step ctx step with
+          | Ok _ -> Alcotest.fail "Expected Workflow_suspended exception"
+          | Error _ ->
+            Alcotest.fail "Expected Workflow_suspended exception, got Error"
+         with
+         | Workflow_engine.Workflow_suspended { prompt; allowed_roles; checkpoint } ->
+           Alcotest.(check string) "prompt" "Approve this action?" prompt;
+           Alcotest.(check (list string)) "roles" ["admin"] allowed_roles;
+           Alcotest.(check int) "vars empty" 0 (List.length checkpoint.variables);
+           Alcotest.(check int) "step_results empty" 0
+             (List.length checkpoint.step_results))));
+
+    Alcotest.test_case "Human_approval auto-approves without run_id" `Quick (fun () ->
+      let tool = dummy_tool (fun _input _token ->
+        Success (`String "ok")) in
+      let agent = basic_agent ~tools:[tool] () in
+      let llm = mock_llm [text_response "ok"] in
+      let reg = make_registry [tool] in
+      with_token (fun token ->
+        let ctx : Workflow_engine.exec_context = {
+          variables = [];
+          token;
+          agent_resolver = (fun _ -> Some agent);
+          tool_resolver = (fun _ -> Some tool.descriptor);
+          llm;
+          registry = reg;
+          parallel_limit = 4;
+          failure_policy = Fail_fast;
+          workflow_resolver = (fun _ -> None);
+          on_step_complete = None;
+          workflow_run_id = None;
+        } in
+        let step = Human_approval {
+          prompt_template = "Approve?";
+          timeout = 60.0;
+          allowed_roles = [];
+        } in
+        match Workflow_engine.execute_step ctx step with
+        | Ok (`Bool true) -> ()
+        | Ok _ -> Alcotest.fail "Expected Ok (Bool true)"
+        | Error e ->
+          Alcotest.fail ("Expected Ok, got Error: " ^ error_to_string e)));
+
+    Alcotest.test_case "Sub_workflow executes child" `Quick (fun () ->
+      let tool = dummy_tool (fun _input _token ->
+        Success (`String "child_result")) in
+      let agent = basic_agent ~tools:[tool] () in
+      let llm = mock_llm [text_response "child done"] in
+      let reg = make_registry [tool] in
+      let child_wf : Types.workflow = {
+        id = "child-wf";
+        name = "Child Workflow";
+        version = 1;
+        steps = Tool_call { tool_name = "test_tool"; input = `Assoc [] };
+        variables = [("child_var", `String "child_value")];
+        failure_policy = Fail_fast;
+        parallel_limit = 4;
+        timeout = 60.0;
+        on_complete = None;
+      } in
+      with_token (fun token ->
+        let ctx : Workflow_engine.exec_context = {
+          variables = [("parent_var", `String "parent_value")];
+          token;
+          agent_resolver = (fun _ -> Some agent);
+          tool_resolver = (fun _ -> Some tool.descriptor);
+          llm;
+          registry = reg;
+          parallel_limit = 4;
+          failure_policy = Fail_fast;
+          workflow_resolver = (fun wid ->
+            if wid = "child-wf" then Some child_wf else None);
+          on_step_complete = None;
+          workflow_run_id = None;
+        } in
+        let step = Sub_workflow {
+          workflow_id = "child-wf";
+          variables = [("extra_var", `Int 42)];
+        } in
+        (try
+          match Workflow_engine.execute_step ctx step with
+          | Ok result ->
+            Alcotest.(check bool) "has result" true (result <> `Null)
+          | Error e ->
+            Alcotest.fail ("Expected Ok, got: " ^ error_to_string e)
+         with
+         | Workflow_engine.Workflow_suspended _ ->
+           Alcotest.fail "Should not suspend")));
+
+    Alcotest.test_case "Sub_workflow fails for missing child" `Quick (fun () ->
+      let tool = dummy_tool (fun _input _token ->
+        Success (`String "ok")) in
+      let agent = basic_agent ~tools:[tool] () in
+      let llm = mock_llm [] in
+      let reg = make_registry [tool] in
+      with_token (fun token ->
+        let ctx : Workflow_engine.exec_context = {
+          variables = [];
+          token;
+          agent_resolver = (fun _ -> Some agent);
+          tool_resolver = (fun _ -> Some tool.descriptor);
+          llm;
+          registry = reg;
+          parallel_limit = 4;
+          failure_policy = Fail_fast;
+          workflow_resolver = (fun _ -> None);
+          on_step_complete = None;
+          workflow_run_id = None;
+        } in
+        let step = Sub_workflow {
+          workflow_id = "nonexistent";
+          variables = [];
+        } in
+        match Workflow_engine.execute_step ctx step with
+        | Ok _ -> Alcotest.fail "Expected Error for missing workflow"
+        | Error (Invalid_input msg) ->
+          Alcotest.(check bool) "mentions missing" true
+            (String.contains msg 'n')
+        | Error e ->
+          Alcotest.fail
+            ("Expected Invalid_input, got: " ^ error_to_string e)));
+
+    Alcotest.test_case "checkpoint callback fires" `Quick (fun () ->
+      let tool = dummy_tool (fun _input _token ->
+        Success (`String "result")) in
+      let agent = basic_agent ~tools:[tool] () in
+      let llm = mock_llm [text_response "done"; text_response "done2"] in
+      let reg = make_registry [tool] in
+      let checkpoints = ref [] in
+      with_token (fun token ->
+        let ctx : Workflow_engine.exec_context = {
+          variables = [];
+          token;
+          agent_resolver = (fun _ -> Some agent);
+          tool_resolver = (fun _ -> Some tool.descriptor);
+          llm;
+          registry = reg;
+          parallel_limit = 4;
+          failure_policy = Fail_fast;
+          workflow_resolver = (fun _ -> None);
+          on_step_complete = Some (fun step_id result ->
+            checkpoints := (step_id, result) :: !checkpoints);
+          workflow_run_id = None;
+        } in
+        let step : Types.workflow_step = Sequential [
+          Tool_call { tool_name = "test_tool"; input = `Assoc [] };
+          Tool_call { tool_name = "test_tool"; input = `Assoc [] };
+        ] in
+        (match Workflow_engine.execute_step ctx step with
+         | Ok _ ->
+           Alcotest.(check int) "2 checkpoints" 2 (List.length !checkpoints)
+         | Error e ->
+           Alcotest.fail ("Expected Ok: " ^ error_to_string e))));
+  ])
+
 let default_bus_config : event_bus_config =
   { buffer_capacity = 10; delivery = {
       max_delivery_attempts = 1; initial_retry_delay = 0.1;
@@ -425,6 +615,7 @@ let () =
   Alcotest.run "PAR Integration" [
     agent_loop_suite;
     workflow_engine_suite;
+    workflow_persistence_suite;
     event_bus_suite;
     middleware_suite;
   ]
