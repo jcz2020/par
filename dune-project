@@ -1,5 +1,6 @@
 (lang dune 3.16)
 (name par)
+(version "0.1.0")
 (generate_opam_files true)
 (source (github jcz2020/par))
 (license MIT)
@@ -9,6 +10,8 @@
 (package
  (name par)
  (synopsis "Programmable Agent Runtime - SDK")
+ (description "A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM support, ReAct engine, workflow orchestration, and formal state guarantees")
+ (tags (agents llm runtime ffi))
  (depends
   ocaml
   dune
@@ -33,11 +36,13 @@
   x509
   mirage-crypto-rng
   base64
-  digestif))
+  digestif
+  alcotest))
 
 (package
  (name par_cli)
  (synopsis "Programmable Agent Runtime - CLI tool")
+ (description "CLI tool for the Programmable Agent Runtime — interactive REPL, config wizard, and single-shot query")
  (depends
   ocaml
   dune
@@ -46,5 +51,6 @@
   eio
   eio_main
   yojson
-  mirage-crypto-rng))
+  mirage-crypto-rng
+  alcotest))
 

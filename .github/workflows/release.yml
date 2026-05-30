@@ -1,0 +1,24 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: "5.4.0"
+          dune-cache: true
+      - run: opam install . --deps-only
+      - run: opam exec -- dune build
+      - run: opam exec -- dune runtest
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: _build/default/lib/ffi/par_capi.so
+          generate_release_notes: true

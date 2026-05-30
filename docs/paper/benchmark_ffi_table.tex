@@ -1,0 +1,20 @@
+\begin{table}[t]
+\centering
+\caption{FFI call overhead: ctypes binding vs pure Python baseline}
+\label{tab:ffi-overhead}
+\begin{tabular}{l S[table-format=6.0] S[table-format=6.0] l}
+\toprule
+Operation & {FFI Mean (ns)} & {Python Mean (ns)} & {Overhead} \\
+\midrule
+lifecycle (init+shutdown) & 149945 & 93625 & 1.60 \\
+register\_tool & 186529 & 84512 & 2.21 \\
+invoke (full cycle) & 235425 & 124826 & 1.89 \\
+\midrule
+register\_1\_tools & 134514 & 82846 & 1.62 \\
+register\_5\_tools & 220833 & 94042 & 2.35 \\
+register\_10\_tools & 224150 & 36929 & 6.07 \\
+register\_25\_tools & 520759 & 118722 & 4.39 \\
+register\_50\_tools & 886288 & 95507 & 9.28 \\
+\bottomrule
+\end{tabular}
+\end{table}
