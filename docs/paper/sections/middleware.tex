@@ -13,7 +13,7 @@ defines composition as a nest of layers.
 \subsection{Hook Structure}\label{sec:hook-structure}
 
 A \emph{middleware hook} is a record that optionally intercepts each stage of
-agent execution.  Formally, let $\identifiable$ be the set of conversational
+agent execution.  Formally, let $\Ident$ be the set of conversational
 contexts, $\call$ the set of tool-call records, and $\resp$ the set of LLM
 responses.  A hook $h$ is a tuple
 
@@ -34,8 +34,8 @@ where each field has type $\maybe{\alpha \to \maybe{\alpha}}$ as follows:
 \onBeforeLLM &\colon& \conv \to \conv\ \maybe \\
 \onAfterLLM  &\colon& \resp \to \resp\ \maybe \\
 \onBeforeTool &\colon& \call \to \call\ \maybe \\
-\onAfterTool &\colon& \call \times \result \to \result\ \maybe \\
-\onError &\colon& \error \to \result\ \maybe
+\onAfterTool &\colon& \call \times \myresult \to \myresult\ \maybe \\
+\onError &\colon& \myerror \to \myresult\ \maybe
 \end{array}
 \]
 
@@ -52,9 +52,9 @@ pointwise using case analysis on whether either operand supplies a handler:
 \[
 (h_1 \oplus h_2).f =
 \begin{cases}
-\Some{\,x \mapsto h_2.f\,x\,} &\text{if } h_1.f = \None \land h_2.f \neq \None}\\[4pt]
-\Some{\,x \mapsto h_1.f\,x\,} &\text{if } h_1.f \neq \None \land h_2.f = \None}\\[4pt]
-\Some{\,x \mapsto h_1.f\,x >>= h_2.f\,} &\text{if } h_1.f \neq \None \land h_2.f \neq \None}\\[4pt]
+\Some{\,x \mapsto h_2.f\,x\,} &\text{if } h_1.f = \None \land h_2.f \neq \None\\[4pt]
+\Some{\,x \mapsto h_1.f\,x\,} &\text{if } h_1.f \neq \None \land h_2.f = \None\\[4pt]
+\Some{\,x \mapsto h_1.f\,x >>= h_2.f\,} &\text{if } h_1.f \neq \None \land h_2.f \neq \None\\[4pt]
 \None &\text{otherwise}
 \end{cases}
 \]

@@ -2,6 +2,8 @@
 % Extracted from formalization.tex, adapted for acmart
 
 \usepackage{amsmath}
+% acmart already defines \Bbbk; release it before amssymb loads
+\let\Bbbk\relax
 \usepackage{amssymb}
 \usepackage{amsthm}
 \usepackage{mathpartir}
@@ -12,9 +14,10 @@
 \usepackage{subcaption}
 \usepackage{graphicx}
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta, positioning, automata, calc, fit}
+\usetikzlibrary{arrows.meta, positioning, automata, calc, fit, shapes.geometric, shapes.misc}
 
-% Theorem styles
+% Theorem styles — acmart provides theorem, lemma, etc.
+% We only add Property (not provided by acmart)
 \theoremstyle{plain}
 \newtheorem{prop}[equation]{Property}
 
@@ -39,15 +42,46 @@
   escapeinside={(*@}{@*)},
 }
 
-% Math commands (from formalization.tex)
+% --- Math commands ---
+
+% Sets and basic notation
 \providecommand{\N}{\mathbb{N}}
 \providecommand{\powerset}{\mathcal{P}}
 \providecommand{\Transitions}{\longrightarrow}
 \providecommand{\given}{\mid}
-\DeclareRobustCommand{\identifiable}[1]{\texttt{#1}}
 \providecommand{\iiff}{\Leftrightarrow}
+
+% Agent-domain sets
+\newcommand{\call}{\mathsf{Call}}      % tool-call records
+\newcommand{\resp}{\mathsf{Resp}}      % LLM responses
+\newcommand{\conv}{\mathsf{Conv}}      % conversational contexts
+\newcommand{\myresult}{\mathsf{Result}} % execution results
+\newcommand{\myerror}{\mathsf{Error}}   % error type
+\newcommand{\maybe}{\mathsf{Option}}    % option/maybe type
+\newcommand{\Some}{\mathsf{Some}}
+\newcommand{\None}{\mathsf{None}}
+\newcommand{\Ident}{\mathcal{I}}        % set of identifiers
+
+% Hook fields (middleware)
+\newcommand{\onBeforeLLM}{\mathsf{onBeforeLLM}}
+\newcommand{\onAfterLLM}{\mathsf{onAfterLLM}}
+\newcommand{\onBeforeTool}{\mathsf{onBeforeTool}}
+\newcommand{\onAfterTool}{\mathsf{onAfterTool}}
+\newcommand{\onError}{\mathsf{onError}}
+
+% Algebraic identifiers
+\newcommand{\id}{\mathrm{id}}
+\newcommand{\then}{\mathbin{\triangleright}}
+\newcommand{\tower}{\textsc{Tower}}
+\newcommand{\Context}{\ifmmode\mathsf{Ctx}\else\textsc{Ctx}\fi}
+\newcommand{\ADT}{\textsc{adt}}
+
+% Identifiable text (works in both math and text mode)
+\DeclareRobustCommand{\identifiable}[1]{%
+  \ifmmode\text{\texttt{#1}}\else\texttt{#1}\fi}
 
 % Convenience
 \newcommand{\PAR}{\textsc{P-A-R}\xspace}
+\newcommand{\PARNAME}{\textsc{P-A-R}}
 \newcommand{\cmark}{\ding{51}}
 \newcommand{\xmark}{\ding{55}}
