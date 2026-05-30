@@ -1,0 +1,18 @@
+\section{Introduction}
+\label{sec:intro}
+
+The proliferation of LLM-based agent frameworks has transformed how developers build interactive AI systems. Frameworks such as LangChain~\cite{langchain}, AutoGen, and Semantic Kernel~\cite{semantic-kernel} have lowered the barrier to prototyping agents with tool use, memory, and planning capabilities. However, this rapid adoption has come at a significant cost: runtime errors in state management, tool dispatch, and middleware composition that could have been caught at compile time. Developers trade static guarantees for flexibility, debugging type mismatches at runtime instead of design time.
+
+Python-based agent frameworks inherit Python's dynamic typing philosophy. Tool return types are declared as \texttt{Any}, agent states are stringly-typed (\texttt{status\ =\ "running"}), and middleware pipelines are composed ad-hoc without algebraic guarantees. These practices enable quick prototyping but introduce three categories of preventable errors. First, invalid state transitions go undetected: an agent in state \texttt{Completed} may silently receive a \texttt{Run} event, violating the intended lifecycle. Second, tool result variants are handled incompletely: a tool that returns \texttt{int\ |\ Error} in the type system is accessed as \texttt{result.value} without exhaustive pattern matching, causing runtime failures when the error variant appears. Third, middleware composition is non-associative in practice: chaining \texttt{Logger} $\then$ \texttt{Timeout} differs semantically from \texttt{Timeout} $\then$ \texttt{Logger}, yet neither the type system nor the runtime detects this ordering dependency. The ReAct paradigm~\cite{react} demonstrates that interleaving reasoning and action is effective, but without formal foundations the implementations remain fragile.
+
+We present \PAR, an agent runtime implemented in OCaml 5.4+ that encodes runtime invariants at the type level using algebraic data types, exhaustive pattern matching, and generalized algebraic data types (GADTs). Rather than deferring state validation to runtime checks, \PAR makes the state machine a first-class type-level construct. Rather than composing middleware with undocumented function chains, \PAR provides a formally verified composition operator. Rather than treating tool results as untyped payloads, \PAR uses variant types to guarantee exhaustive handling. We formalize three core subsystems using operational semantics and validate all formal properties empirically.
+
+We make the following contributions:
+\begin{itemize}
+  \item \textbf{C1.} A labelled transition system (LTS) for task lifecycle with 8 states, 8 transition labels, and 7 formal properties, directly implemented as an OCaml variant type with compile-time exhaustiveness checking (\S\ref{sec:formal-model}).
+  \item \textbf{C2.} A big-step operational semantics for an expression DSL with resource-bounded evaluation, guaranteeing termination and totality (\S\ref{sec:expr-dsl}).
+  \item \textbf{C3.} A monoid-based middleware composition operator $\oplus$ with identity and associativity proofs (\S\ref{sec:middleware}).
+  \item \textbf{C4.} Empirical validation: 163 tests and 4 benchmark metrics confirming all formal properties hold in the implementation (\S\ref{sec:evaluation}).
+\end{itemize}
+
+The paper is organized as follows. Section~\ref{sec:background} provides necessary background. Sections~\ref{sec:formal-model} through \ref{sec:middleware} present the three formal contributions. Section~\ref{sec:evaluation} reports empirical results. Section~\ref{sec:related} discusses related work. Section~\ref{sec:conclusion} concludes.

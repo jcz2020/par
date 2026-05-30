@@ -1,0 +1,89 @@
+% §6 Evaluation
+\section{Evaluation}
+\label{sec:evaluation}
+
+\subsection{Experimental Setup}
+\label{sec:eval:setup}
+
+We implemented P\=/\PAR{} in OCaml 5.4 using dune 3.23 on Linux. The test suite comprises 163 unit tests organized across five test suites: 23 integration tests, 13 mock provider tests, 16 benchmark tests, 110 core tests, and 1 SSE stream test. Our benchmark harness executes four distinct scenarios across four metric categories, using a deterministic Mock LLM Provider to ensure reproducible measurements. The entire test suite executes in approximately 1.5 seconds, enabling rapid iteration during development. All tests pass continuously as part of the project's CI pipeline.
+
+\subsection{RQ1: Compile-Time Type Safety}
+\label{sec:eval:type-safety}
+
+\PARNAME{} encodes agent runtime errors as the \identifiable{} \texttt{handler\_result} algebraic data type with five cases: \texttt{Success}, \texttt{Tool\_not\_found}, \texttt{Permission\_denied}, \texttt{Execution\_failed}, and \texttt{Rate\_limited}. This design stands in contrast to dynamically typed languages where such error conditions would be represented as \texttt{Any} or \texttt{object}, leading to runtime failures such as \texttt{AttributeError} when handlers are invoked. In OCaml, the compiler forces exhaustive pattern matching over all five cases, eliminating entire classes of deployment-time failures.
+
+Table~\ref{tab:error-detection} presents the detection timing for ten error classes. Four of these are eliminated at compile time: missing tool handler variants, invalid tool permissions, wrong conversation roles, and invalid state transitions. The remaining six error classes, including malformed JSON arguments, network timeouts, and LLM API errors, manifest at runtime where they are handled by the appropriate \texttt{handler\_result} variant. We measure \emph{type\_safety\_ratio} = 0.40, meaning 40\% of error classes are caught before the program ever runs.
+
+\begin{table}[t]
+\caption{Error class detection timing across compile-time and runtime mechanisms.}
+\label{tab:error-detection}
+\centering
+\small
+\begin{tabular}{ll}
+\toprule
+Error Class & Detection \\
+\midrule
+Missing tool handler variant & Compile-time \\
+Invalid tool permission & Compile-time \\
+Wrong conversation role & Compile-time \\
+Invalid state transition & Compile-time \\
+Malformed JSON args & Runtime \\
+Network timeout & Runtime \\
+LLM API error & Runtime \\
+Workflow step not found & Runtime \\
+Tool execution timeout & Runtime \\
+Concurrency limit exceeded & Runtime \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{RQ2: State Machine Soundness}
+\label{sec:eval:state-machine}
+
+We verified that the state machine implementation in \texttt{state\_machine.ml} precisely matches the labelled transition system formalised in \S~\ref{sec:formal-model}. The implementation accepts exactly 17 valid transitions as defined by the LTS; we tested all 17 and confirmed each is accepted. We also tested 50 representative invalid transitions (attempts to transition from states that cannot legally reach a target state), and all were correctly rejected with appropriate error responses.
+
+The measured metrics confirm state machine soundness: \emph{transition\_soundness} = 1.0 indicates all valid transitions are accepted; \emph{invalid\_detection\_rate} = 1.0 indicates all invalid transitions are caught; and \emph{state\_reachability} = 1.0 confirms all eight states are reachable from the initial \texttt{Pending} state. The longest acyclic execution path contains \emph{max\_path\_length} = 7 transitions, which matches Property 4 from \S~\ref{sec:formal-model}. These results together confirm that the implementation is a sound realisation of the formal specification.
+
+\subsection{RQ3: Expression DSL Termination}
+\label{sec:eval:expr-dsl}
+
+The expression DSL (\S~\ref{sec:expr-dsl}) was tested across all 14 expression forms under enforced resource bounds of \emph{max\_depth} = 10 and \emph{max\_node\_visits} = 1000. No test case exhibited divergence under these limits. When an expression would exceed the configured resource bounds, evaluation raises \texttt{Resource\_limit} rather than diverging. This design prevents denial-of-service attacks arising from deeply nested or cyclic expressions, which are a known hazard in unconstrained expression evaluators.
+
+Every expression form in the DSL evaluates to a value or raises \texttt{Resource\_limit}, confirming that the evaluator is total. We measure \emph{termination\_rate} = 1.0 across all test inputs, which validates Property 12 (totality of expression evaluation). The resource limit mechanism ensures that even malicious or accidentally nested expressions cannot consume unbounded computational resources.
+
+\subsection{RQ4: Middleware Composition Correctness}
+\label{sec:eval:middleware}
+
+We verified the two algebraic laws that govern middleware composition in \S~\ref{sec:middleware}. The identity law was verified for all six built-in middleware components; each satisfies \emph{test\_identity\_law} = true. The associativity law was verified across all orderings of three-middleware stacks; each ordering satisfies \emph{test\_associativity\_law} = true. We measure \emph{middleware\_composition\_score} = 1.0, indicating all expected hooks are active in the composed pipeline.
+
+The actual execution order of middleware hooks matches the Russian Doll model prediction: the outermost middleware's \texttt{before} hook runs first and its \texttt{after} hook runs last, with nested middleware executing in between. This confirms that the composition operator correctly preserves both structural laws and invocation order, providing developers with predictable behaviour when combining middleware components.
+
+\subsection{Summary}
+\label{sec:eval:summary}
+
+Table~\ref{tab:benchmark} consolidates all measured benchmarks across four metric categories. Type safety yields a ratio of 0.40, capturing four compile-time error classes. The state machine achieves perfect scores on soundness, invalid transition detection, and state reachability, with a maximum execution path of seven transitions. The expression DSL terminates on all inputs under resource bounds, confirming totality. Middleware composition satisfies both identity and associativity laws.
+
+\begin{table}[t]
+\caption{Benchmark results across four metric categories.}
+\label{tab:benchmark}
+\centering
+\small
+\begin{tabular}{llrl}
+\toprule
+Category & Metric & Value & Unit \\
+\midrule
+Type Safety & type\_safety\_ratio & 0.40 & ratio \\
+Tool Dispatch & tool\_call\_accuracy & 1.00 & ratio \\
+State Machine & transition\_soundness & 1.00 & ratio \\
+State Machine & invalid\_detection\_rate & 1.00 & ratio \\
+State Machine & state\_reachability & 1.00 & ratio \\
+State Machine & max\_path\_length & 7 & transitions \\
+Expression DSL & termination\_rate & 1.00 & ratio \\
+Expression DSL & max\_depth & 10 & levels \\
+Expression DSL & max\_node\_visits & 1000 & nodes \\
+Middleware & composition\_score & 1.00 & ratio \\
+Middleware & identity\_law & true & boolean \\
+Middleware & associativity\_law & true & boolean \\
+\bottomrule
+\end{tabular}
+\end{table}

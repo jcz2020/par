@@ -1,0 +1,53 @@
+% Preamble for P-A-R paper — ML Workshop 2026 / ICFP 2027
+% Extracted from formalization.tex, adapted for acmart
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathpartir}
+\usepackage{mathtools}
+\usepackage{listings}
+\usepackage{xspace}
+\usepackage{booktabs}
+\usepackage{subcaption}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, automata, calc, fit}
+
+% Theorem styles
+\theoremstyle{plain}
+\newtheorem{prop}[equation]{Property}
+
+% OCaml code listings
+\lstdefinestyle{ocaml}{
+  language=Caml,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries,
+  commentstyle=\itshape,
+  morestring=[b]",
+  stringstyle=\ttfamily,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=5pt,
+  tabsize=2,
+  morecomment=[l]{(*},
+  morecomment=[n]{(*}{*)},
+  escapeinside={(*@}{@*)},
+}
+
+% Math commands (from formalization.tex)
+\providecommand{\N}{\mathbb{N}}
+\providecommand{\powerset}{\mathcal{P}}
+\providecommand{\Transitions}{\longrightarrow}
+\providecommand{\given}{\mid}
+\DeclareRobustCommand{\identifiable}[1]{\texttt{#1}}
+\providecommand{\iiff}{\Leftrightarrow}
+
+% Convenience
+\newcommand{\PAR}{\textsc{P-A-R}\xspace}
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{\ding{55}}

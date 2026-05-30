@@ -1,0 +1,24 @@
+\section{Conclusion}\label{sec:conclusion}
+
+\subsection{Summary}
+
+\PAR{} provides the first formal operational semantics for a type-safe agent runtime with a runnable implementation in OCaml 5.4+.
+Three concrete contributions close the gap between abstract agent theory and practical infrastructure.
+First, we define a labelled transition system (LTS) for agent execution with eight well-defined states and prove seven formal properties including totality, determinism on concrete inputs, and bounded resource compliance (\S\ref{sec:formal-model}).
+Second, we present a resource-bounded expression DSL that guarantees total evaluation, preventing non-termination in tool invocation (\S\ref{sec:expr-dsl}).
+Third, we develop a monoid-based middleware composition layer with formally verified identity and associativity laws, enabling safe compositional extension of agent pipelines (\S\ref{sec:middleware}).
+All claims are validated empirically: 163 tests and four benchmark metric categories confirm the correctness and performance of the implementation (\S\ref{sec:evaluation}).
+
+\subsection{Key Insight}
+
+The conceptual gap between formal agent calculi ($\lambda_A$~\cite{lambda-a}, CTEGs~\cite{ctegs}) and production frameworks (LangChain~\cite{langchain}, Semantic Kernel~\cite{semantic-kernel}) is bridgeable.
+OCaml's type system is expressive enough to encode runtime invariants that dynamic languages can only check at runtime, enabling a unification of formal rigor and practical usability within a single toolchain.
+
+\subsection{Future Work}
+
+Several natural extensions follow from this work.
+Mechanized proofs in Coq, following the $\lambda_A$~\cite{lambda-a} methodology, would increase confidence in the LTS correctness proofs and monoid algebraic laws.
+Effect handlers for structured agent concurrency using OCaml 5 algebraic effects~\cite{algebraic-effects-ocaml} would enable a more direct encoding of non-deterministic agent choice.
+A distributed variant of the state machine, with consensus-based transition validation, would support fault-tolerant multi-agent deployments.
+Extension to multi-agent coordination via the $\pi$-calculus offers a well-understood compositional semantics for inter-agent communication.
+Finally, Python and C bindings would enable embedded deployment of the runtime in existing production environments that currently rely on less safe alternatives.

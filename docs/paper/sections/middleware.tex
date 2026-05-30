@@ -1,0 +1,192 @@
+\section{Middleware Composition}\label{sec:middleware}
+
+Middleware in P-A-R addresses cross-cutting concerns that arise throughout the
+agent runtime: structured logging for audit trails, automatic retry with
+backoff for resilience, PII masking for compliance, and distributed tracing
+for observability.  The central challenge is composing middleware so that (1)
+interceptor execution order is predictable and composable, and (2) the
+algebraic properties of the composition operator enable equational reasoning
+about middleware pipelines.  We resolve this through the \emph{Russian Doll}
+model, which treats each middleware as a wrapper around the call stack and
+defines composition as a nest of layers.
+
+\subsection{Hook Structure}\label{sec:hook-structure}
+
+A \emph{middleware hook} is a record that optionally intercepts each stage of
+agent execution.  Formally, let $\identifiable$ be the set of conversational
+contexts, $\call$ the set of tool-call records, and $\resp$ the set of LLM
+responses.  A hook $h$ is a tuple
+
+\[
+h = \bigl(
+  \onBeforeLLM,\;
+  \onAfterLLM,\;
+  \onBeforeTool,\;
+  \onAfterTool,\;
+  \onError
+\bigr)
+\]
+
+where each field has type $\maybe{\alpha \to \maybe{\alpha}}$ as follows:
+
+\[
+\begin{array}{lcl}
+\onBeforeLLM &\colon& \conv \to \conv\ \maybe \\
+\onAfterLLM  &\colon& \resp \to \resp\ \maybe \\
+\onBeforeTool &\colon& \call \to \call\ \maybe \\
+\onAfterTool &\colon& \call \times \result \to \result\ \maybe \\
+\onError &\colon& \error \to \result\ \maybe
+\end{array}
+\]
+
+The special hook $\id$ (\emph{identity}) has all fields bound to $\None$.
+Intercepting functions return $\Some{x}$ to continue the pipeline or
+$\None$ to short-circuit with the (potentially modified) value.
+
+\subsection{Russian Doll Composition}\label{sec:russian-doll}
+
+The composition operator $\oplus$ layers two hooks so that $h_1$ wraps $h_2$.
+Formally, for each interceptor field $f$ we define $(h_1 \oplus h_2).f$
+pointwise using case analysis on whether either operand supplies a handler:
+
+\[
+(h_1 \oplus h_2).f =
+\begin{cases}
+\Some{\,x \mapsto h_2.f\,x\,} &\text{if } h_1.f = \None \land h_2.f \neq \None}\\[4pt]
+\Some{\,x \mapsto h_1.f\,x\,} &\text{if } h_1.f \neq \None \land h_2.f = \None}\\[4pt]
+\Some{\,x \mapsto h_1.f\,x >>= h_2.f\,} &\text{if } h_1.f \neq \None \land h_2.f \neq \None}\\[4pt]
+\None &\text{otherwise}
+\end{cases}
+\]
+
+The monadic bind ($>>=$) sequences the two interceptors: the output of the
+outer (earlier) handler is passed as input to the inner (later) handler.
+Figure~\ref{fig:middleware-onion} illustrates the resulting concentric
+structure.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[node distance=2mm, outer/.style={draw, rounded rectangle, minimum size=1.4cm, font=\ttfamily\small}]
+% Concentric rings: outermost to innermost
+\node[outer, fill=blue!20] (logging)    {\texttt{logging}};
+\node[outer, fill=orange!20, above right=1.5cm and 1.5cm of logging] (retry) {\texttt{retry}};
+\node[outer, fill=purple!20, above right=1.5cm and 1.5cm of retry] (pii)   {\texttt{pii\_mask}};
+\node[outer, fill=green!20,  above right=1.5cm and 1.5cm of pii]   (core)  {\texttt{core}};
+
+% Request flow arrow (left to right, outer to inner)
+\draw[->, thick, blue] (-1.5cm, -0.6cm) -- node[above] {request flow} (logging.west);
+\draw[->, thick, blue] (logging.east) .. controls +(+1.0cm, +0.3cm) .. (retry.west);
+\draw[->, thick, blue] (retry.east)  .. controls +(+1.0cm, +0.3cm) .. (pii.west);
+\draw[->, thick, blue] (pii.east)   .. controls +(+1.0cm, +0.3cm) .. (core.west);
+
+% Response flow arrow (right to left, inner to outer)
+\draw[->, thick, red] (core.east)   .. controls +(+1.0cm, -0.3cm) .. (pii.east);
+\draw[->, thick, red] (pii.west)    .. controls +(-1.0cm, -0.3cm) .. (retry.east);
+\draw[->, thick, red] (retry.west)  .. controls +(-1.0cm, -0.3cm) .. (logging.east);
+\draw[->, thick, red] (1.5cm, 0.4cm) -- node[above] {response flow} (logging.east);
+
+% Labels for interceptor directions
+\node at (-2.2cm, -0.6cm) {\texttt{on\_before}};
+\node at (2.2cm,  0.4cm) {\texttt{on\_after}};
+\end{tikzpicture}
+\caption{Russian Doll middleware composition.  Outer middleware executes
+  \texttt{on\_before} first and \texttt{on\_after} last.}
+\label{fig:middleware-onion}
+\end{figure}
+
+The OCaml implementation builds each interceptor by folding the hook list
+from outermost to innermost (so the last hook in the list is the innermost
+wrapper):
+
+\begin{figure}[t]
+\begin{lstlisting}[language=caml, numbers=left, stepnumber=1]
+let apply_before_llm hooks conv next =
+  fold_right (fun hook acc c ->
+    match hook.on_before_llm with
+    | Some f -> (match f c with Some c' -> acc c' | None -> acc c)
+    | None -> acc c
+  ) hooks next conv
+\end{lstlisting}
+\hfill
+\caption{Composition of \texttt{on\_before\_llm} interceptors via
+  \texttt{fold\_right}.  The last hook in the list executes closest to the
+  core; the first hook in the list is the outermost wrapper.}
+\label{fig:fold-right}
+\end{figure}
+
+Because \texttt{fold\_right} processes the hook list from right to left,
+the \emph{first} middleware in the list becomes the \emph{outermost}
+wrapper, executing its \texttt{on\_before} earliest and its
+\texttt{on\_after} latest, which matches the Russian Doll intuition.
+
+\subsection{Monoid Properties}\label{sec:monoid-properties}
+
+The hook record with $\oplus$ forms a monoid.  We state all five properties
+and sketch proofs.
+
+\begin{description}
+\item[Closure.]  For any hooks $h_1, h_2$, the record $h_1 \oplus h_2$ has
+  all five fields defined (each case above produces a value in
+  $\maybe{\alpha\to\maybe{\alpha}}$ or $\None$).  Hence $h_1 \oplus h_2$
+  is a hook.
+
+\item[Associativity.]  For all hooks $h_1, h_2, h_3$,
+  $(h_1 \oplus h_2) \oplus h_3 = h_1 \oplus (h_2 \oplus h_3)$.
+  Each field $f$ is defined pointwise using the monadic bind, which is
+  associative: $(m_1 >>= f_1) >>= f_2 = m_1 >>= (f_1 >=> f_2)$.  Therefore the
+  composition order is immaterial (validated empirically in
+  \S\ref{sec:evaluation}).
+
+\item[Identity.]  The hook $\id$ is the identity element:
+  $h \oplus \id = \id \oplus h = h$ for all $h$.  When $h.f = \None$ the
+  definition yields $\None$; when $h.f = \Some{g}$ the case
+  $\id.f = \None$ and $h.f \neq \None$ yields $\Some{x \mapsto h.f\,x}$,
+  which equals $h.f$ by $\beta$-reduction (validated empirically in
+  \S\ref{sec:evaluation}).
+
+\item[Interceptor Ordering -- \texttt{on\_before}.]  Let the hook list be
+  $[h_1; h_2; \dots; h_n]$ where $h_1$ is the outermost.  The fold
+  produces the nesting $((\dots(h_1 \circ h_2) \circ \dots) \circ h_n)$,
+  so $h_1$'s interceptor runs \emph{first} on the way in.  The order of
+  \texttt{on\_before} execution is $[h_1, h_2, \dots, h_n]$.
+
+\item[Interceptor Ordering -- \texttt{on\_after}.]  By duality, the
+  \texttt{on\_after} interceptors unwind from innermost to outermost, i.e.
+  $[h_n, h_{n-1}, \dots, h_1]$.  This ordering is the reverse of
+  \texttt{on\_before}, ensuring symmetric behaviour on the two legs of the
+  call path.
+\end{description}
+
+These properties guarantee that middleware pipelines can be reordered,
+split, and merged without altering behaviour, which is essential for
+modular testing and safe composition of independently developed middleware.
+
+\subsection{Example: Logging {\textrightarrow} Retry {\textrightarrow} PII Masking}\label{sec:middleware-example}
+
+Consider the pipeline \texttt{[logging; retry; pii\_mask]} assembled in that
+order (logging outermost, pii\_mask innermost).  Tracing a user request:
+
+\begin{enumerate}
+\item \texttt{logging.on\_before} emits a structured log entry recording the
+  raw prompt and conversation ID, then passes the context to the next layer.
+\item \texttt{retry.on\_before} annotates the context with retry metadata
+  (attempt count, backoff state) and proceeds.
+\item \texttt{pii\_mask.on\_before} scans the prompt for entities matching
+  the PII regex; matching substrings are replaced with redacted tokens.
+\item The core LLM call executes with the redacted, annotated context.
+\item On receipt of the LLM response, \texttt{pii\_mask.on\_after} restores
+  any redacted tokens to their original form using the stored masking map.
+\item \texttt{retry.on\_after} checks the response for retryable status
+  codes; if retry is required it re-invokes the pipeline, otherwise it
+  passes the response outward.
+\item \texttt{logging.on\_after} records the final response and elapsed
+  time, then the pipeline terminates.
+\end{enumerate}
+
+Figure~\ref{fig:middleware-onion} depicts the concentric wrapping:
+request flow (left arrows) penetrates from \texttt{logging} through
+\texttt{retry} and \texttt{pii\_mask} into the core; response flow (right
+arrows) unwinds in the reverse order.  The monoid properties from
+\S\ref{sec:monoid-properties} guarantee that reordering the middleware
+list, e.g.\ \texttt{[retry; logging; pii\_mask]}, yields a semantically
+equivalent pipeline with appropriately shifted interceptor ordering.

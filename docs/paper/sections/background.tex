@@ -1,0 +1,44 @@
+\section{Background and Motivation}
+\label{sec:background}
+
+\subsection{The Agent Runtime Landscape}
+\label{sec:runtime-landscape}
+
+Modern LLM-based agents operate by repeatedly cycling through the perceive, reason, and act pattern described by the ReAct paradigm~\cite{react}: the agent observes environmental state, produces reasoning traces, and dispatches actions that alter the environment before the cycle repeats.
+Production-grade agent frameworks have emerged to operationalize this loop at scale.
+LangChain~\cite{langchain} provides a Python-based orchestration layer with chains, memory buffers, and tool-abstraction primitives.
+Semantic Kernel~\cite{semantic-kernel} offers a C\# counterpart with plug-in composition and planners.
+Together they illustrate the landscape of production frameworks.
+Common to both is a middleware pipeline that intercepts and transforms messages as they flow between the agent and its tools.
+All also manage conversational state, typically through turn-counted message lists with optional vector-store retrieval.
+
+A defining characteristic of every production framework listed above is dynamic typing: tool schemas are validated at runtime, state transitions are implicit, and middleware composition lacks any algebraic specification.
+Consequences include silent type mismatches that surface only as runtime exceptions, undocumented state-machine edges, and middleware pipelines whose interaction laws are visible in practice but not machine-verifiable.
+
+\subsection{Typed Agent Models}
+\label{sec:typed-models}
+
+Theoretical work on typed agent calculi predates the production frameworks by several years.
+The $\lambda_A$ calculus~\cite{lambda-a} extends the simply-typed lambda calculus with agent primitives, mechanized in Coq with 42 proved theorems covering agent composition, state observation, and lexical scoping.
+Despite its rigor, $\lambda_A$ was never extracted to runnable code: it lacks a tool abstract data type, a formal account of middleware, and any treatment of resource bounds.
+A second formal model, causal-temporal event graphs (CTEGs)~\cite{ctegs}, captures recursive agent traces as typed graphs with temporal ordering between events.
+CTEGs are proven to represent complex multi-agent interactions but are presented as mathematical objects without an executable semantics.
+
+Both lines of work establish that typed, compositional agent semantics are theoretically tractable.
+Neither closes the gap to a practical, runnable implementation with tooling, middleware, and state machines.
+
+\subsection{Runtime Substrates}
+\label{sec:substrates}
+
+At the systems level, several runtime substrates target the agent-orchestration problem without committing to a full formal semantics.
+Shepherd~\cite{shepherd} provides a runtime substrate for meta-agents, focusing on scheduling and resource allocation at the systems layer; it offers no formal treatment of state-machine transitions or middleware algebra.
+The Model Context Protocol has been given a process-calculus formalization~\cite{mcp-formal} that precisely specifies protocol-level message passing and session state; this work is complementary to ours, focusing on the wire protocol rather than the runtime state machine.
+Effect Systems for AI Runtimes~\cite{effect-ai} applies algebraic effects and handlers to model agent concurrency, offering a typed account of effectful computation with a different emphasis: effect typing rather than state-transition guarantees.
+
+\subsection{Gap and Opportunity}
+\label{sec:gap}
+
+The landscape therefore exhibits a clear structural gap.
+Foundational models such as $\lambda_A$ and CTEGs are formally specified but not runnable; production frameworks such as LangChain and Semantic Kernel are operational but dynamically typed and without formal guarantees.
+\PAR occupies the space between them: it delivers formal operational semantics for agent state, tool dispatch, and middleware composition while remaining a fully runnable implementation in OCaml 5.4+.
+OCaml's type system, particularly its support for algebraic data types, exhaustive pattern matching, and generalized algebraic data types~\cite{ocaml-manual}, provides the type-theoretic infrastructure necessary to encode state machines and middleware pipelines that are both machine-verifiable and runtime-efficient.
