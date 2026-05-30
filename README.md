@@ -15,7 +15,8 @@ A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM suppor
 - 双重持久化：SQLite（开发）/ PostgreSQL（生产）
 - 交互式REPL（`par`）
 - 安全URL抓取：TLS证书验证、系统CA store、URL scheme校验、10MB容量限制
-- 111个测试用例通过
+- C FFI + Python binding：ctypes FFI，线程安全，par_runtime 包
+- 171个测试用例通过（163 OCaml + 8 Python）
 
 ## Architecture
 
@@ -36,6 +37,9 @@ A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM suppor
 +----------+----------+----------+----------+------+-------+
 |                   Tools (13 builtin)                     |
 |       calculator / web_search / fetch_url / ...          |
++-----------------------------------------------------------+
+|                    FFI Bridge (par_capi)                  |
+|         C API (par_ffi.h) → Python ctypes binding         |
 +-----------------------------------------------------------+
 ```
 
@@ -104,6 +108,35 @@ let () = Eio_main.run (fun env ->
 
 See `examples/basic_agent.ml` for the complete example.
 
+## Python Binding
+
+```bash
+# Build the shared library
+dune build lib/ffi/par_capi.so
+
+# Run Python tests
+cd bindings/python && python3 -m pytest tests/
+```
+
+```python
+import json
+from par_runtime import Runtime
+
+config = json.dumps({
+    "persistence": {"tag": "sqlite", "contents": ":memory:"},
+    "event_bus": {"max_queue_size": 100, "dlq_enabled": False, "dlq_max_size": 10},
+    "default_quota": {"max_tokens": 4096, "max_iterations": 10, "timeout_seconds": 30.0},
+    "shutdown": {"grace_period_seconds": 5.0, "force_after_seconds": 10.0},
+    "llm_providers": [],
+})
+
+with Runtime(config) as rt:
+    rt.register_tool("echo", "Echo tool", '{"type": "object"}')
+    # result = rt.invoke("my-agent", "Hello!")  # requires LLM provider
+```
+
+See `bindings/python/examples/basic_agent.py` for the full example.
+
 ## CLI Reference
 
 | Command | Description |
@@ -138,6 +171,7 @@ See `examples/basic_agent.ml` for the complete example.
 |---------|-------------|
 | `par` | SDK: Core types, ReAct engine, runtime, workflow, expression evaluator, state machine, context manager, event bus, OpenAI/Anthropic providers, SQLite/PostgreSQL persistence, 13 builtin tools, 6 middleware |
 | `par_cli` | CLI tool: `par` (REPL), `par config` (wizard), `par ask` (single-shot) |
+| `par_runtime` | Python binding: ctypes FFI wrapping par_capi.so C API, thread-safe Runtime class with context manager |
 
 ## Project Structure
 
@@ -151,7 +185,13 @@ par/
 |   +-- event_bus/     Eio-based event bus with DLQ
 |   +-- middleware/    Logging, Retry, Rate_limit, Timeout, Validation, Pii_mask
 |   +-- tools/         13 builtin tools (calculator, web tools, etc.)
+|   +-- ffi/           C FFI bridge (par_ffi.h, par_ffi.c, par_capi.ml)
 |   +-- par.ml         Facade module (re-exports all sub-modules for `open Par`)
++-- bindings/
+|   +-- python/        Python ctypes binding (par_runtime package)
+|       +-- par_runtime/     Runtime, errors, FFI declarations
+|       +-- tests/           8 pytest tests
+|       +-- examples/        basic_agent.py
 +-- test/              Unit and integration tests
 +-- examples/          Example agents and workflows
 +-- schema/            Database schemas
@@ -163,8 +203,8 @@ OCaml 5.4+, dune 3.23+, cohttp-eio, lambdasoup, tls-eio, ca-certs, postgresql（
 
 ## Project Size
 
-- 约6000行代码
-- 111个测试用例
+- 约6500行OCaml + 500行Python
+- 171个测试用例（163 OCaml + 8 Python）
 
 ## License
 
