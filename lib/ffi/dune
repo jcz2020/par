@@ -9,7 +9,7 @@
   (language c)
   (names par_ffi))
  (modes (native shared_object))
- (link_flags :standard -linkall))
+ (link_flags :standard -linkall -cclib -lpthread))
 
 ; Install the C header alongside the library
 (install
