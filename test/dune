@@ -22,3 +22,13 @@
  (name test_benchmark)
  (libraries par par_benchmark alcotest)
  (modules test_benchmark))
+
+(test
+ (name test_ffi_register)
+ (libraries par eio_main alcotest)
+ (modules test_ffi_register))
+
+(test
+ (name test_builtin_tools)
+ (libraries par eio_main alcotest)
+ (modules test_builtin_tools))

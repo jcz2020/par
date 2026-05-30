@@ -105,6 +105,12 @@ void par_shutdown(par_runtime_t* rt) {
     }
 }
 
+/* Register a custom tool with the PAR runtime.
+ * Returns: 0  on success
+ *         -1  on general error (invalid handle, internal failure)
+ *         -2  on invalid schema (malformed JSON or not a JSON object)
+ *         -3  on empty tool name
+ *         -4  on duplicate tool name */
 int par_register_tool(par_runtime_t* rt, const char* name,
                       const char* description, const char* input_schema) {
     /* caml_copy_string can raise — outside lock */

@@ -72,19 +72,40 @@ let do_shutdown (id : int) =
     free_handle id;
     "{\"status\": \"ok\"}"
 
+(* Return codes for par_register_tool:
+   0  = success
+   -1 = general error (e.g. invalid handle, internal failure)
+   -2 = invalid JSON schema (malformed JSON or not an object)
+   -3 = empty tool name
+   -4 = duplicate tool name *)
+
 let do_register_tool (id : int) (name : string) (desc : string) (schema : string) =
   match get_handle id with
   | None -> Obj.repr (-1)
   | Some handle ->
-    (try
-       let json_schema = Yojson.Safe.from_string schema in
-       ignore (Par.Runtime.register_tool handle.rt
-         ~name ~description:desc
-         ~input_schema:json_schema
-         ~handler:(fun _input _token -> Par.Types.Success `Null)
-         ());
-       Obj.repr 0
-     with _ -> Obj.repr (-1))
+    if String.length name = 0 then Obj.repr (-3)
+    else
+      (try
+         let json_schema = Yojson.Safe.from_string schema in
+         (match json_schema with
+          | `Assoc _ ->
+             if Par.Tool_registry.resolve (Par.Runtime.tool_registry handle.rt) name <> None
+             then Obj.repr (-4)
+             else
+               let _tool = Par.Runtime.register_tool handle.rt
+                 ~name ~description:desc
+                 ~input_schema:json_schema
+                 ~handler:(fun input _token ->
+                   Logs.warn (fun m ->
+                     m "FFI tool '%s': no-op handler invoked \
+                        (Python callback not yet supported)" name);
+                   Par.Types.Success input)
+                 () in
+               Obj.repr 0
+          | _ -> Obj.repr (-2))
+       with
+       | Yojson.Json_error _ -> Obj.repr (-2)
+       | _ -> Obj.repr (-1))
 
 let do_register_agent (id : int) (_config_json : string) =
   match get_handle id with
