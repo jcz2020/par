@@ -33,7 +33,7 @@ Neither closes the gap to a practical, runnable implementation with tooling, mid
 At the systems level, several runtime substrates target the agent-orchestration problem without committing to a full formal semantics.
 Shepherd~\cite{shepherd} provides a runtime substrate for meta-agents, focusing on scheduling and resource allocation at the systems layer; it offers no formal treatment of state-machine transitions or middleware algebra.
 The Model Context Protocol has been given a process-calculus formalization~\cite{mcp-formal} that precisely specifies protocol-level message passing and session state; this work is complementary to ours, focusing on the wire protocol rather than the runtime state machine.
-Effect Systems for AI Runtimes~\cite{effect-ai} applies algebraic effects and handlers to model agent concurrency, offering a typed account of effectful computation with a different emphasis: effect typing rather than state-transition guarantees.
+Recent work on effect handlers~\cite{effect-handlers-survey} demonstrates how algebraic effects can model concurrent agent computations, offering a typed account of effectful computation with a different emphasis: effect typing rather than state-transition guarantees.
 
 \subsection{Gap and Opportunity}
 \label{sec:gap}

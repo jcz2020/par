@@ -80,7 +80,7 @@ complementary to our approach: we use the \Context record for request-scoped val
 rather than a monad, trading monad laws for a flat, inspectable record that can be
 logged and introspected at runtime.
 
-Effect Systems for AI Runtimes~\cite{effect-ai} apply effect typing to agent
+Effect handlers~\cite{effect-handlers-survey} apply effect typing to agent
 runtimes, tracking which tools a given agent step may invoke. The scope differs from
 ours: effect systems enforce that calls stay within a permitted effect set, while
 \PAR enforces that transitions stay within a permitted state graph. Both aim for
