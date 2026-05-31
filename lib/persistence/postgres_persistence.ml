@@ -253,6 +253,10 @@ let transaction t f =
         | Ok () -> Ok result
         | Result.Error e -> Result.Error e)
       | exception ex ->
-        exec_sql t.db "ROLLBACK" |> ignore;
+        (match exec_sql t.db "ROLLBACK" with
+         | Ok () -> ()
+         | Result.Error e ->
+           Logs.err (fun m -> m "postgres_persistence: ROLLBACK failed: %s"
+               (error_category_to_yojson e |> Yojson.Safe.to_string)));
         Result.Error (Internal (Printexc.to_string ex)))
   )

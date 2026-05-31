@@ -56,9 +56,14 @@ let create db_path =
   let db = Sqlite3.db_open db_path in
   match init_schema db with
   | Ok () -> Ok { db; mutex = Eio.Mutex.create () }
-  | Result.Error e -> ignore (Sqlite3.db_close db); Result.Error e
+  | Result.Error e ->
+    (if not (Sqlite3.db_close db) then
+       Logs.err (fun m -> m "sqlite_persistence: db_close failed during create error path"));
+    Result.Error e
 
-let close t = ignore (Sqlite3.db_close t.db)
+let close t =
+  if not (Sqlite3.db_close t.db) then
+    Logs.err (fun m -> m "sqlite_persistence: db_close failed")
 
 (* -------------------------------------------------------------------------- *)
 (* §7 Event extraction helpers                                                *)
@@ -227,9 +232,15 @@ let upsert_workflow_state db run_id status checkpoint =
   let _ = Sqlite3.bind_text stmt 1 id in
   let _ = Sqlite3.bind_text stmt 2 id in
   let _ = Sqlite3.bind_text stmt 3 status_str in
-  (match checkpoint_json with
-   | Some json -> ignore (Sqlite3.bind_text stmt 4 json)
-   | None -> ignore (Sqlite3.bind stmt 4 Sqlite3.Data.NULL));
+   (match checkpoint_json with
+    | Some json ->
+      (match Sqlite3.bind_text stmt 4 json with
+       | Sqlite3.Rc.OK -> ()
+       | rc -> Logs.err (fun m -> m "sqlite_persistence: bind_text failed: %s" (Sqlite3.Rc.to_string rc)))
+    | None ->
+      (match Sqlite3.bind stmt 4 Sqlite3.Data.NULL with
+       | Sqlite3.Rc.OK -> ()
+       | rc -> Logs.err (fun m -> m "sqlite_persistence: bind failed: %s" (Sqlite3.Rc.to_string rc))));
   let _ = Sqlite3.bind_double stmt 5 now in
   let step_result = Sqlite3.step stmt in
   let _ = Sqlite3.finalize stmt in
@@ -281,6 +292,10 @@ let transaction t f =
         | Ok () -> Ok result
         | Result.Error e -> Result.Error e)
       | exception ex ->
-        exec_sql t.db "ROLLBACK" |> ignore;
+        (match exec_sql t.db "ROLLBACK" with
+         | Ok () -> ()
+         | Result.Error e ->
+           Logs.err (fun m -> m "sqlite_persistence: ROLLBACK failed: %s"
+               (error_category_to_yojson e |> Yojson.Safe.to_string)));
         Result.Error (Internal (Printexc.to_string ex))
   )

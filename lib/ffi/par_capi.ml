@@ -37,7 +37,7 @@ let get_handle id =
   with Not_found -> None
 
 let free_handle id =
-  ignore (Hashtbl.remove handles id)
+  Hashtbl.remove handles id
 
 let unwrap : string option -> Obj.t = function
   | Some v -> Obj.repr v
@@ -68,7 +68,8 @@ let do_shutdown (id : int) =
   | None -> error_json "Invalid runtime handle"
   | Some handle ->
     shutdown_flag := true;
-    (try ignore (Par.Runtime.close handle.rt) with _ -> ());
+    (try let _ = Par.Runtime.close handle.rt in ()
+     with ex -> Logs.err (fun m -> m "par_capi: Runtime.close failed: %s" (Printexc.to_string ex)));
     free_handle id;
     "{\"status\": \"ok\"}"
 
