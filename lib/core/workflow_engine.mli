@@ -1,6 +1,19 @@
 open Types
 
 (* -------------------------------------------------------------------------- *)
+(* §11.2 Workflow engine — approval deadline tracking                         *)
+(* -------------------------------------------------------------------------- *)
+
+module Approval_deadline : sig
+  type t
+  val record : Workflow_run_id.t -> deadline:float -> switch:Eio.Switch.t -> unit
+  val lookup : Workflow_run_id.t -> t option
+  val remove : Workflow_run_id.t -> unit
+  val deadline_of : t -> float
+  val switch_of : t -> Eio.Switch.t
+end
+
+(* -------------------------------------------------------------------------- *)
 (* §11.2 Workflow engine — execution context and entry points                 *)
 (* -------------------------------------------------------------------------- *)
 

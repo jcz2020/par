@@ -1,6 +1,31 @@
 open Types
 
 (* -------------------------------------------------------------------------- *)
+(* §11.2 Workflow engine — approval deadline tracking                         *)
+(* -------------------------------------------------------------------------- *)
+
+module Approval_deadline = struct
+  type t = {
+    deadline : float;
+    switch : Eio.Switch.t;
+  }
+  let table : (Workflow_run_id.t, t) Hashtbl.t = Hashtbl.create 16
+
+  let record run_id ~deadline ~switch =
+    Hashtbl.replace table run_id { deadline; switch }
+
+  let lookup run_id =
+    Hashtbl.find_opt table run_id
+
+  let deadline_of t = t.deadline
+
+  let switch_of t = t.switch
+
+  let remove run_id =
+    Hashtbl.remove table run_id
+end
+
+(* -------------------------------------------------------------------------- *)
 (* §11.2 Workflow engine — execution context                                  *)
 (* -------------------------------------------------------------------------- *)
 
@@ -95,15 +120,37 @@ let rec execute_step ctx step =
   | Map_reduce { over; step = inner_step; reduce } ->
     execute_map_reduce ctx over inner_step reduce
 
-  | Human_approval { prompt_template; timeout = _; allowed_roles } ->
+  | Human_approval { prompt_template; timeout; allowed_roles } ->
     let prompt = substitute prompt_template ctx.variables in
     (match ctx.workflow_run_id with
      | None -> Ok (`Bool true)
-     | Some _ ->
-       let checkpoint = make_checkpoint ctx in
-       raise (Workflow_suspended { prompt; allowed_roles; checkpoint }))
+     | Some run_id ->
+       let timeout_secs = timeout in
+       Approval_deadline.record run_id
+         ~deadline:(Unix.gettimeofday () +. timeout_secs)
+         ~switch:ctx.token.switch;
+        let suspension_ref : (string * string list * workflow_checkpoint) option ref = ref None in
+        Eio.Fiber.first
+          (fun () ->
+            let checkpoint = make_checkpoint ctx in
+            suspension_ref := Some (prompt, allowed_roles, checkpoint))
+          (fun () ->
+            let deadline = Unix.gettimeofday () +. timeout_secs in
+            while Unix.gettimeofday () < deadline
+                  && Option.is_none !suspension_ref
+                  && not ctx.token.cancelled do
+              Eio.Fiber.yield ()
+            done);
+        Approval_deadline.remove run_id;
+        match !suspension_ref with
+        | Some (p, roles, cp) -> raise (Workflow_suspended { prompt = p; allowed_roles = roles; checkpoint = cp })
+        | None ->
+         if ctx.token.cancelled then
+           Result.Error (Internal "Cancelled during human approval")
+          else
+            Result.Error (Timeout))
 
-  | Sub_workflow { workflow_id; variables } ->
+   | Sub_workflow { workflow_id; variables } ->
     (match ctx.workflow_resolver workflow_id with
      | None ->
        Result.Error (Invalid_input (Printf.sprintf "Sub-workflow not found: %s" workflow_id))

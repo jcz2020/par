@@ -176,11 +176,28 @@ let submit_workflow rt wf =
      (match rt.services.persistence.save_workflow_state_fn id (Wf_completed result) None with
       | Ok () -> () | Error _ -> ());
      Ok id
-   | exception Workflow_engine.Workflow_suspended { checkpoint; _ } ->
-     htbl_set rt.workflows id (Wf_suspended checkpoint);
-     (match rt.services.persistence.save_workflow_state_fn id (Wf_suspended checkpoint) (Some checkpoint) with
-      | Ok () -> () | Error _ -> ());
-     Ok id
+    | exception Workflow_engine.Workflow_suspended { checkpoint; _ } ->
+      htbl_set rt.workflows id (Wf_suspended checkpoint);
+      (match rt.services.persistence.save_workflow_state_fn id (Wf_suspended checkpoint) (Some checkpoint) with
+       | Ok () -> () | Error _ -> ());
+      (match Workflow_engine.Approval_deadline.lookup id with
+       | Some deadline_entry ->
+         let remaining = Workflow_engine.Approval_deadline.deadline_of deadline_entry -. Unix.gettimeofday () in
+         if remaining > 0.0 then
+           ignore (Eio.Fiber.fork ~sw:(Workflow_engine.Approval_deadline.switch_of deadline_entry) (fun () ->
+             let deadline = Unix.gettimeofday () +. remaining in
+             while Unix.gettimeofday () < deadline do
+               Eio.Fiber.yield ()
+             done;
+             Workflow_engine.Approval_deadline.remove id;
+             (match htbl_get rt.workflows id with
+              | Some (Wf_suspended _) ->
+                htbl_set rt.workflows id (Wf_failed (Timeout));
+                (match rt.services.persistence.save_workflow_state_fn id (Wf_failed Timeout) None with
+                 | Ok () -> () | Error _ -> ())
+              | _ -> ())))
+       | None -> ());
+      Ok id
    | Error err ->
      htbl_set rt.workflows id (Wf_failed err);
      (match rt.services.persistence.save_workflow_state_fn id (Wf_failed err) None with
