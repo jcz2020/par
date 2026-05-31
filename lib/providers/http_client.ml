@@ -183,3 +183,21 @@ let do_request net url request =
       Eio.Flow.copy_string request tls;
       Eio.Flow.shutdown tls `Send;
       Eio.Flow.read_all tls)
+
+type _exec_result = {
+  status : int;
+  headers : string;
+  body : string;
+}
+
+let _exec_request ~net ~url ~request =
+  try
+    let raw = do_request net url request in
+    let hdrs, raw_body = split_response raw in
+    let status = parse_status_line hdrs in
+    let body = decode_body hdrs raw_body in
+    Ok { status; headers = hdrs; body }
+  with
+  | Eio.Io _ -> Error (External_failure "Network error")
+  | Failure msg -> Error (Invalid_input msg)
+  | exn -> Error (External_failure (Printexc.to_string exn))
