@@ -421,6 +421,16 @@ type shutdown_config = {
 [@@deriving yojson]
 
 (* -------------------------------------------------------------------------- *)
+(* §9.0 Expression evaluator limits                                           *)
+(* -------------------------------------------------------------------------- *)
+
+type eval_limits = {
+  max_depth : int;
+  max_node_visits : int;
+}
+[@@deriving yojson]
+
+(* -------------------------------------------------------------------------- *)
 (* §9.1 Runtime config                                                        *)
 (* -------------------------------------------------------------------------- *)
 
@@ -430,6 +440,7 @@ type runtime_config = {
   default_quota : resource_quota;
   shutdown : shutdown_config;
   llm_providers : (string * llm_provider_config) list;
+  eval_limits : eval_limits;
 }
 [@@deriving yojson]
 
@@ -609,7 +620,7 @@ type task_completion = {
 }
 
 val task_completion_to_yojson : task_completion -> Yojson.Safe.t
-val task_completion_of_yojson : Yojson.Safe.t -> task_completion
+val task_completion_of_yojson : Yojson.Safe.t -> (task_completion, string) result
 
 type workflow = {
   id : string;

@@ -475,6 +475,16 @@ type shutdown_config = {
 [@@deriving yojson]
 
 (* -------------------------------------------------------------------------- *)
+(* §9.0 Expression evaluator limits                                           *)
+(* -------------------------------------------------------------------------- *)
+
+type eval_limits = {
+  max_depth : int;
+  max_node_visits : int;
+}
+[@@deriving yojson]
+
+(* -------------------------------------------------------------------------- *)
 (* §9.1 Runtime config                                                        *)
 (* -------------------------------------------------------------------------- *)
 
@@ -484,6 +494,7 @@ type runtime_config = {
   default_quota : resource_quota;
   shutdown : shutdown_config;
   llm_providers : (string * llm_provider_config) list;
+  eval_limits : eval_limits;
 }
 [@@deriving yojson]
 
@@ -685,25 +696,30 @@ let task_completion_to_yojson tc =
 
 let task_completion_of_yojson = function
   | `Assoc xs ->
-    let task_id = match List.assoc_opt "task_id" xs with
-      | Some v -> (match Task_id.of_yojson v with Ok t -> t | Error _ -> failwith "task_completion: invalid task_id")
-      | None -> failwith "task_completion: missing task_id"
+    let get_task_id = match List.assoc_opt "task_id" xs with
+      | None -> Result.Error "task_completion: missing task_id"
+      | Some v -> (match Task_id.of_yojson v with
+          | Ok t -> Ok t
+          | Error _ -> Result.Error "task_completion: invalid task_id")
     in
-    let result = match List.assoc_opt "result" xs with
-      | Some (`Assoc [ ("Ok", v) ]) -> Ok v
+    let get_elapsed = match List.assoc_opt "elapsed" xs with
+      | Some (`Float f) -> Ok f
+      | Some (`Int i) -> Ok (float_of_int i)
+      | _ -> Result.Error "task_completion: invalid elapsed"
+    in
+    let get_result : (_, string) result = match List.assoc_opt "result" xs with
+      | Some (`Assoc [ ("Ok", v) ]) -> Ok (Ok v)
       | Some (`Assoc [ ("Error", e) ]) ->
         (match error_category_of_yojson e with
-        | Ok ec -> Error ec
-        | Error _ -> failwith "task_completion: invalid error category")
-      | _ -> failwith "task_completion: invalid result"
+        | Ok ec -> Ok (Error ec)
+        | Error _ -> Result.Error "task_completion: invalid error category")
+      | _ -> Result.Error "task_completion: invalid result"
     in
-    let elapsed = match List.assoc_opt "elapsed" xs with
-      | Some (`Float f) -> f
-      | Some (`Int i) -> float_of_int i
-      | _ -> failwith "task_completion: invalid elapsed"
-    in
-    { task_id; result; elapsed }
-  | _ -> failwith "task_completion: expected object"
+    (match get_task_id, get_result, get_elapsed with
+     | Ok task_id, Ok result, Ok elapsed ->
+       Result.Ok { task_id; result; elapsed }
+     | Error e, _, _ | _, Error e, _ | _, _, Error e -> Result.Error e)
+  | _ -> Result.Error "task_completion: expected object"
 
 type workflow = {
   id : string;
