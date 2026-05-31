@@ -128,6 +128,7 @@ config = json.dumps({
     "default_quota": {"max_tokens": 4096, "max_iterations": 10, "timeout_seconds": 30.0},
     "shutdown": {"grace_period_seconds": 5.0, "force_after_seconds": 10.0},
     "llm_providers": [],
+    "eval_limits": {"max_depth": 10, "max_node_visits": 1000},
 })
 
 with Runtime(config) as rt:

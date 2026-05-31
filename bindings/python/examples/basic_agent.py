@@ -43,6 +43,10 @@ def main():
             "force_after_seconds": 10.0,
         },
         "llm_providers": [],
+        "eval_limits": {
+            "max_depth": 10,
+            "max_node_visits": 1000,
+        },
     })
 
     print("=== P-A-R Python Example ===\n")

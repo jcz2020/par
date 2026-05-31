@@ -29,6 +29,10 @@ def _test_config():
             "force_after_seconds": 2.0,
         },
         "llm_providers": [],
+        "eval_limits": {
+            "max_depth": 10,
+            "max_node_visits": 1000,
+        },
     })
 
 

@@ -7,6 +7,7 @@ let () =
     default_quota = Runtime.default_quota;
     shutdown = Runtime.default_shutdown_config;
     llm_providers = [];
+    eval_limits = { max_depth = 10; max_node_visits = 1000 };
   } in
   Eio_main.run (fun _env ->
     Eio.Switch.run (fun switch ->

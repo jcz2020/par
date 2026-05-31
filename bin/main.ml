@@ -145,7 +145,8 @@ let make_runtime_config persistence_val =
     event_bus = Runtime.default_event_bus_config;
     default_quota = Runtime.default_quota;
     shutdown = Runtime.default_shutdown_config;
-    llm_providers = [] }
+    llm_providers = [];
+    eval_limits = { max_depth = 10; max_node_visits = 1000 } }
 
 (* -------------------------------------------------------------------------- *)
 (* Built-in tools                                                              *)

@@ -9,6 +9,7 @@ let test_config : runtime_config = {
   default_quota = default_quota;
   shutdown = default_shutdown_config;
   llm_providers = [];
+  eval_limits = { max_depth = 10; max_node_visits = 1000 };
 }
 
 let make_rt () =
