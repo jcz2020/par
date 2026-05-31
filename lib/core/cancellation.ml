@@ -13,16 +13,22 @@ let check_cancel token =
 let request_cancel token =
   token.cancelled <- true
 
-let with_timeout _seconds token f =
+let with_timeout seconds token f =
   let result = ref None in
+  let deadline = Unix.gettimeofday () +. seconds in
   Eio.Fiber.first
     (fun () ->
       let v = f token in
-      result := Some (Ok v);
-      Eio.Fiber.yield ())
+      result := Some (Ok v))
     (fun () ->
       if token.cancelled then result := Some (Error `Cancelled)
-      else result := Some (Error `Timeout));
+      else begin
+        while Unix.gettimeofday () < deadline && not token.cancelled do
+          Eio.Fiber.yield ()
+        done;
+        if token.cancelled then result := Some (Error `Cancelled)
+        else result := Some (Error `Timeout)
+      end);
   match !result with
   | Some r -> r
   | None -> Error `Timeout
