@@ -42,7 +42,7 @@ let builtin_tools ~switch ~net =
                end else Buffer.add_char buf c
              ) clean;
              flush_buf ();
-             let toks = List.filter (fun s -> s <> "") !tokens in
+              let toks = List.filter (fun s -> s <> "") (List.rev !tokens) in
              let parse_num s =
                match float_of_string_opt s with
                | Some f -> f
