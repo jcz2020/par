@@ -1,6 +1,6 @@
 (* §7 — Persistence: PostgreSQL backend *)
 
-open Types
+open Par.Types
 
 type t = {
   db : Postgresql.connection;

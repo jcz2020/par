@@ -24,9 +24,8 @@
   ppx_sexp_conv
   ppx_compare
   caqti-eio
-  sqlite3
-  postgresql
-  logs
+   sqlite3
+   logs
   str
   unix
   tls-eio
@@ -37,7 +36,20 @@
   mirage-crypto-rng
   base64
   digestif
-  alcotest))
+   alcotest))
+
+(package
+ (name par_postgres)
+ (synopsis "PostgreSQL persistence backend for PAR")
+ (description "Optional PostgreSQL persistence backend for the Programmable Agent Runtime. Install this package for production PostgreSQL support.")
+ (tags (agents llm runtime postgresql))
+ (depends
+  ocaml
+  dune
+  par
+  postgresql
+  eio
+  logs))
 
 (package
  (name par_cli)

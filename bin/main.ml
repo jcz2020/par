@@ -85,29 +85,19 @@ let make_sqlite_persistence db_path =
       close_fn = (fun () -> Sqlite_persistence.close t);
     }
 
-let make_postgres_persistence conninfo =
-  match Postgres_persistence.create conninfo with
-  | Error e ->
-    Printf.eprintf "Error connecting to PostgreSQL: %s\n" (error_category_to_string e);
-    exit 1
-  | Ok t ->
-    { Types.
-      save_events_fn = (fun events -> Postgres_persistence.save_events t events);
-      load_events_fn = (fun task_id -> Postgres_persistence.load_events t task_id);
-      save_task_state_fn = (fun ts -> Postgres_persistence.save_task_state t ts);
-      load_task_state_fn = (fun task_id -> Postgres_persistence.load_task_state t task_id);
-      save_workflow_state_fn = (fun id status ckpt ->
-        Postgres_persistence.save_workflow_state t id status ckpt);
-      load_workflow_state_fn = (fun id ->
-        Postgres_persistence.load_workflow_state t id);
-      close_fn = (fun () -> Postgres_persistence.close t);
-    }
+let make_postgres_persistence _conninfo =
+  Result.Error (Types.Internal
+    "PostgreSQL backend requires 'opam install postgresql' and rebuilding with par.postgres")
 
 let make_persistence_service persistence _backend db_uri_val =
   match String.lowercase_ascii persistence with
   | "postgres" ->
     let conninfo = match db_uri_val with Some u -> u | None -> "postgresql://localhost/par" in
-    make_postgres_persistence conninfo
+    (match make_postgres_persistence conninfo with
+     | Ok t -> t
+     | Error e ->
+       Printf.eprintf "Error: %s\n" (error_category_to_string e);
+       exit 1)
   | _ ->
     let path = "par.db" in
     make_sqlite_persistence path

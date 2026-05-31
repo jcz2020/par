@@ -4,8 +4,8 @@
     Types, Runtime, Engine, Expression, Workflow_engine,
     State_machine, Context_manager, Cancellation,
     Tool_registry, Openai_provider, Anthropic_provider,
-    Sqlite_persistence,
-    Event_bus, Builtin_tools,
+     Sqlite_persistence, Noop_persistence,
+     Event_bus, Builtin_tools,
     Logging, Retry, Rate_limit, Timeout, Validation, Pii_mask,
     Sanitize_tool_output *)
 
@@ -24,7 +24,7 @@ module Anthropic_provider = Anthropic_provider
 module Mock_provider = Mock_provider
 
 module Sqlite_persistence = Sqlite_persistence
-module Postgres_persistence = Postgres_persistence
+module Noop_persistence = Noop_persistence
 
 module Event_bus = Event_bus
 

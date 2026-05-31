@@ -1,5 +1,3 @@
-(* §7 — Persistence: PostgreSQL backend *)
-
 open Types
 
 type t
