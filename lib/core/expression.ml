@@ -2,8 +2,7 @@ open Types
 
 exception Resource_limit of string
 
-let max_depth = 10
-let max_node_visits = 1000
+let default_limits = { max_depth = 10; max_node_visits = 1000 }
 
 type eval_context = (string * Yojson.Safe.t) list
 
@@ -11,14 +10,14 @@ let visit_count = ref 0
 
 let reset_visit () = visit_count := 0
 
-let check_limit () =
+let check_limit limits =
   incr visit_count;
-  if !visit_count > max_node_visits then
+  if !visit_count > limits.max_node_visits then
     raise (Resource_limit "Expression evaluator: max node visits exceeded")
 
-let rec eval ctx expr depth =
-  check_limit ();
-  if depth > max_depth then
+let rec eval limits ctx expr depth =
+  check_limit limits;
+  if depth > limits.max_depth then
     raise (Resource_limit "Expression evaluator: max depth exceeded");
   match expr with
   | Literal v -> v
@@ -26,44 +25,44 @@ let rec eval ctx expr depth =
     let parts = String.split_on_char '.' path in
     resolve_path ctx parts
   | Equals (a, b) ->
-    let va = eval ctx a (depth + 1) in
-    let vb = eval ctx b (depth + 1) in
+    let va = eval limits ctx a (depth + 1) in
+    let vb = eval limits ctx b (depth + 1) in
     json_bool (Yojson.Safe.equal va vb)
   | Not_equals (a, b) ->
-    let va = eval ctx a (depth + 1) in
-    let vb = eval ctx b (depth + 1) in
+    let va = eval limits ctx a (depth + 1) in
+    let vb = eval limits ctx b (depth + 1) in
     json_bool (not (Yojson.Safe.equal va vb))
   | Greater_than (a, b) ->
-    let va = eval ctx a (depth + 1) in
-    let vb = eval ctx b (depth + 1) in
+    let va = eval limits ctx a (depth + 1) in
+    let vb = eval limits ctx b (depth + 1) in
     json_bool (compare_json_numbers va vb > 0)
   | Less_than (a, b) ->
-    let va = eval ctx a (depth + 1) in
-    let vb = eval ctx b (depth + 1) in
+    let va = eval limits ctx a (depth + 1) in
+    let vb = eval limits ctx b (depth + 1) in
     json_bool (compare_json_numbers va vb < 0)
   | And (a, b) ->
-    let va = eval ctx a (depth + 1) in
-    let vb = eval ctx b (depth + 1) in
+    let va = eval limits ctx a (depth + 1) in
+    let vb = eval limits ctx b (depth + 1) in
     json_bool (to_bool va && to_bool vb)
   | Or (a, b) ->
-    let va = eval ctx a (depth + 1) in
-    let vb = eval ctx b (depth + 1) in
+    let va = eval limits ctx a (depth + 1) in
+    let vb = eval limits ctx b (depth + 1) in
     json_bool (to_bool va || to_bool vb)
   | Not a ->
-    let va = eval ctx a (depth + 1) in
+    let va = eval limits ctx a (depth + 1) in
     json_bool (not (to_bool va))
   | Contains (a, b) ->
-    let va = eval ctx a (depth + 1) in
-    let vb = eval ctx b (depth + 1) in
+    let va = eval limits ctx a (depth + 1) in
+    let vb = eval limits ctx b (depth + 1) in
     json_bool (json_contains va vb)
   | Has_key (a, key) ->
-    let va = eval ctx a (depth + 1) in
+    let va = eval limits ctx a (depth + 1) in
     json_bool (json_has_key va key)
   | Is_empty a ->
-    let va = eval ctx a (depth + 1) in
+    let va = eval limits ctx a (depth + 1) in
     json_bool (json_is_empty va)
   | Matches (a, pattern) ->
-    let va = eval ctx a (depth + 1) in
+    let va = eval limits ctx a (depth + 1) in
     json_bool (json_matches va pattern)
 
 and resolve_path ctx = function
@@ -132,16 +131,16 @@ and json_matches json pattern =
     Str.string_match re s 0
   | _ -> false
 
-let evaluate ctx expr =
+let evaluate ?(limits = default_limits) ctx expr =
   reset_visit ();
   try
-    let result = eval ctx expr 0 in
+    let result = eval limits ctx expr 0 in
     Ok result
   with
   | Resource_limit msg -> Result.Error (Internal msg)
   | Failure msg -> Result.Error (Invalid_input msg)
 
-let evaluate_to_bool ctx expr =
-  match evaluate ctx expr with
+let evaluate_to_bool ?(limits = default_limits) ctx expr =
+  match evaluate ~limits ctx expr with
   | Ok v -> Ok (to_bool v)
   | Error e -> Error e
