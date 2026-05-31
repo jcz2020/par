@@ -17,11 +17,10 @@ let validation ?(strict = false) () : middleware_hook =
     on_after_llm = Some (fun resp ->
       match (resp.text, resp.tool_calls) with
       | None, None | None, Some [] ->
-        if strict then begin
-          Logs.warn (fun m ->
-            m "Validation: LLM response missing both text and tool_calls");
-        end;
-        None
+        let log_fn = if strict then Logs.err else Logs.warn in
+        log_fn (fun m ->
+          m "Validation: LLM response missing both text and tool_calls");
+        Some { resp with text = Some "" }
       | _ -> None
     );
 
@@ -32,12 +31,12 @@ let validation ?(strict = false) () : middleware_hook =
       match call.arguments with
       | `Assoc _ -> None
       | _ ->
-        Hashtbl.replace invalid_args call.id ();
-        if strict then
+        if strict then begin
+          Hashtbl.replace invalid_args call.id ();
           (* Replace args so tool doesn't crash, on_after_tool will
              override the result with an error. *)
           Some { call with arguments = `Assoc [] }
-        else begin
+        end else begin
           Logs.warn (fun m ->
             m "Validation: tool '%s' args not a JSON object, fixing" call.name);
           Some { call with arguments = `Assoc [] }
