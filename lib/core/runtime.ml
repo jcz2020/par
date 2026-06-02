@@ -1,5 +1,14 @@
 open Types
 
+let string_of_error_category (e : Types.error_category) =
+  match e with
+  | Types.Timeout -> "Timeout"
+  | Types.Invalid_input msg -> Printf.sprintf "Invalid_input: %s" msg
+  | Types.External_failure msg -> Printf.sprintf "External_failure: %s" msg
+  | Types.Rate_limited -> "Rate_limited"
+  | Types.Permission_denied msg -> Printf.sprintf "Permission_denied: %s" msg
+  | Types.Internal msg -> Printf.sprintf "Internal: %s" msg
+
 (* -------------------------------------------------------------------------- *)
 (* SDK — Runtime                                                          *)
 (* -------------------------------------------------------------------------- *)
@@ -84,8 +93,9 @@ let submit_task rt ?(priority = 5) ?(timeout = 300.0) input =
     error = None;
   } in
   htbl_set rt.tasks id task;
-  (match rt.services.persistence.save_task_state_fn task with
-   | Ok () -> () | Error _ -> ());
+   (match rt.services.persistence.save_task_state_fn task with
+    | Ok () -> ()
+    | Error e -> Logs.err (fun m -> m "save_task_state failed: %s" (string_of_error_category e)));
   id
 
 let get_task_status rt task_id =
@@ -95,7 +105,9 @@ let get_task_status rt task_id =
     (match rt.services.persistence.load_task_state_fn task_id with
      | Ok (Some ts) -> Ok (Some ts.status)
      | Ok None -> Ok None
-     | Error _ -> Ok None)
+     | Error e ->
+       Logs.err (fun m -> m "load_task_state failed: %s" (string_of_error_category e));
+       Ok None)
 
 let cancel_task rt task_id =
   let task =
@@ -108,8 +120,9 @@ let cancel_task rt task_id =
   in
   let updated = { task with status = Cancelled; updated_at = Unix.time () } in
   htbl_set rt.tasks task_id updated;
-  (match rt.services.persistence.save_task_state_fn updated with
-   | Ok () -> () | Error _ -> ());
+      (match rt.services.persistence.save_task_state_fn updated with
+    | Ok () -> ()
+    | Error e -> Logs.err (fun m -> m "save_task_state failed: %s" (string_of_error_category e)));
   Ok ()
 
 let approve_task rt task_id ~approver:_ =
@@ -121,7 +134,8 @@ let approve_task rt task_id ~approver:_ =
       let updated = { task with status = Scheduled; updated_at = Unix.time () } in
       htbl_set rt.tasks task_id updated;
       (match rt.services.persistence.save_task_state_fn updated with
-       | Ok () -> () | Error _ -> ());
+       | Ok () -> ()
+       | Error e -> Logs.err (fun m -> m "save_task_state failed: %s" (string_of_error_category e)));
       Ok ()
     | _ -> Result.Error (Invalid_input "Task is not waiting for approval")
 
@@ -155,7 +169,8 @@ let submit_workflow rt wf =
                }
     in
     (match rt.services.persistence.save_workflow_state_fn id Wf_running (Some cp) with
-     | Ok () -> () | Error _ -> ())
+     | Ok () -> ()
+     | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)))
   in
   let ctx = {
     Workflow_engine.variables = wf.variables;
@@ -173,13 +188,15 @@ let submit_workflow rt wf =
   (match Workflow_engine.execute_workflow ctx wf with
    | Ok result ->
      htbl_set rt.workflows id (Wf_completed result);
-     (match rt.services.persistence.save_workflow_state_fn id (Wf_completed result) None with
-      | Ok () -> () | Error _ -> ());
+      (match rt.services.persistence.save_workflow_state_fn id (Wf_completed result) None with
+       | Ok () -> ()
+       | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
      Ok id
     | exception Workflow_engine.Workflow_suspended { checkpoint; _ } ->
       htbl_set rt.workflows id (Wf_suspended checkpoint);
       (match rt.services.persistence.save_workflow_state_fn id (Wf_suspended checkpoint) (Some checkpoint) with
-       | Ok () -> () | Error _ -> ());
+        | Ok () -> ()
+        | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
       (match Workflow_engine.Approval_deadline.lookup id with
        | Some deadline_entry ->
          let remaining = Workflow_engine.Approval_deadline.deadline_of deadline_entry -. Unix.gettimeofday () in
@@ -193,15 +210,17 @@ let submit_workflow rt wf =
              (match htbl_get rt.workflows id with
               | Some (Wf_suspended _) ->
                 htbl_set rt.workflows id (Wf_failed (Timeout));
-                (match rt.services.persistence.save_workflow_state_fn id (Wf_failed Timeout) None with
-                 | Ok () -> () | Error _ -> ())
+                 (match rt.services.persistence.save_workflow_state_fn id (Wf_failed Timeout) None with
+                  | Ok () -> ()
+                  | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)))
               | _ -> ())))
        | None -> ());
       Ok id
    | Error err ->
      htbl_set rt.workflows id (Wf_failed err);
-     (match rt.services.persistence.save_workflow_state_fn id (Wf_failed err) None with
-      | Ok () -> () | Error _ -> ());
+      (match rt.services.persistence.save_workflow_state_fn id (Wf_failed err) None with
+       | Ok () -> ()
+       | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
      Ok id)
 
 let get_workflow_status rt wf_id =
