@@ -4,7 +4,7 @@ type t
 
 val create : unit -> t
 
-val register : t -> Types.tool_descriptor -> handler_fn -> unit
+val register : t -> Types.tool_descriptor -> handler_fn -> (unit, [ `Duplicate_tool of string ]) result
 
 val resolve : t -> string -> handler_fn option
 

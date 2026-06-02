@@ -16,13 +16,15 @@ let () =
         Printf.eprintf "Failed to create runtime: %s\n"
           (Printexc.to_string (Failure "error"))
       | Ok rt ->
-        let tool = Runtime.register_tool rt
+        let tool = match Runtime.register_tool rt
           ~name:"echo"
           ~description:"Echoes back the input"
           ~input_schema:(`Assoc [ ("type", `String "object"); ("properties", `Assoc []) ])
           ~handler:(fun input _token ->
             Types.Success (`String (Printf.sprintf "Echo: %s" (Yojson.Safe.to_string input))))
-          () in
+          () with
+        | Ok t -> t
+        | Error _ -> failwith "Tool registration failed" in
         let agent = {
           Types.id = "echo-agent";
           system_prompt = "You are an echo assistant.";

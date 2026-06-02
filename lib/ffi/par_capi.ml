@@ -93,17 +93,18 @@ let do_register_tool (id : int) (name : string) (desc : string) (schema : string
              if Par.Tool_registry.resolve (Par.Runtime.tool_registry handle.rt) name <> None
              then Obj.repr (-4)
              else
-               let _tool = Par.Runtime.register_tool handle.rt
-                 ~name ~description:desc
-                 ~input_schema:json_schema
-                 (* TODO: v0.4.0 — Add Python callback support for tool handlers *)
-                 ~handler:(fun input _token ->
-                   Logs.warn (fun m ->
-                     m "FFI tool '%s': no-op handler invoked \
-                        (Python callback not yet supported)" name);
-                   Par.Types.Success input)
-                 () in
-               Obj.repr 0
+               (match Par.Runtime.register_tool handle.rt
+                  ~name ~description:desc
+                  ~input_schema:json_schema
+                  (* TODO: v0.4.0 — Add Python callback support for tool handlers *)
+                  ~handler:(fun input _token ->
+                    Logs.warn (fun m ->
+                      m "FFI tool '%s': no-op handler invoked \
+                         (Python callback not yet supported)" name);
+                    Par.Types.Success input)
+                  () with
+                | Ok _ -> Obj.repr 0
+                | Error _ -> Obj.repr (-4))
           | _ -> Obj.repr (-2))
        with
        | Yojson.Json_error _ -> Obj.repr (-2)

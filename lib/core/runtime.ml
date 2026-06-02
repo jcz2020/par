@@ -58,8 +58,11 @@ let register_agent rt (agent : agent_config) =
 let register_tool rt ~name ~description ~input_schema ~handler
     ?(permission = Allow) ?timeout ?concurrency_limit () =
   let descriptor = { Types.name; description; input_schema; permission; timeout; concurrency_limit } in
-  Tool_registry.register rt.tool_registry descriptor handler;
-  { descriptor; handler }
+  match Tool_registry.register rt.tool_registry descriptor handler with
+  | Error (`Duplicate_tool n) ->
+    Result.Error (Types.Invalid_input (Printf.sprintf "Tool already registered: %s" n))
+  | Ok () ->
+    Ok { descriptor; handler }
 
 let invoke rt ~agent_id ~message ?cancellation_token () =
   let agent = htbl_get rt.agents agent_id in

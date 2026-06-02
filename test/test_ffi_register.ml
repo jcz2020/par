@@ -22,26 +22,54 @@ let suite = [
   Alcotest.test_case "valid registration" `Quick (fun () ->
     Eio_main.run (fun _env ->
       let rt = make_rt () in
-      let tool = Par.Runtime.register_tool rt
+      let tool = match Par.Runtime.register_tool rt
         ~name:"test_tool" ~description:"A test tool"
         ~input_schema:(Yojson.Safe.from_string valid_schema)
         ~handler:(fun input _token -> Par.Types.Success input)
-        () in
+        () with
+      | Ok t -> t
+      | Error _ -> Alcotest.fail "register_tool failed" in
       Alcotest.(check string) "tool name" "test_tool" tool.descriptor.name;
       ignore (Par.Runtime.close rt)));
 
   Alcotest.test_case "empty name handling" `Quick (fun () ->
     Eio_main.run (fun _env ->
       let rt = make_rt () in
-      let result = try
-        let _ = Par.Runtime.register_tool rt
-          ~name:"" ~description:"empty name"
-          ~input_schema:(Yojson.Safe.from_string valid_schema)
-          ~handler:(fun input _token -> Par.Types.Success input)
-          () in
-        "registered"
-      with Failure _ -> "rejected" in
+      let result = match Par.Runtime.register_tool rt
+        ~name:"" ~description:"empty name"
+        ~input_schema:(Yojson.Safe.from_string valid_schema)
+        ~handler:(fun input _token -> Par.Types.Success input)
+        () with
+      | Ok _ -> "registered"
+      | Error _ -> "rejected" in
       Alcotest.(check string) "empty name handling" "registered" result;
+      ignore (Par.Runtime.close rt)));
+
+  Alcotest.test_case "duplicate name detected" `Quick (fun () ->
+    Eio_main.run (fun _env ->
+      let rt = make_rt () in
+      ignore (match Par.Runtime.register_tool rt
+        ~name:"dup_tool" ~description:"first"
+        ~input_schema:(Yojson.Safe.from_string valid_schema)
+        ~handler:(fun input _token -> Par.Types.Success input)
+        () with Ok _ -> () | Error _ -> Alcotest.fail "first reg failed");
+      let before = Par.Tool_registry.resolve (Par.Runtime.tool_registry rt) "dup_tool" in
+      Alcotest.(check (option bool)) "first registration" (Some true)
+        (Option.map (fun _ -> true) before);
+      let second_result = Par.Runtime.register_tool rt
+        ~name:"dup_tool" ~description:"second"
+        ~input_schema:(Yojson.Safe.from_string valid_schema)
+        ~handler:(fun input _token -> Par.Types.Success input)
+        () in
+      Alcotest.(check (result unit string)) "duplicate rejected"
+        (Error "Duplicate")
+        (match second_result with
+         | Ok _ -> Ok ()
+         | Error (Par.Types.Invalid_input _) -> Error "Duplicate"
+         | Error _ -> Error "Other");
+      let after = Par.Tool_registry.resolve (Par.Runtime.tool_registry rt) "dup_tool" in
+      Alcotest.(check (option bool)) "still registered after dup" (Some true)
+        (Option.map (fun _ -> true) after);
       ignore (Par.Runtime.close rt)));
 
   Alcotest.test_case "duplicate name detected" `Quick (fun () ->

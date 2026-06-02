@@ -28,7 +28,7 @@ val register_tool :
   ?timeout:float ->
   ?concurrency_limit:int ->
   unit ->
-  tool_binding
+  (tool_binding, error_category) result
 
 val invoke :
   runtime ->

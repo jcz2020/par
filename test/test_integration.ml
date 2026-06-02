@@ -53,7 +53,7 @@ let basic_agent ?(tools = []) ?(middleware = []) ?(max_iterations = 10) () =
 let make_registry tools =
   let reg = Tool_registry.create () in
   List.iter (fun (tb : tool_binding) ->
-    Tool_registry.register reg tb.descriptor tb.handler
+    ignore (Tool_registry.register reg tb.descriptor tb.handler)
   ) tools;
   reg
 

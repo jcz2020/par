@@ -6,26 +6,19 @@ type t = (string, handler_fn) Hashtbl.t
 
 let create () = Hashtbl.create 16
 
-let register tbl desc h =
-  match Types.tool_descriptor_to_yojson desc with
-  | `Assoc fields ->
-    (match List.assoc_opt "name" fields with
-     | Some (`String n) -> Hashtbl.replace tbl n h
-     | _ -> ())
-  | _ -> ()
+let register (tbl : t) (desc : Types.tool_descriptor) h =
+  if Hashtbl.mem tbl desc.name then
+    Error (`Duplicate_tool desc.name)
+  else begin
+    Hashtbl.replace tbl desc.name h;
+    Ok ()
+  end
 
 let resolve tbl tool_name =
   Hashtbl.find_opt tbl tool_name
 
 let find_descriptor (tools : Types.tool_descriptor list) tool_name =
-  List.find_opt (fun (d : Types.tool_descriptor) ->
-    match Types.tool_descriptor_to_yojson d with
-    | `Assoc fields ->
-      (match List.assoc_opt "name" fields with
-       | Some (`String n) -> n = tool_name
-       | _ -> false)
-    | _ -> false
-  ) tools
+  List.find_opt (fun (d : Types.tool_descriptor) -> d.name = tool_name) tools
 
 let names tbl =
   Hashtbl.fold (fun n _ acc -> n :: acc) tbl []

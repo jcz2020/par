@@ -207,7 +207,7 @@ let setup_runtime cfg ~f =
   | Ok rt ->
     let tools = Builtin_tools.builtin_tools ~switch ~net in
     List.iter (fun (tb : Types.tool_binding) ->
-      Tool_registry.register (Runtime.tool_registry rt) tb.descriptor tb.handler
+      ignore (Tool_registry.register (Runtime.tool_registry rt) tb.descriptor tb.handler : (unit, [ `Duplicate_tool of string ]) result)
     ) tools;
     let descriptors = List.map (fun (tb : Types.tool_binding) -> tb.descriptor) tools in
     let agent = make_agent_config "default-agent" cfg.Par_config.system_prompt
