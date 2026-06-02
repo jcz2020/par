@@ -87,7 +87,7 @@ let make_sqlite_persistence db_path =
 
 let make_postgres_persistence _conninfo =
   Result.Error (Types.Internal
-    "PostgreSQL backend requires 'opam install postgresql' and rebuilding with par.postgres")
+    "PostgreSQL backend requires 'opam install postgresql' then rebuild")
 
 let make_persistence_service persistence _backend db_uri_val =
   match String.lowercase_ascii persistence with

@@ -2,7 +2,7 @@
 
 (library
  (name par_postgres)
- (public_name par_postgres)
+ (package par)
  (optional)
  (libraries par postgresql eio logs unix)
  (modules postgres_persistence)

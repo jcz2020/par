@@ -39,19 +39,6 @@
    alcotest))
 
 (package
- (name par_postgres)
- (synopsis "PostgreSQL persistence backend for PAR")
- (description "Optional PostgreSQL persistence backend for the Programmable Agent Runtime. Install this package for production PostgreSQL support.")
- (tags (agents llm runtime postgresql))
- (depends
-  ocaml
-  dune
-  par
-  postgresql
-  eio
-  logs))
-
-(package
  (name par_cli)
  (synopsis "Programmable Agent Runtime - CLI tool")
  (description "CLI tool for the Programmable Agent Runtime — interactive REPL, config wizard, and single-shot query")
