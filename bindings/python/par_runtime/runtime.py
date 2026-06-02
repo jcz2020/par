@@ -89,7 +89,9 @@ class Runtime:
             PARError: If registration fails.
         """
         self._check_handle()
-        raise NotImplementedError("register_agent is not yet implemented via FFI")
+        result = _lib.par_register_agent(self._handle, _c_str(config_json))
+        if result != 0:
+            raise PARError("Failed to register agent")
 
     def invoke(self, agent_id: str, message: str) -> str:
         """Invoke an agent synchronously.
@@ -135,7 +137,14 @@ class Runtime:
         result_ptr = _lib.par_submit_workflow(
             self._handle, _c_str(workflow_json)
         )
-        return _py_str(result_ptr)
+        result = _py_str(result_ptr)
+        try:
+            parsed = json.loads(result)
+            if isinstance(parsed, dict) and "error" in parsed:
+                raise PARWorkflowError(parsed["error"])
+        except json.JSONDecodeError:
+            pass
+        return result
 
     def approve_workflow(self, run_id: str, approver: str) -> None:
         """Approve a pending workflow step.

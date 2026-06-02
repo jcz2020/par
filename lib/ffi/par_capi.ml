@@ -96,6 +96,7 @@ let do_register_tool (id : int) (name : string) (desc : string) (schema : string
                let _tool = Par.Runtime.register_tool handle.rt
                  ~name ~description:desc
                  ~input_schema:json_schema
+                 (* TODO: v0.4.0 — Add Python callback support for tool handlers *)
                  ~handler:(fun input _token ->
                    Logs.warn (fun m ->
                      m "FFI tool '%s': no-op handler invoked \
@@ -108,12 +109,83 @@ let do_register_tool (id : int) (name : string) (desc : string) (schema : string
        | Yojson.Json_error _ -> Obj.repr (-2)
        | _ -> Obj.repr (-1))
 
-let do_register_agent (id : int) (_config_json : string) =
+let parse_provider (s : string) : [> `Openai | `Anthropic | `Ollama | `Custom of string ] =
+  match String.lowercase_ascii s with
+  | "openai" -> `Openai
+  | "anthropic" -> `Anthropic
+  | "ollama" -> `Ollama
+  | s -> `Custom s
+
+let parse_model_config (json : Yojson.Safe.t) : Par.Types.model_config =
+  let open Yojson.Safe.Util in
+  let provider_str = json |> member "provider" |> to_string_option |> Option.value ~default:"openai" in
+  let provider = parse_provider provider_str in
+  let model_name = json |> member "model_name" |> to_string in
+  let api_base = json |> member "api_base" |> to_string_option in
+  let temperature = json |> member "temperature" |> to_float_option |> Option.value ~default:0.7 in
+  let max_tokens = json |> member "max_tokens" |> to_int_option in
+  let top_p = json |> member "top_p" |> to_float_option in
+  let stop_sequences = json |> member "stop_sequences" |> to_list |> List.filter_map to_string_option |> Option.some in
+  { provider; model_name; api_base; temperature; max_tokens; top_p; stop_sequences }
+
+let parse_system_prompt_template (json : Yojson.Safe.t) : Par.Types.system_prompt_template =
+  let open Yojson.Safe.Util in
+  let template = json |> member "template" |> to_string in
+  let variables = json |> member "variables" |> to_list |> List.filter_map to_string_option in
+  let required = json |> member "required" |> to_list |> List.filter_map to_string_option in
+  { template; variables; required }
+
+let parse_tool_descriptor (json : Yojson.Safe.t) : Par.Types.tool_descriptor =
+  let open Yojson.Safe.Util in
+  let name = json |> member "name" |> to_string in
+  let description = json |> member "description" |> to_string in
+  let input_schema = json |> member "input_schema" in
+  let permission = Par.Types.Allow in
+  let timeout = json |> member "timeout" |> to_float_option in
+  let concurrency_limit = json |> member "concurrency_limit" |> to_int_option in
+  { name; description; input_schema; permission; timeout; concurrency_limit }
+
+let parse_resource_quota (json : Yojson.Safe.t) : Par.Types.resource_quota =
+  let open Yojson.Safe.Util in
+  let max_concurrent_tasks = json |> member "max_concurrent_tasks" |> to_int_option |> Option.value ~default:max_int in
+  let max_concurrent_tools_per_agent = json |> member "max_concurrent_tools_per_agent" |> to_int_option |> Option.value ~default:max_int in
+  let max_tokens_per_turn = json |> member "max_tokens_per_turn" |> to_int_option in
+  let max_total_tokens = json |> member "max_total_tokens" |> to_int_option in
+  { max_concurrent_tasks; max_concurrent_tools_per_agent; max_tokens_per_turn; max_total_tokens }
+
+let parse_agent_config (json : Yojson.Safe.t) : Par.Types.agent_config =
+  let open Yojson.Safe.Util in
+  let id = json |> member "id" |> to_string in
+  let system_prompt = json |> member "system_prompt" |> to_string in
+  let system_prompt_template = match json |> member "system_prompt_template" with
+    | `Assoc _ as v -> Some (parse_system_prompt_template v)
+    | _ -> None
+  in
+  let model = json |> member "model" |> parse_model_config in
+  let tools = json |> member "tools" |> to_list |> List.map parse_tool_descriptor in
+  let max_iterations = json |> member "max_iterations" |> to_int_option |> Option.value ~default:10 in
+  let middleware = [] in
+  let retry_policy = None in
+  let context_strategy = None in
+  let resource_quota = match json |> member "resource_quota" with
+    | `Assoc _ as v -> Some (parse_resource_quota v)
+    | _ -> None
+  in
+  { id; system_prompt; system_prompt_template; model; tools; max_iterations;
+    middleware; retry_policy; context_strategy; resource_quota }
+
+let do_register_agent (id : int) (config_json : string) =
   match get_handle id with
   | None -> Obj.repr (-1)
   | Some handle ->
-    ignore handle;
-    Obj.repr (-1)
+    (try
+       let json = Yojson.Safe.from_string config_json in
+       let config = parse_agent_config json in
+       match Par.Runtime.register_agent handle.rt config with
+       | Ok () -> Obj.repr 0
+       | Error _ -> Obj.repr (-1)
+     with
+     | _ -> Obj.repr (-1))
 
 let do_invoke (id : int) (agent_id : string) (message : string) =
   match get_handle id with
@@ -133,14 +205,40 @@ let do_invoke (id : int) (agent_id : string) (message : string) =
        Some json
      with e -> Some (error_json (Printexc.to_string e)))
 
+let parse_workflow (json : Yojson.Safe.t) : Par.Types.workflow =
+  let open Yojson.Safe.Util in
+  let id = json |> member "id" |> to_string in
+  let name = json |> member "name" |> to_string in
+  let version = json |> member "version" |> to_int_option |> Option.value ~default:1 in
+  let steps_json = json |> member "steps" in
+  let steps = match Par.Types.workflow_step_of_yojson steps_json with
+    | Ok s -> s
+    | Error _ -> Par.Types.Sequential []
+  in
+  let variables_json = json |> member "variables" |> to_assoc |> List.map (fun (k, v) -> (k, v)) in
+  let failure_policy = Par.Types.Fail_fast in
+  let parallel_limit = json |> member "parallel_limit" |> to_int_option |> Option.value ~default:4 in
+  let timeout = json |> member "timeout" |> to_float_option |> Option.value ~default:3600.0 in
+  let on_complete = None in
+  { id; name; version; steps; variables = variables_json;
+    failure_policy; parallel_limit; timeout; on_complete }
+
 let do_submit_workflow (id : int) (workflow_json : string) =
   match get_handle id with
   | None -> None
   | Some handle ->
-    ignore handle;
     (try
-       let _json = Yojson.Safe.from_string workflow_json in
-       Some (error_json "submit_workflow from JSON: not yet fully implemented")
+       let json = Yojson.Safe.from_string workflow_json in
+       let wf = parse_workflow json in
+       match Par.Runtime.submit_workflow handle.rt wf with
+       | Ok run_id ->
+         let json_response = Printf.sprintf "{\"status\": \"ok\", \"workflow_run_id\": \"%s\"}"
+           (Par.Types.Workflow_run_id.to_string run_id)
+         in
+         Some json_response
+       | Error err ->
+         Some (error_json (Printf.sprintf "submit_workflow failed: %s"
+           (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err))))
      with e -> Some (error_json (Printexc.to_string e)))
 
 let do_approve_workflow (id : int) (run_id : string) (approver : string) =
