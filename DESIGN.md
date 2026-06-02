@@ -10,39 +10,39 @@
 
 | 编号 | 级别 | 修复内容 | 章节 |
 |------|------|---------|------|
-| R1-1 | HIGH | 移除所有 `Eio.Fiber.t` 返回类型包装（Eio协作式调度，无类型级纤程） | §2.2, §2.7, §3 |
-| R1-2 | HIGH | `service_registry.llm` 改为 `llm_service` record 类型 | §2.8 |
-| R1-3 | HIGH | `runtime.create` 支持可选 `persistence`/`event_bus` 参数（no-op 默认值） | §9.1 |
-| R1-4 | HIGH | `model_config.provider` 改为闭包变体（yojson 派生兼容） | §2.4 |
-| R1-5 | HIGH | `tool_binding.handler` 直接返回（移除纤程包装） | §2.4 |
-| R1-6 | MED | 添加 `ppx_compare` 到 par_core preprocessors | §1 |
-| R1-7 | MED | `error_category` 移除 `sexp_of`（仅保留 `yojson` + `compare`） | §2.2 |
+| R1-1 | HIGH | 移除所有 `Eio.Fiber.t` 返回类型包装（Eio协作式调度，无类型级纤程） | , , |
+| R1-2 | HIGH | `service_registry.llm` 改为 `llm_service` record 类型 | |
+| R1-3 | HIGH | `runtime.create` 支持可选 `persistence`/`event_bus` 参数（no-op 默认值） | |
+| R1-4 | HIGH | `model_config.provider` 改为闭包变体（yojson 派生兼容） | |
+| R1-5 | HIGH | `tool_binding.handler` 直接返回（移除纤程包装） | |
+| R1-6 | MED | 添加 `ppx_compare` 到 par_core preprocessors | |
+| R1-7 | MED | `error_category` 移除 `sexp_of`（仅保留 `yojson` + `compare`） | |
 
 ### v1.1 修订记录
 
 | 编号 | 级别 | 修复内容 | 章节 |
 |------|------|---------|------|
-| P0-1 | HIGH | Tool Handler 加入 Result 错误通道 | §2.2 |
-| P0-2 | HIGH | LLM Response 改为 record（支持文本+工具调用并存） | §2.3 |
-| P0-3 | HIGH | 补全 Agent.t 类型定义 | §2.4 |
-| P0-4 | HIGH | 定义 Eio 取消协议与协作式取消 | §2.7 |
-| P0-5 | HIGH | 穷举状态转换表 + Waiting/Paused 语义分离 | §2.6 |
-| P0-6 | HIGH | runtime_context 改为抽象服务注册表 | §2.8 |
-| P1-1 | MED | 事件总线重试协议 + DLQ + 幂等性 | §6.2 |
-| P1-2 | MED | 工作流调度器改为事件驱动 | §11.2 |
-| P1-3 | MED | Eio.Condition 虚假唤醒防护 | §4.4 |
-| P1-4 | MED | 优雅关闭策略（6 阶段） | §5 |
-| P1-5 | MED | 全局资源配额 + 信号量控制 | §4.2 |
-| P1-6 | MED | SQLite 单写者 / PostgreSQL 推荐生产 | §7 |
-| P1-7 | MED | Hashtbl 并发安全（Eio.Mutex 保护） | §4.3 |
-| P1-8 | MED | Human Approval 鉴权/超时/审计 | §13.1 |
-| P2-1 | LOW | 仅用 Base（排除 Core） | §1 |
-| P2-2 | LOW | retry_policy.retry_on 改为 ADT 变体 | §2.5 |
-| P2-3 | LOW | Waiting/Paused 合并为 Waiting_input/Suspended | §2.6 |
-| P2-4 | LOW | Middleware 解耦为独立可选钩子单元 | §10.1 |
-| P2-5 | LOW | 完整 Streaming 设计 | §8.2 |
-| P2-6 | LOW | 上下文窗口管理策略 | §8.3 |
-| P2-7 | LOW | 表达式求值器安全化 | §12 |
+| P0-1 | HIGH | Tool Handler 加入 Result 错误通道 | |
+| P0-2 | HIGH | LLM Response 改为 record（支持文本+工具调用并存） | |
+| P0-3 | HIGH | 补全 Agent.t 类型定义 | |
+| P0-4 | HIGH | 定义 Eio 取消协议与协作式取消 | |
+| P0-5 | HIGH | 穷举状态转换表 + Waiting/Paused 语义分离 | |
+| P0-6 | HIGH | runtime_context 改为抽象服务注册表 | |
+| P1-1 | MED | 事件总线重试协议 + DLQ + 幂等性 | |
+| P1-2 | MED | 工作流调度器改为事件驱动 | |
+| P1-3 | MED | Eio.Condition 虚假唤醒防护 | |
+| P1-4 | MED | 优雅关闭策略（6 阶段） | |
+| P1-5 | MED | 全局资源配额 + 信号量控制 | |
+| P1-6 | MED | SQLite 单写者 / PostgreSQL 推荐生产 | |
+| P1-7 | MED | Hashtbl 并发安全（Eio.Mutex 保护） | |
+| P1-8 | MED | Human Approval 鉴权/超时/审计 | |
+| P2-1 | LOW | 仅用 Base（排除 Core） | |
+| P2-2 | LOW | retry_policy.retry_on 改为 ADT 变体 | |
+| P2-3 | LOW | Waiting/Paused 合并为 Waiting_input/Suspended | |
+| P2-4 | LOW | Middleware 解耦为独立可选钩子单元 | |
+| P2-5 | LOW | 完整 Streaming 设计 | |
+| P2-6 | LOW | 上下文窗口管理策略 | |
+| P2-7 | LOW | 表达式求值器安全化 | |
 
 ---
 
@@ -303,7 +303,7 @@ type middleware_hook = {
   on_error : (error_category -> handler_result option) option;
 }
 
-(* 上下文管理策略 — full definition in §8.3 *)
+(* 上下文管理策略 — full definition in *)
 type context_strategy =
   | Truncate_oldest of { keep_system : bool; min_messages : int }
   | Summarize of { max_tokens : int; summary_model : model_config option }
@@ -468,7 +468,7 @@ module type PERSISTENCE_SERVICE = sig
   val transaction : t -> (t -> 'a) -> ('a, error_category) result
 end
 
-(* LLM_SERVICE — defined in §8.1 with full streaming support *)
+(* LLM_SERVICE — defined in with full streaming support *)
 module type LLM_SERVICE = sig
   type t
   val complete :
@@ -489,7 +489,7 @@ module type EVENT_BUS_SERVICE = sig
   val unsubscribe : t -> subscription -> unit
 end
 
-type runtime_config  (* forward declaration — defined in §9.1 *)
+type runtime_config  (* forward declaration — defined in *)
 
 type service_registry = {
   persistence : (module PERSISTENCE_SERVICE);
@@ -983,7 +983,7 @@ val flush_events :
 ### 8.1 Provider 抽象
 
 ```ocaml
-(* Full LLM_SERVICE definition — canonical version (§2.4 shows abbreviated form for service_registry context) *)
+(* Full LLM_SERVICE definition — canonical version (shows abbreviated form for service_registry context) *)
 module type LLM_SERVICE = sig
   type t
   val create : llm_provider_config -> (t, error_category) result
@@ -1043,7 +1043,7 @@ Producer (LLM API) ──chunk──► Callback ──► Consumer
 ### 8.3 上下文窗口管理 — **[P2-6]**
 
 ```ocaml
-(* context_strategy defined in §2.4 — referenced here for apply_context_strategy *)
+(* context_strategy defined in — referenced here for apply_context_strategy *)
 
 val apply_context_strategy :
   context_strategy ->

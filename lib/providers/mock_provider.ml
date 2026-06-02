@@ -1,4 +1,4 @@
-(* Mock LLM Provider — deterministic/scripted responses for benchmarking (paper §6) *)
+(* Mock LLM Provider — deterministic/scripted responses for testing *)
 
 open Types
 

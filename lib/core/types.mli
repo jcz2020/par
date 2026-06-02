@@ -1,9 +1,9 @@
-(* P-A-R Core Types — DESIGN.md v1.1 §2
+(* P-A-R Core Types — DESIGN.md v1.1 
    All types use [@@deriving yojson] for serialization.
    Only depends on: base, yojson, eio. *)
 
 (* -------------------------------------------------------------------------- *)
-(* §2.1 Identifier types                                                     *)
+(* Identifier types                                                     *)
 (* -------------------------------------------------------------------------- *)
 
 module Task_id : sig
@@ -35,7 +35,7 @@ module Session_id : sig
 end
 
 (* -------------------------------------------------------------------------- *)
-(* §2.2 Error categories and handler result                                  *)
+(* Error categories and handler result                                  *)
 (* -------------------------------------------------------------------------- *)
 
 type error_category =
@@ -58,7 +58,7 @@ type handler_result =
 [@@deriving yojson]
 
 (* -------------------------------------------------------------------------- *)
-(* §2.3 LLM response types                                                   *)
+(* LLM response types                                                   *)
 (* -------------------------------------------------------------------------- *)
 
 type tool_call = {
@@ -94,7 +94,7 @@ type llm_response = {
 val llm_response_validate : llm_response -> (unit, string) result
 
 (* -------------------------------------------------------------------------- *)
-(* §3.1 Conversation types (early — referenced by middleware_hook)            *)
+(* Conversation types (early — referenced by middleware_hook)            *)
 (* -------------------------------------------------------------------------- *)
 
 type message_role = System | User | Assistant | Tool
@@ -116,7 +116,7 @@ and conversation = {
 [@@deriving yojson]
 
 (* -------------------------------------------------------------------------- *)
-(* §2.4 Agent configuration types                                            *)
+(* Agent configuration types                                            *)
 (* -------------------------------------------------------------------------- *)
 
 type model_config = {
@@ -130,7 +130,7 @@ type model_config = {
 }
 [@@deriving yojson]
 
-(* Forward declaration — expression defined in §12 *)
+(* Forward declaration — expression defined in *)
 type expression =
   | Literal of Yojson.Safe.t
   | Variable of string
@@ -236,7 +236,7 @@ type agent_config = {
 }
 
 (* -------------------------------------------------------------------------- *)
-(* §2.6 Task state machine                                                    *)
+(* Task state machine                                                    *)
 (* -------------------------------------------------------------------------- *)
 
 type task_status =
@@ -264,7 +264,7 @@ val status_to_string : task_status -> string
 val valid_transitions : (task_status * task_status) list
 
 (* -------------------------------------------------------------------------- *)
-(* §2.9 Task types                                                            *)
+(* Task types                                                            *)
 (* -------------------------------------------------------------------------- *)
 
 type task_input =
@@ -295,7 +295,7 @@ type task_state = {
 [@@deriving yojson]
 
 (* -------------------------------------------------------------------------- *)
-(* §6.1 Event types                                                           *)
+(* Event types                                                           *)
 (* -------------------------------------------------------------------------- *)
 
 type event_metadata = {
@@ -340,7 +340,7 @@ type event_envelope = {
 [@@deriving yojson]
 
 (* -------------------------------------------------------------------------- *)
-(* §6.2 Event bus config                                                      *)
+(* Event bus config                                                      *)
 (* -------------------------------------------------------------------------- *)
 
 type event_delivery_config = {
@@ -369,7 +369,7 @@ type event_bus_config = {
 [@@deriving yojson]
 
 (* -------------------------------------------------------------------------- *)
-(* §8.1 LLM Provider types                                                    *)
+(* LLM Provider types                                                    *)
 (* -------------------------------------------------------------------------- *)
 
 type llm_provider_config =
@@ -384,7 +384,7 @@ type llm_provider_config =
 [@@deriving yojson]
 
 (* -------------------------------------------------------------------------- *)
-(* §8.2 Streaming types                                                       *)
+(* Streaming types                                                       *)
 (* -------------------------------------------------------------------------- *)
 
 type llm_response_chunk =
@@ -410,7 +410,7 @@ type stream_complete = {
 [@@deriving yojson]
 
 (* -------------------------------------------------------------------------- *)
-(* §5 Shutdown config                                                         *)
+(* Shutdown config                                                         *)
 (* -------------------------------------------------------------------------- *)
 
 type shutdown_config = {
@@ -421,7 +421,7 @@ type shutdown_config = {
 [@@deriving yojson]
 
 (* -------------------------------------------------------------------------- *)
-(* §9.0 Expression evaluator limits                                           *)
+(* Expression evaluator limits                                           *)
 (* -------------------------------------------------------------------------- *)
 
 type eval_limits = {
@@ -431,7 +431,7 @@ type eval_limits = {
 [@@deriving yojson]
 
 (* -------------------------------------------------------------------------- *)
-(* §9.1 Runtime config                                                        *)
+(* Runtime config                                                        *)
 (* -------------------------------------------------------------------------- *)
 
 type runtime_config = {
@@ -445,7 +445,7 @@ type runtime_config = {
 [@@deriving yojson]
 
 (* -------------------------------------------------------------------------- *)
-(* §2.8 Service registry (module types)                                       *)
+(* Service registry (module types)                                       *)
 (* -------------------------------------------------------------------------- *)
 
 module type PERSISTENCE_SERVICE = sig
@@ -504,7 +504,7 @@ type llm_service = {
   close_fn : unit -> unit;
 }
 
-(* Forward declarations for persistence_service (full definitions in §11) *)
+(* Forward declarations for persistence_service (full definitions in ) *)
 type workflow_result = {
   outputs : (string * Yojson.Safe.t) list;
   status : [ `Success | `Partial | `Failed ];
@@ -546,7 +546,7 @@ type service_registry = {
 }
 
 (* -------------------------------------------------------------------------- *)
-(* §4.3 Concurrent hashtbl                                                    *)
+(* Concurrent hashtbl                                                    *)
 (* -------------------------------------------------------------------------- *)
 
 type ('k, 'v) protected_hashtbl = {
@@ -560,7 +560,7 @@ val htbl_remove : ('k, 'v) protected_hashtbl -> 'k -> unit
 val htbl_iter : ('k, 'v) protected_hashtbl -> ('k -> 'v -> unit) -> unit
 
 (* -------------------------------------------------------------------------- *)
-(* §10.1 Middleware stack                                                     *)
+(* Middleware stack                                                     *)
 (* -------------------------------------------------------------------------- *)
 
 type middleware_stack
@@ -568,7 +568,7 @@ type middleware_stack
 val compose_middleware : middleware_hook list -> middleware_stack
 
 (* -------------------------------------------------------------------------- *)
-(* §11.1 Workflow types                                                       *)
+(* Workflow types                                                       *)
 (* -------------------------------------------------------------------------- *)
 
 type workflow_step =

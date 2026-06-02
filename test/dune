@@ -19,11 +19,6 @@
  (modules test_mock_provider))
 
 (test
- (name test_benchmark)
- (libraries par par_benchmark alcotest)
- (modules test_benchmark))
-
-(test
  (name test_ffi_register)
  (libraries par eio_main alcotest)
  (modules test_ffi_register))
