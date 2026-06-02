@@ -47,3 +47,8 @@
  (name test_duplicate_tool)
  (libraries par eio_main alcotest)
  (modules test_duplicate_tool))
+
+(test
+ (name test_config_validation)
+ (libraries par eio_main alcotest)
+ (modules test_config_validation))

@@ -200,3 +200,91 @@ let validate_tool_input_result schema value =
   match validate_tool_input schema value with
   | Ok () -> Ok ()
   | Error e -> Result.Error (Types.Invalid_input (string_of_validation_error e))
+
+(* -------------------------------------------------------------------------- *)
+(* Runtime config validation                                                  *)
+(* -------------------------------------------------------------------------- *)
+
+let check_positive_int field value =
+  if value > 0 then Ok ()
+  else Error (Printf.sprintf "%s: must be > 0 (got %d)" field value)
+
+let check_non_negative_float field value =
+  if value >= 0.0 then Ok ()
+  else Error (Printf.sprintf "%s: must be >= 0 (got %g)" field value)
+
+let validate_event_bus cfg =
+  check_positive_int "event_bus.buffer_capacity" cfg.Types.buffer_capacity
+
+let validate_shutdown cfg =
+  let r1 = check_non_negative_float "shutdown.drain_timeout" cfg.Types.drain_timeout in
+  let r2 = check_non_negative_float "shutdown.cancel_grace_period" cfg.Types.cancel_grace_period in
+  let r3 = check_positive_int "shutdown.flush_batch_size" cfg.Types.flush_batch_size in
+  match r1, r2, r3 with
+  | Ok (), Ok (), Ok () -> Ok ()
+  | Error e, _, _ -> Error e
+  | _, Error e, _ -> Error e
+  | _, _, Error e -> Error e
+
+let validate_resource_quota cfg =
+  let r1 = check_positive_int "default_quota.max_concurrent_tasks" cfg.Types.max_concurrent_tasks in
+  let r2 = check_positive_int "default_quota.max_concurrent_tools_per_agent" cfg.Types.max_concurrent_tools_per_agent in
+  match r1, r2 with
+  | Ok (), Ok () -> Ok ()
+  | Error e, _ -> Error e
+  | _, Error e -> Error e
+
+let validate_eval_limits cfg =
+  let r1 = check_positive_int "eval_limits.max_depth" cfg.Types.max_depth in
+  let r2 = check_positive_int "eval_limits.max_node_visits" cfg.Types.max_node_visits in
+  match r1, r2 with
+  | Ok (), Ok () -> Ok ()
+  | Error e, _ -> Error e
+  | _, Error e -> Error e
+
+let validate_llm_provider (name, cfg) =
+  match cfg with
+  | Types.Openai { api_key; _ } ->
+    if String.length api_key = 0 then
+      Result.Error (Printf.sprintf "llm_providers[%s] (openai): api_key must not be empty" name)
+    else Ok ()
+  | Types.Anthropic { api_key; _ } ->
+    if String.length api_key = 0 then
+      Result.Error (Printf.sprintf "llm_providers[%s] (anthropic): api_key must not be empty" name)
+    else Ok ()
+  | _ -> Ok ()
+
+let validate_runtime_config (config : Types.runtime_config) =
+  let r1 = validate_event_bus config.Types.event_bus in
+  let r2 = validate_shutdown config.Types.shutdown in
+  let r3 = validate_resource_quota config.Types.default_quota in
+  let r4 = validate_eval_limits config.Types.eval_limits in
+  let r5 = match config.Types.persistence with
+    | `Sqlite "" -> Error "persistence: sqlite path must not be empty"
+    | `Sqlite _ | `Postgresql _ -> Ok ()
+  in
+  let r6 = match config.Types.llm_providers with
+    | [] -> Ok ()
+    | providers ->
+      let rec check = function
+        | [] -> Ok ()
+        | p :: rest ->
+          (match validate_llm_provider p with
+           | Ok () -> check rest
+           | Error e -> Error e)
+      in check providers
+  in
+  match r1, r2, r3, r4, r5, r6 with
+  | Ok (), Ok (), Ok (), Ok (), Ok (), Ok () -> Ok ()
+  | Error e, _, _, _, _, _ -> Error e
+  | _, Error e, _, _, _, _ -> Error e
+  | _, _, Error e, _, _, _ -> Error e
+  | _, _, _, Error e, _, _ -> Error e
+  | _, _, _, _, Error e, _ -> Error e
+  | _, _, _, _, _, Error e -> Error e
+
+let validate_runtime_config_result config =
+  match validate_runtime_config config with
+  | Ok () -> Ok ()
+  | Error e -> Result.Error (Types.Invalid_input e)
+

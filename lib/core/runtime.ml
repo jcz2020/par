@@ -313,28 +313,32 @@ end
 let create ?(persistence = noop_persistence)
            ?(event_bus = (module Noop_event_bus : EVENT_BUS_SERVICE))
            ?(llm = { complete_fn = (fun _ _tools _ -> Result.Error (Internal "LLM not initialized"));
-                      stream_fn = (fun _ _tools _ _ _ -> Result.Error (Internal "LLM not initialized"));
-                      close_fn = ignore })
+                     stream_fn = (fun _ _tools _ _ _ -> Result.Error (Internal "LLM not initialized"));
+                     close_fn = ignore })
            ~config switch =
-  let semaphore = Eio.Semaphore.make config.default_quota.max_concurrent_tasks in
-  let rt = {
-    agents = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
-    services = {
-      persistence;
-      llm;
-      event_bus;
-      config;
-    };
-    cancellation_root = switch;
-    task_semaphore = semaphore;
-    shutdown_requested = ref false;
-    shutdown_mutex = Eio.Mutex.create ();
-    tasks = { data = Hashtbl.create 256; mutex = Eio.Mutex.create () };
-    workflows = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
-    workflow_defs = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
-    tool_registry = Tool_registry.create ();
-  } in
-  Ok rt
+  let validation_result = Validation.validate_runtime_config_result config in
+  match validation_result with
+  | Error _ as e -> e
+  | Ok () ->
+    let semaphore = Eio.Semaphore.make config.default_quota.max_concurrent_tasks in
+    let rt = {
+      agents = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
+      services = {
+        persistence;
+        llm;
+        event_bus;
+        config;
+      };
+      cancellation_root = switch;
+      task_semaphore = semaphore;
+      shutdown_requested = ref false;
+      shutdown_mutex = Eio.Mutex.create ();
+      tasks = { data = Hashtbl.create 256; mutex = Eio.Mutex.create () };
+      workflows = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
+      workflow_defs = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
+      tool_registry = Tool_registry.create ();
+    } in
+    Ok rt
 
 let close rt =
   Eio.Mutex.use_rw ~protect:false rt.shutdown_mutex (fun () ->
