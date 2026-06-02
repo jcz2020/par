@@ -18,6 +18,20 @@ val close : runtime -> int
 
 val register_agent : runtime -> agent_config -> (unit, error_category) result
 
+val make_agent :
+  id:string ->
+  ?system_prompt:string ->
+  ?system_prompt_template:system_prompt_template option ->
+  model:model_config ->
+  ?tools:tool_descriptor list ->
+  ?max_iterations:int ->
+  ?middleware:middleware_hook list ->
+  ?retry_policy:retry_policy option ->
+  ?context_strategy:context_strategy option ->
+  ?resource_quota:resource_quota option ->
+  unit ->
+  (agent_config, error_category) result
+
 val register_tool :
   runtime ->
   name:string ->

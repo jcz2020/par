@@ -52,3 +52,8 @@
  (name test_config_validation)
  (libraries par eio_main alcotest)
  (modules test_config_validation))
+
+(test
+ (name test_make_agent)
+ (libraries par eio_main alcotest)
+ (modules test_make_agent))

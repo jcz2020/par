@@ -51,6 +51,33 @@ let default_quota = {
   max_total_tokens = None;
 }
 
+let make_agent ~id ?(system_prompt = "") ?(system_prompt_template = None)
+    ~model ?(tools = []) ?(max_iterations = 10)
+    ?(middleware = []) ?(retry_policy = None)
+    ?(context_strategy = None) ?(resource_quota = None) () =
+  let errors = ref [] in
+  if String.length id = 0 then
+    errors := "id must not be empty" :: !errors;
+  if String.length system_prompt = 0 && system_prompt_template = None then
+    errors := "system_prompt must be non-empty or system_prompt_template must be provided" :: !errors;
+  if max_iterations <= 0 then
+    errors := (Printf.sprintf "max_iterations must be > 0 (got %d)" max_iterations) :: !errors;
+  let tool_names = Hashtbl.create (List.length tools) in
+  List.iter (fun (td : Types.tool_descriptor) ->
+    if String.length td.Types.name = 0 then
+      errors := "tool name must not be empty" :: !errors
+    else if Hashtbl.mem tool_names td.name then
+      errors := (Printf.sprintf "duplicate tool name: %s" td.name) :: !errors
+    else
+      Hashtbl.add tool_names td.name ()
+  ) tools;
+  match !errors with
+  | [] -> Ok {
+      id; system_prompt; system_prompt_template; model; tools;
+      max_iterations; middleware; retry_policy; context_strategy; resource_quota;
+    }
+  | errs -> Result.Error (Types.Invalid_input (String.concat "; " errs))
+
 let register_agent rt (agent : agent_config) =
   htbl_set rt.agents agent.id agent;
   Ok ()
