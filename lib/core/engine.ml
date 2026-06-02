@@ -40,7 +40,7 @@ let apply_after_tool hooks (call, result) next =
       | None -> acc (c, r)
   ) hooks next (call, result)
 
-let apply_on_error hooks err next =
+let apply_on_error hooks _conv err next =
   List.fold_right (fun hook acc ->
     fun e ->
       match hook.on_error with
@@ -117,7 +117,13 @@ let run_agent token agent user_message llm registry =
       in
       let conv = apply_before_llm agent.middleware conv (fun c -> c) in
       match llm.complete_fn agent.model agent.tools conv with
-      | Result.Error err -> Result.Error err
+      | Result.Error err ->
+        let action = apply_on_error agent.middleware conv err
+          (fun e -> Error { category = e; message = "LLM error"; retryable = false; metadata = [] })
+        in
+        (match action with
+         | Error { retryable = true; _ } -> loop conv iterations
+         | _ -> Result.Error err)
       | Ok resp ->
         let resp = apply_after_llm agent.middleware resp (fun r -> r) in
         match resp.tool_calls with

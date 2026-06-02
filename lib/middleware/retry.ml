@@ -92,8 +92,8 @@ let retry ?(config = default_retry_config) ?(policy : retry_policy option) () : 
     on_after_tool = None;
 
     (* CONCURRENCY NOTE: attempt ref is shared across concurrent fibers sharing this middleware instance.
-       on_error is currently dead code (engine never calls apply_on_error). When wired up, on_error
-       must accept conversation parameter for per-request state isolation. *)
+       on_error is called by engine.ml apply_on_error when LLM returns an error. The conv parameter
+       in apply_on_error is reserved for future per-request state isolation. *)
     on_error = Some (fun (err : error_category) ->
       if !attempt < effective_policy.max_attempts && is_retryable effective_policy.retry_on err then begin
         incr attempt;

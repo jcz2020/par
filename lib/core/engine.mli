@@ -26,6 +26,7 @@ val apply_after_tool :
 
 val apply_on_error :
   middleware_hook list ->
+  conversation ->
   error_category ->
   (error_category -> handler_result) ->
   handler_result

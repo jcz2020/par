@@ -564,6 +564,25 @@ let middleware_suite =
             | _ -> Alcotest.fail "expected Error result with metadata")
        | None -> Alcotest.fail "on_error should be Some"));
 
+    Alcotest.test_case "retry 429 succeeds on second attempt" `Quick (fun () ->
+      let call_count = ref 0 in
+      let retry_llm : llm_service = {
+        complete_fn = (fun _model _tools _conv ->
+          let n = !call_count in
+          incr call_count;
+          if n = 0 then Error Rate_limited
+          else Ok (text_response "recovered"));
+        stream_fn = (fun _ _tools _ _ _ -> Ok {
+            final_usage = dummy_usage; finish_reason = Stop; chunks_received = 0 });
+        close_fn = (fun () -> ());
+      } in
+      let retry_mw = Retry.retry ~config:{ max_attempts = 3; base_delay = 0.01; max_delay = 0.01 } () in
+      let agent = basic_agent ~middleware:[ retry_mw ] () in
+      let reg = make_registry [] in
+      with_token (fun token ->
+        check_ok_text (Engine.run_agent token agent "retry me" retry_llm reg) "recovered";
+        Alcotest.(check int) "call_count" 2 !call_count));
+
     Alcotest.test_case "PII mask middleware" `Quick (fun () ->
       let mw = Pii_mask.pii_mask () in
       let conv : conversation = {
