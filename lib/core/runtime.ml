@@ -110,20 +110,23 @@ let get_task_status rt task_id =
        Ok None)
 
 let cancel_task rt task_id =
-  let task =
+  let task_opt =
     match htbl_get rt.tasks task_id with
-    | Some t -> t
+    | Some t -> Some t
     | None ->
       (match rt.services.persistence.load_task_state_fn task_id with
-       | Ok (Some t) -> t
-       | Ok None | Error _ -> raise (Invalid_argument "Task not found"))
+       | Ok (Some t) -> Some t
+       | Ok None | Error _ -> None)
   in
-  let updated = { task with status = Cancelled; updated_at = Unix.time () } in
-  htbl_set rt.tasks task_id updated;
-      (match rt.services.persistence.save_task_state_fn updated with
-    | Ok () -> ()
-    | Error e -> Logs.err (fun m -> m "save_task_state failed: %s" (string_of_error_category e)));
-  Ok ()
+  match task_opt with
+  | None -> Result.Error (Invalid_input "Task not found")
+  | Some task ->
+    let updated = { task with status = Cancelled; updated_at = Unix.time () } in
+    htbl_set rt.tasks task_id updated;
+    (match rt.services.persistence.save_task_state_fn updated with
+     | Ok () -> ()
+     | Error e -> Logs.err (fun m -> m "save_task_state failed: %s" (string_of_error_category e)));
+    Ok ()
 
 let approve_task rt task_id ~approver:_ =
   match htbl_get rt.tasks task_id with

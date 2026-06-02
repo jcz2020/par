@@ -27,3 +27,8 @@
  (name test_builtin_tools)
  (libraries par eio_main alcotest)
  (modules test_builtin_tools))
+
+(test
+ (name test_cancel_task)
+ (libraries par eio_main alcotest)
+ (modules test_cancel_task))
