@@ -85,6 +85,7 @@ let () =
                 permission = Types.Allow; timeout = None; concurrency_limit = None } in
   let echo_handler = (fun j _ -> Types.Success (`String ("Echo: " ^ Yojson.Safe.to_string j))) in
   let agent = { Types.id = "demo"; system_prompt = "You are a helpful assistant.";
+                system_prompt_template = None;
                 model = { provider = `Openai; model_name = "gpt-4"; api_base = None; temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None };
                 tools = [ echo_desc ]; max_iterations = 5; middleware = [ create_tracing_middleware () ];
                 retry_policy = None; context_strategy = None; resource_quota = None } in

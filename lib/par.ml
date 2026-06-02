@@ -12,6 +12,7 @@
 module Types = Types
 module Runtime = Runtime
 module Engine = Engine
+module Template = Template
 module Expression = Expression
 module Workflow_engine = Workflow_engine
 module State_machine = State_machine

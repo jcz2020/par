@@ -145,6 +145,7 @@ let make_runtime_config persistence_val =
 let make_agent_config id prompt provider_tag model temp max_iter tools =
   { Types.
     id; system_prompt = prompt;
+    system_prompt_template = None;
     model = {
       provider = (match provider_tag with `Openai -> `Openai | `Anthropic -> `Anthropic);
       model_name = model; api_base = None; temperature = temp;

@@ -46,6 +46,7 @@ let dummy_tool ?(name = "test_tool") handler =
 let basic_agent ?(tools = []) ?(middleware = []) ?(max_iterations = 10) () =
   let descriptors = List.map (fun (tb : tool_binding) -> tb.descriptor) tools in
   { id = "test-agent"; system_prompt = "You are a test agent.";
+    system_prompt_template = None;
     model = dummy_model; tools = descriptors; max_iterations; middleware;
     retry_policy = None; context_strategy = None; resource_quota = None }
 

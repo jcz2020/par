@@ -237,9 +237,17 @@ type resource_quota = {
 }
 [@@deriving yojson]
 
+type system_prompt_template = {
+  template : string;
+  variables : string list;
+  required : string list;
+}
+[@@deriving yojson]
+
 type agent_config = {
   id : string;
   system_prompt : string;
+  system_prompt_template : system_prompt_template option;
   model : model_config;
   tools : tool_descriptor list;
   max_iterations : int;

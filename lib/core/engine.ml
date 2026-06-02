@@ -73,8 +73,8 @@ let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
 (* Agent executor — ReAct loop                                           *)
 (* -------------------------------------------------------------------------- *)
 
-let make_conversation agent user_message =
-  let sys = { role = System; content = Some agent.system_prompt; tool_calls = None; tool_call_id = None; name = None } in
+let make_conversation system_prompt user_message =
+  let sys = { role = System; content = Some system_prompt; tool_calls = None; tool_call_id = None; name = None } in
   let usr = { role = User; content = Some user_message; tool_calls = None; tool_call_id = None; name = None } in
   { messages = [ sys; usr ]; metadata = [] }
 
@@ -102,7 +102,12 @@ let add_tool_result_message conv (call : tool_call) result =
   } in
   { conv with messages = conv.messages @ [ msg ] }
 
-let run_agent token agent user_message llm registry =
+let run_agent ?(runtime_id = "unknown") token agent user_message llm registry =
+  let sys_prompt = match Template.effective_system_prompt agent ~runtime_id with
+    | Ok s -> s
+    | Error (Internal _) -> agent.system_prompt
+    | Error _ -> agent.system_prompt
+  in
   let rec loop conv iterations =
     if iterations >= agent.max_iterations then
       Result.Error (Internal "Max iterations exceeded")
@@ -164,5 +169,5 @@ let run_agent token agent user_message llm registry =
           | _ -> Ok resp
     end
   in
-  let conv = make_conversation agent user_message in
+  let conv = make_conversation sys_prompt user_message in
   loop conv 0

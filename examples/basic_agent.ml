@@ -26,6 +26,7 @@ let () =
         let agent = {
           Types.id = "echo-agent";
           system_prompt = "You are an echo assistant.";
+          system_prompt_template = None;
           model = {
             provider = `Openai;
             model_name = "gpt-4";

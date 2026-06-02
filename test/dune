@@ -32,3 +32,8 @@
  (name test_cancel_task)
  (libraries par eio_main alcotest)
  (modules test_cancel_task))
+
+(test
+ (name test_template)
+ (libraries par alcotest)
+ (modules test_template))

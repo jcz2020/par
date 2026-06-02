@@ -40,6 +40,7 @@ val execute_tool :
   handler_result
 
 val run_agent :
+  ?runtime_id:string ->
   cancellation_token ->
   agent_config ->
   string ->
