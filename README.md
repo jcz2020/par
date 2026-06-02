@@ -11,12 +11,12 @@ A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM suppor
 - SSE流式响应（已验证，OpenAI provider）
 - ReAct agent循环，支持工具调用
 - 工作流引擎：顺序执行、并行执行、条件分支、map-reduce
-- 6个内置中间件：日志、超时、重试、限速、PII掩码、数据校验
-- 双重持久化：SQLite（开发）/ PostgreSQL（生产）
+- 7个内置中间件：日志、超时、重重试、限速、PII掩码、数据校验、tool output 清洗
+- 双重持久化：SQLite（开发）/ PostgreSQL（生产，可选 opam 包）
 - 交互式REPL（`par`）
 - 安全URL抓取：TLS证书验证、系统CA store、URL scheme校验、10MB容量限制
 - C FFI + Python binding：ctypes FFI，线程安全，par_runtime 包
-- 171个测试用例通过（163 OCaml + 8 Python）
+- 214个测试用例通过（206 OCaml + 8 Python）
 
 ## Architecture
 
@@ -148,6 +148,19 @@ See `bindings/python/examples/basic_agent.py` for the full example.
 
 所有命令支持可选覆盖参数：`--provider`、`--api-key`、`--model`、`--persistence`、`--db-uri`、`--temperature`
 
+## Documentation
+
+| Doc | Description |
+|-----|-------------|
+| [`docs/quickstart.md`](docs/quickstart.md) | 30 分钟上手教程：安装 → 配置 provider → 写第一个 agent |
+| [`docs/cli.md`](docs/cli.md) | CLI 完整参考：par / par config / par ask 全部命令与参数 |
+| [`docs/sdk/overview.md`](docs/sdk/overview.md) | SDK 架构总览与模块组织 |
+| [`docs/sdk/agent.md`](docs/sdk/agent.md) | Agent 定义、Runtime API、工具注册 |
+| [`docs/sdk/workflow.md`](docs/sdk/workflow.md) | 工作流 JSON 格式与 8 种 step 类型 |
+| [`docs/sdk/middleware.md`](docs/sdk/middleware.md) | 7 个内置中间件与自定义中间件 |
+| [`DESIGN.md`](DESIGN.md) | 内部设计文档（17 节，1509 行） |
+| [`CHANGES.md`](CHANGES.md) | 变更日志 |
+
 ## Built-in Tools
 
 | Tool | Description |
@@ -170,9 +183,8 @@ See `bindings/python/examples/basic_agent.py` for the full example.
 
 | Package | Description |
 |---------|-------------|
-| `par` | SDK: Core types, ReAct engine, runtime, workflow, expression evaluator, state machine, context manager, event bus, OpenAI/Anthropic providers, SQLite/PostgreSQL persistence, 13 builtin tools, 6 middleware |
-| `par_cli` | CLI tool: `par` (REPL), `par config` (wizard), `par ask` (single-shot) |
-| `par_runtime` | Python binding: ctypes FFI wrapping par_capi.so C API, thread-safe Runtime class with context manager |
+| `par` | SDK: Core types, ReAct engine, runtime, workflow, expression evaluator, state machine, context manager, event bus, OpenAI/Anthropic providers, SQLite persistence (PostgreSQL optional), 13 builtin tools, 7 middleware |
+| `par_cli` | CLI tool: `par` (REPL), `par config` (wizard), `par ask` (single-shot) — SDK 验证工具 |
 
 ## Project Structure
 
@@ -182,9 +194,10 @@ par/
 +-- lib/
 |   +-- core/          Types, Runtime, Engine, SDK, Expression, State machine, Workflow, Context manager, Cancellation
 |   +-- providers/     OpenAI and Anthropic LLM providers
-|   +-- persistence/   SQLite and PostgreSQL backends
+|   +-- persistence/   SQLite backend + Noop fallback
+|   +-- postgres/      Optional PostgreSQL backend (separate dune library, par_postgres)
 |   +-- event_bus/     Eio-based event bus with DLQ
-|   +-- middleware/    Logging, Retry, Rate_limit, Timeout, Validation, Pii_mask
+|   +-- middleware/    Logging, Retry, Rate_limit, Timeout, Validation, Pii_mask, Sanitize_tool_output
 |   +-- tools/         13 builtin tools (calculator, web tools, etc.)
 |   +-- ffi/           C FFI bridge (par_ffi.h, par_ffi.c, par_capi.ml)
 |   +-- par.ml         Facade module (re-exports all sub-modules for `open Par`)
@@ -196,6 +209,7 @@ par/
 +-- test/              Unit and integration tests
 +-- examples/          Example agents and workflows
 +-- schema/            Database schemas
++-- docs/              User documentation (quickstart, CLI ref, SDK ref)
 ```
 
 ## Dependencies
@@ -204,8 +218,8 @@ OCaml 5.4+, dune 3.23+, cohttp-eio, lambdasoup, tls-eio, ca-certs, postgresql（
 
 ## Project Size
 
-- 约6500行OCaml + 500行Python
-- 171个测试用例（163 OCaml + 8 Python）
+- 约 8500 行 OCaml + 1200 行 Python
+- 214 个测试用例（206 OCaml + 8 Python）
 
 ## License
 
