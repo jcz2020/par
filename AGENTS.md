@@ -2,6 +2,19 @@
 
 This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
 
+## ⚠️ Read STRATEGY.md First
+
+**Before starting any v0.3+ work**, read [`docs/STRATEGY.md`](docs/STRATEGY.md).
+
+It contains the 5 P0 strategic decisions that gate all feature work:
+- Q1: Value proposition (PAR = OCaml's LangChain + LangGraph)
+- Q2: Target user (LLM backend engineers)
+- Q3: Differentiation vs LangChain / pi-agent-core
+- Q4: Priority order (type rigor > concurrency > provider > ecosystem)
+- Q5: Distribution (opam + PyPI dual)
+
+**If your work conflicts with STRATEGY.md, raise it first** — don't silently violate strategic decisions.
+
 ## Quick Reference
 
 ```bash
