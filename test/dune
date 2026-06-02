@@ -37,3 +37,8 @@
  (name test_template)
  (libraries par alcotest)
  (modules test_template))
+
+(test
+ (name test_validation)
+ (libraries par alcotest)
+ (modules test_validation))

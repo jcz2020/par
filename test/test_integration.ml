@@ -607,7 +607,7 @@ let middleware_suite =
        | None -> Alcotest.fail "on_before_llm should be Some"));
 
     Alcotest.test_case "validation middleware rejects non-object args" `Quick (fun () ->
-      let mw = Validation.validation ~strict:true () in
+      let mw = Arg_validation.validation ~strict:true () in
       let call : tool_call =
         { id = "tc-v"; name = "my_tool";
           arguments = `String "not-an-object" } in
@@ -623,7 +623,7 @@ let middleware_suite =
        | None -> Alcotest.fail "on_before_tool should be Some"));
 
     Alcotest.test_case "validation passes valid args unchanged" `Quick (fun () ->
-      let mw = Validation.validation () in
+      let mw = Arg_validation.validation () in
       let call : tool_call =
         { id = "tc-ok"; name = "ok_tool";
           arguments = `Assoc [("key", `String "value")] } in

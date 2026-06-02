@@ -58,16 +58,29 @@ let find_tool (agent : agent_config) tool_name =
 
 let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
     handler input middleware =
-  let (call : tool_call) = {
-    id = Task_id.to_string (Task_id.create ());
-    name = descriptor.name;
-    arguments = input
-  } in
-  apply_before_tool middleware call (fun (call' : tool_call) ->
-    apply_after_tool middleware (call', handler input token) (fun ((_:tool_call), result) ->
-      result
+  match Validation.validate_tool_input_result descriptor.input_schema input with
+  | Error category ->
+    let message = match category with
+      | Types.Invalid_input msg -> "Schema mismatch: " ^ msg
+      | _ -> "Schema validation failed"
+    in
+    Error {
+      category;
+      message;
+      retryable = false;
+      metadata = [];
+    }
+  | Ok () ->
+    let (call : tool_call) = {
+      id = Task_id.to_string (Task_id.create ());
+      name = descriptor.name;
+      arguments = input
+    } in
+    apply_before_tool middleware call (fun (call' : tool_call) ->
+      apply_after_tool middleware (call', handler input token) (fun ((_:tool_call), result) ->
+        result
+      )
     )
-  )
 
 (* -------------------------------------------------------------------------- *)
 (* Agent executor — ReAct loop                                           *)

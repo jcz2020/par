@@ -6,8 +6,8 @@
     Tool_registry, Openai_provider, Anthropic_provider,
      Sqlite_persistence, Noop_persistence,
      Event_bus, Builtin_tools,
-    Logging, Retry, Rate_limit, Timeout, Validation, Pii_mask,
-    Sanitize_tool_output *)
+    Logging, Retry, Rate_limit, Timeout, Arg_validation, Pii_mask,
+    Sanitize_tool_output. JSON Schema validation lives in [Validation]. *)
 
 module Types = Types
 module Runtime = Runtime
@@ -35,6 +35,7 @@ module Logging = Logging
 module Retry = Retry
 module Rate_limit = Rate_limit
 module Timeout = Timeout
+module Arg_validation = Arg_validation
 module Validation = Validation
 module Pii_mask = Pii_mask
 module Sanitize_tool_output = Sanitize_tool_output
