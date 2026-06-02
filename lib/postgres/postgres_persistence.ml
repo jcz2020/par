@@ -1,4 +1,4 @@
-(* §7 — Persistence: PostgreSQL backend *)
+(* — Persistence: PostgreSQL backend *)
 
 open Par.Types
 
@@ -176,7 +176,7 @@ let load_task_state t task_id =
   )
 
 (* -------------------------------------------------------------------------- *)
-(* §7.4 Workflow state persistence                                             *)
+(* Workflow state persistence                                             *)
 (* -------------------------------------------------------------------------- *)
 
 let upsert_workflow_state (db : Postgresql.connection) run_id status checkpoint =

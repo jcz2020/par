@@ -1,4 +1,4 @@
-(* §7 — Persistence: PostgreSQL backend *)
+(* — Persistence: PostgreSQL backend *)
 
 open Par.Types
 

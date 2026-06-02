@@ -1,4 +1,4 @@
-(* §7 — Persistence: SQLite backend *)
+(* — Persistence: SQLite backend *)
 
 open Types
 
@@ -8,7 +8,7 @@ type t = {
 }
 
 (* -------------------------------------------------------------------------- *)
-(* §7.2 Schema                                                                *)
+(* Schema                                                                *)
 (* -------------------------------------------------------------------------- *)
 
 let exec_sql db sql =
@@ -49,7 +49,7 @@ let init_schema db =
   | None -> Ok ()
 
 (* -------------------------------------------------------------------------- *)
-(* §7.1 Connection init                                                       *)
+(* Connection init                                                       *)
 (* -------------------------------------------------------------------------- *)
 
 let create db_path =
@@ -66,7 +66,7 @@ let close t =
     Logs.err (fun m -> m "sqlite_persistence: db_close failed")
 
 (* -------------------------------------------------------------------------- *)
-(* §7 Event extraction helpers                                                *)
+(* Event extraction helpers                                                *)
 (* -------------------------------------------------------------------------- *)
 
 let extract_task_id : event -> string = function
@@ -93,7 +93,7 @@ let extract_task_id : event -> string = function
   | Shutdown_completed _ -> ""
 
 (* -------------------------------------------------------------------------- *)
-(* §7.3 Write operations                                                      *)
+(* Write operations                                                      *)
 (* -------------------------------------------------------------------------- *)
 
 let insert_event db ev =
@@ -135,7 +135,7 @@ let upsert_task_state db (ts : task_state) =
   | rc -> Result.Error (Internal (Printf.sprintf "Task upsert: %s" (Sqlite3.Rc.to_string rc)))
 
 (* -------------------------------------------------------------------------- *)
-(* §7 PERSISTENCE_SERVICE implementation                                      *)
+(* PERSISTENCE_SERVICE implementation                                      *)
 (* -------------------------------------------------------------------------- *)
 
 let save_events t events =
@@ -207,7 +207,7 @@ let load_task_state t task_id =
   )
 
 (* -------------------------------------------------------------------------- *)
-(* §7.4 Workflow state persistence                                             *)
+(* Workflow state persistence                                             *)
 (* -------------------------------------------------------------------------- *)
 
 let upsert_workflow_state db run_id status checkpoint =

@@ -1,7 +1,7 @@
 open Types
 
 (* -------------------------------------------------------------------------- *)
-(* §3.2 Middleware chain — Russian Doll composition                           *)
+(* Middleware chain — Russian Doll composition                           *)
 (* -------------------------------------------------------------------------- *)
 
 let apply_before_llm hooks conv next =
@@ -50,7 +50,7 @@ let apply_on_error hooks err next =
   ) hooks next err
 
 (* -------------------------------------------------------------------------- *)
-(* §3.3 Tool pipeline                                                         *)
+(* Tool pipeline                                                         *)
 (* -------------------------------------------------------------------------- *)
 
 let find_tool (agent : agent_config) tool_name =
@@ -70,7 +70,7 @@ let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
   )
 
 (* -------------------------------------------------------------------------- *)
-(* §3.4 Agent executor — ReAct loop                                           *)
+(* Agent executor — ReAct loop                                           *)
 (* -------------------------------------------------------------------------- *)
 
 let make_conversation agent user_message =

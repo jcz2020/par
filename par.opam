@@ -3,7 +3,7 @@ opam-version: "2.0"
 version: "0.2.0"
 synopsis: "Programmable Agent Runtime - SDK"
 description:
-  "A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM support, ReAct engine, workflow orchestration, and formal state guarantees"
+  "A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM support, ReAct engine, workflow orchestration, and strict state guarantees"
 maintainer: ["P-A-R Contributors"]
 authors: ["P-A-R Contributors"]
 license: "MIT"

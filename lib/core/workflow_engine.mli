@@ -1,7 +1,7 @@
 open Types
 
 (* -------------------------------------------------------------------------- *)
-(* §11.2 Workflow engine — approval deadline tracking                         *)
+(* Workflow engine — approval deadline tracking                         *)
 (* -------------------------------------------------------------------------- *)
 
 module Approval_deadline : sig
@@ -14,7 +14,7 @@ module Approval_deadline : sig
 end
 
 (* -------------------------------------------------------------------------- *)
-(* §11.2 Workflow engine — execution context and entry points                 *)
+(* Workflow engine — execution context and entry points                 *)
 (* -------------------------------------------------------------------------- *)
 
 type exec_context = {

@@ -1,4 +1,4 @@
-(* §Tool Registry — Handler lookup table keyed by tool name *)
+(* Tool Registry — Handler lookup table keyed by tool name *)
 
 type handler_fn = Yojson.Safe.t -> Types.cancellation_token -> Types.handler_result
 

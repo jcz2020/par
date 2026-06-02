@@ -10,7 +10,7 @@
 (package
  (name par)
  (synopsis "Programmable Agent Runtime - SDK")
- (description "A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM support, ReAct engine, workflow orchestration, and formal state guarantees")
+  (description "A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM support, ReAct engine, workflow orchestration, and strict state guarantees")
  (tags (agents llm runtime ffi))
  (depends
   ocaml

@@ -1,4 +1,4 @@
-(* §7 — Persistence: SQLite backend *)
+(* — Persistence: SQLite backend *)
 
 open Types
 

@@ -1,6 +1,6 @@
 open Types
 
-(* §8 — Anthropic LLM Client *)
+(* — Anthropic LLM Client *)
 
 type t = {
   api_key : string;
@@ -20,7 +20,7 @@ let create = function
   | _ -> Result.Error (Invalid_input "Anthropic provider requires Anthropic configuration")
 
 (* -------------------------------------------------------------------------- *)
-(* §8.1 Error conversion                                                      *)
+(* Error conversion                                                      *)
 (* -------------------------------------------------------------------------- *)
 
 let http_error_to_error_category = function
@@ -31,7 +31,7 @@ let http_error_to_error_category = function
   | Http_client.External_failure s -> Types.External_failure s
 
 (* -------------------------------------------------------------------------- *)
-(* §8.2 JSON request building                                                 *)
+(* JSON request building                                                 *)
 (* -------------------------------------------------------------------------- *)
 
 let build_tool_result_content msg =
@@ -133,14 +133,14 @@ let build_request_body ~model_config ~tools ~conversation ~stream =
   Yojson.Safe.to_string (`Assoc fields)
 
 (* -------------------------------------------------------------------------- *)
-(* §8.3 HTTP helpers                                                          *)
+(* HTTP helpers                                                          *)
 (* -------------------------------------------------------------------------- *)
 
 let auth_headers t =
   [ ("x-api-key", t.api_key); ("anthropic-version", "2023-06-01") ]
 
 (* -------------------------------------------------------------------------- *)
-(* §8.4 JSON response parsing                                                 *)
+(* JSON response parsing                                                 *)
 (* -------------------------------------------------------------------------- *)
 
 let parse_stop_reason = function
@@ -207,7 +207,7 @@ let parse_llm_response json : (llm_response, error_category) result =
   Ok { text; tool_calls; finish_reason = stop_reason; usage; model }
 
 (* -------------------------------------------------------------------------- *)
-(* §8.5 SSE parsing                                                           *)
+(* SSE parsing                                                           *)
 (* -------------------------------------------------------------------------- *)
 
 let parse_sse_lines resp_body =
@@ -296,7 +296,7 @@ let parse_stream_events events callback =
   (!usage, !finish, !chunks)
 
 (* -------------------------------------------------------------------------- *)
-(* §8.6 LLM_SERVICE implementation                                            *)
+(* LLM_SERVICE implementation                                            *)
 (* -------------------------------------------------------------------------- *)
 
 let complete t model_config tools conversation =

@@ -1,7 +1,7 @@
 open Types
 
 (* -------------------------------------------------------------------------- *)
-(* §11.2 Workflow engine — approval deadline tracking                         *)
+(* Workflow engine — approval deadline tracking                         *)
 (* -------------------------------------------------------------------------- *)
 
 module Approval_deadline = struct
@@ -26,7 +26,7 @@ module Approval_deadline = struct
 end
 
 (* -------------------------------------------------------------------------- *)
-(* §11.2 Workflow engine — execution context                                  *)
+(* Workflow engine — execution context                                  *)
 (* -------------------------------------------------------------------------- *)
 
 type exec_context = {
