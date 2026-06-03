@@ -94,6 +94,8 @@ val resume_workflow :
 
 val tool_registry : runtime -> Tool_registry.t
 
+val publish_event : runtime -> event -> unit
+
 val steer : runtime -> string -> unit
 
 val follow_up : runtime -> string -> unit

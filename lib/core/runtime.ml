@@ -27,6 +27,8 @@ type runtime = {
   steering_queue : Steering_queue.t;
   followup_queue : Steering_queue.t;
   runtime_id : string;
+  parallel_tool_execution : bool;
+  publish_event_fn : event -> unit;
   mutable last_llm_call_at : float option;
   mutable last_llm_call_status : [ `Success | `Error of error_category | `Never_called ];
   mutable metrics : Metrics.counters;
@@ -132,6 +134,9 @@ let record_task_completed rt =
 let record_task_failed rt =
   Metrics.incr_task_failed rt.metrics
 
+let publish_event rt evt =
+  rt.publish_event_fn evt
+
 let invoke rt ~agent_id ~message ?cancellation_token () =
   let agent = htbl_get rt.agents agent_id in
   match agent with
@@ -141,10 +146,21 @@ let invoke rt ~agent_id ~message ?cancellation_token () =
       | Some t -> t
       | None -> Cancellation.create_token rt.cancellation_root
     in
+    let on_tool_progress msg =
+      let evt = Tool_progress {
+        task_id = Task_id.create ();
+        tool_name = "<engine>";
+        message = msg;
+      } in
+      publish_event rt evt
+    in
     let result = Engine.run_agent ~steering:(Some rt.steering_queue)
       ~followup:(Some rt.followup_queue)
       ~runtime_id:rt.runtime_id
       ~tool_call_hooks:(Some rt.tool_call_hooks)
+      ~quota:(Some rt.task_semaphore)
+      ~parallel:rt.parallel_tool_execution
+      ~on_progress:(Some on_tool_progress)
       token config message rt.services.llm rt.tool_registry in
     (match result with
      | Ok _ -> record_llm_success rt
@@ -397,6 +413,10 @@ let create ?(persistence = noop_persistence)
   | Error _ as e -> e
   | Ok () ->
     let semaphore = Eio.Semaphore.make config.default_quota.max_concurrent_tasks in
+    let publish_event_fn =
+      let module EB = (val event_bus : EVENT_BUS_SERVICE) in
+      fun evt -> EB.publish (Obj.magic (module EB : EVENT_BUS_SERVICE with type t = EB.t)) evt
+    in
     let rt = {
       agents = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
       services = {
@@ -420,6 +440,8 @@ let create ?(persistence = noop_persistence)
       metrics = Metrics.empty ();
       tool_call_hooks = [];
       runtime_id = Session_id.to_string (Session_id.create ());
+      parallel_tool_execution = config.parallel_tool_execution;
+      publish_event_fn;
     } in
     Ok rt
 

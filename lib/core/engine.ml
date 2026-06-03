@@ -57,7 +57,7 @@ let find_tool (agent : agent_config) tool_name =
   List.find_opt (fun (td : tool_descriptor) -> td.name = tool_name) agent.tools
 
 let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
-    handler input middleware =
+    handler input middleware on_progress =
   match Validation.validate_tool_input_result descriptor.input_schema input with
   | Error category ->
     let message = match category with
@@ -79,6 +79,9 @@ let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
     let progress msg =
       (match descriptor.on_update with
        | Some cb -> cb msg
+       | None -> ());
+      (match on_progress with
+       | Some pub -> pub msg
        | None -> ())
     in
     progress (Printf.sprintf "Starting tool %s" descriptor.name);
@@ -126,7 +129,8 @@ let add_tool_result_message conv (call : tool_call) result =
   { conv with messages = conv.messages @ [ msg ] }
 
 let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
-    ?(tool_call_hooks = None) token agent user_message llm registry =
+    ?(tool_call_hooks = None) ?(quota = None) ?(parallel = false)
+    ?(on_progress = None) token agent user_message llm registry =
   let sys_prompt = match Template.effective_system_prompt agent ~runtime_id with
     | Ok s -> s
     | Error e ->
@@ -182,73 +186,61 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
              With current sequential implementation, behavior is identical but
              slower. The parallel path requires a per-batch Eio.Switch which
              is set up by the runtime on invoke. *)
-          let results : (tool_call * handler_result) list = List.map (fun (call:tool_call) ->
+          (* Acquire/track per-tool semaphore to enforce max_concurrent_tasks quota.
+             When parallel=true, the outer forking gives every tool a chance to run
+             concurrently; the semaphore caps how many can be in-flight at once. *)
+          let invoke_one (call : tool_call) : (tool_call * handler_result) =
             let call_with_id = { call with id = Task_id.to_string (Task_id.create ()) } in
-            let hook_result = match tool_call_hooks with
+            let hook_result = (match tool_call_hooks with
               | Some hooks ->
-                let ctx = {
-                  Hook.tool_name = call.name;
-                  tool_call_id = call_with_id.id;
-                  input = call.arguments;
-                  has_ui = false;
-                } in
+                let ctx = { Hook.tool_name = call.name;
+                            tool_call_id = call_with_id.id;
+                            input = call.arguments;
+                            has_ui = false } in
                 Hook.run_chain hooks ctx
-              | None -> Hook.Final_allow
+              | None -> Hook.Final_allow) in
+            let invoke_allow original_input =
+              match find_tool agent call.name with
+              | None -> (call_with_id, Error {
+                  category = Types.Invalid_input (Printf.sprintf "Tool not found: %s" call.name);
+                  message = "Tool not found";
+                  retryable = false;
+                  metadata = []; })
+              | Some descriptor -> (match Tool_registry.resolve registry call.name with
+                  | None -> (call_with_id, Error {
+                      category = Types.Internal (Printf.sprintf "Tool handler not registered: %s" call.name);
+                      message = "Handler not registered";
+                      retryable = false;
+                      metadata = []; })
+                  | Some handler -> (call_with_id, execute_tool token descriptor handler original_input agent.middleware on_progress))
+            in
+            let invoke_with_quota body =
+              match quota with
+              | Some sem ->
+                Eio.Semaphore.acquire sem;
+                Fun.protect body ~finally:(fun () -> Eio.Semaphore.release sem)
+              | None -> body ()
             in
             (match hook_result with
-             | Hook.Final_block reason ->
-               let err = Error {
-                 category = Permission_denied (Printf.sprintf "tool '%s'" call.name);
-                 message = Printf.sprintf "Blocked by hook: %s" reason;
-                 retryable = false;
-                 metadata = [];
-               } in
-               (call_with_id, err)
-             | Hook.Final_modify modified_input ->
-               (match find_tool agent call.name with
-                | None ->
-                  let err = Error {
-                    category = Invalid_input (Printf.sprintf "Tool not found: %s" call.name);
-                    message = "Tool not found";
-                    retryable = false;
-                    metadata = [];
-                  } in
-                  (call_with_id, err)
-                | Some descriptor ->
-                  (match Tool_registry.resolve registry call.name with
-                   | None ->
-                     let err = Error {
-                       category = Internal (Printf.sprintf "Tool handler not registered: %s" call.name);
-                       message = "Handler not registered";
-                       retryable = false;
-                       metadata = [];
-                     } in
-                     (call_with_id, err)
-                   | Some handler ->
-                     (call_with_id, execute_tool token descriptor handler modified_input agent.middleware)))
-             | Hook.Final_allow ->
-               (match find_tool agent call.name with
-                | None ->
-                  let err = Error {
-                    category = Invalid_input (Printf.sprintf "Tool not found: %s" call.name);
-                    message = "Tool not found";
-                    retryable = false;
-                    metadata = [];
-                  } in
-                  (call_with_id, err)
-                | Some descriptor ->
-                  (match Tool_registry.resolve registry call.name with
-                   | None ->
-                     let err = Error {
-                       category = Internal (Printf.sprintf "Tool handler not registered: %s" call.name);
-                       message = "Handler not registered";
-                       retryable = false;
-                       metadata = [];
-                     } in
-                     (call_with_id, err)
-                   | Some handler ->
-                     (call_with_id, execute_tool token descriptor handler call.arguments agent.middleware))))
-          ) calls in
+              | Hook.Final_block reason -> (call_with_id, Error {
+                  category = Types.Permission_denied (Printf.sprintf "tool '%s'" call.name);
+                  message = Printf.sprintf "Blocked by hook: %s" reason;
+                  retryable = false;
+                  metadata = []; })
+              | Hook.Final_modify modified_input ->
+                invoke_with_quota (fun () -> invoke_allow modified_input)
+              | Hook.Final_allow ->
+                invoke_with_quota (fun () -> invoke_allow call.arguments)) in
+          let results : (tool_call * handler_result) list =
+            if parallel then
+              let promises = List.map (fun (call : tool_call) ->
+                Eio.Fiber.fork_promise ~sw:token.switch
+                  (fun () -> invoke_one call)
+              ) calls in
+              List.map Eio.Promise.await_exn promises
+            else
+              List.map invoke_one calls
+          in
           let conv = List.fold_left (fun conv ((call:tool_call), result) ->
             add_tool_result_message conv call result
           ) conv results in

@@ -37,6 +37,7 @@ val execute_tool :
   Tool_registry.handler_fn ->
   Yojson.Safe.t ->
   middleware_hook list ->
+  (string -> unit) option ->
   handler_result
 
 val run_agent :
@@ -44,6 +45,9 @@ val run_agent :
   ?steering:Steering_queue.t option ->
   ?followup:Steering_queue.t option ->
   ?tool_call_hooks:Hook.tool_call_hook list option ->
+  ?quota:Eio.Semaphore.t option ->
+  ?parallel:bool ->
+  ?on_progress:(string -> unit) option ->
   cancellation_token ->
   agent_config ->
   string ->

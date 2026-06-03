@@ -77,3 +77,8 @@
  (name test_tool_call_hooks)
  (libraries par eio_main alcotest)
  (modules test_tool_call_hooks))
+
+(test
+ (name test_tool_progress)
+ (libraries par eio_main alcotest)
+ (modules test_tool_progress))
