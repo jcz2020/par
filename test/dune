@@ -62,3 +62,8 @@
  (name test_steering_queue)
  (libraries par eio_main alcotest)
  (modules test_steering_queue))
+
+(test
+ (name test_health_metrics)
+ (libraries par eio_main alcotest)
+ (modules test_health_metrics))

@@ -26,6 +26,9 @@ type runtime = {
   tool_registry : Tool_registry.t;
   steering_queue : Steering_queue.t;
   followup_queue : Steering_queue.t;
+  mutable last_llm_call_at : float option;
+  mutable last_llm_call_status : [ `Success | `Error of error_category | `Never_called ];
+  mutable metrics : Metrics.counters;
 } [@@warning "-69"]
 
 let default_event_bus_config = {
@@ -93,6 +96,25 @@ let register_tool rt ~name ~description ~input_schema ~handler
   | Ok () ->
     Ok { descriptor; handler }
 
+let record_llm_success rt =
+  rt.last_llm_call_at <- Some (Unix.gettimeofday ());
+  rt.last_llm_call_status <- `Success;
+  Metrics.incr_llm rt.metrics
+
+let record_llm_error rt err =
+  rt.last_llm_call_at <- Some (Unix.gettimeofday ());
+  rt.last_llm_call_status <- `Error err;
+  Metrics.incr_llm rt.metrics
+
+let record_tool_invocation rt =
+  Metrics.incr_tool_invocations rt.metrics
+
+let record_task_completed rt =
+  Metrics.incr_task_completed rt.metrics
+
+let record_task_failed rt =
+  Metrics.incr_task_failed rt.metrics
+
 let invoke rt ~agent_id ~message ?cancellation_token () =
   let agent = htbl_get rt.agents agent_id in
   match agent with
@@ -102,9 +124,13 @@ let invoke rt ~agent_id ~message ?cancellation_token () =
       | Some t -> t
       | None -> Cancellation.create_token rt.cancellation_root
     in
-    Engine.run_agent ~steering:(Some rt.steering_queue)
+    let result = Engine.run_agent ~steering:(Some rt.steering_queue)
       ~followup:(Some rt.followup_queue)
-      token config message rt.services.llm rt.tool_registry
+      token config message rt.services.llm rt.tool_registry in
+    (match result with
+     | Ok _ -> record_llm_success rt
+     | Error e -> record_llm_error rt e);
+    result
 
 let submit_task rt ?(priority = 5) ?(timeout = 300.0) input =
   let id = Task_id.create () in
@@ -370,6 +396,9 @@ let create ?(persistence = noop_persistence)
       tool_registry = Tool_registry.create ();
       steering_queue = Steering_queue.create ();
       followup_queue = Steering_queue.create ();
+      last_llm_call_at = None;
+      last_llm_call_status = `Never_called;
+      metrics = Metrics.empty ();
     } in
     Ok rt
 
@@ -395,3 +424,13 @@ let close rt =
   0
 
 let tool_registry rt = rt.tool_registry
+
+let health rt = {
+  runtime_alive = not !(rt.shutdown_requested);
+  last_llm_call_at = rt.last_llm_call_at;
+  last_llm_call_status = rt.last_llm_call_status;
+  persistence_ok = true;
+}
+
+let metrics_snapshot rt = Metrics.snapshot rt.metrics
+

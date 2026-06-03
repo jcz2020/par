@@ -104,3 +104,17 @@ val drain_followup : runtime -> string list
 val has_pending_steering : runtime -> bool
 
 val has_pending_followup : runtime -> bool
+
+val health : runtime -> Types.health_status
+
+val metrics_snapshot : runtime -> (string * int) list
+
+val record_llm_success : runtime -> unit
+
+val record_llm_error : runtime -> error_category -> unit
+
+val record_tool_invocation : runtime -> unit
+
+val record_task_completed : runtime -> unit
+
+val record_task_failed : runtime -> unit

@@ -14,6 +14,7 @@ module Runtime = Runtime
 module Engine = Engine
 module Template = Template
 module Steering_queue = Steering_queue
+module Metrics = Metrics
 module Expression = Expression
 module Workflow_engine = Workflow_engine
 module State_machine = State_machine

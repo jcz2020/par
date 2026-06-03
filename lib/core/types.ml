@@ -740,3 +740,10 @@ type workflow = {
   timeout : float;
   on_complete : (workflow_result -> unit) option;
 }
+
+type health_status = {
+  runtime_alive : bool;
+  last_llm_call_at : float option;
+  last_llm_call_status : [ `Success | `Error of error_category | `Never_called ];
+  persistence_ok : bool;
+} [@@deriving yojson]
