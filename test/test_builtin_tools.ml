@@ -447,7 +447,99 @@ let read_suite =
         | _ -> Alcotest.fail "expected Success"
       in
       Fun.protect ~finally:cleanup run));
-])
+  ])
+
+let ls_suite =
+  ("ls", [
+    Alcotest.test_case "list current directory" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "ls" tools in
+        let result = handler (`Assoc [("path", `String ".")]) token in
+        match result with
+        | Success _ -> ()
+        | _ -> Alcotest.fail "expected Success"));
+
+    Alcotest.test_case "empty path rejected" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "ls" tools in
+        let result = handler (`Assoc [("path", `String "")]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result)));
+
+    Alcotest.test_case "absolute path rejected" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "ls" tools in
+        let result = handler (`Assoc [("path", `String "/etc")]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result)));
+  ])
+
+let find_suite =
+  ("find", [
+    Alcotest.test_case "find existing files" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "find" tools in
+        let result = handler (`Assoc [
+          ("pattern", `String "*.ml");
+          ("path", `String "lib/core");
+        ]) token in
+        match result with
+        | Success _ -> ()
+        | _ -> Alcotest.fail "expected Success"));
+
+    Alcotest.test_case "empty pattern rejected" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "find" tools in
+        let result = handler (`Assoc [
+          ("pattern", `String "");
+          ("path", `String ".");
+        ]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result)));
+
+    Alcotest.test_case "double-star pattern" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "find" tools in
+        let result = handler (`Assoc [
+          ("pattern", `String "**/*.ml");
+          ("path", `String "lib");
+        ]) token in
+        match result with
+        | Success _ -> ()
+        | _ -> Alcotest.fail "expected Success"));
+  ])
+
+let grep_suite =
+  ("grep", [
+    Alcotest.test_case "search for pattern" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "grep" tools in
+        let result = handler (`Assoc [
+          ("pattern", `String "let");
+          ("path", `String "lib/core");
+          ("glob", `String "types.ml");
+        ]) token in
+        match result with
+        | Success _ -> ()
+        | _ -> Alcotest.fail "expected Success"));
+
+    Alcotest.test_case "empty pattern rejected" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "grep" tools in
+        let result = handler (`Assoc [
+          ("pattern", `String "");
+          ("path", `String ".");
+        ]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result)));
+
+    Alcotest.test_case "no match returns empty list" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "grep" tools in
+        let result = handler (`Assoc [
+          ("pattern", `String "no_such_pattern_xyz_123");
+          ("path", `String "lib");
+        ]) token in
+        match result with
+        | Success (`List l) -> Alcotest.(check int) "no matches" 0 (List.length l)
+        | _ -> Alcotest.fail "expected Success with empty list"));
+  ])
 
 let () =
   Alcotest.run "Builtin Tools" [
@@ -465,4 +557,7 @@ let () =
     read_webpage_suite;
     web_search_suite;
     read_suite;
+    ls_suite;
+    find_suite;
+    grep_suite;
   ]

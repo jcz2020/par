@@ -715,6 +715,279 @@ let builtin_tools ~switch ~net =
     { descriptor; handler }
   in
 
+  let ls_tool =
+    let descriptor =
+      { name = "ls"
+      ; description = "List directory contents. Input: {\"path\": \".\"} (relative to CWD). \
+                       Returns list of {name, type, size, modified} entries."
+      ; input_schema = `Assoc
+          [ ("type", `String "object")
+          ; ("properties", `Assoc
+              [ ("path", `Assoc
+                  [ ("type", `String "string")
+                  ; ("description", `String "Directory path relative to CWD")
+                  ])
+              ])
+          ; ("required", `List [`String "path"])
+          ]
+      ; permission = Allow
+      ; timeout = Some 10.0
+      ; concurrency_limit = None
+      }
+    in
+    let handler = (fun input _tok ->
+        let open Yojson.Safe.Util in
+        let path = match input |> member "path" |> to_string_option with
+          | Some p -> p
+          | None -> ""
+        in
+        if path = "" then
+          Error { category = Invalid_input "Empty path"; message = "Path is required"; retryable = false; metadata = [] }
+        else if String.starts_with ~prefix:"/" path || String.contains path ':' then
+          Error { category = Permission_denied path; message = "Absolute paths not allowed"; retryable = false; metadata = [] }
+        else
+          let full_path = Filename.concat (Sys.getcwd ()) path in
+          try
+            let attrs = Unix.LargeFile.lstat full_path in
+            match attrs.Unix.LargeFile.st_kind with
+            | Unix.S_DIR ->
+              let entries = Sys.readdir full_path in
+              let entry_list = Array.to_list entries in
+              let sorted = List.sort String.compare entry_list in
+              let json_entries = List.map (fun name ->
+                let entry_path = Filename.concat full_path name in
+                let stat =
+                  try Some (Unix.LargeFile.lstat entry_path)
+                  with _ -> None
+                in
+                let kind = match stat with
+                  | Some s ->
+                    (match s.Unix.LargeFile.st_kind with
+                     | Unix.S_DIR -> "dir"
+                     | Unix.S_REG -> "file"
+                     | Unix.S_LNK -> "link"
+                     | _ -> "other")
+                  | None -> "unknown"
+                in
+                let size = match stat with
+                  | Some s -> `Int (Int64.to_int s.Unix.LargeFile.st_size)
+                  | None -> `Null
+                in
+                let mtime = match stat with
+                  | Some s -> `Float s.Unix.LargeFile.st_mtime
+                  | None -> `Null
+                in
+                `Assoc [
+                  ("name", `String name);
+                  ("type", `String kind);
+                  ("size", size);
+                  ("modified", mtime);
+                ]
+              ) sorted in
+              let result = `Assoc [
+                ("path", `String path);
+                ("entries", `List json_entries);
+              ] in
+              Success result
+            | _ ->
+              Error { category = Invalid_input "Not a directory"; message = (Printf.sprintf "Not a directory: %s" path); retryable = false; metadata = [] }
+          with
+          | Sys_error msg ->
+            Error { category = Internal msg; message = msg; retryable = false; metadata = [] }
+          | e ->
+            Error { category = Internal (Printexc.to_string e); message = "ls failed"; retryable = false; metadata = [] }
+        )
+    in
+    { descriptor; handler }
+  in
+
+  let find_tool =
+    let descriptor =
+      { name = "find"
+      ; description = "Find files matching a glob pattern. \
+                       Input: {\"pattern\": \"**/*.ml\", \"path\": \".\"}. \
+                       Skips .git, node_modules, _build, _opam directories."
+      ; input_schema = `Assoc
+          [ ("type", `String "object")
+          ; ("properties", `Assoc
+              [ ("pattern", `Assoc
+                  [ ("type", `String "string")
+                  ; ("description", `String "Glob pattern like **/*.ml")
+                  ])
+              ; ("path", `Assoc
+                  [ ("type", `String "string")
+                  ; ("description", `String "Base directory to search from")
+                  ])
+              ])
+          ; ("required", `List [`String "pattern"])
+          ]
+      ; permission = Allow
+      ; timeout = Some 30.0
+      ; concurrency_limit = None
+      }
+    in
+    let skip_dirs = [".git"; "node_modules"; "_build"; "_opam"] in
+    let glob_match pattern name =
+      let pat = Str.regexp (Str.quote pattern |> Str.global_replace (Str.regexp "\\*\\*") ".*" |> Str.global_replace (Str.regexp "\\*") "[^/]*") in
+      try Str.search_forward pat name 0 >= 0
+      with Not_found -> false
+    in
+    let rec walk pattern dir acc =
+      try
+        let entries = Sys.readdir dir in
+        Array.fold_left (fun acc name ->
+          let full = Filename.concat dir name in
+          let is_dir = try
+            let stat = Unix.LargeFile.lstat full in
+            stat.Unix.LargeFile.st_kind = Unix.S_DIR
+          with _ -> false in
+          let acc = if is_dir && List.mem name skip_dirs then acc
+                    else if glob_match pattern (Filename.basename full) then full :: acc
+                    else acc in
+          if is_dir && not (List.mem name skip_dirs) then
+            walk pattern full acc
+          else acc
+        ) acc entries
+      with _ -> acc
+    in
+    let handler = (fun input _tok ->
+        let open Yojson.Safe.Util in
+        let pattern = match input |> member "pattern" |> to_string_option with
+          | Some p -> p
+          | None -> ""
+        in
+        let path = match input |> member "path" |> to_string_option with
+          | Some p -> p
+          | None -> "."
+        in
+        if pattern = "" then
+          Error { category = Invalid_input "Empty pattern"; message = "Pattern is required"; retryable = false; metadata = [] }
+        else if String.starts_with ~prefix:"/" path || String.contains path ':' then
+          Error { category = Permission_denied path; message = "Absolute paths not allowed"; retryable = false; metadata = [] }
+        else
+          let full_path = Filename.concat (Sys.getcwd ()) path in
+          try
+            let results = walk pattern full_path [] in
+            let sorted = List.sort String.compare results in
+            let cwd = Sys.getcwd () in
+            let cwd_len = String.length cwd + 1 in
+            Success (`List (List.map (fun p ->
+              if String.length p > cwd_len && String.sub p 0 cwd_len = cwd ^ "/" then
+                `String (String.sub p cwd_len (String.length p - cwd_len))
+              else `String p
+            ) sorted))
+          with e ->
+            Error { category = Internal (Printexc.to_string e); message = "find failed"; retryable = false; metadata = [] }
+        )
+    in
+    { descriptor; handler }
+  in
+
+  let grep_tool =
+    let descriptor =
+      { name = "grep"
+      ; description = "Search for regex pattern in files. \
+                       Input: {\"pattern\": \"TODO\", \"path\": \".\", \"glob\": \"*.ml\"}. \
+                       Returns matching lines with file:line prefix. Timeout 30s."
+      ; input_schema = `Assoc
+          [ ("type", `String "object")
+          ; ("properties", `Assoc
+              [ ("pattern", `Assoc
+                  [ ("type", `String "string")
+                  ; ("description", `String "Regex or literal pattern to search for")
+                  ])
+              ; ("path", `Assoc
+                  [ ("type", `String "string")
+                  ; ("description", `String "Directory to search in")
+                  ])
+              ; ("glob", `Assoc
+                  [ ("type", `String "string")
+                  ; ("description", `String "File glob pattern to filter (e.g. *.ml)")
+                  ])
+              ; ("context_lines", `Assoc
+                  [ ("type", `String "integer")
+                  ; ("description", `String "Number of context lines before/after match")
+                  ; ("minimum", `Float 0.0)
+                  ])
+              ])
+          ; ("required", `List [`String "pattern"])
+          ]
+      ; permission = Allow
+      ; timeout = Some 30.0
+      ; concurrency_limit = None
+      }
+    in
+    let handler = (fun input _tok ->
+        let open Yojson.Safe.Util in
+        let pattern = match input |> member "pattern" |> to_string_option with
+          | Some p -> p
+          | None -> ""
+        in
+        let path = match input |> member "path" |> to_string_option with
+          | Some p -> p
+          | None -> "."
+        in
+        let glob = match input |> member "glob" |> to_string_option with
+          | Some g -> g
+          | None -> "*"
+        in
+        let _context_lines = match input |> member "context_lines" |> to_int_option with
+          | Some n -> max 0 n
+          | None -> 0
+        in
+        if pattern = "" then
+          Error { category = Invalid_input "Empty pattern"; message = "Pattern is required"; retryable = false; metadata = [] }
+        else if String.starts_with ~prefix:"/" path || String.contains path ':' then
+          Error { category = Permission_denied path; message = "Absolute paths not allowed"; retryable = false; metadata = [] }
+        else
+          let full_path = Filename.concat (Sys.getcwd ()) path in
+          let regex =
+            try Str.regexp pattern
+            with _ -> raise (Invalid_argument "Invalid regex pattern")
+          in
+          let results = ref [] in
+          let glob_re = Str.regexp (Str.quote glob |> Str.global_replace (Str.regexp "\\*") ".*") in
+          let rec search dir =
+            try
+              let entries = Sys.readdir dir in
+              Array.iter (fun name ->
+                if not (List.mem name [".git"; "node_modules"; "_build"; "_opam"]) then begin
+                  let full = Filename.concat dir name in
+                  let is_dir = try
+                    let stat = Unix.LargeFile.lstat full in
+                    stat.Unix.LargeFile.st_kind = Unix.S_DIR
+                  with _ -> false in
+                  if is_dir then search full
+                  else if Str.string_match glob_re name 0 then begin
+                    try
+                      let ic = open_in full in
+                      Fun.protect (fun () ->
+                        let line_no = ref 0 in
+                        (try
+                           while true do
+                             incr line_no;
+                             let line = input_line ic in
+                             if Str.string_match regex line 0 then begin
+                               let display_path = String.sub full (String.length (Filename.concat (Sys.getcwd ()) "") + 1) (String.length full - String.length (Filename.concat (Sys.getcwd ()) "") - 1) in
+                               results := Printf.sprintf "%s:%d:%s" display_path (!line_no) line :: !results
+                             end
+                           done
+                         with End_of_file -> ());
+                      ) ~finally:(fun () -> close_in ic)
+                    with _ -> ()
+                  end
+                end
+              ) entries
+            with _ -> ()
+          in
+          search full_path;
+          let sorted = List.rev (List.sort compare !results) in
+          Success (`List (List.map (fun s -> `String s) sorted))
+        )
+    in
+    { descriptor; handler }
+  in
+
   ignore token;
   [ calculator
   ; get_time
@@ -730,4 +1003,7 @@ let builtin_tools ~switch ~net =
   ; read_webpage_tool
   ; web_search_tool
   ; read_tool
+  ; ls_tool
+  ; find_tool
+  ; grep_tool
   ]
