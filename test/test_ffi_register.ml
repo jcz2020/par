@@ -10,6 +10,7 @@ let test_config : runtime_config = {
   shutdown = default_shutdown_config;
   llm_providers = [];
   eval_limits = { max_depth = 10; max_node_visits = 1000 };
+  parallel_tool_execution = true;
 }
 
 let make_rt () =

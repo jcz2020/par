@@ -8,6 +8,7 @@ let () =
     shutdown = Runtime.default_shutdown_config;
     llm_providers = [];
     eval_limits = { max_depth = 10; max_node_visits = 1000 };
+  parallel_tool_execution = true;
   } in
   Eio_main.run (fun _env ->
     Eio.Switch.run (fun switch ->

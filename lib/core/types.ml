@@ -504,6 +504,7 @@ type runtime_config = {
   shutdown : shutdown_config;
   llm_providers : (string * llm_provider_config) list;
   eval_limits : eval_limits;
+  parallel_tool_execution : bool;
 }
 [@@deriving yojson]
 

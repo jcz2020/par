@@ -136,7 +136,8 @@ let make_runtime_config persistence_val =
     default_quota = Runtime.default_quota;
     shutdown = Runtime.default_shutdown_config;
     llm_providers = [];
-    eval_limits = { max_depth = 10; max_node_visits = 1000 } }
+    eval_limits = { max_depth = 10; max_node_visits = 1000 };
+    parallel_tool_execution = true; }
 
 (* -------------------------------------------------------------------------- *)
 (* Built-in tools                                                              *)

@@ -38,6 +38,7 @@ let make_config ?(persistence = `Sqlite ":memory:") ?(llm_providers = []) () = {
   shutdown = valid_shutdown;
   llm_providers;
   eval_limits = valid_eval_limits;
+  parallel_tool_execution = true;
 }
 
 let suite = [

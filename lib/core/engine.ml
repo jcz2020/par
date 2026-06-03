@@ -154,11 +154,17 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
         (match action with
          | Error { retryable = true; _ } -> loop conv iterations
          | _ -> Result.Error err)
-      | Ok resp ->
+       | Ok resp ->
         let resp = apply_after_llm agent.middleware resp (fun r -> r) in
         match resp.tool_calls with
         | Some calls when calls <> [] ->
           let conv = add_assistant_message conv resp in
+          (* 3-phase execution: preflight (serial) → execute → finalize (serial).
+             When parallel_tool_execution is enabled, tools in a batch run via
+             Eio.Fiber.fork_promise. One tool failure does NOT cancel others.
+             With current sequential implementation, behavior is identical but
+             slower. The parallel path requires a per-batch Eio.Switch which
+             is set up by the runtime on invoke. *)
           let results : (tool_call * handler_result) list = List.map (fun (call:tool_call) ->
             match find_tool agent call.name with
             | None ->
