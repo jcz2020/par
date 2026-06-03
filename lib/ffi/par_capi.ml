@@ -2,6 +2,10 @@
     Registers OCaml functions via Callback.register so C code can call them.
     Uses an Eio event loop thread to serialize all Runtime operations. *)
 
+open Par
+let () = ()
+(* Force module load order: Health, Metrics, Runtime, Hook are referenced. *)
+
 let json_escape s =
   let buf = Buffer.create (String.length s) in
   String.iter (fun c -> match c with
@@ -317,3 +321,73 @@ let () =
     (fun (rt_val : Obj.t) (run_id : string) ->
       let id = Obj.magic rt_val in
       unwrap (do_resume_workflow id run_id))
+
+let do_health (id : int) : string =
+  match get_handle id with
+  | None -> error_json "Invalid runtime handle"
+  | Some handle ->
+    let h = Par.Runtime.health handle.rt in
+    let json = Printf.sprintf
+      "{\"status\": \"ok\", \"runtime_alive\": %s, \"persistence_ok\": %s, \
+       \"last_llm_call_at\": %s, \"last_llm_call_status\": \"%s\"}"
+      (if h.runtime_alive then "true" else "false")
+      (if h.persistence_ok then "true" else "false")
+      (match h.last_llm_call_at with Some f -> Printf.sprintf "%f" f | None -> "null")
+      (match h.last_llm_call_status with
+       | `Success -> "Success" | `Never_called -> "Never_called"
+       | `Error (Types.Internal _) -> "Error.Internal"
+       | `Error (Types.Timeout) -> "Error.Timeout"
+       | `Error (Types.Invalid_input _) -> "Error.Invalid_input"
+       | `Error (Types.External_failure _) -> "Error.External_failure"
+       | `Error (Types.Rate_limited) -> "Error.Rate_limited"
+       | `Error (Types.Permission_denied _) -> "Error.Permission_denied")
+    in json
+
+let do_metrics (id : int) : string =
+  match get_handle id with
+  | None -> error_json "Invalid runtime handle"
+  | Some handle ->
+    let snap = Par.Runtime.metrics_snapshot handle.rt in
+    let pairs = List.map (fun (k, v) ->
+      Printf.sprintf "\"%s\": %d" k v
+    ) snap in
+    Printf.sprintf "{\"status\": \"ok\", \"metrics\": {%s}}"
+      (String.concat ", " pairs)
+
+let do_steer (id : int) (message : string) : int =
+  match get_handle id with
+  | None -> -1
+  | Some handle ->
+    Par.Runtime.steer handle.rt message;
+    0
+
+let do_follow_up (id : int) (message : string) : int =
+  match get_handle id with
+  | None -> -1
+  | Some handle ->
+    Par.Runtime.follow_up handle.rt message;
+    0
+
+let () =
+  Callback.register "par_health"
+    (fun (rt_val : Obj.t) ->
+      let id = Obj.magic rt_val in
+      do_health id)
+
+let () =
+  Callback.register "par_metrics"
+    (fun (rt_val : Obj.t) ->
+      let id = Obj.magic rt_val in
+      do_metrics id)
+
+let () =
+  Callback.register "par_steer"
+    (fun (rt_val : Obj.t) (message : string) ->
+      let id = Obj.magic rt_val in
+      do_steer id message)
+
+let () =
+  Callback.register "par_follow_up"
+    (fun (rt_val : Obj.t) (message : string) ->
+      let id = Obj.magic rt_val in
+      do_follow_up id message)

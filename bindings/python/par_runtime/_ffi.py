@@ -70,6 +70,22 @@ _lib.par_approve_workflow.restype = ctypes.c_int
 _lib.par_resume_workflow.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_resume_workflow.restype = ctypes.c_void_p
 
+# char* par_health(par_runtime_t* rt);
+_lib.par_health.argtypes = [ctypes.c_void_p]
+_lib.par_health.restype = ctypes.c_void_p
+
+# char* par_metrics(par_runtime_t* rt);
+_lib.par_metrics.argtypes = [ctypes.c_void_p]
+_lib.par_metrics.restype = ctypes.c_void_p
+
+# int par_steer(par_runtime_t* rt, const char* message);
+_lib.par_steer.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_steer.restype = ctypes.c_int
+
+# int par_follow_up(par_runtime_t* rt, const char* message);
+_lib.par_follow_up.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_follow_up.restype = ctypes.c_int
+
 # --- Helper: libc free() for strings returned by C ---
 if sys.platform == "darwin":
     _libc = ctypes.CDLL("libc.dylib")

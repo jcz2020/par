@@ -32,6 +32,14 @@ int   par_approve_workflow(par_runtime_t* rt, const char* run_id,
                            const char* approver);
 char* par_resume_workflow(par_runtime_t* rt, const char* run_id);
 
+/* Observability — returns JSON string, caller must free() */
+char* par_health(par_runtime_t* rt);
+char* par_metrics(par_runtime_t* rt);
+
+/* Steering — inject messages into in-flight or queued agent runs */
+int par_steer(par_runtime_t* rt, const char* message);
+int par_follow_up(par_runtime_t* rt, const char* message);
+
 /* Cleanup */
 void par_result_free(par_result_t* result);
 

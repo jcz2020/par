@@ -987,16 +987,22 @@ let builtin_tools ~switch ~net =
                              if Str.string_match regex line 0 then begin
                                let display_path = String.sub full (String.length (Filename.concat (Sys.getcwd ()) "") + 1) (String.length full - String.length (Filename.concat (Sys.getcwd ()) "") - 1) in
                                results := Printf.sprintf "%s:%d:%s" display_path (!line_no) line :: !results
-                             end
-                           done
-                         with End_of_file -> ());
-                      ) ~finally:(fun () -> close_in ic)
-                    with _ -> ()
-                  end
-                end
-              ) entries
-            with _ -> ()
-          in
+                              end
+                            done
+                          with End_of_file -> ());
+                       ) ~finally:(fun () -> close_in ic)
+                     with e ->
+                       Logs.warn (fun m ->
+                         m "grep: failed to read file: %s"
+                           (Printexc.to_string e))
+                   end
+                 end
+               ) entries
+             with e ->
+               Logs.warn (fun m ->
+                 m "find/grep: failed to read dir: %s"
+                   (Printexc.to_string e))
+           in
           search full_path;
           let sorted = List.rev (List.sort compare !results) in
           Success (`List (List.map (fun s -> `String s) sorted))
@@ -1062,7 +1068,10 @@ let builtin_tools ~switch ~net =
                   else if Sys.file_exists d then ()
                   else begin
                     mkdir_p (Filename.dirname d);
-                    (try Unix.mkdir d 0o755 with _ -> ())
+                    (try Unix.mkdir d 0o755 with e ->
+                       Logs.warn (fun m ->
+                         m "write: failed to mkdir %s: %s"
+                           d (Printexc.to_string e)))
                   end
                 in
                 mkdir_p dir

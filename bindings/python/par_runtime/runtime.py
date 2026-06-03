@@ -181,6 +181,75 @@ class Runtime:
         )
         return _py_str(result_ptr)
 
+    def health(self) -> dict:
+        """Return runtime health status.
+
+        Returns:
+            Dict with keys: runtime_alive (bool), persistence_ok (bool),
+            last_llm_call_at (float|None), last_llm_call_status (str).
+        """
+        self._check_handle()
+        result_ptr = _lib.par_health(self._handle)
+        result = _py_str(result_ptr)
+        if not result:
+            raise PARError("health() returned empty")
+        try:
+            parsed = json.loads(result)
+            if "error" in parsed:
+                raise PARError(parsed["error"])
+            return parsed
+        except json.JSONDecodeError as e:
+            raise PARError(f"Invalid health JSON: {e}")
+
+    def metrics(self) -> dict:
+        """Return runtime metrics snapshot.
+
+        Returns:
+            Dict with keys: llm_requests_total, task_completed_total,
+            task_failed_total, tool_invocations_total,
+            events_published_total, events_dropped_total.
+        """
+        self._check_handle()
+        result_ptr = _lib.par_metrics(self._handle)
+        result = _py_str(result_ptr)
+        if not result:
+            raise PARError("metrics() returned empty")
+        try:
+            parsed = json.loads(result)
+            if "error" in parsed:
+                raise PARError(parsed["error"])
+            return parsed.get("metrics", parsed)
+        except json.JSONDecodeError as e:
+            raise PARError(f"Invalid metrics JSON: {e}")
+
+    def steer(self, message: str) -> None:
+        """Inject a steering message into the agent's running loop.
+
+        Args:
+            message: User message to inject.
+
+        Raises:
+            PARError: If steering fails.
+        """
+        self._check_handle()
+        rc = _lib.par_steer(self._handle, _c_str(message))
+        if rc != 0:
+            raise PARError(f"steer() failed with code {rc}")
+
+    def follow_up(self, message: str) -> None:
+        """Queue a follow-up message for after the agent's current loop ends.
+
+        Args:
+            message: Follow-up message to queue.
+
+        Raises:
+            PARError: If follow-up fails.
+        """
+        self._check_handle()
+        rc = _lib.par_follow_up(self._handle, _c_str(message))
+        if rc != 0:
+            raise PARError(f"follow_up() failed with code {rc}")
+
     def __repr__(self) -> str:
         status = "active" if self._handle else "closed"
         return f"<PAR Runtime {status}>"

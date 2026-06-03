@@ -185,6 +185,44 @@ char* par_resume_workflow(par_runtime_t* rt, const char* run_id) {
     return ret;
 }
 
+char* par_health(par_runtime_t* rt) {
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call1_exn("par_health", rt->_ocaml_value);
+    char* ret = extract_string(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return ret;
+}
+
+char* par_metrics(par_runtime_t* rt) {
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call1_exn("par_metrics", rt->_ocaml_value);
+    char* ret = extract_string(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return ret;
+}
+
+int par_steer(par_runtime_t* rt, const char* message) {
+    value c_msg = caml_copy_string(message);
+
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call2_exn("par_steer", rt->_ocaml_value, c_msg);
+    int is_exc = Is_exception_result(result);
+    int rc = is_exc ? -1 : Int_val(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return rc;
+}
+
+int par_follow_up(par_runtime_t* rt, const char* message) {
+    value c_msg = caml_copy_string(message);
+
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call2_exn("par_follow_up", rt->_ocaml_value, c_msg);
+    int is_exc = Is_exception_result(result);
+    int rc = is_exc ? -1 : Int_val(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return rc;
+}
+
 void par_result_free(par_result_t* result) {
     if (result) {
         pthread_mutex_lock(&ocaml_lock);
