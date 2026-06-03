@@ -1,4 +1,9 @@
 (include_subdirs unqualified)
+
+(rule
+ (target version.ml)
+ (action (with-stdout-to version.ml (echo "let version = \"%{version:par}\""))))
+
 (library
  (name par)
  (public_name par)

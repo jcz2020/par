@@ -436,7 +436,7 @@ let info_ask = Cmdliner.Cmd.info "ask"
 let cmd =
   let open Cmdliner.Cmd in
   group ~default:term_chat
-    (info "par" ~version:"0.3.0"
+    (info "par" ~version:Par.Version.version
        ~doc:"P-A-R: Programmable Agent Runtime — run 'par' to start REPL, 'par config' to configure, 'par ask \"question\"' for one-shot")
     [
       v info_config term_config;
