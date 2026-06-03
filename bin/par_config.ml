@@ -216,25 +216,19 @@ let resolve_persistence (cfg : config) =
 (* -------------------------------------------------------------------------- *)
 
 let prompt_line label default =
-  (match default with
-   | Some d -> Printf.printf "%s [%s]: " label d
-   | None -> Printf.printf "%s: " label);
-  flush stdout;
-  try
-    match input_line stdin with
-    | line when String.trim line <> "" -> String.trim line
-    | _ -> (match default with Some d -> d | None -> "")
-  with End_of_file ->
-    (match default with Some d -> d | None -> "")
+  let prompt = match default with
+    | Some d -> Printf.sprintf "%s [%s]: " label d
+    | None -> Printf.sprintf "%s: " label
+  in
+  match LNoise.linenoise prompt with
+  | Some line when String.trim line <> "" -> String.trim line
+  | _ -> (match default with Some d -> d | None -> "")
 
 let prompt_opt_line label =
-  Printf.printf "%s (留空跳过): " label;
-  flush stdout;
-  try
-    match input_line stdin with
-    | line when String.trim line <> "" -> Some (String.trim line)
-    | _ -> None
-  with End_of_file -> None
+  let prompt = Printf.sprintf "%s (留空跳过): " label in
+  match LNoise.linenoise prompt with
+  | Some line when String.trim line <> "" -> Some (String.trim line)
+  | _ -> None
 
 let run_wizard () =
   let existing = load () in
@@ -273,19 +267,13 @@ let run_wizard () =
   in
   let api_base =
     let existing_base = match existing with Some c -> c.api_base | None -> None in
-    let default_base = match existing_base with
-      | Some b -> Some b
-      | None -> None
+    let prompt = Printf.sprintf "API Base URL (默认: %s)%s: "
+        api_base_hint
+        (match existing_base with Some b -> Printf.sprintf " [%s]" b | None -> "")
     in
-    Printf.printf "API Base URL (默认: %s)" api_base_hint;
-    (match default_base with
-     | Some b -> Printf.printf " [%s]" b
-     | None -> ());
-    Printf.printf ": ";
-    flush stdout;
-    (match input_line stdin with
-     | line when String.trim line <> "" -> Some (String.trim line)
-     | _ -> default_base)
+    match LNoise.linenoise prompt with
+    | Some line when String.trim line <> "" -> Some (String.trim line)
+    | _ -> existing_base
   in
 
   let model_default = match existing with
