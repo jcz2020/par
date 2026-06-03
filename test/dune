@@ -72,3 +72,8 @@
  (name test_on_update)
  (libraries par eio_main alcotest)
  (modules test_on_update))
+
+(test
+ (name test_tool_call_hooks)
+ (libraries par eio_main alcotest)
+ (modules test_tool_call_hooks))

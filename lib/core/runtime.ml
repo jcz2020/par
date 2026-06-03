@@ -29,6 +29,7 @@ type runtime = {
   mutable last_llm_call_at : float option;
   mutable last_llm_call_status : [ `Success | `Error of error_category | `Never_called ];
   mutable metrics : Metrics.counters;
+  mutable tool_call_hooks : Hook.tool_call_hook list;
 } [@@warning "-69"]
 
 let default_event_bus_config = {
@@ -399,6 +400,7 @@ let create ?(persistence = noop_persistence)
       last_llm_call_at = None;
       last_llm_call_status = `Never_called;
       metrics = Metrics.empty ();
+      tool_call_hooks = [];
     } in
     Ok rt
 
@@ -424,6 +426,15 @@ let close rt =
   0
 
 let tool_registry rt = rt.tool_registry
+
+let register_tool_call_hook rt hook =
+  rt.tool_call_hooks <- rt.tool_call_hooks @ [hook]
+
+let clear_tool_call_hooks rt =
+  rt.tool_call_hooks <- []
+
+let run_tool_call_hooks rt ctx =
+  Hook.run_chain rt.tool_call_hooks ctx
 
 let health rt = {
   runtime_alive = not !(rt.shutdown_requested);

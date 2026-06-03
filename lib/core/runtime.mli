@@ -119,3 +119,9 @@ val record_tool_invocation : runtime -> unit
 val record_task_completed : runtime -> unit
 
 val record_task_failed : runtime -> unit
+
+val register_tool_call_hook : runtime -> Hook.tool_call_hook -> unit
+
+val clear_tool_call_hooks : runtime -> unit
+
+val run_tool_call_hooks : runtime -> Hook.tool_call_context -> Hook.chain_result
