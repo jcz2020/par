@@ -82,7 +82,7 @@ let () =
     { Types.text = None; tool_calls = Some [{ Types.id = "c1"; name = "echo"; arguments = `Null }]; finish_reason = Types.Tool_calls; usage = { prompt_tokens = 42; completion_tokens = 8; total_tokens = 50 }; model = "gpt-4" };
     { text = Some "Hello, world!"; tool_calls = None; finish_reason = Types.Stop; usage = { prompt_tokens = 50; completion_tokens = 128; total_tokens = 178 }; model = "gpt-4" } ] in
   let echo_desc = { Types.name = "echo"; description = "Echo back input"; input_schema = `Null;
-                permission = Types.Allow; timeout = None; concurrency_limit = None } in
+                permission = Types.Allow; timeout = None; concurrency_limit = None; on_update = None } in
   let echo_handler = (fun j _ -> Types.Success (`String ("Echo: " ^ Yojson.Safe.to_string j))) in
   let agent = { Types.id = "demo"; system_prompt = "You are a helpful assistant.";
                 system_prompt_template = None;

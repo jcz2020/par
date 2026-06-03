@@ -88,8 +88,8 @@ let register_agent rt (agent : agent_config) =
   Ok ()
 
 let register_tool rt ~name ~description ~input_schema ~handler
-    ?(permission = Allow) ?timeout ?concurrency_limit () =
-  let descriptor = { Types.name; description; input_schema; permission; timeout; concurrency_limit } in
+    ?(permission = Allow) ?timeout ?concurrency_limit ?(on_update = None) () =
+  let descriptor = { Types.name; description; input_schema; permission; timeout; concurrency_limit; on_update } in
   match Tool_registry.register rt.tool_registry descriptor handler with
   | Error (`Duplicate_tool n) ->
     Result.Error (Types.Invalid_input (Printf.sprintf "Tool already registered: %s" n))

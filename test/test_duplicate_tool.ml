@@ -64,6 +64,7 @@ let suite = [
         permission = Allow;
         timeout = None;
         concurrency_limit = None;
+        on_update = None;
       } in
       let h : Tool_registry.handler_fn = fun input _token -> Success input in
       Alcotest.(check (result unit string)) "first" (Ok ())

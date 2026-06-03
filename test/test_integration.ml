@@ -40,7 +40,7 @@ let with_token f =
 
 let dummy_tool ?(name = "test_tool") handler =
   let descriptor = { name; description = "A test tool"; input_schema = `Assoc [];
-    permission = Allow; timeout = None; concurrency_limit = None } in
+    permission = Allow; timeout = None; concurrency_limit = None; on_update = None } in
   { descriptor; handler }
 
 let basic_agent ?(tools = []) ?(middleware = []) ?(max_iterations = 10) () =

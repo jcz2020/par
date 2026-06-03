@@ -167,8 +167,8 @@ type tool_descriptor = {
   permission : tool_permission;
   timeout : float option;
   concurrency_limit : int option;
+  on_update : (string -> unit) option;
 }
-[@@deriving yojson]
 
 type tool_binding = {
   descriptor : tool_descriptor;
@@ -327,6 +327,7 @@ type event =
   | Tool_invoked of { task_id : Task_id.t; tool_name : string }
   | Tool_completed of { task_id : Task_id.t; tool_name : string; duration_ms : float }
   | Tool_failed of { task_id : Task_id.t; tool_name : string; error : error_category }
+  | Tool_progress of { task_id : Task_id.t; tool_name : string; message : string }
   | Workflow_started of { workflow_run_id : Workflow_run_id.t }
   | Workflow_step_completed of { step_id : string }
   | Workflow_completed of { workflow_run_id : Workflow_run_id.t }

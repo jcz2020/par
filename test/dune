@@ -67,3 +67,8 @@
  (name test_health_metrics)
  (libraries par eio_main alcotest)
  (modules test_health_metrics))
+
+(test
+ (name test_on_update)
+ (libraries par eio_main alcotest)
+ (modules test_on_update))

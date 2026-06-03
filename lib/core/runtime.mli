@@ -37,10 +37,11 @@ val register_tool :
   name:string ->
   description:string ->
   input_schema:Yojson.Safe.t ->
-  handler:(Yojson.Safe.t -> cancellation_token -> handler_result) ->
+  handler:Tool_registry.handler_fn ->
   ?permission:tool_permission ->
   ?timeout:float ->
   ?concurrency_limit:int ->
+  ?on_update:(string -> unit) option ->
   unit ->
   (tool_binding, error_category) result
 

@@ -144,7 +144,7 @@ let parse_tool_descriptor (json : Yojson.Safe.t) : Par.Types.tool_descriptor =
   let permission = Par.Types.Allow in
   let timeout = json |> member "timeout" |> to_float_option in
   let concurrency_limit = json |> member "concurrency_limit" |> to_int_option in
-  { name; description; input_schema; permission; timeout; concurrency_limit }
+  { name; description; input_schema; permission; timeout; concurrency_limit; on_update = None }
 
 let parse_resource_quota (json : Yojson.Safe.t) : Par.Types.resource_quota =
   let open Yojson.Safe.Util in
