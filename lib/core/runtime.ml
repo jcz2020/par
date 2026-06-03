@@ -393,13 +393,9 @@ let noop_persistence : Types.persistence_service = {
 module Noop_event_bus : EVENT_BUS_SERVICE = struct
   type t = unit
   type subscription = unit
-  let publish () _event =
-    prerr_endline "[WARN] Noop_event_bus.publish called — no event_bus configured"
-  let subscribe () _handler =
-    prerr_endline "[WARN] Noop_event_bus.subscribe called — no event_bus configured";
-    ()
-  let unsubscribe () _subscription =
-    prerr_endline "[WARN] Noop_event_bus.unsubscribe called — no event_bus configured"
+  let publish () _event = ()
+  let subscribe () _handler = ()
+  let unsubscribe () _subscription = ()
 end
 
 let create ?(persistence = noop_persistence)
