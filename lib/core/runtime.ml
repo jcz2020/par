@@ -24,6 +24,8 @@ type runtime = {
   workflows : (Workflow_run_id.t, workflow_status) protected_hashtbl;
   workflow_defs : (string, workflow) protected_hashtbl;
   tool_registry : Tool_registry.t;
+  steering_queue : Steering_queue.t;
+  followup_queue : Steering_queue.t;
 } [@@warning "-69"]
 
 let default_event_bus_config = {
@@ -100,7 +102,9 @@ let invoke rt ~agent_id ~message ?cancellation_token () =
       | Some t -> t
       | None -> Cancellation.create_token rt.cancellation_root
     in
-    Engine.run_agent token config message rt.services.llm rt.tool_registry
+    Engine.run_agent ~steering:(Some rt.steering_queue)
+      ~followup:(Some rt.followup_queue)
+      token config message rt.services.llm rt.tool_registry
 
 let submit_task rt ?(priority = 5) ?(timeout = 300.0) input =
   let id = Task_id.create () in
@@ -364,10 +368,25 @@ let create ?(persistence = noop_persistence)
       workflows = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
       workflow_defs = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
       tool_registry = Tool_registry.create ();
+      steering_queue = Steering_queue.create ();
+      followup_queue = Steering_queue.create ();
     } in
     Ok rt
 
+let steer rt message =
+  Steering_queue.enqueue rt.steering_queue message
+
+let follow_up rt message =
+  Steering_queue.enqueue rt.followup_queue message
+
+let drain_steering rt = Steering_queue.drain_all rt.steering_queue
+let drain_followup rt = Steering_queue.drain_all rt.followup_queue
+let has_pending_steering rt = Steering_queue.has_items rt.steering_queue
+let has_pending_followup rt = Steering_queue.has_items rt.followup_queue
+
 let close rt =
+  Steering_queue.close rt.steering_queue;
+  Steering_queue.close rt.followup_queue;
   Eio.Mutex.use_rw ~protect:false rt.shutdown_mutex (fun () ->
     rt.shutdown_requested := true
   );

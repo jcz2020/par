@@ -92,3 +92,15 @@ val resume_workflow :
   runtime -> Workflow_run_id.t -> (workflow_result option, error_category) result
 
 val tool_registry : runtime -> Tool_registry.t
+
+val steer : runtime -> string -> unit
+
+val follow_up : runtime -> string -> unit
+
+val drain_steering : runtime -> string list
+
+val drain_followup : runtime -> string list
+
+val has_pending_steering : runtime -> bool
+
+val has_pending_followup : runtime -> bool

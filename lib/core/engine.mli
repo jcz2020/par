@@ -41,6 +41,8 @@ val execute_tool :
 
 val run_agent :
   ?runtime_id:string ->
+  ?steering:Steering_queue.t option ->
+  ?followup:Steering_queue.t option ->
   cancellation_token ->
   agent_config ->
   string ->

@@ -57,3 +57,8 @@
  (name test_make_agent)
  (libraries par eio_main alcotest)
  (modules test_make_agent))
+
+(test
+ (name test_steering_queue)
+ (libraries par eio_main alcotest)
+ (modules test_steering_queue))

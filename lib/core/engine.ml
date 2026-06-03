@@ -115,11 +115,23 @@ let add_tool_result_message conv (call : tool_call) result =
   } in
   { conv with messages = conv.messages @ [ msg ] }
 
-let run_agent ?(runtime_id = "unknown") token agent user_message llm registry =
+let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
+    token agent user_message llm registry =
   let sys_prompt = match Template.effective_system_prompt agent ~runtime_id with
     | Ok s -> s
     | Error (Internal _) -> agent.system_prompt
     | Error _ -> agent.system_prompt
+  in
+  let drain_into_conv conv queue =
+    match queue with
+    | None -> conv
+    | Some q ->
+      let msgs = Steering_queue.drain_all q in
+      List.fold_left (fun c msg ->
+        let usr = { role = User; content = Some msg; tool_calls = None;
+                    tool_call_id = None; name = None } in
+        { c with messages = c.messages @ [usr] }
+      ) conv msgs
   in
   let rec loop conv iterations =
     if iterations >= agent.max_iterations then
@@ -173,13 +185,19 @@ let run_agent ?(runtime_id = "unknown") token agent user_message llm registry =
           let conv = List.fold_left (fun conv ((call:tool_call), result) ->
             add_tool_result_message conv call result
           ) conv results in
+          let conv = drain_into_conv conv steering in
           loop conv (iterations + 1)
         | _ ->
           match resp.finish_reason with
           | Max_tokens ->
             if iterations + 1 >= agent.max_iterations then Result.Error (Internal "Max iterations exceeded")
             else loop conv (iterations + 1)
-          | _ -> Ok resp
+          | _ ->
+            let conv = drain_into_conv conv followup in
+            if Steering_queue.has_items (Option.value followup ~default:(Steering_queue.create ())) then
+              loop conv (iterations + 1)
+            else
+              Ok resp
     end
   in
   let conv = make_conversation sys_prompt user_message in
