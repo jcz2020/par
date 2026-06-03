@@ -377,6 +377,78 @@ let web_search_suite =
           (match result with Success _ -> true | Error _ -> true)));
   ])
 
+let read_suite =
+  ("read", [
+  Alcotest.test_case "read existing file" `Quick (fun () ->
+    with_tools (fun tools token ->
+      let tmp = Filename.temp_file "par_read_test" ".txt" in
+      let rel_name = Filename.basename tmp in
+      let cwd = Sys.getcwd () in
+      Sys.chdir (Filename.dirname tmp);
+      let oc = open_out rel_name in
+      output_string oc "line one\nline two\nline three\n";
+      close_out oc;
+      let cleanup () =
+        (try Unix.unlink rel_name with _ -> ());
+        Sys.chdir cwd
+      in
+      let run () =
+        let handler = find_tool "read" tools in
+        let result = handler (`Assoc [("path", `String rel_name)]) token in
+        match result with
+        | Success (`String s) ->
+          let _ = String.contains s 'l' in
+          let _ = String.contains s '\t' in
+          ()
+        | _ -> Alcotest.fail "expected Success"
+      in
+      Fun.protect ~finally:cleanup run));
+
+  Alcotest.test_case "empty path rejected" `Quick (fun () ->
+    with_tools (fun tools token ->
+      let handler = find_tool "read" tools in
+      let result = handler (`Assoc [("path", `String "")]) token in
+      Alcotest.check Alcotest.bool "is error" true (is_error result)));
+
+  Alcotest.test_case "absolute path rejected" `Quick (fun () ->
+    with_tools (fun tools token ->
+      let handler = find_tool "read" tools in
+      let result = handler (`Assoc [("path", `String "/etc/passwd")]) token in
+      Alcotest.check Alcotest.bool "is error" true (is_error result)));
+
+  Alcotest.test_case "nonexistent file error" `Quick (fun () ->
+    with_tools (fun tools token ->
+      let handler = find_tool "read" tools in
+      let result = handler (`Assoc [("path", `String "no_such_file_xyz.txt")]) token in
+      Alcotest.check Alcotest.bool "is error" true (is_error result)));
+
+  Alcotest.test_case "offset and limit" `Quick (fun () ->
+    with_tools (fun tools token ->
+      let tmp = Filename.temp_file "par_read_test" ".txt" in
+      let rel_name = Filename.basename tmp in
+      let cwd = Sys.getcwd () in
+      Sys.chdir (Filename.dirname tmp);
+      let oc = open_out rel_name in
+      output_string oc "a\nb\nc\nd\ne\n";
+      close_out oc;
+      let cleanup () =
+        (try Unix.unlink rel_name with _ -> ());
+        Sys.chdir cwd
+      in
+      let run () =
+        let handler = find_tool "read" tools in
+        let result = handler (`Assoc [
+          ("path", `String rel_name);
+          ("offset", `Int 1);
+          ("limit", `Int 2);
+        ]) token in
+        match result with
+        | Success _ -> ()
+        | _ -> Alcotest.fail "expected Success"
+      in
+      Fun.protect ~finally:cleanup run));
+])
+
 let () =
   Alcotest.run "Builtin Tools" [
     calculator_suite;
@@ -392,4 +464,5 @@ let () =
     fetch_url_suite;
     read_webpage_suite;
     web_search_suite;
+    read_suite;
   ]

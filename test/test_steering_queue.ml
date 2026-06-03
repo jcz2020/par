@@ -1,4 +1,3 @@
-open Par
 open Par.Types
 
 let test_config : runtime_config = {
@@ -51,31 +50,31 @@ let suite = [
       ignore (Par.Runtime.close rt)));
 
   Alcotest.test_case "queue overflow drops oldest" `Quick (fun () ->
-    let q = Steering_queue.create ~capacity:3 () in
-    Steering_queue.enqueue q "a";
-    Steering_queue.enqueue q "b";
-    Steering_queue.enqueue q "c";
-    Steering_queue.enqueue q "d";
-    Steering_queue.enqueue q "e";
-    let msgs = Steering_queue.drain_all q in
+    let q = Par.Steering_queue.create ~capacity:3 () in
+    Par.Steering_queue.enqueue q "a";
+    Par.Steering_queue.enqueue q "b";
+    Par.Steering_queue.enqueue q "c";
+    Par.Steering_queue.enqueue q "d";
+    Par.Steering_queue.enqueue q "e";
+    let msgs = Par.Steering_queue.drain_all q in
     Alcotest.(check (list string)) "kept newest 3"
       ["c"; "d"; "e"] msgs;
-    Alcotest.(check int) "count" 3 (Steering_queue.count q));
+    Alcotest.(check int) "count after drain" 0 (Par.Steering_queue.count q));
 
   Alcotest.test_case "has_items on empty queue" `Quick (fun () ->
-    let q = Steering_queue.create () in
-    Alcotest.(check bool) "empty" false (Steering_queue.has_items q);
-    Steering_queue.enqueue q "x";
-    Alcotest.(check bool) "after enqueue" true (Steering_queue.has_items q);
-    ignore (Steering_queue.drain_all q);
-    Alcotest.(check bool) "after drain" false (Steering_queue.has_items q));
+    let q = Par.Steering_queue.create () in
+    Alcotest.(check bool) "empty" false (Par.Steering_queue.has_items q);
+    Par.Steering_queue.enqueue q "x";
+    Alcotest.(check bool) "after enqueue" true (Par.Steering_queue.has_items q);
+    ignore (Par.Steering_queue.drain_all q);
+    Alcotest.(check bool) "after drain" false (Par.Steering_queue.has_items q));
 
   Alcotest.test_case "close prevents enqueue" `Quick (fun () ->
-    let q = Steering_queue.create () in
-    Steering_queue.enqueue q "before";
-    Steering_queue.close q;
-    Steering_queue.enqueue q "after";
-    let msgs = Steering_queue.drain_all q in
+    let q = Par.Steering_queue.create () in
+    Par.Steering_queue.enqueue q "before";
+    Par.Steering_queue.close q;
+    Par.Steering_queue.enqueue q "after";
+    let msgs = Par.Steering_queue.drain_all q in
     Alcotest.(check (list string)) "only before close" ["before"] msgs);
 
   Alcotest.test_case "steering and followup are independent" `Quick (fun () ->

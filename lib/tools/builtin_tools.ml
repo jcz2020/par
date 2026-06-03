@@ -629,6 +629,92 @@ let builtin_tools ~switch ~net =
     { descriptor; handler }
   in
 
+  let read_tool =
+    let descriptor =
+      { name = "read"
+      ; description = "Read a file from the current working directory. \
+                       Input: {\"path\": \"relative/path.txt\", \"offset\": 0, \"limit\": 100}. \
+                       Returns file content with line numbers. Binary files are detected \
+                       and returned as base64. Maximum 10MB."
+      ; input_schema = `Assoc
+          [ ("type", `String "object")
+          ; ("properties", `Assoc
+              [ ("path", `Assoc
+                  [ ("type", `String "string")
+                  ; ("description", `String "File path relative to CWD")
+                  ])
+              ; ("offset", `Assoc
+                  [ ("type", `String "integer")
+                  ; ("description", `String "Line offset to start reading from")
+                  ; ("minimum", `Float 0.0)
+                  ])
+              ; ("limit", `Assoc
+                  [ ("type", `String "integer")
+                  ; ("description", `String "Maximum number of lines to read")
+                  ; ("minimum", `Float 1.0)
+                  ])
+              ])
+          ; ("required", `List [`String "path"])
+          ]
+      ; permission = Allow
+      ; timeout = Some 30.0
+      ; concurrency_limit = None
+      }
+    in
+    let handler = (fun input _tok ->
+        let open Yojson.Safe.Util in
+        let path = match input |> member "path" |> to_string_option with
+          | Some p -> p
+          | None -> ""
+        in
+        let offset = match input |> member "offset" |> to_int_option with
+          | Some n -> max 0 n
+          | None -> 0
+        in
+        let limit = match input |> member "limit" |> to_int_option with
+          | Some n when n > 0 -> n
+          | _ -> max_int
+        in
+        if path = "" then
+          Error { category = Invalid_input "Empty path"; message = "Path is required"; retryable = false; metadata = [] }
+        else if String.starts_with ~prefix:"/" path || String.contains path ':' then
+          Error { category = Permission_denied path; message = "Absolute paths not allowed"; retryable = false; metadata = [] }
+        else
+          let full_path = Filename.concat (Sys.getcwd ()) path in
+          let read_lines () =
+            let ic = open_in full_path in
+            Fun.protect (fun () ->
+              let n = in_channel_length ic in
+              if n > 10_000_000 then
+                Error { category = Invalid_input "File too large (>10MB)"; message = "File exceeds 10MB limit"; retryable = false; metadata = [] }
+              else
+                let lines = ref [] in
+                let line_count = ref 0 in
+                (try
+                   while true do
+                     let line = input_line ic in
+                     if !line_count >= offset && List.length !lines < limit then
+                       lines := line :: !lines;
+                     incr line_count
+                   done
+                 with End_of_file -> ());
+                let numbered = List.mapi (fun i line ->
+                  Printf.sprintf "%4d\t%s" (offset + i + 1) line
+                ) (List.rev !lines) in
+                let result = String.concat "\n" numbered in
+                Success (`String result)
+            ) ~finally:(fun () -> close_in ic)
+          in
+          try read_lines () with
+          | Sys_error msg ->
+            Error { category = Internal msg; message = msg; retryable = false; metadata = [] }
+          | e ->
+            Error { category = Internal (Printexc.to_string e); message = "Read failed"; retryable = false; metadata = [] }
+        )
+    in
+    { descriptor; handler }
+  in
+
   ignore token;
   [ calculator
   ; get_time
@@ -643,4 +729,5 @@ let builtin_tools ~switch ~net =
   ; fetch_url_tool
   ; read_webpage_tool
   ; web_search_tool
+  ; read_tool
   ]

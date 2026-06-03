@@ -38,7 +38,7 @@ let enqueue t msg =
 let drain_all t =
   if t.messages = [] then []
   else begin
-    let msgs = List.rev t.messages in
+    let msgs = t.messages in
     t.messages <- [];
     msgs
   end
