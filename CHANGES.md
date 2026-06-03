@@ -1,5 +1,18 @@
 # CHANGES
 
+## v0.3.0-post (2026-06-04)
+
+### CLI (par_cli)
+- **Breaking**: Agent now constructed via `Runtime.make_agent` smart constructor (validates id, prompt, iterations, tool uniqueness)
+- **Breaking**: Tool registration now uses `Runtime.register_tool` (surfaces `Duplicate_tool` errors instead of silently ignoring)
+- **Fix**: `--max-iterations` CLI flag now actually works (was parsed but ignored)
+- **New**: System prompt generated from built-in template with `{{role}}`, `{{task}}`, `{{available_tools}}`, `{{current_time}}` variables
+- **New**: Config fields: `max_iterations`, `max_tokens`, `top_p`, `parallel_tool_execution`, `template_variables`, `system_prompt_template_override`
+- **New**: CLI flags: `--max-tokens`, `--top-p`, `--no-parallel-tools`
+- **New**: REPL commands: `/help`, `/steer <msg>`, `/followup <msg>`, `/health`, `/metrics`, `/quit`
+- **New**: Config wizard asks for agent role, task, max iterations, parallel execution
+- Backward-compatible: old `~/.par/config.json` files load with v0.3.0 defaults
+
 ## v0.1.0 (2026-05-30)
 
 Initial release of PAR — Programmable Agent Runtime.

@@ -50,6 +50,9 @@ dune install --prefix /path/to/prefix
 | `--temperature FLOAT` | float | `0.7`（配置文件默认值） | 采样温度，覆盖配置文件 |
 | `--system-prompt PROMPT` | string | `You are a helpful assistant.`（配置文件默认值） | Agent 系统提示词，覆盖配置文件 |
 | `--max-iterations N` | int | `10` | ReAct 循环最大迭代次数 |
+| `--max-tokens N` | int | (配置文件值) | Max tokens per LLM response |
+| `--top-p FLOAT` | float | (配置文件值) | Top-p sampling parameter (0.0-1.0) |
+| `--no-parallel-tools` | flag | (配置文件值) | Disable parallel tool execution |
 
 所有全局选项均为可选（`opt` 类型）。未指定时从 `~/.par/config.json` 读取对应值。
 
@@ -80,6 +83,21 @@ par [全局选项]
 ```
 
 提示符为 `> `。每行输入作为消息发送给 agent（agent id: `default-agent`），agent 的文本响应直接打印。空行（trim 后为空字符串）会被忽略，不发送。
+
+### REPL 命令
+
+在 REPL 中，以 `/` 开头的输入会被解析为命令：
+
+| 命令 | 说明 |
+|------|------|
+| `/help` | 显示可用命令 |
+| `/steer <消息>` | 注入干预消息（在下一轮对话中生效） |
+| `/followup <消息>` | 注入后续指导（在下一轮对话中生效） |
+| `/health` | 显示运行时健康状态（JSON） |
+| `/metrics` | 显示运行时指标（JSON） |
+| `/quit` 或 `/exit` | 退出 REPL |
+
+普通文本输入会作为用户消息发送给 agent。
 
 **退出**
 
@@ -229,7 +247,28 @@ par ask "写一段快速排序" --temperature 0.2 --system-prompt "用 OCaml 回
   "temperature": 0.7,
 
   // Agent 系统提示词
-  "system_prompt": "You are a helpful assistant."
+  "system_prompt": "You are a helpful assistant.",
+
+  // ReAct 循环最大迭代次数
+  "max_iterations": 10,
+
+  // 单次 LLM 响应的 token 上限。null 表示不限制，使用模型默认值
+  "max_tokens": null,
+
+  // Top-p（nucleus）采样参数，范围 0.0 ~ 1.0。null 表示使用提供商默认
+  "top_p": null,
+
+  // 是否允许并行执行多个工具调用
+  "parallel_tool_execution": true,
+
+  // 系统提示词模板变量（role / task 等由 par config 设置）
+  "template_variables": {
+    "role": "AI助手",
+    "task": "回答用户问题并提供帮助"
+  },
+
+  // 自定义系统提示词模板。null 时使用内置默认模板
+  "system_prompt_template_override": null
 }
 ```
 
@@ -238,6 +277,23 @@ par ask "写一段快速排序" --temperature 0.2 --system-prompt "用 OCaml 回
 - `api_base` 和 `db_uri` 为可选字段，JSON 中可设为 `null` 或省略
 - `provider` 值不区分大小写（内部使用 `String.lowercase_ascii` 匹配）
 - CLI 标志的优先级高于配置文件；未指定 CLI 标志时回退到配置文件值
+
+## 系统提示词模板
+
+CLI 内置默认模板：
+
+```
+你是{{role}}，你的任务是{{task}}。
+当前可用工具：{{available_tools}}。
+当前时间：{{current_time}}。
+```
+
+模板变量：
+- `role`、`task` — 用户定义，通过 `par config` 设置
+- `available_tools` — 自动填充（当前注册的工具列表）
+- `current_time` — 自动填充（ISO 8601 格式）
+
+高级用户可在 `~/.par/config.json` 中设置 `system_prompt_template_override` 字段自定义完整模板。
 
 ## 环境变量
 

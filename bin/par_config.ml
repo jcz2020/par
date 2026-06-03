@@ -13,6 +13,13 @@ type config = {
   db_uri : string option;
   temperature : float;
   system_prompt : string;
+  (* v0.3.0 new fields *)
+  max_iterations : int;
+  max_tokens : int option;
+  top_p : float option;
+  parallel_tool_execution : bool;
+  template_variables : (string * string) list;  (* e.g. [("role","AI助手");("task","回答问题")] *)
+  system_prompt_template_override : string option;  (* power users: custom template string, overrides built-in *)
 }
 
 (* -------------------------------------------------------------------------- *)
@@ -28,6 +35,12 @@ let default = {
   db_uri = None;
   temperature = 0.7;
   system_prompt = "You are a helpful assistant.";
+  max_iterations = 10;
+  max_tokens = None;
+  top_p = None;
+  parallel_tool_execution = true;
+  template_variables = [("role", "AI助手"); ("task", "回答用户问题并提供帮助")];
+  system_prompt_template_override = None;
 }
 
 (* -------------------------------------------------------------------------- *)
@@ -61,6 +74,12 @@ let to_json (cfg : config) : Yojson.Safe.t =
     ("db_uri", (match cfg.db_uri with Some u -> `String u | None -> `Null));
     ("temperature", `Float cfg.temperature);
     ("system_prompt", `String cfg.system_prompt);
+    ("max_iterations", `Int cfg.max_iterations);
+    ("max_tokens", (match cfg.max_tokens with Some n -> `Int n | None -> `Null));
+    ("top_p", (match cfg.top_p with Some f -> `Float f | None -> `Null));
+    ("parallel_tool_execution", `Bool cfg.parallel_tool_execution);
+    ("template_variables", `Assoc (List.map (fun (k, v) -> (k, `String v)) cfg.template_variables));
+    ("system_prompt_template_override", (match cfg.system_prompt_template_override with Some s -> `String s | None -> `Null));
   ]
 
 let of_json (json : Yojson.Safe.t) : (config, string) result =
@@ -82,6 +101,33 @@ let of_json (json : Yojson.Safe.t) : (config, string) result =
       | Some f -> f
       | None -> default
     in
+    let get_int field default =
+      match Yojson.Safe.Util.(json |> member field |> to_int_option) with
+      | Some n -> n
+      | None -> default
+    in
+    let get_opt_int field =
+      match Yojson.Safe.Util.(json |> member field) with
+      | `Int n -> Some n
+      | _ -> None
+    in
+    let get_opt_float field =
+      match Yojson.Safe.Util.(json |> member field) with
+      | `Float f -> Some f
+      | _ -> None
+    in
+    let get_bool field default =
+      match Yojson.Safe.Util.(json |> member field |> to_bool_option) with
+      | Some b -> b
+      | None -> default
+    in
+    let get_string_pair_list field =
+      match Yojson.Safe.Util.(json |> member field) with
+      | `Assoc pairs ->
+        List.filter_map (fun (k, v) ->
+          match v with `String s -> Some (k, s) | _ -> None) pairs
+      | _ -> default.template_variables
+    in
     Ok {
       provider = get_string "provider";
       api_key = get_string "api_key";
@@ -91,6 +137,12 @@ let of_json (json : Yojson.Safe.t) : (config, string) result =
       db_uri = get_opt_string "db_uri";
       temperature = get_float "temperature" default.temperature;
       system_prompt = get_string "system_prompt";
+      max_iterations = get_int "max_iterations" default.max_iterations;
+      max_tokens = get_opt_int "max_tokens";
+      top_p = get_opt_float "top_p";
+      parallel_tool_execution = get_bool "parallel_tool_execution" default.parallel_tool_execution;
+      template_variables = get_string_pair_list "template_variables";
+      system_prompt_template_override = get_opt_string "system_prompt_template_override";
     }
   with exn ->
     Error (Printexc.to_string exn)
@@ -137,8 +189,8 @@ let to_model_config (cfg : config) : Types.model_config =
     model_name = cfg.model;
     api_base = cfg.api_base;
     temperature = cfg.temperature;
-    max_tokens = None;
-    top_p = None;
+    max_tokens = cfg.max_tokens;
+    top_p = cfg.top_p;
     stop_sequences = None;
   }
 
@@ -187,15 +239,21 @@ let prompt_opt_line label =
 let run_wizard () =
   let existing = load () in
   (match existing with
-   | Some cfg ->
-     Printf.printf "当前配置:\n";
-     Printf.printf "  Provider:    %s\n" cfg.provider;
-     Printf.printf "  Model:       %s\n" cfg.model;
-     Printf.printf "  API Base:    %s\n" (match cfg.api_base with Some u -> u | None -> "(默认)");
-     Printf.printf "  Persistence: %s\n" cfg.persistence;
-     Printf.printf "  DB URI:      %s\n" (match cfg.db_uri with Some u -> u | None -> "(无)");
-     Printf.printf "  Temperature: %.1f\n" cfg.temperature;
-     Printf.printf "\n输入新值或按回车保留当前值。\n\n"
+    | Some cfg ->
+      Printf.printf "当前配置:\n";
+      Printf.printf "  Provider:    %s\n" cfg.provider;
+      Printf.printf "  Model:       %s\n" cfg.model;
+      Printf.printf "  API Base:    %s\n" (match cfg.api_base with Some u -> u | None -> "(默认)");
+      Printf.printf "  Persistence: %s\n" cfg.persistence;
+      Printf.printf "  DB URI:      %s\n" (match cfg.db_uri with Some u -> u | None -> "(无)");
+      Printf.printf "  Temperature: %.1f\n" cfg.temperature;
+      Printf.printf "  Max Iterations: %d\n" cfg.max_iterations;
+      Printf.printf "  Parallel Tools: %s\n" (if cfg.parallel_tool_execution then "开" else "关");
+      (match List.assoc_opt "role" cfg.template_variables with
+       | Some r -> Printf.printf "  Role: %s\n" r | None -> ());
+      (match List.assoc_opt "task" cfg.template_variables with
+       | Some t -> Printf.printf "  Task: %s\n" t | None -> ());
+      Printf.printf "\n输入新值或按回车保留当前值。\n\n"
    | None ->
      Printf.printf "欢迎使用 PAR！首次运行配置向导。\n\n");
 
@@ -260,6 +318,38 @@ let run_wizard () =
   in
   let system_prompt = prompt_line "System prompt" prompt_default in
 
+  let role_default = match existing with
+    | Some c -> (match List.assoc_opt "role" c.template_variables with Some r -> Some r | None -> Some "AI助手")
+    | None -> Some "AI助手"
+  in
+  let role = prompt_line "Agent 角色" role_default in
+
+  let task_default = match existing with
+    | Some c -> (match List.assoc_opt "task" c.template_variables with Some t -> Some t | None -> Some "回答用户问题并提供帮助")
+    | None -> Some "回答用户问题并提供帮助"
+  in
+  let task = prompt_line "Agent 任务" task_default in
+
+  let max_iter_default = match existing with
+    | Some c -> Some (string_of_int c.max_iterations)
+    | None -> Some "10"
+  in
+  let max_iter_str = prompt_line "最大循环次数" max_iter_default in
+  let max_iterations = match int_of_string_opt max_iter_str with
+    | Some n when n > 0 -> n
+    | _ -> 10
+  in
+
+  let parallel_default = match existing with
+    | Some c -> Some (if c.parallel_tool_execution then "y" else "n")
+    | None -> Some "y"
+  in
+  let parallel_input = prompt_line "并行工具执行 (y/n)" parallel_default in
+  let parallel_tool_execution = match String.lowercase_ascii (String.trim parallel_input) with
+    | "n" | "no" -> false
+    | _ -> true
+  in
+
   let cfg = {
     provider;
     api_key;
@@ -269,6 +359,12 @@ let run_wizard () =
     db_uri;
     temperature;
     system_prompt;
+    max_iterations;
+    max_tokens = None;
+    top_p = None;
+    parallel_tool_execution;
+    template_variables = [("role", role); ("task", task)];
+    system_prompt_template_override = None;
   } in
   save cfg;
   Printf.printf "\n✓ 配置已保存到 %s\n" (config_path ())

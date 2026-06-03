@@ -49,6 +49,21 @@ let temperature_arg =
   Arg.(value & opt (some float) None &
     info [ "temperature" ] ~docv:"FLOAT" ~doc:"Temperature (overrides config)")
 
+let max_tokens_arg =
+  let open Cmdliner in
+  Arg.(value & opt (some int) None &
+    info [ "max-tokens" ] ~docv:"N" ~doc:"Max tokens per LLM response")
+
+let top_p_arg =
+  let open Cmdliner in
+  Arg.(value & opt (some float) None &
+    info [ "top-p" ] ~docv:"FLOAT" ~doc:"Top-p sampling parameter (0.0-1.0)")
+
+let no_parallel_tools =
+  let open Cmdliner in
+  Arg.(value & flag &
+    info [ "no-parallel-tools" ] ~doc:"Disable parallel tool execution")
+
 let question_arg =
   let open Cmdliner in
   Arg.(required & pos 0 (some string) None &
@@ -129,7 +144,30 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
          stream_fn = (fun mc tools conv sc cb -> Anthropic_provider.stream t mc tools conv sc cb);
          close_fn = (fun () -> Anthropic_provider.close t) })
 
-let make_runtime_config persistence_val =
+let default_template =
+  "你是{{role}}，你的任务是{{task}}。\n当前可用工具：{{available_tools}}。\n当前时间：{{current_time}}。"
+
+let render_system_prompt (cfg : Par_config.config) ~agent_id ~runtime_id ~tool_names =
+  let template_str = match cfg.Par_config.system_prompt_template_override with
+    | Some s -> s
+    | None -> default_template
+  in
+  let user_vars = List.map (fun (k, v) -> (k, `String v)) cfg.Par_config.template_variables in
+  let context : Template.render_context = {
+    agent_id;
+    runtime_id;
+    user_variables = user_vars;
+    available_tools = tool_names;
+  } in
+  match Template.render
+    ~template:template_str
+    ~variables:user_vars
+    ~required:[]
+    ~context with
+  | Ok prompt -> prompt
+  | Error _ -> cfg.Par_config.system_prompt
+
+let make_runtime_config persistence_val parallel_tool_exec =
   { Types.
     persistence = persistence_val;
     event_bus = Runtime.default_event_bus_config;
@@ -137,23 +175,11 @@ let make_runtime_config persistence_val =
     shutdown = Runtime.default_shutdown_config;
     llm_providers = [];
     eval_limits = { max_depth = 10; max_node_visits = 1000 };
-    parallel_tool_execution = true; }
+    parallel_tool_execution = parallel_tool_exec; }
 
 (* -------------------------------------------------------------------------- *)
 (* Built-in tools                                                              *)
 (* -------------------------------------------------------------------------- *)
-
-let make_agent_config id prompt provider_tag model temp max_iter tools =
-  { Types.
-    id; system_prompt = prompt;
-    system_prompt_template = None;
-    model = {
-      provider = (match provider_tag with `Openai -> `Openai | `Anthropic -> `Anthropic);
-      model_name = model; api_base = None; temperature = temp;
-      max_tokens = None; top_p = None; stop_sequences = None;
-    };
-    tools; max_iterations = max_iter; middleware = [];
-    retry_policy = None; context_strategy = None; resource_quota = None }
 
 let print_error (e : Types.error_category) =
   Printf.eprintf "Error: %s\n" (error_category_to_string e)
@@ -168,7 +194,8 @@ let print_json json =
 let merge_config
     (cfg : Par_config.config)
     provider_opt api_key_opt api_base_opt model_opt
-    persistence_opt db_uri_opt temp_opt prompt_opt =
+    persistence_opt db_uri_opt temp_opt prompt_opt max_iter
+    max_tokens_opt top_p_opt no_parallel_tools =
   { Par_config.
     provider = (match provider_opt with Some p -> p | None -> cfg.provider);
     api_key = (match api_key_opt with Some k -> k | None -> cfg.api_key);
@@ -178,6 +205,12 @@ let merge_config
     db_uri = (match db_uri_opt with Some u -> Some u | None -> cfg.db_uri);
     temperature = (match temp_opt with Some t -> t | None -> cfg.temperature);
     system_prompt = (match prompt_opt with Some p -> p | None -> cfg.system_prompt);
+    max_iterations = (if max_iter <> cfg.max_iterations then max_iter else cfg.max_iterations);
+    max_tokens = (match max_tokens_opt with Some n -> Some n | None -> cfg.max_tokens);
+    top_p = (match top_p_opt with Some f -> Some f | None -> cfg.top_p);
+    parallel_tool_execution = if no_parallel_tools then false else cfg.parallel_tool_execution;
+    template_variables = cfg.template_variables;
+    system_prompt_template_override = cfg.system_prompt_template_override;
   }
 
 let require_config () =
@@ -196,7 +229,7 @@ let setup_runtime cfg ~f =
                (Par_config.resolve_persistence cfg) cfg.Par_config.db_uri in
   let persistence_config = Par_config.to_persistence_config cfg in
   let provider_tag = Par_config.to_provider_tag cfg in
-  let config = make_runtime_config persistence_config in
+  let config = make_runtime_config persistence_config cfg.Par_config.parallel_tool_execution in
   Eio_main.run @@ fun env ->
   Eio.Switch.run @@ fun switch ->
   let net = Eio.Stdenv.net env in
@@ -207,26 +240,82 @@ let setup_runtime cfg ~f =
     exit 1
   | Ok rt ->
     let tools = Builtin_tools.builtin_tools ~switch ~net in
-    List.iter (fun (tb : Types.tool_binding) ->
-      ignore (Tool_registry.register (Runtime.tool_registry rt) tb.descriptor tb.handler : (unit, [ `Duplicate_tool of string ]) result)
-    ) tools;
+    let tool_names = List.map (fun (tb : Types.tool_binding) -> tb.descriptor.Types.name) tools in
     let descriptors = List.map (fun (tb : Types.tool_binding) -> tb.descriptor) tools in
-    let agent = make_agent_config "default-agent" cfg.Par_config.system_prompt
-                   provider_tag cfg.Par_config.model cfg.Par_config.temperature 10 descriptors in
-    (match Runtime.register_agent rt agent with
+    List.iter (fun (tb : Types.tool_binding) ->
+      (match Runtime.register_tool rt
+         ~name:tb.descriptor.Types.name
+         ~description:tb.descriptor.Types.description
+         ~input_schema:tb.descriptor.Types.input_schema
+         ~handler:tb.handler
+         ?permission:(match tb.descriptor.Types.permission with Types.Allow -> None | p -> Some p)
+         ?timeout:tb.descriptor.Types.timeout
+         ?concurrency_limit:tb.descriptor.Types.concurrency_limit
+         () with
+       | Ok _ -> ()
+       | Error e ->
+         Printf.eprintf "Failed to register tool %s: %s\n"
+           tb.descriptor.Types.name (error_category_to_string e);
+         exit 1)
+    ) tools;
+    let system_prompt = render_system_prompt cfg
+        ~agent_id:"default-agent"
+        ~runtime_id:"cli-runtime"
+        ~tool_names in
+    let model_cfg = Par_config.to_model_config cfg in
+    let agent_result = Runtime.make_agent
+      ~id:"default-agent"
+      ~system_prompt
+      ~model:model_cfg
+      ~tools:descriptors
+      ~max_iterations:cfg.Par_config.max_iterations () in
+    (match agent_result with
      | Error e ->
-       Printf.eprintf "Error registering agent: %s\n" (error_category_to_string e);
+       Printf.eprintf "Agent validation failed: %s\n" (error_category_to_string e);
        exit 1
-     | Ok () ->
-       f rt;
-       ignore (Runtime.close rt))
+     | Ok agent ->
+       (match Runtime.register_agent rt agent with
+        | Error e ->
+          Printf.eprintf "Error registering agent: %s\n" (error_category_to_string e);
+          exit 1
+        | Ok () ->
+          f rt;
+          ignore (Runtime.close rt)))
+
+(* -------------------------------------------------------------------------- *)
+(* Health / metrics formatters                                                *)
+(* -------------------------------------------------------------------------- *)
+
+let format_health (h : Types.health_status) =
+  `Assoc [
+    ("runtime_alive", `Bool h.Types.runtime_alive);
+    ("last_llm_call_at", (match h.Types.last_llm_call_at with
+                          | Some t -> `Float t | None -> `Null));
+    ("last_llm_call_status", (match h.Types.last_llm_call_status with
+      | `Success -> `String "success"
+      | `Error e -> `String (Printf.sprintf "error: %s" (error_category_to_string e))
+      | `Never_called -> `String "never_called"));
+    ("persistence_ok", `Bool h.Types.persistence_ok);
+  ]
+
+let format_metrics (snap : (string * int) list) =
+  `Assoc (List.map (fun (k, v) -> (k, `Int v)) snap)
+
+let print_help () =
+  Printf.printf "可用命令:\n";
+  Printf.printf "  /help       显示此帮助\n";
+  Printf.printf "  /steer MSG  注入干预消息\n";
+  Printf.printf "  /follow MSG 注入后续指导\n";
+  Printf.printf "  /health     显示运行时健康状态\n";
+  Printf.printf "  /metrics    显示运行时指标\n";
+  Printf.printf "  /quit       退出\n"
 
 (* -------------------------------------------------------------------------- *)
 (* REPL loop                                                                  *)
 (* -------------------------------------------------------------------------- *)
 
 let repl rt agent_id_val =
-  Printf.printf "输入消息开始对话（Ctrl+D 退出）\n";
+  Printf.printf "输入消息开始对话（输入 /help 查看命令，Ctrl+D 退出）\n";
   let rec loop () =
     Printf.printf "> ";
     flush stdout;
@@ -234,14 +323,33 @@ let repl rt agent_id_val =
        match input_line stdin with
        | line when String.trim line = "" -> loop ()
        | line ->
-         (match Runtime.invoke rt ~agent_id:agent_id_val ~message:line () with
-          | Error e -> print_error e
-          | Ok resp ->
-            (match resp.Types.text with
-             | Some txt -> Printf.printf "%s\n" txt
-             | None -> print_json (Types.llm_response_to_yojson resp));
-            flush stdout);
-         loop ()
+         let trimmed = String.trim line in
+         if String.length trimmed > 0 && trimmed.[0] = '/' then begin
+           let parts = String.split_on_char ' ' trimmed in
+           let cmd = match parts with c :: _ -> c | [] -> "" in
+           let rest = match parts with _ :: r -> String.trim (String.concat " " r) | [] -> "" in
+           (match cmd with
+            | "/help" -> print_help ()
+            | "/quit" | "/exit" -> Printf.printf "再见！\n"; exit 0
+            | "/steer" -> Runtime.steer rt rest;
+              Printf.printf "[steer] 已注入\n"
+            | "/followup" -> Runtime.follow_up rt rest;
+              Printf.printf "[followup] 已注入\n"
+            | "/health" -> print_json (format_health (Runtime.health rt))
+            | "/metrics" -> print_json (format_metrics (Runtime.metrics_snapshot rt))
+            | _ -> Printf.eprintf "未知命令: %s。输入 /help 查看命令列表。\n" cmd);
+           flush stdout;
+           loop ()
+         end else begin
+           (match Runtime.invoke rt ~agent_id:agent_id_val ~message:line () with
+            | Error e -> print_error e
+            | Ok resp ->
+              (match resp.Types.text with
+               | Some txt -> Printf.printf "%s\n" txt
+               | None -> print_json (Types.llm_response_to_yojson resp));
+              flush stdout);
+           loop ()
+         end
      with End_of_file -> Printf.printf "\n再见！\n")
   in
   loop ()
@@ -252,10 +360,12 @@ let repl rt agent_id_val =
 
 let cmd_chat
     provider_opt api_key_opt api_base_opt model_opt
-    persistence_opt db_uri_opt temp_opt prompt_opt _max_iter =
+    persistence_opt db_uri_opt temp_opt prompt_opt max_iter
+    max_tokens_opt top_p_opt no_parallel_tools =
   let cfg = require_config () in
   let cfg = merge_config cfg provider_opt api_key_opt api_base_opt model_opt
-              persistence_opt db_uri_opt temp_opt prompt_opt in
+              persistence_opt db_uri_opt temp_opt prompt_opt max_iter
+              max_tokens_opt top_p_opt no_parallel_tools in
   setup_runtime cfg ~f:(fun rt -> repl rt "default-agent")
 
 let term_chat =
@@ -263,6 +373,7 @@ let term_chat =
   const cmd_chat
   $ provider_arg $ api_key_arg $ api_base $ model_name
   $ persistence_arg $ db_uri $ temperature_arg $ system_prompt $ max_iterations
+  $ max_tokens_arg $ top_p_arg $ no_parallel_tools
 
 (* -------------------------------------------------------------------------- *)
 (* 'par config' command — interactive wizard                                  *)
@@ -285,10 +396,12 @@ let info_config = Cmdliner.Cmd.info "config"
 let cmd_ask
     question
     provider_opt api_key_opt api_base_opt model_opt
-    persistence_opt db_uri_opt temp_opt prompt_opt _max_iter =
+    persistence_opt db_uri_opt temp_opt prompt_opt max_iter
+    max_tokens_opt top_p_opt no_parallel_tools =
   let cfg = require_config () in
   let cfg = merge_config cfg provider_opt api_key_opt api_base_opt model_opt
-              persistence_opt db_uri_opt temp_opt prompt_opt in
+              persistence_opt db_uri_opt temp_opt prompt_opt max_iter
+              max_tokens_opt top_p_opt no_parallel_tools in
   setup_runtime cfg ~f:(fun rt ->
     match Runtime.invoke rt ~agent_id:"default-agent" ~message:question () with
     | Error e ->
@@ -306,6 +419,7 @@ let term_ask =
   $ question_arg
   $ provider_arg $ api_key_arg $ api_base $ model_name
   $ persistence_arg $ db_uri $ temperature_arg $ system_prompt $ max_iterations
+  $ max_tokens_arg $ top_p_arg $ no_parallel_tools
 
 let info_ask = Cmdliner.Cmd.info "ask"
   ~doc:"Ask a single question and print the answer"
@@ -318,16 +432,12 @@ let cmd =
   let open Cmdliner.Cmd in
   group ~default:term_chat
     (info "par" ~version:"0.1.0"
-       ~doc:"P-A-R: Programmable Agent Runtime"
-       ~man:[
-         `S "DESCRIPTION";
-         `P "P-A-R is a Programmable Agent Runtime for building AI agent systems.";
-         `P "Run 'par' to start a REPL, 'par config' to configure, or 'par ask \"question\"' for one-shot.";
-       ])
+       ~doc:"P-A-R: Programmable Agent Runtime — run 'par' to start REPL, 'par config' to configure, 'par ask \"question\"' for one-shot")
     [
       v info_config term_config;
       v info_ask term_ask;
     ]
 
 let () =
+  Unix.putenv "TERM" "dumb";
   exit (Cmdliner.Cmd.eval cmd)
