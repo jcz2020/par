@@ -1005,6 +1005,192 @@ let builtin_tools ~switch ~net =
     { descriptor; handler }
   in
 
+  let write_tool =
+    let descriptor =
+      { name = "write"
+      ; description = "Write content to a file. Input: {\"path\": \"relative/file.txt\", \"content\": \"...\", \"create_dirs\": true}."
+      ; input_schema = `Assoc
+          [ ("type", `String "object")
+          ; ("properties", `Assoc
+              [ ("path", `Assoc
+                  [ ("type", `String "string")
+                  ; ("description", `String "File path relative to CWD")
+                  ])
+              ; ("content", `Assoc
+                  [ ("type", `String "string")
+                  ; ("description", `String "File content")
+                  ])
+              ; ("create_dirs", `Assoc
+                  [ ("type", `String "boolean")
+                  ; ("description", `String "Create parent dirs if missing")
+                  ])
+              ])
+          ; ("required", `List [`String "path"; `String "content"])
+          ]
+      ; permission = Allow
+      ; timeout = Some 30.0
+      ; concurrency_limit = None
+      ; on_update = None
+      }
+    in
+    let handler = (fun input _tok ->
+        let open Yojson.Safe.Util in
+        let path = match input |> member "path" |> to_string_option with
+          | Some p -> p
+          | None -> ""
+        in
+        let content = match input |> member "content" |> to_string_option with
+          | Some c -> c
+          | None -> ""
+        in
+        let create_dirs = match input |> member "create_dirs" |> to_bool_option with
+          | Some b -> b
+          | None -> false
+        in
+        if path = "" then
+          Error { category = Invalid_input "Empty path"; message = "Path is required"; retryable = false; metadata = [] }
+        else if String.starts_with ~prefix:"/" path || String.contains path ':' then
+          Error { category = Permission_denied path; message = "Absolute paths not allowed"; retryable = false; metadata = [] }
+        else
+          let full_path = Filename.concat (Sys.getcwd ()) path in
+          try
+            if create_dirs then begin
+              let dir = Filename.dirname full_path in
+              if dir <> "" && dir <> "." && dir <> Filename.current_dir_name then
+                let rec mkdir_p d =
+                  if d = "" || d = "/" || d = "." then ()
+                  else if Sys.file_exists d then ()
+                  else begin
+                    mkdir_p (Filename.dirname d);
+                    (try Unix.mkdir d 0o755 with _ -> ())
+                  end
+                in
+                mkdir_p dir
+            end;
+            let oc = open_out full_path in
+            output_string oc content;
+            close_out oc;
+            Success (`String (Printf.sprintf "Wrote %d bytes to %s" (String.length content) path))
+          with
+          | Sys_error msg ->
+            Error { category = Internal msg; message = msg; retryable = false; metadata = [] }
+          | e ->
+            Error { category = Internal (Printexc.to_string e); message = "Write failed"; retryable = false; metadata = [] }
+        )
+    in
+    { descriptor; handler }
+  in
+
+  let edit_tool =
+    let descriptor =
+      { name = "edit"
+      ; description = "Apply batch edits to a file. Input: {\"path\": \"file.txt\", \"edits\": [{\"old\": \"foo\", \"new\": \"bar\"}]}. \
+                       Each edit is an exact string match. Overlapping edits are rejected."
+      ; input_schema = `Assoc
+          [ ("type", `String "object")
+          ; ("properties", `Assoc
+              [ ("path", `Assoc
+                  [ ("type", `String "string")
+                  ; ("description", `String "File path relative to CWD")
+                  ])
+              ; ("edits", `Assoc
+                  [ ("type", `String "array")
+                  ; ("items", `Assoc
+                      [ ("type", `String "object")
+                      ; ("properties", `Assoc
+                          [ ("old", `Assoc [("type", `String "string")])
+                          ; ("new", `Assoc [("type", `String "string")])
+                          ])
+                      ; ("required", `List [`String "old"; `String "new"])
+                      ])
+                  ])
+              ])
+          ; ("required", `List [`String "path"; `String "edits"])
+          ]
+      ; permission = Allow
+      ; timeout = Some 30.0
+      ; concurrency_limit = None
+      ; on_update = None
+      }
+    in
+    let handler = (fun input _tok ->
+        let open Yojson.Safe.Util in
+        let path = match input |> member "path" |> to_string_option with
+          | Some p -> p
+          | None -> ""
+        in
+        let edits_json = match input |> member "edits" with
+          | `List l -> l
+          | _ -> []
+        in
+        if path = "" then
+          Error { category = Invalid_input "Empty path"; message = "Path is required"; retryable = false; metadata = [] }
+        else if String.starts_with ~prefix:"/" path || String.contains path ':' then
+          Error { category = Permission_denied path; message = "Absolute paths not allowed"; retryable = false; metadata = [] }
+        else
+          let full_path = Filename.concat (Sys.getcwd ()) path in
+          let edits = List.filter_map (fun e ->
+            let old = e |> member "old" |> to_string_option in
+            let new_ = e |> member "new" |> to_string_option in
+            match old, new_ with
+            | Some o, Some n -> Some (o, n)
+            | _ -> None
+          ) edits_json in
+          try
+            let ic = open_in full_path in
+            let content = Fun.protect (fun () ->
+              let len = in_channel_length ic in
+              let buf = Buffer.create len in
+              (try while true do Buffer.add_channel buf ic 4096 done with End_of_file -> ());
+              Buffer.contents buf
+            ) ~finally:(fun () -> close_in ic) in
+            let has_overlap edits =
+              let positions_in_content s =
+                let len = String.length s in
+                let content_len = String.length content in
+                let rec aux pos =
+                  if pos > content_len - len then []
+                  else if String.sub content pos len = s then pos :: aux (pos + 1)
+                  else aux (pos + 1)
+                in
+                aux 0
+              in
+                let check = function
+                | [] | [_] -> false
+                | (a, _) :: rest ->
+                  let a_positions = positions_in_content a in
+                  List.exists (fun pos ->
+                    let a_end = pos + String.length a in
+                    List.exists (fun (b, _) ->
+                      let b_positions = positions_in_content b in
+                      List.exists (fun bpos -> bpos >= pos && bpos < a_end) b_positions
+                    ) rest
+                  ) a_positions
+              in
+              check edits
+            in
+            if has_overlap edits then
+              Error { category = Invalid_input "Overlapping edits"; message = "Edit ranges overlap, rejected"; retryable = false; metadata = [] }
+            else begin
+              let new_content = List.fold_left (fun acc (old, new_) ->
+                let replaced = Str.replace_first (Str.regexp_string old) new_ acc in
+                replaced
+              ) content edits in
+              let oc = open_out full_path in
+              output_string oc new_content;
+              close_out oc;
+              Success (`String (Printf.sprintf "Applied %d edit(s) to %s" (List.length edits) path))
+            end
+          with
+          | Sys_error msg ->
+            Error { category = Internal msg; message = msg; retryable = false; metadata = [] }
+          | e ->
+            Error { category = Internal (Printexc.to_string e); message = "Edit failed"; retryable = false; metadata = [] }
+        )
+    in
+    { descriptor; handler }
+  in
+
   ignore token;
   [ calculator
   ; get_time
@@ -1023,4 +1209,6 @@ let builtin_tools ~switch ~net =
   ; ls_tool
   ; find_tool
   ; grep_tool
+  ; write_tool
+  ; edit_tool
   ]

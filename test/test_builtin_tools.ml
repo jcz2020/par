@@ -541,6 +541,79 @@ let grep_suite =
         | _ -> Alcotest.fail "expected Success with empty list"));
   ])
 
+let write_suite =
+  ("write", [
+    Alcotest.test_case "write new file" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let rel_name = "par_test_write.txt" in
+        let cwd = Sys.getcwd () in
+        let cleanup () = (try Unix.unlink rel_name with _ -> ()); Sys.chdir cwd in
+        let run () =
+          let handler = find_tool "write" tools in
+          let result = handler (`Assoc [
+            ("path", `String rel_name);
+            ("content", `String "hello world");
+          ]) token in
+          match result with
+          | Success _ -> ()
+          | _ -> Alcotest.fail "expected Success"
+        in
+        Fun.protect ~finally:cleanup run));
+
+    Alcotest.test_case "empty path rejected" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "write" tools in
+        let result = handler (`Assoc [
+          ("path", `String "");
+          ("content", `String "x");
+        ]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result)));
+
+    Alcotest.test_case "absolute path rejected" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "write" tools in
+        let result = handler (`Assoc [
+          ("path", `String "/etc/passwd");
+          ("content", `String "x");
+        ]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result)));
+  ])
+
+let edit_suite =
+  ("edit", [
+    Alcotest.test_case "apply single edit" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let rel_name = "par_test_edit.txt" in
+        let cwd = Sys.getcwd () in
+        let oc = open_out rel_name in
+        output_string oc "hello world";
+        close_out oc;
+        let cleanup () = (try Unix.unlink rel_name with _ -> ()); Sys.chdir cwd in
+        let run () =
+          let handler = find_tool "edit" tools in
+          let result = handler (`Assoc [
+            ("path", `String rel_name);
+            ("edits", `List [`Assoc [
+              ("old", `String "world");
+              ("new", `String "OCaml");
+            ]]);
+          ]) token in
+          match result with
+          | Success _ -> ()
+          | _ -> Alcotest.fail "expected Success"
+        in
+        Fun.protect ~finally:cleanup run));
+
+    Alcotest.test_case "empty path rejected" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "edit" tools in
+        let result = handler (`Assoc [
+          ("path", `String "");
+          ("edits", `List []);
+        ]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result)));
+  ])
+
 let () =
   Alcotest.run "Builtin Tools" [
     calculator_suite;
@@ -560,4 +633,6 @@ let () =
     ls_suite;
     find_suite;
     grep_suite;
+    write_suite;
+    edit_suite;
   ]
