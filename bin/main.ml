@@ -114,8 +114,8 @@ let make_persistence_service persistence _backend db_uri_val =
        Printf.eprintf "Error: %s\n" (error_category_to_string e);
        exit 1)
   | _ ->
-    let path = "par.db" in
-    make_sqlite_persistence path
+     let path = Par_config.config_dir () ^ "/par.db" in
+     make_sqlite_persistence path
 
 let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | `Unix > `Generic ] Eio.Net.ty Eio.Resource.t) =
   let open Types in
@@ -279,8 +279,13 @@ let setup_runtime cfg ~f =
           Printf.eprintf "Error registering agent: %s\n" (error_category_to_string e);
           exit 1
         | Ok () ->
-          f rt;
-          ignore (Runtime.close rt)))
+           Runtime.register_tool_call_hook rt
+             (fun (ctx : Hook.tool_call_context) ->
+               Printf.eprintf "  [%s]\n" ctx.Hook.tool_name;
+               flush stderr;
+               Hook.Allow);
+           f rt;
+           ignore (Runtime.close rt)))
 
 (* -------------------------------------------------------------------------- *)
 (* Health / metrics formatters                                                *)
@@ -431,7 +436,7 @@ let info_ask = Cmdliner.Cmd.info "ask"
 let cmd =
   let open Cmdliner.Cmd in
   group ~default:term_chat
-    (info "par" ~version:"0.1.0"
+    (info "par" ~version:"0.3.0"
        ~doc:"P-A-R: Programmable Agent Runtime — run 'par' to start REPL, 'par config' to configure, 'par ask \"question\"' for one-shot")
     [
       v info_config term_config;

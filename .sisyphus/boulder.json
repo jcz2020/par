@@ -1,0 +1,40 @@
+{
+  "active_plan": "/root/dev/PAR/.sisyphus/plans/v0.3.0.md",
+  "started_at": "2026-06-02T18:18:20.535Z",
+  "session_ids": [
+    "ses_19f9dbf73ffe324mpPr1heqftg",
+    "ses_1766dcd8bffeOW2IZJqL5CLuZA",
+    "ses_1766e019fffeD0NHAymRz6W47q",
+    "ses_1766e38ebffessKLSrS9Bq4oaC",
+    "ses_1764bf185ffeGK71T8KRI7vdji",
+    "ses_176425f45ffeeFeejQEYKTIelL",
+    "ses_17612cf46ffe965yaTff6eC8rP",
+    "ses_176004d3fffespb684QD3GrTKi",
+    "ses_175f94264ffeFrqIvO1M8dR3Oi",
+    "ses_175ccf2a3ffeQOppbNZdPW1Zhr",
+    "ses_171f7d8cdffesquX3dh5Q9us6N",
+    "ses_171f83c91ffeUDMq5j8VGtYaFK",
+    "ses_171f88804ffe06VIHXXwI835kD",
+    "ses_171f79350ffeRS4YVUCIqBtRYz",
+    "ses_1715b7f68ffevSb2T33w3yP4DA",
+    "ses_1715b164dffeLupsxpNnfxVr90",
+    "ses_170ece293ffeiJVf51C6KHm6Ys",
+    "ses_170e997caffeGs7VuU53X504WV",
+    "ses_170ba5b74ffeNduog3sUKoGGUY",
+    "ses_170bacc8effelwn4LvlIQdXE5y",
+    "ses_170ab6f71ffenRYd5vL023564L"
+  ],
+  "plan_name": "v0.3.0",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "OPS-2: Fix retry middleware dead code",
+      "session_id": "ses_17612cf46ffe965yaTff6eC8rP",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-06-02T20:12:47.045Z"
+    }
+  }
+}

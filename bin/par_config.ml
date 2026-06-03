@@ -200,7 +200,7 @@ let to_persistence_config (cfg : config) : [ `Sqlite of string | `Postgresql of 
     let uri = match cfg.db_uri with Some u -> u | None -> "postgresql://localhost/par" in
     `Postgresql uri
   | _ ->
-    `Sqlite "par.db"
+    `Sqlite (config_dir () ^ "/par.db")
 
 let resolve_persistence (cfg : config) =
   match String.lowercase_ascii cfg.persistence with
@@ -208,8 +208,7 @@ let resolve_persistence (cfg : config) =
     let conninfo = match cfg.db_uri with Some u -> u | None -> "postgresql://localhost/par" in
     `Postgresql conninfo
   | _ ->
-    let path = "par.db" in
-    `Sqlite path
+    `Sqlite (config_dir () ^ "/par.db")
 
 (* -------------------------------------------------------------------------- *)
 (* Config wizard (interactive)                                                *)
