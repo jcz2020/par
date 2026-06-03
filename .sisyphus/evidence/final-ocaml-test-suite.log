@@ -1,5 +1,5 @@
 Testing `PAR Integration'.
-This run has ID `KGX9KHW8'.
+This run has ID `9OD0IZVW'.
 
   [OK]          Agent loop                    0   mock LLM returns text respo...
   [OK]          Agent loop                    1   mock LLM triggers tool call...
@@ -34,9 +34,9 @@ This run has ID `KGX9KHW8'.
   [OK]          Middleware                   11   sanitize_tool_output: middl...
 
 Full test results in `~/dev/PAR/_build/default/test/_build/_tests/PAR Integration'.
-Test Successful in 0.028s. 31 tests run.
+Test Successful in 0.022s. 31 tests run.
 Testing `Mock Provider'.
-This run has ID `TS0HSN85'.
+This run has ID `ZSFE3VDK'.
 
   [OK]          complete_fn          0   create returns valid llm_service.
   [OK]          complete_fn          1   single text response.
@@ -53,9 +53,9 @@ This run has ID `TS0HSN85'.
   [OK]          history              2   close tracking.
 
 Full test results in `~/dev/PAR/_build/default/test/_build/_tests/Mock Provider'.
-Test Successful in 0.002s. 13 tests run.
+Test Successful in 0.005s. 13 tests run.
 Testing `FFI register_tool validation'.
-This run has ID `8ZZ4AWTO'.
+This run has ID `N5RCKPEG'.
 
   [OK]          registration validation          0   valid registration.
   [OK]          registration validation          1   empty name handling.
@@ -65,9 +65,9 @@ This run has ID `8ZZ4AWTO'.
   [OK]          registration validation          5   invalid handle returns -1.
 
 Full test results in `~/dev/PAR/_build/default/test/_build/_tests/FFI register_tool validation'.
-Test Successful in 0.006s. 6 tests run.
+Test Successful in 0.005s. 6 tests run.
 Testing `Builtin Tools'.
-This run has ID `99Z3QMNC'.
+This run has ID `KI1DVRY4'.
 
   [OK]          calculator                   0   adds two numbers.
   [OK]          calculator                   1   empty expression returns error.
@@ -129,16 +129,16 @@ This run has ID `99Z3QMNC'.
   [OK]          edit                         1   empty path rejected.
 
 Full test results in `~/dev/PAR/_build/default/test/_build/_tests/Builtin Tools'.
-Test Successful in 0.118s. 58 tests run.
+Test Successful in 0.097s. 58 tests run.
 Testing `cancel_task tests'.
-This run has ID `8LF37Z7H'.
+This run has ID `NXWEDK3L'.
 
   [OK]          cancel_task          0   cancel unknown task returns error.
 
 Full test results in `~/dev/PAR/_build/default/test/_build/_tests/cancel_task tests'.
 Test Successful in 0.002s. 1 test run.
 Testing `template'.
-This run has ID `LUHTKY2Z'.
+This run has ID `TV33HUJY'.
 
   [OK]          basic substitution               0   single variable.
   [OK]          basic substitution               1   multiple variables.
@@ -162,7 +162,7 @@ This run has ID `LUHTKY2Z'.
 Full test results in `~/dev/PAR/_build/default/test/_build/_tests/template'.
 Test Successful in 0.003s. 18 tests run.
 Testing `schema validation'.
-This run has ID `WXOYKTRC'.
+This run has ID `BJXH4CMI'.
 
   [OK]          type checking                  0   valid type match.
   [OK]          type checking                  1   type mismatch.
@@ -177,7 +177,7 @@ This run has ID `WXOYKTRC'.
 Full test results in `~/dev/PAR/_build/default/test/_build/_tests/schema validation'.
 Test Successful in 0.001s. 9 tests run.
 Testing `duplicate_tool'.
-This run has ID `JH28BRXT'.
+This run has ID `8KMOY7X3'.
 
   [OK]          duplicate_tool          0   first registration succeeds.
   [OK]          duplicate_tool          1   duplicate registration returns er...
@@ -185,9 +185,9 @@ This run has ID `JH28BRXT'.
   [OK]          duplicate_tool          3   different names both succeed.
 
 Full test results in `~/dev/PAR/_build/default/test/_build/_tests/duplicate_tool'.
-Test Successful in 0.005s. 4 tests run.
+Test Successful in 0.004s. 4 tests run.
 Testing `runtime_config_validation'.
-This run has ID `XTPCLSD9'.
+This run has ID `L08LW4NV'.
 
   [OK]          validation          0   valid config passes.
   [OK]          validation          1   buffer_capacity=0 fails.
@@ -203,7 +203,7 @@ This run has ID `XTPCLSD9'.
 Full test results in `~/dev/PAR/_build/default/test/_build/_tests/runtime_config_validation'.
 Test Successful in 0.003s. 10 tests run.
 Testing `make_agent'.
-This run has ID `Y86ECR4S'.
+This run has ID `1AG6PG6X'.
 
   [OK]          make_agent          0   valid agent construction.
   [OK]          make_agent          1   empty id rejected.
@@ -218,7 +218,7 @@ This run has ID `Y86ECR4S'.
 Full test results in `~/dev/PAR/_build/default/test/_build/_tests/make_agent'.
 Test Successful in 0.003s. 9 tests run.
 Testing `steering_queue'.
-This run has ID `I7HDS966'.
+This run has ID `EL0JJZR9'.
 
   [OK]          steering_queue          0   steer enqueues message.
   [OK]          steering_queue          1   follow_up enqueues message.
@@ -229,9 +229,9 @@ This run has ID `I7HDS966'.
   [OK]          steering_queue          6   steering and followup are indepen...
 
 Full test results in `~/dev/PAR/_build/default/test/_build/_tests/steering_queue'.
-Test Successful in 0.006s. 7 tests run.
+Test Successful in 0.005s. 7 tests run.
 Testing `health_metrics'.
-This run has ID `KOSLAV89'.
+This run has ID `UC4CSXB0'.
 
   [OK]          health_metrics          0   initial health shows alive, never...
   [OK]          health_metrics          1   record_llm_success updates status.
@@ -243,9 +243,9 @@ This run has ID `KOSLAV89'.
   [OK]          health_metrics          7   record_task_failed increments.
 
 Full test results in `~/dev/PAR/_build/default/test/_build/_tests/health_metrics'.
-Test Successful in 0.009s. 8 tests run.
+Test Successful in 0.007s. 8 tests run.
 Testing `on_update'.
-This run has ID `RQWTBGWZ'.
+This run has ID `UCMESJQL'.
 
   [OK]          on_update          0   register_tool accepts on_update.
   [OK]          on_update          1   register_tool without on_update still ...
@@ -254,7 +254,7 @@ This run has ID `RQWTBGWZ'.
 Full test results in `~/dev/PAR/_build/default/test/_build/_tests/on_update'.
 Test Successful in 0.004s. 3 tests run.
 Testing `tool_call_hooks'.
-This run has ID `AO0PPXBO'.
+This run has ID `O1355YQI'.
 
   [OK]          tool_call_hooks          0   empty hook chain returns allow.
   [OK]          tool_call_hooks          1   allow hook returns allow.
@@ -267,7 +267,7 @@ This run has ID `AO0PPXBO'.
 Full test results in `~/dev/PAR/_build/default/test/_build/_tests/tool_call_hooks'.
 Test Successful in 0.006s. 7 tests run.
 Testing `PAR Core'.
-This run has ID `6WSC3WZY'.
+This run has ID `F0WE76Y3'.
 
   [OK]          Transition validation               0   Pending -> Scheduled ...
   [OK]          Transition validation               1   Scheduled -> Running ...
@@ -383,9 +383,9 @@ This run has ID `6WSC3WZY'.
 Full test results in `~/dev/PAR/_build/default/test/_build/_tests/PAR Core'.
 Test Successful in 0.016s. 110 tests run.
 Testing `SSE Stream'.
-This run has ID `JV5NLTZB'.
+This run has ID `1MURX744'.
 
   [OK]          openai_stream          0   glm-4-flash stream.
 
 Full test results in `~/dev/PAR/_build/default/test/_build/_tests/SSE Stream'.
-Test Successful in 1.547s. 1 test run.
+Test Successful in 1.367s. 1 test run.

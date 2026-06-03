@@ -27,4 +27,4 @@ tests/test_runtime.py::TestRuntimeInit::test_repr PASSED                 [ 88%]
 tests/test_runtime.py::TestToolRegistration::test_register_tool PASSED   [ 94%]
 tests/test_runtime.py::TestErrorHandling::test_operations_after_close PASSED [100%]
 
-======================== 16 passed, 2 skipped in 0.14s =========================
+======================== 16 passed, 2 skipped in 0.12s =========================
