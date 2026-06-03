@@ -43,6 +43,7 @@ val run_agent :
   ?runtime_id:string ->
   ?steering:Steering_queue.t option ->
   ?followup:Steering_queue.t option ->
+  ?tool_call_hooks:Hook.tool_call_hook list option ->
   cancellation_token ->
   agent_config ->
   string ->

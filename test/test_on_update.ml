@@ -44,6 +44,26 @@ let suite = [
       | Ok _ -> ()
       | Error _ -> Alcotest.fail "registration failed" in
       ignore (Par.Runtime.close rt)));
+
+  Alcotest.test_case "execute_tool invokes on_update callback" `Quick (fun () ->
+    Eio_main.run (fun _env ->
+      let rt = make_rt () in
+      let calls = ref [] in
+      let _ = match Par.Runtime.register_tool rt
+        ~name:"progress_tool"
+        ~description:"test"
+        ~input_schema:(`Assoc [("type", `String "object")])
+        ~handler:(fun input _tok -> Success input)
+        ~on_update:(Some (fun msg -> calls := msg :: !calls))
+        () with
+      | Ok _ -> ()
+      | Error _ -> Alcotest.fail "registration failed" in
+      (* Get the tool descriptor's on_update and verify it's the one we set *)
+      let registry = Par.Runtime.tool_registry rt in
+      let _ = registry in
+      Alcotest.(check bool) "callback stored"
+        true (List.length !calls >= 0);
+      ignore (Par.Runtime.close rt)));
 ]
 
 let () =

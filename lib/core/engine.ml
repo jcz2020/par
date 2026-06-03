@@ -76,9 +76,19 @@ let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
       name = descriptor.name;
       arguments = input
     } in
+    let progress msg =
+      (match descriptor.on_update with
+       | Some cb -> cb msg
+       | None -> ())
+    in
+    progress (Printf.sprintf "Starting tool %s" descriptor.name);
     apply_before_tool middleware call (fun (call' : tool_call) ->
-      apply_after_tool middleware (call', handler input token) (fun ((_:tool_call), result) ->
-        result
+      let result = handler input token in
+      (match result with
+       | Success _ -> progress (Printf.sprintf "Tool %s succeeded" descriptor.name)
+       | Error _ -> progress (Printf.sprintf "Tool %s failed" descriptor.name));
+      apply_after_tool middleware (call', result) (fun ((_:tool_call), res) ->
+        res
       )
     )
 
@@ -116,11 +126,18 @@ let add_tool_result_message conv (call : tool_call) result =
   { conv with messages = conv.messages @ [ msg ] }
 
 let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
-    token agent user_message llm registry =
+    ?(tool_call_hooks = None) token agent user_message llm registry =
   let sys_prompt = match Template.effective_system_prompt agent ~runtime_id with
     | Ok s -> s
-    | Error (Internal _) -> agent.system_prompt
-    | Error _ -> agent.system_prompt
+    | Error e ->
+      let msg = match e with
+        | Types.Invalid_input m -> m
+        | Types.Internal m -> m
+        | _ -> "render failed"
+      in
+      Logs.warn (fun m ->
+        m "Template render failed, falling back to plain system_prompt: %s" msg);
+      agent.system_prompt
   in
   let drain_into_conv conv queue =
     match queue with
@@ -166,27 +183,71 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
              slower. The parallel path requires a per-batch Eio.Switch which
              is set up by the runtime on invoke. *)
           let results : (tool_call * handler_result) list = List.map (fun (call:tool_call) ->
-            match find_tool agent call.name with
-            | None ->
-              let err = Error {
-                category = Invalid_input (Printf.sprintf "Tool not found: %s" call.name);
-                message = "Tool not found";
-                retryable = false;
-                metadata = [];
-              } in
-              (call, err)
-            | Some descriptor ->
-              (match Tool_registry.resolve registry call.name with
-               | None ->
-                 let err = Error {
-                   category = Internal (Printf.sprintf "Tool handler not registered: %s" call.name);
-                   message = "Handler not registered";
-                   retryable = false;
-                   metadata = [];
-                 } in
-                 (call, err)
-               | Some handler ->
-                 (call, execute_tool token descriptor handler call.arguments agent.middleware))
+            let call_with_id = { call with id = Task_id.to_string (Task_id.create ()) } in
+            let hook_result = match tool_call_hooks with
+              | Some hooks ->
+                let ctx = {
+                  Hook.tool_name = call.name;
+                  tool_call_id = call_with_id.id;
+                  input = call.arguments;
+                  has_ui = false;
+                } in
+                Hook.run_chain hooks ctx
+              | None -> Hook.Final_allow
+            in
+            (match hook_result with
+             | Hook.Final_block reason ->
+               let err = Error {
+                 category = Permission_denied (Printf.sprintf "tool '%s'" call.name);
+                 message = Printf.sprintf "Blocked by hook: %s" reason;
+                 retryable = false;
+                 metadata = [];
+               } in
+               (call_with_id, err)
+             | Hook.Final_modify modified_input ->
+               (match find_tool agent call.name with
+                | None ->
+                  let err = Error {
+                    category = Invalid_input (Printf.sprintf "Tool not found: %s" call.name);
+                    message = "Tool not found";
+                    retryable = false;
+                    metadata = [];
+                  } in
+                  (call_with_id, err)
+                | Some descriptor ->
+                  (match Tool_registry.resolve registry call.name with
+                   | None ->
+                     let err = Error {
+                       category = Internal (Printf.sprintf "Tool handler not registered: %s" call.name);
+                       message = "Handler not registered";
+                       retryable = false;
+                       metadata = [];
+                     } in
+                     (call_with_id, err)
+                   | Some handler ->
+                     (call_with_id, execute_tool token descriptor handler modified_input agent.middleware)))
+             | Hook.Final_allow ->
+               (match find_tool agent call.name with
+                | None ->
+                  let err = Error {
+                    category = Invalid_input (Printf.sprintf "Tool not found: %s" call.name);
+                    message = "Tool not found";
+                    retryable = false;
+                    metadata = [];
+                  } in
+                  (call_with_id, err)
+                | Some descriptor ->
+                  (match Tool_registry.resolve registry call.name with
+                   | None ->
+                     let err = Error {
+                       category = Internal (Printf.sprintf "Tool handler not registered: %s" call.name);
+                       message = "Handler not registered";
+                       retryable = false;
+                       metadata = [];
+                     } in
+                     (call_with_id, err)
+                   | Some handler ->
+                     (call_with_id, execute_tool token descriptor handler call.arguments agent.middleware))))
           ) calls in
           let conv = List.fold_left (fun conv ((call:tool_call), result) ->
             add_tool_result_message conv call result

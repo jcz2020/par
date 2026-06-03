@@ -185,6 +185,10 @@ type tool_descriptor = {
   concurrency_limit : int option;
   on_update : (string -> unit) option;
 }
+(* Intentionally no [@@deriving yojson]: the on_update function field
+   cannot be serialised to JSON. The runtime/FFI paths use the in-memory
+   representation; JSON is not used for tool_descriptor transport. *)
+
 
 type tool_binding = {
   descriptor : tool_descriptor;

@@ -26,6 +26,7 @@ type runtime = {
   tool_registry : Tool_registry.t;
   steering_queue : Steering_queue.t;
   followup_queue : Steering_queue.t;
+  runtime_id : string;
   mutable last_llm_call_at : float option;
   mutable last_llm_call_status : [ `Success | `Error of error_category | `Never_called ];
   mutable metrics : Metrics.counters;
@@ -85,8 +86,23 @@ let make_agent ~id ?(system_prompt = "") ?(system_prompt_template = None)
   | errs -> Result.Error (Types.Invalid_input (String.concat "; " errs))
 
 let register_agent rt (agent : agent_config) =
-  htbl_set rt.agents agent.id agent;
-  Ok ()
+  let validated = make_agent
+    ~id:agent.id
+    ?system_prompt:(Some agent.system_prompt)
+    ?system_prompt_template:(Some agent.system_prompt_template)
+    ~model:agent.model
+    ?tools:(Some agent.tools)
+    ?max_iterations:(Some agent.max_iterations)
+    ?middleware:(Some agent.middleware)
+    ?retry_policy:(Some agent.retry_policy)
+    ?context_strategy:(Some agent.context_strategy)
+    ?resource_quota:(Some agent.resource_quota)
+    () in
+  match validated with
+  | Ok valid_agent ->
+    htbl_set rt.agents valid_agent.id valid_agent;
+    Ok ()
+  | Result.Error e -> Result.Error e
 
 let register_tool rt ~name ~description ~input_schema ~handler
     ?(permission = Allow) ?timeout ?concurrency_limit ?(on_update = None) () =
@@ -127,6 +143,8 @@ let invoke rt ~agent_id ~message ?cancellation_token () =
     in
     let result = Engine.run_agent ~steering:(Some rt.steering_queue)
       ~followup:(Some rt.followup_queue)
+      ~runtime_id:rt.runtime_id
+      ~tool_call_hooks:(Some rt.tool_call_hooks)
       token config message rt.services.llm rt.tool_registry in
     (match result with
      | Ok _ -> record_llm_success rt
@@ -401,6 +419,7 @@ let create ?(persistence = noop_persistence)
       last_llm_call_status = `Never_called;
       metrics = Metrics.empty ();
       tool_call_hooks = [];
+      runtime_id = Session_id.to_string (Session_id.create ());
     } in
     Ok rt
 
@@ -440,7 +459,10 @@ let health rt = {
   runtime_alive = not !(rt.shutdown_requested);
   last_llm_call_at = rt.last_llm_call_at;
   last_llm_call_status = rt.last_llm_call_status;
-  persistence_ok = true;
+  persistence_ok =
+    (match rt.services.persistence.load_task_state_fn (Task_id.create ()) with
+     | Ok _ | Error _ -> true
+     | exception _ -> false);
 }
 
 let metrics_snapshot rt = Metrics.snapshot rt.metrics
