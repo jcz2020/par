@@ -113,3 +113,9 @@
  (name test_mcp_errors)
  (libraries par alcotest yojson)
  (modules test_mcp_errors))
+
+(test
+ (name test_mcp_types)
+ (libraries par alcotest)
+ (modules test_mcp_types)
+ (action (run %{test})))
