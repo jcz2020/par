@@ -1,5 +1,45 @@
 # CHANGES
 
+## v0.3.1 (2026-06-XX)
+
+> **定位**：post-release polish。v0.3.0 把 SDK 基础打稳了，v0.3.1 给两件**真正提升 LLM 后端工程师日常工作**的事：安全的 bash + 任意 MCP server 接入。本 entry 记录 bash 工具；MCP 在独立 entry。
+>
+> 100% 向后兼容，纯 additive，零 breaking change。
+
+### SDK (par)
+
+- **New tool**：`bash` —— 类型化 shell 执行。`argv` 强制为 `string list`（无 `Exec_raw_shell` 构造器），shell 注入在类型层不可表示。
+- **New module**：`Par.Bash_safe_command` —— ADT（`sandboxed_path` 私有类型 + `command` 变体 + `risk` 评分）
+- **New module**：`Par.Bash_policy` —— `POLICY` 模块类型 + 3 个预置（`Coder` 默认、`ReadOnly`、`ReadOnlyNoNet`）+ `sanitize_env` / `strip_ansi` / `truncate_output` 辅助函数
+- **New module**：`Par.Bash_blacklist` —— 31 条正则（`rm -rf /`、`dd of=/dev/`、fork bomb 等）
+- **New Runtime API**：`Runtime.install_bash_tool : ?process_mgr:... -> ?clock:... -> runtime -> (unit, error_category) result`
+- **New Runtime param**：`Runtime.create ?bash_policy:(module POLICY)`（默认 = `Coder`）
+- **New event types**：`Bash_invoked` / `Bash_completed`（在 `Par.Types.event` 里，携带 `risk` 评分与 `argv`）
+
+### Security posture
+
+- 9 维安全机制：CWD 锁定、黑名单、环境脱敏、超时强制、进程组清理、ANSI 剥离、输出截断、event bus 审计、风险评分
+- OS 层沙箱（bwrap / landlock）v0.3.1 不提供；见计划中的独立 opam 包 `par_sandbox`（v0.4+ 评估）
+
+### Test coverage
+
+- 165 个新测试，分布在 4 个新测试文件：
+  - `test/test_bash_safe_command.ml`（31）
+  - `test/test_bash_blacklist.ml`（56：31 正向 + 23 反向 + 2 结构）
+  - `test/test_bash_policy.ml`（67）
+  - `test/test_bash_runtime.ml`（11）
+- 现有 297 个 OCaml 测试全部继续通过（零回归）
+
+### Backward compatibility
+
+- 100% 向后兼容 v0.3.0
+- 现有 `~/.par/config.json` 文件以 v0.3.1 默认值加载
+- 现有用户代码无需修改即可编译运行（bash 工具通过 `install_bash_tool` 显式启用）
+
+### Documentation
+
+- `docs/sdk/tools.md` —— 新文件，文档化 20 个内置工具（19 个 v0.3.0 + bash）
+
 ## v0.3.0-post (2026-06-04)
 
 ### CLI (par_cli)
