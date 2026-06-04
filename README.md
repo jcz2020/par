@@ -16,7 +16,7 @@ A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM suppor
 - 交互式REPL（`par`）
 - 安全URL抓取：TLS证书验证、系统CA store、URL scheme校验、10MB容量限制
 - C FFI + Python binding：ctypes FFI，线程安全，par_runtime 包
-- 214个测试用例通过（206 OCaml + 8 Python）
+ - 939 个测试用例通过（923 OCaml + 16 Python）
 
 ## Architecture
 
@@ -35,7 +35,7 @@ A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM suppor
 | Expr     |          |          |          |  Validation  |
 | State_m  |          |          |          |  Pii_mask    |
 +----------+----------+----------+----------+------+-------+
-|                   Tools (13 builtin)                     |
+|          Tools (20 builtin: 19 + bash in v0.3.1)        |
 |       calculator / web_search / fetch_url / ...          |
 +-----------------------------------------------------------+
 |                    FFI Bridge (par_capi)                  |
@@ -184,7 +184,7 @@ See `bindings/python/examples/basic_agent.py` for the full example.
 
 | Package | Description |
 |---------|-------------|
-| `par` | SDK: Core types, ReAct engine, runtime, workflow, expression evaluator, state machine, context manager, event bus, OpenAI/Anthropic providers, SQLite persistence (PostgreSQL optional), 13 builtin tools, 7 middleware |
+| `par` | SDK: Core types, ReAct engine, runtime, workflow, expression evaluator, state machine, context manager, event bus, OpenAI/Anthropic providers, SQLite persistence (PostgreSQL optional), 20 builtin tools (incl. type-safe bash in v0.3.1), 7 middleware |
 | `par_cli` | CLI tool: `par` (REPL), `par config` (wizard), `par ask` (single-shot) — SDK 验证工具 |
 
 ## Project Structure
@@ -199,7 +199,7 @@ par/
 |   +-- postgres/      Optional PostgreSQL backend (separate dune library, par_postgres)
 |   +-- event_bus/     Eio-based event bus with DLQ
 |   +-- middleware/    Logging, Retry, Rate_limit, Timeout, Validation, Pii_mask, Sanitize_tool_output
-|   +-- tools/         13 builtin tools (calculator, web tools, etc.)
+|   +-- tools/         20 builtin tools (calculator, web tools, file ops, bash in v0.3.1)
 |   +-- ffi/           C FFI bridge (par_ffi.h, par_ffi.c, par_capi.ml)
 |   +-- par.ml         Facade module (re-exports all sub-modules for `open Par`)
 +-- bindings/
@@ -220,7 +220,7 @@ OCaml 5.4+, dune 3.23+, cohttp-eio, lambdasoup, tls-eio, ca-certs, postgresql（
 ## Project Size
 
 - 约 8500 行 OCaml + 1200 行 Python
-- 214 个测试用例（206 OCaml + 8 Python）
+- 939 个测试用例（923 OCaml + 16 Python）
 
 ## License
 
