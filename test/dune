@@ -102,3 +102,8 @@
  (name test_bash_runtime)
  (libraries par eio_main alcotest)
  (modules test_bash_runtime))
+
+(test
+ (name test_mcp_naming)
+ (libraries par alcotest eio yojson logs)
+ (action (run %{test})))
