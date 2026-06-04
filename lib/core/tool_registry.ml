@@ -14,6 +14,9 @@ let register (tbl : t) (desc : Types.tool_descriptor) h =
     Ok ()
   end
 
+let replace (tbl : t) name h =
+  Hashtbl.replace tbl name h
+
 let resolve tbl tool_name =
   Hashtbl.find_opt tbl tool_name
 

@@ -83,6 +83,8 @@ let extract_task_id : event -> string = function
   | Tool_completed { task_id; _ } -> Task_id.to_string task_id
   | Tool_failed { task_id; _ } -> Task_id.to_string task_id
   | Tool_progress { task_id; _ } -> Task_id.to_string task_id
+  | Bash_invoked { task_id; _ } -> Task_id.to_string task_id
+  | Bash_completed { task_id; _ } -> Task_id.to_string task_id
   | Workflow_started { workflow_run_id } -> Workflow_run_id.to_string workflow_run_id
   | Workflow_step_completed { step_id } -> step_id
   | Workflow_completed { workflow_run_id } -> Workflow_run_id.to_string workflow_run_id

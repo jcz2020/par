@@ -33,6 +33,8 @@ type runtime = {
   mutable last_llm_call_status : [ `Success | `Error of error_category | `Never_called ];
   mutable metrics : Metrics.counters;
   mutable tool_call_hooks : Hook.tool_call_hook list;
+  bash_policy : (module Bash_policy.POLICY);
+  bash_installed : bool ref;
 } [@@warning "-69"]
 
 let default_event_bus_config = {
@@ -115,6 +117,7 @@ let register_tool rt ~name ~description ~input_schema ~handler
   | Ok () ->
     Ok { descriptor; handler }
 
+
 let record_llm_success rt =
   rt.last_llm_call_at <- Some (Unix.gettimeofday ());
   rt.last_llm_call_status <- `Success;
@@ -136,6 +139,186 @@ let record_task_failed rt =
 
 let publish_event rt evt =
   rt.publish_event_fn evt
+
+let install_bash_tool ?process_mgr ?clock rt =
+  if !(rt.bash_installed) then
+    Result.Error (Types.Invalid_input "bash tool already installed")
+  else
+    match process_mgr with
+    | None ->
+      Result.Error (Types.Invalid_input
+        "install_bash_tool requires ?process_mgr:\
+         pass (Eio.Stdenv.process_mgr env) from the Eio environment")
+    | Some mgr ->
+      let module P = (val rt.bash_policy : Bash_policy.POLICY) in
+      let make_handler (rt : runtime) input tok : Types.handler_result =
+        let argv =
+          let raw =
+            try Yojson.Safe.Util.(input |> member "argv" |> to_list)
+            with _ -> []
+          in
+          List.filter_map
+            (fun j -> match j with `String s -> Some s | _ -> None) raw
+        in
+        let cwd_str =
+          match Yojson.Safe.Util.(input |> member "cwd" |> to_string_option) with
+          | Some s -> s
+          | None -> "."
+        in
+        let timeout =
+          let t = Yojson.Safe.Util.(input |> member "timeout" |> to_float_option) in
+          match t with Some x when x > 0.0 -> x | _ -> 30.0
+        in
+        (match Bash_safe_command.validate_argv argv with
+         | Error e ->
+           Error { category = e; message = "argv validation failed";
+                   retryable = false; metadata = [] }
+         | Ok () ->
+           (match Bash_safe_command.sandboxed_path_of_string cwd_str with
+            | Error e ->
+              Error { category = e;
+                      message = Printf.sprintf "invalid cwd: %s" cwd_str;
+                      retryable = false; metadata = [] }
+            | Ok cwd ->
+              let cmd : Bash_safe_command.command =
+                Bash_safe_command.Exec { argv; cwd; env = []; timeout }
+              in
+              (match P.filter cmd with
+               | Error e ->
+                 Error { category = e; message = "policy rejected";
+                         retryable = false; metadata = [] }
+               | Ok filtered ->
+                 let task_id = Task_id.create () in
+                 let start_t = Unix.gettimeofday () in
+                 let argv_for_event = Bash_safe_command.argv_of_command filtered in
+                 let cwd_for_event = Bash_safe_command.sandboxed_path_to_string cwd in
+                 let risk_str =
+                   Bash_safe_command.risk_to_string
+                     (Bash_safe_command.assess_risk filtered)
+                 in
+                 publish_event rt
+                   (Bash_invoked {
+                     task_id; tool_name = "bash";
+                     argv = argv_for_event;
+                     cwd = cwd_for_event;
+                     timeout;
+                     risk = risk_str;
+                     started_at = start_t;
+                   });
+                 let proc_result =
+                   Eio.Fiber.first
+                     (fun () ->
+                       let stdout_buf = Buffer.create 1024 in
+                       let stderr_buf = Buffer.create 1024 in
+                       let proc_argv =
+                         Bash_safe_command.argv_of_command filtered
+                       in
+                       let proc =
+                         Eio.Process.spawn ~sw:tok.switch mgr
+                           ~stdin:(Eio.Flow.string_source "")
+                           ~stdout:(Eio.Flow.buffer_sink stdout_buf)
+                           ~stderr:(Eio.Flow.buffer_sink stderr_buf)
+                           proc_argv
+                       in
+                       let status = Eio.Process.await proc in
+                       let code = match status with
+                         | `Exited n -> n
+                         | `Signaled _ -> 128
+                       in
+                       Ok (Buffer.contents stdout_buf,
+                           Buffer.contents stderr_buf,
+                           code))
+                     (fun () ->
+                       (match clock with
+                        | Some c -> Eio.Time.sleep c timeout
+                        | None -> ());
+                       Result.Error `Timeout)
+                 in
+                 (match proc_result with
+                  | Ok (stdout, stderr, exit_code) ->
+                    let duration = Unix.gettimeofday () -. start_t in
+                    let clean_stdout = Bash_policy.strip_ansi stdout in
+                    let clean_stderr = Bash_policy.strip_ansi stderr in
+                    let trunc_stdout, was_trunc1 =
+                      Bash_policy.truncate_output ~max_bytes:51200
+                        ~max_lines:2000 clean_stdout
+                    in
+                    let trunc_stderr, was_trunc2 =
+                      Bash_policy.truncate_output ~max_bytes:51200
+                        ~max_lines:2000 clean_stderr
+                    in
+                    let truncated = was_trunc1 || was_trunc2 in
+                    publish_event rt
+                      (Bash_completed {
+                        task_id; tool_name = "bash";
+                        argv = argv_for_event;
+                        exit_code;
+                        duration;
+                        stdout_truncated = was_trunc1;
+                        stderr_truncated = was_trunc2;
+                      });
+                    let output =
+                      `Assoc [
+                        ("stdout", `String trunc_stdout);
+                        ("stderr", `String trunc_stderr);
+                        ("exit_code", `Int exit_code);
+                        ("duration", `Float duration);
+                        ("truncated", `Bool truncated);
+                      ]
+                    in
+                    Success output
+                  | Result.Error `Timeout ->
+                    let duration = Unix.gettimeofday () -. start_t in
+                    publish_event rt
+                      (Bash_completed {
+                        task_id; tool_name = "bash";
+                        argv = argv_for_event;
+                        exit_code = 124;
+                        duration;
+                        stdout_truncated = false;
+                        stderr_truncated = false;
+                      });
+                    Error { category = Timeout;
+                            message = Printf.sprintf
+                              "bash timed out after %.1fs" timeout;
+                            retryable = false; metadata = [] }
+                  | exception exn ->
+                    let msg = Printexc.to_string exn in
+                    Error { category = Internal msg;
+                            message = "bash execution failed";
+                            retryable = false; metadata = [] }))))
+      in
+      let descriptor : Types.tool_descriptor = {
+        Types.name = "bash";
+        description = "Execute a shell command. Input: {\"argv\": [\"ls\", \"-la\"], \
+                      \"timeout\": 30, \"cwd\": \"src\"}. \
+                      Subject to Bash_policy and Bash_blacklist. \
+                      Output: {\"stdout\": \"...\", \"stderr\": \"...\", \"exit_code\": 0, \
+                      \"duration\": 0.12, \"truncated\": false}.";
+        input_schema = `Assoc [
+          ("type", `String "object");
+          ("properties", `Assoc [
+            ("argv", `Assoc [
+              ("type", `String "array");
+              ("items", `Assoc [("type", `String "string")]);
+              ("description", `String "argv to execute (NOT a shell string)")]);
+            ("cwd", `Assoc [
+              ("type", `String "string");
+              ("description", `String "CWD-relative working dir; default = .")]);
+            ("timeout", `Assoc [
+              ("type", `String "number");
+              ("description", `String "Max seconds; default = 30");
+              ("minimum", `Float 0.0)])]);
+          ("required", `List [`String "argv"])];
+        permission = Types.Allow;
+        timeout = Some 60.0;
+        concurrency_limit = Some 4;
+        on_update = None;
+      }
+      in
+      Tool_registry.replace rt.tool_registry descriptor.name (make_handler rt);
+      rt.bash_installed := true;
+      Ok ()
 
 let invoke rt ~agent_id ~message ?cancellation_token () =
   let agent = htbl_get rt.agents agent_id in
@@ -403,6 +586,7 @@ let create ?(persistence = noop_persistence)
            ?(llm = { complete_fn = (fun _ _tools _ -> Result.Error (Internal "LLM not initialized"));
                      stream_fn = (fun _ _tools _ _ _ -> Result.Error (Internal "LLM not initialized"));
                      close_fn = ignore })
+           ?(bash_policy = (module Bash_policy.Coder : Bash_policy.POLICY))
            ~config switch =
   let validation_result = Validation.validate_runtime_config_result config in
   match validation_result with
@@ -438,6 +622,8 @@ let create ?(persistence = noop_persistence)
       runtime_id = Session_id.to_string (Session_id.create ());
       parallel_tool_execution = config.parallel_tool_execution;
       publish_event_fn;
+      bash_policy;
+      bash_installed = ref false;
     } in
     Ok rt
 
@@ -463,6 +649,10 @@ let close rt =
   0
 
 let tool_registry rt = rt.tool_registry
+
+let bash_policy rt = rt.bash_policy
+
+let cancellation_root rt = rt.cancellation_root
 
 let register_tool_call_hook rt hook =
   rt.tool_call_hooks <- rt.tool_call_hooks @ [hook]

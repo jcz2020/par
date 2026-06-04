@@ -33,6 +33,9 @@ module Noop_persistence = Noop_persistence
 module Event_bus = Event_bus
 
 module Builtin_tools = Builtin_tools
+module Bash_safe_command = Bash_safe_command
+module Bash_blacklist = Bash_blacklist
+module Bash_policy = Bash_policy
 
 module Logging = Logging
 module Retry = Retry

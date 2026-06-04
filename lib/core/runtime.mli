@@ -10,11 +10,24 @@ val create :
   ?persistence:persistence_service ->
   ?event_bus:(module EVENT_BUS_SERVICE) ->
   ?llm:llm_service ->
+  ?bash_policy:(module Bash_policy.POLICY) ->
   config:runtime_config ->
   Eio.Switch.t ->
   (runtime, error_category) result
 
 val close : runtime -> int
+
+val install_bash_tool :
+  ?process_mgr:[> [> `Generic ] Eio.Process.mgr_ty ] Eio.Resource.t ->
+  ?clock:[> float Eio.Time.clock_ty ] Eio.Resource.t ->
+  runtime -> (unit, error_category) result
+(** Idempotent: registers the bash tool with the runtime's configured policy.
+    Returns Invalid_input if bash is already installed.
+    Must be called after create, before any agent invocation that uses bash.
+    A [process_mgr] is required for actual command execution; without it,
+    the install registers a handler that will error when invoked.
+    A [clock] is required for timeout enforcement; without it, commands
+    that exceed [timeout] will run to completion. *)
 
 val register_agent : runtime -> agent_config -> (unit, error_category) result
 
@@ -93,6 +106,14 @@ val resume_workflow :
   runtime -> Workflow_run_id.t -> (workflow_result option, error_category) result
 
 val tool_registry : runtime -> Tool_registry.t
+
+val bash_policy : runtime -> (module Bash_policy.POLICY)
+(** The bash trust-boundary policy passed to [create], used by
+    [install_bash_tool] to filter invocations. *)
+
+val cancellation_root : runtime -> Eio.Switch.t
+(** The root switch passed to [create]. Useful for spawning
+    cancellation tokens in tests and external tools. *)
 
 val publish_event : runtime -> event -> unit
 

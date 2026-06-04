@@ -328,6 +328,24 @@ type event =
   | Tool_completed of { task_id : Task_id.t; tool_name : string; duration_ms : float }
   | Tool_failed of { task_id : Task_id.t; tool_name : string; error : error_category }
   | Tool_progress of { task_id : Task_id.t; tool_name : string; message : string }
+  | Bash_invoked of {
+      task_id : Task_id.t;
+      tool_name : string;
+      argv : string list;
+      cwd : string;
+      timeout : float;
+      risk : string;
+      started_at : float;
+    }
+  | Bash_completed of {
+      task_id : Task_id.t;
+      tool_name : string;
+      argv : string list;
+      exit_code : int;
+      duration : float;
+      stdout_truncated : bool;
+      stderr_truncated : bool;
+    }
   | Workflow_started of { workflow_run_id : Workflow_run_id.t }
   | Workflow_step_completed of { step_id : string }
   | Workflow_completed of { workflow_run_id : Workflow_run_id.t }

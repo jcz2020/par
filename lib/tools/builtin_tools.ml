@@ -1200,6 +1200,67 @@ let builtin_tools ~switch ~net =
     { descriptor; handler }
   in
 
+  let bash_tool =
+    let descriptor =
+      { name = "bash"
+      ; description = "Execute a shell command. Input: {\"argv\": [\"ls\", \"-la\"], \"timeout\": 30, \"cwd\": \"src\"}. \
+                       Subject to Bash_policy and Bash_blacklist. \
+                       Output: {\"stdout\": \"...\", \"stderr\": \"...\", \"exit_code\": 0, \"duration\": 0.12, \"truncated\": false}."
+      ; input_schema = `Assoc
+          [ ("type", `String "object")
+          ; ("properties", `Assoc
+              [ ("argv",     `Assoc [ ("type", `String "array")
+                                    ; ("items", `Assoc [("type", `String "string")])
+                                    ; ("description", `String "argv to execute (NOT a shell string)") ])
+              ; ("cwd",      `Assoc [ ("type", `String "string")
+                                    ; ("description", `String "CWD-relative working dir; default = .") ])
+              ; ("timeout",  `Assoc [ ("type", `String "number")
+                                    ; ("description", `String "Max seconds; default = 30")
+                                    ; ("minimum", `Float 0.0) ])
+              ])
+          ; ("required", `List [`String "argv"])
+          ]
+      ; permission = Allow
+      ; timeout = Some 60.0
+      ; concurrency_limit = Some 4
+      ; on_update = None
+      }
+    in
+    let handler = (fun input _tok ->
+        let argv =
+          try
+            Yojson.Safe.Util.(input |> member "argv" |> to_list)
+            |> List.filter_map (fun j ->
+              match j with
+              | `String s -> Some s
+              | _ -> None)
+          with _ -> []
+        in
+        let cwd_str = match Yojson.Safe.Util.(input |> member "cwd" |> to_string_option) with
+          | Some s -> s | None -> "."
+        in
+        let timeout = match Yojson.Safe.Util.(input |> member "timeout" |> to_float_option) with
+          | Some t when t > 0.0 -> t | _ -> 30.0
+        in
+        if argv = [] then
+          Error { category = Invalid_input "Empty argv"; message = "argv is required"; retryable = false; metadata = [] }
+        else
+          (match Bash_safe_command.sandboxed_path_of_string cwd_str with
+           | Error e ->
+             Error { category = e; message = Printf.sprintf "Invalid cwd: %s" cwd_str; retryable = false; metadata = [] }
+           | Ok cwd ->
+             let _cmd = Bash_safe_command.Exec { argv; cwd; env = []; timeout } in
+             (* NOTE: The actual policy check + Eio spawn happens in Runtime.install_bash_tool
+                which wraps this handler with the user's chosen POLICY module. The
+                builtin_tools.ml handler is a pure-data thunk. *)
+             Error { category = Internal "bash tool not installed"
+                   ; message = "Runtime.install_bash_tool must be called first"
+                   ; retryable = false; metadata = [] })
+      )
+    in
+    { descriptor; handler }
+  in
+
   ignore token;
   [ calculator
   ; get_time
@@ -1220,4 +1281,5 @@ let builtin_tools ~switch ~net =
   ; grep_tool
   ; write_tool
   ; edit_tool
+  ; bash_tool
   ]

@@ -82,3 +82,23 @@
  (name test_tool_progress)
  (libraries par eio_main alcotest)
  (modules test_tool_progress))
+
+(test
+ (name test_bash_safe_command)
+ (libraries par alcotest)
+ (modules test_bash_safe_command))
+
+(test
+ (name test_bash_blacklist)
+ (libraries par alcotest)
+ (modules test_bash_blacklist))
+
+(test
+ (name test_bash_policy)
+ (libraries par alcotest)
+ (modules test_bash_policy))
+
+(test
+ (name test_bash_runtime)
+ (libraries par eio_main alcotest)
+ (modules test_bash_runtime))
