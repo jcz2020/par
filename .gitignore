@@ -7,3 +7,25 @@ _build/
 .dolt/
 *.db
 .beads-credential-key
+
+# ----------------------------------------------------------------
+# Internal development docs (HIDDEN from public repo, see git history)
+# ----------------------------------------------------------------
+# Strategic intent and design rationale belong in a private repo.
+# These are gitignored but still in git history (recoverable via
+# `git checkout <commit> -- <path>`).
+docs/STRATEGY.md
+docs/v0.[0-9]-ROADMAP.md
+docs/v0.[0-9].[0-9]-ROADMAP.md
+docs/plans/
+DESIGN.md
+
+# Agent / planning / issue-tracker state (sisyphus, opencode, beads)
+.sisyphus/
+.opencode/
+.beads/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
