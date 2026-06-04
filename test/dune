@@ -119,3 +119,7 @@
  (libraries par alcotest)
  (modules test_mcp_types)
  (action (run %{test})))
+
+(executable
+ (name mcp_mock_server)
+ (libraries eio_main yojson))
