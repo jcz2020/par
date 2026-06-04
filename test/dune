@@ -106,4 +106,10 @@
 (test
  (name test_mcp_naming)
  (libraries par alcotest eio yojson logs)
+ (modules test_mcp_naming)
  (action (run %{test})))
+
+(test
+ (name test_mcp_errors)
+ (libraries par alcotest yojson)
+ (modules test_mcp_errors))
