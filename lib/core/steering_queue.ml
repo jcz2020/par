@@ -1,6 +1,5 @@
 (* Steering/Follow-up message queue — FIFO with bounded capacity.
-   When a queue overflows, the oldest message is dropped and a warning logged.
-   Mirrors pi-agent-core's PendingMessageQueue behavior. *)
+   When a queue overflows, the oldest message is dropped and a warning logged. *)
 
 let max_capacity = 100
 

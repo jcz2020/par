@@ -1,13 +1,12 @@
 (* lib/mcp/mcp_naming.mli
-   v0.3.1 design — Hierarchical default: "mcp__<server>__<tool>".
-   See v0.3.1-ROADMAP.md §MCP-1.
+   Hierarchical default: "mcp__<server>__<tool>".
 *)
 
 (** Replace any char outside [a-zA-Z0-9_-] with '_'. Idempotent.
     Per the MCP spec (SEP-986), tool names may include [.] and [/], but
     PAR intentionally narrows this for LLM tool-naming safety (OpenAI/
     Anthropic function calling rejects [.] and [/]). This is documented
-    as a v0.3.1 design decision; v0.4 will evaluate a [?strict_spec_compliance]
+     as a design decision; a future release will evaluate a [?strict_spec_compliance]
     flag. *)
 val sanitize : string -> string
 

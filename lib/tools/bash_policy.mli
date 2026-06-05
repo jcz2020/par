@@ -1,8 +1,7 @@
 (** The trust boundary for the bash tool. Every bash invocation passes
     its [Bash_safe_command.command] through [POLICY.filter], which decides
     whether to allow, modify, or reject the command.
-
-    @see <docs/v0.3.1-ROADMAP.md> lines 880-900 *)
+*)
 
 module type POLICY = sig
   val name : string

@@ -4,9 +4,7 @@
     design decision: by forcing [argv] to be [string list] at the type
     level, the compiler rejects any code that tries to pass a single
     shell string. Shell injection becomes unrepresentable.
-
-    @see <docs/v0.3.1-ROADMAP.md> lines 102-130
-    @see <docs/v0.3-ROADMAP.md> lines 845-878 *)
+*)
 
 (** A path guaranteed to be CWD-relative and free of parent traversal.
     The [private] constructor means [Path] can only be invoked from

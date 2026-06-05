@@ -528,11 +528,11 @@ let () = Eio_main.run (fun env ->
 - **永远不要禁用 timeout**，它是 fork bomb 与网络挂起的最后防线
 - 环境变量自动脱敏。如需传 secret，写到文件后用 `read` 工具读取（不在 `env` 字段里传）
 - 黑名单是**最后一道**防线，不是主防御。安全关键场景请在自定义 `POLICY` 里设 `allow_write:false` + `allow_network:false`
-- **OS 层沙箱**（bwrap / landlock）v0.3.1 不提供；见计划中的独立 opam 包 `par_sandbox`（v0.4+ 评估）
+- **OS 层沙箱**（bwrap / landlock）v0.3.1 不提供
 
 ### 风险评分
 
-`Bash_safe_command.assess_risk` 返回 `Low` / `Medium` / `High` / `Critical`，挂在 `Bash_invoked` 事件的 `risk` 字段上（v0.3.1 不进 `Runtime.metrics`，避免 v0.3.0 刚加的 metrics API 反复改）。v0.4+ 评估是否暴露为 counter。
+`Bash_safe_command.assess_risk` 返回 `Low` / `Medium` / `High` / `Critical`，挂在 `Bash_invoked` 事件的 `risk` 字段上。
 
 ---
 
@@ -563,7 +563,6 @@ Tool_registry.register rt.tool_registry descriptor handler
 
 - [`agent.md`](agent.md) -- Agent 定义、Runtime API、工具注册
 - [`overview.md`](overview.md) -- SDK 架构概览
-- [`v0.3.1-ROADMAP.md`](../v0.3.1-ROADMAP.md) -- v0.3.1 设计决策（bash 9 维安全 + MCP stdio）
 - `lib/tools/bash_safe_command.mli` -- Safe_command ADT 完整 API
 - `lib/tools/bash_policy.mli` -- POLICY 接口 + 3 预置
 - `lib/tools/bash_blacklist.mli` -- 31 条黑名单正则

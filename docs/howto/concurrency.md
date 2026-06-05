@@ -40,7 +40,7 @@ let results = Eio.Fiber.all tasks in
 
 ## 3. 并行 tool 调用（v0.3.0+）
 
-**`UX-3: parallel_tool_execution`**：当 LLM 一次返回多个 tool_call 时（典型："先 search 再 fetch"），PAR 默认**并行执行**：
+当 LLM 一次返回多个 tool_call 时（典型："先 search 再 fetch"），PAR 默认**并行执行**：
 
 ```ocaml
 (* runtime_config.parallel_tool_execution = true (默认) *)

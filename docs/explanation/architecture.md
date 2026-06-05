@@ -97,14 +97,12 @@ Engine.execute_ReAct_loop agent conversation
 
 ## 类型系统：为什么 PAR 更安全
 
-PAR 不用 Python 风格的动态字典，而是用 OCaml 强类型。这意味着：
+PAR 不用 Python 风格的动态字典，而是用 OCaml 强类型：
 
-| 风险 | LangChain | PAR |
-|------|----------|-----|
-| 工具参数类型错 | 运行时崩溃 | 编译期 error |
-| LLM 响应解析错 | 运行时 panic | 模式匹配强制覆盖 |
-| 配置 schema 错 | 启动时 surprise | `make_config` 构造器拒绝 |
-| 工具名重复 | 静默覆盖 | `Error (\`Duplicate_tool)` |
+- 工具参数类型在**编译期**检查（而非运行时崩溃）
+- LLM 响应解析通过模式匹配**强制覆盖**所有分支
+- 配置通过 `make_config` 构造器校验（拒绝非法值）
+- 重复工具名返回 `Error (\`Duplicate_tool)` 而非静默覆盖
 
 `v0.3.1 bash` 工具是这种"编译期安全"的极致：`command` ADT **没有** `Exec_raw_shell` 构造器，shell 注入在类型层不可表示。
 

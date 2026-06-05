@@ -202,7 +202,6 @@ See `bindings/python/examples/basic_agent.py` for the full example.
 
 | Doc | Description |
 |-----|-------------|
-| [`docs/STRATEGY.md`](docs/STRATEGY.md) | **长期战略**：价值定位、目标用户、差异化、优先级、发布 |
 | [`docs/quickstart.md`](docs/quickstart.md) | 30 分钟上手教程：安装 → 配置 provider → 写第一个 agent |
 | [`docs/cli.md`](docs/cli.md) | CLI 完整参考：par / par config / par ask 全部命令与参数 |
 | [`docs/sdk/overview.md`](docs/sdk/overview.md) | SDK 架构总览与模块组织 |
@@ -211,7 +210,6 @@ See `bindings/python/examples/basic_agent.py` for the full example.
 | [`docs/sdk/middleware.md`](docs/sdk/middleware.md) | 7 个内置中间件与自定义中间件 |
 | [`docs/sdk/tools.md`](docs/sdk/tools.md) | 20 个内置工具（含 bash 安全工具） |
 | [`docs/sdk/mcp.md`](docs/sdk/mcp.md) | MCP stdio 客户端：连接外部工具服务器 |
-| [`DESIGN.md`](DESIGN.md) | 内部设计文档（17 节，1509 行） |
 | [`CHANGES.md`](CHANGES.md) | 变更日志 |
 
 ## Built-in Tools

@@ -1,6 +1,5 @@
 (* lib/mcp/mcp_transport_stdio.mli
-   v0.3.1 W2 design — JSON-RPC 2.0 over stdio (MCP spec §3.1).
-   See docs/v0.3.1-ROADMAP.md §MCP-1.
+   JSON-RPC 2.0 over stdio (MCP spec §3.1).
 
    Implements line-delimited JSON framing (LF separator, optional CR stripping),
    1 MB max message size, mutex on writes for concurrent sends, and a [Test.pair]

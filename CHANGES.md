@@ -2,8 +2,6 @@
 
 ## v0.3.1 (2026-06-06)
 
-> **定位**：post-release polish。v0.3.0 把 SDK 基础打稳了，v0.3.1 给两件**真正提升 LLM 后端工程师日常工作**的事：安全的 bash + 任意 MCP server 接入。本 entry 记录 bash 工具；MCP 在独立 entry。
->
 > 100% 向后兼容，纯 additive，零 breaking change。
 
 ### SDK (par)
@@ -19,7 +17,7 @@
 ### Security posture
 
 - 9 维安全机制：CWD 锁定、黑名单、环境脱敏、超时强制、进程组清理、ANSI 剥离、输出截断、event bus 审计、风险评分
-- OS 层沙箱（bwrap / landlock）v0.3.1 不提供；见计划中的独立 opam 包 `par_sandbox`（v0.4+ 评估）
+- OS 层沙箱（bwrap / landlock）v0.3.1 不提供
 
 ### Test coverage
 
@@ -47,7 +45,7 @@
 - **New event types**（7 个）：`Mcp_server_started` / `Mcp_server_failed` / `Mcp_server_stopped` / `Mcp_tool_invoked` / `Mcp_tool_completed` / `Mcp_resource_read` / `Mcp_prompt_rendered`
 - **Runtime API**：`Runtime.mcp_servers` / `Runtime.mcp_server` — 按 server_id 查询已连接的 MCP server
 - **Startup policy**：`Fail_fast`（任一 server 失败则全部回滚）/ `Log_and_continue`（跳过失败继续）
-- **Scope**：stdio transport only（HTTP/SSE → v0.4），sampling → v0.4
+- **Scope**：stdio transport only
 - 20 个新测试：7 event round-trip + 10 runtime integration + 3 facade exposure
 - 现有 644 个测试全部继续通过（零回归）
 

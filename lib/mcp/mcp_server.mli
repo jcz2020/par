@@ -1,6 +1,5 @@
 (* lib/mcp/mcp_server.mli
-   v0.3.1 W2 design — MCP server lifecycle + RPC dispatch.
-   See docs/v0.3.1-ROADMAP.md §MCP-1. *)
+   MCP server lifecycle + RPC dispatch. *)
 
 (** A live, initialized MCP server connection. *)
 type t

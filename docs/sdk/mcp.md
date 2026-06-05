@@ -3,13 +3,13 @@
 本文档描述 P-A-R SDK 的 MCP（Model Context Protocol）stdio 客户端。PAR agent 可以连接到任意 MCP server（filesystem、git、sqlite、github 等），直接消费它们暴露的 tools、resources 和 prompts。
 
 **版本**: v0.3.1
-**传输层**: stdio only（HTTP / SSE → v0.4）
+**传输层**: stdio
 
 ## 概述
 
 MCP 是 Anthropic 提出的 LLM 工具集成协议，server 端把工具（tools）、数据资源（resources）、提示词模板（prompts）以 JSON-RPC 2.0 形式暴露在 stdio 上。PAR v0.3.1 实现 client 侧，让 PAR agent 可以透明地调用任何符合 MCP 规范的 server。
 
-为什么先做 stdio：本地进程通信是零网络依赖、零配置 TLS、零反代负担的方案，覆盖 90% 现有 MCP server 场景。HTTP/SSE 留给 v0.4。
+为什么先做 stdio：本地进程通信是零网络依赖、零配置 TLS、零反代负担的方案，覆盖 90% 现有 MCP server 场景。
 
 ### 三个公开模块
 
@@ -36,9 +36,9 @@ MCP 是 Anthropic 提出的 LLM 工具集成协议，server 端把工具（tools
 | notifications（list_changed、progress、cancelled） | ✅ |
 | 启动策略：fail-fast / log-and-continue | ✅ |
 | 优雅 shutdown（SIGTERM → SIGKILL 降级） | ✅ |
-| HTTP / SSE transport | → v0.4 |
-| sampling（server → LLM 反向调用） | → v0.4 |
-| roots / elicitation | → v0.4+ |
+| HTTP / SSE transport | 未实现 |
+| sampling（server → LLM 反向调用） | 未实现 |
+| roots / elicitation | 未实现 |
 
 ---
 
@@ -482,7 +482,7 @@ type capabilities = {
 }
 ```
 
-由 server 在 initialize 响应中声明。PAR v0.3.1 读取后存入 server 状态，可通过 `Mcp_client.capabilities` 查。PAR 不消费 `logging` 和 `sampling`（后者 v0.4 才做），但保留在结构里用于协议兼容。
+由 server 在 initialize 响应中声明。PAR v0.3.1 读取后存入 server 状态，可通过 `Mcp_client.capabilities` 查。PAR 不消费 `logging` 和 `sampling`，但保留在结构里用于协议兼容。
 
 ### 工具 / 资源 / 提示词
 
@@ -566,19 +566,15 @@ MCP 子进程**不会**经过 PAR 的 `Bash_policy.sanitize_env` 脱敏。`env` 
 
 ---
 
-## 限制与 v0.4 计划
+## 当前限制
 
-v0.3.1 是 MCP 集成的最小可用版本。下列能力**不在 v0.3.1 范围**：
+v0.3.1 是 MCP 集成的最小可用版本。下列能力**尚未实现**：
 
-| 能力 | 计划版本 | 说明 |
-|------|----------|------|
-| HTTP transport | v0.4 | 支持远程 MCP server（带 TLS、auth header） |
-| SSE transport | v0.4 | server-push 模式（目前只用 request/response） |
-| sampling | v0.4 | server 主动请求 LLM 补全（双向调用） |
-| roots | v0.4+ | server 询问 client 端的工作目录 |
-| elicitation | v0.4+ | server 主动向用户询问信息 |
-| 多 session 并发 | v0.4 | 同 server_id 复用、session 池 |
-| 流式 tool 输出 | v0.4 | 通过 `progress` 通知返回增量结果 |
+- HTTP / SSE transport（仅支持 stdio）
+- sampling（server → LLM 反向调用）
+- roots / elicitation
+- 多 session 并发（同 server_id 复用、session 池）
+- 流式 tool 输出
 
 如果你对上述任一能力有强需求，提交 issue 时附场景描述。
 
