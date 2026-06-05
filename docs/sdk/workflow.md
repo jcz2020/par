@@ -1,24 +1,28 @@
-# Workflow API 参考
+<!-- language: en -->
 
-本文档描述 P-A-R SDK 的工作流定义、执行和状态管理 API。
+> Translated to English for v0.3.2. Source-of-truth: the OCaml types in lib/core/workflow.ml.
 
-## 概述
+# Workflow API Reference
 
-工作流是多步骤编排引擎，支持将 Agent 调用、工具调用、人工审批等组合为有结构的执行计划。工作流具备检查点机制，可在人工审批点挂起和恢复。
+This document describes the P-A-R SDK's workflow definition, execution, and state management API.
 
-## workflow 类型
+## Overview
+
+A workflow is a multi-step orchestration engine. It composes agent calls, tool calls, and human approvals into a structured execution plan. Workflows support checkpointing and can suspend or resume at human approval points.
+
+## workflow type
 
 ```ocaml
 type workflow = {
   id : string;
   name : string;
   version : int;
-  steps : workflow_step;                         (* 入口步骤 *)
-  variables : (string * Yojson.Safe.t) list;    (* 模板变量 *)
+  steps : workflow_step;                         (* Entry step *)
+  variables : (string * Yojson.Safe.t) list;    (* Template variables *)
   failure_policy : failure_policy;
   parallel_limit : int;
   timeout : float;
-  on_complete : (workflow_result -> unit) option;  (* 可选完成回调 *)
+  on_complete : (workflow_result -> unit) option;  (* Optional completion callback *)
 }
 ```
 
@@ -26,25 +30,25 @@ type workflow = {
 
 ```ocaml
 type failure_policy =
-  | Fail_fast                              (* 遇错即停，默认 *)
-  | Continue_on_failure                    (* 跳过失败步骤，继续执行 *)
-  | Conditional of { on_failure : workflow_step }  (* 失败时执行补偿步骤 *)
+  | Fail_fast                              (* Stop on first error, default *)
+  | Continue_on_failure                    (* Skip failed steps and keep running *)
+  | Conditional of { on_failure : workflow_step }  (* Run a compensation step on failure *)
 ```
 
 ### workflow_result
 
-工作流执行完成后的结果：
+Result returned after a workflow execution completes:
 
 ```ocaml
 type workflow_result = {
-  outputs : (string * Yojson.Safe.t) list;  (* 键值对输出 *)
+  outputs : (string * Yojson.Safe.t) list;  (* Key-value pair outputs *)
   status : [ `Success | `Partial | `Failed ];
-  elapsed : float;                          (* 执行耗时（秒） *)
+  elapsed : float;                          (* Execution time in seconds *)
   metadata : (string * string) list;        (* workflow_id, workflow_name *)
 }
 ```
 
-## 步骤类型
+## Step types
 
 ### workflow_step
 
@@ -52,7 +56,7 @@ type workflow_result = {
 type workflow_step =
   | Agent_call of {
       agent_id : string;
-      prompt_template : string;           (* 支持 {{变量}} 模板 *)
+      prompt_template : string;           (* Supports {{variable}} templates *)
     }
   | Tool_call of {
       tool_name : string;
@@ -61,18 +65,18 @@ type workflow_step =
   | Parallel of workflow_step list
   | Sequential of workflow_step list
   | Conditional of {
-      condition : expression;             (* 见 Expression 模块 *)
+      condition : expression;             (* See the Expression module *)
       then_step : workflow_step;
       else_step : workflow_step option;
     }
   | Map_reduce of {
-      over : string;                      (* 要遍历的变量名 *)
-      step : workflow_step;               (* 应用于每个元素 *)
+      over : string;                      (* Variable name to iterate over *)
+      step : workflow_step;               (* Applied to each element *)
       reduce : [ `Collect_all | `First_success | `Majority ];
     }
   | Human_approval of {
       prompt_template : string;
-      timeout : float;                   (* 审批超时（秒） *)
+      timeout : float;                   (* Approval timeout in seconds *)
       allowed_roles : string list;
     }
   | Sub_workflow of {
@@ -83,7 +87,7 @@ type workflow_step =
 
 ### Agent_call
 
-调用已注册的 Agent。`prompt_template` 支持 `{{变量名}}` 占位符：
+Calls a registered agent. `prompt_template` supports `{{variable_name}}` placeholders:
 
 ```ocaml
 Agent_call {
@@ -94,7 +98,7 @@ Agent_call {
 
 ### Tool_call
 
-直接调用已注册的工具：
+Calls a registered tool directly:
 
 ```ocaml
 Tool_call {
@@ -105,7 +109,7 @@ Tool_call {
 
 ### Sequential
 
-按顺序执行多个步骤：
+Executes a list of steps in order:
 
 ```ocaml
 Sequential [
@@ -116,7 +120,7 @@ Sequential [
 
 ### Parallel
 
-并行执行多个步骤，受 `parallel_limit` 信号量控制：
+Executes multiple steps concurrently, bounded by the `parallel_limit` semaphore:
 
 ```ocaml
 Parallel [
@@ -127,7 +131,7 @@ Parallel [
 
 ### Conditional
 
-基于表达式条件分支。表达式的求值使用工作流的 variables 作为上下文：
+Branches on an expression. Expression evaluation uses the workflow's `variables` as its context:
 
 ```ocaml
 Conditional {
@@ -141,10 +145,10 @@ Conditional {
 
 ### Map_reduce
 
-对变量中的数组元素逐一执行步骤，然后聚合结果：
+Runs a step against each element of an array variable, then aggregates the results:
 
 ```ocaml
-(* variables 中需包含 items = [1, 2, 3, ...] *)
+(* variables must contain items = [1, 2, 3, ...] *)
 Map_reduce {
   over = "items";
   step = Tool_call { tool_name = "calculator"; input = `Assoc [("expression", `String "{{item}}")] };
@@ -152,29 +156,29 @@ Map_reduce {
 }
 ```
 
-三种 reduce 策略：
+Three reduce strategies:
 
-| 策略 | 行为 |
+| Strategy | Behavior |
 |------|------|
-| `Collect_all` | 收集所有成功结果，返回列表 |
-| `First_success` | 返回第一个成功结果 |
-| `Majority` | 返回出现次数最多的结果 |
+| `Collect_all` | Collect every successful result and return the list |
+| `First_success` | Return the first successful result |
+| `Majority` | Return the result that appears most often |
 
 ### Human_approval
 
-暂停工作流等待人工审批。超时后工作流自动标记为失败：
+Suspends the workflow pending human approval. When the timeout elapses, the workflow is automatically marked as failed:
 
 ```ocaml
 Human_approval {
-  prompt_template = "请审核操作: {{action}}";
-  timeout = 300.0;        (* 5 分钟超时 *)
+  prompt_template = "Please review the action: {{action}}";
+  timeout = 300.0;        (* 5 minute timeout *)
   allowed_roles = ["admin"; "reviewer"];
 }
 ```
 
 ### Sub_workflow
 
-嵌套执行另一个已注册的工作流，变量会合并：
+Nests another registered workflow. Variables are merged with the parent:
 
 ```ocaml
 Sub_workflow {
@@ -183,68 +187,69 @@ Sub_workflow {
 }
 ```
 
-## 运行时 API
+## Runtime API
 
-### 注册工作流定义
+All functions in this section take a `runtime` value created by `Runtime.create`. The same runtime also serves `Runtime.invoke` for direct agent calls, so a workflow and a single-shot invocation can share state, tools, and event subscribers.
+
+### Register a workflow definition
 
 ```ocaml
 val Runtime.register_workflow : runtime -> workflow -> (unit, error_category) result
 ```
 
-### 提交工作流执行
+### Submit a workflow execution
 
 ```ocaml
 val Runtime.submit_workflow : runtime -> workflow ->
   (Workflow_run_id.t, error_category) result
 ```
 
-返回工作流运行 ID，可用于后续状态查询。
+Returns the workflow run ID, which can be used for subsequent status queries.
 
-### 查询工作流状态
+### Query workflow status
 
 ```ocaml
 val Runtime.get_workflow_status : runtime -> Workflow_run_id.t ->
   (workflow_status, error_category) result
 ```
 
-### 取消工作流
+### Cancel a workflow
 
 ```ocaml
 val Runtime.cancel_workflow : runtime -> Workflow_run_id.t ->
   (unit, error_category) result
 ```
 
-### 审批挂起的工作流
+### Approve a suspended workflow
 
 ```ocaml
 val Runtime.approve_workflow : runtime -> Workflow_run_id.t -> approver:string ->
   (unit, error_category) result
 ```
 
-### 恢复挂起的工作流
+### Resume a suspended workflow
 
 ```ocaml
 val Runtime.resume_workflow : runtime -> Workflow_run_id.t ->
   (workflow_result option, error_category) result
 ```
 
-## 变量与上下文传播
+## Variables and context propagation
 
-工作流支持 `{{变量名}}` 模板语法。变量在以下位置可用：
+Workflows support the `{{variable_name}}` template syntax. Variables are available at the following places:
 
-- `Agent_call.prompt_template` -- 替换为 JSON 值的字符串表示
-- `Human_approval.prompt_template` -- 同上
+- `Agent_call.prompt_template` -- substituted with the string representation of a JSON value
+- `Human_approval.prompt_template` -- same as above
 
-变量来源：
+Variable sources:
 
-1. `workflow.variables` -- 工作流定义时声明的初始变量
-2. `Sub_workflow.variables` -- 子工作流可传递额外变量（与父工作流合并）
-3. `Map_reduce` -- 当前遍历的元素自动作为同名变量注入
+1. `workflow.variables` -- initial variables declared with the workflow definition
+2. `Sub_workflow.variables` -- a sub-workflow can pass extra variables (merged with the parent's)
+3. `Map_reduce` -- the current iteration element is injected as a variable of the same name
 
-表达式求值（`Conditional` 的 condition）使用 variables 作为上下文，
-支持 `Variable "key"` 引用变量值。
+Expression evaluation (the `condition` of `Conditional`) uses `variables` as its context and supports `Variable "key"` to reference a value.
 
-## 检查点与恢复
+## Checkpoint and resume
 
 ### workflow_status
 
@@ -252,7 +257,7 @@ val Runtime.resume_workflow : runtime -> Workflow_run_id.t ->
 type workflow_status =
   | Wf_pending
   | Wf_running
-  | Wf_suspended of workflow_checkpoint    (* 人工审批挂起 *)
+  | Wf_suspended of workflow_checkpoint    (* Suspended for human approval *)
   | Wf_completed of workflow_result
   | Wf_failed of error_category
 ```
@@ -261,21 +266,20 @@ type workflow_status =
 
 ```ocaml
 type workflow_checkpoint = {
-  step_path : int list;                        (* 步骤路径索引 *)
-  variables : (string * Yojson.Safe.t) list;   (* 当前变量快照 *)
-  step_results : Yojson.Safe.t list;           (* 已完成步骤的结果 *)
+  step_path : int list;                        (* Step path index *)
+  variables : (string * Yojson.Safe.t) list;   (* Current variable snapshot *)
+  step_results : Yojson.Safe.t list;           (* Results of completed steps *)
 }
 ```
 
-工作流在 `Human_approval` 步骤处自动创建检查点并挂起。
-检查点通过持久化层保存到数据库，支持跨进程恢复。
+A workflow automatically creates a checkpoint and suspends when it reaches a `Human_approval` step. The persistence layer saves the checkpoint to the database, which makes cross-process recovery possible.
 
-### 恢复流程
+### Resume flow
 
-1. 工作流到达 `Human_approval` -> 状态变为 `Wf_suspended`
-2. 外部系统调用 `Runtime.approve_workflow` 或 `Runtime.resume_workflow`
-3. 工作流从检查点恢复执行后续步骤
-4. 若超过 timeout，自动变为 `Wf_failed Timeout`
+1. The workflow reaches `Human_approval` and its status becomes `Wf_suspended`.
+2. An external system calls `Runtime.approve_workflow` or `Runtime.resume_workflow`.
+3. The workflow resumes from the checkpoint and runs the remaining steps.
+4. If the timeout elapses, the status becomes `Wf_failed Timeout` automatically.
 
 ### workflow_run
 
@@ -290,18 +294,15 @@ type workflow_run = {
 }
 ```
 
-## 审批超时 (v0.2.0)
+## Approval timeout (v0.2.0)
 
-当工作流到达 `Human_approval` 步骤时，引擎自动注册一个超时 fiber：
-- 在 timeout 时间内等待审批
-- 超时后自动移除 deadline，将工作流标记为 `Wf_failed Timeout`
-- 同时持久化状态变更到数据库
+When a workflow reaches a `Human_approval` step, the engine automatically registers a timeout fiber. The fiber waits for approval until the timeout elapses. Once the deadline passes, the engine removes the deadline, marks the workflow as `Wf_failed Timeout`, and persists the state change to the database.
 
-超时机制通过 `Workflow_engine.Approval_deadline` 模块内部管理。
+The timeout mechanism is managed internally by the `Workflow_engine.Approval_deadline` module.
 
-## 持久化工作流状态
+## Persisting workflow state
 
-工作流状态通过 `persistence_service` 的以下函数持久化：
+Workflow state is persisted through the following functions on `persistence_service`:
 
 ```ocaml
 save_workflow_state_fn : Workflow_run_id.t -> workflow_status ->
@@ -310,9 +311,11 @@ load_workflow_state_fn : Workflow_run_id.t ->
   (workflow_checkpoint option, error_category) result
 ```
 
-SQLite 后端自动创建 `workflow_states` 表，保存状态和检查点 JSON。
+The SQLite backend automatically creates a `workflow_states` table that stores the status and checkpoint as JSON.
 
-## 完整工作流示例
+## Complete workflow example
+
+The runtime `rt` below is created with `Runtime.create` (see [Agent API](agent.md) for the full creation sequence). The same `rt` is also used by `Runtime.invoke` for direct agent invocations outside a workflow.
 
 ```ocaml
 open Par
@@ -350,9 +353,9 @@ match Runtime.submit_workflow rt wf with
   Printf.eprintf "Workflow submission failed\n"
 ```
 
-## JSON 工作流格式
+## JSON workflow format
 
-工作流可以从 JSON 加载（需自行反序列化到 `workflow` record）：
+A workflow can be loaded from JSON (you deserialize it into the `workflow` record yourself):
 
 ```json
 {
@@ -376,10 +379,10 @@ match Runtime.submit_workflow rt wf with
 }
 ```
 
-步骤序列化格式为 `["步骤类型", 参数]`。参数结构取决于步骤类型。
+A step is serialized as `["StepType", arguments]`. The argument shape depends on the step type.
 
 ## See also
 
-- [Overview](overview.md) -- SDK 架构概览
-- [Agent API](agent.md) -- Agent 配置和运行时管理
-- [examples/sequential_workflow.json](../../examples/sequential_workflow.json) -- 工作流 JSON 示例
+- [Overview](overview.md) -- SDK architecture overview
+- [Agent API](agent.md) -- Agent configuration and runtime management
+- [examples/sequential_workflow.json](../../examples/sequential_workflow.json) -- Workflow JSON example
