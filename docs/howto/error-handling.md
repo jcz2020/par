@@ -1,5 +1,7 @@
 <!-- language: en -->
 
+**English** · [简体中文](../zh-CN/howto/error-handling.md)
+
 > Translated to English for v0.3.2.
 
 # How-to: Error Handling Patterns

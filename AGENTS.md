@@ -62,15 +62,23 @@ Every new or modified public doc must open with `<!-- language: en -->` as line 
 
 SDK docs are primary. The CLI exists for end-user experience. When you add new SDK documentation, `README.md` must include a working code example in its first 50 lines.
 
-### No CJK in public docs
+### No CJK in English public docs
 
-All public-facing docs must be English. No Chinese characters (Unicode U+4E00 to U+9FFF) in body text. CI runs this check:
+English docs under `docs/` (root) must not contain Chinese characters (Unicode U+4E00 to U+9FFF) in body text. The Chinese mirror lives in `docs/zh-CN/` and is exempt from this rule. CI runs this check:
 
 ```bash
-grep -rPl "[\x{4e00}-\x{9fff}]" README.md docs/ --include="*.md" | grep -v DOC-MAINTENANCE
+# Step 1: find English docs with CJK (excluding zh-CN mirror and internal docs)
+# Step 2: for each, check if the only CJK is the language-switch text "简体中文"
+grep -rPl "[\x{4e00}-\x{9fff}]" README.md docs/ --include='*.md' \
+  | grep -v DOC-MAINTENANCE \
+  | grep -v zh-CN \
+  | while read f; do
+      extra=$(grep -P '[\x{4e00}-\x{9fff}]' "$f" | grep -v '简体中文')
+      if [ -n "$extra" ]; then echo "$f"; fi
+    done
 ```
 
-Output must be empty. The `DOC-MAINTENANCE` exclusion lets this rule reference the Chinese block range without tripping the linter.
+Output must be empty. The exclusions: `DOC-MAINTENANCE` lets this rule reference the Chinese block range; `zh-CN` skips the Chinese mirror directory; the language-switch text `简体中文` in English doc headers is allowed. The `while` loop ensures only files with CJK **beyond** the language-switch link are flagged.
 
 ### OCaml identifier preservation
 

@@ -1,5 +1,7 @@
 # P-A-R — Programmable Agent Runtime
 
+**English** · [简体中文](docs/zh-CN/README.md)
+
 A modular, type-safe agent runtime for OCaml 5.4+: LangChain + LangGraph for the OCaml ecosystem.
 
 [![Build Status](https://github.com/jcz2020/par/actions/workflows/ci.yml/badge.svg)](https://github.com/jcz2020/par/actions/workflows/ci.yml)

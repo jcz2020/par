@@ -1,5 +1,7 @@
 <!-- language: en -->
 
+**English** · [简体中文](zh-CN/cli.md)
+
 > Translated to English for v0.3.2. Source-of-truth: bin/ CLI implementation.
 
 # par_cli — CLI Reference

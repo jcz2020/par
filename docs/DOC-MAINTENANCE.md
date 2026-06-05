@@ -38,13 +38,23 @@ The CLI guide covers invocation, flags, exit codes, and config file locations. A
 
 If a CLI command surfaces a behavior that the SDK exposes, link the SDK section from the CLI page and stop. Do not duplicate the explanation, since the two will drift. The link is the contract: the SDK page is canonical, the CLI page is a thin wrapper that points at the canonical source.
 
-### No CJK in public docs
+### No CJK in English public docs
 
-All public-facing docs are English only. No Chinese characters (Unicode U+4E00 to U+9FFF) in body text, no Japanese kana, no Korean hangul. The CI runs this check on every PR: `grep -rPl "[\x{4e00}-\x{9fff}]" README.md docs/ --include="*.md" | grep -v DOC-MAINTENANCE`. The output must be empty. The `DOC-MAINTENANCE` exclusion lets this very rule reference the CJK block range without tripping the linter. If a Chinese character slips into a code example, move it to a string literal or a comment so the linter passes, then file a follow-up issue to translate the surrounding prose. Code examples that genuinely need a non-ASCII string should wrap it in `Jsonnf` or an equivalent escape so the source stays ASCII.
+English docs under `docs/` (root) must not contain Chinese characters (Unicode U+4E00 to U+9FFF) in body text. The Chinese mirror lives in `docs/zh-CN/` and is exempt from this rule. The language-switch text `简体中文` that appears in every English doc header is the sole allowed exception. CI runs this check on every PR:
 
-The rule is about body text, not about the bytes inside a string literal. A doc that explains a Chinese-language tool can include a Chinese path in a JSON value, since the value is data, not prose. The CI grep checks every line, so the value still trips the linter. The fix is to escape the bytes (`\u4e2d\u6587`) or to move the example into a unit test, which has its own linter. If neither is feasible, ask the maintainers to add a per-file exception in `scripts/check_doc_identifiers.sh`.
+```bash
+# Step 1: find English docs with CJK (excluding zh-CN mirror and internal docs)
+# Step 2: for each, check if the only CJK is the language-switch text "简体中文"
+grep -rPl "[\x{4e00}-\x{9fff}]" README.md docs/ --include='*.md' \
+  | grep -v DOC-MAINTENANCE \
+  | grep -v zh-CN \
+  | while read f; do
+      extra=$(grep -P '[\x{4e00}-\x{9fff}]' "$f" | grep -v '简体中文')
+      if [ -n "$extra" ]; then echo "$f"; fi
+    done
+```
 
-Comments in code examples are also body text. A doc that uses a non-ASCII placeholder in a code comment trips the linter, even though the line compiles. Replace the comment with an ASCII placeholder (`// comment`) and move the non-ASCII example into a string if the example genuinely needs to demonstrate Unicode handling. The unit test suite has its own escape machinery and can host the raw bytes.
+Output must be empty. The exclusions: `DOC-MAINTENANCE` lets this rule reference the CJK block range; `zh-CN` skips the Chinese mirror directory; the language-switch text `简体中文` in English doc headers is allowed. The `while` loop ensures only files with CJK **beyond** the language-switch link are flagged.
 
 ### Identifier preservation
 
@@ -148,4 +158,32 @@ A diagram that needs to show data shape (table rows, field types) belongs in pro
 
 - [`CONTRIBUTING.md`](../../CONTRIBUTING.md) — public contributor guide
 - [`AGENTS.md`](../../AGENTS.md) — local agent / maintainer rules
-- [`docs/index.md`](../index.md) — documentation index
+- [`docs/index.md`](index.md) — documentation index
+
+## Multilingual docs
+
+PAR ships docs in two languages:
+
+| Language | Directory | Status |
+|----------|-----------|--------|
+| English | `docs/` (root) | Primary — ships to opam and PyPI |
+| 简体中文 | `docs/zh-CN/` | Mirror — for Chinese-speaking users |
+
+### Rules
+
+1. Every English doc that has a Chinese counterpart must include a language-switch link at the top: `**English** · [简体中文](path-to-zh-CN)`.
+2. Every Chinese doc must include a reciprocal link: `[English](path-to-en) · **简体中文**`.
+3. The Chinese mirror lives under `docs/zh-CN/` with the same relative structure as the English original. The directory mirrors `docs/` — if the English file is `docs/howto/concurrency.md`, the Chinese file is `docs/zh-CN/howto/concurrency.md`.
+4. `README.md` has the language switch at the top, pointing to `docs/zh-CN/README.md` as the Chinese entry point.
+5. The CJK ban applies only to the English docs under `docs/` (root). Chinese docs under `docs/zh-CN/` are exempt.
+6. The `scripts/check_doc_identifiers.sh` check runs only on English docs, not on `docs/zh-CN/`.
+7. When adding a new public doc, create both the English and Chinese versions and add the language-switch links.
+
+### How to add a new language
+
+Follow the `docs/zh-CN/` pattern:
+
+1. Create a directory like `docs/ja-JP/` (using the BCP 47 tag).
+2. Mirror the English docs into it.
+3. Add the language to the switch row in `README.md`: `**English** · [简体中文](docs/zh-CN/README.md) · [日本語](docs/ja-JP/README.md)`.
+4. Add reciprocal links at the top of every file in both the new directory and the English originals.

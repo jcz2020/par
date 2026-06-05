@@ -1,5 +1,7 @@
 <!-- language: en -->
 
+**English** · [简体中文](../zh-CN/sdk/overview.md)
+
 # PAR SDK Overview
 
 The PAR SDK is an OCaml 5.4+ library for building LLM-powered agents. It provides a ReAct reasoning loop, multi-provider LLM abstraction, type-safe shell execution, MCP stdio client integration, and a 7-middleware pipeline. This overview is the deep dive; the README is the landing.

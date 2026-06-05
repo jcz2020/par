@@ -1,18 +1,13 @@
-<!-- language: en -->
+# Agent API 参考
+[English](../sdk/agent.md) · **简体中文**
 
-**English** · [简体中文](../zh-CN/sdk/agent.md)
+本文档描述 P-A-R SDK 的 Agent 配置、运行时管理和工具注册 API。
 
-# Agent API Reference
-
-> Translated to English for v0.3.2. Source-of-truth: the OCaml types in `lib/core/types.ml`.
-
-This document describes the P-A-R SDK's Agent configuration, runtime management, and tool registration API. The `Par` facade (see `lib/par.ml`) re-exports every public module, so a single `open Par` brings the runtime, types, providers, persistence, and middleware into scope.
-
-## Runtime configuration
+## 运行时配置
 
 ### runtime_config
 
-A runtime is created through `Par.Runtime.create` and needs the following configuration:
+运行时通过 `Par.Runtime.create` 创建，需要以下配置：
 
 ```ocaml
 type runtime_config = {
@@ -25,17 +20,15 @@ type runtime_config = {
 }
 ```
 
-The `Par` facade (`lib/par.ml`) re-exports `Types`, `Runtime`, and the persistence and event-bus modules. The full source-of-truth `runtime_config` in `lib/core/types.ml` adds `parallel_tool_execution` and a `` `Noop `` persistence variant for tests; the snippets below use the stable subset that compiles against the published `par` opam package.
-
-`Par.Runtime` provides three default configuration values that you can use directly:
+`Par.Runtime` 提供三个默认配置值，可以直接使用：
 
 ```ocaml
-Runtime.default_event_bus_config   (* buffer_capacity=10000, DLQ enabled *)
+Runtime.default_event_bus_config   (* buffer_capacity=10000, DLQ 开启 *)
 Runtime.default_quota             (* max_concurrent_tasks=10 *)
 Runtime.default_shutdown_config   (* drain_timeout=30s *)
 ```
 
-### Creating a runtime
+### 创建运行时
 
 ```ocaml
 val Runtime.create :
@@ -47,7 +40,7 @@ val Runtime.create :
   (runtime, Types.error_category) result
 ```
 
-Full example:
+完整示例：
 
 ```ocaml
 open Par
@@ -66,28 +59,28 @@ let () = Eio_main.run (fun _env ->
     match Runtime.create ~config switch with
     | Error _ -> Printf.eprintf "Runtime creation failed\n"
     | Ok rt ->
-      (* ... use the runtime ... *)
+      (* ... 使用运行时 ... *)
       let exit_code = Runtime.close rt in
       exit exit_code
   )
 )
 ```
 
-## Agent configuration
+## Agent 配置
 
 ### agent_config
 
 ```ocaml
 type agent_config = {
-  id : string;                            (* Unique Agent identifier *)
-  system_prompt : string;                 (* System prompt *)
-  model : model_config;                   (* LLM model configuration *)
-  tools : tool_descriptor list;           (* Available tool list *)
-  max_iterations : int;                   (* ReAct loop max iterations *)
-  middleware : middleware_hook list;       (* Middleware pipeline *)
-  retry_policy : retry_policy option;     (* Optional retry policy *)
-  context_strategy : context_strategy option;  (* Context window management strategy *)
-  resource_quota : resource_quota option;  (* Optional resource quota override *)
+  id : string;                            (* Agent 唯一标识 *)
+  system_prompt : string;                 (* 系统提示词 *)
+  model : model_config;                   (* LLM 模型配置 *)
+  tools : tool_descriptor list;           (* 可用工具列表 *)
+  max_iterations : int;                   (* ReAct 循环最大迭代次数 *)
+  middleware : middleware_hook list;       (* 中间件管道 *)
+  retry_policy : retry_policy option;     (* 可选重试策略 *)
+  context_strategy : context_strategy option;  (* 上下文窗口管理策略 *)
+  resource_quota : resource_quota option;  (* 可选资源配额覆盖 *)
 }
 ```
 
@@ -97,7 +90,7 @@ type agent_config = {
 type model_config = {
   provider : [ `Openai | `Anthropic | `Ollama | `Custom of string ];
   model_name : string;
-  api_base : string option;          (* Custom API endpoint *)
+  api_base : string option;          (* 自定义 API 端点 *)
   temperature : float;
   max_tokens : int option;
   top_p : float option;
@@ -105,7 +98,7 @@ type model_config = {
 }
 ```
 
-Provider examples:
+Provider 示例：
 
 ```ocaml
 (* OpenAI *)
@@ -113,27 +106,27 @@ Provider examples:
   temperature = 0.7; max_tokens = Some 4096; top_p = None;
   stop_sequences = None }
 
-(* Anthropic via ZhipuAI gateway *)
+(* 通过 ZhipuAI 中转调用 Anthropic *)
 { provider = `Anthropic; model_name = "claude-sonnet-4-20250514";
   api_base = Some "https://open.bigmodel.cn/api/paas/v4";
   temperature = 0.5; max_tokens = None; top_p = None;
   stop_sequences = None }
 
-(* Ollama local model *)
+(* Ollama 本地模型 *)
 { provider = `Ollama; model_name = "llama3"; api_base = None;
   temperature = 0.8; max_tokens = None; top_p = None;
   stop_sequences = None }
 
-(* Custom endpoint *)
+(* 自定义端点 *)
 { provider = `Custom "my-provider"; model_name = "my-model";
   api_base = Some "http://localhost:8000/v1";
   temperature = 0.7; max_tokens = None; top_p = None;
   stop_sequences = None }
 ```
 
-### LLM provider configuration
+### LLM Provider 配置
 
-Provider instances are created through `llm_provider_config` and passed to the `llm` parameter of `Runtime.create`. The `` `Mock `` provider from `lib/providers` is the deterministic choice for tests; production code reaches for `` `Openai `` or `` `Anthropic ``. The PostgreSQL backend, when needed, is registered through `` `Postgresql `` in `persistence`, with the full `par_postgres` opam package providing the implementation.
+Provider 实例通过 `llm_provider_config` 创建，传递给 `Runtime.create` 的 `llm` 参数：
 
 ```ocaml
 type llm_provider_config =
@@ -145,9 +138,9 @@ type llm_provider_config =
                 request_format : [ `Openai_compatible | `Anthropic_compatible ] }
 ```
 
-## Runtime operations
+## 运行时操作
 
-### Registering an agent
+### 注册 Agent
 
 ```ocaml
 val Runtime.register_agent : runtime -> agent_config -> (unit, error_category) result
@@ -160,7 +153,7 @@ let agent = {
   model = { provider = `Openai; model_name = "gpt-4"; api_base = None;
             temperature = 0.7; max_tokens = None; top_p = None;
             stop_sequences = None };
-  tools = [ tool.descriptor ];   (* from Runtime.register_tool *)
+  tools = [ tool.descriptor ];   (* 来自 Runtime.register_tool *)
   max_iterations = 5;
   middleware = [];
   retry_policy = None;
@@ -170,7 +163,7 @@ let agent = {
 ignore (Runtime.register_agent rt agent)
 ```
 
-### Invoking an agent
+### 调用 Agent
 
 ```ocaml
 val Runtime.invoke :
@@ -190,15 +183,13 @@ match Runtime.invoke rt ~agent_id:"my-agent" ~message:"Hello!" () with
 | Error err -> Printf.eprintf "Error: %s\n" (Types.error_category_to_yojson err |> Yojson.Safe.to_string)
 ```
 
-### Shutting down the runtime
+### 关闭运行时
 
 ```ocaml
-val Runtime.close : runtime -> int   (* returns exit code *)
+val Runtime.close : runtime -> int   (* 返回退出码 *)
 ```
 
-`Runtime.close` also stops every MCP server child spawned through `Runtime.mcp_server`; the returned integer is the exit code, and a non-zero value means a child process refused to exit cleanly.
-
-## Tool registration
+## 工具注册
 
 ### tool_descriptor
 
@@ -206,16 +197,16 @@ val Runtime.close : runtime -> int   (* returns exit code *)
 type tool_descriptor = {
   name : string;
   description : string;
-  input_schema : Yojson.Safe.t;     (* JSON Schema format *)
-  permission : tool_permission;     (* default Allow *)
+  input_schema : Yojson.Safe.t;     (* JSON Schema 格式 *)
+  permission : tool_permission;     (* 默认 Allow *)
   timeout : float option;
   concurrency_limit : int option;
 }
 ```
 
-### Handler function signature
+### handler 函数签名
 
-A tool handler receives JSON input and a cancellation token and returns a `handler_result`:
+工具 handler 接收 JSON 输入和取消令牌，返回 `handler_result`：
 
 ```ocaml
 type handler_fn = Yojson.Safe.t -> Types.cancellation_token -> Types.handler_result
@@ -243,10 +234,10 @@ val Runtime.register_tool :
   ?timeout:float ->
   ?concurrency_limit:int ->
   unit ->
-  tool_binding    (* returns descriptor + handler *)
+  tool_binding    (* 返回 descriptor + handler *)
 ```
 
-`tool_binding` contains `descriptor` (for `agent_config.tools`) and `handler` (already registered with the registry):
+`tool_binding` 包含 `descriptor`（用于 `agent_config.tools`）和 `handler`（已自动注册到 registry）：
 
 ```ocaml
 type tool_binding = {
@@ -255,10 +246,10 @@ type tool_binding = {
 }
 ```
 
-### Tool registration example
+### 工具注册示例
 
 ```ocaml
-(* Define a calculator tool *)
+(* 定义一个计算器工具 *)
 let calc_tool = Runtime.register_tool rt
   ~name:"calculator"
   ~description:"Evaluate a math expression"
@@ -302,34 +293,35 @@ let calc_tool = Runtime.register_tool rt
   ()
 ```
 
-## ReAct loop
+## ReAct 循环
 
-The agent execution core is `Par.Engine.run_agent`:
+Agent 执行核心是 `Par.Engine.run_agent`：
 
-1. Build the conversation (system prompt + user message).
-2. Apply `context_strategy` (if configured) to manage the context window.
-3. Send the `on_before_llm` hook through the middleware chain.
-4. Call the LLM provider to get a response.
-5. Send the `on_after_llm` hook through the middleware chain.
-6. If the response contains `tool_calls`, execute each tool in order:
-   - Look up the tool descriptor.
-   - Resolve the handler from the `Tool_registry`.
-   - Execute the tool (with `on_before_tool` / `on_after_tool` hooks).
-   - Append the tool result to the conversation.
-7. Recurse until `finish_reason` is `Stop` or `max_iterations` is reached.
+1. 构建对话（System prompt + User message）
+2. 应用 `context_strategy`（如已配置）管理上下文窗口
+3. 通过中间件链发送 `on_before_llm` 钩子
+4. 调用 LLM Provider 获取响应
+5. 通过中间件链发送 `on_after_llm` 钩子
+6. 若响应包含 tool_calls，依次执行每个工具：
+   - 查找工具 descriptor
+   - 从 Tool_registry 解析 handler
+   - 执行工具（经过 `on_before_tool` / `on_after_tool` 钩子）
+   - 将工具结果追加到对话
+7. 递归调用直到 `finish_reason` 为 `Stop` 或达到 `max_iterations`
 
-### max_iterations behavior
+### max_iterations 行为
 
-When the iteration count reaches `max_iterations`, `run_agent` returns `Result.Error (Internal "Max iterations exceeded")`.
+当迭代次数达到 `max_iterations` 时，`run_agent` 返回：
+`Result.Error (Internal "Max iterations exceeded")`
 
-For a `Max_tokens` `finish_reason`, if the iteration cap has not been reached, the loop retries automatically.
+对于 `Max_tokens` finish_reason，若尚未达到迭代上限，循环会自动重试。
 
-## System prompt design guidance
+## System Prompt 设计建议
 
-- Pin the agent's role and capability boundaries up front.
-- List the available tools and the scenarios where each one fits.
-- Specify the output format requirement (JSON, plain text, and so on).
-- For tasks that need multi-step reasoning, prompt the agent to think step by step.
+- 明确指定 Agent 的角色和能力边界
+- 列出可用工具的用途和使用场景
+- 指定输出格式要求（JSON、纯文本等）
+- 对需要多步推理的任务，提示 Agent 逐步思考
 
 ```ocaml
 system_prompt = {|
@@ -343,27 +335,26 @@ system_prompt = {|
 |}
 ```
 
-## Cancellation tokens
+## 取消令牌
 
 ```ocaml
 val Cancellation.create_token : Eio.Switch.t -> cancellation_token
 val Cancellation.request_cancel : cancellation_token -> unit
 val Cancellation.check_cancel : cancellation_token -> unit
-  (* raises Eio.Cancel.Cancelled if already cancelled *)
+  (* 抛出 Eio.Cancel.Cancelled 若已取消 *)
 val Cancellation.with_timeout : float -> cancellation_token ->
   (cancellation_token -> 'a) -> ('a, [ `Cancelled | `Timeout ]) result
 ```
 
 ```ocaml
 let token = Cancellation.create_token switch in
-(* Can be cancelled from another fiber *)
+(* 在另一个 fiber 中可以取消 *)
 Cancellation.request_cancel token
 ```
 
 ## See also
 
-- [Overview](overview.md) -- SDK architecture overview
-- [Workflow API](workflow.md) -- Workflow orchestration
-- [Middleware API](middleware.md) -- Middleware pipeline
-- [MCP client](mcp.md) -- `Runtime.mcp_server` lifecycle, `call_tool`, `read_resource`, `get_prompt`
-- [examples/basic_agent.ml](../../examples/basic_agent.ml) -- Complete runnable example
+- [Overview](overview.md) -- SDK 架构概览
+- [Workflow API](workflow.md) -- 工作流编排
+- [Middleware API](middleware.md) -- 中间件管道
+- [examples/basic_agent.ml](../../examples/basic_agent.ml) -- 完整可运行示例

@@ -1,5 +1,7 @@
 <!-- language: en -->
 
+**English** · [简体中文](zh-CN/index.md)
+
 # PAR Documentation
 
 PAR's docs are SDK-first. The CLI is end-user experience; production code uses the OCaml SDK directly. If you're building an agent, start with the SDK overview and the agent API reference. If you're an end user trying the CLI, jump to the quickstart.
