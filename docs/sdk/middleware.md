@@ -1,12 +1,14 @@
-# Middleware API 参考
+<!-- language: en -->
 
-本文档描述 P-A-R SDK 的中间件管道，包括 7 个内置中间件和自定义中间件编写指南。
+> Translated to English for v0.3.2. Source-of-truth: the OCaml types in lib/middleware/.
 
-## 中间件概念
+# Middleware API Reference
 
-中间件通过 `middleware_hook` 类型定义，作为横切关注点的拦截器插入 Agent 执行管道。
-Engine 使用"俄罗斯套娃"（Russian Doll）模式组合中间件链 -- `List.fold_right` 保证
-列表中靠前的中间件包裹靠后的中间件。
+This document describes the middleware pipeline of a runtime created with `Runtime.create`, including the 7 built-in middleware and a guide for writing custom middleware.
+
+## Middleware concepts
+
+Middleware is defined through the `middleware_hook` type, which inserts interceptors for cross-cutting concerns into the agent execution pipeline. The Engine composes the middleware chain using a "Russian Doll" pattern, with `List.fold_right` guaranteeing that middleware earlier in the list wraps middleware later in the list.
 
 ### middleware_hook
 
@@ -21,29 +23,29 @@ type middleware_hook = {
 }
 ```
 
-每个钩子返回 `Some modified_value` 表示修改了值，`None` 表示透传。
+Each hook returns `Some modified_value` to indicate the value was modified, or `None` to pass it through.
 
-中间件在 `agent_config.middleware` 列表中声明，按列表顺序从外到内包裹。
+Middleware is declared in the `agent_config.middleware` list, wrapping from outer to inner in list order.
 
 ## Logging
 
-记录所有 LLM 和工具调用的日志。零配置，开箱即用。
+Logs every LLM and tool call. Zero configuration, works out of the box.
 
 ```ocaml
 val Logging.logging : Types.middleware_hook
 ```
 
-### 日志内容
+### Log contents
 
-| 钩子 | 级别 | 内容 |
+| Hook | Level | Content |
 |------|------|------|
-| `on_before_llm` | info | 消息数量 |
-| `on_after_llm` | info | finish_reason, model 名称 |
-| `on_before_tool` | info | 工具名 + 参数 |
-| `on_after_tool` | info/warn | 成功时 info，失败时 warn（含错误消息） |
-| `on_error` | err | 错误信息 |
+| `on_before_llm` | info | message count |
+| `on_after_llm` | info | finish_reason, model name |
+| `on_before_tool` | info | tool name and arguments |
+| `on_after_tool` | info/warn | info on success, warn on failure (with error message) |
+| `on_error` | err | error information |
 
-### 使用
+### Usage
 
 ```ocaml
 let agent = {
@@ -54,13 +56,13 @@ let agent = {
 
 ## Retry
 
-可配置的指数退避重试中间件，处理 LLM 和工具调用的瞬态错误。
+Configurable exponential backoff retry middleware that handles transient errors in LLM and tool calls.
 
 ```ocaml
 type retry_config = {
-  max_attempts : int;     (* 最大重试次数，默认 3 *)
-  base_delay : float;    (* 基础延迟（秒），默认 2.0 *)
-  max_delay : float;     (* 最大延迟（秒），默认 30.0 *)
+  max_attempts : int;     (* Maximum retry attempts, default 3 *)
+  base_delay : float;    (* Base delay in seconds, default 2.0 *)
+  max_delay : float;     (* Maximum delay in seconds, default 30.0 *)
 }
 
 val Retry.default_retry_config : retry_config
@@ -71,7 +73,7 @@ val Retry.retry :
   unit -> Types.middleware_hook
 ```
 
-### retry_policy 类型
+### retry_policy type
 
 ```ocaml
 type retry_policy = {
@@ -79,7 +81,7 @@ type retry_policy = {
   initial_delay : float;
   backoff : backoff_strategy;         (* Exponential / Fixed / Linear *)
   retry_on : retryable_condition list; (* Timeout / Rate_limited / External_failure / ... *)
-  jitter : float option;               (* 随机抖动因子 *)
+  jitter : float option;               (* Random jitter factor *)
 }
 
 type backoff_strategy =
@@ -92,20 +94,20 @@ type retryable_condition =
   | Connection_error | Any_retryable
 ```
 
-### 使用示例
+### Usage example
 
 ```ocaml
-(* 使用默认配置 *)
+(* Use default configuration *)
 let retry_hook = Retry.retry ()
 
-(* 自定义配置 *)
+(* Custom configuration *)
 let retry_hook = Retry.retry ~config:{
   max_attempts = 5;
   base_delay = 1.0;
   max_delay = 60.0;
 } ()
 
-(* 使用完整 retry_policy 控制更多参数 *)
+(* Use the full retry_policy for finer control *)
 let retry_hook = Retry.retry ~policy:{
   max_attempts = 4;
   initial_delay = 1.0;
@@ -115,16 +117,16 @@ let retry_hook = Retry.retry ~policy:{
 } ()
 ```
 
-默认 `retry_config` 生成指数退避策略：`delay = min(base^attempt, max_delay)`。
+The default `retry_config` produces an exponential backoff strategy: `delay = min(base^attempt, max_delay)`.
 
 ## Rate_limit
 
-滑动窗口限速中间件，控制 LLM 请求频率。
+Sliding window rate limit middleware that controls LLM request frequency.
 
 ```ocaml
 type rate_limit_config = {
-  max_requests : int;    (* 窗口内最大请求数，默认 60 *)
-  window : float;       (* 窗口时长（秒），默认 60.0 *)
+  max_requests : int;    (* Max requests per window, default 60 *)
+  window : float;       (* Window duration in seconds, default 60.0 *)
 }
 
 val Rate_limit.default_rate_limit_config : rate_limit_config
@@ -134,17 +136,15 @@ val Rate_limit.rate_limit :
   unit -> Types.middleware_hook
 ```
 
-### 行为
+### Behavior
 
-- `on_before_llm`：检查当前窗口内的请求数，超限时在对话 metadata 中标记
-  `("rate_limited", true)`
-- `on_error`：收到 `Rate_limited` 错误时，计算 `retry_after` 时间并附加到
-  错误 metadata 中
+- `on_before_llm`: checks the current window's request count, flags the conversation metadata with `("rate_limited", true)` when the limit is exceeded
+- `on_error`: when a `Rate_limited` error is received, computes `retry_after` and attaches it to the error metadata
 
-### 使用示例
+### Usage example
 
 ```ocaml
-(* 限制每分钟 30 次请求 *)
+(* Limit to 30 requests per minute *)
 let rate_hook = Rate_limit.rate_limit ~config:{
   max_requests = 30;
   window = 60.0;
@@ -153,18 +153,18 @@ let rate_hook = Rate_limit.rate_limit ~config:{
 
 ## Timeout
 
-将超时错误统一转换为标准格式。
+Unifies timeout errors into a standard format.
 
 ```ocaml
 val Timeout.timeout_middleware : default_timeout:float -> Types.middleware_hook
 ```
 
-### 行为
+### Behavior
 
-- `on_before_tool`：透传（占位）
-- `on_error`：将 `Timeout` 错误转换为带标准消息的 `Error` 结果
+- `on_before_tool`: pass-through (placeholder)
+- `on_error`: converts `Timeout` errors into `Error` results with a standard message
 
-配合 `Cancellation.with_timeout` 使用实现真正的超时控制：
+Use with `Cancellation.with_timeout` for actual timeout control:
 
 ```ocaml
 Cancellation.with_timeout 30.0 token (fun token ->
@@ -173,65 +173,65 @@ Cancellation.with_timeout 30.0 token (fun token ->
 
 ## Validation
 
-JSON 输入/输出校验中间件，确保 LLM 响应和工具参数格式正确。
+JSON input/output validation middleware that ensures LLM responses and tool arguments have the correct format.
 
 ```ocaml
 val Validation.validation :
-  ?strict:bool ->   (* 默认 false：宽松模式 *)
+  ?strict:bool ->   (* Default false: lenient mode *)
   unit -> Types.middleware_hook
 ```
 
-### 行为
+### Behavior
 
-| 模式 | on_after_llm | on_before_tool | on_after_tool |
+| Mode | on_after_llm | on_before_tool | on_after_tool |
 |------|-------------|----------------|---------------|
-| 宽松 (`strict=false`) | 缺少 text 和 tool_calls 时 warn 并补充空字符串 | 非 object 参数自动替换为 `{}` | -- |
-| 严格 (`strict=true`) | 同上，但使用 err 级别 | 非 object 参数标记为无效，`on_after_tool` 返回错误 | 若参数已标记无效，返回错误结果 |
+| Lenient (`strict=false`) | warn and supply an empty string when text and tool_calls are missing | non-object arguments are auto-replaced with `{}` | -- |
+| Strict (`strict=true`) | same as above, but with err level | non-object arguments are flagged as invalid, `on_after_tool` returns an error | returns an error result when arguments were flagged invalid |
 
-### 使用示例
+### Usage example
 
 ```ocaml
-(* 开发环境用宽松模式 *)
+(* Lenient mode for development *)
 let validation_hook = Validation.validation ()
 
-(* 生产环境用严格模式 *)
+(* Strict mode for production *)
 let validation_hook = Validation.validation ~strict:true ()
 ```
 
 ## Pii_mask
 
-在 LLM 请求/响应和工具调用中自动检测和脱敏个人身份信息（PII）。
+Automatically detects and redacts personally identifiable information (PII) in LLM requests, responses, and tool calls.
 
 ```ocaml
 val Pii_mask.pii_mask :
-  ?patterns:string list ->         (* 自定义检测模式，默认内置 4 类 *)
-  ?replacement:string ->           (* 替换文本，默认 "[REDACTED]" *)
+  ?patterns:string list ->         (* Custom detection patterns, default 4 built-in categories *)
+  ?replacement:string ->           (* Replacement text, default "[REDACTED]" *)
   unit -> Types.middleware_hook
 ```
 
-### 默认检测模式
+### Default detection patterns
 
-| 类别 | 模式 |
+| Category | Pattern |
 |------|------|
-| 邮箱 | `[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z][a-zA-Z]+` |
-| 电话 | `XXX-XXX-XXXX` / `XXX.XXX.XXXX` / 10 位连续数字 |
+| Email | `[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z][a-zA-Z]+` |
+| Phone | `XXX-XXX-XXXX` / `XXX.XXX.XXXX` / 10 consecutive digits |
 | SSN | `XXX-XX-XXXX` |
-| 信用卡 | `XXXX-XXXX-XXXX-XXXX` / `XXXX XXXX XXXX XXXX` |
+| Credit card | `XXXX-XXXX-XXXX-XXXX` / `XXXX XXXX XXXX XXXX` |
 
-### 行为
+### Behavior
 
-- `on_before_llm`：扫描所有消息 content，替换匹配的 PII
-- `on_after_llm`：扫描 LLM 响应 text（防止 LLM 回显 PII）
-- `on_before_tool`：递归扫描工具参数 JSON 中所有字符串值
-- `on_after_tool`：递归扫描工具结果 JSON 和错误消息
+- `on_before_llm`: scans all message content, replaces matched PII
+- `on_after_llm`: scans LLM response text (prevents the LLM from echoing PII)
+- `on_before_tool`: recursively scans every string value in the tool arguments JSON
+- `on_after_tool`: recursively scans tool result JSON and error messages
 
-### 使用示例
+### Usage example
 
 ```ocaml
-(* 使用默认模式 *)
+(* Use default patterns *)
 let pii_hook = Pii_mask.pii_mask ()
 
-(* 自定义模式和替换文本 *)
+(* Custom patterns and replacement text *)
 let pii_hook = Pii_mask.pii_mask
   ~patterns:["my-custom-pattern"]
   ~replacement:"[DATA REMOVED]"
@@ -240,13 +240,13 @@ let pii_hook = Pii_mask.pii_mask
 
 ## Sanitize_tool_output (v0.2.0)
 
-检测并清洗工具输出中的 prompt injection 模式，防止 Agent 被恶意工具输出劫持。
+Detects and sanitizes prompt injection patterns in tool output to keep a malicious tool response from hijacking the agent.
 
 ```ocaml
 type sanitize_action =
-  [ `Replace of string    (* 替换匹配内容 *)
-  | `Tag                  (* 在输出前后添加标签 *)
-  | `Block ]              (* 完全阻断输出 *)
+  [ `Replace of string    (* Replace matched content *)
+  | `Tag                  (* Wrap output with markers *)
+  | `Block ]              (* Block the output entirely *)
 
 type sanitize_config = {
   patterns : string list;
@@ -260,34 +260,34 @@ val Sanitize_tool_output.sanitize_tool_output :
   unit -> Types.middleware_hook
 ```
 
-### 默认检测模式
+### Default detection patterns
 
 ```
 "ignore previous", "ignore all previous", "you are now",
 "system:", "new instructions", "disregard"
 ```
 
-### 三种处理策略
+### Three handling strategies
 
-| 策略 | 行为 |
+| Strategy | Behavior |
 |------|------|
-| `Replace text` | 将匹配文本替换为指定字符串（默认 `[SANITIZED]`） |
-| `Tag` | 保留输出但在开头添加 `[SANITIZED-OUTPUT: ...]` 标记 |
-| `Block` | 拒绝整个输出，替换为 `[SANITIZED: blocked ...]` |
+| `Replace text` | replaces matched text with the given string (default `[SANITIZED]`) |
+| `Tag` | keeps the output but prepends a `[SANITIZED-OUTPUT: ...]` marker |
+| `Block` | rejects the entire output, replaces it with `[SANITIZED: blocked ...]` |
 
-### 行为
+### Behavior
 
-- 仅在 `on_after_tool` 钩子中生效
-- 递归扫描工具结果 JSON 中所有字符串值
-- 同时扫描错误消息
+- only fires in the `on_after_tool` hook
+- recursively scans every string value in the tool result JSON
+- also scans error messages
 
-### 使用示例
+### Usage example
 
 ```ocaml
-(* 使用默认配置 *)
+(* Use default configuration *)
 let sanitize_hook = Sanitize_tool_output.sanitize_tool_output ()
 
-(* 严格模式：阻断含注入的输出 *)
+(* Strict mode: block any output containing injections *)
 let sanitize_hook = Sanitize_tool_output.sanitize_tool_output
   ~config:{
     patterns = [
@@ -300,34 +300,34 @@ let sanitize_hook = Sanitize_tool_output.sanitize_tool_output
   ()
 ```
 
-## 组合中间件
+## Composing middleware
 
-中间件按列表顺序排列，靠前的在外层包裹靠后的。典型生产环境配置：
+Middleware is ordered in the list, with earlier entries wrapping later ones. A typical production configuration:
 
 ```ocaml
 let agent = {
   agent with
   middleware = [
-    Logging.logging;                           (* 最外层：记录所有请求 *)
-    Pii_mask.pii_mask ();                      (* 脱敏用户输入 *)
+    Logging.logging;                           (* Outermost: log every request *)
+    Pii_mask.pii_mask ();                      (* Redact user input *)
     Rate_limit.rate_limit ~config:{
       max_requests = 30; window = 60.0;
-    } ();                                     (* 限速 *)
+    } ();                                     (* Rate limit *)
     Retry.retry ~config:{
       max_attempts = 3; base_delay = 2.0; max_delay = 30.0;
-    } ();                                     (* 重试 *)
-    Validation.validation ~strict:true ();     (* 严格校验 *)
-    Sanitize_tool_output.sanitize_tool_output ();  (* 输出清洗 *)
+    } ();                                     (* Retry *)
+    Validation.validation ~strict:true ();     (* Strict validation *)
+    Sanitize_tool_output.sanitize_tool_output ();  (* Output sanitization *)
   ];
 }
 ```
 
-执行流程：请求 -> Logging -> Pii_mask -> Rate_limit -> Validation -> LLM
-响应 -> Validation -> Sanitize -> Retry -> Rate_limit -> Pii_mask -> Logging
+Execution flow: request -> Logging -> Pii_mask -> Rate_limit -> Validation -> LLM
+Response -> Validation -> Sanitize -> Retry -> Rate_limit -> Pii_mask -> Logging
 
-## 自定义中间件
+## Custom middleware
 
-编写自定义中间件只需构造一个 `middleware_hook` record。以下示例统计 LLM 调用次数：
+Writing a custom middleware only requires constructing a `middleware_hook` record. The example below counts LLM calls:
 
 ```ocaml
 let counter_middleware () =
@@ -345,9 +345,9 @@ let counter_middleware () =
   }
 ```
 
-### 错误处理中间件示例
+### Error handling middleware example
 
-将特定错误转换为可重试的替代结果：
+Convert specific errors into retryable alternative results:
 
 ```ocaml
 let fallback_middleware ~fallback_text () =
@@ -360,22 +360,21 @@ let fallback_middleware ~fallback_text () =
     on_error = Some (fun err ->
       match err with
       | Types.External_failure _ ->
-        (* 将外部失败转换为带有兜底文本的成功结果 *)
+        (* Convert an external failure into a success result with fallback text *)
         Some (Types.Success (`String fallback_text))
-      | _ -> None  (* 其他错误透传 *)
+      | _ -> None  (* Pass through other errors *)
     );
   }
 ```
 
-### 注意事项
+### Caveats
 
-- 中间件实例在同一 Agent 配置中共享，注意并发状态隔离
-- `on_error` 目前是 Engine 层的死代码（Engine 未调用 `apply_on_error`），
-  未来版本将接入
-- 返回 `Some` 表示修改/替换值，`None` 表示透传原始值
+- Middleware instances are shared within the same agent configuration, so mind concurrent state isolation
+- `on_error` is currently dead code in the Engine layer (the Engine does not call `apply_on_error`); it will be wired up in a future release
+- Returning `Some` means the value was modified or replaced, `None` means pass through the original
 
 ## See also
 
-- [Overview](overview.md) -- SDK 架构概览
-- [Agent API](agent.md) -- agent_config.middleware 字段说明
-- [Workflow API](workflow.md) -- 工作流中的中间件传播
+- [Overview](overview.md): SDK architecture overview
+- [Agent API](agent.md): description of the `agent_config.middleware` field
+- [Workflow API](workflow.md): middleware propagation in workflows
