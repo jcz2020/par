@@ -1,124 +1,128 @@
-# PAR 架构总览
+<!-- language: en -->
 
-本文档解释 PAR SDK 的内部结构。面向想理解 PAR 如何工作、或想贡献核心代码的读者。
+> Translated to English for v0.3.2.
 
-## 核心抽象
+# Architecture Overview
 
-PAR 把 LLM agent 抽象为三层：
+This document explains the internal structure of the PAR SDK. It is intended for readers who want to understand how PAR works or contribute to the core codebase.
+
+## Core abstractions
+
+PAR models the LLM agent as three layers:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                      LLM 循环                              │
-│  ReAct 循环：观察 → 思考 → 行动 → 观察 → ...              │
-│  (lib/core/engine.ml)                                     │
+│                     LLM Loop                             │
+│  ReAct loop: observe → think → act → observe → ...      │
+│  (lib/core/engine.ml)                                    │
 ├─────────────────────────────────────────────────────────┤
-│  工具调用（types、调度、超时、并发）                       │
+│  Tool calls (types, dispatch, timeout, concurrency)      │
 │  (lib/tools/builtin_tools.ml)                            │
 ├─────────────────────────────────────────────────────────┤
-│  LLM 通信（OpenAI / Anthropic）                          │
+│  LLM communication (OpenAI / Anthropic)                  │
 │  (lib/providers/)                                        │
 └─────────────────────────────────────────────────────────┘
 ```
 
-每一层都有自己的类型边界，确保编译期能抓到错误。
+Each layer has its own type boundary, ensuring that errors are caught at compile time.
 
-## 模块结构
+## Module structure
 
 ```
 lib/
-├── core/           类型 + Runtime + Engine + SDK 入口
-│   ├── types.ml         所有公共类型（agent_config、tool_descriptor、handler_result、...）
+├── core/           Types + Runtime + Engine + SDK entry point
+│   ├── types.ml         All public types (agent_config, tool_descriptor, handler_result, ...)
 │   ├── runtime.ml       Runtime.create / make_agent / register_tool / invoke
-│   ├── engine.ml        ReAct 循环实现
-│   ├── sdk.ml           公共 SDK API
-│   ├── tool_registry.ml 工具去重注册
-│   ├── cancellation.ml  协程取消语义
-│   ├── context_manager.ml 对话上下文管理
-│   ├── expression.ml    表达式求值（Workflow 用）
-│   ├── state_machine.ml  8 状态机
-│   └── workflow.ml      Workflow 引擎（sequential / parallel / conditional / map-reduce）
+│   ├── engine.ml        ReAct loop implementation
+│   ├── sdk.ml           Public SDK API
+│   ├── tool_registry.ml Tool deduplication and registration
+│   ├── cancellation.ml  Cooperative cancellation semantics
+│   ├── context_manager.ml Conversation context management
+│   ├── expression.ml    Expression evaluation (used by Workflow)
+│   ├── state_machine.ml 8-state machine
+│   └── workflow.ml      Workflow engine (sequential / parallel / conditional / map-reduce)
 │
-├── providers/      LLM provider
+├── providers/      LLM providers
 │   ├── openai_provider.ml
 │   ├── anthropic_provider.ml
-│   └── mock_provider.ml  (测试用)
+│   └── mock_provider.ml  (for testing)
 │
-├── tools/          内置工具（v0.3.1 起 20 个）
+├── tools/          Built-in tools (20 since v0.3.1)
 │   ├── builtin_tools.ml
 │   ├── bash_safe_command.ml  (v0.3.1 bash ADT)
-│   ├── bash_policy.ml        (v0.3.1 安全策略)
-│   └── bash_blacklist.ml     (v0.3.1 黑名单)
+│   ├── bash_policy.ml        (v0.3.1 safety policy)
+│   └── bash_blacklist.ml     (v0.3.1 blacklist)
 │
-├── persistence/    持久化
+├── persistence/    Persistence backends
 │   ├── sqlite_persistence.ml
-│   └── postgres_persistence.ml  (独立 opam 包)
+│   └── postgres_persistence.ml  (separate opam package)
 │
-├── event_bus/      事件总线（带 DLQ）
+├── event_bus/      Event bus (with DLQ)
 │
-├── middleware/     7 个中间件
+├── middleware/     7 built-in middleware
 │   ├── logging / retry / rate_limit / timeout / validation / pii_mask / sanitize_tool_output
 │
-├── ffi/            C FFI（par_capi.so + par_ffi.h + par_ffi.c）
+├── ffi/            C FFI (par_capi.so + par_ffi.h + par_ffi.c)
 │
-└── par.ml          公共入口（re-export 所有子模块）
+└── par.ml          Public entry point (re-exports all sub-modules)
 ```
 
-## 数据流：一次 invoke
+## Data flow: a single invoke
 
 ```
-用户代码
+User code
   │
   ▼
-Runtime.invoke agent_id "问题"
+Runtime.invoke agent_id "question"
   │
   ▼
 Engine.execute_ReAct_loop agent conversation
   │
-  ▼  ┌─→ LLM Provider (OpenAI / Anthropic) ─→ 网络
+  ▼  ┌─→ LLM Provider (OpenAI / Anthropic) ─→ network
   │   │
-  │   ◄── LLM 响应（text + tool_calls）
+  │   ◄── LLM response (text + tool_calls)
   │
-  ├──→ 解析 tool_calls
+  ├──→ Parse tool_calls
   │   │
   │   ▼
   │   Tool_registry.invoke tool_name
   │     │
   │     ▼
-  │     Tool_handler input token → 输出 / 错误
+  │     Tool_handler input token → output / error
   │     │
   │     ▼
-  │   解析结果，注入到 conversation
+  │   Parse result, inject into conversation
   │
-  ├──→ 中间件链（logging / retry / rate_limit / ...）
+  ├──→ Middleware chain (logging / retry / rate_limit / ...)
   │
   ▼
-返回最终结果（text + tool_calls 历史）
+Return final result (text + tool_calls history)
 ```
 
-## 类型系统：为什么 PAR 更安全
+## Type system: why PAR is safer
 
-PAR 不用 Python 风格的动态字典，而是用 OCaml 强类型：
+PAR uses OCaml's strong types instead of Python-style dynamic dictionaries:
 
-- 工具参数类型在**编译期**检查（而非运行时崩溃）
-- LLM 响应解析通过模式匹配**强制覆盖**所有分支
-- 配置通过 `make_config` 构造器校验（拒绝非法值）
-- 重复工具名返回 `Error (\`Duplicate_tool)` 而非静默覆盖
+- Tool parameter types are checked at **compile time** (not runtime crashes)
+- LLM response parsing uses pattern matching to **force coverage** of all branches
+- Configuration is validated through `make_config` constructors (rejects illegal values)
+- Duplicate tool names return `Error (`Duplicate_tool)` instead of silently overwriting
 
-`v0.3.1 bash` 工具是这种"编译期安全"的极致：`command` ADT **没有** `Exec_raw_shell` 构造器，shell 注入在类型层不可表示。
+The v0.3.1 `bash` tool is the extreme expression of this compile-time safety: the `command` ADT has **no** `Exec_raw_shell` constructor — shell injection is unrepresentable at the type level.
 
-## 并发模型（Eio）
+## Concurrency model (Eio)
 
-PAR 整个栈在 [Eio](https://github.com/ocaml-multicore/eio) 上运行——OCaml 5 的结构化并发原语。
+PAR's entire stack runs on [Eio](https://github.com/ocaml-multicore/eio) — OCaml 5's structured concurrency primitives.
 
-关键点：
-- 每个 Runtime 有一个 `Eio.Switch.t`（cancellation_root）
-- `Runtime.close` 触发整个 switch cancel，所有纤程（tool handler、LTM 推理、SSE 流）都被取消
-- `cancellation_token` 透传到每个 tool handler，handler 可在 `with_timeout` 内协作式取消
-- 超时通过 `Eio.Fiber.first` 实现：`Future.first [| timeout sleep |]`
+Key points:
+- Every Runtime has one `Eio.Switch.t` (cancellation root)
+- `Runtime.close` triggers the entire switch to cancel; all fibers (tool handlers, LLM inference, SSE streams) are cancelled
+- `cancellation_token` is passed through to every tool handler; handlers can cooperatively cancel inside `with_timeout`
+- Timeouts use `Eio.Fiber.first`: `Future.first [| timeout sleep |]`
 
-## 事件流
+## Event stream
 
-`Par.Types.event` 是个 open sum type，每个事件是 inline record：
+`Par.Types.event` is an open sum type; each event is an inline record:
 
 ```ocaml
 type event =
@@ -131,11 +135,11 @@ type event =
   [@@deriving yojson]
 ```
 
-事件由 Runtime 通过 `rt.publish_event_fn` emit，订阅者通过 `Event_bus.subscribe` 接收。v0.3.0 起，事件还会写到 SQLite / Postgres（用于审计 + debug）。
+Events are emitted by the Runtime via `rt.publish_event_fn`, and subscribers receive them through `Event_bus.subscribe`. Since v0.3.0, events are also written to SQLite / Postgres (for audit and debug).
 
-## 下一步
+## Next steps
 
-- **新加工具**：看 [docs/sdk/tools.md](sdk/tools.md) 的 20 个工具，再加一个 `let my_tool = { descriptor; handler } in` 然后 `Runtime.register_tool`。
-- **新加 LLM provider**：看 [docs/howto/custom-llm-provider.md](howto/custom-llm-provider.md)。
-- **新加中间件**：看 `lib/middleware/` 的 7 个例子，参考 [docs/sdk/middleware.md](sdk/middleware.md)。
-- **贡献核心代码**：读 `lib/core/types.ml`（所有公共类型），跟着 `lib/core/runtime.ml` 走一遍 Runtime 生命周期。
+- **Add a tool**: see the 20 tools in [docs/sdk/tools.md](sdk/tools.md), then add one with `let my_tool = { descriptor; handler } in` and `Runtime.register_tool`.
+- **Add an LLM provider**: see [docs/howto/custom-llm-provider.md](howto/custom-llm-provider.md).
+- **Add middleware**: see the 7 examples in `lib/middleware/` and the reference at [docs/sdk/middleware.md](sdk/middleware.md).
+- **Contribute to core**: read `lib/core/types.ml` (all public types), then follow the Runtime lifecycle through `lib/core/runtime.ml`.

@@ -1,10 +1,14 @@
-# How-to: 注册自定义 LLM Provider
+<!-- language: en -->
 
-PAR 内置 OpenAI 和 Anthropic 两个 provider。本教程演示如何加一个（比如 Cohere、Mistral、Ollama 自托管等）。
+> Translated to English for v0.3.2.
 
-## 步骤 1: 找到 `llm_provider_config` 位置
+# How-to: Register a Custom LLM Provider
 
-`lib/core/types.ml` 定义了 `llm_provider_config` 类型：
+PAR ships OpenAI and Anthropic providers out of the box. This guide shows how to add another one (e.g. Cohere, Mistral, self-hosted Ollama, etc.).
+
+## Step 1: Find the `llm_provider_config` type
+
+`lib/core/types.ml` defines `llm_provider_config`:
 
 ```ocaml
 type llm_provider_config =
@@ -12,16 +16,16 @@ type llm_provider_config =
   | Anthropic of { api_key : string; base_url : string option; ... }
   | Ollama of { base_url : string; model : string }
   | Custom of {
-      name : string;        (* 你的 provider 名 *)
+      name : string;        (* your provider name *)
       base_url : string;     (* HTTP endpoint *)
-      request_fn : ...       (* 自定义请求/响应函数 *)
+      request_fn : ...       (* custom request/response function *)
     }
 [@@deriving yojson]
 ```
 
-## 步骤 2: 继承 `llm_service` 接口
+## Step 2: Implement the `llm_service` interface
 
-每个 provider 必须实现 `llm_service` record type（`lib/core/types.ml`）：
+Every provider must implement the `llm_service` record type (`lib/core/types.ml`):
 
 ```ocaml
 type llm_service = {
@@ -31,9 +35,9 @@ type llm_service = {
 }
 ```
 
-参考 `lib/providers/openai_provider.ml:1-50`，复制这个 pattern 改 HTTP endpoint + 请求/响应 schema 即可。
+See `lib/providers/openai_provider.ml:1-50` — copy the pattern and change the HTTP endpoint and request/response schema.
 
-## 步骤 3: 在 `make_runtime` 注册
+## Step 3: Register in `make_runtime`
 
 ```ocaml
 let () =
@@ -50,7 +54,7 @@ let () =
   ...
 ```
 
-## 步骤 4: agent 引用
+## Step 4: Reference from agent config
 
 ```ocaml
 let agent = {
@@ -61,9 +65,9 @@ let agent = {
 Runtime.make_agent ~id:"my-agent" ~model:agent.model ...
 ```
 
-## 完整例子：Ollama
+## Full example: Ollama
 
-参考 `lib/providers/openai_provider.ml` 写 `Ollama_provider.ml`，然后：
+Follow `lib/providers/openai_provider.ml` to write `Ollama_provider.ml`, then:
 
 ```ocaml
 module Ollama = struct
@@ -78,7 +82,7 @@ module Ollama = struct
 end
 ```
 
-`Ollama` 已经被预置（v0.3.0 加的），可以直接用：
+`Ollama` is already built-in (added in v0.3.0). Use it directly:
 
 ```ocaml
 let config = {
@@ -88,11 +92,11 @@ let config = {
 }
 ```
 
-## 测试
+## Testing
 
-每个 provider 建议至少 3 个测试：
+Every provider should have at least 3 tests:
 1. `complete` happy path
-2. `complete` 错误响应（401 / 429 / 500）
-3. `stream` SSE 解析
+2. `complete` error responses (401 / 429 / 500)
+3. `stream` SSE parsing
 
-参考 `test/test_openai_provider.ml` 模板。
+See `test/test_openai_provider.ml` for a template.

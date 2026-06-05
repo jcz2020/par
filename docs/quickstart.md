@@ -1,23 +1,27 @@
-# PAR 快速入门
+<!-- language: en -->
 
-> 从零开始，30 分钟内用 OCaml 跑起一个带工具调用的 LLM Agent。
+> Translated to English for v0.3.2. Source-of-truth: the OCaml modules in lib/ and the README.
 
-## 什么是 PAR？
+# PAR Quickstart
 
-PAR（Programmable Agent Runtime）是一个模块化、类型安全的 Agent 运行时，面向 OCaml 5.4+。
-它内置 ReAct 推理引擎，支持 OpenAI 和 Anthropic 两个 LLM 供应商（以及任何 OpenAI 兼容接口，如智谱 GLM-4），
-提供 20 个内置工具（含类型安全 bash）、MCP stdio 客户端、工作流编排和 SQLite/PostgreSQL 持久化。
+> From scratch to a working LLM agent with tool calls in 30 minutes using OCaml.
 
-## 前置条件
+## What is PAR?
 
-| 依赖 | 最低版本 | 检查命令 |
-|------|---------|---------|
+PAR (Programmable Agent Runtime) is a modular, type-safe agent runtime for OCaml 5.4+.
+It includes a ReAct reasoning engine, OpenAI and Anthropic LLM providers (plus any OpenAI-compatible endpoint),
+20 built-in tools (including a type-safe bash tool), an MCP stdio client, workflow orchestration, and SQLite/PostgreSQL persistence.
+
+## Prerequisites
+
+| Dependency | Minimum version | Check command |
+|------------|----------------|---------------|
 | OCaml | 5.4+ | `ocaml --version` |
 | opam | 2.1+ | `opam --version` |
 | dune | 3.16+ | `dune --version` |
-| API Key | OpenAI 或 Anthropic | -- |
+| API Key | OpenAI or Anthropic | — |
 
-如果没有 OCaml 环境，推荐使用 opam 安装：
+If you don't have an OCaml environment, install it via opam:
 
 ```bash
 bash -c "sh <(curl -fsSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh)"
@@ -26,33 +30,27 @@ opam switch create 5.4.0
 eval $(opam env)
 ```
 
-## 安装
+## Install
 
-从源码构建（推荐）：
+Build from source (recommended):
 
 ```bash
 git clone https://github.com/jcz2020/par.git
 cd par
-opam install --deps-only .    # 安装依赖
-dune build                     # 编译
-dune install                   # 安装到 opam 环境
+opam install --deps-only .    # install dependencies
+dune build                     # compile
+dune install                   # install into opam environment
 ```
 
-或一键安装脚本（自动处理所有依赖）：
+After installation you get two packages:
+- `par` — the SDK library
+- `par_cli` — the CLI tool (`par`, `par config`, `par ask`)
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
-```
+## Project setup
 
-安装后会得到两个包：
-- `par` -- SDK 库
-- `par_cli` -- 命令行工具（`par`、`par config`、`par ask`）
+Create a new OCaml project. You need at least three files.
 
-## 项目初始化
-
-创建一个新的 OCaml 项目，最少需要三个文件。
-
-**dune-project**：
+**dune-project**:
 
 ```
 (lang dune 3.16)
@@ -64,7 +62,7 @@ curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
  (preprocess (pps ppx_deriving_yojson)))
 ```
 
-**dune**：
+**dune**:
 
 ```
 (executable
@@ -73,31 +71,31 @@ curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
  (preprocess (pps ppx_deriving_yojson)))
 ```
 
-**main.ml** -- 先放一个空壳，后面逐步填充：
+**main.ml** — start with a skeleton, we'll fill it in later:
 
 ```ocaml
 let () = print_endline "Hello PAR"
 ```
 
-运行验证环境：
+Run it to verify the environment:
 
 ```bash
-dune exec ./main.exe   # 输出: Hello PAR
+dune exec ./main.exe   # output: Hello PAR
 ```
 
-## 配置 LLM 供应商
+## Configure an LLM provider
 
-PAR 的 CLI 使用 JSON 配置文件，存储在 `~/.par/config.json`。
-最简单的方式是通过向导生成：
+PAR's CLI uses a JSON configuration file stored at `~/.par/config.json`.
+The easiest way to create it is through the guided wizard:
 
 ```bash
 par config
 ```
 
-向导会依次询问 provider、API key、model name 等字段。
-手动编辑配置文件时，格式如下：
+The wizard prompts for provider, API key, model name, and other fields.
+If you edit the config file manually, the format is:
 
-**OpenAI（含智谱 GLM-4 等 OpenAI 兼容接口）**：
+**OpenAI (including any OpenAI-compatible endpoint)**:
 
 ```json
 {
@@ -112,14 +110,14 @@ par config
 }
 ```
 
-**智谱 GLM-4（OpenAI 兼容模式）**：
+**OpenAI-compatible endpoint (e.g. local vLLM, llama.cpp server)**:
 
 ```json
 {
   "provider": "openai",
-  "api_key": "your-zhipuai-key",
-  "api_base": "https://open.bigmodel.cn/api/paas/v4",
-  "model": "glm-4",
+  "api_key": "your-api-key",
+  "api_base": "http://localhost:8000/v1",
+  "model": "my-model",
   "persistence": "sqlite",
   "db_uri": null,
   "temperature": 0.7,
@@ -127,7 +125,7 @@ par config
 }
 ```
 
-**Anthropic**：
+**Anthropic**:
 
 ```json
 {
@@ -142,22 +140,22 @@ par config
 }
 ```
 
-也可以通过环境变量传递 API Key（适用于 SDK 编程）：
+You can also pass the API key via environment variables (useful for SDK usage):
 
 ```bash
 export OPENAI_API_KEY="sk-..."
 export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
-## 编写第一个 Agent
+## Write your first agent
 
-下面用 SDK 编写一个完整的 Agent。将 `main.ml` 替换为以下内容：
+Here is a complete agent using the SDK. Replace `main.ml` with:
 
 ```ocaml
 open Par
 
 let () =
-  (* 1. 运行时配置 *)
+  (* 1. Runtime configuration *)
   let config = {
     Types.persistence = `Sqlite "par.db";
     event_bus = Runtime.default_event_bus_config;
@@ -167,15 +165,15 @@ let () =
     eval_limits = { max_depth = 10; max_node_visits = 1000 };
   } in
 
-  (* 2. 启动 Eio 事件循环 *)
+  (* 2. Start the Eio event loop *)
   Eio_main.run (fun _env ->
     Eio.Switch.run (fun switch ->
-      (* 3. 创建运行时 *)
+      (* 3. Create the runtime *)
       match Runtime.create ~config switch with
       | Error _err ->
         Printf.eprintf "Failed to create runtime\n"
       | Ok rt ->
-        (* 4. 注册一个 echo 工具 *)
+        (* 4. Register an echo tool *)
         let tool = Runtime.register_tool rt
           ~name:"echo"
           ~description:"Echoes back the input"
@@ -189,7 +187,7 @@ let () =
                 (Yojson.Safe.to_string input))))
           ()
         in
-        (* 5. 定义 Agent 配置 *)
+        (* 5. Define the agent configuration *)
         let agent = {
           Types.id = "echo-agent";
           system_prompt = "You are an echo assistant. Use the echo tool.";
@@ -209,7 +207,7 @@ let () =
           context_strategy = None;
           resource_quota = None;
         } in
-        (* 6. 注册并确认 *)
+        (* 6. Register and confirm *)
         ignore (Runtime.register_agent rt agent);
         Printf.printf "Agent registered: %s\n" agent.id;
         ignore (Runtime.close rt)
@@ -217,26 +215,26 @@ let () =
   )
 ```
 
-逐行说明关键步骤：
+Key steps explained:
 
-1. **运行时配置** -- `runtime_config` 持久化用 SQLite，事件总线和配额用默认值即可。
-2. **Eio 事件循环** -- PAR 基于 Eio 的结构化并发，所有代码在 `Eio_main.run` 中执行。
-3. **创建运行时** -- `Runtime.create` 返回 `Result.t`，需要处理错误分支。
-4. **注册工具** -- `register_tool` 接受名称、描述、JSON Schema 和处理函数，返回 `tool_binding`。
-5. **Agent 配置** -- `agent_config` 指定 system prompt、模型参数、工具列表、最大迭代次数等。
-6. **注册 Agent** -- `register_agent` 将配置加入运行时的 agent 表。
+1. **Runtime configuration** — `runtime_config` uses SQLite for persistence; event bus and quotas use defaults.
+2. **Eio event loop** — PAR is built on Eio's structured concurrency; all code runs inside `Eio_main.run`.
+3. **Create runtime** — `Runtime.create` returns `Result.t`; you must handle the error branch.
+4. **Register tool** — `register_tool` takes a name, description, JSON Schema, and handler function; returns a `tool_binding`.
+5. **Agent configuration** — `agent_config` specifies the system prompt, model parameters, tool list, max iterations, and more.
+6. **Register agent** — `register_agent` adds the configuration to the runtime's agent table.
 
-## 运行 Agent
+## Run the agent
 
 ```bash
 dune exec ./main.exe
-# 输出: Agent registered: echo-agent
+# output: Agent registered: echo-agent
 ```
 
-要真正与 Agent 对话，需要配置 LLM 供应商并调用 `Runtime.invoke`：
+To actually converse with the agent, configure an LLM provider and call `Runtime.invoke`:
 
 ```ocaml
-(* 在 Runtime.register_agent rt agent 之后添加 *)
+(* Add after Runtime.register_agent rt agent *)
 match Runtime.invoke rt ~agent_id:"echo-agent"
   ~message:"Hello, echo!" ()
 with
@@ -247,43 +245,43 @@ with
 | Error e -> Printf.eprintf "Error: %s\n" (Printexc.to_string (Failure ""))
 ```
 
-## 使用 CLI
+## Using the CLI
 
-PAR 自带交互式 REPL，零代码即可体验。
+PAR ships an interactive REPL for zero-code experimentation.
 
-**配置**：
+**Configuration**:
 
 ```bash
 par config
-# 按提示输入 provider、API key、model 等
+# follow the prompts for provider, API key, model, etc.
 ```
 
-**交互对话**：
+**Interactive conversation**:
 
 ```bash
 par
 # > What is 2 + 3?
 # Agent: 2 + 3 = 5
-# > ^D (Ctrl+D 退出)
+# > ^D (Ctrl+D to exit)
 ```
 
-**单次问答**：
+**Single-shot query**:
 
 ```bash
 par ask "What is the capital of France?"
 # Agent: The capital of France is Paris.
 ```
 
-CLI 自动注册所有 13 个内置工具，支持命令行覆盖参数：
+The CLI automatically registers all 20 built-in tools and supports command-line overrides:
 
 ```bash
 par ask --provider anthropic --model claude-sonnet-4-20250514 "Hello"
 par ask --temperature 0.3 "Explain quantum computing"
 ```
 
-## 使用内置工具
+## Using built-in tools
 
-SDK 中通过 `Par.Builtin_tools` 获取所有内置工具的绑定：
+In the SDK, access all built-in tool bindings via `Par.Builtin_tools`:
 
 ```ocaml
 open Par
@@ -302,7 +300,7 @@ let () =
       match Runtime.create ~config switch with
       | Error _ -> Printf.eprintf "Failed to create runtime\n"
       | Ok rt ->
-        (* 获取所有内置工具 *)
+        (* Get all built-in tools *)
         let net = Eio.Stdenv.net env in
         let tools = Builtin_tools.builtin_tools ~switch ~net in
         List.iter (fun (tb : Types.tool_binding) ->
@@ -312,7 +310,7 @@ let () =
         let descriptors =
           List.map (fun (tb : Types.tool_binding) -> tb.descriptor) tools
         in
-        (* 创建带 calculator 的 Agent *)
+        (* Create an agent with the calculator tool *)
         let agent = {
           Types.id = "math-agent";
           system_prompt = "You are a math assistant. Use the calculator tool.";
@@ -325,7 +323,7 @@ let () =
             top_p = None;
             stop_sequences = None;
           };
-          tools = descriptors;  (* 所有内置工具 *)
+          tools = descriptors;  (* all built-in tools *)
           max_iterations = 10;
           middleware = [];
           retry_policy = None;
@@ -340,49 +338,50 @@ let () =
   )
 ```
 
-内置工具包括：`calculator`、`get_time`、`echo`、`generate_uuid`、
-`hash_text`、`generate_password`、`string_stats`、`json_format`、
-`convert_temperature`、`url_encode`、`fetch_url`、`read_webpage`、`web_search`。
+Built-in tools include: `calculator`, `get_time`, `echo`, `generate_uuid`,
+`hash_text`, `generate_password`, `string_stats`, `json_format`,
+`convert_temperature`, `url_encode`, `fetch_url`, `read_webpage`, `web_search`,
+`read`, `ls`, `find`, `grep`, `write`, `edit`, `bash`.
 
-## 持久化：SQLite
+## Persistence: SQLite
 
-PAR 默认使用 SQLite 持久化。在 `runtime_config` 中配置：
+PAR uses SQLite persistence by default. Configure it in `runtime_config`:
 
 ```ocaml
 let config = {
-  Types.persistence = `Sqlite "par.db";  (* 文件路径 *)
-  (* ... 其他字段 ... *)
+  Types.persistence = `Sqlite "par.db";  (* file path *)
+  (* ... other fields ... *)
 } in
 ```
 
-数据库文件会在运行时自动创建（如果不存在），存储任务状态、事件日志和工作流检查点。
+The database file is created automatically at runtime if it doesn't exist. It stores task state, event logs, and workflow checkpoints.
 
-切换到 PostgreSQL（生产环境推荐）：
+Switch to PostgreSQL (recommended for production):
 
 ```ocaml
 let config = {
   Types.persistence = `Postgresql "postgresql://localhost/par";
-  (* ... 其他字段 ... *)
+  (* ... other fields ... *)
 } in
 ```
 
-注意：PostgreSQL 后端需要额外安装 `opam install postgresql` 并重新编译。
+Note: the PostgreSQL backend requires installing the `par_postgres` opam package separately and recompiling.
 
-## 故障排查
+## Troubleshooting
 
-| 症状 | 原因 | 解决方案 |
-|------|------|---------|
-| `Unbound module Types` | 缺少 `open Par` | 在文件顶部添加 `open Par` |
-| `Unbound module Par` | 未找到 par 库 | 确认 `dune-project` 中 `(libraries par ...)` 已声明 |
-| `Connection refused` | API Key 缺失或网络不通 | 检查 `~/.par/config.json` 或环境变量 |
-| `LLM not initialized` | SDK 模式下未传入 `~llm` 参数 | 用 CLI 模式（`par ask`）自动处理 LLM 初始化 |
-| `Error creating OpenAI provider` | API Key 格式错误 | 确认以 `sk-` 开头（OpenAI）或 `sk-ant-`（Anthropic） |
-| `dune build` 编译失败 | 依赖未安装 | 运行 `opam install --deps-only .` |
-| `ppx_deriving_yojson` 报错 | 缺少预处理器 | 在 dune 文件中添加 `(preprocess (pps ppx_deriving_yojson))` |
+| Symptom | Cause | Solution |
+|---------|-------|----------|
+| `Unbound module Types` | Missing `open Par` | Add `open Par` at the top of the file |
+| `Unbound module Par` | par library not found | Confirm `(libraries par ...)` is declared in dune-project |
+| `Connection refused` | Missing API key or network issue | Check `~/.par/config.json` or environment variables |
+| `LLM not initialized` | SDK mode without `~llm` parameter | Use CLI mode (`par ask`) which handles LLM init automatically |
+| `Error creating OpenAI provider` | API key format error | Confirm key starts with `sk-` (OpenAI) or `sk-ant-` (Anthropic) |
+| `dune build` fails | Dependencies not installed | Run `opam install --deps-only .` |
+| `ppx_deriving_yojson` error | Missing preprocessor | Add `(preprocess (pps ppx_deriving_yojson))` to the dune file |
 
-## 下一步
+## Next steps
 
-- [agent.md](agent.md) -- Agent 配置详解：model_config 字段、context_strategy、retry_policy
-- [workflow.md](workflow.md) -- 工作流编排：顺序、并行、条件分支、map-reduce
-- [middleware.md](middleware.md) -- 中间件：日志、超时、重试、限速、PII 掩码、数据校验
-- [examples/](../examples/) -- 更多完整示例（basic_agent.ml、otel_tracing.ml）
+- [agent.md](sdk/agent.md) — Agent configuration deep dive: `model_config` fields, `context_strategy`, `retry_policy`
+- [workflow.md](sdk/workflow.md) — Workflow orchestration: sequential, parallel, conditional branching, map-reduce
+- [middleware.md](sdk/middleware.md) — Middleware: logging, timeout, retry, rate limiting, PII masking, data validation
+- [examples/](../examples/) — More complete examples (basic_agent.ml, otel_tracing.ml)

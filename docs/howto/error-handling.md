@@ -1,6 +1,10 @@
-# How-to: 错误处理模式
+<!-- language: en -->
 
-PAR 的所有错误最终是 `Types.error_category` 之一：
+> Translated to English for v0.3.2.
+
+# How-to: Error Handling Patterns
+
+Every error in PAR is ultimately one of the `Types.error_category` variants:
 
 ```ocaml
 type error_category =
@@ -13,11 +17,11 @@ type error_category =
 [@@deriving yojson]
 ```
 
-每种错误的语义和处理方式不同。
+Each category has different semantics and requires a different handling strategy.
 
-## 模式 1: tool 错误——重试 vs 上报
+## Pattern 1: Tool errors — retry vs. escalate
 
-工具 handler 返回 `handler_result`：
+Tool handlers return a `handler_result`:
 
 ```ocaml
 type handler_result =
@@ -30,20 +34,20 @@ type handler_result =
     }
 ```
 
-**判断重试**：看 `retryable` 字段或 `category`：
+**Decide whether to retry** based on the `retryable` field or `category`:
 
-| 错误类型 | retryable? | 推荐处理 |
-|---------|-----------|---------|
-| `Timeout` | true | 重试（如果是网络超时）|
-| `Rate_limited` | true | 退避后重试 |
-| `External_failure` | true | 立即重试 1-2 次 |
-| `Invalid_input` | **false** | **不重试**——schema 错，再试也是错 |
-| `Permission_denied` | **false** | **不重试**——policy 拒绝，重试也是拒绝 |
-| `Internal` | 看情况 | 看 `message`；如果是 transient 可重试 |
+| Error category | Retryable? | Recommended handling |
+|---------------|------------|---------------------|
+| `Timeout` | true | Retry (if it is a network timeout) |
+| `Rate_limited` | true | Retry with backoff |
+| `External_failure` | true | Immediate retry 1-2 times |
+| `Invalid_input` | **false** | **Do not retry** — the schema is wrong, retrying won't help |
+| `Permission_denied` | **false** | **Do not retry** — policy rejection, retrying is still rejection |
+| `Internal` | depends | Check `message`; retry if transient |
 
-## 模式 2: LLM 错误——退避
+## Pattern 2: LLM errors — backoff
 
-OpenAI / Anthropic 在高峰时段会 429。`lib/middleware/rate_limit.ml` 自动处理（per-token 限流）。HTTP 5xx 错误推荐用 `retry_policy` middleware（`lib/middleware/retry.ml`）：
+OpenAI / Anthropic return 429 during peak traffic. `lib/middleware/rate_limit.ml` handles this automatically (per-token throttling). For HTTP 5xx errors, use the `retry_policy` middleware (`lib/middleware/retry.ml`):
 
 ```ocaml
 let config = {
@@ -60,30 +64,30 @@ let config = {
 }
 ```
 
-3 次重试，指数退避 1s → 2s → 4s，最长 30s。**注意 `retry_on` 列表**——不要 retry `Invalid_input`（没意义）或 `Internal`（可能是 bug，越 retry 越糟）。
+3 retries, exponential backoff 1s → 2s → 4s, max 30s. **Note the `retry_on` list** — do not retry `Invalid_input` (pointless) or `Internal` (could be a bug; more retries makes it worse).
 
-## 模式 3: 取消传播
+## Pattern 3: Cancellation propagation
 
-PAR 整个栈用 `Eio.Switch.t` 做协作式取消。`Runtime.close` 触发整个 switch cancel：
+PAR's entire stack uses `Eio.Switch.t` for cooperative cancellation. `Runtime.close` triggers the entire switch to cancel:
 
 ```ocaml
 Eio.Switch.run (fun sw ->
   let rt = Runtime.create ~config ... sw in
-  (* ... 启动长跑 task ... *)
-  let cancel_switch = Eio.Switch.empty () in  (* 嵌套 switch *)
+  (* ... start a long-running task ... *)
+  let cancel_switch = Eio.Switch.empty () in  (* nested switch *)
   Eio.Fiber.fork ~sw:cancel_switch (fun () ->
     ignore (Runtime.invoke rt "agent-1" "long task" : _));
   Eio.Time.sleep (Time.Span.of_sec 30.0);
-  Eio.Switch.turn_off cancel_switch;  (* 中断 agent-1 *)
-  (* ... 继续做别的 ... *)
+  Eio.Switch.turn_off cancel_switch;  (* interrupt agent-1 *)
+  (* ... continue with other work ... *)
 )
 ```
 
-tool handler 内部如果用 `Cancellation.with_timeout` 包裹，会自动响应 cancel。
+If a tool handler wraps its work with `Cancellation.with_timeout`, it automatically responds to cancellation.
 
-## 模式 4: 自定义错误元数据
+## Pattern 4: Custom error metadata
 
-`Error { ...; metadata = [...] }` 的 `metadata` 字段是 `[("key", json)]` 列表，挂在 event bus 持久化上，便于 debug：
+The `metadata` field on `Error { ...; metadata = [...] }` is a `[("key", json)]` association list. It gets persisted on the event bus for debugging:
 
 ```ocaml
 Error {
@@ -98,17 +102,17 @@ Error {
 }
 ```
 
-下游监控可以 `event.metadata[0]` 拿到 `request_id` 去 OpenAI dashboard 查。
+Downstream monitoring can read `event.metadata[0]` to get the `request_id` and look it up in the provider dashboard.
 
-## 模式 5: 不要 swallow 错误
+## Pattern 5: Do not swallow errors
 
 ```ocaml
-(* 错误：吞掉所有错误 *)
+(* Wrong: silently discard all errors *)
 match Runtime.invoke rt "agent" input with
 | Ok result -> process result
-| Error _ -> ()  (* 😱 静默失败 *)
+| Error _ -> ()  (* silent failure *)
 
-(* 正确：区分错误 *)
+(* Right: distinguish error categories *)
 match Runtime.invoke rt "agent" input with
 | Ok result -> process result
 | Error e ->
@@ -119,15 +123,15 @@ match Runtime.invoke rt "agent" input with
   | _ -> failwith (Printf.sprintf "unhandled: %s" (error_to_string e))
 ```
 
-`lib/core/types.ml` 的 6 个 error_category 变体是**穷尽**的——match 漏一个会 OCaml warning。**用 exhaustiveness 做兜底**：
+The 6 `error_category` variants in `lib/core/types.ml` are **exhaustive** — missing one produces an OCaml warning. **Use exhaustiveness as a safety net**:
 
 ```ocaml
-| _ -> failwith "unreachable"  (* 但加个 [ WARNING ] log 帮你 debug *)
+| _ -> failwith "unreachable"  (* but add a [WARNING] log to help debug *)
 ```
 
-## 模式 6: 用事件总线做可观测性
+## Pattern 6: Use the event bus for observability
 
-不要靠日志。订阅 `Bash_invoked` / `Bash_completed` / `Tool_failed` 这些事件，自动 metric 化：
+Do not rely on logs alone. Subscribe to `Bash_invoked` / `Bash_completed` / `Tool_failed` events and automatically export metrics:
 
 ```ocaml
 Event_bus.subscribe rt.event_bus (function
@@ -140,4 +144,4 @@ Event_bus.subscribe rt.event_bus (function
 );
 ```
 
-[v0.3.0+ 健康检查 API](https://...) `Runtime.metrics_snapshot` 也可用——不用自己订阅事件。
+The `Runtime.metrics_snapshot` API (v0.3.0+) is also available — you don't have to subscribe to events manually.

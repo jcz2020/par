@@ -1,5 +1,40 @@
 # CHANGES
 
+## v0.3.2 (unreleased)
+
+> Documentation-only release. Zero code changes. All public docs translated to English.
+
+### Documentation
+
+- **README.md**: rewritten — SDK-first hero section, mermaid architecture diagram, Why-PAR comparison table, 20 built-in tools table, MCP client section with code example, full module reference.
+- **docs/index.md**: rewritten as English SDK-first navigation hub (was Chinese placeholder).
+- **docs/sdk/overview.md**: expanded from 20-line stub to full SDK hub page with architecture, feature list, and navigation links.
+- **docs/sdk/agent.md**: translated to English (agent_config, model_config, Runtime.invoke, tool handler signature).
+- **docs/sdk/workflow.md**: translated to English (step types, checkpoints, conditional and map-reduce).
+- **docs/sdk/middleware.md**: translated to English (7 built-in middleware plus how to write your own).
+- **docs/sdk/tools.md**: translated to English (all 20 built-in tools including the type-safe bash tool).
+- **docs/sdk/mcp.md**: translated to English (Mcp_client, Mcp_server, Mcp_types APIs plus event list and security checklist).
+- **docs/quickstart.md**: translated to English (full 30-minute tutorial from install to tool calls).
+- **docs/howto/concurrency.md**: translated to English (3 concurrency layers, parallel tool execution, rate limiting).
+- **docs/howto/custom-llm-provider.md**: translated to English (registering Cohere, Mistral, Ollama, etc.).
+- **docs/howto/error-handling.md**: translated to English (error categories, retry policies, cancellation, event bus observability).
+- **docs/explanation/architecture.md**: translated to English (module structure, data flow, type system, Eio concurrency model).
+- **docs/cli.md**: translated to English (full CLI reference with all options, config wizard, troubleshooting).
+
+### Infrastructure
+
+- **docs/DOC-MAINTENANCE.md**: new file — single source of truth for doc rules (CJK ban, identifier preservation, pre-release checklist).
+- **scripts/check_doc_identifiers.sh**: new script — CI gate for OCaml identifier preservation in public docs.
+- **CONTRIBUTING.md**: new file — contributor guide with documentation standards section.
+- **SECURITY.md**: new file — security policy with supported versions, reporting instructions, threat model.
+- **examples/README.md**: new file — describes all example programs in examples/.
+- **AGENTS.md**: added 12-item pre-release checklist, identifier-preservation list, CI integration notes.
+- **CI badge**: replaced hardcoded build badge with GitHub Actions CI badge URL.
+
+### Test coverage
+
+- 666 OCaml tests and 16 Python tests passing (unchanged from v0.3.1).
+
 ## v0.3.1 (2026-06-06)
 
 > 100% 向后兼容，纯 additive，零 breaking change。
