@@ -6,7 +6,7 @@
 
 PAR（Programmable Agent Runtime）是一个模块化、类型安全的 Agent 运行时，面向 OCaml 5.4+。
 它内置 ReAct 推理引擎，支持 OpenAI 和 Anthropic 两个 LLM 供应商（以及任何 OpenAI 兼容接口，如智谱 GLM-4），
-提供 13 个内置工具、工作流编排和 SQLite/PostgreSQL 持久化。
+提供 20 个内置工具（含类型安全 bash）、MCP stdio 客户端、工作流编排和 SQLite/PostgreSQL 持久化。
 
 ## 前置条件
 

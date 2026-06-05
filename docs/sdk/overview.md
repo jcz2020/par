@@ -10,6 +10,7 @@ P-A-R (Programmable Agent Runtime) 是一个基于 OCaml 5.4+ 的模块化 Agent
 | ReAct Agent 循环 | 思考-行动-观察循环，支持工具调用，可配置最大迭代次数 |
 | 工作流引擎 | 顺序、并行、条件分支、Map-Reduce、人工审批、子工作流 |
 | 多 Provider 支持 | OpenAI 兼容接口、Anthropic Messages API、Ollama、自定义端点 |
+| MCP 客户端 | 连接任意 MCP server（stdio），自动发现工具/资源/提示词 |
 | 中间件管道 | 日志、重试、限速、超时、输入校验、PII 掩码、输出清洗 (7 个内置) |
 | 持久化 | SQLite (开发) / PostgreSQL (生产)，事件溯源 + 任务状态持久化 |
 | FFI / Python 绑定 | C ABI (`par_capi.so`) + ctypes Python 包 (`par_runtime`) |
@@ -31,8 +32,11 @@ P-A-R (Programmable Agent Runtime) 是一个基于 OCaml 5.4+ 的模块化 Agent
 | Expr     |          |          |          |  Validation  |
 | State_m  |          |          |          |  Pii_mask    |
 +----------+----------+----------+----------+------+-------+
-|                   Tools (13 builtin)                     |
-|       calculator / web_search / fetch_url / ...          |
+|                   Tools (20 builtin)                     |
+|       calculator / web_search / fetch_url / bash ...     |
++----------+-----------------------------------------------+
+|  MCP Client (v0.3.1)    |  tools / resources / prompts   |
+|  stdio transport only   |  server lifecycle management   |
 +-----------------------------------------------------------+
 |                    FFI Bridge (par_capi)                  |
 |         C API (par_ffi.h) -> Python ctypes binding         |
@@ -58,7 +62,10 @@ P-A-R (Programmable Agent Runtime) 是一个基于 OCaml 5.4+ 的模块化 Agent
 | Persistence | `Par.Sqlite_persistence` | SQLite 后端（事件 + 任务状态 + 工作流状态） |
 | Persistence | `Par.Noop_persistence` | 空操作持久化（用于测试和快速原型） |
 | Event_bus | `Par.Event_bus` | Eio 异步事件总线 + 死信队列 |
-| Tools | `Par.Builtin_tools` | 13 个内置工具（计算器、时间、UUID、哈希、Web 等） |
+| Tools | `Par.Builtin_tools` | 20 个内置工具（计算器、时间、UUID、哈希、Web、bash 等） |
+| MCP | `Par.Mcp_types` | MCP 协议类型：server_config、capabilities、tool/resource/prompt 类型 |
+| MCP | `Par.Mcp_server` | MCP server 生命周期：spawn、stop、call_method、notify |
+| MCP | `Par.Mcp_client` | MCP 高阶客户端：connect、list_tools、call_tool、list_resources、read_resource、list_prompts、get_prompt |
 | Middleware | `Par.Logging` | 请求/响应日志 |
 | Middleware | `Par.Retry` | 指数退避重试 |
 | Middleware | `Par.Rate_limit` | 滑动窗口限速 |
@@ -99,6 +106,8 @@ let () = Eio_main.run (fun _env ->
 | [Agent API](agent.md) | Agent 配置、运行时创建、工具注册、ReAct 循环 |
 | [Workflow API](workflow.md) | 工作流定义、步骤类型、条件分支、审批、检查点 |
 | [Middleware API](middleware.md) | 中间件概念、7 个内置中间件、自定义中间件编写 |
+| [Tools API](tools.md) | 20 个内置工具（含 bash 安全工具） |
+| [MCP Client API](mcp.md) | MCP stdio 客户端：连接外部 MCP server |
 
 ## See also
 

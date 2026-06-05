@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.3.1 (2026-06-XX)
+## v0.3.1 (2026-06-06)
 
 > **定位**：post-release polish。v0.3.0 把 SDK 基础打稳了，v0.3.1 给两件**真正提升 LLM 后端工程师日常工作**的事：安全的 bash + 任意 MCP server 接入。本 entry 记录 bash 工具；MCP 在独立 entry。
 >

@@ -15,8 +15,10 @@ A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM suppor
 - 双重持久化：SQLite（开发）/ PostgreSQL（生产，可选 opam 包）
 - 交互式REPL（`par`）
 - 安全URL抓取：TLS证书验证、系统CA store、URL scheme校验、10MB容量限制
+- MCP stdio 客户端：连接任意 MCP server（filesystem、git、sqlite 等），自动发现工具/资源/提示词
+- 类型安全 bash：Safe_command ADT + Policy Functor + 31 条黑名单，shell 注入在类型层不可表示
 - C FFI + Python binding：ctypes FFI，线程安全，par_runtime 包
- - 939 个测试用例通过（923 OCaml + 16 Python）
+  - 680 个测试用例通过（664 OCaml + 16 Python）
 
 ## Architecture
 
@@ -37,6 +39,9 @@ A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM suppor
 +----------+----------+----------+----------+------+-------+
 |          Tools (20 builtin: 19 + bash in v0.3.1)        |
 |       calculator / web_search / fetch_url / ...          |
++----------+-----------------------------------------------+
+|  MCP Client (v0.3.1)    |  tools / resources / prompts   |
+|  stdio transport only   |  server lifecycle management   |
 +-----------------------------------------------------------+
 |                    FFI Bridge (par_capi)                  |
 |         C API (par_ffi.h) → Python ctypes binding         |
@@ -108,6 +113,51 @@ let () = Eio_main.run (fun env ->
 
 See `examples/basic_agent.ml` for the complete example.
 
+## MCP Client (v0.3.1)
+
+PAR 可以连接任意 MCP (Model Context Protocol) server，让 AI agent 直接调用外部工具：
+
+```ocaml
+open Par
+
+let mcp_config = {
+  Mcp_types.name = "filesystem";
+  command = "npx";
+  args = ["-y"; "@anthropic/mcp-server-filesystem"; "/tmp"];
+  env = [];
+  cwd = None;
+  startup_timeout = 10.0;
+}
+
+let () = Eio_main.run (fun env ->
+  Eio.Switch.run (fun switch ->
+    match Runtime.create
+      ~mcp_servers:[mcp_config]
+      ~mcp_process_mgr:(Eio.Stdenv.process_mgr env)
+      ~mcp_clock:(Eio.Stdenv.clock env)
+      ~config switch
+    with
+    | Error e -> Printf.eprintf "Failed: %s\n" (Runtime.string_of_error_category e)
+    | Ok rt ->
+      (* MCP server 已自动启动，通过 Runtime.mcp_server 访问 *)
+      let result = Runtime.mcp_server rt "filesystem" in
+      (match result with
+       | Ok server ->
+         let tools = Mcp_client.list_tools (Mcp_client.of_server server) in
+         (match tools with
+          | Ok tool_list ->
+            Printf.printf "MCP server has %d tools\n" (List.length tool_list)
+          | Error e ->
+            Printf.eprintf "list_tools failed: %s\n" (Runtime.string_of_error_category e))
+       | Error e ->
+         Printf.eprintf "Server not found: %s\n" (Runtime.string_of_error_category e));
+      ignore (Runtime.close rt)
+  )
+)
+```
+
+详见 [`docs/sdk/mcp.md`](docs/sdk/mcp.md)。
+
 ## Python Binding
 
 ```bash
@@ -159,6 +209,8 @@ See `bindings/python/examples/basic_agent.py` for the full example.
 | [`docs/sdk/agent.md`](docs/sdk/agent.md) | Agent 定义、Runtime API、工具注册 |
 | [`docs/sdk/workflow.md`](docs/sdk/workflow.md) | 工作流 JSON 格式与 8 种 step 类型 |
 | [`docs/sdk/middleware.md`](docs/sdk/middleware.md) | 7 个内置中间件与自定义中间件 |
+| [`docs/sdk/tools.md`](docs/sdk/tools.md) | 20 个内置工具（含 bash 安全工具） |
+| [`docs/sdk/mcp.md`](docs/sdk/mcp.md) | MCP stdio 客户端：连接外部工具服务器 |
 | [`DESIGN.md`](DESIGN.md) | 内部设计文档（17 节，1509 行） |
 | [`CHANGES.md`](CHANGES.md) | 变更日志 |
 
@@ -184,7 +236,7 @@ See `bindings/python/examples/basic_agent.py` for the full example.
 
 | Package | Description |
 |---------|-------------|
-| `par` | SDK: Core types, ReAct engine, runtime, workflow, expression evaluator, state machine, context manager, event bus, OpenAI/Anthropic providers, SQLite persistence (PostgreSQL optional), 20 builtin tools (incl. type-safe bash in v0.3.1), 7 middleware |
+| `par` | SDK: Core types, ReAct engine, runtime, workflow, expression evaluator, state machine, context manager, event bus, OpenAI/Anthropic providers, SQLite persistence (PostgreSQL optional), 20 builtin tools (incl. type-safe bash), MCP stdio client, 7 middleware |
 | `par_cli` | CLI tool: `par` (REPL), `par config` (wizard), `par ask` (single-shot) — SDK 验证工具 |
 
 ## Project Structure
@@ -200,6 +252,7 @@ par/
 |   +-- event_bus/     Eio-based event bus with DLQ
 |   +-- middleware/    Logging, Retry, Rate_limit, Timeout, Validation, Pii_mask, Sanitize_tool_output
 |   +-- tools/         20 builtin tools (calculator, web tools, file ops, bash in v0.3.1)
+|   +-- mcp/           MCP stdio client (mcp_types, mcp_server, mcp_client, mcp_transport_stdio, mcp_naming, mcp_errors)
 |   +-- ffi/           C FFI bridge (par_ffi.h, par_ffi.c, par_capi.ml)
 |   +-- par.ml         Facade module (re-exports all sub-modules for `open Par`)
 +-- bindings/
@@ -219,8 +272,8 @@ OCaml 5.4+, dune 3.23+, cohttp-eio, lambdasoup, tls-eio, ca-certs, postgresql（
 
 ## Project Size
 
-- 约 8500 行 OCaml + 1200 行 Python
-- 939 个测试用例（923 OCaml + 16 Python）
+- 约 10000 行 OCaml + 1200 行 Python
+- 680 个测试用例（664 OCaml + 16 Python）
 
 ## License
 
