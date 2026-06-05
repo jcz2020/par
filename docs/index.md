@@ -1,47 +1,91 @@
-# PAR 文档
+<!-- language: en -->
 
-本目录包含 PAR (Programmable Agent Runtime) 的用户文档。
+# PAR Documentation
 
-文档按四个分类组织：
+PAR's docs are SDK-first. The CLI is end-user experience; production code uses the OCaml SDK directly. If you're building an agent, start with the SDK overview and the agent API reference. If you're an end user trying the CLI, jump to the quickstart.
 
----
+The docs are organized by purpose, not by source-tree layout. Four sections follow: Tutorials walk you through a complete task from scratch, How-to guides solve a specific problem, Reference documents every API and flag, and Explanation discusses the design decisions. Pick the section that matches your question; cross-links inside each page point at related material.
 
-## 教程 (Tutorial)
+If you cannot find what you need, the SDK reference always wins over the CLI reference: when the two disagree, the SDK page is canonical and the CLI page is updated to match.
 
-**学习导向** — 从零开始，手把手带你跑通。
+Every page in this tree opens with a `<!-- language: en -->` marker on line 1, ships English only, and preserves OCaml identifiers verbatim (backticks, not code blocks). The full authoring contract, the identifier list, and the pre-release checklist live in [Documentation maintenance](DOC-MAINTENANCE.md); contributors should read that file before opening a doc PR.
 
-| 文档 | 内容 |
-|------|------|
-| [快速上手](quickstart.md) | 30 分钟教程：安装 → 配置 provider → 写第一个带工具调用的 agent |
+The audience for this tree is three groups: SDK users who embed `par` in an OCaml application, end users who run the CLI as a daily driver, and contributors who extend the runtime with a new provider, tool, or middleware. The four sections below serve all three, and each page is written so a fresh reader can act on it without first reading the rest of the tree.
 
-## 操作指南 (How-to Guide)
+## Tutorials
 
-**任务导向** — 解决具体问题的步骤。
+Tutorials walk you through a complete task from scratch. Start here if you're new to PAR. The quickstart below installs the SDK, configures an LLM provider, and runs an agent with a single tool end-to-end; later tutorials build on the same setup.
 
-| 文档 | 内容 |
-|------|------|
-| [并发模式](howto/concurrency.md) | 3 层并发：Runtime 级、Fiber 级、Tool 级并行 |
-| [自定义 LLM Provider](howto/custom-llm-provider.md) | 注册 Cohere、Mistral、Ollama 等自定义 provider |
-| [错误处理](howto/error-handling.md) | error_category 分类、恢复策略、event bus 审计 |
+| Document | Time | What you'll build |
+|----------|------|-------------------|
+| [Quickstart](quickstart.md) | 30 min | An agent with one tool, run end-to-end |
 
-## 参考 (Reference)
+## How-to guides
 
-**查阅导向** — API 签名、配置项、命令参数。
+How-to guides solve specific problems. Skip to the one you need. Each guide assumes you have already completed the quickstart and have a working `par` install, and each one ends with a short checklist you can run to confirm the change took effect.
 
-| 文档 | 内容 |
-|------|------|
-| [CLI 参考](cli.md) | `par` / `par config` / `par ask` 全部命令与参数 |
-| [SDK 概览](sdk/overview.md) | SDK 模块索引与文档导航 |
-| [Agent API](sdk/agent.md) | Agent 配置、Runtime API、工具注册 |
-| [Workflow API](sdk/workflow.md) | 工作流定义、8 种 step 类型、检查点 |
-| [Middleware API](sdk/middleware.md) | 7 个内置中间件与自定义中间件编写 |
-| [Tools API](sdk/tools.md) | 20 个内置工具（含类型安全 bash） |
-| [MCP Client API](sdk/mcp.md) | MCP stdio 客户端：连接外部工具服务器 |
+If you are looking for a one-paragraph answer to a setup or runtime question, the FAQ is the fastest entry point. For deeper recipes, the table below is grouped by topic so you can jump straight to the area that matches your problem.
 
-## 解释 (Explanation)
+### Concurrency & scaling
 
-**理解导向** — 架构原理与设计决策。
+[Concurrency patterns](howto/concurrency.md): 3 layers of parallelism: Runtime, Fiber, Tool.
 
-| 文档 | 内容 |
-|------|------|
-| [架构深度解析](explanation/architecture.md) | 核心抽象、模块结构、数据流、类型系统、并发模型、事件流 |
+### Provider integration
+
+[Custom LLM provider](howto/custom-llm-provider.md): register Cohere, Mistral, Ollama, or any OpenAI-compatible endpoint.
+
+### Operations & reliability
+
+[Error handling](howto/error-handling.md): error_category classification, recovery strategies, event-bus auditing.
+
+### Common questions
+
+[FAQ](../../FAQ.md): 5 common questions (cross-link to FAQ.md created in W6).
+
+## Reference
+
+Reference docs are the API source of truth. Look here for type signatures, configuration options, and command-line flags. The SDK reference is primary; the CLI reference exists to support the end-user experience, not to replace it.
+
+### SDK
+
+The SDK is the canonical surface. Every page below is marked **PRIMARY** because it documents a public API of the `par` package. If a behavior changes in code, these pages are updated first, and the CLI guide is rewritten to match.
+
+| Document | Description |
+|----------|-------------|
+| [SDK overview](sdk/overview.md) | **PRIMARY**: the SDK hub (architecture, five-minute tour, module map) |
+| [Agent API](sdk/agent.md) | **PRIMARY**: Agent config, Runtime API, tool registration, ReAct loop |
+| [Workflow API](sdk/workflow.md) | **PRIMARY**: workflow JSON, 8 step types, checkpoints |
+| [Middleware API](sdk/middleware.md) | **PRIMARY**: 7 built-in middlewares and how to write your own |
+| [Tools API](sdk/tools.md) | **PRIMARY**: all 20 built-in tools including type-safe bash |
+| [MCP Client API](sdk/mcp.md) | **PRIMARY**: MCP stdio client, 7 event types, server lifecycle |
+
+### CLI
+
+The CLI is a thin wrapper over the SDK. Read it when you want to invoke `par` from a shell, configure a provider, or run a single-shot `par ask`; for semantics, error categories, or behavior under failure, follow the SDK link from the same page.
+
+| Document | Description |
+|----------|-------------|
+| [CLI reference](cli.md) | end-user only: `par` / `par config` / `par ask` commands and flags |
+
+## Explanation
+
+Explanation docs discuss the why behind PAR's design. Read these when you want to understand the type system, concurrency model, or how an invoke flows through the runtime. These pages argue for a design choice; reference pages simply document the current state.
+
+### Architecture
+
+[Architecture deep dive](explanation/architecture.md): core abstractions, module structure, data flow, type system, Eio concurrency, event stream.
+
+### Doc internals
+
+[Documentation maintenance](DOC-MAINTENANCE.md): the rules that keep PAR's docs clean (identifier preservation, language indicator, CJK check, CI integration).
+
+## Project links
+
+Project-level documents that live outside the four sections above.
+
+- [`README.md`](../../README.md): project overview
+- [`CHANGES.md`](../../CHANGES.md): changelog
+- [`CONTRIBUTING.md`](../../CONTRIBUTING.md): how to contribute
+- [`SECURITY.md`](../../SECURITY.md): security disclosure
+- [GitHub repository](https://github.com/jcz2020/par): source, issues, PRs
+- [opam package `par`](https://opam.ocaml.org/packages/par/): once published
