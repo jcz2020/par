@@ -200,17 +200,15 @@ See `bindings/python/examples/basic_agent.py` for the full example.
 
 ## Documentation
 
-| Doc | Description |
-|-----|-------------|
-| [`docs/quickstart.md`](docs/quickstart.md) | 30 分钟上手教程：安装 → 配置 provider → 写第一个 agent |
-| [`docs/cli.md`](docs/cli.md) | CLI 完整参考：par / par config / par ask 全部命令与参数 |
-| [`docs/sdk/overview.md`](docs/sdk/overview.md) | SDK 架构总览与模块组织 |
-| [`docs/sdk/agent.md`](docs/sdk/agent.md) | Agent 定义、Runtime API、工具注册 |
-| [`docs/sdk/workflow.md`](docs/sdk/workflow.md) | 工作流 JSON 格式与 8 种 step 类型 |
-| [`docs/sdk/middleware.md`](docs/sdk/middleware.md) | 7 个内置中间件与自定义中间件 |
-| [`docs/sdk/tools.md`](docs/sdk/tools.md) | 20 个内置工具（含 bash 安全工具） |
-| [`docs/sdk/mcp.md`](docs/sdk/mcp.md) | MCP stdio 客户端：连接外部工具服务器 |
-| [`CHANGES.md`](CHANGES.md) | 变更日志 |
+完整文档索引见 [`docs/index.md`](docs/index.md)。
+
+| 分类 | 入口 |
+|------|------|
+| 教程 | [快速上手](docs/quickstart.md) — 30 分钟从零写一个 agent |
+| 操作指南 | [并发模式](docs/howto/concurrency.md) · [自定义 Provider](docs/howto/custom-llm-provider.md) · [错误处理](docs/howto/error-handling.md) |
+| 参考 | [CLI](docs/cli.md) · [Agent API](docs/sdk/agent.md) · [Workflow API](docs/sdk/workflow.md) · [Middleware](docs/sdk/middleware.md) · [Tools](docs/sdk/tools.md) · [MCP Client](docs/sdk/mcp.md) |
+| 解释 | [架构深度解析](docs/explanation/architecture.md) |
+| 变更 | [`CHANGES.md`](CHANGES.md) |
 
 ## Built-in Tools
 
