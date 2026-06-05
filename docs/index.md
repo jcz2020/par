@@ -2,7 +2,7 @@
 
 本目录包含 PAR (Programmable Agent Runtime) 的用户文档。
 
-文档按 [Diátaxis](https://diataxis.fr/) 框架组织为四个分类：
+文档按四个分类组织：
 
 ---
 
