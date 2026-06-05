@@ -120,6 +120,11 @@
  (modules test_mcp_types)
  (action (run %{test})))
 
+(test
+ (name test_mcp_transport_stdio)
+ (libraries par alcotest eio eio_main yojson logs)
+ (action (run %{test})))
+
 (executable
  (name mcp_mock_server)
  (libraries eio_main yojson))
