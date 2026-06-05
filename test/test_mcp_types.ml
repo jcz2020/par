@@ -74,8 +74,8 @@ let test_server_id_rejects_slash () =
   must_invalid "slash" (T.server_id_of_string "a/b")
 
 let test_server_id_rejects_too_long () =
-  let s = String.make 33 'a' in
-  must_invalid "33 chars" (T.server_id_of_string s)
+  let s = String.make 65 'a' in
+  must_invalid "65 chars" (T.server_id_of_string s)
 
 let test_server_id_rejects_space () =
   must_invalid "space" (T.server_id_of_string "has space")
@@ -353,7 +353,7 @@ let server_id_suite =
     Alcotest.test_case "rejects dot"             `Quick test_server_id_rejects_dot;
     Alcotest.test_case "rejects slash"           `Quick test_server_id_rejects_slash;
     Alcotest.test_case "rejects backslash"       `Quick test_server_id_rejects_backslash;
-    Alcotest.test_case "rejects 33-char string"  `Quick test_server_id_rejects_too_long;
+    Alcotest.test_case "rejects 65-char string"  `Quick test_server_id_rejects_too_long;
     Alcotest.test_case "rejects space"           `Quick test_server_id_rejects_space;
     Alcotest.test_case "compare is total order"  `Quick test_server_id_compare_total;
   ])

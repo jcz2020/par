@@ -5,6 +5,9 @@ type server_id = string
 
 let server_id_to_string (s : server_id) : string = s
 
+let server_id_with_suffix (base : server_id) (suffix : string) : server_id =
+  base ^ suffix
+
 let server_id_compare (a : server_id) (b : server_id) : int =
   String.compare a b
 
@@ -12,16 +15,16 @@ let server_id_of_string (s : string) : (server_id, Types.error_category) result 
   let reject msg = Error (Types.Invalid_input msg) in
   if String.length s = 0 then
     reject "server_id: empty string"
-  else if String.length s > 32 then
-    reject (Printf.sprintf "server_id: length %d exceeds 32" (String.length s))
+  else if String.length s > 64 then
+    reject (Printf.sprintf "server_id: length %d exceeds 64" (String.length s))
   else if not (Stdlib.String.for_all
                  (fun c ->
                     (c >= 'a' && c <= 'z')
                     || (c >= 'A' && c <= 'Z')
                     || (c >= '0' && c <= '9')
-                    || c = '_' || c = '-')
+                    || c = '_' || c = '-' || c = '#')
                  s) then
-    reject "server_id: contains forbidden characters (allowed: [A-Za-z0-9_-])"
+    reject "server_id: contains forbidden characters (allowed: [A-Za-z0-9_-#])"
   else
     Ok s
 
@@ -370,17 +373,18 @@ let prompt_of_yojson (j : Yojson.Safe.t) : (mcp_prompt, string) result =
 let capabilities_of_yojson (j : Yojson.Safe.t) : (capabilities, string) result =
   match j with
   | `Assoc fields ->
-    let b_opt key =
+    let cap key =
       match List.assoc_opt key fields with
-      | Some (`Bool b) -> Some b
-      | _ -> None
+      | None -> false
+      | Some (`Bool b) -> b
+      | Some _ -> true
     in
     Ok {
-      tools     = Option.value ~default:false (b_opt "tools");
-      resources = Option.value ~default:false (b_opt "resources");
-      prompts   = Option.value ~default:false (b_opt "prompts");
-      logging   = Option.value ~default:false (b_opt "logging");
-      sampling  = Option.value ~default:false (b_opt "sampling");
+      tools     = cap "tools";
+      resources = cap "resources";
+      prompts   = cap "prompts";
+      logging   = cap "logging";
+      sampling  = cap "sampling";
     }
   | _ -> Error "capabilities: must be a JSON object"
 

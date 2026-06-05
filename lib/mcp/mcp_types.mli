@@ -1,6 +1,7 @@
 type server_id = private string
 val server_id_of_string : string -> (server_id, Types.error_category) result
 val server_id_to_string : server_id -> string
+val server_id_with_suffix : server_id -> string -> server_id
 val server_id_compare : server_id -> server_id -> int
 
 type server_config = {

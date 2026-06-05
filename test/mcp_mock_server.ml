@@ -176,6 +176,8 @@ let handle ~slow_tools_list (json : Yojson.Safe.t) : Yojson.Safe.t option =
           `Assoc ["role", `String "user"; "content", `Assoc ["type", `String "text"; "text", `String (Printf.sprintf "Hello, %s!" n)]];
         ];
       ]))
+  | Some "ping" ->
+      Some (jsonrpc_response ~id (`Assoc []))
   | Some "shutdown" ->
       Some (jsonrpc_response ~id (`Assoc []))
   | Some "notifications/initialized" | Some "notifications/cancelled" ->
