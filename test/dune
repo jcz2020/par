@@ -132,6 +132,12 @@
  (modules test_mcp_server)
  (action (run %{test})))
 
+(test
+ (name test_mcp_client)
+ (libraries par alcotest eio eio_main yojson base logs)
+ (modules test_mcp_client)
+ (action (run %{test})))
+
 (executable
  (name mcp_mock_server)
  (libraries eio_main yojson)
