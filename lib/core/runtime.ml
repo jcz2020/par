@@ -35,6 +35,7 @@ type runtime = {
   mutable tool_call_hooks : Hook.tool_call_hook list;
   bash_policy : (module Bash_policy.POLICY);
   bash_installed : bool ref;
+  mcp_servers : (Mcp_types.server_id, Mcp_server.t) Types.protected_hashtbl;
 } [@@warning "-69"]
 
 let default_event_bus_config = {
@@ -587,6 +588,10 @@ let create ?(persistence = noop_persistence)
                      stream_fn = (fun _ _tools _ _ _ -> Result.Error (Internal "LLM not initialized"));
                      close_fn = ignore })
            ?(bash_policy = (module Bash_policy.Coder : Bash_policy.POLICY))
+           ?(mcp_servers = [])
+           ?mcp_process_mgr
+           ?mcp_clock
+           ?(mcp_startup_policy = Mcp_types.Log_and_continue)
            ~config switch =
   let validation_result = Validation.validate_runtime_config_result config in
   match validation_result with
@@ -624,8 +629,46 @@ let create ?(persistence = noop_persistence)
       publish_event_fn;
       bash_policy;
       bash_installed = ref false;
+      mcp_servers = { data = Hashtbl.create 4; mutex = Eio.Mutex.create () };
     } in
-    Ok rt
+    let mcp_errors = ref [] in
+    if mcp_servers <> [] then begin
+      match (mcp_process_mgr, mcp_clock) with
+      | (None, _) | (_, None) ->
+        Error (Invalid_input "Runtime.create: ?mcp_servers requires ?mcp_process_mgr and ?mcp_clock (pass Eio.Stdenv.process_mgr env / Eio.Stdenv.clock env)")
+      | (Some mgr, Some clk) ->
+        let stop_all_spawned () =
+          Types.htbl_iter rt.mcp_servers (fun _id server ->
+            ignore (Mcp_server.stop server);
+            publish_event rt (Mcp_server_stopped { server_id = Mcp_types.server_id_to_string (Mcp_server.id server) })
+          )
+        in
+        let rec loop = function
+          | [] ->
+            if !mcp_errors <> [] && mcp_startup_policy = Mcp_types.Fail_fast then begin
+              stop_all_spawned ();
+              List.hd !mcp_errors
+            end else
+              Ok rt
+          | cfg :: rest ->
+            match Mcp_server.spawn ~sw:switch ~process_mgr:mgr ~clock:clk cfg with
+            | Ok server ->
+              let sid = Mcp_server.id server in
+              Types.htbl_set rt.mcp_servers sid server;
+              publish_event rt (Mcp_server_started { server_id = Mcp_types.server_id_to_string sid; server_name = Mcp_server.name server });
+              loop rest
+            | Error e ->
+              publish_event rt (Mcp_server_failed { server_id = cfg.Mcp_types.name; error = e });
+              mcp_errors := Error e :: !mcp_errors;
+              if mcp_startup_policy = Mcp_types.Fail_fast then begin
+                stop_all_spawned ();
+                Error e
+              end else
+                loop rest
+        in
+        loop mcp_servers
+    end else
+      Ok rt
 
 let steer rt message =
   Steering_queue.enqueue rt.steering_queue message
@@ -639,6 +682,13 @@ let has_pending_steering rt = Steering_queue.has_items rt.steering_queue
 let has_pending_followup rt = Steering_queue.has_items rt.followup_queue
 
 let close rt =
+  Types.htbl_iter rt.mcp_servers (fun _id server ->
+    match Mcp_server.stop server with
+    | Ok () -> publish_event rt (Mcp_server_stopped { server_id = Mcp_types.server_id_to_string (Mcp_server.id server) })
+    | Error e -> Logs.err (fun m -> m "Runtime.close: MCP server %s stop failed: %s"
+                                      (Mcp_types.server_id_to_string (Mcp_server.id server))
+                                      (string_of_error_category e))
+  );
   Steering_queue.close rt.steering_queue;
   Steering_queue.close rt.followup_queue;
   Eio.Mutex.use_rw ~protect:false rt.shutdown_mutex (fun () ->
@@ -653,6 +703,13 @@ let tool_registry rt = rt.tool_registry
 let bash_policy rt = rt.bash_policy
 
 let cancellation_root rt = rt.cancellation_root
+
+let mcp_servers rt = rt.mcp_servers
+
+let mcp_server rt server_id =
+  match Types.htbl_get rt.mcp_servers server_id with
+  | Some server -> Ok server
+  | None -> Error (Invalid_input (Printf.sprintf "MCP server '%s' not found" (Mcp_types.server_id_to_string server_id)))
 
 let register_tool_call_hook rt hook =
   rt.tool_call_hooks <- rt.tool_call_hooks @ [hook]

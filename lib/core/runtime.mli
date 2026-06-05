@@ -11,6 +11,10 @@ val create :
   ?event_bus:(module EVENT_BUS_SERVICE) ->
   ?llm:llm_service ->
   ?bash_policy:(module Bash_policy.POLICY) ->
+  ?mcp_servers:Mcp_types.server_config list ->
+  ?mcp_process_mgr:_ Eio.Process.mgr ->
+  ?mcp_clock:_ Eio.Time.clock ->
+  ?mcp_startup_policy:Mcp_types.startup_policy ->
   config:runtime_config ->
   Eio.Switch.t ->
   (runtime, error_category) result
@@ -114,6 +118,10 @@ val bash_policy : runtime -> (module Bash_policy.POLICY)
 val cancellation_root : runtime -> Eio.Switch.t
 (** The root switch passed to [create]. Useful for spawning
     cancellation tokens in tests and external tools. *)
+
+val mcp_servers : runtime -> (Mcp_types.server_id, Mcp_server.t) Types.protected_hashtbl
+
+val mcp_server : runtime -> Mcp_types.server_id -> (Mcp_server.t, error_category) result
 
 val publish_event : runtime -> event -> unit
 

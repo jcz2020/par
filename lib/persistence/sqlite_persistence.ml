@@ -94,6 +94,13 @@ let extract_task_id : event -> string = function
   | Approval_timeout -> ""
   | Shutdown_initiated -> ""
   | Shutdown_completed _ -> ""
+  | Mcp_server_started _ -> ""
+  | Mcp_server_failed _ -> ""
+  | Mcp_server_stopped _ -> ""
+  | Mcp_tool_invoked _ -> ""
+  | Mcp_tool_completed _ -> ""
+  | Mcp_resource_read _ -> ""
+  | Mcp_prompt_rendered _ -> ""
 
 (* -------------------------------------------------------------------------- *)
 (* Write operations                                                      *)

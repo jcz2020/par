@@ -138,6 +138,21 @@
  (modules test_mcp_client)
  (action (run %{test})))
 
+(test
+ (name test_mcp_runtime)
+ (libraries par alcotest eio eio_main yojson logs)
+ (modules test_mcp_runtime))
+
+(test
+ (name test_mcp_events)
+ (libraries par alcotest)
+ (modules test_mcp_events))
+
+(test
+ (name test_mcp_facade)
+ (libraries par alcotest)
+ (modules test_mcp_facade))
+
 (executable
  (name mcp_mock_server)
  (libraries eio_main yojson)

@@ -413,6 +413,14 @@ type event =
   | Approval_timeout
   | Shutdown_initiated
   | Shutdown_completed of { exit_code : int }
+  (* MCP server lifecycle events *)
+  | Mcp_server_started of { server_id : string; server_name : string }
+  | Mcp_server_failed of { server_id : string; error : error_category }
+  | Mcp_server_stopped of { server_id : string }
+  | Mcp_tool_invoked of { server_id : string; tool_name : string }
+  | Mcp_tool_completed of { server_id : string; tool_name : string; duration_ms : float }
+  | Mcp_resource_read of { server_id : string; uri : string }
+  | Mcp_prompt_rendered of { server_id : string; prompt_name : string }
 [@@deriving yojson]
 
 type event_envelope = {

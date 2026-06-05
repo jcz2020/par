@@ -46,3 +46,7 @@ module Validation = Validation
 module Pii_mask = Pii_mask
 module Sanitize_tool_output = Sanitize_tool_output
 module Version = Version
+
+module Mcp_types = Mcp_types
+module Mcp_server = Mcp_server
+module Mcp_client = Mcp_client

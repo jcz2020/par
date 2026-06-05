@@ -40,6 +40,17 @@
 
 - `docs/sdk/tools.md` —— 新文件，文档化 20 个内置工具（19 个 v0.3.0 + bash）
 
+### MCP stdio client (v0.3.1 W2)
+
+- **New modules**：`Par.Mcp_types` / `Par.Mcp_server` / `Par.Mcp_client` — MCP stdio 协议客户端（JSON-RPC 2.0 over stdin/stdout）
+- **New Runtime params**：`Runtime.create ?mcp_servers ?mcp_process_mgr ?mcp_clock ?mcp_startup_policy` — 启动时自动 spawn MCP 子进程，关闭时自动 stop
+- **New event types**（7 个）：`Mcp_server_started` / `Mcp_server_failed` / `Mcp_server_stopped` / `Mcp_tool_invoked` / `Mcp_tool_completed` / `Mcp_resource_read` / `Mcp_prompt_rendered`
+- **Runtime API**：`Runtime.mcp_servers` / `Runtime.mcp_server` — 按 server_id 查询已连接的 MCP server
+- **Startup policy**：`Fail_fast`（任一 server 失败则全部回滚）/ `Log_and_continue`（跳过失败继续）
+- **Scope**：stdio transport only（HTTP/SSE → v0.4），sampling → v0.4
+- 20 个新测试：7 event round-trip + 10 runtime integration + 3 facade exposure
+- 现有 644 个测试全部继续通过（零回归）
+
 ## v0.3.0-post (2026-06-04)
 
 ### CLI (par_cli)
