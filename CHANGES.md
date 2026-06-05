@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.3.2 (unreleased)
+## v0.3.2 (2026-06-06)
 
 > Documentation-only release. Zero code changes. All public docs translated to English.
 
