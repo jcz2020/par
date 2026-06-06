@@ -23,3 +23,11 @@ val validate_runtime_config :
 val validate_runtime_config_result :
   Types.runtime_config ->
   (unit, Types.error_category) result
+
+val validate_temperature : float -> (unit, string) result
+
+val validate_temperature_result :
+  float -> (unit, Types.error_category) result
+
+val temperature_min : float
+val temperature_max : float

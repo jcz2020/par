@@ -118,6 +118,51 @@ let suite = [
         match Par.Runtime.create ~config:cfg sw with
         | Ok _ -> Alcotest.fail "Runtime.create should reject invalid config"
         | Error _ -> ())));
+
+  Alcotest.test_case "temperature 0.0 accepted" `Quick (fun () ->
+    match Validation.validate_temperature 0.0 with
+    | Ok () -> ()
+    | Error e -> Alcotest.failf "expected Ok, got: %s" e);
+
+  Alcotest.test_case "temperature 0.7 accepted" `Quick (fun () ->
+    match Validation.validate_temperature 0.7 with
+    | Ok () -> ()
+    | Error e -> Alcotest.failf "expected Ok, got: %s" e);
+
+  Alcotest.test_case "temperature 2.0 accepted (upper bound inclusive)" `Quick (fun () ->
+    match Validation.validate_temperature 2.0 with
+    | Ok () -> ()
+    | Error e -> Alcotest.failf "expected Ok, got: %s" e);
+
+  Alcotest.test_case "temperature negative rejected" `Quick (fun () ->
+    match Validation.validate_temperature (-0.1) with
+    | Ok () -> Alcotest.fail "expected Error for negative temperature"
+    | Error msg ->
+      Alcotest.(check bool) "error mentions temperature" true
+        (String.contains msg 't'));
+
+  Alcotest.test_case "temperature above 2.0 rejected" `Quick (fun () ->
+    match Validation.validate_temperature 2.5 with
+    | Ok () -> Alcotest.fail "expected Error for temperature > 2.0"
+    | Error msg ->
+      Alcotest.(check bool) "error mentions temperature" true
+        (String.contains msg 't'));
+
+  Alcotest.test_case "temperature infinity rejected" `Quick (fun () ->
+    match Validation.validate_temperature infinity with
+    | Ok () -> Alcotest.fail "expected Error for infinity"
+    | Error _ -> ());
+
+  Alcotest.test_case "temperature NaN rejected" `Quick (fun () ->
+    match Validation.validate_temperature nan with
+    | Ok () -> Alcotest.fail "expected Error for NaN"
+    | Error _ -> ());
+
+  Alcotest.test_case "validate_temperature_result wraps as Invalid_input" `Quick (fun () ->
+    match Validation.validate_temperature_result 3.0 with
+    | Ok () -> Alcotest.fail "expected Error"
+    | Error (Invalid_input _) -> ()
+    | Error _ -> Alcotest.fail "expected Invalid_input");
 ]
 
 let () =

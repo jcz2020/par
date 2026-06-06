@@ -283,6 +283,29 @@ let validate_runtime_config (config : Types.runtime_config) =
   | _, _, _, _, Error e, _ -> Error e
   | _, _, _, _, _, Error e -> Error e
 
+(* -------------------------------------------------------------------------- *)
+(* Model config validation                                                  *)
+(* -------------------------------------------------------------------------- *)
+
+let temperature_min = 0.0
+let temperature_max = 2.0
+
+let validate_temperature t =
+  if not (Float.is_finite t) then
+    Error "model.temperature: must be a finite number"
+  else if t < temperature_min then
+    Error (Printf.sprintf "model.temperature: must be >= %g (got %g)"
+             temperature_min t)
+  else if t > temperature_max then
+    Error (Printf.sprintf "model.temperature: must be <= %g (got %g)"
+             temperature_max t)
+  else Ok ()
+
+let validate_temperature_result t =
+  match validate_temperature t with
+  | Ok () -> Ok ()
+  | Error e -> Result.Error (Types.Invalid_input e)
+
 let validate_runtime_config_result config =
   match validate_runtime_config config with
   | Ok () -> Ok ()
