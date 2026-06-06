@@ -7,8 +7,8 @@ A modular, type-safe agent runtime for OCaml 5.4+: LangChain + LangGraph for the
 [![Build Status](https://github.com/jcz2020/par/actions/workflows/ci.yml/badge.svg)](https://github.com/jcz2020/par/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
-[![Tests](https://img.shields.io/badge/tests-682%20passing-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-0.3.2-blue)]()
+[![Tests](https://img.shields.io/badge/tests-863%20passing-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-0.3.3-blue)]()
 
 A complete, runnable program that registers a tool, registers an agent, and prints confirmation:
 
@@ -99,7 +99,7 @@ The `par` facade module (`lib/par.ml`) re-exports every public submodule, so a s
 
 - 20 built-in tools, including the type-safe `bash` tool: `Bash_safe_command` ADT, `Bash_policy` functor, 31-entry `Bash_blacklist`, and `Bash_invoked` / `Bash_completed` event types. Shell injection is unrepresentable in the type layer.
 - C FFI plus a Python binding: the `par_runtime` package exposes the same runtime over ctypes, thread-safe, with its own `pytest` suite.
-- 666 OCaml tests and 16 Python tests passing; zero regressions across the v0.3 series.
+- 863 OCaml tests and 16 Python tests passing; zero regressions across the v0.3 series.
 - MIT-licensed, 100% open source, dual distribution via opam and PyPI.
 
 ## SDK Quick Start
@@ -318,7 +318,7 @@ par/
 |       +-- par_runtime/     Runtime, errors, FFI declarations
 |       +-- tests/           16 pytest tests
 |       +-- examples/        basic_agent.py
-+-- test/              666 OCaml unit and integration tests
++-- test/              863 OCaml unit and integration tests
 +-- examples/          Example agents and workflows (basic_agent, otel_tracing, ...)
 +-- schema/            Database schemas
 +-- docs/              User documentation (quickstart, CLI ref, SDK ref, how-to, explanation)
@@ -332,7 +332,7 @@ All runtime dependencies are pinned in `dune-project` and propagated to the gene
 
 ## Project Size
 
-- 666 OCaml tests and 16 Python tests passing.
+- 863 OCaml tests and 16 Python tests passing.
 - Approximately 10,600 lines of OCaml in `lib/` plus 770 lines of Python in `bindings/python/`.
 - The largest single file is `lib/tools/builtin_tools.ml` at roughly 1,300 lines, dominated by the 20 tool handlers and the HTTP stack that backs `fetch_url`, `read_webpage`, and `web_search`. The SDK facade (`lib/par.ml`) is intentionally small: it re-exports submodules and adds no logic of its own.
 

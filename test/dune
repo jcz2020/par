@@ -164,6 +164,11 @@
  (modules test_middleware))
 
 (test
+ (name test_workflow_engine)
+ (libraries par eio_main alcotest)
+ (modules test_workflow_engine))
+
+(test
  (name test_event_bus_backpressure)
  (libraries par alcotest)
  (modules test_event_bus_backpressure))

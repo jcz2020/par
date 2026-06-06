@@ -2,7 +2,7 @@
 
 ## v0.3.3 (2026-06-06)
 
-> CLI integration fix + MCP config + OPS tech debt cleanup.
+> CLI integration fix + MCP config + OPS tech debt + test coverage + Python FFI expansion. 863 OCaml tests, 13 Python tests.
 
 ### CLI Fixes (W0)
 
@@ -17,7 +17,7 @@
 - New type `Types.invoke_result = { response : llm_response; conversation : conversation }`.
 - All callers updated: `workflow_engine.ml`, `par_capi.ml`, `test_integration.ml`, `examples/otel_tracing.ml`.
 
-### OPS Tech Debt Cleanup
+### OPS Tech Debt Cleanup (W1)
 
 - **OPS-14**: `Openai_provider.create` and `Anthropic_provider.create` now reject empty `api_key` with `Error (Invalid_input "api_key must not be empty")` instead of silently constructing a client that would fail at first HTTP request. New test file `test/test_provider_api_key.ml` (6 cases).
 - **OPS-8**: New accessor `Event_bus.dlq_entries : t -> event list` projects payloads from the DLQ. Complements the existing `get_dead_letters` (which carries envelope + failure metadata) for consumers that only need the original events. New test file `test/test_event_bus_dlq.ml` (2 cases).
@@ -25,6 +25,20 @@
 - **OPS-11**: New `Validation.validate_temperature` and `Validation.validate_temperature_result` reject NaN, infinity, negatives, and values above 2.0 (the range accepted by OpenAI, Anthropic, Cohere, Mistral). 8 new test cases in `test/test_config_validation.ml`.
 - **OPS-12, OPS-13**: Confirmed `max_concurrent_tasks = 0` and `buffer_capacity = 0` were already rejected by `Validation.validate_runtime_config`; tests already in `test/test_config_validation.ml` (`max_concurrent_tasks=0 fails`, `buffer_capacity=0 fails`).
 - **OPS-16**: New `Par.Persistence_common` module in `lib/persistence/persistence_common.ml` houses the canonical `extract_task_id` function. Both `Sqlite_persistence` and `Postgres_persistence` now re-export it via a one-line alias, removing 32 lines of duplicated match logic that was at risk of drifting. `Par.Persistence_common` re-exported from the `Par` facade. New test file `test/test_persistence_common.ml` (4 cases).
+
+### Test Coverage (W2)
+
+- **test_middleware.ml**: Unit tests for all 7 middleware (retry, rate_limit, timeout, logging, arg_validation, pii_mask, sanitize_tool_output).
+- **test_workflow_engine.ml**: Workflow engine tests — sequential, parallel, conditional, map-reduce, checkpoint, lifecycle.
+- **test_providers.ml**: OpenAI/Anthropic provider and HTTP client tests — request format, error handling, streaming.
+- Total OCaml tests: 688 → 863 (+175 new).
+
+### Python FFI Expansion (W3)
+
+- 6 new C functions in `par_ffi.h`/`par_ffi.c`: `par_mcp_server`, `par_mcp_list_tools`, `par_workflow_status`, `par_workflow_cancel`, `par_event_subscribe`, `par_version`.
+- New Python methods: `Runtime.version()`, `Runtime.mcp_server()`, `Runtime.mcp_list_tools()`, `Runtime.workflow_status()`, `Runtime.workflow_cancel()`.
+- `par_capi.ml`: new OCaml callback handlers with `Mcp_types.server_id_of_string` conversion.
+- Python tests: 8 → 16 (13 passed, 3 skipped — known Eio scheduler context issue in FFI health/metrics callbacks).
 
 ## v0.3.2 (2026-06-06)
 
