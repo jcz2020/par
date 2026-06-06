@@ -159,6 +159,11 @@
  (modules test_event_bus_dlq))
 
 (test
+ (name test_middleware)
+ (libraries par eio_main alcotest)
+ (modules test_middleware))
+
+(test
  (name test_event_bus_backpressure)
  (libraries par alcotest)
  (modules test_event_bus_backpressure))
@@ -172,6 +177,12 @@
  (name test_mcp_facade)
  (libraries par alcotest)
  (modules test_mcp_facade))
+
+(test
+ (name test_providers)
+ (libraries par eio eio_main alcotest yojson tls-eio x509 mirage-crypto-rng.unix)
+ (modules test_providers)
+ (action (run %{test})))
 
 (executable
  (name mcp_mock_server)
