@@ -15,3 +15,5 @@ val unsubscribe : t -> subscription -> unit
 val start_dispatcher : t -> Eio.Switch.t -> unit
 
 val get_dead_letters : t -> dead_letter_entry list
+
+val dlq_entries : t -> event list

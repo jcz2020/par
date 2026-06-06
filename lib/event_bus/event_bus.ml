@@ -89,3 +89,7 @@ let start_dispatcher bus switch =
 
 let get_dead_letters bus =
   Eio.Mutex.use_ro bus.mutex (fun () -> !(bus.dead_letters))
+
+let dlq_entries bus =
+  List.map (fun (entry : dead_letter_entry) -> entry.envelope.payload)
+    (get_dead_letters bus)
