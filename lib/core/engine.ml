@@ -154,6 +154,14 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
         { c with messages = c.messages @ [usr] }
       ) conv msgs
   in
+  let log_message i msg =
+    let role_str = match msg.role with
+      | System -> "system" | User -> "user" | Assistant -> "assistant" | Tool -> "tool"
+    in
+    Logs.debug (fun m -> m "[engine]   msg[%d]: role=%s content=%s"
+      i role_str
+      (match msg.content with Some c -> c | None -> "<none>"))
+  in
   let rec loop conv iterations =
     if iterations >= agent.max_iterations then
       Result.Error (Internal "Max iterations exceeded", conv)
@@ -167,6 +175,9 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
            | Error _ -> conv)
       in
       let conv = apply_before_llm agent.middleware conv (fun c -> c) in
+      Logs.info (fun m -> m "[engine] LLM call iter=%d: %d messages, agent=%s model=%s"
+        iterations (List.length conv.messages) agent.id agent.model.model_name);
+      List.iteri log_message conv.messages;
       match llm.complete_fn agent.model agent.tools conv with
       | Result.Error err ->
         let action = apply_on_error agent.middleware conv err
@@ -177,6 +188,12 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
          | _ -> Result.Error (err, conv))
        | Ok resp ->
         let resp = apply_after_llm agent.middleware resp (fun r -> r) in
+        Logs.info (fun m -> m "[engine] LLM response iter=%d: finish=%s text_len=%d tool_calls=%s"
+          iterations
+          (match resp.finish_reason with Stop -> "stop" | Tool_calls -> "tool_calls"
+           | Max_tokens -> "max_tokens" | Content_filter -> "content_filter")
+          (match resp.text with Some t -> String.length t | None -> 0)
+          (match resp.tool_calls with Some tcs -> string_of_int (List.length tcs) | None -> "none"));
         match resp.tool_calls with
         | Some calls when calls <> [] ->
           let conv = add_assistant_message conv resp in
@@ -258,15 +275,17 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
             else
               Ok (resp, conv)
      end
-  in
+   in
   let conv = match conversation with
     | Some existing ->
-      (* Caller supplied conversation — append new User message *)
+      Logs.info (fun m -> m "[engine] Resuming conversation: %d existing messages, appending user message (%d chars)"
+        (List.length existing.messages) (String.length user_message));
       let usr = { role = User; content = Some user_message; tool_calls = None;
                   tool_call_id = None; name = None } in
       { existing with messages = existing.messages @ [ usr ] }
     | None ->
-      (* New conversation — build from system prompt *)
+      Logs.info (fun m -> m "[engine] New conversation: system_prompt=%d chars, user_message=%d chars"
+        (String.length sys_prompt) (String.length user_message));
       make_conversation sys_prompt user_message
   in
   loop conv 0

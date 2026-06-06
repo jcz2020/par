@@ -49,6 +49,88 @@ cp -rf source dest          # NOT: cp -r source dest
 - `apt-get` - use `-y` flag
 - `brew` - use `HOMEBREW_NO_AUTO_UPDATE=1` env var
 
+<!-- BEGIN BUILD RULES -->
+## Build & Compilation Rules
+
+### 构建命令
+
+```bash
+dune build                   # 编译全部
+dune build bin/main.exe      # 只编译 CLI
+dune runtest                 # 跑测试
+dune build lib/ffi/par_capi.so  # 编译 C FFI 共享库（Python 绑定需要）
+```
+
+`dune` 是唯一构建工具。没有 `Makefile`，`make` 只是对 `dune` 的薄封装。**永远直接用 dune**。
+
+### dune `.exe` 后缀
+
+dune 的惯例：**所有平台**（包括 Linux）的可执行文件输出都带 `.exe` 后缀。
+
+```bash
+_build/default/bin/main.exe   # ← 这是标准 ELF Linux 二进制，不是 Windows PE
+```
+
+`file _build/default/bin/main.exe` 会确认 `ELF 64-bit LSB executable`。不要因为看到 `.exe` 就认为需要另找产物。
+
+### 二进制安装
+
+**编译成功 ≠ 安装完成。** 编译后必须手动拷贝到两个位置：
+
+```bash
+cp -f _build/default/bin/main.exe /usr/local/bin/par
+cp -f _build/default/bin/main.exe _opam/bin/par
+```
+
+- `/usr/local/bin/par` — 系统 PATH 通用位置
+- `_opam/bin/par` — opam 本地 switch 的 bin，可能在 PATH 中优先级更高
+
+**两处必须同步更新**，否则会出现版本不一致。
+
+### 版本一致性
+
+系统里可能存在多个 `par` 二进制。**修改代码后必须验证实际运行的是最新版本**：
+
+```bash
+# 检查 PATH 里实际命中哪个
+which par
+
+# 确认版本号
+par --version
+
+# 如果版本不对，检查所有安装位置
+whereis par
+
+# 强制覆盖所有位置
+cp -f _build/default/bin/main.exe /usr/local/bin/par
+cp -f _build/default/bin/main.exe _opam/bin/par
+```
+
+**改了代码、装了二进制、但版本还是旧的** = 你漏了一个安装位置。
+
+### PATH 优先级
+
+`_opam/bin` 可能排在 `/usr/local/bin` 前面（由 opam `eval $(opam env)` 注入）。这意味着：
+
+1. `which par` 可能指向 `_opam/bin/par`
+2. 只更新 `/usr/local/bin/par` 不够，用户实际运行的还是旧的 `_opam/bin/par`
+3. **两个位置都必须 cp**
+
+验证方法：
+```bash
+which par && par --version
+```
+
+### 编译后检查清单
+
+每次修改 OCaml 源码后：
+
+1. `dune build bin/main.exe` — 编译成功（exit 0，无输出 = 成功）
+2. `cp -f` 到两个安装位置
+3. `par --version` 确认版本号正确
+4. 如果改了测试：`dune runtest`
+<!-- END BUILD RULES -->
+
 <!-- BEGIN DOC MAINTENANCE -->
 ## Documentation Maintenance
 
