@@ -1,0 +1,22 @@
+# This file is a placeholder. The par_postgres package will be enabled in a future release.
+# The PostgreSQL persistence backend is already implemented in lib/postgres/ but requires
+# the `postgresql` OCaml package which is not yet in the dependency graph.
+opam-version: "2.0"
+name: "par_postgres"
+version: "0.3.4"
+synopsis: "Programmable Agent Runtime - PostgreSQL persistence backend"
+description: "PostgreSQL persistence backend for PAR. Shipped as a separate opam package."
+maintainer: "P-A-R Contributors"
+authors: "P-A-R Contributors"
+license: "MIT"
+homepage: "https://github.com/jcz2020/par"
+bug-reports: "https://github.com/jcz2020/par/issues"
+dev-repo: "git+https://github.com/jcz2020/par.git"
+depends: [
+  "ocaml" { >= "5.4.0" }
+  "dune" { >= "3.16" }
+  "par" { = version }
+  "caqti-eio"
+  "postgresql"
+]
+available: false
