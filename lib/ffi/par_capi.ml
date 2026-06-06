@@ -197,15 +197,15 @@ let do_invoke (id : int) (agent_id : string) (message : string) =
   | None -> None
   | Some handle ->
     (try
-       let result = Par.Runtime.invoke handle.rt
-         ~agent_id ~message () in
-       let json = match result with
-         | Ok resp ->
-           Printf.sprintf "{\"status\": \"ok\", \"content\": %s}"
-             (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp))
-         | Error err ->
-           error_json (Printf.sprintf "Invoke failed: %s"
-             (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
+        let result = Par.Runtime.invoke handle.rt
+          ~agent_id ~message () in
+        let json = match result with
+          | Ok { Par.Types.response = resp; conversation = _ } ->
+            Printf.sprintf "{\"status\": \"ok\", \"content\": %s}"
+              (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp))
+          | Error (err, _) ->
+            error_json (Printf.sprintf "Invoke failed: %s"
+              (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
        in
        Some json
      with e -> Some (error_json (Printexc.to_string e)))

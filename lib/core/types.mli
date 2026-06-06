@@ -115,6 +115,11 @@ and conversation = {
 }
 [@@deriving yojson]
 
+type invoke_result = {
+  response : llm_response;
+  conversation : conversation;
+}
+
 (* -------------------------------------------------------------------------- *)
 (* Agent configuration types                                            *)
 (* -------------------------------------------------------------------------- *)

@@ -321,10 +321,11 @@ let install_bash_tool ?process_mgr ?clock rt =
       rt.bash_installed := true;
       Ok ()
 
-let invoke rt ~agent_id ~message ?cancellation_token () =
+let invoke rt ~agent_id ~message ?cancellation_token ?conversation () =
   let agent = htbl_get rt.agents agent_id in
   match agent with
-  | None -> Result.Error (Invalid_input (Printf.sprintf "Agent not found: %s" agent_id))
+  | None -> Result.Error (Invalid_input (Printf.sprintf "Agent not found: %s" agent_id),
+                           { Types.messages = []; metadata = [] })
   | Some config ->
     let token = match cancellation_token with
       | Some t -> t
@@ -345,11 +346,15 @@ let invoke rt ~agent_id ~message ?cancellation_token () =
       ~quota:(Some rt.task_semaphore)
       ~parallel:rt.parallel_tool_execution
       ~on_progress:(Some on_tool_progress)
+      ?conversation
       token config message rt.services.llm rt.tool_registry in
-    (match result with
-     | Ok _ -> record_llm_success rt
-     | Error e -> record_llm_error rt e);
-    result
+    match result with
+    | Ok (resp, conv) ->
+      record_llm_success rt;
+      Result.Ok { Types.response = resp; conversation = conv }
+    | Error (err, conv) ->
+      record_llm_error rt err;
+      Result.Error (err, conv)
 
 let submit_task rt ?(priority = 5) ?(timeout = 300.0) input =
   let id = Task_id.create () in

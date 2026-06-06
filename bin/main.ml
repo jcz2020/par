@@ -211,6 +211,7 @@ let merge_config
     parallel_tool_execution = if no_parallel_tools then false else cfg.parallel_tool_execution;
     template_variables = cfg.template_variables;
     system_prompt_template_override = cfg.system_prompt_template_override;
+    mcp_servers = cfg.mcp_servers;
   }
 
 let require_config () =
@@ -234,7 +235,15 @@ let setup_runtime cfg ~f =
   Eio.Switch.run @@ fun switch ->
   let net = Eio.Stdenv.net env in
   let llm = make_llm_service provider_tag cfg.Par_config.api_key cfg.Par_config.api_base net in
-  match Runtime.create ~persistence:pers ~llm ~config switch with
+  let mcp_server_configs = List.map (fun (entry : Par_config.mcp_server_entry) ->
+    { Mcp_types.name = entry.name; command = entry.command; args = entry.args;
+      env = entry.env; cwd = None; startup_timeout = entry.startup_timeout }
+  ) cfg.Par_config.mcp_servers in
+  match Runtime.create ~persistence:pers ~llm ~config
+      ~mcp_servers:mcp_server_configs
+      ~mcp_process_mgr:(Eio.Stdenv.process_mgr env)
+      ~mcp_clock:(Eio.Stdenv.clock env)
+      switch with
   | Error e ->
     Printf.eprintf "Error creating runtime: %s\n" (error_category_to_string e);
     exit 1
@@ -258,6 +267,13 @@ let setup_runtime cfg ~f =
            tb.descriptor.Types.name (error_category_to_string e);
          exit 1)
     ) tools;
+    (match Runtime.install_bash_tool
+        ~process_mgr:(Eio.Stdenv.process_mgr env)
+        ~clock:(Eio.Stdenv.clock env)
+        rt with
+     | Ok _ -> ()
+     | Error e ->
+       Printf.eprintf "Warning: bash tool not installed: %s\n" (error_category_to_string e));
     let system_prompt = render_system_prompt cfg
         ~agent_id:"default-agent"
         ~runtime_id:"cli-runtime"
@@ -313,6 +329,7 @@ let print_help () =
   Printf.printf "  /follow MSG 注入后续指导\n";
   Printf.printf "  /health     显示运行时健康状态\n";
   Printf.printf "  /metrics    显示运行时指标\n";
+  Printf.printf "  /reset      重置对话（清除历史）\n";
   Printf.printf "  /quit       退出\n"
 
 (* -------------------------------------------------------------------------- *)
@@ -321,6 +338,7 @@ let print_help () =
 
 let repl rt agent_id_val =
   Printf.printf "输入消息开始对话（输入 /help 查看命令，Ctrl+D 退出）\n";
+  let conv : Types.conversation option ref = ref None in
   let rec loop () =
     Printf.printf "> ";
     flush stdout;
@@ -334,8 +352,10 @@ let repl rt agent_id_val =
            let cmd = match parts with c :: _ -> c | [] -> "" in
            let rest = match parts with _ :: r -> String.trim (String.concat " " r) | [] -> "" in
            (match cmd with
-            | "/help" -> print_help ()
-            | "/quit" | "/exit" -> Printf.printf "再见！\n"; exit 0
+             | "/help" -> print_help ()
+             | "/quit" | "/exit" -> Printf.printf "再见！\n"; exit 0
+             | "/reset" -> conv := None;
+               Printf.printf "[对话已重置]\n"
             | "/steer" -> Runtime.steer rt rest;
               Printf.printf "[steer] 已注入\n"
             | "/followup" -> Runtime.follow_up rt rest;
@@ -345,15 +365,18 @@ let repl rt agent_id_val =
             | _ -> Printf.eprintf "未知命令: %s。输入 /help 查看命令列表。\n" cmd);
            flush stdout;
            loop ()
-         end else begin
-           (match Runtime.invoke rt ~agent_id:agent_id_val ~message:line () with
-            | Error e -> print_error e
-            | Ok resp ->
-              (match resp.Types.text with
-               | Some txt -> Printf.printf "%s\n" txt
-               | None -> print_json (Types.llm_response_to_yojson resp));
-              flush stdout);
-           loop ()
+          end else begin
+            (match Runtime.invoke rt ~agent_id:agent_id_val ~message:line ?conversation:!conv () with
+             | Error (e, recovered_conv) ->
+               conv := Some recovered_conv;
+               print_error e
+             | Ok { Types.response = resp; conversation = returned_conv } ->
+               conv := Some returned_conv;
+               (match resp.Types.text with
+                | Some txt -> Printf.printf "%s\n" txt
+                | None -> ());
+               flush stdout);
+            loop ()
          end
      with End_of_file -> Printf.printf "\n再见！\n")
   in
@@ -409,10 +432,10 @@ let cmd_ask
               max_tokens_opt top_p_opt no_parallel_tools in
   setup_runtime cfg ~f:(fun rt ->
     match Runtime.invoke rt ~agent_id:"default-agent" ~message:question () with
-    | Error e ->
+    | Error (e, _) ->
       Printf.eprintf "Error: %s\n" (error_category_to_string e);
       exit 1
-    | Ok resp ->
+    | Ok { Types.response = resp; conversation = _ } ->
       (match resp.Types.text with
        | Some txt -> Printf.printf "%s\n" txt
        | None -> print_json (Types.llm_response_to_yojson resp));

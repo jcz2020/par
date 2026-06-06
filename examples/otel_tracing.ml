@@ -94,8 +94,8 @@ let () =
     let reg = Tool_registry.create () in
     ignore (Tool_registry.register reg echo_desc echo_handler : (unit, [ `Duplicate_tool of string ]) result);
     match Engine.run_agent tok agent "Hello" (mock_llm rs) reg with
-    | Ok r -> Printf.printf "Agent: %s\n" (match r.Types.text with Some t -> t | None -> "no text")
-    | Error e -> Printf.eprintf "Error: %s\n" (match e with
+    | Ok (r, _) -> Printf.printf "Agent: %s\n" (match r.Types.text with Some t -> t | None -> "no text")
+    | Error (e, _) -> Printf.eprintf "Error: %s\n" (match e with
       | Types.Internal s -> s
       | Types.Invalid_input s -> s
       | Types.External_failure s -> s

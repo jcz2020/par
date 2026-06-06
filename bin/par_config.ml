@@ -4,6 +4,14 @@ open Par
 (* Config type                                                                *)
 (* -------------------------------------------------------------------------- *)
 
+type mcp_server_entry = {
+  name : string;
+  command : string;
+  args : string list;
+  env : (string * string) list;
+  startup_timeout : float;
+}
+
 type config = {
   provider : string;
   api_key : string;
@@ -18,8 +26,10 @@ type config = {
   max_tokens : int option;
   top_p : float option;
   parallel_tool_execution : bool;
-  template_variables : (string * string) list;  (* e.g. [("role","AI助手");("task","回答问题")] *)
-  system_prompt_template_override : string option;  (* power users: custom template string, overrides built-in *)
+  template_variables : (string * string) list;
+  system_prompt_template_override : string option;
+  (* v0.3.3 MCP *)
+  mcp_servers : mcp_server_entry list;
 }
 
 (* -------------------------------------------------------------------------- *)
@@ -41,6 +51,7 @@ let default = {
   parallel_tool_execution = true;
   template_variables = [("role", "AI助手"); ("task", "回答用户问题并提供帮助")];
   system_prompt_template_override = None;
+  mcp_servers = [];
 }
 
 (* -------------------------------------------------------------------------- *)
@@ -80,6 +91,15 @@ let to_json (cfg : config) : Yojson.Safe.t =
     ("parallel_tool_execution", `Bool cfg.parallel_tool_execution);
     ("template_variables", `Assoc (List.map (fun (k, v) -> (k, `String v)) cfg.template_variables));
     ("system_prompt_template_override", (match cfg.system_prompt_template_override with Some s -> `String s | None -> `Null));
+    ("mcp_servers", `List (List.map (fun (s : mcp_server_entry) ->
+      `Assoc [
+        ("name", `String s.name);
+        ("command", `String s.command);
+        ("args", `List (List.map (fun a -> `String a) s.args));
+        ("env", `Assoc (List.map (fun (k, v) -> (k, `String v)) s.env));
+        ("startup_timeout", `Float s.startup_timeout);
+      ]
+    ) cfg.mcp_servers));
   ]
 
 let of_json (json : Yojson.Safe.t) : (config, string) result =
@@ -143,6 +163,25 @@ let of_json (json : Yojson.Safe.t) : (config, string) result =
       parallel_tool_execution = get_bool "parallel_tool_execution" default.parallel_tool_execution;
       template_variables = get_string_pair_list "template_variables";
       system_prompt_template_override = get_opt_string "system_prompt_template_override";
+      mcp_servers = (match Yojson.Safe.Util.(json |> member "mcp_servers") with
+        | `List entries ->
+          List.filter_map (fun entry ->
+            match entry with
+            | `Assoc fields ->
+              let get_s key = match List.assoc_opt key fields with Some (`String s) -> Some s | _ -> None in
+              let get_sl key = match List.assoc_opt key fields with
+                | Some (`List items) -> List.filter_map (function `String s -> Some s | _ -> None) items
+                | _ -> [] in
+              let get_pl key = match List.assoc_opt key fields with
+                | Some (`Assoc pairs) -> List.filter_map (fun (k, v) -> match v with `String s -> Some (k, s) | _ -> None) pairs
+                | _ -> [] in
+              let get_f key = match List.assoc_opt key fields with Some (`Float f) -> f | _ -> 10.0 in
+              (match get_s "name", get_s "command" with
+               | Some name, Some command ->
+                 Some { name; command; args = get_sl "args"; env = get_pl "env"; startup_timeout = get_f "startup_timeout" }
+               | _ -> None)
+            | _ -> None) entries
+        | _ -> []);
     }
   with exn ->
     Error (Printexc.to_string exn)
@@ -352,6 +391,7 @@ let run_wizard () =
     parallel_tool_execution;
     template_variables = [("role", role); ("task", task)];
     system_prompt_template_override = None;
+    mcp_servers = [];
   } in
   save cfg;
   Printf.printf "\n✓ 配置已保存到 %s\n" (config_path ())

@@ -71,9 +71,9 @@ let str_contains haystack needle =
 
 let check_ok_text resp expected =
   match resp with
-  | Ok r ->
+  | Ok (r, _) ->
       Alcotest.(check (option string)) "text" (Some expected) r.text
-  | Error e ->
+  | Error (e, _) ->
       Alcotest.fail ("expected Ok, got Error: " ^ error_to_string e)
 
 let agent_loop_suite =
@@ -115,7 +115,7 @@ let agent_loop_suite =
       let reg = make_registry [ tool ] in
       with_token (fun token ->
         (match Engine.run_agent token agent "loop" llm reg with
-         | Error (Internal msg) ->
+         | Error (Internal msg, _) ->
              Alcotest.check Alcotest.bool "contains 'Max'" true
                (String.contains msg 'M')
          | Ok _ -> Alcotest.fail "expected Error (max iterations)"
@@ -134,7 +134,7 @@ let agent_loop_suite =
       with_token (fun token ->
         (match Engine.run_agent token agent "bad tool" llm reg with
          | Ok _ -> ()
-         | Error e ->
+         | Error (e, _) ->
              Alcotest.fail ("unexpected error: " ^ (match e with
                | Internal s -> s | Invalid_input s -> s | _ -> "other")))));
 

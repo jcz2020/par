@@ -48,9 +48,10 @@ val run_agent :
   ?quota:Eio.Semaphore.t option ->
   ?parallel:bool ->
   ?on_progress:(string -> unit) option ->
+  ?conversation:conversation ->
   cancellation_token ->
   agent_config ->
   string ->
   llm_service ->
   Tool_registry.t ->
-  (llm_response, error_category) result
+  (llm_response * conversation, error_category * conversation) result

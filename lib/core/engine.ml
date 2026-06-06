@@ -130,7 +130,7 @@ let add_tool_result_message conv (call : tool_call) result =
 
 let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
     ?(tool_call_hooks = None) ?(quota = None) ?(parallel = false)
-    ?(on_progress = None) token agent user_message llm registry =
+    ?(on_progress = None) ?conversation token agent user_message llm registry =
   let sys_prompt = match Template.effective_system_prompt agent ~runtime_id with
     | Ok s -> s
     | Error e ->
@@ -156,7 +156,7 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
   in
   let rec loop conv iterations =
     if iterations >= agent.max_iterations then
-      Result.Error (Internal "Max iterations exceeded")
+      Result.Error (Internal "Max iterations exceeded", conv)
     else begin
       Cancellation.check_cancel token;
       let conv = match agent.context_strategy with
@@ -174,7 +174,7 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
         in
         (match action with
          | Error { retryable = true; _ } -> loop conv iterations
-         | _ -> Result.Error err)
+         | _ -> Result.Error (err, conv))
        | Ok resp ->
         let resp = apply_after_llm agent.middleware resp (fun r -> r) in
         match resp.tool_calls with
@@ -249,15 +249,24 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
         | _ ->
           match resp.finish_reason with
           | Max_tokens ->
-            if iterations + 1 >= agent.max_iterations then Result.Error (Internal "Max iterations exceeded")
+            if iterations + 1 >= agent.max_iterations then Result.Error (Internal "Max iterations exceeded", conv)
             else loop conv (iterations + 1)
           | _ ->
             let conv = drain_into_conv conv followup in
             if Steering_queue.has_items (Option.value followup ~default:(Steering_queue.create ())) then
               loop conv (iterations + 1)
             else
-              Ok resp
-    end
+              Ok (resp, conv)
+     end
   in
-  let conv = make_conversation sys_prompt user_message in
+  let conv = match conversation with
+    | Some existing ->
+      (* Caller supplied conversation — append new User message *)
+      let usr = { role = User; content = Some user_message; tool_calls = None;
+                  tool_call_id = None; name = None } in
+      { existing with messages = existing.messages @ [ usr ] }
+    | None ->
+      (* New conversation — build from system prompt *)
+      make_conversation sys_prompt user_message
+  in
   loop conv 0

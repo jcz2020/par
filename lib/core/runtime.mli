@@ -67,8 +67,9 @@ val invoke :
   agent_id:string ->
   message:string ->
   ?cancellation_token:cancellation_token ->
+  ?conversation:conversation ->
   unit ->
-  (llm_response, error_category) result
+  (invoke_result, error_category * conversation) result
 
 val submit_task :
   runtime ->

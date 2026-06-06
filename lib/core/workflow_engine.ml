@@ -87,9 +87,9 @@ let rec execute_step ctx step =
      | None -> Result.Error (Invalid_input (Printf.sprintf "Agent not found: %s" agent_id))
      | Some agent ->
        let prompt = substitute prompt_template ctx.variables in
-       match Engine.run_agent ctx.token agent prompt ctx.llm ctx.registry with
-       | Ok resp -> Ok (match resp.text with Some t -> `String t | None -> `Null)
-       | Result.Error err -> Result.Error err)
+        match Engine.run_agent ctx.token agent prompt ctx.llm ctx.registry with
+        | Ok (resp, _) -> Ok (match resp.text with Some t -> `String t | None -> `Null)
+        | Result.Error (err, _) -> Result.Error err)
 
   | Tool_call { tool_name; input } ->
     (match ctx.tool_resolver tool_name with
