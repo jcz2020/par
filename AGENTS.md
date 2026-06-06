@@ -299,6 +299,39 @@ sha512sum -c <(grep par-linux-x64 /tmp/sha512-checksums.txt)  # 验证 checksum
 3. **CLI 升级命令改为 `par update`**：当前叫 `upgrade` 太长。改为 `par update`，去掉 `--check` flag（没必要，直接跑就完事了，显示结果即可）。
 4. **CLI help 美化**：`par --help` / `par <cmd> --help` 需要支持 `-h` 缩写；输出增加颜色区分（命令名高亮、描述灰色等）；同模块内减少多余空行，信息密度更高。参考 `rustc --help` 或 `cargo --help` 的风格。
 5. **CI 修复与发布流程优化**：v0.3.4 的 CI 反复失败（`str`/`unix` 依赖、`par_postgres.opam` 的 `postgresql` 不在标准 opam-repo），最终靠手动构建发布。需要：(a) 修复 CI 让 `release.yml` 真正能跑通（macOS runner 编译、opam 依赖解析）；(b) 考虑更简单的打包方式（如 Docker 多阶段构建、nix、或 `opam lock` 锁定依赖）减少 CI 不稳定性；(c) 评估开发规则是否需要补充 CI 调试/绕过指南，避免下次迭代再卡在 CI 上。
+
+### v0.4 规划（已确认目标）
+
+**主题**：事件持久化 + 架构升级
+
+#### 事件持久化（PAR-9e1 重新定义）
+
+目标：将当前半成品的 `save_events` / `load_events` 做成完整可用的 SDK 能力。
+
+**当前状态**：接口定义了、三份实现（SQLite/PostgreSQL/Noop）写了，但 Runtime 引擎从不调用。对 SDK 用户来说是误导性接口。
+
+**需要做的事**：
+1. 在引擎/event_bus 管线中接入事件持久化调用（event publish 时自动走 `save_events_fn`）
+2. 决定异步 vs 同步（写库不能阻塞 Agent 循环）
+3. 决定批量 vs 逐条（高频事件下性能考量）
+4. 评估存储成本和清理策略（一个 Agent 跑 5 分钟可能产生几百个事件）
+5. SDK 用户开箱即用 — 配了持久化就自动存事件，无需额外代码
+
+**CLI 体验目标**：让 CLI 用户也能感受到事件持久化的价值，例如：
+- `par history <task_id>` — 查看某个任务的事件链
+- `par stats` — 用量统计（token 消耗、工具调用频率）
+- `par replay <task_id>` — 回放任务事件链用于调试
+
+#### 其他 v0.4 项目（v0.3.1 路线图已确认归属）
+
+| 项 | 说明 | 估时 |
+|---|------|------|
+| **MCP HTTP/SSE transport** | 支持远程 MCP Server | 1–2 周 |
+| **MCP Sampling** | Server → LLM 双向流 | 1 周 |
+| **bash 交互式确认** | 通过 OPS-6 hook 集成 | 0.5 天 |
+| **par_sandbox 评估** | OS 沙箱独立 opam 包 | 2–3 周（若做） |
+| **Python callback register_tool** | ctypes CFUNCTYPE + C shim | 待评估 |
+| **MCP tool 按需加载** | 50+ tool 场景优化 | 1 周（若做） |
 <!-- END RELEASE RULES -->
 
 <!-- BEGIN DOC MAINTENANCE -->
