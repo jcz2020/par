@@ -118,7 +118,7 @@ let workflow = {
 }
 ```
 
-`Parallel` 并发跑，`Map_reduce` 串行 reduce。详细看 [docs/sdk/workflow.md](sdk/workflow.md)。
+`Parallel` 并发跑，`Map_reduce` 串行 reduce。详细看 [docs/sdk/workflow.md](../sdk/workflow.md)。
 
 ## 反模式
 

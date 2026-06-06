@@ -112,6 +112,6 @@ let () = Eio_main.run (fun _env ->
 
 ## See also
 
-- [README.md](../../README.md) -- 项目概览和 CLI 用法
-- [quickstart.md](../quickstart.md) -- 快速上手指南
-- [v0.2-ROADMAP.md](../v0.2-ROADMAP.md) -- 版本路线图
+- [README.md](../../../README.md) -- 项目概览和 CLI 用法
+- [quickstart.md](../../quickstart.md) -- 快速上手指南
+- [v0.2-ROADMAP.md](../../v0.2-ROADMAP.md) -- 版本路线图

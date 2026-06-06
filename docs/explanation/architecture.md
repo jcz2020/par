@@ -141,7 +141,7 @@ Events are emitted by the Runtime via `rt.publish_event_fn`, and subscribers rec
 
 ## Next steps
 
-- **Add a tool**: see the 20 tools in [docs/sdk/tools.md](sdk/tools.md), then add one with `let my_tool = { descriptor; handler } in` and `Runtime.register_tool`.
-- **Add an LLM provider**: see [docs/howto/custom-llm-provider.md](howto/custom-llm-provider.md).
-- **Add middleware**: see the 7 examples in `lib/middleware/` and the reference at [docs/sdk/middleware.md](sdk/middleware.md).
+- **Add a tool**: see the 20 tools in [docs/sdk/tools.md](../sdk/tools.md), then add one with `let my_tool = { descriptor; handler } in` and `Runtime.register_tool`.
+- **Add an LLM provider**: see [docs/howto/custom-llm-provider.md](../howto/custom-llm-provider.md).
+- **Add middleware**: see the 7 examples in `lib/middleware/` and the reference at [docs/sdk/middleware.md](../sdk/middleware.md).
 - **Contribute to core**: read `lib/core/types.ml` (all public types), then follow the Runtime lifecycle through `lib/core/runtime.ml`.

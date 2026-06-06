@@ -123,7 +123,7 @@ let workflow = {
 }
 ```
 
-`Parallel` runs concurrently, `Map_reduce` reduces serially. See [docs/sdk/workflow.md](sdk/workflow.md) for details.
+`Parallel` runs concurrently, `Map_reduce` reduces serially. See [docs/sdk/workflow.md](../sdk/workflow.md) for details.
 
 ## Anti-patterns
 

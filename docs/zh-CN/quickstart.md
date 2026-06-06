@@ -383,7 +383,7 @@ let config = {
 
 ## 下一步
 
-- [agent.md](agent.md) -- Agent 配置详解：model_config 字段、context_strategy、retry_policy
-- [workflow.md](workflow.md) -- 工作流编排：顺序、并行、条件分支、map-reduce
-- [middleware.md](middleware.md) -- 中间件：日志、超时、重试、限速、PII 掩码、数据校验
-- [examples/](../examples/) -- 更多完整示例（basic_agent.ml、otel_tracing.ml）
+- [agent.md](sdk/agent.md) -- Agent 配置详解：model_config 字段、context_strategy、retry_policy
+- [workflow.md](sdk/workflow.md) -- 工作流编排：顺序、并行、条件分支、map-reduce
+- [middleware.md](sdk/middleware.md) -- 中间件：日志、超时、重试、限速、PII 掩码、数据校验
+- [examples/](../../examples/) -- 更多完整示例（basic_agent.ml、otel_tracing.ml）

@@ -156,8 +156,8 @@ A diagram that needs to show data shape (table rows, field types) belongs in pro
 
 ## See also
 
-- [`CONTRIBUTING.md`](../../CONTRIBUTING.md) — public contributor guide
-- [`AGENTS.md`](../../AGENTS.md) — local agent / maintainer rules
+- [`CONTRIBUTING.md`](../CONTRIBUTING.md) — public contributor guide
+- [`AGENTS.md`](../AGENTS.md) — local agent / maintainer rules
 - [`docs/index.md`](index.md) — documentation index
 
 ## Multilingual docs

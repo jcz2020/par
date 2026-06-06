@@ -42,7 +42,7 @@ If you are looking for a one-paragraph answer to a setup or runtime question, th
 
 ### Common questions
 
-[FAQ](../../FAQ.md): 5 common questions (cross-link to FAQ.md created in W6).
+FAQ: 5 common questions (coming in a future release).
 
 ## Reference
 
@@ -85,9 +85,9 @@ Explanation docs discuss the why behind PAR's design. Read these when you want t
 
 Project-level documents that live outside the four sections above.
 
-- [`README.md`](../../README.md): project overview
-- [`CHANGES.md`](../../CHANGES.md): changelog
-- [`CONTRIBUTING.md`](../../CONTRIBUTING.md): how to contribute
-- [`SECURITY.md`](../../SECURITY.md): security disclosure
+- [`README.md`](../README.md): project overview
+- [`CHANGES.md`](../CHANGES.md): changelog
+- [`CONTRIBUTING.md`](../CONTRIBUTING.md): how to contribute
+- [`SECURITY.md`](../SECURITY.md): security disclosure
 - [GitHub repository](https://github.com/jcz2020/par): source, issues, PRs
 - [opam package `par`](https://opam.ocaml.org/packages/par/): once published
