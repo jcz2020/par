@@ -10,96 +10,101 @@ info()  { echo -e "${GREEN}[INFO]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 die()   { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 
-PREFIX="${1:-/usr/local}"
+GITHUB_REPO="jcz2020/par"
+PREFIX="${PAR_INSTALL_PREFIX:-/usr/local}"
+VERSION="${PAR_INSTALL_VERSION:-latest}"
 
-info "Installing PAR to $PREFIX/bin/par"
-
-# --- System dependencies ---
-detect_distro() {
-  if [ -f /etc/debian_version ]; then echo "debian"
-  elif [ -f /etc/fedora-release ]; then echo "fedora"
-  elif [ -f /etc/arch-release ]; then echo "arch"
-  elif [ -f /etc/alpine-release ]; then echo "alpine"
-  else echo "unknown"
-  fi
-}
-
-install_system_deps() {
-  local distro=$(detect_distro)
-  case "$distro" in
-    debian)
-      info "Installing system libraries (deb)..."
-      sudo apt-get update -qq
-      sudo apt-get install -y -qq build-essential git curl \
-        libgmp-dev libsqlite3-dev libpq-dev libssl-dev pkg-config
-      ;;
-    fedora)
-      info "Installing system libraries (rpm)..."
-      sudo dnf install -y gcc make git curl \
-        gmp-devel sqlite-devel libpq-devel openssl-devel pkg-config
-      ;;
-    arch)
-      info "Installing system libraries (pacman)..."
-      sudo pacman -S --noconfirm --needed base-devel git curl \
-        gmp sqlite postgresql-libs openssl pkg-config
-      ;;
-    alpine)
-      info "Installing system libraries (apk)..."
-      sudo apk add build-base git curl \
-        gmp-dev sqlite-dev postgresql-dev openssl-dev linux-headers
-      ;;
-    *)
-      warn "Unknown distro. Please install manually: gcc, make, libgmp-dev, libsqlite3-dev, libpq-dev, libssl-dev"
-      ;;
+detect_platform() {
+  local arch="$(uname -m)"
+  local os="$(uname -s)"
+  case "$os" in
+    Linux)
+      case "$arch" in
+        x86_64)  echo "linux-x64" ;;
+        aarch64) echo "linux-arm64" ;;
+        *)       die "Unsupported Linux arch: $arch" ;;
+      esac ;;
+    Darwin)
+      case "$arch" in
+        x86_64)  echo "macos-x64" ;;
+        arm64)   echo "macos-arm64" ;;
+        *)       die "Unsupported macOS arch: $arch" ;;
+      esac ;;
+    *) die "Unsupported OS: $os. Use scripts/build-from-source.sh" ;;
   esac
 }
 
-install_opam() {
-  if command -v opam &>/dev/null; then
-    info "opam already installed ($(opam --version))"
-    return
+resolve_version() {
+  if [ "$VERSION" = "latest" ]; then
+    VERSION=$(curl -fsSL "https://api.github.com/repos/$GITHUB_REPO/releases/latest" \
+      | grep '"tag_name"' | head -1 | sed -E 's/.*"tag_name":\s*"([^"]+)".*/\1/')
+    [ -n "$VERSION" ] || die "Failed to resolve latest version from GitHub"
   fi
-  info "Installing opam..."
-  bash -c "sh <(curl -fsSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh)"
-  eval $(opam env)
+  echo "${VERSION#v}"
 }
 
-setup_ocaml() {
-  eval $(opam env 2>/dev/null || true)
-  if ocaml --version 2>/dev/null | grep -q "5\."; then
-    info "OCaml $(ocaml --version) already available"
-    return
-  fi
-  info "Setting up OCaml 5.3.0 (this takes a few minutes)..."
-  opam init --disable-sandboxing -y
-  opam switch create . 5.3.0 -y || opam switch create . 5.4.1 -y
-  eval $(opam env)
-}
+download_binary() {
+  local platform="$1"
+  local ver="$2"
+  local tmpdir="$(mktemp -d)"
+  local url="https://github.com/$GITHUB_REPO/releases/download/v${ver}/par-${platform}"
+  local checksum_url="https://github.com/$GITHUB_REPO/releases/download/v${ver}/sha512-checksums.txt"
 
-build_par() {
-  eval $(opam env)
-  info "Installing OCaml dependencies..."
-  opam install . --deps-only -y
-  info "Building PAR..."
-  dune build
+  info "Downloading PAR v${ver} for ${platform}..."
+  curl -fsSL -o "$tmpdir/par" "$url" || die "Download failed: $url"
+
+  info "Downloading checksums..."
+  if curl -fsSL -o "$tmpdir/checksums.txt" "$checksum_url" 2>/dev/null; then
+    local expected="$(grep "par-${platform}" "$tmpdir/checksums.txt" | awk '{print $1}')"
+    if [ -n "$expected" ]; then
+      local actual="$(sha512sum "$tmpdir/par" | awk '{print $1}')"
+      if [ "$expected" != "$actual" ]; then
+        rm -rf "$tmpdir"
+        die "SHA-512 checksum mismatch!\n  expected: $expected\n  actual:   $actual"
+      fi
+      info "Checksum verified"
+    else
+      warn "No checksum entry for par-${platform}, skipping verification"
+    fi
+  else
+    warn "Checksums file not found, skipping verification"
+  fi
+
+  echo "$tmpdir"
 }
 
 install_binary() {
-  eval $(opam env)
-  local bin="_build/default/bin/main.exe"
-  [ -f "$bin" ] || die "Build failed - binary not found"
-  sudo install -d "$DESTDIR$PREFIX/bin"
-  sudo install -m 755 "$bin" "$DESTDIR$PREFIX/bin/par"
-  info "Installed: $PREFIX/bin/par"
+  local tmpdir="$1"
+  local target="$PREFIX/bin/par"
+
+  if [ -w "$PREFIX/bin" ] 2>/dev/null; then
+    install -m 755 "$tmpdir/par" "$target"
+  else
+    sudo install -d "$PREFIX/bin"
+    sudo install -m 755 "$tmpdir/par" "$target"
+  fi
+
+  rm -rf "$tmpdir"
+  info "Installed: $target"
+}
+
+main() {
+  local platform
+  platform="$(detect_platform)"
+  local ver
+  ver="$(resolve_version)"
+
+  info "Installing PAR v${ver} (${platform}) to $PREFIX/bin"
+
+  local tmpdir
+  tmpdir="$(download_binary "$platform" "$ver")"
+  install_binary "$tmpdir"
+
   info ""
-  info "First run setup:"
+  info "Installation complete. Run 'par --version' to verify."
+  info "Quick start:"
   info "  par config"
   info "  par"
 }
 
-# --- Main ---
-command -v gcc &>/dev/null || install_system_deps
-command -v opam &>/dev/null || install_opam
-setup_ocaml
-build_par
-install_binary
+main
