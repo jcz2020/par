@@ -8,7 +8,7 @@ A modular, type-safe agent runtime for OCaml 5.4+: LangChain + LangGraph for the
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 [![Tests](https://img.shields.io/badge/tests-863%20passing-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-0.3.3-blue)]()
+[![Version](https://img.shields.io/badge/version-0.3.4-blue)]()
 
 A complete, runnable program that registers a tool, registers an agent, and prints confirmation:
 
@@ -50,6 +50,20 @@ let () = Eio_main.run (fun _env ->
 | Provider count | 50+ (bloat risk) | 5 (LLM-only) | **2 stable + custom-registration guide** |
 
 ## Install
+
+**Binary install (recommended, ~5 seconds):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
+```
+
+**Upgrade:**
+
+```bash
+par upgrade
+```
+
+**Build from source:**
 
 ```bash
 git clone https://github.com/jcz2020/par.git && cd par
@@ -231,6 +245,7 @@ The CLI is the SDK's end-user surface. For production code, use the SDK directly
 | `par` | Interactive REPL, reads `~/.par/config.json`, no arguments required |
 | `par config` | Configure provider, API key, and model with a guided wizard |
 | `par ask "question"` | Single-shot query, prints the answer and exits |
+| `par upgrade` | Check for updates and upgrade par to the latest version |
 | `par --version` | Print the installed `par` and `par_cli` versions |
 
 All commands accept the same optional overrides: `--provider`, `--api-key`, `--model`, `--persistence`, `--db-uri`, `--temperature`, `--max-iterations`, `--max-tokens`, `--top-p`, `--no-parallel-tools`. The override flags win over the config file, and the config file wins over the compiled-in defaults.

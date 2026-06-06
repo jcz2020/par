@@ -1,5 +1,32 @@
 # CHANGES
 
+## v0.3.4 (2026-06-07)
+
+> Release pipeline: multi-platform binaries, one-click install, self-upgrade, CI/CD workflows. 863 OCaml tests, 16 Python tests.
+
+### Distribution
+
+- **install.sh rewrite**: Downloads pre-built binaries from GitHub Releases with SHA-512 checksum verification. Supports linux-x64, linux-arm64, macos-x64, macos-arm64. Takes ~5 seconds instead of 10+ minutes. Configurable via `PAR_INSTALL_PREFIX` and `PAR_INSTALL_VERSION` env vars.
+- **Source build moved**: Previous install.sh migrated to `scripts/build-from-source.sh` for users who need to compile from source.
+- **`par upgrade` command**: New CLI subcommand that checks GitHub Releases for the latest version, downloads the binary for the current platform, verifies SHA-512 checksum, and replaces the running binary in-place. Supports `--check` flag for check-only mode. Platform detection via `uname()`. Self-path resolution via `/proc/self/exe` (Linux) or `Sys.argv` (macOS).
+- **release.yml**: GitHub Actions workflow triggers on `v*.*.*` tag push. Builds binaries on ubuntu-latest (linux-x64), macos-15 (macos-arm64), macos-13 (macos-x64). Uploads binaries and `sha512-checksums.txt` to GitHub Release.
+- **opam-publish.yml**: Generates tarball via `git archive` and uploads `.opam` files + tarball to GitHub Release. First opam-repository submission is manual.
+- **pypi-publish.yml**: Builds `par_capi.so` and Python wheel, uploads to GitHub Release. First PyPI upload is manual.
+
+### CLI
+
+- **New subcommand**: `par upgrade [--check]` — check for and install updates.
+- Engine structured logging (`PAR_LOG=info`): conversation lifecycle events (new conversation, resume, LLM call, LLM response).
+
+### Docs & Ops
+
+- **AGENTS.md**: Build & Compilation Rules section (dune commands, .exe suffix, binary install locations, PATH priority, version sync).
+- **Version sync**: `make sync-version` target reads `dune-project` version and syncs to `pyproject.toml` and `__init__.py`.
+- **check_doc_links.sh**: New script validating relative markdown links.
+- **Makefile docs-check**: Orchestrates doc identifier checks and link checks.
+- **par_postgres.opam**: Stub package (`available: false`) for the optional PostgreSQL backend.
+- **CI matrix**: Expanded to ubuntu-latest + macos-15 + macos-13.
+
 ## v0.3.3 (2026-06-06)
 
 > CLI integration fix + MCP config + OPS tech debt + test coverage + Python FFI expansion. 863 OCaml tests, 13 Python tests.
