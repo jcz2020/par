@@ -13,12 +13,15 @@ let set_network t net = t.net <- Some net
 
 let create = function
   | Openai { api_key; base_url; organization } ->
-    Ok {
-      api_key;
-      base_url = Option.value base_url ~default:"https://api.openai.com/v1";
-      organization;
-      net = None;
-    }
+    if String.length api_key = 0 then
+      Result.Error (Invalid_input "api_key must not be empty")
+    else
+      Ok {
+        api_key;
+        base_url = Option.value base_url ~default:"https://api.openai.com/v1";
+        organization;
+        net = None;
+      }
   | _ -> Result.Error (Invalid_input "OpenAI provider requires Openai configuration")
 
 (* -------------------------------------------------------------------------- *)

@@ -12,11 +12,14 @@ let set_network t net = t.net <- Some net
 
 let create = function
   | Anthropic { api_key; base_url } ->
-    Ok {
-      api_key;
-      base_url = Option.value base_url ~default:"https://api.anthropic.com";
-      net = None;
-    }
+    if String.length api_key = 0 then
+      Result.Error (Invalid_input "api_key must not be empty")
+    else
+      Ok {
+        api_key;
+        base_url = Option.value base_url ~default:"https://api.anthropic.com";
+        net = None;
+      }
   | _ -> Result.Error (Invalid_input "Anthropic provider requires Anthropic configuration")
 
 (* -------------------------------------------------------------------------- *)

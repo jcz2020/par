@@ -54,6 +54,11 @@
  (modules test_config_validation))
 
 (test
+ (name test_provider_api_key)
+ (libraries par alcotest)
+ (modules test_provider_api_key))
+
+(test
  (name test_make_agent)
  (libraries par eio_main alcotest)
  (modules test_make_agent))
