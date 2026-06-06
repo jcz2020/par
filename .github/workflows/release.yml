@@ -31,7 +31,7 @@ jobs:
           opam-local-packages: |
             *.opam
 
-      - run: opam install . --deps-only -y
+      - run: opam install par_cli --deps-only -y
 
       - run: opam exec -- dune build bin/main.exe
 

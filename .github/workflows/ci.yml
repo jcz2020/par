@@ -21,7 +21,7 @@ jobs:
           dune-cache: true
           opam-local-packages: |
             *.opam
-      - run: opam install . --deps-only --with-test
+      - run: opam install par_cli --deps-only --with-test
       - run: opam exec -- dune build
       - run: opam exec -- dune runtest
       - uses: actions/upload-artifact@v4
