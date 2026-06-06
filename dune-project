@@ -26,7 +26,6 @@
   caqti-eio
    sqlite3
    logs
-  str
   unix
   tls-eio
   cohttp-eio
