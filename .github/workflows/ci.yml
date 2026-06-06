@@ -8,7 +8,11 @@ on:
 
 jobs:
   ocaml:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15, macos-13]
     steps:
       - uses: actions/checkout@v4
       - uses: ocaml/setup-ocaml@v3
@@ -22,7 +26,7 @@ jobs:
       - run: opam exec -- dune runtest
       - uses: actions/upload-artifact@v4
         with:
-          name: par-capi
+          name: par-capi-${{ matrix.os }}
           path: _build/default/lib/ffi/par_capi.so
 
   python:
@@ -32,7 +36,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: par-capi
+          name: par-capi-ubuntu-latest
           path: _build/default/lib/ffi/
       - uses: actions/setup-python@v5
         with:
