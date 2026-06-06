@@ -298,6 +298,7 @@ sha512sum -c <(grep par-linux-x64 /tmp/sha512-checksums.txt)  # 验证 checksum
 2. **Release 增加安装使用说明**：GitHub Release body 需要包含分平台、分包的安装指南：CLI（curl 安装）、opam（`opam install par`）、PyPI（`pip install par_runtime`）、源码编译（`scripts/build-from-source.sh`），以及 macOS 补充说明。
 3. **CLI 升级命令改为 `par update`**：当前叫 `upgrade` 太长。改为 `par update`，去掉 `--check` flag（没必要，直接跑就完事了，显示结果即可）。
 4. **CLI help 美化**：`par --help` / `par <cmd> --help` 需要支持 `-h` 缩写；输出增加颜色区分（命令名高亮、描述灰色等）；同模块内减少多余空行，信息密度更高。参考 `rustc --help` 或 `cargo --help` 的风格。
+5. **CI 修复与发布流程优化**：v0.3.4 的 CI 反复失败（`str`/`unix` 依赖、`par_postgres.opam` 的 `postgresql` 不在标准 opam-repo），最终靠手动构建发布。需要：(a) 修复 CI 让 `release.yml` 真正能跑通（macOS runner 编译、opam 依赖解析）；(b) 考虑更简单的打包方式（如 Docker 多阶段构建、nix、或 `opam lock` 锁定依赖）减少 CI 不稳定性；(c) 评估开发规则是否需要补充 CI 调试/绕过指南，避免下次迭代再卡在 CI 上。
 <!-- END RELEASE RULES -->
 
 <!-- BEGIN DOC MAINTENANCE -->
