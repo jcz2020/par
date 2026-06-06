@@ -86,6 +86,54 @@ _lib.par_steer.restype = ctypes.c_int
 _lib.par_follow_up.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_follow_up.restype = ctypes.c_int
 
+# char* par_mcp_server(par_runtime_t* rt, const char* server_id);
+_lib.par_mcp_server.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_mcp_server.restype = ctypes.c_void_p
+
+# char* par_mcp_list_tools(par_runtime_t* rt, const char* server_id);
+_lib.par_mcp_list_tools.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_mcp_list_tools.restype = ctypes.c_void_p
+
+# char* par_workflow_status(par_runtime_t* rt, const char* run_id);
+_lib.par_workflow_status.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_workflow_status.restype = ctypes.c_void_p
+
+# int par_workflow_cancel(par_runtime_t* rt, const char* run_id);
+_lib.par_workflow_cancel.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_workflow_cancel.restype = ctypes.c_int
+
+# int par_event_subscribe(par_runtime_t* rt, void* callback);
+_lib.par_event_subscribe.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+_lib.par_event_subscribe.restype = ctypes.c_int
+
+# char* par_version(void);
+_lib.par_version.argtypes = []
+_lib.par_version.restype = ctypes.c_void_p
+
+# char* par_mcp_server(par_runtime_t* rt, const char* server_id);
+_lib.par_mcp_server.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_mcp_server.restype = ctypes.c_void_p
+
+# char* par_mcp_list_tools(par_runtime_t* rt, const char* server_id);
+_lib.par_mcp_list_tools.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_mcp_list_tools.restype = ctypes.c_void_p
+
+# char* par_workflow_status(par_runtime_t* rt, const char* run_id);
+_lib.par_workflow_status.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_workflow_status.restype = ctypes.c_void_p
+
+# int par_workflow_cancel(par_runtime_t* rt, const char* run_id);
+_lib.par_workflow_cancel.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_workflow_cancel.restype = ctypes.c_int
+
+# int par_event_subscribe(par_runtime_t* rt, void* callback);
+_lib.par_event_subscribe.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+_lib.par_event_subscribe.restype = ctypes.c_int
+
+# char* par_version(void);
+_lib.par_version.argtypes = []
+_lib.par_version.restype = ctypes.c_void_p
+
 # --- Helper: libc free() for strings returned by C ---
 if sys.platform == "darwin":
     _libc = ctypes.CDLL("libc.dylib")

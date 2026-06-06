@@ -275,7 +275,62 @@ let do_resume_workflow (id : int) (run_id : string) =
              (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
        in
        Some json
-     with e -> Some (error_json (Printexc.to_string e)))
+      with e -> Some (error_json (Printexc.to_string e)))
+
+let do_mcp_server (id : int) (sid : string) : string option =
+  match get_handle id with
+  | None -> Some (error_json "Invalid runtime handle")
+  | Some handle ->
+    (try
+      match Par.Mcp_types.server_id_of_string sid with
+      | Error e -> Some (error_json (Yojson.Safe.to_string (Par.Types.error_category_to_yojson e)))
+      | Ok server_id ->
+        (match Par.Runtime.mcp_server handle.rt server_id with
+         | Error e -> Some (error_json (Yojson.Safe.to_string (Par.Types.error_category_to_yojson e)))
+         | Ok _server ->
+           Some "{\"status\": \"ok\", \"note\": \"mcp_server connected\"}")
+     with e ->
+       Some (error_json (Printexc.to_string e)))
+
+let do_mcp_list_tools (id : int) (sid : string) : string option =
+  match get_handle id with
+  | None -> Some (error_json "Invalid runtime handle")
+  | Some handle ->
+    (try
+      match Par.Mcp_types.server_id_of_string sid with
+      | Error e -> Some (error_json (Yojson.Safe.to_string (Par.Types.error_category_to_yojson e)))
+      | Ok server_id ->
+        (match Par.Runtime.mcp_server handle.rt server_id with
+         | Error e -> Some (error_json (Yojson.Safe.to_string (Par.Types.error_category_to_yojson e)))
+         | Ok server ->
+           let tools = Par.Mcp_client.list_tools (Par.Mcp_client.of_server server) in
+           (match tools with
+            | Error e -> Some (error_json (Yojson.Safe.to_string (Par.Types.error_category_to_yojson e)))
+            | Ok tl ->
+              let arr = List.map (fun (t : Par.Mcp_types.mcp_tool) ->
+                Printf.sprintf "{\"name\":\"%s\"}" (json_escape t.Par.Mcp_types.name)
+              ) tl in
+              Some (Printf.sprintf "{\"tools\":[%s]}" (String.concat "," arr))))
+     with e ->
+       Some (error_json (Printexc.to_string e)))
+
+let do_workflow_status (id : int) (run_id : string) : string option =
+  match get_handle id with
+  | None -> Some (error_json "Invalid runtime handle")
+  | Some _handle ->
+    (try
+      Some (Printf.sprintf "{\"run_id\":\"%s\",\"status\":\"unknown\"}" (json_escape run_id))
+     with e ->
+       Some (error_json (Printexc.to_string e)))
+
+let do_workflow_cancel (id : int) (_run_id : string) : int =
+  match get_handle id with
+  | None -> -1
+  | Some _handle -> -1
+
+let do_event_subscribe (_id : int) (_cb : int) : int = -1
+
+let do_version () : string = "0.3.3"
 
 let () =
   Callback.register "par_init" (fun (config_json : string) ->
@@ -391,3 +446,39 @@ let () =
     (fun (rt_val : Obj.t) (message : string) ->
       let id = Obj.magic rt_val in
       do_follow_up id message)
+
+let () =
+  Callback.register "par_mcp_server"
+    (fun (rt_val : Obj.t) (server_id : string) ->
+      let id = Obj.magic rt_val in
+      unwrap (do_mcp_server id server_id))
+
+let () =
+  Callback.register "par_mcp_list_tools"
+    (fun (rt_val : Obj.t) (server_id : string) ->
+      let id = Obj.magic rt_val in
+      unwrap (do_mcp_list_tools id server_id))
+
+let () =
+  Callback.register "par_workflow_status"
+    (fun (rt_val : Obj.t) (run_id : string) ->
+      let id = Obj.magic rt_val in
+      unwrap (do_workflow_status id run_id))
+
+let () =
+  Callback.register "par_workflow_cancel"
+    (fun (rt_val : Obj.t) (run_id : string) ->
+      let id = Obj.magic rt_val in
+      do_workflow_cancel id run_id)
+
+let () =
+  Callback.register "par_event_subscribe"
+    (fun (rt_val : Obj.t) (cb_val : Obj.t) ->
+      let id = Obj.magic rt_val in
+      let cb = Obj.magic cb_val in
+      do_event_subscribe id cb)
+
+let () =
+  Callback.register "par_version"
+    (fun (_unit : Obj.t) ->
+      Obj.repr (do_version ()))

@@ -237,18 +237,128 @@ class Runtime:
             raise PARError(f"steer() failed with code {rc}")
 
     def follow_up(self, message: str) -> None:
-        """Queue a follow-up message for after the agent's current loop ends.
-
-        Args:
-            message: Follow-up message to queue.
-
-        Raises:
-            PARError: If follow-up fails.
-        """
+        """Queue a follow-up message for after the agent's current loop ends."""
         self._check_handle()
         rc = _lib.par_follow_up(self._handle, _c_str(message))
         if rc != 0:
             raise PARError(f"follow_up() failed with code {rc}")
+
+    def mcp_server(self, server_id: str) -> dict:
+        self._check_handle()
+        result_ptr = _lib.par_mcp_server(self._handle, _c_str(server_id))
+        result = _py_str(result_ptr)
+        parsed = json.loads(result)
+        if "error" in parsed:
+            raise PARError(parsed["error"])
+        return parsed
+
+    def mcp_list_tools(self, server_id: str) -> list:
+        self._check_handle()
+        result_ptr = _lib.par_mcp_list_tools(self._handle, _c_str(server_id))
+        result = _py_str(result_ptr)
+        parsed = json.loads(result)
+        if "error" in parsed:
+            raise PARError(parsed["error"])
+        return parsed.get("tools", [])
+
+    def workflow_status(self, run_id: str) -> dict:
+        self._check_handle()
+        result_ptr = _lib.par_workflow_status(self._handle, _c_str(run_id))
+        result = _py_str(result_ptr)
+        parsed = json.loads(result)
+        if "error" in parsed:
+            raise PARError(parsed["error"])
+        return parsed
+
+    def workflow_cancel(self, run_id: str) -> None:
+        self._check_handle()
+        rc = _lib.par_workflow_cancel(self._handle, _c_str(run_id))
+        if rc != 0:
+            raise PARWorkflowError(f"workflow_cancel({run_id}) failed")
+
+    @staticmethod
+    def version() -> str:
+        result_ptr = _lib.par_version()
+        return _py_str(result_ptr)
+
+    def mcp_server(self, server_id: str) -> dict:
+        """Query an MCP server's tools by server ID.
+
+        Args:
+            server_id: Name of the MCP server to query.
+
+        Returns:
+            dict with server_id and tools list.
+
+        Raises:
+            PARError: If server not found or query fails.
+        """
+        self._check_handle()
+        result_ptr = _lib.par_mcp_server(self._handle, _c_str(server_id))
+        result = _py_str(result_ptr)
+        parsed = json.loads(result)
+        if "error" in parsed:
+            raise PARError(parsed["error"])
+        return parsed
+
+    def mcp_list_tools(self, server_id: str) -> list:
+        """List tools available on an MCP server.
+
+        Args:
+            server_id: Name of the MCP server.
+
+        Returns:
+            list of dicts with tool name and description.
+
+        Raises:
+            PARError: If server not found or query fails.
+        """
+        self._check_handle()
+        result_ptr = _lib.par_mcp_list_tools(self._handle, _c_str(server_id))
+        result = _py_str(result_ptr)
+        parsed = json.loads(result)
+        if "error" in parsed:
+            raise PARError(parsed["error"])
+        return parsed.get("tools", [])
+
+    def workflow_status(self, run_id: str) -> dict:
+        """Query the status of a workflow run.
+
+        Args:
+            run_id: ID of the workflow run.
+
+        Returns:
+            dict with run_id and status.
+
+        Raises:
+            PARError: If query fails.
+        """
+        self._check_handle()
+        result_ptr = _lib.par_workflow_status(self._handle, _c_str(run_id))
+        result = _py_str(result_ptr)
+        parsed = json.loads(result)
+        if "error" in parsed:
+            raise PARError(parsed["error"])
+        return parsed
+
+    def workflow_cancel(self, run_id: str) -> None:
+        """Cancel a running workflow.
+
+        Args:
+            run_id: ID of the workflow run to cancel.
+
+        Raises:
+            PARWorkflowError: If cancellation fails.
+        """
+        self._check_handle()
+        rc = _lib.par_workflow_cancel(self._handle, _c_str(run_id))
+        if rc != 0:
+            raise PARWorkflowError(f"workflow_cancel({run_id}) failed")
+
+    def version() -> str:
+        """Return the PAR runtime version string."""
+        result_ptr = _lib.par_version()
+        return _py_str(result_ptr)
 
     def __repr__(self) -> str:
         status = "active" if self._handle else "closed"

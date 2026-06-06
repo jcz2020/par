@@ -231,3 +231,60 @@ void par_result_free(par_result_t* result) {
         pthread_mutex_unlock(&ocaml_lock);
     }
 }
+
+char* par_mcp_server(par_runtime_t* rt, const char* server_id) {
+    value c_sid = caml_copy_string(server_id);
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call2_exn("par_mcp_server", rt->_ocaml_value, c_sid);
+    char* ret = extract_string(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return ret;
+}
+
+char* par_mcp_list_tools(par_runtime_t* rt, const char* server_id) {
+    value c_sid = caml_copy_string(server_id);
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call2_exn("par_mcp_list_tools", rt->_ocaml_value, c_sid);
+    char* ret = extract_string(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return ret;
+}
+
+char* par_workflow_status(par_runtime_t* rt, const char* run_id) {
+    value c_rid = caml_copy_string(run_id);
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call2_exn("par_workflow_status", rt->_ocaml_value, c_rid);
+    char* ret = extract_string(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return ret;
+}
+
+int par_workflow_cancel(par_runtime_t* rt, const char* run_id) {
+    value c_rid = caml_copy_string(run_id);
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call2_exn("par_workflow_cancel", rt->_ocaml_value, c_rid);
+    int is_exc = Is_exception_result(result);
+    int rc = is_exc ? -1 : Int_val(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return rc;
+}
+
+int par_event_subscribe(par_runtime_t* rt, par_event_callback cb) {
+    (void)cb;
+    value c_cb = Val_int(0);
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call2_exn("par_event_subscribe", rt->_ocaml_value, c_cb);
+    int is_exc = Is_exception_result(result);
+    int rc = is_exc ? -1 : Int_val(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return rc;
+}
+
+char* par_version(void) {
+    pthread_mutex_lock(&ocaml_lock);
+    ensure_initialized();
+    value result = call1_exn("par_version", Val_unit);
+    char* ret = extract_string(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return ret;
+}

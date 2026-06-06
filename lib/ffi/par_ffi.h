@@ -40,6 +40,21 @@ char* par_metrics(par_runtime_t* rt);
 int par_steer(par_runtime_t* rt, const char* message);
 int par_follow_up(par_runtime_t* rt, const char* message);
 
+/* MCP access */
+char* par_mcp_server(par_runtime_t* rt, const char* server_id);
+char* par_mcp_list_tools(par_runtime_t* rt, const char* server_id);
+
+/* Workflow status/cancel */
+char* par_workflow_status(par_runtime_t* rt, const char* run_id);
+int   par_workflow_cancel(par_runtime_t* rt, const char* run_id);
+
+/* Event subscription */
+typedef void (*par_event_callback)(const char* event_type, const char* event_json);
+int par_event_subscribe(par_runtime_t* rt, par_event_callback cb);
+
+/* Version */
+char* par_version(void);
+
 /* Cleanup */
 void par_result_free(par_result_t* result);
 
