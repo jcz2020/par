@@ -296,6 +296,8 @@ sha512sum -c <(grep par-linux-x64 /tmp/sha512-checksums.txt)  # 验证 checksum
 
 1. **Release 产物命名规范化**：当前命名不一致（`par-linux-x64` vs `par-0.3.4.tar.gz` vs `par_runtime-0.3.4-py3-none-any.whl`）。需要统一为 `par-{version}-{platform}` 格式（如 `par-0.3.4-linux-x64`），tarball 为 `par-0.3.4.tar.gz`，wheel 为 `par_runtime-0.3.4-py3-none-any.whl`。`install.sh` 和 `par upgrade` 的下载 URL 需同步更新。
 2. **Release 增加安装使用说明**：GitHub Release body 需要包含分平台、分包的安装指南：CLI（curl 安装）、opam（`opam install par`）、PyPI（`pip install par_runtime`）、源码编译（`scripts/build-from-source.sh`），以及 macOS 补充说明。
+3. **CLI 升级命令改为 `par update`**：当前叫 `upgrade` 太长。改为 `par update`，去掉 `--check` flag（没必要，直接跑就完事了，显示结果即可）。
+4. **CLI help 美化**：`par --help` / `par <cmd> --help` 需要支持 `-h` 缩写；输出增加颜色区分（命令名高亮、描述灰色等）；同模块内减少多余空行，信息密度更高。参考 `rustc --help` 或 `cargo --help` 的风格。
 <!-- END RELEASE RULES -->
 
 <!-- BEGIN DOC MAINTENANCE -->
