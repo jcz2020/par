@@ -148,6 +148,85 @@ which par && par --version
 4. 如果改了测试：`dune runtest`
 <!-- END BUILD RULES -->
 
+<!-- BEGIN RELEASE RULES -->
+## Release & Distribution Rules
+
+### 发布流程
+
+v0.3.4+ 的发布管道：
+
+1. **开发完成** → 所有 commits 在 `release/vX.Y.Z` 分支上
+2. **合并到 main** → `git checkout main && git merge release/vX.Y.Z`
+3. **打 tag** → `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
+4. **推送** → `git push origin main --tags`
+5. **CI 自动构建** → `release.yml` 在 ubuntu-latest / macos-15 / macos-13 上编译二进制
+6. **GitHub Release** → `release.yml` 自动创建 Release，上传 `par-linux-x64`、`par-macos-arm64`、`par-macos-x64`、`sha512-checksums.txt`
+7. **手动发布 opam**（首次）→ 下载 tarball + .opam 文件，提交到 opam-repository
+8. **手动发布 PyPI**（首次）→ 下载 wheel，`twine upload dist/*.whl`
+9. **验证** → `curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash && par --version`
+
+### 二进制命名约定
+
+Release 产物命名格式：`par-{platform}`
+
+| Platform | Runner | 产物名 |
+|----------|--------|--------|
+| linux-x64 | ubuntu-latest | `par-linux-x64` |
+| linux-arm64 | (无 runner) | 暂不支持 |
+| macos-arm64 | macos-15 | `par-macos-arm64` |
+| macos-x64 | macos-13 | `par-macos-x64` |
+
+校验文件：`sha512-checksums.txt`，格式为 `sha512sum` 输出：
+```
+{hash}  par-linux-x64
+{hash}  par-macos-arm64
+{hash}  par-macos-x64
+```
+
+### install.sh 使用
+
+```bash
+# 一键安装最新版
+curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
+
+# 安装指定版本
+PAR_INSTALL_VERSION=v0.3.4 curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
+
+# 安装到自定义位置
+PAR_INSTALL_PREFIX=~/.local curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
+
+# 源码编译
+bash scripts/build-from-source.sh
+```
+
+### par upgrade 命令
+
+```bash
+par upgrade           # 检查并安装最新版
+par upgrade --check   # 只检查不安装
+```
+
+工作流程：GitHub API → 获取最新 tag → 下载 `par-{platform}` → SHA-512 验证 → `Unix.rename` 替换自身。
+
+### CI/CD 工作流
+
+| Workflow | 触发条件 | 作用 |
+|----------|---------|------|
+| `ci.yml` | push/PR to main | 3 平台测试 |
+| `release.yml` | tag `v*.*.*` | 构建 3 平台二进制 + SHA-512 → GitHub Release |
+| `opam-publish.yml` | tag `v*.*.*` | 生成 tarball + .opam → GitHub Release（手动提交 opam-repo） |
+| `pypi-publish.yml` | tag `v*.*.*` | 构建 wheel → GitHub Release（手动 twine upload） |
+
+### 发布检查清单（Pre-release 以外）
+
+在 Pre-release checklist 之外，发布时还需确认：
+
+1. `install.sh` 中的 `GITHUB_REPO` 变量正确
+2. `par upgrade` 能正确解析 GitHub Release 的 `tag_name`
+3. `sha512-checksums.txt` 在 Release assets 中存在
+4. 手动测试：`curl ... | bash && par --version && par upgrade --check`
+<!-- END RELEASE RULES -->
+
 <!-- BEGIN DOC MAINTENANCE -->
 ## Documentation Maintenance
 
@@ -191,7 +270,7 @@ These literals must never be translated, renamed, or modified in any doc or PR. 
 
 **Persistence:** `` `Sqlite ``, `` `Postgresql ``, `` `Noop ``
 
-**CLI commands:** `par`, `par config`, `par ask`, `par --version`
+**CLI commands:** `par`, `par config`, `par ask`, `par upgrade`, `par --version`
 
 **Bash modules:** `Bash_safe_command`, `Bash_policy`, `Bash_blacklist`, `Bash_invoked`, `Bash_completed`
 
