@@ -225,6 +225,72 @@ par upgrade --check   # 只检查不安装
 2. `par upgrade` 能正确解析 GitHub Release 的 `tag_name`
 3. `sha512-checksums.txt` 在 Release assets 中存在
 4. 手动测试：`curl ... | bash && par --version && par upgrade --check`
+
+### 本地测试发布管道
+
+`par upgrade` 和 `install.sh` 都依赖 GitHub Release 产物，本地无法直接端到端测试。按以下方式分级验证：
+
+**1. 不需要网络的测试（每次开发后必做）**
+
+```bash
+# 编译 + 安装
+dune build bin/main.exe
+cp -f _build/default/bin/main.exe /usr/local/bin/par
+
+# 基本功能
+par --version                                    # 版本号正确
+par upgrade --help                               # 帮助输出正确
+par upgrade --check                              # 会失败（无 Release），但确认平台检测和 API 调用正常
+```
+
+`par upgrade --check` 在无 Release 时会报 "Failed to fetch release info: HTTP 404"（正常），说明：
+- 平台检测成功（输出了 `linux-x64` 或对应平台）
+- TLS/Cohttp_eio 链路正常
+- GitHub API 调用到达
+
+**2. 需要 Release 产物的测试（打 tag 后做一次）**
+
+打 tag 推送后，等 `release.yml` 跑完，然后：
+
+```bash
+# 测试 install.sh
+PAR_INSTALL_VERSION=vX.Y.Z curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
+par --version                                    # 确认版本
+
+# 测试 par upgrade（先装旧版再升级）
+# ... 安装旧版 ...
+par upgrade --check                              # 应显示 "Update available: 旧 -> 新"
+par upgrade                                      # 应显示 "Upgrade complete"
+
+# 测试 checksums 文件存在
+curl -fsSL https://github.com/jcz2020/par/releases/download/vX.Y.Z/sha512-checksums.txt
+```
+
+**3. 模拟本地 Release（不推 tag 的本地验证）**
+
+如果想在推 tag 之前模拟 release 产物：
+
+```bash
+# 手动构建本地二进制
+dune build bin/main.exe
+
+# 创建本地 checksums
+sha512sum _build/default/bin/main.exe > /tmp/sha512-checksums.txt
+
+# 手动模拟 install.sh 的下载逻辑
+mkdir -p /tmp/par-test && cd /tmp/par-test
+cp -f /root/dev/PAR/_build/default/bin/main.exe par-linux-x64
+sha512sum -c <(grep par-linux-x64 /tmp/sha512-checksums.txt)  # 验证 checksum
+
+# 用本地文件测试 par upgrade 的 checksum 解析
+# （需要 mock HTTP，或直接在 utop 中测试 parse_checksum_for 函数）
+```
+
+**4. 不可测的部分（接受风险）**
+
+- `Unix.rename` 原子替换自身：在 Linux 上可靠，macOS 上也可靠（同一文件系统）
+- `self_path()` 通过 `/proc/self/exe` 解析：仅 Linux 有效，macOS 回退到 `Sys.argv.(0)`
+- `par upgrade` 在 `_opam/bin/par` 路径下会替换 `_opam/bin/par`（不是 `/usr/local/bin/par`）— 这是正确行为，替换当前运行的实例
 <!-- END RELEASE RULES -->
 
 <!-- BEGIN DOC MAINTENANCE -->
