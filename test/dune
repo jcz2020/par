@@ -164,6 +164,11 @@
  (modules test_event_bus_backpressure))
 
 (test
+ (name test_persistence_common)
+ (libraries par alcotest)
+ (modules test_persistence_common))
+
+(test
  (name test_mcp_facade)
  (libraries par alcotest)
  (modules test_mcp_facade))

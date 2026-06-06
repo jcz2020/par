@@ -29,6 +29,7 @@ module Mock_provider = Mock_provider
 
 module Sqlite_persistence = Sqlite_persistence
 module Noop_persistence = Noop_persistence
+module Persistence_common = Persistence_common
 
 module Event_bus = Event_bus
 
