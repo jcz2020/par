@@ -2,23 +2,71 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x64
+          - os: macos-15
+            platform: macos-arm64
+          - os: macos-13
+            platform: macos-x64
     steps:
       - uses: actions/checkout@v4
+
       - uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: "5.4.0"
           dune-cache: true
-      - run: opam install . --deps-only
-      - run: opam exec -- dune build
-      - run: opam exec -- dune runtest
+          opam-local-packages: |
+            *.opam
+
+      - run: opam install . --deps-only -y
+
+      - run: opam exec -- dune build bin/main.exe
+
+      - name: Strip and rename binary
+        run: |
+          cp _build/default/bin/main.exe par-${{ matrix.platform }}
+          chmod +x par-${{ matrix.platform }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: par-${{ matrix.platform }}
+          path: par-${{ matrix.platform }}
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate SHA-512 checksums
+        working-directory: artifacts
+        run: sha512sum par-* > sha512-checksums.txt
+
       - uses: softprops/action-gh-release@v2
         with:
-          files: _build/default/lib/ffi/par_capi.so
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
           generate_release_notes: true
+          files: |
+            artifacts/par-linux-x64
+            artifacts/par-macos-arm64
+            artifacts/par-macos-x64
+            artifacts/sha512-checksums.txt
