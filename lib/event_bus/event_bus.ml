@@ -43,7 +43,19 @@ let publish bus event =
     idempotency_key = Task_id.to_string (Task_id.create ());
     delivery_attempt = 0;
   } in
-  Eio.Stream.add bus.buffer envelope
+  if Eio.Stream.length bus.buffer >= bus.config.buffer_capacity then begin
+    let entry = {
+      envelope;
+      error = "buffer full: backpressure";
+      failure_reason = Internal "buffer full: backpressure";
+      failed_at = Unix.time ();
+      attempt_count = 0;
+    } in
+    Eio.Mutex.use_rw ~protect:false bus.mutex (fun () ->
+      bus.dead_letters := entry :: !(bus.dead_letters)
+    )
+  end else
+    Eio.Stream.add bus.buffer envelope
 
 let subscribe bus handler =
   let sub_id = Task_id.to_string (Task_id.create ()) in

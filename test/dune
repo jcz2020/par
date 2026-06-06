@@ -159,6 +159,11 @@
  (modules test_event_bus_dlq))
 
 (test
+ (name test_event_bus_backpressure)
+ (libraries par alcotest)
+ (modules test_event_bus_backpressure))
+
+(test
  (name test_mcp_facade)
  (libraries par alcotest)
  (modules test_mcp_facade))
