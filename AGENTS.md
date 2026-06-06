@@ -291,6 +291,11 @@ sha512sum -c <(grep par-linux-x64 /tmp/sha512-checksums.txt)  # 验证 checksum
 - `Unix.rename` 原子替换自身：在 Linux 上可靠，macOS 上也可靠（同一文件系统）
 - `self_path()` 通过 `/proc/self/exe` 解析：仅 Linux 有效，macOS 回退到 `Sys.argv.(0)`
 - `par upgrade` 在 `_opam/bin/par` 路径下会替换 `_opam/bin/par`（不是 `/usr/local/bin/par`）— 这是正确行为，替换当前运行的实例
+
+### v0.3.5 待处理（v0.3.4 发布中发现的问题）
+
+1. **Release 产物命名规范化**：当前命名不一致（`par-linux-x64` vs `par-0.3.4.tar.gz` vs `par_runtime-0.3.4-py3-none-any.whl`）。需要统一为 `par-{version}-{platform}` 格式（如 `par-0.3.4-linux-x64`），tarball 为 `par-0.3.4.tar.gz`，wheel 为 `par_runtime-0.3.4-py3-none-any.whl`。`install.sh` 和 `par upgrade` 的下载 URL 需同步更新。
+2. **Release 增加安装使用说明**：GitHub Release body 需要包含分平台、分包的安装指南：CLI（curl 安装）、opam（`opam install par`）、PyPI（`pip install par_runtime`）、源码编译（`scripts/build-from-source.sh`），以及 macOS 补充说明。
 <!-- END RELEASE RULES -->
 
 <!-- BEGIN DOC MAINTENANCE -->
