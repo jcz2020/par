@@ -121,6 +121,23 @@ cp -f _build/default/bin/main.exe _opam/bin/par
 which par && par --version
 ```
 
+### 版本号同步
+
+**`dune-project` 是唯一版本源。** 版本号出现在 3 个位置，修改时必须同步：
+
+| 文件 | 修改方式 |
+|------|---------|
+| `dune-project` 第 3 行 | **手动改**（唯一的手动入口） |
+| `bindings/python/pyproject.toml` | `make sync-version` 自动同步 |
+| `bindings/python/par_runtime/__init__.py` | `make sync-version` 自动同步 |
+
+**修改版本号的正确步骤：**
+
+1. 编辑 `dune-project` 第 3 行 `(version "X.Y.Z")`
+2. `dune build` — 重新生成 `par.opam` / `par_cli.opam`（不要手改）
+3. `make sync-version` — 同步到 Python 绑定
+4. 确认：`grep -r 'version' dune-project bindings/python/pyproject.toml bindings/python/par_runtime/__init__.py`
+
 ### 编译后检查清单
 
 每次修改 OCaml 源码后：

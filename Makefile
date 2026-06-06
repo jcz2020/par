@@ -1,4 +1,4 @@
-.PHONY: build install uninstall clean test
+.PHONY: build install uninstall clean test sync-version docs-check
 
 PREFIX ?= /usr/local
 
@@ -17,3 +17,9 @@ uninstall:
 
 clean:
 	dune clean
+
+sync-version: ## Sync version from dune-project to Python bindings
+	$(eval VER := $(shell grep -oP '(?<=version ")[^"]+' dune-project))
+	sed -i 's/^version = ".*"/version = "$(VER)"/' bindings/python/pyproject.toml
+	sed -i 's/^__version__ = ".*"/__version__ = "$(VER)"/' bindings/python/par_runtime/__init__.py
+	@echo "Synced version $(VER) to Python bindings"

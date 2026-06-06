@@ -8,7 +8,7 @@ from par_runtime._errors import (
 )
 from par_runtime.runtime import Runtime
 
-__version__ = "0.1.0"
+__version__ = "0.3.4"
 
 __all__ = [
     "Runtime",
