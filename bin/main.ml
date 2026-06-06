@@ -64,6 +64,11 @@ let no_parallel_tools =
   Arg.(value & flag &
     info [ "no-parallel-tools" ] ~doc:"Disable parallel tool execution")
 
+let upgrade_check_arg =
+  let open Cmdliner in
+  Arg.(value & flag &
+    info [ "check" ] ~doc:"Only check for updates; do not install")
+
 let question_arg =
   let open Cmdliner in
   Arg.(required & pos 0 (some string) None &
@@ -453,6 +458,289 @@ let info_ask = Cmdliner.Cmd.info "ask"
   ~doc:"Ask a single question and print the answer"
 
 (* -------------------------------------------------------------------------- *)
+(* 'par upgrade' command — self-update                                         *)
+(* -------------------------------------------------------------------------- *)
+
+let run_uname flag =
+  let ic = Unix.open_process_in ("uname " ^ flag) in
+  let result =
+    try input_line ic
+    with exn ->
+      let _ = Unix.close_process_in ic in
+      raise exn in
+  let _ = Unix.close_process_in ic in
+  String.trim result
+
+let detect_platform () =
+  match run_uname "-s" with
+  | "Linux" ->
+    (match run_uname "-m" with
+     | "x86_64" -> Ok "linux-x64"
+     | "aarch64" -> Ok "linux-arm64"
+     | m -> Error (Printf.sprintf "Unsupported Linux architecture: %s" m))
+  | "Darwin" ->
+    (match run_uname "-m" with
+     | "x86_64" -> Ok "macos-x64"
+     | "arm64" -> Ok "macos-arm64"
+     | m -> Error (Printf.sprintf "Unsupported macOS architecture: %s" m))
+  | s -> Error
+    (Printf.sprintf
+       "Unsupported OS: %s. Use scripts/build-from-source.sh to upgrade." s)
+
+let strip_v_prefix s =
+  let len = String.length s in
+  if len > 0 && s.[0] = 'v' then String.sub s 1 (len - 1) else s
+
+let version_compare a b =
+  let parse v =
+    let v = strip_v_prefix v in
+    List.map
+      (fun p -> try int_of_string p with _ -> 0)
+      (String.split_on_char '.' v) in
+  let rec cmp = function
+    | [], [] -> 0
+    | [], _ -> -1
+    | _, [] -> 1
+    | x :: xs, y :: ys ->
+      if x < y then -1 else if x > y then 1 else cmp (xs, ys) in
+  cmp (parse a, parse b)
+
+let upgrade_tls_config_lazy : Tls.Config.client Lazy.t =
+  lazy
+    (let authenticator =
+       match Ca_certs.authenticator () with
+       | Ok auth -> auth
+       | Error (`Msg msg) ->
+         Printf.eprintf
+           "Warning: failed to load system CA certs: %s, using no-auth\n" msg;
+         fun ?ip:_ ~host:_ _certs -> Ok None in
+     match Tls.Config.client ~authenticator () with
+     | Ok cfg -> cfg
+     | Result.Error (`Msg msg) -> failwith ("TLS configuration error: " ^ msg))
+
+let tls_host_of_string host =
+  match Domain_name.of_string host with
+  | Error _ -> None
+  | Ok dn -> (match Domain_name.host dn with Ok h -> Some h | Error _ -> None)
+
+let upgrade_https_fn uri flow =
+  let cfg = Lazy.force upgrade_tls_config_lazy in
+  let host = Uri.host uri in
+  (match host with
+   | Some h ->
+     (match tls_host_of_string h with
+      | Some dh -> Tls_eio.client_of_flow cfg ~host:dh flow
+      | None -> failwith ("Cannot parse hostname for TLS SNI: " ^ h))
+   | None -> failwith "No host in URL for TLS connection")
+
+let make_upgrade_client net =
+  Cohttp_eio.Client.make ~https:(Some upgrade_https_fn) net
+
+let upgrade_headers =
+  Http.Header.of_list
+    [ ("user-agent", "P-A-R-CLI/" ^ Par.Version.version)
+    ; ("accept", "application/vnd.github+json") ]
+
+let http_get_string client ~sw uri =
+  let resp, body =
+    Cohttp_eio.Client.get client ~sw ~headers:upgrade_headers uri in
+  let status = resp.Http.Response.status |> Cohttp.Code.code_of_status in
+  if status <> 200 then
+    Error (Printf.sprintf "HTTP %d for %s" status (Uri.to_string uri))
+  else
+    let s =
+      Eio.Buf_read.parse_exn ~max_size:(20 * 1024 * 1024)
+        Eio.Buf_read.take_all body in
+    Ok s
+
+let http_download_to_file client ~sw uri dest_path =
+  let resp, body =
+    Cohttp_eio.Client.get client ~sw ~headers:upgrade_headers uri in
+  let status = resp.Http.Response.status |> Cohttp.Code.code_of_status in
+  if status <> 200 then
+    Error (Printf.sprintf "HTTP %d for %s" status (Uri.to_string uri))
+  else
+    let data =
+      Eio.Buf_read.parse_exn ~max_size:(200 * 1024 * 1024)
+        Eio.Buf_read.take_all body in
+    let oc = open_out_bin dest_path in
+    output_string oc data;
+    close_out oc;
+    Ok ()
+
+let parse_checksum_for content platform =
+  let prefix = "par-" ^ platform in
+  let rec loop = function
+    | [] -> None
+    | line :: rest ->
+      let trimmed = String.trim line in
+      if String.length trimmed = 0 then loop rest
+      else
+        let parts = String.split_on_char ' ' trimmed in
+        let hash = List.hd parts in
+        let fname = String.concat " " (List.tl parts) |> String.trim in
+        if fname = prefix then Some (String.trim hash) else loop rest in
+  loop (String.split_on_char '\n' content)
+
+let sha512_hex_of_file path =
+  let ic = open_in_bin path in
+  let len = in_channel_length ic in
+  let buf = Bytes.create len in
+  really_input ic buf 0 len;
+  close_in ic;
+  Digestif.SHA512.to_hex (Digestif.SHA512.digest_bytes buf)
+
+let self_path () =
+  if Sys.os_type = "Unix" then begin
+    try
+      let p = Unix.readlink "/proc/self/exe" in
+      if String.length p > 0 then Ok p
+      else begin
+        let argv0 = Sys.argv.(0) in
+        if Filename.is_relative argv0 then begin
+          let abs = Filename.concat (Sys.getcwd ()) argv0 in
+          Ok abs
+        end else
+          Ok argv0
+      end
+    with _ ->
+      let argv0 = Sys.argv.(0) in
+      if Filename.is_relative argv0 then
+        Ok (Filename.concat (Sys.getcwd ()) argv0)
+      else
+        Ok argv0
+  end else begin
+    let argv0 = Sys.argv.(0) in
+    if Filename.is_relative argv0 then
+      Ok (Filename.concat (Sys.getcwd ()) argv0)
+    else
+      Ok argv0
+  end
+
+let cmd_upgrade check_only =
+  let current = Par.Version.version in
+  Printf.printf "Current version: %s\n" current;
+  Printf.printf "Checking for updates...\n";
+  flush stdout;
+  (match detect_platform () with
+   | Error msg ->
+     Printf.eprintf "Error: %s\n" msg;
+     exit 1
+   | Ok platform ->
+     ensure_rng ();
+     Eio_main.run @@ fun env ->
+     Eio.Switch.run @@ fun sw ->
+     let net = Eio.Stdenv.net env in
+     let client = make_upgrade_client net in
+     let api_uri =
+       Uri.of_string
+         "https://api.github.com/repos/jcz2020/par/releases/latest" in
+     (match http_get_string client ~sw api_uri with
+      | Error e ->
+        Printf.eprintf "Failed to fetch release info: %s\n" e;
+        exit 1
+      | Ok body ->
+        let json = Yojson.Safe.from_string body in
+        let tag =
+          (try Yojson.Safe.Util.(json |> member "tag_name" |> to_string)
+           with _ ->
+             Printf.eprintf
+               "Failed to parse release info: missing tag_name\n";
+             exit 1) in
+        let latest = strip_v_prefix tag in
+        Printf.printf "Latest version: %s\n" latest;
+        flush stdout;
+        match version_compare current latest with
+        | n when n >= 0 ->
+          Printf.printf "Already on the latest version (%s).\n" current;
+          exit 0
+        | _ ->
+          if check_only then begin
+            Printf.printf
+              "Update available: %s -> %s\nRun `par upgrade` to install.\n"
+              current latest;
+            exit 0
+          end;
+          let asset_name = "par-" ^ platform in
+          let ver_tag = "v" ^ latest in
+          let bin_uri = Uri.of_string
+            (Printf.sprintf
+               "https://github.com/jcz2020/par/releases/download/%s/%s"
+               ver_tag asset_name) in
+          let chk_uri = Uri.of_string
+            (Printf.sprintf
+               "https://github.com/jcz2020/par/releases/download/%s/sha512-checksums.txt"
+               ver_tag) in
+          Printf.printf "Downloading %s for %s...\n" latest platform;
+          flush stdout;
+          let tmpdir =
+            Filename.get_temp_dir_name () ^
+            "/par-upgrade-" ^ string_of_int (Unix.getpid ()) in
+          (try Unix.mkdir tmpdir 0o700
+           with Unix.Unix_error (Unix.EEXIST, _, _) -> ());
+          let bin_path = tmpdir ^ "/" ^ asset_name in
+          let chk_path = tmpdir ^ "/sha512-checksums.txt" in
+          (match http_download_to_file client ~sw bin_uri bin_path with
+           | Error e ->
+             Printf.eprintf "Download failed: %s\n" e;
+             exit 1
+           | Ok () ->
+             (match http_download_to_file client ~sw chk_uri chk_path with
+              | Error e ->
+                Printf.eprintf "Checksums download failed: %s\n" e;
+                exit 1
+              | Ok () ->
+                let ic = open_in chk_path in
+                let n = in_channel_length ic in
+                let buf = Bytes.create n in
+                really_input ic buf 0 n;
+                close_in ic;
+                let chk_content = Bytes.unsafe_to_string buf in
+                (match parse_checksum_for chk_content platform with
+                 | None ->
+                   Printf.eprintf
+                     "No checksum entry for %s in checksums file\n"
+                     asset_name;
+                   exit 1
+                 | Some expected ->
+                   let actual = sha512_hex_of_file bin_path in
+                   if actual = expected then begin
+                     Printf.printf "Checksum verified.\n";
+                     flush stdout;
+                     (match self_path () with
+                      | Error msg ->
+                        Printf.eprintf
+                          "Cannot determine self path: %s\n" msg;
+                        exit 1
+                      | Ok self ->
+                        (try
+                           Unix.rename bin_path self;
+                           Unix.chmod self 0o755;
+                           Printf.printf
+                             "Upgrade complete: %s -> %s\nNew binary: %s\n\
+                              Run `par --version` to verify.\n"
+                             current latest self;
+                           flush stdout
+                         with e ->
+                           Printf.eprintf
+                             "Failed to replace binary: %s\n"
+                             (Printexc.to_string e);
+                           exit 1))
+                   end else begin
+                     Printf.eprintf
+                       "Checksum mismatch!\n  expected: %s\n  actual:   %s\n"
+                       expected actual;
+                      exit 1
+                    end)))))
+
+let term_upgrade =
+  let open Cmdliner.Term in
+  const cmd_upgrade $ upgrade_check_arg
+
+let info_upgrade = Cmdliner.Cmd.info "upgrade"
+  ~doc:"Check for updates and upgrade par to the latest version"
+
+(* -------------------------------------------------------------------------- *)
 (* Root command                                                               *)
 (* -------------------------------------------------------------------------- *)
 
@@ -464,6 +752,7 @@ let cmd =
     [
       v info_config term_config;
       v info_ask term_ask;
+      v info_upgrade term_upgrade;
     ]
 
 let () =

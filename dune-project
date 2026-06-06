@@ -53,3 +53,15 @@
   mirage-crypto-rng
   alcotest))
 
+(package
+ (name par_postgres)
+ (synopsis "Programmable Agent Runtime - PostgreSQL persistence backend")
+ (description "PostgreSQL persistence backend for PAR. Shipped as a separate opam package.")
+ (allow_empty)
+ (depends
+  ocaml
+  dune
+  par
+  caqti-eio
+  postgresql))
+
