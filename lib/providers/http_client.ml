@@ -184,6 +184,147 @@ let do_request net url request =
       Eio.Flow.shutdown tls `Send;
       Eio.Flow.read_all tls)
 
+(* -------------------------------------------------------------------------- *)
+(* Incremental streaming response                                              *)
+(* -------------------------------------------------------------------------- *)
+
+exception Http_status_error of int * string
+
+let max_stream_buffer = 50 * 1024 * 1024
+
+(* State-machine reader for chunked transfer-encoded SSE bodies.
+   The [pending] buffer accumulates chunk data across boundaries so that
+   a single SSE line split between two chunks is reassembled before
+   being surfaced to the caller. *)
+let read_chunked_line buf pending done_ref : string option =
+  let pop_line_from_pending () =
+    let s = Buffer.contents pending in
+    match String.index_opt s '\n' with
+    | Some i ->
+      let line = String.sub s 0 i in
+      let rest = String.sub s (i + 1) (String.length s - i - 1) in
+      Buffer.clear pending;
+      Buffer.add_string pending rest;
+      let stripped =
+        let n = String.length line in
+        if n > 0 && line.[n - 1] = '\r' then String.sub line 0 (n - 1)
+        else line
+      in
+      Some stripped
+    | None -> None
+  in
+  let rec loop () =
+    match pop_line_from_pending () with
+    | Some _ as r -> r
+    | None ->
+      if !done_ref then
+        if Buffer.length pending = 0 then None
+        else begin
+          let rest = Buffer.contents pending in
+          Buffer.clear pending;
+          let stripped =
+            let n = String.length rest in
+            if n > 0 && rest.[n - 1] = '\r' then String.sub rest 0 (n - 1)
+            else rest
+          in
+          Some stripped
+        end
+      else begin
+        let size_line = Eio.Buf_read.line buf in
+        let size =
+          if String.starts_with ~prefix:"0x" size_line then
+            int_of_string (String.sub size_line 2 (String.length size_line - 2))
+          else
+            (try int_of_string size_line
+             with Failure _ -> int_of_string ("0x" ^ size_line))
+        in
+        if size = 0 then begin
+          done_ref := true;
+          let flow = Eio.Buf_read.as_flow buf in
+          let cs = Cstruct.create 2 in
+          (try Eio.Flow.read_exact flow cs with End_of_file -> ());
+          loop ()
+        end else begin
+          let flow = Eio.Buf_read.as_flow buf in
+          let cs = Cstruct.create size in
+          Eio.Flow.read_exact flow cs;
+          let s = Cstruct.to_string cs in
+          Buffer.add_string pending s;
+          let cs2 = Cstruct.create 2 in
+          (try Eio.Flow.read_exact flow cs2 with End_of_file -> ());
+          loop ()
+        end
+      end
+  in
+  loop ()
+
+let read_unchunked_line buf : string option =
+  try
+    let line = Eio.Buf_read.line buf in
+    let n = String.length line in
+    let stripped =
+      if n > 0 && line.[n - 1] = '\r' then String.sub line 0 (n - 1)
+      else line
+    in
+    Some stripped
+  with
+  | End_of_file -> None
+  | Eio.Buf_read.Buffer_limit_exceeded as ex -> raise ex
+  | Eio.Io _ as ex -> raise ex
+
+let read_response_headers buf =
+  let status_line = Eio.Buf_read.line buf in
+  let status = parse_status_line status_line in
+  let header_buf = Buffer.create 256 in
+  Buffer.add_string header_buf status_line;
+  Buffer.add_string header_buf "\r\n";
+  let rec collect () =
+    let line = Eio.Buf_read.line buf in
+    Buffer.add_string header_buf line;
+    Buffer.add_string header_buf "\r\n";
+    if line = "" then Buffer.contents header_buf else collect ()
+  in
+  let headers = collect () in
+  let chunked = headers_contain ~needle:"transfer-encoding: chunked" headers in
+  (status, headers, chunked)
+
+let do_request_streaming_with_flow flow k =
+  let buf =
+    Eio.Buf_read.of_flow ~initial_size:4096 ~max_size:max_stream_buffer flow
+  in
+  let status, headers, chunked = read_response_headers buf in
+  if status < 200 || status >= 300 then begin
+    let body =
+      try Eio.Buf_read.line buf with _ -> ""
+    in
+    raise (Http_status_error (status, body))
+  end;
+  let read_line =
+    if chunked then begin
+      let pending = Buffer.create 4096 in
+      let done_ref = ref false in
+      (fun () -> read_chunked_line buf pending done_ref)
+    end else
+      (fun () -> read_unchunked_line buf)
+  in
+  k ~status ~headers ~read_line
+
+let do_request_streaming net url request k =
+  Eio.Net.with_tcp_connect
+    ~host:url.host
+    ~service:(string_of_int url.port)
+    net
+    (fun flow ->
+      let cfg = Lazy.force tls_config in
+      let tls =
+        match tls_host_of_string url.host with
+        | Some h -> Tls_eio.client_of_flow cfg ~host:h flow
+        | None -> Tls_eio.client_of_flow cfg flow
+      in
+      Eio.Flow.copy_string request tls;
+      Eio.Flow.shutdown tls `Send;
+      do_request_streaming_with_flow tls k)
+
 type _exec_result = {
   status : int;
   headers : string;

@@ -30,3 +30,23 @@ val tls_host_of_string : string -> [ `host ] Domain_name.t option
 
 val do_request :
   [ `Generic] Eio.Net.ty Eio.Net.t -> parsed_url -> string -> string
+
+exception Http_status_error of int * string
+
+val do_request_streaming :
+  [ `Generic] Eio.Net.ty Eio.Net.t ->
+  parsed_url ->
+  string ->
+  (status:int ->
+   headers:string ->
+   read_line:(unit -> string option) ->
+   'a) ->
+  'a
+
+val do_request_streaming_with_flow :
+  _ Eio.Flow.source ->
+  (status:int ->
+   headers:string ->
+   read_line:(unit -> string option) ->
+   'a) ->
+  'a
