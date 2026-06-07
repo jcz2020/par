@@ -307,6 +307,36 @@ let setup_runtime cfg ~f =
 (* Health / metrics formatters                                                *)
 (* -------------------------------------------------------------------------- *)
 
+let make_tool_event_callback () =
+  let start_times : (string, float) Hashtbl.t = Hashtbl.create 8 in
+  fun (evt : Types.event) ->
+    match evt with
+    | Types.Tool_invoked { task_id; _ } ->
+      Hashtbl.replace start_times
+        (Types.Task_id.to_string task_id) (Unix.gettimeofday ())
+    | Types.Tool_completed { task_id; tool_name; duration_ms; _ } ->
+      Hashtbl.remove start_times (Types.Task_id.to_string task_id);
+      Printf.eprintf "→ %s %s (%dms)\n"
+        tool_name (Cli_style.green "✓") (int_of_float duration_ms);
+      flush stderr
+    | Types.Tool_failed { task_id; tool_name; _ } ->
+      let elapsed = match Hashtbl.find_opt start_times (Types.Task_id.to_string task_id) with
+        | Some t -> (Unix.gettimeofday () -. t) *. 1000.0
+        | None -> 0.0
+      in
+      Hashtbl.remove start_times (Types.Task_id.to_string task_id);
+      Printf.eprintf "→ %s %s (%dms)\n"
+        tool_name (Cli_style.red "✗") (int_of_float elapsed);
+      flush stderr
+    | _ -> ()
+
+let stream_print_chunk (chunk : Types.llm_response_chunk) =
+  match chunk with
+  | Types.Text_delta { text } ->
+    Printf.printf "%s%!" text;
+    flush stdout
+  | _ -> ()
+
 let format_health (h : Types.health_status) =
   `Assoc [
     ("runtime_alive", `Bool h.Types.runtime_alive);
@@ -340,6 +370,7 @@ let repl rt agent_id_val =
   Printf.printf "%s\n"
     (Cli_style.dim "输入消息开始对话（输入 /help 查看命令，Ctrl+D 退出）");
   let conv : Types.conversation option ref = ref None in
+  let on_tool_event = make_tool_event_callback () in
   let rec loop () =
     Printf.printf "%s" (Cli_style.bold_cyan "par> ");
     flush stdout;
@@ -367,18 +398,19 @@ let repl rt agent_id_val =
            flush stdout;
            loop ()
           end else begin
-            (match Runtime.invoke rt ~agent_id:agent_id_val ~message:line ?conversation:!conv () with
+            (match Runtime.invoke rt ~agent_id:agent_id_val ~message:line
+               ?conversation:!conv
+               ~on_tool_event
+               ~on_chunk:(Some stream_print_chunk) () with
              | Error (e, recovered_conv) ->
                conv := Some recovered_conv;
                print_error e
-             | Ok { Types.response = resp; conversation = returned_conv } ->
-               conv := Some returned_conv;
-               (match resp.Types.text with
-                | Some txt -> Printf.printf "%s\n" (Cli_style.green txt)
-                | None -> ());
-               flush stdout);
+              | Ok { Types.response = _; conversation = returned_conv } ->
+                conv := Some returned_conv;
+                Printf.printf "\n";
+                flush stdout);
             loop ()
-         end
+          end
      with End_of_file -> Printf.printf "\n再见！\n")
   in
   loop ()
@@ -432,15 +464,17 @@ let cmd_ask
               persistence_opt db_uri_opt temp_opt prompt_opt max_iter
               max_tokens_opt top_p_opt no_parallel_tools in
   setup_runtime cfg ~f:(fun rt ->
-    match Runtime.invoke rt ~agent_id:"default-agent" ~message:question () with
+    match Runtime.invoke rt ~agent_id:"default-agent" ~message:question
+        ~on_tool_event:(make_tool_event_callback ())
+        ~on_chunk:(Some stream_print_chunk) () with
     | Error (e, _) ->
       Printf.eprintf "Error: %s\n" (error_category_to_string e);
       exit 1
     | Ok { Types.response = resp; conversation = _ } ->
+      Printf.printf "\n";
       (match resp.Types.text with
-       | Some txt -> Printf.printf "%s\n" txt
-       | None -> print_json (Types.llm_response_to_yojson resp));
-      flush stdout)
+       | Some _ -> flush stdout
+       | None -> print_json (Types.llm_response_to_yojson resp)))
 
 let term_ask =
   let open Cmdliner.Term in

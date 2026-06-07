@@ -99,6 +99,38 @@ let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
 (* Agent executor — ReAct loop                                           *)
 (* -------------------------------------------------------------------------- *)
 
+let run_llm_with_optional_streaming llm agent_model agent_tools conv user_cb =
+  match user_cb with
+  | None -> llm.complete_fn agent_model agent_tools conv
+  | Some user_chunk ->
+    let text_buf = Buffer.create 256 in
+    let tc_state : (string, (string * Buffer.t)) Hashtbl.t = Hashtbl.create 4 in
+    let acc chunk =
+      user_chunk chunk;
+      match chunk with
+      | Text_delta { text } -> Buffer.add_string text_buf text
+      | Tool_call_start { tool_call_id; name } ->
+        Hashtbl.replace tc_state tool_call_id (name, Buffer.create 64)
+      | Tool_call_delta { tool_call_id; args_json } ->
+        (match Hashtbl.find_opt tc_state tool_call_id with
+         | Some (_, buf) -> Buffer.add_string buf args_json
+         | None -> ())
+      | Usage_update _ | Done _ -> ()
+    in
+    let stream_cfg : stream_config = { chunk_timeout = 30.0; total_timeout = None; buffer_size = 4096 } in
+    match llm.stream_fn agent_model agent_tools conv stream_cfg acc with
+    | Error _ as e -> e
+    | Ok stream_complete ->
+      let entries = Hashtbl.fold (fun id (name, buf) acc ->
+        (id, name, Buffer.contents buf) :: acc) tc_state [] in
+      let tool_calls = if entries = [] then None else
+        Some (List.map (fun (id, name, args_str) ->
+          let arguments = try Yojson.Safe.from_string args_str with _ -> `Null in
+          { id; name; arguments }) entries) in
+      let text = if Buffer.length text_buf = 0 then None else Some (Buffer.contents text_buf) in
+      Ok { text; tool_calls; finish_reason = stream_complete.finish_reason;
+           usage = stream_complete.final_usage; model = agent_model.model_name }
+
 let make_conversation system_prompt user_message =
   let sys = { role = System; content = Some system_prompt; tool_calls = None; tool_call_id = None; name = None } in
   let usr = { role = User; content = Some user_message; tool_calls = None; tool_call_id = None; name = None } in
@@ -130,7 +162,7 @@ let add_tool_result_message conv (call : tool_call) result =
 
 let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
     ?(tool_call_hooks = None) ?(quota = None) ?(parallel = false)
-    ?(on_progress = None) ?(on_tool_event = None)
+    ?(on_progress = None) ?(on_tool_event = None) ?(on_chunk = None)
     ?conversation token agent user_message llm registry =
   let sys_prompt = match Template.effective_system_prompt agent ~runtime_id with
     | Ok s -> s
@@ -179,7 +211,7 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
       Logs.info (fun m -> m "[engine] LLM call iter=%d: %d messages, agent=%s model=%s"
         iterations (List.length conv.messages) agent.id agent.model.model_name);
       List.iteri log_message conv.messages;
-      match llm.complete_fn agent.model agent.tools conv with
+      match run_llm_with_optional_streaming llm agent.model agent.tools conv on_chunk with
       | Result.Error err ->
         let action = apply_on_error agent.middleware conv err
           (fun e -> Error { category = e; message = "LLM error"; retryable = false; metadata = [] })

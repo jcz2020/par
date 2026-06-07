@@ -68,6 +68,8 @@ val invoke :
   message:string ->
   ?cancellation_token:cancellation_token ->
   ?conversation:conversation ->
+  ?on_tool_event:(event -> unit) ->
+  ?on_chunk:(llm_response_chunk -> unit) option ->
   unit ->
   (invoke_result, error_category * conversation) result
 

@@ -12,6 +12,7 @@ type style =
   | Dim
   | Cyan
   | Green
+  | Red
   | BoldCyan
 
 let esc = "\027"
@@ -21,6 +22,7 @@ let ansi_open = function
   | Dim      -> esc ^ "[2m"
   | Cyan     -> esc ^ "[36m"
   | Green    -> esc ^ "[32m"
+  | Red      -> esc ^ "[31m"
   | BoldCyan -> esc ^ "[1;36m"
 
 let ansi_close = esc ^ "[0m"
@@ -39,4 +41,5 @@ let bold      s = styled Bold s
 let dim       s = styled Dim s
 let cyan      s = styled Cyan s
 let green     s = styled Green s
+let red       s = styled Red s
 let bold_cyan s = styled BoldCyan s

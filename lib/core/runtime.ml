@@ -321,7 +321,8 @@ let install_bash_tool ?process_mgr ?clock rt =
       rt.bash_installed := true;
       Ok ()
 
-let invoke rt ~agent_id ~message ?cancellation_token ?conversation () =
+let invoke rt ~agent_id ~message ?cancellation_token ?conversation
+    ?on_tool_event ?on_chunk () =
   let agent = htbl_get rt.agents agent_id in
   match agent with
   | None -> Result.Error (Invalid_input (Printf.sprintf "Agent not found: %s" agent_id),
@@ -339,6 +340,12 @@ let invoke rt ~agent_id ~message ?cancellation_token ?conversation () =
       } in
       publish_event rt evt
     in
+    let combined_tool_event evt =
+      publish_event rt evt;
+      (match on_tool_event with
+       | Some cb -> cb evt
+       | None -> ())
+    in
     let result = Engine.run_agent ~steering:(Some rt.steering_queue)
       ~followup:(Some rt.followup_queue)
       ~runtime_id:rt.runtime_id
@@ -346,7 +353,8 @@ let invoke rt ~agent_id ~message ?cancellation_token ?conversation () =
       ~quota:(Some rt.task_semaphore)
       ~parallel:rt.parallel_tool_execution
       ~on_progress:(Some on_tool_progress)
-      ~on_tool_event:(Some (fun evt -> publish_event rt evt))
+      ~on_tool_event:(Some combined_tool_event)
+      ?on_chunk
       ?conversation
       token config message rt.services.llm rt.tool_registry in
     match result with

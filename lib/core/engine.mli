@@ -49,6 +49,7 @@ val run_agent :
   ?parallel:bool ->
   ?on_progress:(string -> unit) option ->
   ?on_tool_event:(event -> unit) option ->
+  ?on_chunk:(llm_response_chunk -> unit) option ->
   ?conversation:conversation ->
   cancellation_token ->
   agent_config ->
