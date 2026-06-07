@@ -64,11 +64,6 @@ let no_parallel_tools =
   Arg.(value & flag &
     info [ "no-parallel-tools" ] ~doc:"Disable parallel tool execution")
 
-let upgrade_check_arg =
-  let open Cmdliner in
-  Arg.(value & flag &
-    info [ "check" ] ~doc:"Only check for updates; do not install")
-
 let question_arg =
   let open Cmdliner in
   Arg.(required & pos 0 (some string) None &
@@ -342,10 +337,11 @@ let print_help () =
 (* -------------------------------------------------------------------------- *)
 
 let repl rt agent_id_val =
-  Printf.printf "输入消息开始对话（输入 /help 查看命令，Ctrl+D 退出）\n";
+  Printf.printf "%s\n"
+    (Cli_style.dim "输入消息开始对话（输入 /help 查看命令，Ctrl+D 退出）");
   let conv : Types.conversation option ref = ref None in
   let rec loop () =
-    Printf.printf "> ";
+    Printf.printf "%s" (Cli_style.bold_cyan "par> ");
     flush stdout;
     (try
        match input_line stdin with
@@ -360,11 +356,11 @@ let repl rt agent_id_val =
              | "/help" -> print_help ()
              | "/quit" | "/exit" -> Printf.printf "再见！\n"; exit 0
              | "/reset" -> conv := None;
-               Printf.printf "[对话已重置]\n"
+               Printf.printf "%s\n" (Cli_style.dim "[对话已重置]")
             | "/steer" -> Runtime.steer rt rest;
-              Printf.printf "[steer] 已注入\n"
+              Printf.printf "%s\n" (Cli_style.dim "[steer] 已注入")
             | "/followup" -> Runtime.follow_up rt rest;
-              Printf.printf "[followup] 已注入\n"
+              Printf.printf "%s\n" (Cli_style.dim "[followup] 已注入")
             | "/health" -> print_json (format_health (Runtime.health rt))
             | "/metrics" -> print_json (format_metrics (Runtime.metrics_snapshot rt))
             | _ -> Printf.eprintf "未知命令: %s。输入 /help 查看命令列表。\n" cmd);
@@ -378,7 +374,7 @@ let repl rt agent_id_val =
              | Ok { Types.response = resp; conversation = returned_conv } ->
                conv := Some returned_conv;
                (match resp.Types.text with
-                | Some txt -> Printf.printf "%s\n" txt
+                | Some txt -> Printf.printf "%s\n" (Cli_style.green txt)
                 | None -> ());
                flush stdout);
             loop ()
@@ -458,7 +454,7 @@ let info_ask = Cmdliner.Cmd.info "ask"
   ~doc:"Ask a single question and print the answer"
 
 (* -------------------------------------------------------------------------- *)
-(* 'par upgrade' command — self-update                                         *)
+(* 'par update' command — self-update                                         *)
 (* -------------------------------------------------------------------------- *)
 
 let run_uname flag =
@@ -485,7 +481,7 @@ let detect_platform () =
      | m -> Error (Printf.sprintf "Unsupported macOS architecture: %s" m))
   | s -> Error
     (Printf.sprintf
-       "Unsupported OS: %s. Use scripts/build-from-source.sh to upgrade." s)
+       "Unsupported OS: %s. Use scripts/build-from-source.sh to update." s)
 
 let strip_v_prefix s =
   let len = String.length s in
@@ -617,7 +613,7 @@ let self_path () =
       Ok argv0
   end
 
-let cmd_upgrade check_only =
+let cmd_update () =
   let current = Par.Version.version in
   Printf.printf "Current version: %s\n" current;
   Printf.printf "Checking for updates...\n";
@@ -655,12 +651,6 @@ let cmd_upgrade check_only =
           Printf.printf "Already on the latest version (%s).\n" current;
           exit 0
         | _ ->
-          if check_only then begin
-            Printf.printf
-              "Update available: %s -> %s\nRun `par upgrade` to install.\n"
-              current latest;
-            exit 0
-          end;
           let asset_name = "par-" ^ platform in
           let ver_tag = "v" ^ latest in
           let bin_uri = Uri.of_string
@@ -716,10 +706,10 @@ let cmd_upgrade check_only =
                         (try
                            Unix.rename bin_path self;
                            Unix.chmod self 0o755;
-                           Printf.printf
-                             "Upgrade complete: %s -> %s\nNew binary: %s\n\
-                              Run `par --version` to verify.\n"
-                             current latest self;
+                            Printf.printf
+                              "Update complete: %s -> %s\nNew binary: %s\n\
+                               Run `par --version` to verify.\n"
+                              current latest self;
                            flush stdout
                          with e ->
                            Printf.eprintf
@@ -733,12 +723,12 @@ let cmd_upgrade check_only =
                       exit 1
                     end)))))
 
-let term_upgrade =
+let term_update =
   let open Cmdliner.Term in
-  const cmd_upgrade $ upgrade_check_arg
+  const cmd_update $ const ()
 
-let info_upgrade = Cmdliner.Cmd.info "upgrade"
-  ~doc:"Check for updates and upgrade par to the latest version"
+let info_update = Cmdliner.Cmd.info "update"
+  ~doc:"Check for updates and update par to the latest version"
 
 (* -------------------------------------------------------------------------- *)
 (* Root command                                                               *)
@@ -752,7 +742,7 @@ let cmd =
     [
       v info_config term_config;
       v info_ask term_ask;
-      v info_upgrade term_upgrade;
+      v info_update term_update;
     ]
 
 let () =
