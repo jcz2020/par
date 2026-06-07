@@ -130,7 +130,8 @@ let add_tool_result_message conv (call : tool_call) result =
 
 let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
     ?(tool_call_hooks = None) ?(quota = None) ?(parallel = false)
-    ?(on_progress = None) ?conversation token agent user_message llm registry =
+    ?(on_progress = None) ?(on_tool_event = None)
+    ?conversation token agent user_message llm registry =
   let sys_prompt = match Template.effective_system_prompt agent ~runtime_id with
     | Ok s -> s
     | Error e ->
@@ -208,6 +209,14 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
              concurrently; the semaphore caps how many can be in-flight at once. *)
           let invoke_one (call : tool_call) : (tool_call * handler_result) =
             let call_with_id = { call with id = Task_id.to_string (Task_id.create ()) } in
+            let event_task_id = Task_id.create () in
+            let event_tool_name = call.name in
+            let fire evt = match on_tool_event with
+              | Some pub -> pub evt
+              | None -> ()
+            in
+            fire (Tool_invoked { task_id = event_task_id; tool_name = event_tool_name });
+            let start_t = Unix.gettimeofday () in
             let hook_result = (match tool_call_hooks with
               | Some hooks ->
                 let ctx = { Hook.tool_name = call.name;
@@ -238,7 +247,7 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
                 Fun.protect body ~finally:(fun () -> Eio.Semaphore.release sem)
               | None -> body ()
             in
-            (match hook_result with
+            let result = match hook_result with
               | Hook.Final_block reason -> (call_with_id, Error {
                   category = Types.Permission_denied (Printf.sprintf "tool '%s'" call.name);
                   message = Printf.sprintf "Blocked by hook: %s" reason;
@@ -247,7 +256,18 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
               | Hook.Final_modify modified_input ->
                 invoke_with_quota (fun () -> invoke_allow modified_input)
               | Hook.Final_allow ->
-                invoke_with_quota (fun () -> invoke_allow call.arguments)) in
+                invoke_with_quota (fun () -> invoke_allow call.arguments) in
+            let duration_ms = (Unix.gettimeofday () -. start_t) *. 1000.0 in
+            (match result with
+             | _, Success _ ->
+               fire (Tool_completed { task_id = event_task_id;
+                                      tool_name = event_tool_name;
+                                      duration_ms })
+             | _, Error { category; _ } ->
+               fire (Tool_failed { task_id = event_task_id;
+                                   tool_name = event_tool_name;
+                                   error = category }));
+            result in
           let results : (tool_call * handler_result) list =
             if parallel then
               let promises = List.map (fun (call : tool_call) ->

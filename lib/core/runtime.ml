@@ -346,6 +346,7 @@ let invoke rt ~agent_id ~message ?cancellation_token ?conversation () =
       ~quota:(Some rt.task_semaphore)
       ~parallel:rt.parallel_tool_execution
       ~on_progress:(Some on_tool_progress)
+      ~on_tool_event:(Some (fun evt -> publish_event rt evt))
       ?conversation
       token config message rt.services.llm rt.tool_registry in
     match result with

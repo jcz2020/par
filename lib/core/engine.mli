@@ -48,6 +48,7 @@ val run_agent :
   ?quota:Eio.Semaphore.t option ->
   ?parallel:bool ->
   ?on_progress:(string -> unit) option ->
+  ?on_tool_event:(event -> unit) option ->
   ?conversation:conversation ->
   cancellation_token ->
   agent_config ->

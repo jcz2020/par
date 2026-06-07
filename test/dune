@@ -89,6 +89,11 @@
  (modules test_tool_progress))
 
 (test
+ (name test_tool_events)
+ (libraries par eio_main alcotest)
+ (modules test_tool_events))
+
+(test
  (name test_bash_safe_command)
  (libraries par alcotest)
  (modules test_bash_safe_command))
