@@ -28,6 +28,15 @@ AGENTS.md
 .opencode/
 .beads/
 
+# Python binding build artifacts (par_runtime ctypes)
+bindings/python/build/
+bindings/python/dist/
+bindings/python/*.egg-info/
+bindings/python/par_runtime/*.so
+__pycache__/
+*.pyc
+*.pyo
+
 # Beads / Dolt files (added by bd init)
 .dolt/
 *.db
