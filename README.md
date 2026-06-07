@@ -114,7 +114,7 @@ The `par` facade module (`lib/par.ml`) re-exports every public submodule, so a s
 - 20 built-in tools, including the type-safe `bash` tool: `Bash_safe_command` ADT, `Bash_policy` functor, 31-entry `Bash_blacklist`, and `Bash_invoked` / `Bash_completed` event types. Shell injection is unrepresentable in the type layer.
 - C FFI plus a Python binding: the `par_runtime` package exposes the same runtime over ctypes, thread-safe, with its own `pytest` suite.
 - 871 OCaml tests and 16 Python tests passing; zero regressions across the v0.3 series.
-- MIT-licensed, 100% open source, dual distribution via opam and PyPI.
+- MIT-licensed, 100% open source. Distributed via opam and GitHub Releases.
 
 ## SDK Quick Start
 
@@ -207,6 +207,16 @@ Adding a new MCP server is a trust decision, not a config edit. Before promoting
 ## Python Binding
 
 PAR ships a Python binding via ctypes, package name `par_runtime`. The C ABI lives in `par_capi.so`; the Python wrapper calls into it directly, so there is no GIL contention with the OCaml runtime and no separate process to coordinate.
+
+**Install from GitHub Release:**
+
+```bash
+# Download the wheel from the latest release
+curl -fsSL -o par_runtime.whl https://github.com/jcz2020/par/releases/latest/download/par_runtime-0.3.7-py3-none-any.whl
+pip install par_runtime.whl
+```
+
+**Build from source:**
 
 ```bash
 # Build the shared library
@@ -341,7 +351,7 @@ par/
 
 ## Dependencies
 
-Runtime: OCaml 5.4+, dune 3.23+, `cohttp-eio`, `lambdasoup`, `tls-eio`, `ca-certs`, `caqti-eio`, `sqlite3`. CLI extras: `cmdliner`, `eio_main`. Python binding: `par_capi.so` plus `par_runtime` (ctypes only, no compiler needed at install time). Optional: `postgresql` for the `par_postgres` opam package.
+Runtime: OCaml 5.4+, dune 3.23+, `cohttp-eio`, `lambdasoup`, `tls-eio`, `ca-certs`, `caqti-eio`, `sqlite3`. CLI extras: `cmdliner`, `eio_main`, `linenoise`. Python binding: `par_capi.so` plus `par_runtime` (ctypes only, no compiler needed at install time; install the wheel from [GitHub Releases](https://github.com/jcz2020/par/releases)). Optional: `postgresql` for the `par_postgres` opam package.
 
 All runtime dependencies are pinned in `dune-project` and propagated to the generated `par.opam` and `par_cli.opam` files. To install the dev dependencies for running the test suite locally, run `opam install . --deps-only --with-test` from the repo root. The `make install` target wraps this for the common case, and also builds the C ABI shared library that the Python binding loads at import time.
 
