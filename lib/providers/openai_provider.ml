@@ -204,26 +204,30 @@ let parse_stream_delta json =
         | _ -> None
       with _ -> None
     in
-    let tool_chunk =
+    let tool_chunks =
       try
         let tcs = delta |> member "tool_calls" |> to_list in
         ( match tcs with
         | tc :: _ ->
           let fn = tc |> member "function" in
-          let tc_id = tc |> member "id" |> to_string in
+          let idx = tc |> member "index" |> to_int in
+          let key = string_of_int idx in
           let name = try fn |> member "name" |> to_string with _ -> "" in
           let args = try fn |> member "arguments" |> to_string with _ -> "" in
-          if tc_id <> "null" && name <> "" then
-            Some (Tool_call_start { tool_call_id = tc_id; name })
-          else if args <> "" && args <> "null" then
-            let idx = tc |> member "index" |> to_int in
-            Some (Tool_call_delta { tool_call_id = string_of_int idx; args_json = args })
-          else None
-        | [] -> None )
-      with _ -> None
+          if name <> "" then begin
+            let start = Tool_call_start { tool_call_id = key; name } in
+            if args <> "" && args <> "null" then
+              [ start; Tool_call_delta { tool_call_id = key; args_json = args } ]
+            else
+              [ start ]
+          end else if args <> "" && args <> "null" then
+            [ Tool_call_delta { tool_call_id = key; args_json = args } ]
+          else []
+        | [] -> [] )
+      with _ -> []
     in
-    (text_chunk, tool_chunk, finish_opt, usage_opt)
-  | [] -> (None, None, None, None)
+    (text_chunk, tool_chunks, finish_opt, usage_opt)
+  | [] -> (None, [], None, None)
 
 (* -------------------------------------------------------------------------- *)
 (* LLM_SERVICE implementation                                            *)
@@ -297,10 +301,9 @@ let stream t model_config tools conversation _stream_config callback =
                         incr chunks
                       | None -> () );
                       ( match tool_c with
-                      | Some chunk ->
-                        callback chunk;
-                        incr chunks
-                      | None -> () );
+                      | chunk :: rest ->
+                        List.iter (fun c -> callback c; incr chunks) (chunk :: rest)
+                      | [] -> () );
                       ( match finish_opt with
                       | Some f -> finish := f
                       | None -> () );

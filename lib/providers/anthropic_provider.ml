@@ -213,7 +213,7 @@ let parse_llm_response json : (llm_response, error_category) result =
 (* SSE parsing                                                           *)
 (* -------------------------------------------------------------------------- *)
 
-let process_stream_event (evt_type, data_str) callback usage finish chunks =
+let process_stream_event (evt_type, data_str) callback usage finish chunks current_tc_id =
   let open Yojson.Safe.Util in
   try
     let json = Yojson.Safe.from_string data_str in
@@ -229,7 +229,9 @@ let process_stream_event (evt_type, data_str) callback usage finish chunks =
          if typ = "tool_use" then begin
            let tc_id = block |> member "id" |> to_string in
            let name = block |> member "name" |> to_string in
-           callback (Tool_call_start { tool_call_id = tc_id; name });
+           let idx = try json |> member "index" |> to_int with _ -> 0 in
+           current_tc_id := tc_id;
+           callback (Tool_call_start { tool_call_id = string_of_int idx; name });
            incr chunks
          end
        with _ -> ())
@@ -247,7 +249,10 @@ let process_stream_event (evt_type, data_str) callback usage finish chunks =
          let typ = delta |> member "type" |> to_string in
          if typ = "input_json_delta" then begin
            let args = delta |> member "partial_json" |> to_string in
-           callback (Tool_call_delta { tool_call_id = ""; args_json = args });
+           let idx = try json |> member "index" |> to_int with _ -> 0 in
+           let key = if !current_tc_id <> "" then !current_tc_id
+                     else string_of_int idx in
+           callback (Tool_call_delta { tool_call_id = key; args_json = args });
            incr chunks
          end
        with _ -> ())
@@ -325,13 +330,14 @@ let stream t model_config tools conversation _stream_config callback =
             let finish = ref Stop in
             let current_type = ref "" in
             let current_data = ref "" in
+            let current_tc_id = ref "" in
             let rec process_lines () =
               match read_line () with
               | None ->
                 if !current_data <> "" then
                   process_stream_event
                     (!current_type, !current_data)
-                    callback usage finish chunks
+                    callback usage finish chunks current_tc_id
               | Some line ->
                 if String.starts_with ~prefix:"event: " line then
                   current_type :=
@@ -342,7 +348,7 @@ let stream t model_config tools conversation _stream_config callback =
                 else if line = "" && !current_data <> "" then begin
                   process_stream_event
                     (!current_type, !current_data)
-                    callback usage finish chunks;
+                    callback usage finish chunks current_tc_id;
                   current_type := "";
                   current_data := ""
                 end;

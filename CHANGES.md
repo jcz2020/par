@@ -1,5 +1,20 @@
 # CHANGES
 
+## v0.3.6 (2026-06-08)
+
+> Streaming tool call fix, CLI help beautification, short flag aliases. 871 OCaml tests, 16 Python tests.
+
+### Bug Fixes
+
+- **Streaming tool calls now work**: OpenAI and Anthropic streaming providers had a `tool_call_id` key mismatch — `Tool_call_start` used the API-issued id while `Tool_call_delta` used the array index, so the engine's Hashtbl never accumulated arguments. Both providers now consistently use the index as the matching key. Additionally, GLM-4 sends `name` and `arguments` in a single chunk; the parser now emits both `Tool_call_start` and `Tool_call_delta` in that case.
+- **Tool duration display**: Changed from `int_of_float` (truncating sub-ms durations to 0ms) to `%.1f` format, so fast tools like `calculator` now show accurate timings (e.g. `0.5ms` instead of `0ms`).
+- **TTY color detection**: `TERM=dumb` is now set only when stdout is not a TTY, restoring Cmdliner ANSI styling for interactive terminals.
+
+### CLI
+
+- **Custom help renderer**: `par --help` and `par -h` now render a cargo-style colored help page using `cli_style.ml` (green command names, yellow section headers, dim descriptions). Bypasses Cmdliner's plain-text renderer.
+- **Short flag aliases**: `par -v` prints the version, `par -h` prints help. Both work alongside the long forms `--version` and `--help`.
+
 ## v0.3.5 (2026-06-07)
 
 > CLI streaming output, tool call summary, release pipeline fixes. 873 OCaml tests, 16 Python tests.

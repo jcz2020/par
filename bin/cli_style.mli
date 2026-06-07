@@ -4,6 +4,7 @@ type style =
   | Cyan
   | Green
   | Red
+  | Yellow
   | BoldCyan
 
 val supports_color : unit -> bool
@@ -14,4 +15,7 @@ val dim : string -> string
 val cyan : string -> string
 val green : string -> string
 val red : string -> string
+val yellow : string -> string
 val bold_cyan : string -> string
+val heading : string -> string
+val option_line : string -> string -> string

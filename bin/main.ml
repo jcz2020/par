@@ -316,8 +316,9 @@ let make_tool_event_callback () =
         (Types.Task_id.to_string task_id) (Unix.gettimeofday ())
     | Types.Tool_completed { task_id; tool_name; duration_ms; _ } ->
       Hashtbl.remove start_times (Types.Task_id.to_string task_id);
-      Printf.eprintf "→ %s %s (%dms)\n"
-        tool_name (Cli_style.green "✓") (int_of_float duration_ms);
+      let ms = duration_ms in
+      Printf.eprintf "→ %s %s (%.1fms)\n"
+        tool_name (Cli_style.green "✓") ms;
       flush stderr
     | Types.Tool_failed { task_id; tool_name; _ } ->
       let elapsed = match Hashtbl.find_opt start_times (Types.Task_id.to_string task_id) with
@@ -325,8 +326,8 @@ let make_tool_event_callback () =
         | None -> 0.0
       in
       Hashtbl.remove start_times (Types.Task_id.to_string task_id);
-      Printf.eprintf "→ %s %s (%dms)\n"
-        tool_name (Cli_style.red "✗") (int_of_float elapsed);
+      Printf.eprintf "→ %s %s (%.1fms)\n"
+        tool_name (Cli_style.red "✗") elapsed;
       flush stderr
     | _ -> ()
 
@@ -765,6 +766,41 @@ let info_update = Cmdliner.Cmd.info "update"
   ~doc:"Check for updates and update par to the latest version"
 
 (* -------------------------------------------------------------------------- *)
+(* Custom help renderer                                                       *)
+(* -------------------------------------------------------------------------- *)
+
+let print_custom_help () =
+  let open Cli_style in
+  let section s = Printf.printf "\n%s\n" (heading s) in
+  let opt flag desc = Printf.printf "%s\n" (option_line flag desc) in
+  Printf.printf "%s  %s\n\n" (bold "par") (dim "v" ^ Par.Version.version);
+  Printf.printf "%s\n" (dim "Programmable Agent Runtime for OCaml 5.4+");
+  section "COMMANDS";
+  opt "par"                      "Interactive REPL (default)";
+  opt "par ask QUESTION"         "Single-shot Q&A, print answer and exit";
+  opt "par config"               "Configure provider, API key, and model";
+  opt "par update"               "Check for updates and self-update";
+  section "OPTIONS";
+  opt "--provider PROVIDER"      "LLM provider: openai|anthropic (default: openai)";
+  opt "--api-key KEY"            "API key (overrides config file)";
+  opt "--api-base URL"           "Custom API base URL (overrides config)";
+  opt "--model NAME"             "Model name (overrides config)";
+  opt "--system-prompt PROMPT"   "System prompt (overrides config)";
+  opt "--temperature FLOAT"      "Temperature 0.0–1.0";
+  opt "--max-tokens N"           "Max tokens per LLM response";
+  opt "--max-iterations N"       "Max ReAct iterations (default: 10)";
+  opt "--top-p FLOAT"            "Top-p sampling 0.0–1.0";
+  opt "--persistence BACKEND"    "sqlite|postgres (default: sqlite)";
+  opt "--db-uri URI"             "PostgreSQL connection URI";
+  opt "--no-parallel-tools"      "Disable parallel tool execution";
+  section "EXAMPLES";
+  Printf.printf "  %s\n" (dim "par                                    # start REPL");
+  Printf.printf "  %s\n" (dim "par ask \"what is OCaml?\"            # single shot");
+  Printf.printf "  %s\n" (dim "par config                            # setup wizard");
+  Printf.printf "  %s\n" (dim "par update                            # self-update");
+  Printf.printf "\n%s\n" (dim "Read the docs: https://github.com/jcz2020/par")
+
+(* -------------------------------------------------------------------------- *)
 (* Root command                                                               *)
 (* -------------------------------------------------------------------------- *)
 
@@ -780,5 +816,12 @@ let cmd =
     ]
 
 let () =
-  Unix.putenv "TERM" "dumb";
+  if not (Unix.isatty Unix.stdout) then Unix.putenv "TERM" "dumb";
+  (if Array.length Sys.argv >= 2 then
+    match Sys.argv.(1) with
+    | "-v" | "-V" ->
+      print_endline Par.Version.version; exit 0
+    | "-h" | "--help" | "--help=plain" | "--help=auto" ->
+      print_custom_help (); exit 0
+    | _ -> ());
   exit (Cmdliner.Cmd.eval cmd)

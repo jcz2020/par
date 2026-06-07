@@ -13,6 +13,7 @@ type style =
   | Cyan
   | Green
   | Red
+  | Yellow
   | BoldCyan
 
 let esc = "\027"
@@ -23,6 +24,7 @@ let ansi_open = function
   | Cyan     -> esc ^ "[36m"
   | Green    -> esc ^ "[32m"
   | Red      -> esc ^ "[31m"
+  | Yellow   -> esc ^ "[33m"
   | BoldCyan -> esc ^ "[1;36m"
 
 let ansi_close = esc ^ "[0m"
@@ -42,4 +44,12 @@ let dim       s = styled Dim s
 let cyan      s = styled Cyan s
 let green     s = styled Green s
 let red       s = styled Red s
+let yellow    s = styled Yellow s
 let bold_cyan s = styled BoldCyan s
+
+let heading s = bold (yellow s)
+let pad_right len s =
+  let pad = max 0 (len - String.length s) in
+  s ^ String.make pad ' '
+let option_line flag desc =
+  Printf.sprintf "  %s  %s" (green (pad_right 24 flag)) (dim desc)
