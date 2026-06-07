@@ -230,14 +230,17 @@ let read_chunked_line buf pending done_ref : string option =
           Some stripped
         end
       else begin
-        let size_line = Eio.Buf_read.line buf in
-        let size =
-          if String.starts_with ~prefix:"0x" size_line then
-            int_of_string (String.sub size_line 2 (String.length size_line - 2))
-          else
-            (try int_of_string size_line
-             with Failure _ -> int_of_string ("0x" ^ size_line))
+        let raw_size_line = Eio.Buf_read.line buf in
+        let size_line =
+          let line = match String.index_opt raw_size_line ';' with
+            | Some i -> String.sub raw_size_line 0 i
+            | None -> raw_size_line
+          in
+          let n = String.length line in
+          if n > 0 && line.[n - 1] = '\r' then String.sub line 0 (n - 1)
+          else line
         in
+        let size = int_of_string ("0x" ^ size_line) in
         if size = 0 then begin
           done_ref := true;
           let flow = Eio.Buf_read.as_flow buf in
