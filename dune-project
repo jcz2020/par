@@ -1,6 +1,6 @@
 (lang dune 3.16)
 (name par)
-(version "0.3.6")
+(version "0.3.7")
 (generate_opam_files true)
 (source (github jcz2020/par))
 (license MIT)
@@ -49,6 +49,7 @@
   eio_main
   yojson
   mirage-crypto-rng
+  linenoise
   alcotest))
 
 (package

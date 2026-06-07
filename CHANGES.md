@@ -1,5 +1,13 @@
 # CHANGES
 
+## v0.3.7 (2026-06-08)
+
+> CI fix: add `linenoise` dependency to `par_cli.opam`. 871 OCaml tests, 16 Python tests.
+
+### Bug Fixes
+
+- **CI build fix**: Added `linenoise` to the `par_cli` package depends in `dune-project`, so the generated `par_cli.opam` correctly lists it as a dependency. Without this, `opam install par_cli --deps-only` on CI never installed `linenoise`, causing `dune build` to fail with "Library linenoise not found".
+
 ## v0.3.6 (2026-06-08)
 
 > Streaming tool call fix, CLI help beautification, short flag aliases. 871 OCaml tests, 16 Python tests.
