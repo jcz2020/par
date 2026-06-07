@@ -47,7 +47,7 @@ download_binary() {
   local platform="$1"
   local ver="$2"
   local tmpdir="$(mktemp -d)"
-  local url="https://github.com/$GITHUB_REPO/releases/download/v${ver}/par-${platform}"
+  local url="https://github.com/$GITHUB_REPO/releases/download/v${ver}/par-v${ver}-${platform}"
   local checksum_url="https://github.com/$GITHUB_REPO/releases/download/v${ver}/sha512-checksums.txt"
 
   info "Downloading PAR v${ver} for ${platform}..."
@@ -55,7 +55,7 @@ download_binary() {
 
   info "Downloading checksums..."
   if curl -fsSL -o "$tmpdir/checksums.txt" "$checksum_url" 2>/dev/null; then
-    local expected="$(grep "par-${platform}" "$tmpdir/checksums.txt" | awk '{print $1}')"
+    local expected="$(grep "par-v${ver}-${platform}" "$tmpdir/checksums.txt" | awk '{print $1}')"
     if [ -n "$expected" ]; then
       local actual="$(sha512sum "$tmpdir/par" | awk '{print $1}')"
       if [ "$expected" != "$actual" ]; then
@@ -64,7 +64,7 @@ download_binary() {
       fi
       info "Checksum verified"
     else
-      warn "No checksum entry for par-${platform}, skipping verification"
+      warn "No checksum entry for par-v${ver}-${platform}, skipping verification"
     fi
   else
     warn "Checksums file not found, skipping verification"

@@ -20,7 +20,12 @@ jobs:
           ocaml-compiler: 5.4.0
           dune-cache: true
           opam-local-packages: |
-            *.opam
+            par.opam
+            par_cli.opam
+      # Note: par_postgres.opam is intentionally excluded from CI.
+      # It depends on the `postgresql` package, which is not in the standard
+      # opam repository. par_postgres is published as a separate opam package
+      # (v0.4 onward); CI focuses on par + par_cli only.
       - run: opam install par_cli --deps-only --with-test
       - run: opam exec -- dune build
       - run: opam exec -- dune runtest

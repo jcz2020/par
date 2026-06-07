@@ -29,7 +29,8 @@ jobs:
           ocaml-compiler: "5.4.0"
           dune-cache: true
           opam-local-packages: |
-            *.opam
+            par.opam
+            par_cli.opam
 
       - run: opam install par_cli --deps-only -y
 
@@ -37,13 +38,13 @@ jobs:
 
       - name: Strip and rename binary
         run: |
-          cp _build/default/bin/main.exe par-${{ matrix.platform }}
-          chmod +x par-${{ matrix.platform }}
+          cp _build/default/bin/main.exe par-${{ github.ref_name }}-${{ matrix.platform }}
+          chmod +x par-${{ github.ref_name }}-${{ matrix.platform }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: par-${{ matrix.platform }}
-          path: par-${{ matrix.platform }}
+          name: par-${{ github.ref_name }}-${{ matrix.platform }}
+          path: par-${{ github.ref_name }}-${{ matrix.platform }}
           if-no-files-found: error
 
   release:
@@ -51,6 +52,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -58,15 +61,16 @@ jobs:
 
       - name: Generate SHA-512 checksums
         working-directory: artifacts
-        run: sha512sum par-* > sha512-checksums.txt
+        run: sha512sum par-${{ github.ref_name }}-* > sha512-checksums.txt
 
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
+          body_path: docs/RELEASE-TEMPLATE.md
           generate_release_notes: true
           files: |
-            artifacts/par-linux-x64
-            artifacts/par-macos-arm64
-            artifacts/par-macos-x64
+            artifacts/par-${{ github.ref_name }}-linux-x64
+            artifacts/par-${{ github.ref_name }}-macos-arm64
+            artifacts/par-${{ github.ref_name }}-macos-x64
             artifacts/sha512-checksums.txt
