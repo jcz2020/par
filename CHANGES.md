@@ -1,5 +1,36 @@
 # CHANGES
 
+## v0.3.5 (2026-06-07)
+
+> CLI streaming output, tool call summary, release pipeline fixes. 873 OCaml tests, 16 Python tests.
+
+### CLI
+
+- **Streaming output**: LLM responses now stream token-by-token to stdout in real-time. The engine uses `stream_fn` with an internal accumulator that forwards chunks to the CLI while reconstructing the full `llm_response` for the ReAct loop (tool calls, finish_reason, usage).
+- **Tool call summary**: Prints `→ tool_name ✓ (Nms)` to stderr on tool completion, `→ tool_name ✗` on failure. Tracked per-task_id for correct parallel tool execution.
+- **`par upgrade` renamed to `par update`**: No alias, no `--check` flag. Clean break from the old name.
+- **Colored REPL prompt**: `par>` in bold cyan, agent responses in green, informational messages in dim. Respects `NO_COLOR` env var and non-TTY detection.
+
+### Providers
+
+- **Incremental SSE streaming**: Both OpenAI and Anthropic providers now use `Http_client.do_request_streaming` for real-time line-by-line parsing instead of buffering the entire response. Chunks fire to the callback as they arrive from the server.
+
+### Engine
+
+- **Tool event publishing**: Engine fires `Tool_invoked`, `Tool_completed`, and `Tool_failed` events with `task_id`, `tool_name`, and `duration_ms`. Observable via `?on_tool_event` on `Runtime.invoke` and `Engine.run_agent`.
+- **Streaming API**: `Engine.run_agent` and `Runtime.invoke` gain `?on_chunk:(llm_response_chunk -> unit)` for real-time streaming output.
+
+### HTTP
+
+- **`do_request_streaming`**: New function in `Http_client` that parses HTTP responses incrementally via `Eio.Buf_read`, supporting both chunked and non-chunked transfer encoding.
+- **Chunked encoding fix**: Chunk sizes are now always parsed as hexadecimal (HTTP spec), fixing a bug where pure-digit hex sizes like "200" were incorrectly interpreted as decimal.
+
+### Release Pipeline
+
+- **Release naming**: Binary assets use `par-v{version}-{platform}` format (e.g. `par-v0.3.5-linux-x64`).
+- **CI exclusion**: `par_postgres` excluded from CI dependency resolution (postgresql opam package not in standard repo).
+- **Release template**: `docs/RELEASE-TEMPLATE.md` provides per-platform install instructions for GitHub Release body.
+
 ## v0.3.4 (2026-06-07)
 
 > Release pipeline: multi-platform binaries, one-click install, self-upgrade, CI/CD workflows. 863 OCaml tests, 16 Python tests.
