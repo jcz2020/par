@@ -270,46 +270,59 @@ let stream t model_config tools conversation _stream_config callback =
         ~headers ~body
     in
     ( try
-        let raw = Http_client.do_request net url request in
-        let headers, raw_body = Http_client.split_response raw in
-        let status = Http_client.parse_status_line headers in
-        let resp_body = Http_client.decode_body headers raw_body in
-        if status <> 200 then Result.Error (http_error_to_error_category (Http_client.map_http_status status resp_body))
-        else begin
-          let chunks = ref 0 in
-          let usage = ref { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 } in
-          let finish = ref Stop in
-          let lines = String.split_on_char '\n' resp_body in
-          List.iter
-            (fun line ->
-              if String.starts_with ~prefix:"data: " line then begin
-                let data = String.sub line 6 (String.length line - 6) in
-                let data = String.trim data in
-                if data = "[DONE]" then ()
-                else
-                  try
-                    let json = Yojson.Safe.from_string data in
-                    let text_c, tool_c, finish_opt, usage_opt =
-                      parse_stream_delta json
-                    in
-                    ( match text_c with
-                    | Some chunk ->
-                      callback chunk;
-                      incr chunks
-                    | None -> () );
-                    ( match tool_c with
-                    | Some chunk ->
-                      callback chunk;
-                      incr chunks
-                    | None -> () );
-                    ( match finish_opt with Some f -> finish := f | None -> () );
-                    ( match usage_opt with Some u -> usage := u | None -> () )
-                  with _ -> ()
-              end)
-            lines;
-          Ok { final_usage = !usage; finish_reason = !finish; chunks_received = !chunks }
-        end
+        Http_client.do_request_streaming net url request
+          (fun ~status:_ ~headers:_ ~read_line ->
+            let chunks = ref 0 in
+            let usage =
+              ref { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 }
+            in
+            let finish = ref Stop in
+            let rec process_lines () =
+              match read_line () with
+              | None -> ()
+              | Some line ->
+                if String.starts_with ~prefix:"data: " line then begin
+                  let data =
+                    String.sub line 6 (String.length line - 6) |> String.trim
+                  in
+                  if data <> "[DONE]" then begin
+                    try
+                      let json = Yojson.Safe.from_string data in
+                      let text_c, tool_c, finish_opt, usage_opt =
+                        parse_stream_delta json
+                      in
+                      ( match text_c with
+                      | Some chunk ->
+                        callback chunk;
+                        incr chunks
+                      | None -> () );
+                      ( match tool_c with
+                      | Some chunk ->
+                        callback chunk;
+                        incr chunks
+                      | None -> () );
+                      ( match finish_opt with
+                      | Some f -> finish := f
+                      | None -> () );
+                      ( match usage_opt with
+                      | Some u -> usage := u
+                      | None -> () )
+                    with _ -> ()
+                  end
+                end;
+                process_lines ()
+            in
+            process_lines ();
+            Ok
+              { final_usage = !usage
+              ; finish_reason = !finish
+              ; chunks_received = !chunks
+              })
       with
+      | Http_client.Http_status_error (status, body) ->
+        Result.Error
+          (http_error_to_error_category
+             (Http_client.map_http_status status body))
       | Eio.Io _ -> Result.Error (External_failure "Network error during OpenAI stream")
       | Failure msg -> Result.Error (Invalid_input msg)
       | exn -> Result.Error (Internal (Printexc.to_string exn)) )

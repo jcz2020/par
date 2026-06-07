@@ -213,90 +213,63 @@ let parse_llm_response json : (llm_response, error_category) result =
 (* SSE parsing                                                           *)
 (* -------------------------------------------------------------------------- *)
 
-let parse_sse_lines resp_body =
-  let lines = String.split_on_char '\n' resp_body in
-  let events = ref [] in
-  let current_type = ref "" in
-  let current_data = ref "" in
-  List.iter
-    (fun line ->
-      if String.starts_with ~prefix:"event: " line then
-        current_type := String.sub line 7 (String.length line - 7)
-      else if String.starts_with ~prefix:"data: " line then
-        current_data := String.sub line 6 (String.length line - 6)
-      else if line = "" && !current_data <> "" then begin
-        events := (!current_type, !current_data) :: !events;
-        current_type := "";
-        current_data := ""
-      end
-      else ())
-    lines;
-  List.rev !events
-
-let parse_stream_events events callback =
-  let chunks = ref 0 in
-  let usage = ref { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 } in
-  let finish = ref Stop in
+let process_stream_event (evt_type, data_str) callback usage finish chunks =
   let open Yojson.Safe.Util in
-  List.iter
-    (fun (evt_type, data_str) ->
-      try
-        let json = Yojson.Safe.from_string data_str in
-        match evt_type with
-        | "message_start" ->
-          let msg = json |> member "message" in
-          let u = try parse_usage (msg |> member "usage") with _ -> !usage in
-          usage := u
-        | "content_block_start" ->
-          let block = json |> member "content_block" in
-          (try
-             let typ = block |> member "type" |> to_string in
-             if typ = "tool_use" then begin
-               let tc_id = block |> member "id" |> to_string in
-               let name = block |> member "name" |> to_string in
-               callback (Tool_call_start { tool_call_id = tc_id; name });
-               incr chunks
-             end
-           with _ -> ())
-        | "content_block_delta" ->
-          let delta = json |> member "delta" in
-          (try
-             let typ = delta |> member "type" |> to_string in
-             if typ = "text_delta" then begin
-               let txt = delta |> member "text" |> to_string in
-               callback (Text_delta { text = txt });
-               incr chunks
-             end
-           with _ -> ());
-          (try
-             let typ = delta |> member "type" |> to_string in
-             if typ = "input_json_delta" then begin
-               let args = delta |> member "partial_json" |> to_string in
-               callback (Tool_call_delta { tool_call_id = ""; args_json = args });
-               incr chunks
-             end
-           with _ -> ())
-        | "message_delta" ->
-          let delta = json |> member "delta" in
-          (try
-             let sr = delta |> member "stop_reason" |> to_string in
-             finish := parse_stop_reason sr
-           with _ -> ());
-          (try
-             let u = parse_usage (json |> member "usage") in
-             usage :=
-               { prompt_tokens = !usage.prompt_tokens + u.prompt_tokens
-               ; completion_tokens = !usage.completion_tokens + u.completion_tokens
-               ; total_tokens = !usage.total_tokens + u.total_tokens
-               }
-           with _ -> ())
-        | "message_stop" ->
-          callback (Done { finish_reason = !finish });
-          incr chunks
-        | _ -> ()
-      with _ -> ())
-    events;
-  (!usage, !finish, !chunks)
+  try
+    let json = Yojson.Safe.from_string data_str in
+    match evt_type with
+    | "message_start" ->
+      let msg = json |> member "message" in
+      let u = try parse_usage (msg |> member "usage") with _ -> !usage in
+      usage := u
+    | "content_block_start" ->
+      let block = json |> member "content_block" in
+      (try
+         let typ = block |> member "type" |> to_string in
+         if typ = "tool_use" then begin
+           let tc_id = block |> member "id" |> to_string in
+           let name = block |> member "name" |> to_string in
+           callback (Tool_call_start { tool_call_id = tc_id; name });
+           incr chunks
+         end
+       with _ -> ())
+    | "content_block_delta" ->
+      let delta = json |> member "delta" in
+      (try
+         let typ = delta |> member "type" |> to_string in
+         if typ = "text_delta" then begin
+           let txt = delta |> member "text" |> to_string in
+           callback (Text_delta { text = txt });
+           incr chunks
+         end
+       with _ -> ());
+      (try
+         let typ = delta |> member "type" |> to_string in
+         if typ = "input_json_delta" then begin
+           let args = delta |> member "partial_json" |> to_string in
+           callback (Tool_call_delta { tool_call_id = ""; args_json = args });
+           incr chunks
+         end
+       with _ -> ())
+    | "message_delta" ->
+      let delta = json |> member "delta" in
+      (try
+         let sr = delta |> member "stop_reason" |> to_string in
+         finish := parse_stop_reason sr
+       with _ -> ());
+      (try
+         let u = parse_usage (json |> member "usage") in
+         usage :=
+           { prompt_tokens = !usage.prompt_tokens + u.prompt_tokens
+           ; completion_tokens = !usage.completion_tokens + u.completion_tokens
+           ; total_tokens = !usage.total_tokens + u.total_tokens
+           }
+       with _ -> ())
+    | "message_stop" ->
+      callback (Done { finish_reason = !finish });
+      incr chunks
+    | _ -> ()
+  with _ -> ()
 
 (* -------------------------------------------------------------------------- *)
 (* LLM_SERVICE implementation                                            *)
@@ -343,16 +316,49 @@ let stream t model_config tools conversation _stream_config callback =
         ~headers ~body
     in
     ( try
-        let raw = Http_client.do_request net url request in
-        let headers, raw_body = Http_client.split_response raw in
-        let status = Http_client.parse_status_line headers in
-        let resp_body = Http_client.decode_body headers raw_body in
-        if status <> 200 then Result.Error (http_error_to_error_category (Http_client.map_http_status status resp_body))
-        else
-          let events = parse_sse_lines resp_body in
-          let usage, finish, chunks = parse_stream_events events callback in
-          Ok { final_usage = usage; finish_reason = finish; chunks_received = chunks }
+        Http_client.do_request_streaming net url request
+          (fun ~status:_ ~headers:_ ~read_line ->
+            let chunks = ref 0 in
+            let usage =
+              ref { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 }
+            in
+            let finish = ref Stop in
+            let current_type = ref "" in
+            let current_data = ref "" in
+            let rec process_lines () =
+              match read_line () with
+              | None ->
+                if !current_data <> "" then
+                  process_stream_event
+                    (!current_type, !current_data)
+                    callback usage finish chunks
+              | Some line ->
+                if String.starts_with ~prefix:"event: " line then
+                  current_type :=
+                    String.sub line 7 (String.length line - 7)
+                else if String.starts_with ~prefix:"data: " line then
+                  current_data :=
+                    String.sub line 6 (String.length line - 6)
+                else if line = "" && !current_data <> "" then begin
+                  process_stream_event
+                    (!current_type, !current_data)
+                    callback usage finish chunks;
+                  current_type := "";
+                  current_data := ""
+                end;
+                process_lines ()
+            in
+            process_lines ();
+            Ok
+              { final_usage = !usage
+              ; finish_reason = !finish
+              ; chunks_received = !chunks
+              })
       with
+      | Http_client.Http_status_error (status, body) ->
+        Result.Error
+          (http_error_to_error_category
+             (Http_client.map_http_status status body))
       | Eio.Io _ -> Result.Error (External_failure "Network error during Anthropic stream")
       | Failure msg -> Result.Error (Invalid_input msg)
       | exn -> Result.Error (Internal (Printexc.to_string exn)) )
