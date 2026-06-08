@@ -37,14 +37,26 @@ detect_platform() {
 resolve_version() {
   if [ "$VERSION" = "latest" ]; then
     local api_response
-    api_response=$(curl -fsSL "https://api.github.com/repos/$GITHUB_REPO/releases/latest" 2>/dev/null) \
-      || die "Failed to fetch release info from GitHub"
-    if command -v python3 >/dev/null 2>&1; then
-      VERSION=$(echo "$api_response" | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])" 2>/dev/null)
+    local api_url="https://api.github.com/repos/$GITHUB_REPO/releases/latest"
+    api_response=$(curl -fsSL -H "Accept: application/vnd.github+json" "$api_url" 2>/dev/null) || true
+    if [ -z "$api_response" ]; then
+      api_response=$(curl -fsSL -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/$GITHUB_REPO/tags?per_page=1" 2>/dev/null) || true
+      if [ -n "$api_response" ]; then
+        if command -v python3 >/dev/null 2>&1; then
+          VERSION=$(echo "$api_response" | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['name'])" 2>/dev/null) || true
+        else
+          VERSION=$(echo "$api_response" | grep '"name"' | head -1 | sed -E 's/.*"name"[[:space:]]*:[[:space:]]*"v([^"]+)".*/v\1/') || true
+        fi
+      fi
     else
-      VERSION=$(echo "$api_response" | grep '"tag_name"' | head -1 | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
+      if command -v python3 >/dev/null 2>&1; then
+        VERSION=$(echo "$api_response" | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])" 2>/dev/null) || true
+      else
+        VERSION=$(echo "$api_response" | grep '"tag_name"' | head -1 | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/') || true
+      fi
     fi
-    [ -n "$VERSION" ] || die "Failed to resolve latest version from GitHub"
+    [ -n "$VERSION" ] || die "Failed to resolve latest version from GitHub (rate limited? set PAR_INSTALL_VERSION manually)"
   fi
   echo "${VERSION#v}"
 }
