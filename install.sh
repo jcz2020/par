@@ -6,9 +6,9 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 NC='\033[0m'
 
-info()  { echo -e "${GREEN}[INFO]${NC} $*"; }
-warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
-die()   { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
+info()  { echo -e "${GREEN}[INFO]${NC} $*" >&2; }
+warn()  { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }
+die()   { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
 
 GITHUB_REPO="jcz2020/par"
 PREFIX="${PAR_INSTALL_PREFIX:-/usr/local}"
