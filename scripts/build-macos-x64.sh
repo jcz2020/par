@@ -1,8 +1,8 @@
 #!/bin/bash
 # PAR macOS-x64 release builder.
 # Clone, compile, upload in one command on Intel Mac.
-# Usage: bash scripts/build-macos-x64.sh vX.Y.Z
-# The version tag must match an existing GitHub Release (CI-built linux + arm64).
+# Usage: bash scripts/build-macos-x64.sh [vX.Y.Z]
+# No args = auto-detect latest release tag from GitHub.
 set -euo pipefail
 
 RED='\033[0;31m'
@@ -14,17 +14,23 @@ info()  { echo -e "${GREEN}[INFO]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 die()   { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 
-TAG="${1:?Usage: bash scripts/build-macos-x64.sh vX.Y.Z}"
+[[ "$(uname -s)" == "Darwin" ]] || die "macOS only"
+[[ "$(uname -m)" == "x86_64" ]] || die "Intel Mac only"
+command -v gh &>/dev/null || die "gh CLI required: brew install gh"
+gh auth status &>/dev/null || die "gh not authenticated: gh auth login"
+
+if [[ -n "${1:-}" ]]; then
+  TAG="$1"
+else
+  info "Auto-detecting latest release..."
+  TAG="$(gh release list --repo jcz2020/par --limit 1 --json tagName --jq '.[0].tagName')"
+  [[ -n "$TAG" ]] || die "No releases found"
+fi
+
 VERSION="${TAG#v}"
 BINARY="par-${TAG}-macos-x64"
 REPO="https://github.com/jcz2020/par.git"
 WORKDIR="/tmp/par-build-macos-x64"
-
-[[ "$(uname -s)" == "Darwin" ]] || die "macOS only"
-[[ "$(uname -m)" == "x86_64" ]] || die "Intel Mac only"
-
-command -v gh &>/dev/null || die "gh CLI required: brew install gh"
-gh auth status &>/dev/null || die "gh not authenticated: gh auth login"
 
 info "Building PAR $TAG for macOS-x64"
 
