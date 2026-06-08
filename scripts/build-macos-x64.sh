@@ -1,9 +1,8 @@
 #!/bin/bash
-# Build PAR macOS-x64 binary on Intel Mac.
-# Usage: bash scripts/build-macos-x64.sh [--upload]
-#   --upload  Upload binary and updated checksums to the latest GitHub Release.
-#
-# Prerequisites: opam, OCaml 5.4+, gh CLI (for --upload)
+# PAR macOS-x64 release builder.
+# Clone, compile, upload in one command on Intel Mac.
+# Usage: bash scripts/build-macos-x64.sh vX.Y.Z
+# The version tag must match an existing GitHub Release (CI-built linux + arm64).
 set -euo pipefail
 
 RED='\033[0;31m'
@@ -15,95 +14,76 @@ info()  { echo -e "${GREEN}[INFO]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 die()   { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 
-UPLOAD=false
-if [[ "${1:-}" == "--upload" ]]; then
-  UPLOAD=true
-fi
-
-# --- Preflight checks ---
-info "Preflight checks..."
-
-ARCH="$(uname -m)"
-if [[ "$ARCH" != "x86_64" ]]; then
-  die "This script builds macOS-x64 binaries. Current arch: $ARCH. Run on an Intel Mac."
-fi
-
-OS="$(uname -s)"
-if [[ "$OS" != "Darwin" ]]; then
-  die "This script is for macOS only. Current OS: $OS"
-fi
-
-command -v opam &>/dev/null || die "opam not found. Install from https://opam.ocaml.org/"
-command -v dune &>/dev/null || die "dune not found. Run 'opam install dune' first."
-
-eval "$(opam env 2>/dev/null || true)"
-
-OCAML_VERSION="$(ocaml --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+' || echo '0.0')"
-OCAML_MAJOR="${OCAML_VERSION%%.*}"
-OCAML_MINOR="${OCAML_VERSION#*.}"
-if [[ "$OCAML_MAJOR" -lt 5 ]] || { [[ "$OCAML_MAJOR" -eq 5 ]] && [[ "$OCAML_MINOR" -lt 4 ]]; }; then
-  die "OCaml 5.4+ required. Current: $(ocaml --version | head -1)"
-fi
-
-# --- Read version from dune-project ---
-VERSION="$(grep -oP '(?<=\(version ")[^"]+' dune-project 2>/dev/null || true)"
-if [[ -z "$VERSION" ]]; then
-  die "Cannot read version from dune-project. Run from repo root."
-fi
-TAG="v${VERSION}"
+TAG="${1:?Usage: bash scripts/build-macos-x64.sh vX.Y.Z}"
+VERSION="${TAG#v}"
 BINARY="par-${TAG}-macos-x64"
+REPO="https://github.com/jcz2020/par.git"
+WORKDIR="/tmp/par-build-macos-x64"
+
+[[ "$(uname -s)" == "Darwin" ]] || die "macOS only"
+[[ "$(uname -m)" == "x86_64" ]] || die "Intel Mac only"
+
+command -v gh &>/dev/null || die "gh CLI required: brew install gh"
+gh auth status &>/dev/null || die "gh not authenticated: gh auth login"
 
 info "Building PAR $TAG for macOS-x64"
 
-# --- Build ---
+# --- Cleanup previous run ---
+rm -rf "$WORKDIR"
+
+# --- Clone at tag ---
+info "Cloning $TAG..."
+git clone --branch "$TAG" --depth 1 "$REPO" "$WORKDIR"
+cd "$WORKDIR"
+
+# --- opam setup ---
+if ! command -v opam &>/dev/null; then
+  info "Installing opam..."
+  bash -c "sh <(curl -fsSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh)" </dev/null
+fi
+eval "$(opam env 2>/dev/null || true)"
+
+if ! ocaml --version 2>/dev/null | grep -qE '^OCaml 5\.[4-9]'; then
+  info "Setting up OCaml 5.4.0..."
+  opam init --disable-sandboxing -y 2>/dev/null || true
+  opam switch create . 5.4.0 -y
+  eval "$(opam env)"
+fi
+
+# --- Build (must match release.yml steps exactly) ---
 info "Installing dependencies..."
 opam install par_cli --deps-only -y
 
 info "Compiling..."
 opam exec -- dune build bin/main.exe
 
-if [[ ! -f _build/default/bin/main.exe ]]; then
-  die "Build failed — binary not found at _build/default/bin/main.exe"
-fi
+[[ -f _build/default/bin/main.exe ]] || die "Build failed"
 
-# --- Package ---
-info "Stripping and renaming binary..."
+info "Packaging..."
 cp -f _build/default/bin/main.exe "$BINARY"
 chmod +x "$BINARY"
-strip "$BINARY" 2>/dev/null || warn "strip failed (non-fatal)"
-
-info "Generating SHA-512 checksum..."
+strip "$BINARY" 2>/dev/null || true
 shasum -a 512 "$BINARY" > "${BINARY}.sha512"
 
 BINARY_SIZE="$(du -h "$BINARY" | cut -f1)"
 info "Built: $BINARY ($BINARY_SIZE)"
-info "Checksum: ${BINARY}.sha512"
 
 # --- Upload ---
-if [[ "$UPLOAD" == true ]]; then
-  command -v gh &>/dev/null || die "gh CLI not found. Install from https://cli.github.com/"
-  info "Uploading to GitHub Release $TAG..."
-  gh release upload "$TAG" "$BINARY" --clobber
-  info "Updating checksums file on release..."
+info "Uploading to GitHub Release $TAG..."
+gh release upload "$TAG" "$BINARY" --clobber
 
-  TMPDIR="$(mktemp -d)"
-  gh release download "$TAG" --pattern "sha512-checksums.txt" --dir "$TMPDIR" --clobber 2>/dev/null || true
-
-  if [[ -f "$TMPDIR/sha512-checksums.txt" ]]; then
-    grep -v "macos-x64" "$TMPDIR/sha512-checksums.txt" > "$TMPDIR/sha512-checksums-new.txt" || true
-  else
-    touch "$TMPDIR/sha512-checksums-new.txt"
-  fi
-  cat "${BINARY}.sha512" >> "$TMPDIR/sha512-checksums-new.txt"
-  gh release upload "$TAG" "$TMPDIR/sha512-checksums-new.txt" --clobber --name "sha512-checksums.txt"
-
-  rm -rf "$TMPDIR"
-  info "Upload complete!"
+info "Updating checksums..."
+TMP="$(mktemp -d)"
+if gh release download "$TAG" --pattern "sha512-checksums.txt" --dir "$TMP" --clobber 2>/dev/null; then
+  grep -v "macos-x64" "$TMP/sha512-checksums.txt" > "$TMP/new.txt" || true
+else
+  touch "$TMP/new.txt"
 fi
+cat "${BINARY}.sha512" >> "$TMP/new.txt"
+gh release upload "$TAG" "$TMP/new.txt" --clobber --name "sha512-checksums.txt"
+rm -rf "$TMP"
 
-echo ""
-info "Done. Next steps:"
-if [[ "$UPLOAD" == false ]]; then
-  info "  1. Verify: ./$BINARY --version"
-  info "  2. Upload: bash scripts/build-macos-x64.sh --upload"
-fi
+# --- Cleanup ---
+rm -rf "$WORKDIR"
+
+info "Done — $BINARY uploaded to release $TAG"
