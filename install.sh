@@ -49,6 +49,18 @@ resolve_version() {
   echo "${VERSION#v}"
 }
 
+sha512_checksum() {
+  if command -v sha512sum >/dev/null 2>&1; then
+    sha512sum "$1" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 512 "$1" | awk '{print $1}'
+  elif command -v openssl >/dev/null 2>&1; then
+    openssl dgst -sha512 "$1" | awk '{print $NF}'
+  else
+    die "No SHA-512 tool found (tried sha512sum, shasum, openssl)"
+  fi
+}
+
 download_binary() {
   local platform="$1"
   local ver="$2"
@@ -63,7 +75,7 @@ download_binary() {
   if curl -fsSL -o "$tmpdir/checksums.txt" "$checksum_url" 2>/dev/null; then
     local expected="$(grep "par-v${ver}-${platform}" "$tmpdir/checksums.txt" | awk '{print $1}')"
     if [ -n "$expected" ]; then
-      local actual="$(sha512sum "$tmpdir/par" | awk '{print $1}')"
+      local actual="$(sha512_checksum "$tmpdir/par")"
       if [ "$expected" != "$actual" ]; then
         rm -rf "$tmpdir"
         die "SHA-512 checksum mismatch!\n  expected: $expected\n  actual:   $actual"
