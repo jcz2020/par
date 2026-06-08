@@ -36,8 +36,14 @@ detect_platform() {
 
 resolve_version() {
   if [ "$VERSION" = "latest" ]; then
-    VERSION=$(curl -fsSL "https://api.github.com/repos/$GITHUB_REPO/releases/latest" \
-      | grep '"tag_name"' | head -1 | sed -E 's/.*"tag_name":\s*"([^"]+)".*/\1/')
+    local api_response
+    api_response=$(curl -fsSL "https://api.github.com/repos/$GITHUB_REPO/releases/latest" 2>/dev/null) \
+      || die "Failed to fetch release info from GitHub"
+    if command -v python3 >/dev/null 2>&1; then
+      VERSION=$(echo "$api_response" | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])" 2>/dev/null)
+    else
+      VERSION=$(echo "$api_response" | grep '"tag_name"' | head -1 | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
+    fi
     [ -n "$VERSION" ] || die "Failed to resolve latest version from GitHub"
   fi
   echo "${VERSION#v}"

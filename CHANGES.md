@@ -1,5 +1,21 @@
 # CHANGES
 
+## v0.4.0 (2026-06-09)
+
+> Python callback tools, bash interactive confirmation, structured output validation. 879 OCaml tests, 25 Python tests.
+
+### New Features
+
+- **Python `register_tool_with_handler`**: Register tools with Python callback handlers via C FFI bridge (`par_store_python_handler` + `caml_invoke_python_handler`). 5-arg ABI, backward compatible with existing 4-arg `par_register_tool`.
+- **Bash interactive confirmation**: `Bash_confirm` hook module with `confirm_policy` (`Always | Never | Dangerous_only`). Wired into CLI before logging hook.
+- **Structured output validation middleware**: `Output_validation` middleware validates tool output against `output_schema` on `tool_descriptor`. Wired into engine `execute_tool`.
+
+### Bug Fixes
+
+- **Fix Python FFI init**: `do_init` now wraps `Runtime.create` in `Eio_main.run` — previously silently failed because `Eio.Switch.run` requires a running scheduler.
+- **Fix Python test configs**: Field names updated to match OCaml types (`max_queue_size` → `buffer_capacity`, `grace_period_seconds` → `drain_timeout`, etc.).
+- **Fix hardcoded version**: `do_version` was hardcoded `"0.3.3"` — now uses `Par.Version.version`.
+
 ## v0.3.7 (2026-06-08)
 
 > CI fix: add `linenoise` dependency to `par_cli.opam`. 871 OCaml tests, 16 Python tests.
