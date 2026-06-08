@@ -53,11 +53,12 @@ eval "$(opam env 2>/dev/null || true)"
 if ! ocaml --version 2>/dev/null | grep -qE '^OCaml 5\.[4-9]'; then
   info "Setting up OCaml 5.4.0..."
   opam init --disable-sandboxing -y 2>/dev/null || true
-  opam switch create . 5.4.0 -y
+  opam switch create . ocaml-base-compiler.5.4.0 --no-install -y
   eval "$(opam env)"
 fi
 
 # --- Build (must match release.yml steps exactly) ---
+# Only install par_cli deps, skip par_postgres (libpq keg-only issue)
 info "Installing dependencies..."
 opam install par_cli --deps-only -y
 
