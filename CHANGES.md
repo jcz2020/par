@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.4.0 (2026-06-09)
+## v0.4.0-beta-20260609 (2026-06-09)
 
 > Python callback tools, bash interactive confirmation, structured output validation. 879 OCaml tests, 25 Python tests.
 
