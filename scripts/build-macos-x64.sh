@@ -91,7 +91,8 @@ else
   touch "$TMP/new.txt"
 fi
 cat "${BINARY}.sha512" >> "$TMP/new.txt"
-gh release upload "$TAG" "$TMP/new.txt" --clobber --name "sha512-checksums.txt"
+mv -f "$TMP/new.txt" "$TMP/sha512-checksums.txt"
+gh release upload "$TAG" "$TMP/sha512-checksums.txt" --clobber
 rm -rf "$TMP"
 
 # --- Cleanup ---
