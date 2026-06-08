@@ -87,6 +87,23 @@ let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
     progress (Printf.sprintf "Starting tool %s" descriptor.name);
     apply_before_tool middleware call (fun (call' : tool_call) ->
       let result = handler input token in
+      let result = match result with
+       | Success output ->
+        (match descriptor.output_schema with
+         | Some schema ->
+          (match Validation.validate_tool_input_result schema output with
+           | Ok () -> result
+           | Error category ->
+            Error {
+             category;
+             message = Printf.sprintf
+               "Tool '%s' output failed schema validation" descriptor.name;
+             retryable = false;
+             metadata = [("output_schema_violation", `Bool true)];
+            })
+         | None -> result)
+       | Error _ -> result
+      in
       (match result with
        | Success _ -> progress (Printf.sprintf "Tool %s succeeded" descriptor.name)
        | Error _ -> progress (Printf.sprintf "Tool %s failed" descriptor.name));

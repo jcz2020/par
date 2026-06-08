@@ -175,7 +175,8 @@ let make_runtime_config persistence_val parallel_tool_exec =
     shutdown = Runtime.default_shutdown_config;
     llm_providers = [];
     eval_limits = { max_depth = 10; max_node_visits = 1000 };
-    parallel_tool_execution = parallel_tool_exec; }
+    parallel_tool_execution = parallel_tool_exec;
+    bash_confirm = Runtime.default_bash_confirm; }
 
 (* -------------------------------------------------------------------------- *)
 (* Built-in tools                                                              *)
@@ -296,10 +297,12 @@ let setup_runtime cfg ~f =
           exit 1
         | Ok () ->
            Runtime.register_tool_call_hook rt
-             (fun (ctx : Hook.tool_call_context) ->
-               Printf.eprintf "  [%s]\n" ctx.Hook.tool_name;
-               flush stderr;
-               Hook.Allow);
+              (Bash_confirm.make_hook config.Types.bash_confirm);
+            Runtime.register_tool_call_hook rt
+              (fun (ctx : Hook.tool_call_context) ->
+                Printf.eprintf "  [%s]\n" ctx.Hook.tool_name;
+                flush stderr;
+                Hook.Allow);
            f rt;
            ignore (Runtime.close rt)))
 

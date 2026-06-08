@@ -18,6 +18,7 @@ let test_config : runtime_config = {
   llm_providers = [];
   eval_limits = { max_depth = 10; max_node_visits = 1000 };
   parallel_tool_execution = false;
+  bash_confirm = Par.Runtime.default_bash_confirm;
 }
 
 let make_rt_with_capture () =

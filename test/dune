@@ -199,6 +199,16 @@
  (modules test_providers)
  (action (run %{test})))
 
+(test
+ (name test_output_validation)
+ (libraries par alcotest)
+ (modules test_output_validation))
+
+(test
+ (name test_bash_confirm)
+ (libraries par alcotest)
+ (modules test_bash_confirm))
+
 (executable
  (name mcp_mock_server)
  (libraries eio_main yojson)

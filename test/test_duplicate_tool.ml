@@ -12,6 +12,7 @@ let test_config : runtime_config = {
   llm_providers = [];
   eval_limits = { max_depth = 10; max_node_visits = 1000 };
   parallel_tool_execution = true;
+  bash_confirm = default_bash_confirm;
 }
 
 let make_rt () =
@@ -62,6 +63,7 @@ let suite = [
         Types.name = "x";
         description = "x";
         input_schema = valid_schema;
+        output_schema = None;
         permission = Allow;
         timeout = None;
         concurrency_limit = None;

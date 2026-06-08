@@ -1,8 +1,9 @@
 """High-level Runtime class wrapping the PAR C FFI."""
+import ctypes
 import json
 from typing import Any, Optional
 
-from par_runtime._ffi import _lib, _c_str, _py_str
+from par_runtime._ffi import _lib, _c_str, _py_str, _PYTHON_TOOL_CALLBACK
 from par_runtime._errors import (
     PARError,
     PARInitError,
@@ -23,6 +24,8 @@ class Runtime:
     """
 
     __slots__ = ("_handle",)
+
+    _callbacks: dict = {}
 
     def __init__(self, config_json: str):
         """Initialize PAR runtime from JSON config string.
@@ -78,6 +81,47 @@ class Runtime:
         )
         if result != 0:
             raise PARToolError(f"Failed to register tool: {name}")
+
+    def register_tool_with_handler(self, name: str, description: str,
+                                   input_schema: str, handler) -> None:
+        """Register a tool with a Python callback handler.
+
+        Args:
+            name: Tool name.
+            description: Tool description.
+            input_schema: JSON Schema for tool input.
+            handler: Python callable (str) -> str that processes tool input
+                     JSON and returns output JSON.
+
+        Raises:
+            PARToolError: If registration fails.
+        """
+        self._check_handle()
+
+        def _wrapper(handler_id: int, input_json: bytes) -> bytes:
+            try:
+                result = handler(input_json.decode("utf-8"))
+                return result.encode("utf-8")
+            except Exception as e:
+                return json.dumps({"error": str(e)}).encode("utf-8")
+
+        c_callback = _PYTHON_TOOL_CALLBACK(_wrapper)
+
+        handler_id = len(Runtime._callbacks)
+        Runtime._callbacks[handler_id] = c_callback
+
+        _lib.par_store_python_handler(handler_id, c_callback)
+
+        result = _lib.par_register_tool_with_handler(
+            self._handle,
+            _c_str(name),
+            _c_str(description),
+            _c_str(input_schema),
+            handler_id,
+        )
+        if result != 0:
+            Runtime._callbacks.pop(handler_id, None)
+            raise PARToolError(f"Failed to register tool with handler: {name}")
 
     def register_agent(self, config_json: str) -> None:
         """Register an agent from JSON config.
@@ -242,44 +286,6 @@ class Runtime:
         rc = _lib.par_follow_up(self._handle, _c_str(message))
         if rc != 0:
             raise PARError(f"follow_up() failed with code {rc}")
-
-    def mcp_server(self, server_id: str) -> dict:
-        self._check_handle()
-        result_ptr = _lib.par_mcp_server(self._handle, _c_str(server_id))
-        result = _py_str(result_ptr)
-        parsed = json.loads(result)
-        if "error" in parsed:
-            raise PARError(parsed["error"])
-        return parsed
-
-    def mcp_list_tools(self, server_id: str) -> list:
-        self._check_handle()
-        result_ptr = _lib.par_mcp_list_tools(self._handle, _c_str(server_id))
-        result = _py_str(result_ptr)
-        parsed = json.loads(result)
-        if "error" in parsed:
-            raise PARError(parsed["error"])
-        return parsed.get("tools", [])
-
-    def workflow_status(self, run_id: str) -> dict:
-        self._check_handle()
-        result_ptr = _lib.par_workflow_status(self._handle, _c_str(run_id))
-        result = _py_str(result_ptr)
-        parsed = json.loads(result)
-        if "error" in parsed:
-            raise PARError(parsed["error"])
-        return parsed
-
-    def workflow_cancel(self, run_id: str) -> None:
-        self._check_handle()
-        rc = _lib.par_workflow_cancel(self._handle, _c_str(run_id))
-        if rc != 0:
-            raise PARWorkflowError(f"workflow_cancel({run_id}) failed")
-
-    @staticmethod
-    def version() -> str:
-        result_ptr = _lib.par_version()
-        return _py_str(result_ptr)
 
     def mcp_server(self, server_id: str) -> dict:
         """Query an MCP server's tools by server ID.

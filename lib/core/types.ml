@@ -185,6 +185,7 @@ type tool_descriptor = {
   name : string;
   description : string;
   input_schema : Yojson.Safe.t;
+  output_schema : Yojson.Safe.t option;
   permission : tool_permission;
   timeout : float option;
   concurrency_limit : int option;
@@ -529,10 +530,34 @@ type eval_limits = {
 [@@deriving yojson]
 
 (* -------------------------------------------------------------------------- *)
+(* Bash confirmation policy                                              *)
+(* -------------------------------------------------------------------------- *)
+
+type bash_confirm_policy = [
+  | `Always
+  | `Never
+  | `Pattern
+]
+[@@deriving yojson]
+
+type bash_confirm_config = {
+  default_policy : bash_confirm_policy;
+  patterns : (string * bash_confirm_policy) list;
+}
+[@@deriving yojson]
+
+let default_bash_confirm_config = {
+  default_policy = `Always;
+  patterns = [];
+}
+
+(* -------------------------------------------------------------------------- *)
 (* Runtime config                                                        *)
 (* -------------------------------------------------------------------------- *)
 
-type runtime_config = {
+(* `_runtime_config_base` exists so we can reuse the auto-derived yojson
+   codecs while still letting `bash_confirm` be optional on decode. *)
+type _runtime_config_base = {
   persistence : [ `Sqlite of string | `Postgresql of string ];
   event_bus : event_bus_config;
   default_quota : resource_quota;
@@ -542,6 +567,46 @@ type runtime_config = {
   parallel_tool_execution : bool;
 }
 [@@deriving yojson]
+
+type runtime_config = {
+  persistence : [ `Sqlite of string | `Postgresql of string ];
+  event_bus : event_bus_config;
+  default_quota : resource_quota;
+  shutdown : shutdown_config;
+  llm_providers : (string * llm_provider_config) list;
+  eval_limits : eval_limits;
+  parallel_tool_execution : bool;
+  bash_confirm : bash_confirm_config;
+}
+[@@deriving yojson]
+
+(* Override the derived decoder so that `bash_confirm` is optional:
+   configs that omit it (pre-T13, including the Python FFI and
+   `~/.par/config.json`) decode successfully with the safe default. *)
+let runtime_config_of_yojson (j : Yojson.Safe.t) :
+    (runtime_config, string) result =
+  let open Yojson.Safe.Util in
+  let bash_confirm =
+    match member "bash_confirm" j with
+    | `Null -> default_bash_confirm_config
+    | v ->
+      (match bash_confirm_config_of_yojson v with
+       | Ok cfg -> cfg
+       | Error _ -> default_bash_confirm_config)
+  in
+  match _runtime_config_base_of_yojson j with
+  | Ok base ->
+    Ok {
+      persistence = base.persistence;
+      event_bus = base.event_bus;
+      default_quota = base.default_quota;
+      shutdown = base.shutdown;
+      llm_providers = base.llm_providers;
+      eval_limits = base.eval_limits;
+      parallel_tool_execution = base.parallel_tool_execution;
+      bash_confirm;
+    }
+  | Error e -> Error e
 
 (* -------------------------------------------------------------------------- *)
 (* Service registry (module types)                                       *)

@@ -31,6 +31,8 @@ let valid_eval_limits = {
   max_node_visits = 1000;
 }
 
+let valid_bash_confirm = Types.default_bash_confirm_config
+
 let make_config ?(persistence = `Sqlite ":memory:") ?(llm_providers = []) () = {
   Types.persistence;
   event_bus = valid_event_bus;
@@ -39,6 +41,7 @@ let make_config ?(persistence = `Sqlite ":memory:") ?(llm_providers = []) () = {
   llm_providers;
   eval_limits = valid_eval_limits;
   parallel_tool_execution = true;
+  bash_confirm = valid_bash_confirm;
 }
 
 let suite = [

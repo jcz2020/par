@@ -13,7 +13,8 @@ let builtin_tools ~switch ~net =
               [("expression", `Assoc [("type", `String "string"); ("description", `String "Math expression to evaluate")])])
           ; ("required", `List [`String "expression"])
           ]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 5.0
       ; concurrency_limit = None
       ; on_update = None
@@ -88,7 +89,8 @@ let builtin_tools ~switch ~net =
       { name = "get_time"
       ; description = "Get the current date and time in UTC. Input: {}"
       ; input_schema = `Assoc [("type", `String "object"); ("properties", `Assoc [])]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 2.0
       ; concurrency_limit = None
       ; on_update = None
@@ -114,7 +116,8 @@ let builtin_tools ~switch ~net =
           ; ("properties", `Assoc [("text", `Assoc [("type", `String "string")])])
           ; ("required", `List [`String "text"])
           ]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 2.0
       ; concurrency_limit = None
       ; on_update = None
@@ -134,7 +137,8 @@ let builtin_tools ~switch ~net =
       { name = "generate_uuid"
       ; description = "Generate a random UUID v4. Input: {}"
       ; input_schema = `Assoc [("type", `String "object"); ("properties", `Assoc [])]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 1.0
       ; concurrency_limit = None
       ; on_update = None
@@ -160,7 +164,8 @@ let builtin_tools ~switch ~net =
               ])
           ; ("required", `List [`String "text"])
           ]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 2.0
       ; concurrency_limit = None
       ; on_update = None
@@ -194,7 +199,8 @@ let builtin_tools ~switch ~net =
               ; ("include_symbols", `Assoc [("type", `String "boolean"); ("description", `String "Include !@#$%^&* symbols (default true)")])
               ])
           ]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 1.0
       ; concurrency_limit = None
       ; on_update = None
@@ -231,7 +237,8 @@ let builtin_tools ~switch ~net =
           ; ("properties", `Assoc [("text", `Assoc [("type", `String "string"); ("description", `String "Text to analyze")])])
           ; ("required", `List [`String "text"])
           ]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 1.0
       ; concurrency_limit = None
       ; on_update = None
@@ -263,7 +270,8 @@ let builtin_tools ~switch ~net =
           ; ("properties", `Assoc [("json", `Assoc [("type", `String "string"); ("description", `String "JSON string to format")])])
           ; ("required", `List [`String "json"])
           ]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 2.0
       ; concurrency_limit = None
       ; on_update = None
@@ -296,7 +304,8 @@ let builtin_tools ~switch ~net =
               ])
           ; ("required", `List [`String "value"; `String "from"; `String "to"])
           ]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 1.0
       ; concurrency_limit = None
       ; on_update = None
@@ -345,7 +354,8 @@ let builtin_tools ~switch ~net =
               ])
           ; ("required", `List [`String "text"])
           ]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 1.0
       ; concurrency_limit = None
       ; on_update = None
@@ -464,7 +474,8 @@ let builtin_tools ~switch ~net =
               ])
           ; ("required", `List [`String "url"])
           ]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 15.0
       ; concurrency_limit = None
       ; on_update = None
@@ -512,7 +523,8 @@ let builtin_tools ~switch ~net =
               ])
           ; ("required", `List [`String "url"])
           ]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 15.0
       ; concurrency_limit = None
       ; on_update = None
@@ -576,7 +588,8 @@ let builtin_tools ~switch ~net =
               ])
           ; ("required", `List [`String "query"])
           ]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 15.0
       ; concurrency_limit = None
       ; on_update = None
@@ -669,7 +682,8 @@ let builtin_tools ~switch ~net =
               ])
           ; ("required", `List [`String "path"])
           ]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 30.0
       ; concurrency_limit = None
       ; on_update = None
@@ -744,7 +758,8 @@ let builtin_tools ~switch ~net =
               ])
           ; ("required", `List [`String "path"])
           ]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 10.0
       ; concurrency_limit = None
       ; on_update = None
@@ -836,7 +851,8 @@ let builtin_tools ~switch ~net =
               ])
           ; ("required", `List [`String "pattern"])
           ]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 30.0
       ; concurrency_limit = None
       ; on_update = None
@@ -928,7 +944,8 @@ let builtin_tools ~switch ~net =
               ])
           ; ("required", `List [`String "pattern"])
           ]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 30.0
       ; concurrency_limit = None
       ; on_update = None
@@ -1033,7 +1050,8 @@ let builtin_tools ~switch ~net =
               ])
           ; ("required", `List [`String "path"; `String "content"])
           ]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 30.0
       ; concurrency_limit = None
       ; on_update = None
@@ -1116,7 +1134,8 @@ let builtin_tools ~switch ~net =
               ])
           ; ("required", `List [`String "path"; `String "edits"])
           ]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 30.0
       ; concurrency_limit = None
       ; on_update = None
@@ -1220,7 +1239,8 @@ let builtin_tools ~switch ~net =
               ])
           ; ("required", `List [`String "argv"])
           ]
-      ; permission = Allow
+      ; output_schema = None
+ ; permission = Allow
       ; timeout = Some 60.0
       ; concurrency_limit = Some 4
       ; on_update = None

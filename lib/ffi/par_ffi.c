@@ -26,6 +26,29 @@ static char* caml_argv[] = { "par_ffi", NULL };
 static int ocaml_initialized = 0;
 static pthread_mutex_t ocaml_lock = PTHREAD_MUTEX_INITIALIZER;
 
+#define MAX_PYTHON_HANDLERS 256
+static par_tool_callback python_handler_table[MAX_PYTHON_HANDLERS];
+
+void par_store_python_handler(int handler_id, par_tool_callback fn) {
+    if (handler_id >= 0 && handler_id < MAX_PYTHON_HANDLERS) {
+        python_handler_table[handler_id] = fn;
+    }
+}
+
+value caml_invoke_python_handler(value v_handler_id, value v_input_json) {
+    int handler_id = Int_val(v_handler_id);
+    const char* input = String_val(v_input_json);
+    if (handler_id >= 0 && handler_id < MAX_PYTHON_HANDLERS && python_handler_table[handler_id] != NULL) {
+        char* result = python_handler_table[handler_id](handler_id, input);
+        if (result != NULL) {
+            value v_result = caml_copy_string(result);
+            free(result);
+            return v_result;
+        }
+    }
+    return caml_copy_string("");
+}
+
 static void ensure_initialized(void) {
     if (!ocaml_initialized) {
         caml_startup(caml_argv);
@@ -61,6 +84,12 @@ static value call4_exn(const char* name, value a1, value a2, value a3, value a4)
     const value* cb = lookup_cb(name);
     value args[4] = {a1, a2, a3, a4};
     return caml_callbackN_exn(*cb, 4, args);
+}
+
+static value call5_exn(const char* name, value a1, value a2, value a3, value a4, value a5) {
+    const value* cb = lookup_cb(name);
+    value args[5] = {a1, a2, a3, a4, a5};
+    return caml_callbackN_exn(*cb, 5, args);
 }
 
 static char* extract_string(value v) {
@@ -122,6 +151,27 @@ int par_register_tool(par_runtime_t* rt, const char* name,
     pthread_mutex_lock(&ocaml_lock);
     value result = call4_exn("par_register_tool", rt->_ocaml_value,
                              c_name, c_desc, c_schema);
+    int is_exc = Is_exception_result(result);
+    int rc = is_exc ? -1 : Int_val(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return rc;
+}
+
+/* Register a tool with a Python callback handler.
+ * handler_id maps to a callback in the handler table managed by par_capi.ml.
+ * Returns: 0 on success, negative on error (same codes as par_register_tool). */
+int par_register_tool_with_handler(par_runtime_t* rt, const char* name,
+                                    const char* description,
+                                    const char* input_schema,
+                                    int handler_id) {
+    value c_name = caml_copy_string(name);
+    value c_desc = caml_copy_string(description);
+    value c_schema = caml_copy_string(input_schema);
+    value c_hid = Val_int(handler_id);
+
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call5_exn("par_register_tool_with_handler", rt->_ocaml_value,
+                              c_name, c_desc, c_schema, c_hid);
     int is_exc = Is_exception_result(result);
     int rc = is_exc ? -1 : Int_val(result);
     pthread_mutex_unlock(&ocaml_lock);

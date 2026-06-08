@@ -6,7 +6,7 @@
     Tool_registry, Openai_provider, Anthropic_provider,
      Sqlite_persistence, Noop_persistence,
      Event_bus, Builtin_tools,
-    Logging, Retry, Rate_limit, Timeout, Arg_validation, Pii_mask,
+    Logging, Retry, Rate_limit, Timeout, Arg_validation, Output_validation, Pii_mask,
     Sanitize_tool_output. JSON Schema validation lives in [Validation]. *)
 
 module Types = Types
@@ -37,12 +37,14 @@ module Builtin_tools = Builtin_tools
 module Bash_safe_command = Bash_safe_command
 module Bash_blacklist = Bash_blacklist
 module Bash_policy = Bash_policy
+module Bash_confirm = Bash_confirm
 
 module Logging = Logging
 module Retry = Retry
 module Rate_limit = Rate_limit
 module Timeout = Timeout
 module Arg_validation = Arg_validation
+module Output_validation = Output_validation
 module Validation = Validation
 module Pii_mask = Pii_mask
 module Sanitize_tool_output = Sanitize_tool_output

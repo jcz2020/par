@@ -82,9 +82,9 @@ let suite = [
     | Error _ -> ());
 
   Alcotest.test_case "duplicate tool names rejected" `Quick (fun () ->
-    let tool_a = { name = "dup"; description = ""; input_schema = `Assoc [];
+    let tool_a = { name = "dup"; description = ""; input_schema = `Assoc []; output_schema = None;
                    permission = Allow; timeout = None; concurrency_limit = None; on_update = None } in
-    let tool_b = { name = "dup"; description = ""; input_schema = `Assoc [];
+    let tool_b = { name = "dup"; description = ""; input_schema = `Assoc []; output_schema = None;
                    permission = Allow; timeout = None; concurrency_limit = None; on_update = None } in
     match Runtime.make_agent
       ~id:"a"
@@ -98,7 +98,7 @@ let suite = [
     | Error _ -> Alcotest.fail "wrong error type");
 
   Alcotest.test_case "empty tool name rejected" `Quick (fun () ->
-    let bad_tool = { name = ""; description = ""; input_schema = `Assoc [];
+    let bad_tool = { name = ""; description = ""; input_schema = `Assoc []; output_schema = None;
                      permission = Allow; timeout = None; concurrency_limit = None; on_update = None } in
     match Runtime.make_agent
       ~id:"a"
@@ -119,6 +119,7 @@ let suite = [
           llm_providers = [];
           eval_limits = { max_depth = 10; max_node_visits = 1000 };
   parallel_tool_execution = true;
+          bash_confirm = Par.Runtime.default_bash_confirm;
         } in
         match Par.Runtime.create ~config:cfg sw with
         | Error _ -> Alcotest.fail "create failed"
