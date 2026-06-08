@@ -58,7 +58,10 @@ if ! ocaml --version 2>/dev/null | grep -qE '^OCaml 5\.[4-9]'; then
 fi
 
 # --- Build (must match release.yml steps exactly) ---
-# Only install par_cli deps, skip par_postgres (libpq keg-only issue)
+info "Pinning packages (skip par_postgres)..."
+opam pin add par . --no-action -y
+opam pin add par_cli . --no-action -y
+
 info "Installing dependencies..."
 opam install par_cli --deps-only -y
 
