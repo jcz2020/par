@@ -56,10 +56,12 @@ let do_init (config_json : string) =
       | Ok c -> c
       | Error s -> failwith (Printf.sprintf "Invalid config JSON: %s" s)
     in
-    let rt = Eio.Switch.run (fun sw ->
-      match Par.Runtime.create ~config sw with
-      | Ok r -> r
-      | Error _ -> failwith "Runtime.create failed"
+    let rt = Eio_main.run (fun _env ->
+      Eio.Switch.run (fun sw ->
+        match Par.Runtime.create ~config sw with
+        | Ok r -> r
+        | Error _ -> failwith "Runtime.create failed"
+      )
     ) in
     let handle = { rt } in
     let id = alloc_handle handle in
@@ -111,6 +113,55 @@ let do_register_tool (id : int) (name : string) (desc : string) (schema : string
                 | Error _ -> Obj.repr (-4))
           | _ -> Obj.repr (-2))
        with
+        | Yojson.Json_error _ -> Obj.repr (-2)
+        | _ -> Obj.repr (-1))
+
+external c_invoke_python_handler : int -> string -> string = "caml_invoke_python_handler"
+
+let do_register_tool_with_handler (id : int) (name : string) (desc : string)
+    (schema : string) (handler_id : int) =
+  match get_handle id with
+  | None -> Obj.repr (-1)
+  | Some handle ->
+    if String.length name = 0 then Obj.repr (-3)
+    else
+      (try
+         let json_schema = Yojson.Safe.from_string schema in
+         (match json_schema with
+          | `Assoc _ ->
+             if Par.Tool_registry.resolve (Par.Runtime.tool_registry handle.rt) name <> None
+             then Obj.repr (-4)
+             else
+                let handler_fn input _token =
+                  let input_str = Yojson.Safe.to_string input in
+                  let result_str = c_invoke_python_handler handler_id input_str in
+                  let open Par.Types in
+                  if String.length result_str = 0 then
+                    Error {
+                      category = Internal "python handler returned empty";
+                      message = Printf.sprintf "Python handler %d returned empty" handler_id;
+                      retryable = false;
+                      metadata = [];
+                    }
+                  else
+                    (try Success (Yojson.Safe.from_string result_str)
+                     with _ ->
+                       Error {
+                         category = Internal "invalid JSON from Python handler";
+                         message = "Python handler returned invalid JSON";
+                         retryable = false;
+                         metadata = [];
+                       })
+               in
+               (match Par.Runtime.register_tool handle.rt
+                  ~name ~description:desc
+                  ~input_schema:json_schema
+                  ~handler:handler_fn
+                  () with
+                | Ok _ -> Obj.repr 0
+                | Error _ -> Obj.repr (-4))
+          | _ -> Obj.repr (-2))
+       with
        | Yojson.Json_error _ -> Obj.repr (-2)
        | _ -> Obj.repr (-1))
 
@@ -148,7 +199,7 @@ let parse_tool_descriptor (json : Yojson.Safe.t) : Par.Types.tool_descriptor =
   let permission = Par.Types.Allow in
   let timeout = json |> member "timeout" |> to_float_option in
   let concurrency_limit = json |> member "concurrency_limit" |> to_int_option in
-  { name; description; input_schema; permission; timeout; concurrency_limit; on_update = None }
+  { name; description; input_schema; output_schema = None; permission; timeout; concurrency_limit; on_update = None }
 
 let parse_resource_quota (json : Yojson.Safe.t) : Par.Types.resource_quota =
   let open Yojson.Safe.Util in
@@ -330,7 +381,7 @@ let do_workflow_cancel (id : int) (_run_id : string) : int =
 
 let do_event_subscribe (_id : int) (_cb : int) : int = -1
 
-let do_version () : string = "0.3.3"
+ let do_version () : string = Par.Version.version
 
 let () =
   Callback.register "par_init" (fun (config_json : string) ->
@@ -346,6 +397,12 @@ let () =
     (fun (rt_val : Obj.t) (name : string) (desc : string) (schema : string) ->
       let id = Obj.magic rt_val in
       do_register_tool id name desc schema)
+
+let () =
+  Callback.register "par_register_tool_with_handler"
+    (fun (rt_val : Obj.t) (name : string) (desc : string) (schema : string) (handler_id : int) ->
+      let id = Obj.magic rt_val in
+      do_register_tool_with_handler id name desc schema handler_id)
 
 let () =
   Callback.register "par_register_agent"

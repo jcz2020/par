@@ -26,12 +26,32 @@ from par_runtime import (
 
 def _test_config():
     return json.dumps({
-        "persistence": {"tag": "sqlite", "contents": ":memory:"},
-        "event_bus": {"max_queue_size": 10, "dlq_enabled": False, "dlq_max_size": 5},
-        "default_quota": {"max_tokens": 1024, "max_iterations": 5, "timeout_seconds": 5.0},
-        "shutdown": {"grace_period_seconds": 1.0, "force_after_seconds": 2.0},
+        "persistence": ["Sqlite", ":memory:"],
+        "event_bus": {
+            "buffer_capacity": 10,
+            "delivery": {
+                "max_delivery_attempts": 3,
+                "initial_retry_delay": 0.1,
+                "retry_backoff": ["Fixed", 0.5],
+                "delivery_timeout": 5.0,
+            },
+            "dlq_enabled": False,
+            "critical_event_types": [],
+        },
+        "default_quota": {
+            "max_concurrent_tasks": 4,
+            "max_concurrent_tools_per_agent": 2,
+            "max_tokens_per_turn": None,
+            "max_total_tokens": None,
+        },
+        "shutdown": {
+            "drain_timeout": 5.0,
+            "cancel_grace_period": 2.0,
+            "flush_batch_size": 100,
+        },
         "llm_providers": [],
         "eval_limits": {"max_depth": 10, "max_node_visits": 1000},
+        "parallel_tool_execution": True,
     })
 
 

@@ -54,7 +54,7 @@ let with_switch f =
     Eio.Switch.run f)
 
 let dummy_tool ?(name = "test_tool") handler =
-  let descriptor = { name; description = "A test tool"; input_schema = `Assoc [];
+  let descriptor = { name; description = "A test tool"; input_schema = `Assoc []; output_schema = None;
     permission = Allow; timeout = None; concurrency_limit = None; on_update = None } in
   { descriptor; handler }
 
@@ -587,7 +587,8 @@ let runtime_config () : runtime_config =
     shutdown = Runtime.default_shutdown_config;
     llm_providers = [];
     eval_limits = { max_depth = 10; max_node_visits = 1000 };
-    parallel_tool_execution = true }
+    parallel_tool_execution = true;
+    bash_confirm = Runtime.default_bash_confirm; }
 
 let dummy_workflow ?(id = "wf-test") ?(name = "Workflow Test")
                    ?(steps : workflow_step = Sequential [])

@@ -25,6 +25,7 @@ let test_config : Types.runtime_config = {
   llm_providers = [];
   eval_limits = { max_depth = 10; max_node_visits = 1000 };
   parallel_tool_execution = true;
+  bash_confirm = Runtime.default_bash_confirm;
 }
 
 let make_runtime ?bash_policy () =

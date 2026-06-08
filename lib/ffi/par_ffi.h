@@ -18,6 +18,13 @@ void           par_shutdown(par_runtime_t* rt);
 /* Tool registration */
 int par_register_tool(par_runtime_t* rt, const char* name,
                       const char* description, const char* input_schema);
+int par_register_tool_with_handler(par_runtime_t* rt, const char* name,
+                                    const char* description,
+                                    const char* input_schema,
+                                    int handler_id);
+
+typedef char* (*par_tool_callback)(int handler_id, const char* input_json);
+void par_store_python_handler(int handler_id, par_tool_callback fn);
 
 /* Agent registration */
 int par_register_agent(par_runtime_t* rt, const char* config_json);

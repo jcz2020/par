@@ -169,6 +169,7 @@ type tool_descriptor = {
   name : string;
   description : string;
   input_schema : Yojson.Safe.t;
+  output_schema : Yojson.Safe.t option;
   permission : tool_permission;
   timeout : float option;
   concurrency_limit : int option;
@@ -471,6 +472,25 @@ type eval_limits = {
 [@@deriving yojson]
 
 (* -------------------------------------------------------------------------- *)
+(* Bash confirmation policy                                              *)
+(* -------------------------------------------------------------------------- *)
+
+type bash_confirm_policy = [
+  | `Always
+  | `Never
+  | `Pattern
+]
+[@@deriving yojson]
+
+type bash_confirm_config = {
+  default_policy : bash_confirm_policy;
+  patterns : (string * bash_confirm_policy) list;
+}
+[@@deriving yojson]
+
+val default_bash_confirm_config : bash_confirm_config
+
+(* -------------------------------------------------------------------------- *)
 (* Runtime config                                                        *)
 (* -------------------------------------------------------------------------- *)
 
@@ -482,6 +502,7 @@ type runtime_config = {
   llm_providers : (string * llm_provider_config) list;
   eval_limits : eval_limits;
   parallel_tool_execution : bool;
+  bash_confirm : bash_confirm_config;
 }
 [@@deriving yojson]
 

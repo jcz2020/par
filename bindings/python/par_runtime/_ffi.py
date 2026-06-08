@@ -49,6 +49,20 @@ _lib.par_register_tool.argtypes = [
 ]
 _lib.par_register_tool.restype = ctypes.c_int
 
+# int par_register_tool_with_handler(par_runtime_t* rt, const char* name,
+#                                     const char* description, const char* input_schema,
+#                                     int handler_id);
+_lib.par_register_tool_with_handler.argtypes = [
+    ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int
+]
+_lib.par_register_tool_with_handler.restype = ctypes.c_int
+
+# void par_store_python_handler(int handler_id, par_tool_callback fn);
+# par_tool_callback = char* (*)(int handler_id, const char* input_json)
+_PYTHON_TOOL_CALLBACK = ctypes.CFUNCTYPE(ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p)
+_lib.par_store_python_handler.argtypes = [ctypes.c_int, _PYTHON_TOOL_CALLBACK]
+_lib.par_store_python_handler.restype = None
+
 # int par_register_agent(par_runtime_t* rt, const char* config_json);
 _lib.par_register_agent.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_register_agent.restype = ctypes.c_int
@@ -85,30 +99,6 @@ _lib.par_steer.restype = ctypes.c_int
 # int par_follow_up(par_runtime_t* rt, const char* message);
 _lib.par_follow_up.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_follow_up.restype = ctypes.c_int
-
-# char* par_mcp_server(par_runtime_t* rt, const char* server_id);
-_lib.par_mcp_server.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
-_lib.par_mcp_server.restype = ctypes.c_void_p
-
-# char* par_mcp_list_tools(par_runtime_t* rt, const char* server_id);
-_lib.par_mcp_list_tools.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
-_lib.par_mcp_list_tools.restype = ctypes.c_void_p
-
-# char* par_workflow_status(par_runtime_t* rt, const char* run_id);
-_lib.par_workflow_status.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
-_lib.par_workflow_status.restype = ctypes.c_void_p
-
-# int par_workflow_cancel(par_runtime_t* rt, const char* run_id);
-_lib.par_workflow_cancel.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
-_lib.par_workflow_cancel.restype = ctypes.c_int
-
-# int par_event_subscribe(par_runtime_t* rt, void* callback);
-_lib.par_event_subscribe.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
-_lib.par_event_subscribe.restype = ctypes.c_int
-
-# char* par_version(void);
-_lib.par_version.argtypes = []
-_lib.par_version.restype = ctypes.c_void_p
 
 # char* par_mcp_server(par_runtime_t* rt, const char* server_id);
 _lib.par_mcp_server.argtypes = [ctypes.c_void_p, ctypes.c_char_p]

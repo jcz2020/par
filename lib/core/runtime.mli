@@ -5,6 +5,7 @@ type runtime
 val default_event_bus_config : event_bus_config
 val default_shutdown_config : shutdown_config
 val default_quota : resource_quota
+val default_bash_confirm : bash_confirm_config
 
 val create :
   ?persistence:persistence_service ->
@@ -55,6 +56,7 @@ val register_tool :
   description:string ->
   input_schema:Yojson.Safe.t ->
   handler:Tool_registry.handler_fn ->
+  ?output_schema:Yojson.Safe.t ->
   ?permission:tool_permission ->
   ?timeout:float ->
   ?concurrency_limit:int ->

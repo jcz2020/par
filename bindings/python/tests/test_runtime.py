@@ -13,26 +13,35 @@ from par_runtime._ffi import _lib
 
 def _test_config():
     return json.dumps({
-        "persistence": {"tag": "sqlite", "contents": ":memory:"},
+        "persistence": ["Sqlite", ":memory:"],
         "event_bus": {
-            "max_queue_size": 10,
+            "buffer_capacity": 10,
+            "delivery": {
+                "max_delivery_attempts": 3,
+                "initial_retry_delay": 0.1,
+                "retry_backoff": ["Fixed", 0.5],
+                "delivery_timeout": 5.0,
+            },
             "dlq_enabled": False,
-            "dlq_max_size": 5,
+            "critical_event_types": [],
         },
         "default_quota": {
-            "max_tokens": 1024,
-            "max_iterations": 5,
-            "timeout_seconds": 5.0,
+            "max_concurrent_tasks": 4,
+            "max_concurrent_tools_per_agent": 2,
+            "max_tokens_per_turn": None,
+            "max_total_tokens": None,
         },
         "shutdown": {
-            "grace_period_seconds": 1.0,
-            "force_after_seconds": 2.0,
+            "drain_timeout": 5.0,
+            "cancel_grace_period": 2.0,
+            "flush_batch_size": 100,
         },
         "llm_providers": [],
         "eval_limits": {
             "max_depth": 10,
             "max_node_visits": 1000,
         },
+        "parallel_tool_execution": True,
     })
 
 
@@ -159,6 +168,22 @@ class TestWorkflowMethods(unittest.TestCase):
         with self.assertRaises(PARWorkflowError):
             rt.workflow_cancel("nonexistent")
         rt.close()
+
+
+class TestToolRegistrationWithHandler(unittest.TestCase):
+    def test_register_tool_with_handler(self):
+        with Runtime(_test_config()) as rt:
+            def echo_handler(input_json: str) -> str:
+                return input_json
+            rt.register_tool_with_handler("echo_cb", "Echo with callback", '{"type": "object"}', echo_handler)
+
+    def test_register_tool_with_handler_duplicate_raises(self):
+        with Runtime(_test_config()) as rt:
+            def handler(input_json: str) -> str:
+                return input_json
+            rt.register_tool_with_handler("dup_tool", "First", '{"type": "object"}', handler)
+            with self.assertRaises(PARToolError):
+                rt.register_tool_with_handler("dup_tool", "Duplicate", '{"type": "object"}', handler)
 
 
 if __name__ == "__main__":

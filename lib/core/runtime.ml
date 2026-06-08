@@ -63,6 +63,8 @@ let default_quota = {
   max_total_tokens = None;
 }
 
+let default_bash_confirm = Types.default_bash_confirm_config
+
 let make_agent ~id ?(system_prompt = "") ?(system_prompt_template = None)
     ~model ?(tools = []) ?(max_iterations = 10)
     ?(middleware = []) ?(retry_policy = None)
@@ -110,8 +112,8 @@ let register_agent rt (agent : agent_config) =
   | Result.Error e -> Result.Error e
 
 let register_tool rt ~name ~description ~input_schema ~handler
-    ?(permission = Allow) ?timeout ?concurrency_limit ?(on_update = None) () =
-  let descriptor = { Types.name; description; input_schema; permission; timeout; concurrency_limit; on_update } in
+    ?output_schema ?(permission = Allow) ?timeout ?concurrency_limit ?(on_update = None) () =
+  let descriptor = { Types.name; description; input_schema; output_schema; permission; timeout; concurrency_limit; on_update } in
   match Tool_registry.register rt.tool_registry descriptor handler with
   | Error (`Duplicate_tool n) ->
     Result.Error (Types.Invalid_input (Printf.sprintf "Tool already registered: %s" n))
@@ -311,6 +313,7 @@ let install_bash_tool ?process_mgr ?clock rt =
               ("description", `String "Max seconds; default = 30");
               ("minimum", `Float 0.0)])]);
           ("required", `List [`String "argv"])];
+        output_schema = None;
         permission = Types.Allow;
         timeout = Some 60.0;
         concurrency_limit = Some 4;
