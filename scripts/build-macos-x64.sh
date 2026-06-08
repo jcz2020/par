@@ -44,8 +44,9 @@ cd "$WORKDIR"
 
 # --- opam setup ---
 if ! command -v opam &>/dev/null; then
-  info "Installing opam..."
-  bash -c "sh <(curl -fsSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh)" </dev/null
+  info "Installing opam via Homebrew..."
+  command -v brew &>/dev/null || die "Homebrew required: https://brew.sh"
+  brew install opam
 fi
 eval "$(opam env 2>/dev/null || true)"
 
