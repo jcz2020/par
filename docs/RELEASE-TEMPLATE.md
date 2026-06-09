@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-# PAR v0.3.5
+# PAR __VERSION__
 
 > **Before using a release binary on macOS:** the binary is unsigned, so macOS
 > Gatekeeper will refuse to launch it. After installing, run
@@ -23,14 +23,14 @@ to `/usr/local/bin/par` (override with `PAR_INSTALL_PREFIX=~/.local`).
 To pin a specific version instead of the latest:
 
 ```bash
-PAR_INSTALL_VERSION=v0.3.5 \
+PAR_INSTALL_VERSION=__VERSION__ \
   curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
 ```
 
 ### Upgrade an existing install
 
 ```bash
-par upgrade
+par update
 ```
 
 This fetches the latest release, verifies the checksum, and atomically
@@ -77,23 +77,21 @@ runtime, and installs the `par` binary to `/usr/local/bin/par`.
 par --version
 ```
 
-Should print `par 0.3.5` (or later for `par upgrade` users).
-
 ## Assets
 
-This release ships three binaries plus a checksum file:
+This release ships binaries plus a checksum file:
 
 | Asset | Platform |
 |-------|----------|
-| `par-v0.3.5-linux-x64` | Linux x86_64 (Ubuntu, Debian, Fedora, Arch, Alpine) |
-| `par-v0.3.5-macos-arm64` | macOS 15+ on Apple Silicon |
-| `par-v0.3.5-macos-x64` | macOS 13+ on Intel |
-| `sha512-checksums.txt` | SHA-512 digests for all three binaries |
+| `par-__VERSION__-linux-x64` | Linux x86_64 (Ubuntu, Debian, Fedora, Arch, Alpine) |
+| `par-__VERSION__-macos-arm64` | macOS 15+ on Apple Silicon |
+| `par-__VERSION__-macos-x64` | macOS 13+ on Intel (manual build) |
+| `sha512-checksums.txt` | SHA-512 digests for all binaries |
 
 To verify a downloaded binary manually:
 
 ```bash
-sha512sum -c <(grep par-v0.3.5-linux-x64 sha512-checksums.txt)
+sha512sum -c <(grep par-__VERSION__-linux-x64 sha512-checksums.txt)
 ```
 
 ## Links

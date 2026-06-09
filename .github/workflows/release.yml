@@ -62,11 +62,14 @@ jobs:
         working-directory: artifacts
         run: sha512sum par-${{ github.ref_name }}-* > sha512-checksums.txt
 
+      - name: Render release notes
+        run: sed "s/__VERSION__/${{ github.ref_name }}/g" docs/RELEASE-TEMPLATE.md > release-notes.md
+
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
-          body_path: docs/RELEASE-TEMPLATE.md
+          body_path: release-notes.md
           generate_release_notes: true
           files: |
             artifacts/par-${{ github.ref_name }}-linux-x64
