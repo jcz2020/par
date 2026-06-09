@@ -119,26 +119,26 @@ class TestVersion(unittest.TestCase):
     def test_version_format(self):
         v = Runtime.version()
         import re
-        self.assertTrue(re.match(r"^\d+\.\d+\.\d+$", v))
+        # Accept strict semver (X.Y.Z) and beta tags (X.Y.Z-beta-YYYYMMDD).
+        self.assertTrue(re.match(r"^\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$", v),
+                        f"unexpected version format: {v!r}")
 
 
 class TestHealthMetrics(unittest.TestCase):
-    @unittest.skip("health/metrics callbacks fail with 'Invalid runtime handle' — needs Eio_main.run in do_init")
     def test_health_returns_json(self):
         rt = Runtime(_test_config())
         h = rt.health()
-        self.assertIsInstance(h, str)
-        parsed = json.loads(h)
-        self.assertEqual(parsed["status"], "ok")
+        self.assertIsInstance(h, dict)
+        self.assertEqual(h.get("status"), "ok")
+        self.assertTrue(h.get("runtime_alive"))
         rt.close()
 
-    @unittest.skip("health/metrics callbacks fail with 'Invalid runtime handle' — needs Eio_main.run in do_init")
     def test_metrics_returns_json(self):
         rt = Runtime(_test_config())
         m = rt.metrics()
-        self.assertIsInstance(m, str)
-        parsed = json.loads(m)
-        self.assertEqual(parsed["status"], "ok")
+        self.assertIsInstance(m, dict)
+        # Wrapper exposes the metrics counters directly
+        self.assertIn("llm_requests_total", m)
         rt.close()
 
 

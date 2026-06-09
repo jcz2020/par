@@ -327,32 +327,37 @@ let stream t model_config tools conversation _stream_config callback =
             let usage =
               ref { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 }
             in
-            let finish = ref Stop in
-            let current_type = ref "" in
-            let current_data = ref "" in
-            let current_tc_id = ref "" in
-            let rec process_lines () =
-              match read_line () with
-              | None ->
-                if !current_data <> "" then
-                  process_stream_event
-                    (!current_type, !current_data)
-                    callback usage finish chunks current_tc_id
-              | Some line ->
-                if String.starts_with ~prefix:"event: " line then
-                  current_type :=
-                    String.sub line 7 (String.length line - 7)
-                else if String.starts_with ~prefix:"data: " line then
-                  current_data :=
-                    String.sub line 6 (String.length line - 6)
-                else if line = "" && !current_data <> "" then begin
-                  process_stream_event
-                    (!current_type, !current_data)
-                    callback usage finish chunks current_tc_id;
-                  current_type := "";
-                  current_data := ""
-                end;
-                process_lines ()
+             let finish = ref Stop in
+             let current_type = ref "" in
+             let current_data = ref "" in
+             let current_tc_id = ref "" in
+             let stop = ref false in
+             let rec process_lines () =
+               if !stop then ()
+               else
+                 match read_line () with
+                 | None ->
+                   if !current_data <> "" then
+                     process_stream_event
+                       (!current_type, !current_data)
+                       callback usage finish chunks current_tc_id
+                 | Some line ->
+                   if String.starts_with ~prefix:"event: " line then begin
+                     let evt = String.sub line 7 (String.length line - 7) in
+                     current_type := evt;
+                     if evt = "message_stop" then stop := true
+                   end
+                   else if String.starts_with ~prefix:"data: " line then
+                     current_data :=
+                       String.sub line 6 (String.length line - 6)
+                   else if line = "" && !current_data <> "" then begin
+                     process_stream_event
+                       (!current_type, !current_data)
+                       callback usage finish chunks current_tc_id;
+                     current_type := "";
+                     current_data := ""
+                   end;
+                   process_lines ()
             in
             process_lines ();
             Ok

@@ -36,10 +36,57 @@ class Runtime:
         Raises:
             PARInitError: If initialization fails.
         """
-        handle = _lib.par_init(_c_str(config_json))
+        normalized = self._normalize_config(config_json)
+        handle = _lib.par_init(_c_str(normalized))
         if not handle:
             raise PARInitError("Failed to initialize PAR runtime")
         self._handle: Any = handle
+
+    @staticmethod
+    def _normalize_config(config_json: str) -> str:
+        """Fill in required OCaml runtime_config fields that the Python
+        caller may have omitted, so that the OCaml yojson decoder accepts
+        the payload. Returns the original JSON if it already parses.
+        """
+        try:
+            cfg = json.loads(config_json)
+        except json.JSONDecodeError as e:
+            raise PARInitError(f"config_json is not valid JSON: {e}")
+        if not isinstance(cfg, dict):
+            raise PARInitError("config_json must decode to a JSON object")
+
+        defaults = {
+            "default_quota": {
+                "max_concurrent_tasks": 4,
+                "max_concurrent_tools_per_agent": 2,
+                "max_tokens_per_turn": None,
+                "max_total_tokens": None,
+            },
+            "shutdown": {
+                "drain_timeout": 5.0,
+                "cancel_grace_period": 2.0,
+                "flush_batch_size": 100,
+            },
+            "eval_limits": {"max_depth": 10, "max_node_visits": 1000},
+            "llm_providers": [],
+            "parallel_tool_execution": True,
+        }
+        for key, default in defaults.items():
+            if key not in cfg:
+                cfg[key] = default
+            elif isinstance(default, dict) and isinstance(cfg[key], dict):
+                for sub_key, sub_default in default.items():
+                    cfg[key].setdefault(sub_key, sub_default)
+        if "event_bus" in cfg and isinstance(cfg["event_bus"], dict):
+            cfg["event_bus"].setdefault("buffer_capacity", 100)
+            cfg["event_bus"].setdefault("dlq_enabled", False)
+            cfg["event_bus"].setdefault("critical_event_types", [])
+            if isinstance(cfg["event_bus"].get("delivery"), dict):
+                cfg["event_bus"]["delivery"].setdefault("max_delivery_attempts", 3)
+                cfg["event_bus"]["delivery"].setdefault("initial_retry_delay", 0.1)
+                cfg["event_bus"]["delivery"].setdefault("retry_backoff", ["Fixed", 0.5])
+                cfg["event_bus"]["delivery"].setdefault("delivery_timeout", 5.0)
+        return json.dumps(cfg)
 
     def __enter__(self) -> "Runtime":
         return self
@@ -49,11 +96,12 @@ class Runtime:
         return False
 
     def __del__(self):
-        self.close()
+        if hasattr(self, "_handle"):
+            self.close()
 
     def close(self):
         """Shut down the runtime and release resources."""
-        if self._handle:
+        if getattr(self, "_handle", None):
             _lib.par_shutdown(self._handle)
             self._handle = None
 

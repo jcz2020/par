@@ -281,39 +281,44 @@ let stream t model_config tools conversation _stream_config callback =
               ref { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 }
             in
             let finish = ref Stop in
-            let rec process_lines () =
-              match read_line () with
-              | None -> ()
-              | Some line ->
-                if String.starts_with ~prefix:"data: " line then begin
-                  let data =
-                    String.sub line 6 (String.length line - 6) |> String.trim
-                  in
-                  if data <> "[DONE]" then begin
-                    try
-                      let json = Yojson.Safe.from_string data in
-                      let text_c, tool_c, finish_opt, usage_opt =
-                        parse_stream_delta json
-                      in
-                      ( match text_c with
-                      | Some chunk ->
-                        callback chunk;
-                        incr chunks
-                      | None -> () );
-                      ( match tool_c with
-                      | chunk :: rest ->
-                        List.iter (fun c -> callback c; incr chunks) (chunk :: rest)
-                      | [] -> () );
-                      ( match finish_opt with
-                      | Some f -> finish := f
-                      | None -> () );
-                      ( match usage_opt with
-                      | Some u -> usage := u
-                      | None -> () )
-                    with _ -> ()
-                  end
-                end;
-                process_lines ()
+             let stop = ref false in
+             let rec process_lines () =
+               if !stop then ()
+               else
+                 match read_line () with
+                 | None -> ()
+                 | Some line ->
+                   if String.starts_with ~prefix:"data: " line then begin
+                     let data =
+                       String.sub line 6 (String.length line - 6) |> String.trim
+                     in
+                     if data = "[DONE]" then
+                       stop := true
+                     else begin
+                       try
+                         let json = Yojson.Safe.from_string data in
+                         let text_c, tool_c, finish_opt, usage_opt =
+                           parse_stream_delta json
+                         in
+                         ( match text_c with
+                         | Some chunk ->
+                           callback chunk;
+                           incr chunks
+                         | None -> () );
+                         ( match tool_c with
+                         | chunk :: rest ->
+                           List.iter (fun c -> callback c; incr chunks) (chunk :: rest)
+                         | [] -> () );
+                         ( match finish_opt with
+                         | Some f -> finish := f
+                         | None -> () );
+                         ( match usage_opt with
+                         | Some u -> usage := u
+                         | None -> () )
+                       with _ -> ()
+                     end
+                   end;
+                   process_lines ()
             in
             process_lines ();
             Ok

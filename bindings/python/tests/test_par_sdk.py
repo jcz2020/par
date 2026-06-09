@@ -84,6 +84,63 @@ class TestParSDKIntegration(unittest.TestCase):
         # Handle is a non-zero integer (boxed Obj.t)
         self.assertNotEqual(self.rt._handle, 0)
 
+    def test_health_returns_runtime_state(self):
+        """Regression: par_health must return runtime state, not 'Invalid handle'.
+
+        This guards against the v0.4.0 FFI bug where do_init ran
+        Eio_main.run from a C callback context and never returned, so
+        the OCaml side stored a heap pointer (not an int id) and every
+        subsequent FFI call hit 'Invalid runtime handle'. The fix
+        spawns Eio_main.run in a fresh Domain so the callback returns.
+        """
+        h = self.rt.health()
+        self.assertIsInstance(h, dict)
+        self.assertIn("runtime_alive", h)
+        self.assertTrue(h["runtime_alive"])
+        # If the FFI was still broken we would get {"error": "Invalid runtime handle"}
+        self.assertNotIn("error", h)
+
+    def test_register_tool_succeeds_end_to_end(self):
+        """Regression: par_register_tool must succeed for a valid (name, desc, schema).
+
+        Before the v0.4.0 fix, par_register_tool returned -1 because the
+        OCaml side could not find the runtime handle. Now it returns 0
+        and the tool is registered.
+        """
+        try:
+            self.rt.register_tool(
+                "regression_tool",
+                "Tool for FFI regression test",
+                '{"type": "object"}',
+            )
+        except PARToolError as e:
+            self.fail(f"register_tool raised on a valid tool: {e}")
+
+    def test_register_tool_with_handler_stores_callback(self):
+        """Regression: par_register_tool_with_handler stores a Python
+        callback and the runtime remains queryable afterwards.
+
+        Before the v0.4.0 fix the C library stored a heap pointer in
+        place of the runtime id, so the callback registration appeared
+        to succeed at the OCaml level but every subsequent FFI call
+        failed. Now health() still works after registering a callback.
+        """
+        invoked = {"count": 0}
+
+        def handler(input_json: str) -> str:
+            invoked["count"] += 1
+            return '{"echoed": true}'
+
+        self.rt.register_tool_with_handler(
+            "regression_handler_tool",
+            "Tool with Python callback",
+            '{"type": "object"}',
+            handler,
+        )
+        # If FFI is still broken, health() would now fail too.
+        h = self.rt.health()
+        self.assertTrue(h["runtime_alive"])
+
     def test_02_register_agent_invalid_json(self):
         """Malformed JSON for register_agent should raise PARError, not crash."""
         with self.assertRaises((PARError, PARInitError, ValueError, Exception)):

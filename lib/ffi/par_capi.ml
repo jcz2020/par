@@ -56,13 +56,21 @@ let do_init (config_json : string) =
       | Ok c -> c
       | Error s -> failwith (Printf.sprintf "Invalid config JSON: %s" s)
     in
-    let rt = Eio_main.run (fun _env ->
-      Eio.Switch.run (fun sw ->
-        match Par.Runtime.create ~config sw with
-        | Ok r -> r
-        | Error _ -> failwith "Runtime.create failed"
+    (* Run Eio_main.run in a fresh domain. This is required because
+       Eio_main.run must be the entry point of an application — calling
+       it from a C callback (which is what we are, via par_init) hangs
+       because the event loop never gets to start.
+       See [par_ffi.c] for the C-side mirror of this design. *)
+    let result_dom = Domain.spawn (fun () ->
+      Eio_main.run (fun _env ->
+        Eio.Switch.run (fun sw ->
+          match Par.Runtime.create ~config sw with
+          | Ok r -> r
+          | Error _ -> failwith "Runtime.create failed"
+        )
       )
     ) in
+    let rt = Domain.join result_dom in
     let handle = { rt } in
     let id = alloc_handle handle in
     Obj.repr id

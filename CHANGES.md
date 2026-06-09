@@ -2,7 +2,7 @@
 
 ## v0.4.0-beta-20260609 (2026-06-09)
 
-> Python callback tools, bash interactive confirmation, structured output validation. 879 OCaml tests, 25 Python tests.
+> Python callback tools, bash interactive confirmation, structured output validation, SSE stream termination fix. 879 OCaml tests, 30 Python tests.
 
 ### New Features
 
@@ -12,7 +12,13 @@
 
 ### Bug Fixes
 
-- **Fix Python FFI init**: `do_init` now wraps `Runtime.create` in `Eio_main.run` — previously silently failed because `Eio.Switch.run` requires a running scheduler.
+- **Fix CLI REPL hang after tool call**: Both OpenAI and Anthropic SSE stream parsers (`process_lines`) never terminated — after receiving `[DONE]` (OpenAI) or `message_stop` (Anthropic), the loop continued calling `read_line()` which blocked forever waiting for data the server would never send. Added a `stop` ref flag checked before each `read_line()` call; set when the terminal SSE event is received. This is the root cause of the v0.3.5-v0.3.7 "REPL dies after ls tool" bug: the first LLM call often worked (server closed TCP promptly), but after a tool call triggered a second streaming round-trip, the keep-alive connection stayed open and `read_line` blocked.
+
+- **Fix Python FFI init (`Eio_main.run` in callback)**: `do_init` now spawns `Eio_main.run` in a fresh `Domain` and joins the result. The previous approach called `Eio_main.run` directly inside a C callback, which hangs because `Eio_main.run` is the application entry point — it expects to own the calling thread and start the Eio scheduler there. With the callback in the wrong context, the runtime was created with a heap pointer (an `error_json` string) stored in the handle field, and every subsequent FFI call (health, metrics, register_tool) returned `Invalid runtime handle` or `-1`. End-to-end Python callbacks now work: `par_health`, `par_metrics`, `par_register_tool`, and `par_register_tool_with_handler` all return correct data.
+- **Fix Python wrapper config defaults**: `Runtime.__init__` now fills in required OCaml `runtime_config` fields that Python callers commonly omit (`default_quota.max_tokens_per_turn`, `default_quota.max_total_tokens`, `shutdown.*`, `eval_limits.*`, `llm_providers`, `event_bus.delivery.*`). Without this, the OCaml yojson decoder rejected the payload silently, the wrapper's `par_init` returned an error string in place of a runtime handle, and `register_tool` then failed with no useful error to the caller.
+- **Fix Python wrapper `__del__` AttributeError**: `Runtime.__del__` and `Runtime.close` now use `getattr(self, "_handle", None)` so an `__init__` failure does not raise `AttributeError` during garbage collection.
+- **Un-skip Python health/metrics tests**: `test_health_returns_json` and `test_metrics_returns_json` are no longer skipped — they were skipped with a TODO referring to the FFI init bug.
+- **Fix Python test_version_format regex**: Now accepts both `X.Y.Z` and `X.Y.Z-beta-YYYYMMDD` so beta tags do not break the version assertion.
 - **Fix Python test configs**: Field names updated to match OCaml types (`max_queue_size` → `buffer_capacity`, `grace_period_seconds` → `drain_timeout`, etc.).
 - **Fix hardcoded version**: `do_version` was hardcoded `"0.3.3"` — now uses `Par.Version.version`.
 
