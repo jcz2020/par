@@ -575,25 +575,44 @@ let upgrade_headers =
     [ ("user-agent", "P-A-R-CLI/" ^ Par.Version.version)
     ; ("accept", "*/*") ]
 
+let resolve_redirects client ~sw ?(max_hops = 5) uri =
+  let rec follow uri hops =
+    if hops <= 0 then Error "too many redirects"
+    else
+      let resp, body =
+        Cohttp_eio.Client.get client ~sw ~headers:upgrade_headers uri in
+      let status = resp.Http.Response.status |> Cohttp.Code.code_of_status in
+      if status = 200 then Ok (resp, body, uri)
+      else if Cohttp.Code.is_redirection status then
+        match Http.Header.get resp.Http.Response.headers "location" with
+        | None -> Error (Printf.sprintf "HTTP %d with no Location header" status)
+        | Some loc ->
+          let next =
+            if String.length loc > 0 && String.sub loc 0 1 = "/" then
+              let scheme = match Uri.scheme uri with Some s -> s | None -> "https" in
+              let host = match Uri.host uri with Some h -> h | None -> "" in
+              Uri.of_string (scheme ^ "://" ^ host ^ loc)
+            else
+              Uri.of_string loc
+          in
+          follow next (hops - 1)
+      else Error (Printf.sprintf "HTTP %d for %s" status (Uri.to_string uri))
+  in
+  follow uri max_hops
+
 let http_get_string client ~sw uri =
-  let resp, body =
-    Cohttp_eio.Client.get client ~sw ~headers:upgrade_headers uri in
-  let status = resp.Http.Response.status |> Cohttp.Code.code_of_status in
-  if status <> 200 then
-    Error (Printf.sprintf "HTTP %d for %s" status (Uri.to_string uri))
-  else
+  match resolve_redirects client ~sw uri with
+  | Error e -> Error e
+  | Ok (_resp, body, _final_uri) ->
     let s =
       Eio.Buf_read.parse_exn ~max_size:(20 * 1024 * 1024)
         Eio.Buf_read.take_all body in
     Ok s
 
 let http_download_to_file client ~sw uri dest_path =
-  let resp, body =
-    Cohttp_eio.Client.get client ~sw ~headers:upgrade_headers uri in
-  let status = resp.Http.Response.status |> Cohttp.Code.code_of_status in
-  if status <> 200 then
-    Error (Printf.sprintf "HTTP %d for %s" status (Uri.to_string uri))
-  else
+  match resolve_redirects client ~sw uri with
+  | Error e -> Error e
+  | Ok (_resp, body, _final_uri) ->
     let data =
       Eio.Buf_read.parse_exn ~max_size:(200 * 1024 * 1024)
         Eio.Buf_read.take_all body in
@@ -684,7 +703,10 @@ let cmd_update () =
               let trimmed = String.trim line in
               if String.length trimmed = 0 then find rest
               else
-                let parts = String.split_on_char ' ' trimmed in
+                let parts =
+                  String.split_on_char ' ' trimmed
+                  |> List.filter (fun s -> String.length s > 0)
+                in
                 (match parts with
                  | _hash :: fname :: _ ->
                    let fname = String.trim fname in
