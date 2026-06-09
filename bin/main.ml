@@ -573,7 +573,7 @@ let make_upgrade_client net =
 let upgrade_headers =
   Http.Header.of_list
     [ ("user-agent", "P-A-R-CLI/" ^ Par.Version.version)
-    ; ("accept", "application/vnd.github+json") ]
+    ; ("accept", "*/*") ]
 
 let http_get_string client ~sw uri =
   let resp, body =
@@ -666,64 +666,81 @@ let cmd_update () =
      Eio.Switch.run @@ fun sw ->
      let net = Eio.Stdenv.net env in
      let client = make_upgrade_client net in
-     let api_uri =
+     let chk_uri =
        Uri.of_string
-         "https://api.github.com/repos/jcz2020/par/releases/latest" in
-     (match http_get_string client ~sw api_uri with
+         "https://github.com/jcz2020/par/releases/latest/download/sha512-checksums.txt" in
+     (match http_get_string client ~sw chk_uri with
       | Error e ->
-        Printf.eprintf "Failed to fetch release info: %s\n" e;
+        Printf.eprintf "Failed to fetch checksums: %s\n" e;
         exit 1
-      | Ok body ->
-        let json = Yojson.Safe.from_string body in
-        let tag =
-          (try Yojson.Safe.Util.(json |> member "tag_name" |> to_string)
-           with _ ->
-             Printf.eprintf
-               "Failed to parse release info: missing tag_name\n";
-             exit 1) in
-        let latest = strip_v_prefix tag in
-        Printf.printf "Latest version: %s\n" latest;
-        flush stdout;
-        match version_compare current latest with
-        | n when n >= 0 ->
-          Printf.printf "Already on the latest version (%s).\n" current;
-          exit 0
-        | _ ->
-          let asset_name = "par-" ^ platform in
-          let ver_tag = "v" ^ latest in
-          let bin_uri = Uri.of_string
-            (Printf.sprintf
-               "https://github.com/jcz2020/par/releases/download/%s/%s"
-               ver_tag asset_name) in
-          let chk_uri = Uri.of_string
-            (Printf.sprintf
-               "https://github.com/jcz2020/par/releases/download/%s/sha512-checksums.txt"
-               ver_tag) in
-          Printf.printf "Downloading %s for %s...\n" latest platform;
-          flush stdout;
-          let tmpdir =
-            Filename.get_temp_dir_name () ^
-            "/par-upgrade-" ^ string_of_int (Unix.getpid ()) in
-          (try Unix.mkdir tmpdir 0o700
-           with Unix.Unix_error (Unix.EEXIST, _, _) -> ());
-          let bin_path = tmpdir ^ "/" ^ asset_name in
-          let chk_path = tmpdir ^ "/sha512-checksums.txt" in
-          (match http_download_to_file client ~sw bin_uri bin_path with
-           | Error e ->
-             Printf.eprintf "Download failed: %s\n" e;
-             exit 1
-           | Ok () ->
-             (match http_download_to_file client ~sw chk_uri chk_path with
+      | Ok chk_content ->
+        let asset_prefix = "par-v" in
+        let platform_suffix = "-" ^ platform in
+        let latest =
+          let rec find lines =
+            match lines with
+            | [] -> None
+            | line :: rest ->
+              let trimmed = String.trim line in
+              if String.length trimmed = 0 then find rest
+              else
+                let parts = String.split_on_char ' ' trimmed in
+                (match parts with
+                 | _hash :: fname :: _ ->
+                   let fname = String.trim fname in
+                   if String.length fname > 0 then begin
+                     let matches =
+                       String.length fname > String.length asset_prefix &&
+                       String.sub fname 0 (String.length asset_prefix) = asset_prefix &&
+                       String.length fname > String.length platform_suffix &&
+                       String.sub fname
+                         (String.length fname - String.length platform_suffix)
+                         (String.length platform_suffix) = platform_suffix
+                     in
+                     if matches then begin
+                       let v_start = String.length asset_prefix in
+                       let v_end =
+                         String.length fname - String.length platform_suffix
+                       in
+                       Some (String.sub fname v_start (v_end - v_start))
+                     end else find rest
+                   end else find rest
+                 | _ -> find rest)
+          in
+          find (String.split_on_char '\n' chk_content)
+        in
+        (match latest with
+         | None ->
+           Printf.eprintf
+             "Could not determine latest version from checksums file\n";
+           exit 1
+         | Some latest ->
+           Printf.printf "Latest version: %s\n" latest;
+           flush stdout;
+           match version_compare current latest with
+           | n when n >= 0 ->
+             Printf.printf "Already on the latest version (%s).\n" current;
+             exit 0
+           | _ ->
+             let asset_name = "par-" ^ platform in
+             let ver_tag = "v" ^ latest in
+             let bin_uri = Uri.of_string
+               (Printf.sprintf
+                  "https://github.com/jcz2020/par/releases/download/%s/%s"
+                  ver_tag asset_name) in
+             Printf.printf "Downloading %s for %s...\n" latest platform;
+             flush stdout;
+             let tmpdir =
+               Filename.get_temp_dir_name () ^
+               "/par-upgrade-" ^ string_of_int (Unix.getpid ()) in
+             (try Unix.mkdir tmpdir 0o700
+              with Unix.Unix_error (Unix.EEXIST, _, _) -> ());
+             let bin_path = tmpdir ^ "/" ^ asset_name in
+             (match http_download_to_file client ~sw bin_uri bin_path with
               | Error e ->
-                Printf.eprintf "Checksums download failed: %s\n" e;
+                Printf.eprintf "Download failed: %s\n" e;
                 exit 1
               | Ok () ->
-                let ic = open_in chk_path in
-                let n = in_channel_length ic in
-                let buf = Bytes.create n in
-                really_input ic buf 0 n;
-                close_in ic;
-                let chk_content = Bytes.unsafe_to_string buf in
                 (match parse_checksum_for chk_content platform with
                  | None ->
                    Printf.eprintf
