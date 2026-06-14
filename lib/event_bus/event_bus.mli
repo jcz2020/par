@@ -8,7 +8,7 @@ val create : event_bus_config -> t
 
 val publish : t -> event -> unit
 
-val subscribe : t -> (event -> unit) -> subscription
+val subscribe : t -> (event_envelope -> unit) -> subscription
 
 val unsubscribe : t -> subscription -> unit
 
@@ -17,3 +17,7 @@ val start_dispatcher : t -> Eio.Switch.t -> unit
 val get_dead_letters : t -> dead_letter_entry list
 
 val dlq_entries : t -> event list
+
+val to_service : t -> Types.event_bus_service
+
+val set_session_id : t -> string -> unit

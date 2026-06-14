@@ -317,6 +317,7 @@ type event_metadata = {
   span_id : string option;
   timestamp : float;
   source : string;
+  session_id : string;
 }
 [@@deriving yojson]
 
@@ -546,17 +547,23 @@ module type LLM_SERVICE = sig
   val close : t -> unit
 end
 
-module type EVENT_BUS_SERVICE = sig
-  type t
+type event_subscription = string
 
-  type subscription
+type event_bus_service = {
+  publish_fn : event -> unit;
+  subscribe_fn : (event_envelope -> unit) -> event_subscription;
+  unsubscribe_fn : event_subscription -> unit;
+  set_session_id_fn : string -> unit;
+  start_dispatcher_fn : Eio.Switch.t -> unit;
+}
 
-  val publish : t -> event -> unit
-
-  val subscribe : t -> (event -> unit) -> subscription
-
-  val unsubscribe : t -> subscription -> unit
-end
+type session_summary = {
+  session_id : string;
+  event_count : int;
+  first_event_at : float;
+  last_event_at : float;
+}
+[@@deriving yojson]
 
 type llm_service = {
   complete_fn : model_config -> tool_descriptor list -> conversation -> (llm_response, error_category) result;
@@ -591,8 +598,10 @@ type workflow_status =
  [@@deriving yojson]
 
 type persistence_service = {
-  save_events_fn : event list -> (unit, error_category) result;
+  save_events_fn : event_envelope list -> (unit, error_category) result;
   load_events_fn : Task_id.t -> (event list, error_category) result;
+  load_events_by_session_fn : string -> (event list, error_category) result;
+  load_sessions_fn : int -> (session_summary list, error_category) result;
   save_task_state_fn : task_state -> (unit, error_category) result;
   load_task_state_fn : Task_id.t -> (task_state option, error_category) result;
   save_workflow_state_fn : Workflow_run_id.t -> workflow_status -> workflow_checkpoint option -> (unit, error_category) result;
@@ -603,7 +612,7 @@ type persistence_service = {
 type service_registry = {
   persistence : persistence_service;
   llm : llm_service;
-  event_bus : (module EVENT_BUS_SERVICE);
+  event_bus : event_bus_service;
   config : runtime_config;
 }
 

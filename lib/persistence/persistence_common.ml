@@ -32,3 +32,6 @@ let extract_task_id : event -> string = function
   | Mcp_tool_completed _ -> ""
   | Mcp_resource_read _ -> ""
   | Mcp_prompt_rendered _ -> ""
+
+let extract_session_id (envelope : event_envelope) : string =
+  envelope.metadata.session_id

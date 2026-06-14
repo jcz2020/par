@@ -21,10 +21,12 @@ let init_schema (db : Postgresql.connection) =
          payload           JSONB NOT NULL,
          timestamp         DOUBLE PRECISION NOT NULL,
          idempotency_key   TEXT UNIQUE NOT NULL,
-         delivery_attempt  INTEGER DEFAULT 0
+         delivery_attempt  INTEGER DEFAULT 0,
+         session_id        TEXT NOT NULL DEFAULT ''
        )|};
     {|CREATE INDEX IF NOT EXISTS idx_events_task_id ON events(task_id)|};
     {|CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)|};
+    {|CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id)|};
      {|CREATE TABLE IF NOT EXISTS task_states (
           id          TEXT PRIMARY KEY,
           state       JSONB NOT NULL,
@@ -66,18 +68,21 @@ let create conninfo =
 let close t = t.db#finish
 
 let extract_task_id = Par.Persistence_common.extract_task_id
+let extract_session_id = Par.Persistence_common.extract_session_id
 
-let insert_event (db : Postgresql.connection) ev =
+let insert_event (db : Postgresql.connection) (envelope : event_envelope) =
+  let ev = envelope.payload in
+  let session_id = extract_session_id envelope in
   let task_id = extract_task_id ev in
-  let ts = Unix.gettimeofday () in
-  let id = Printf.sprintf "evt_%s_%.6f" task_id ts in
-  let idem_key = Printf.sprintf "idem_%s_%.6f" task_id ts in
+  let ts = envelope.metadata.timestamp in
+  let id = envelope.id in
+  let idem_key = envelope.idempotency_key in
   let json = Yojson.Safe.to_string (event_to_yojson ev) in
   let res =
     db#exec
-      ~params:[| id; task_id; json; string_of_float ts; idem_key |]
-      "INSERT INTO events (id, task_id, payload, timestamp, idempotency_key) \
-       VALUES ($1, $2, $3::jsonb, $4, $5) \
+      ~params:[| id; task_id; json; string_of_float ts; idem_key; session_id |]
+      "INSERT INTO events (id, task_id, payload, timestamp, idempotency_key, session_id) \
+       VALUES ($1, $2, $3::jsonb, $4, $5, $6) \
        ON CONFLICT (idempotency_key) DO NOTHING"
   in
   match res#status with
@@ -126,6 +131,49 @@ let load_events t task_id =
       done;
       Ok (List.rev !acc)
     | _ -> Result.Error (Internal (Printf.sprintf "Load events: %s" res#error))
+  )
+
+let load_events_by_session t session_id =
+  Eio.Mutex.use_ro t.mutex (fun () ->
+    let res =
+      t.db#exec
+        ~params:[| session_id |]
+        "SELECT payload::text FROM events WHERE session_id = $1 ORDER BY timestamp ASC"
+    in
+    match res#status with
+    | Postgresql.Tuples_ok ->
+      let acc = ref [] in
+      for i = 0 to res#ntuples - 1 do
+        let payload = res#getvalue i 0 in
+        (match event_of_yojson (Yojson.Safe.from_string payload) with
+        | Ok ev -> acc := ev :: !acc
+        | Error _ -> ()
+        | exception Yojson.Json_error _ -> ())
+      done;
+      Ok (List.rev !acc)
+    | _ -> Result.Error (Internal (Printf.sprintf "Load events by session: %s" res#error))
+  )
+
+let load_sessions t limit =
+  Eio.Mutex.use_ro t.mutex (fun () ->
+    let res =
+      t.db#exec
+        ~params:[| string_of_int limit |]
+        "SELECT session_id, COUNT(*) AS cnt, MIN(timestamp) AS first_at, MAX(timestamp) AS last_at \
+         FROM events GROUP BY session_id ORDER BY last_at DESC LIMIT $1"
+    in
+    match res#status with
+    | Postgresql.Tuples_ok ->
+      let acc = ref [] in
+      for i = 0 to res#ntuples - 1 do
+        let session_id = res#getvalue i 0 in
+        let count = int_of_string (res#getvalue i 1) in
+        let first_at = float_of_string (res#getvalue i 2) in
+        let last_at = float_of_string (res#getvalue i 3) in
+        acc := { session_id; event_count = count; first_event_at = first_at; last_event_at = last_at } :: !acc
+      done;
+      Ok (List.rev !acc)
+    | _ -> Result.Error (Internal (Printf.sprintf "Load sessions: %s" res#error))
   )
 
 let save_task_state t ts =

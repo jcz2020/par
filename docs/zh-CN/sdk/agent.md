@@ -33,7 +33,7 @@ Runtime.default_shutdown_config   (* drain_timeout=30s *)
 ```ocaml
 val Runtime.create :
   ?persistence:Types.persistence_service ->
-  ?event_bus:(module Types.EVENT_BUS_SERVICE) ->
+  ?event_bus:Types.event_bus_service ->
   ?llm:Types.llm_service ->
   config:Types.runtime_config ->
   Eio.Switch.t ->

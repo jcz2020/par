@@ -91,6 +91,9 @@ let make_sqlite_persistence db_path =
     { Types.
       save_events_fn = (fun events -> Sqlite_persistence.save_events t events);
       load_events_fn = (fun task_id -> Sqlite_persistence.load_events t task_id);
+      load_events_by_session_fn = (fun session_id ->
+        Sqlite_persistence.load_events_by_session t session_id);
+      load_sessions_fn = (fun limit -> Sqlite_persistence.load_sessions t limit);
       save_task_state_fn = (fun ts -> Sqlite_persistence.save_task_state t ts);
       load_task_state_fn = (fun task_id -> Sqlite_persistence.load_task_state t task_id);
       save_workflow_state_fn = (fun id status ckpt ->

@@ -7,8 +7,10 @@ type t
 val create : string -> (t, error_category) result
 val close : t -> unit
 
-val save_events : t -> event list -> (unit, error_category) result
+val save_events : t -> event_envelope list -> (unit, error_category) result
 val load_events : t -> Task_id.t -> (event list, error_category) result
+val load_events_by_session : t -> string -> (event list, error_category) result
+val load_sessions : t -> int -> (session_summary list, error_category) result
 val save_task_state : t -> task_state -> (unit, error_category) result
 val load_task_state : t -> Task_id.t -> (task_state option, error_category) result
 val save_workflow_state : t -> Workflow_run_id.t -> workflow_status -> workflow_checkpoint option -> (unit, error_category) result

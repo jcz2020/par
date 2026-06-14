@@ -2,7 +2,7 @@ open Types
 
 type internal_subscription = {
   id : string;
-  handler : event -> unit;
+  handler : event_envelope -> unit;
   nonce : string;
 } [@@warning "-69"]
 
@@ -14,6 +14,7 @@ type t = {
   buffer : event_envelope Eio.Stream.t;
   dead_letters : dead_letter_entry list ref;
   mutex : Eio.Mutex.t;
+  mutable current_session_id : string;
 } [@@warning "-69"]
 
 let create config =
@@ -27,6 +28,7 @@ let create config =
     buffer;
     dead_letters = ref [];
     mutex = Eio.Mutex.create ();
+    current_session_id = "";
   }
 
 let publish bus event =
@@ -38,6 +40,7 @@ let publish bus event =
       span_id = None;
       timestamp = Unix.time ();
       source = "event_bus";
+      session_id = bus.current_session_id;
     };
     payload = event;
     idempotency_key = Task_id.to_string (Task_id.create ());
@@ -73,7 +76,7 @@ let deliver_to_subscribers bus envelope =
     handlers := sub.handler :: !handlers
   );
   List.iter (fun handler ->
-    match handler envelope.payload with
+    match handler envelope with
     | () -> ()
     | exception e ->
       let entry = {
@@ -105,3 +108,14 @@ let get_dead_letters bus =
 let dlq_entries bus =
   List.map (fun (entry : dead_letter_entry) -> entry.envelope.payload)
     (get_dead_letters bus)
+
+let to_service (bus : t) : Types.event_bus_service = {
+  publish_fn = (fun evt -> publish bus evt);
+  subscribe_fn = (fun handler -> subscribe bus handler);
+  unsubscribe_fn = (fun sub -> unsubscribe bus sub);
+  set_session_id_fn = (fun sid -> bus.current_session_id <- sid);
+  start_dispatcher_fn = (fun sw -> ignore (start_dispatcher bus sw));
+}
+
+let set_session_id (bus : t) (sid : string) =
+  bus.current_session_id <- sid

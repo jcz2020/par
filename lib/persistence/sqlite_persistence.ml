@@ -23,9 +23,11 @@ let init_schema db =
          task_id           TEXT NOT NULL,
          payload           TEXT NOT NULL,
          timestamp         REAL NOT NULL,
-         idempotency_key   TEXT UNIQUE NOT NULL
+         idempotency_key   TEXT UNIQUE NOT NULL,
+         session_id        TEXT NOT NULL DEFAULT ''
        )|};
     {|CREATE INDEX IF NOT EXISTS idx_events_task_id ON events(task_id, timestamp)|};
+    {|CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id, timestamp)|};
      {|CREATE TABLE IF NOT EXISTS task_states (
          id          TEXT PRIMARY KEY,
          state       TEXT NOT NULL,
@@ -70,27 +72,31 @@ let close t =
 (* -------------------------------------------------------------------------- *)
 
 let extract_task_id = Persistence_common.extract_task_id
+let extract_session_id = Persistence_common.extract_session_id
 
 (* -------------------------------------------------------------------------- *)
 (* Write operations                                                      *)
 (* -------------------------------------------------------------------------- *)
 
-let insert_event db ev =
+let insert_event db (envelope : event_envelope) =
+  let ev = envelope.payload in
+  let session_id = extract_session_id envelope in
   let stmt =
     Sqlite3.prepare db
-      "INSERT OR IGNORE INTO events (id, task_id, payload, timestamp, idempotency_key) \
-       VALUES (?, ?, ?, ?, ?)"
+      "INSERT OR IGNORE INTO events (id, task_id, payload, timestamp, idempotency_key, session_id) \
+       VALUES (?, ?, ?, ?, ?, ?)"
   in
   let task_id = extract_task_id ev in
-  let ts = Unix.gettimeofday () in
-  let id = Printf.sprintf "evt_%s_%.6f" task_id ts in
-  let idem_key = Printf.sprintf "idem_%s_%.6f" task_id ts in
+  let ts = envelope.metadata.timestamp in
+  let id = envelope.id in
+  let idem_key = envelope.idempotency_key in
   let json = Yojson.Safe.to_string (event_to_yojson ev) in
   let _ = Sqlite3.bind_text stmt 1 id in
   let _ = Sqlite3.bind_text stmt 2 task_id in
   let _ = Sqlite3.bind_text stmt 3 json in
   let _ = Sqlite3.bind_double stmt 4 ts in
   let _ = Sqlite3.bind_text stmt 5 idem_key in
+  let _ = Sqlite3.bind_text stmt 6 session_id in
   let step_result = Sqlite3.step stmt in
   let _ = Sqlite3.finalize stmt in
   match step_result with
@@ -149,6 +155,71 @@ let load_events t task_id =
         | rc ->
           stop := true;
           error := Some (Result.Error (Internal (Printf.sprintf "Load events: %s" (Sqlite3.Rc.to_string rc))))
+      done;
+      match !error with
+      | Some e -> e
+      | None -> Ok (List.rev !acc)
+    in
+    let _ = Sqlite3.finalize stmt in
+    result
+  )
+
+let load_events_by_session t session_id =
+  Eio.Mutex.use_ro t.mutex (fun () ->
+    let stmt =
+      Sqlite3.prepare t.db
+        "SELECT payload FROM events WHERE session_id = ? ORDER BY timestamp ASC"
+    in
+    let _ = Sqlite3.bind_text stmt 1 session_id in
+    let acc = ref [] in
+    let result =
+      let stop = ref false in
+      let error = ref None in
+      while not !stop do
+        match Sqlite3.step stmt with
+        | Sqlite3.Rc.ROW ->
+          let payload = Sqlite3.column_text stmt 0 in
+          (match event_of_yojson (Yojson.Safe.from_string payload) with
+          | Ok ev -> acc := ev :: !acc
+          | Error _ -> ()
+          | exception Yojson.Json_error _ -> ())
+        | Sqlite3.Rc.DONE -> stop := true
+        | rc ->
+          stop := true;
+          error := Some (Result.Error (Internal (Printf.sprintf "Load events by session: %s" (Sqlite3.Rc.to_string rc))))
+      done;
+      match !error with
+      | Some e -> e
+      | None -> Ok (List.rev !acc)
+    in
+    let _ = Sqlite3.finalize stmt in
+    result
+  )
+
+let load_sessions t limit =
+  Eio.Mutex.use_ro t.mutex (fun () ->
+    let stmt =
+      Sqlite3.prepare t.db
+        "SELECT session_id, COUNT(*) AS cnt, MIN(timestamp) AS first_at, MAX(timestamp) AS last_at \
+         FROM events GROUP BY session_id ORDER BY last_at DESC LIMIT ?"
+    in
+    let _ = Sqlite3.bind_int stmt 1 limit in
+    let acc = ref [] in
+    let result =
+      let stop = ref false in
+      let error = ref None in
+      while not !stop do
+        match Sqlite3.step stmt with
+        | Sqlite3.Rc.ROW ->
+          let session_id = Sqlite3.column_text stmt 0 in
+          let count = Sqlite3.column_int stmt 1 in
+          let first_at = Sqlite3.column_double stmt 2 in
+          let last_at = Sqlite3.column_double stmt 3 in
+          acc := { session_id; event_count = count; first_event_at = first_at; last_event_at = last_at } :: !acc
+        | Sqlite3.Rc.DONE -> stop := true
+        | rc ->
+          stop := true;
+          error := Some (Result.Error (Internal (Printf.sprintf "Load sessions: %s" (Sqlite3.Rc.to_string rc))))
       done;
       match !error with
       | Some e -> e

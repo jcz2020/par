@@ -7,7 +7,7 @@ let create (_conninfo : string) =
 
 let close (_ : t) = ()
 
-let save_events (_ : t) (_events : event list) = Ok ()
+let save_events (_ : t) (_events : event_envelope list) = Ok ()
 
 let load_events (_ : t) (_task_id : Task_id.t) = Ok []
 

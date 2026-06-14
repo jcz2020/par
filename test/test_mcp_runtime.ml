@@ -1,20 +1,20 @@
 (* test/test_mcp_runtime.ml — v0.3.1 W2
    Tests for Runtime.create MCP server spawning + Runtime.close MCP shutdown.
    Each test calls [Eio_main.run] once at the entry point. Events published
-   by Runtime.create / Runtime.close are captured via a custom EVENT_BUS_SERVICE
-   module and asserted on after the operation completes. *)
+   by Runtime.create / Runtime.close are captured via a custom event_bus_service
+   record and asserted on after the operation completes. *)
 
 open Par.Types
 
 let captured_events : event list ref = ref []
 
-module Capture_bus : EVENT_BUS_SERVICE = struct
-  type t = unit
-  type subscription = unit
-  let publish () evt = captured_events := evt :: !captured_events
-  let subscribe () _h = ()
-  let unsubscribe () _s = ()
-end
+let capture_bus : event_bus_service = {
+  publish_fn = (fun evt -> captured_events := evt :: !captured_events);
+  subscribe_fn = (fun _handler -> "");
+  unsubscribe_fn = (fun _sub -> ());
+  set_session_id_fn = (fun _sid -> ());
+  start_dispatcher_fn = (fun _sw -> ());
+}
 
 let reset_capture () = captured_events := []
 
@@ -185,7 +185,7 @@ let test_close_publishes_stopped_event () =
     Eio.Switch.run (fun sw ->
       let cfg = mock_config () in
       match Par.Runtime.create ~config:test_config
-             ~event_bus:(module Capture_bus : EVENT_BUS_SERVICE)
+             ~event_bus:capture_bus
              ~mcp_servers:[cfg] ~mcp_process_mgr:mgr ~mcp_clock:clk sw with
       | Ok rt ->
         reset_capture ();
@@ -199,7 +199,7 @@ let test_close_with_no_mcp_servers_is_noop () =
     reset_capture ();
     Eio.Switch.run (fun sw ->
       match Par.Runtime.create ~config:test_config
-             ~event_bus:(module Capture_bus : EVENT_BUS_SERVICE) sw with
+             ~event_bus:capture_bus sw with
       | Ok rt ->
         reset_capture ();
         let _ = Par.Runtime.close rt in

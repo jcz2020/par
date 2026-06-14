@@ -2,13 +2,13 @@ open Par.Types
 
 let captured_events : event list ref = ref []
 
-module Capture_bus : EVENT_BUS_SERVICE = struct
-  type t = unit
-  type subscription = unit
-  let publish () evt = captured_events := evt :: !captured_events
-  let subscribe () _h = ()
-  let unsubscribe () _s = ()
-end
+let capture_bus : event_bus_service = {
+  publish_fn = (fun evt -> captured_events := evt :: !captured_events);
+  subscribe_fn = (fun _handler -> "");
+  unsubscribe_fn = (fun _sub -> ());
+  set_session_id_fn = (fun _sid -> ());
+  start_dispatcher_fn = (fun _sw -> ());
+}
 
 let test_config : runtime_config = {
   persistence = `Sqlite ":memory:";
@@ -24,9 +24,7 @@ let test_config : runtime_config = {
 let make_rt_with_capture () =
   captured_events := [];
   Eio.Switch.run (fun sw ->
-    match Par.Runtime.create ~config:test_config
-      ~event_bus:(module Capture_bus : EVENT_BUS_SERVICE)
-      sw with
+    match Par.Runtime.create ~config:test_config ~event_bus:capture_bus sw with
     | Ok r -> (r, sw)
     | Error _ -> Alcotest.fail "create failed")
 
@@ -46,7 +44,7 @@ let suite = [
         Alcotest.(check string) "message matches" "hello" message
       | _ -> Alcotest.fail "wrong event captured"));
 
-  Alcotest.test_case "Noop_event_bus publish is a no-op" `Quick (fun () ->
+  Alcotest.test_case "noop_event_bus publish is a no-op" `Quick (fun () ->
     Eio_main.run (fun _env ->
       captured_events := [];
       Eio.Switch.run (fun sw ->

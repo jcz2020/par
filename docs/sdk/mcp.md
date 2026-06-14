@@ -108,7 +108,7 @@ let () = Eio_main.run (fun env ->
 ```ocaml
 val Runtime.create :
   ?persistence:persistence_service ->
-  ?event_bus:(module EVENT_BUS_SERVICE) ->
+  ?event_bus:Types.event_bus_service ->
   ?llm:llm_service ->
   ?bash_policy:(module Bash_policy.POLICY) ->
   ?mcp_servers:Mcp_types.server_config list ->

@@ -584,6 +584,8 @@ let resume_workflow rt wf_id =
 let noop_persistence : Types.persistence_service = {
   save_events_fn = (fun _events -> Ok ());
   load_events_fn = (fun _task_id -> Ok []);
+  load_events_by_session_fn = (fun _session_id -> Ok []);
+  load_sessions_fn = (fun _limit -> Ok []);
   save_task_state_fn = (fun _ts -> Ok ());
   load_task_state_fn = (fun _task_id -> Ok None);
   save_workflow_state_fn = (fun _id _status _checkpoint -> Ok ());
@@ -591,16 +593,16 @@ let noop_persistence : Types.persistence_service = {
   close_fn = ignore;
 }
 
-module Noop_event_bus : EVENT_BUS_SERVICE = struct
-  type t = unit
-  type subscription = unit
-  let publish () _event = ()
-  let subscribe () _handler = ()
-  let unsubscribe () _subscription = ()
-end
+let noop_event_bus_service : Types.event_bus_service = {
+  publish_fn = (fun _evt -> ());
+  subscribe_fn = (fun _handler -> "");
+  unsubscribe_fn = (fun _sub -> ());
+  set_session_id_fn = (fun _sid -> ());
+  start_dispatcher_fn = (fun _sw -> ());
+}
 
 let create ?(persistence = noop_persistence)
-           ?(event_bus = (module Noop_event_bus : EVENT_BUS_SERVICE))
+           ?(event_bus = noop_event_bus_service)
            ?(llm = { complete_fn = (fun _ _tools _ -> Result.Error (Internal "LLM not initialized"));
                      stream_fn = (fun _ _tools _ _ _ -> Result.Error (Internal "LLM not initialized"));
                      close_fn = ignore })
@@ -615,10 +617,7 @@ let create ?(persistence = noop_persistence)
   | Error _ as e -> e
   | Ok () ->
     let semaphore = Eio.Semaphore.make config.default_quota.max_concurrent_tasks in
-    let publish_event_fn =
-      let module EB = (val event_bus : EVENT_BUS_SERVICE) in
-      fun evt -> EB.publish (Obj.magic (module EB : EVENT_BUS_SERVICE with type t = EB.t)) evt
-    in
+    let publish_event_fn = event_bus.publish_fn in
     let rt = {
       agents = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
       services = {
