@@ -36,6 +36,8 @@ type runtime = {
   bash_policy : (module Bash_policy.POLICY);
   bash_installed : bool ref;
   mcp_servers : (Mcp_types.server_id, Mcp_server.t) Types.protected_hashtbl;
+  event_bus_instance : Event_bus.t option;
+  persistence_writer : Persistence_writer.t option;
 } [@@warning "-69"]
 
 let default_event_bus_config = {
@@ -326,6 +328,10 @@ let install_bash_tool ?process_mgr ?clock rt =
 
 let invoke rt ~agent_id ~message ?cancellation_token ?conversation
     ?on_tool_event ?on_chunk () =
+  let session_id = Session_id.to_string (Session_id.create ()) in
+  (match rt.event_bus_instance with
+   | Some bus -> Event_bus.set_session_id bus session_id
+   | None -> rt.services.event_bus.set_session_id_fn session_id);
   let agent = htbl_get rt.agents agent_id in
   match agent with
   | None -> Result.Error (Invalid_input (Printf.sprintf "Agent not found: %s" agent_id),
@@ -617,13 +623,32 @@ let create ?(persistence = noop_persistence)
   | Error _ as e -> e
   | Ok () ->
     let semaphore = Eio.Semaphore.make config.default_quota.max_concurrent_tasks in
-    let publish_event_fn = event_bus.publish_fn in
+    let persistence_is_noop = persistence == noop_persistence in
+    let (event_bus_service, event_bus_instance, persistence_writer) =
+      if not persistence_is_noop then begin
+        let bus = Event_bus.create default_event_bus_config in
+        Event_bus.start_dispatcher bus switch;
+        let writer =
+          Persistence_writer.create
+            ~capacity:1000
+            ~flush_interval:0.05
+            persistence.save_events_fn
+        in
+        Persistence_writer.start_drain_fiber writer switch;
+        let _sub = Event_bus.subscribe bus (fun envelope ->
+          Persistence_writer.push writer envelope
+        ) in
+        (Event_bus.to_service bus, Some bus, Some writer)
+      end else
+        (event_bus, None, None)
+    in
+    let publish_event_fn = event_bus_service.publish_fn in
     let rt = {
       agents = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
       services = {
         persistence;
         llm;
-        event_bus;
+        event_bus = event_bus_service;
         config;
       };
       cancellation_root = switch;
@@ -646,6 +671,8 @@ let create ?(persistence = noop_persistence)
       bash_policy;
       bash_installed = ref false;
       mcp_servers = { data = Hashtbl.create 4; mutex = Eio.Mutex.create () };
+      event_bus_instance;
+      persistence_writer;
     } in
     let mcp_errors = ref [] in
     if mcp_servers <> [] then begin
@@ -710,6 +737,9 @@ let close rt =
   Eio.Mutex.use_rw ~protect:false rt.shutdown_mutex (fun () ->
     rt.shutdown_requested := true
   );
+  (match rt.persistence_writer with
+   | Some writer -> Persistence_writer.flush_sync writer
+   | None -> ());
   rt.services.persistence.close_fn ();
   rt.services.llm.close_fn ();
   0

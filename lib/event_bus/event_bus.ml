@@ -92,15 +92,17 @@ let deliver_to_subscribers bus envelope =
   ) !handlers
 
 let start_dispatcher bus switch =
-  Eio.Fiber.fork ~sw:switch (fun () ->
-    let rec loop () =
-      let envelope = Eio.Stream.take bus.buffer in
-      let updated = { envelope with delivery_attempt = envelope.delivery_attempt + 1 } in
-      deliver_to_subscribers bus updated;
+  ignore (Eio.Fiber.fork_daemon ~sw:switch (fun () ->
+    try
+      let rec loop () =
+        let envelope = Eio.Stream.take bus.buffer in
+        let updated = { envelope with delivery_attempt = envelope.delivery_attempt + 1 } in
+        deliver_to_subscribers bus updated;
+        loop ()
+      in
       loop ()
-    in
-    loop ()
-  )
+    with _ -> ();
+    `Stop_daemon))
 
 let get_dead_letters bus =
   Eio.Mutex.use_ro bus.mutex (fun () -> !(bus.dead_letters))

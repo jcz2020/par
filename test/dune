@@ -213,3 +213,9 @@
  (name mcp_mock_server)
  (libraries eio_main yojson)
  (modules mcp_mock_server))
+
+(test
+ (name test_persistence_writer)
+ (libraries par eio eio_main alcotest logs)
+ (modules test_persistence_writer)
+ (action (run %{test})))

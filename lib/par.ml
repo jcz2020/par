@@ -5,7 +5,7 @@
     State_machine, Context_manager, Cancellation,
     Tool_registry, Openai_provider, Anthropic_provider,
      Sqlite_persistence, Noop_persistence,
-     Event_bus, Builtin_tools,
+     Event_bus, Persistence_writer, Builtin_tools,
     Logging, Retry, Rate_limit, Timeout, Arg_validation, Output_validation, Pii_mask,
     Sanitize_tool_output. JSON Schema validation lives in [Validation]. *)
 
@@ -32,6 +32,7 @@ module Noop_persistence = Noop_persistence
 module Persistence_common = Persistence_common
 
 module Event_bus = Event_bus
+module Persistence_writer = Persistence_writer
 
 module Builtin_tools = Builtin_tools
 module Bash_safe_command = Bash_safe_command
