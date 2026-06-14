@@ -3,6 +3,6 @@
  (public_name par)
  (package par_cli)
  (modules main par_config cli_style)
- (libraries cmdliner par eio eio_main mirage-crypto-rng.unix yojson linenoise)
+ (libraries cmdliner par eio eio_main mirage-crypto-rng.unix yojson)
  (preprocess
   (pps ppx_deriving_yojson)))

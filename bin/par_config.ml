@@ -265,14 +265,20 @@ let prompt_line label default =
     | Some d -> Printf.sprintf "%s [%s]: " label d
     | None -> Printf.sprintf "%s: " label
   in
-  match LNoise.linenoise prompt with
-  | Some line when String.trim line <> "" -> String.trim line
+  Printf.printf "%s" prompt;
+  flush stdout;
+  match input_line stdin with
+  | line when String.trim line <> "" -> String.trim line
+  | exception End_of_file -> (match default with Some d -> d | None -> "")
   | _ -> (match default with Some d -> d | None -> "")
 
 let prompt_opt_line label =
   let prompt = Printf.sprintf "%s (留空跳过): " label in
-  match LNoise.linenoise prompt with
-  | Some line when String.trim line <> "" -> Some (String.trim line)
+  Printf.printf "%s" prompt;
+  flush stdout;
+  match input_line stdin with
+  | line when String.trim line <> "" -> Some (String.trim line)
+  | exception End_of_file -> None
   | _ -> None
 
 let run_wizard () =
@@ -316,8 +322,11 @@ let run_wizard () =
         api_base_hint
         (match existing_base with Some b -> Printf.sprintf " [%s]" b | None -> "")
     in
-    match LNoise.linenoise prompt with
-    | Some line when String.trim line <> "" -> Some (String.trim line)
+    Printf.printf "%s" prompt;
+    flush stdout;
+    match input_line stdin with
+    | line when String.trim line <> "" -> Some (String.trim line)
+    | exception End_of_file -> existing_base
     | _ -> existing_base
   in
 
