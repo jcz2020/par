@@ -70,6 +70,7 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           body_path: release-notes.md
+          prerelease: ${{ contains(github.ref_name, '-beta.') || contains(github.ref_name, '-rc.') }}
           generate_release_notes: true
           files: |
             artifacts/par-${{ github.ref_name }}-linux-x64

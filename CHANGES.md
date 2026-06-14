@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.4.0-beta-20260610 (2026-06-10)
+## v0.4.0-beta.20260610 (2026-06-10)
 
 > Python callback tools, bash interactive confirmation, structured output validation, SSE stream termination fix, par update no longer rate-limited. 879 OCaml tests, 30 Python tests.
 

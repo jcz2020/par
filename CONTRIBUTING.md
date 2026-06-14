@@ -41,13 +41,14 @@ This section is the most important one for new contributors. Read it before open
 
 **OCaml identifier preservation.** Code-level identifiers must never be translated, modified, or paraphrased. This includes literals like `Runtime.create`, `` `Sqlite ``, `par`, `par_cli`, `par_runtime`, `par_postgres`, `par config`, `par ask`, every MCP event name (such as `Mcp_server_started`), every bash module name (such as `Bash_safe_command`), and every JSON config field name (such as `event_bus.max_queue_size`). A doc update that breaks any of these fails the identifier check in CI. See [`docs/DOC-MAINTENANCE.md`](docs/DOC-MAINTENANCE.md) for the complete identifier list and the rationale.
 
-**Pre-release checklist.** Before tagging a release, walk through these five checks. The full twelve-item checklist is maintained internally for release managers.
+**Pre-release checklist.** Before tagging a release, walk through these six checks. The full twelve-item checklist is maintained internally for release managers.
 
 1. `make docs-check` passes.
 2. `dune runtest` passes (capture the test count for the release notes).
 3. The first 50 lines of `README.md` contain a working OCaml example.
 4. No CJK characters appear in any public doc.
 5. `CHANGES.md` has an entry for the new version.
+6. **Beta tags are pre-release.** Tags with `-beta.` or `-rc.` are automatically published as GitHub pre-release. Only stable tags (`vX.Y.Z`) appear as latest.
 
 For the full authoring rules, translation rules, and CI integration, see [`docs/DOC-MAINTENANCE.md`](docs/DOC-MAINTENANCE.md).
 

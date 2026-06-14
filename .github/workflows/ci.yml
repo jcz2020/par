@@ -15,6 +15,10 @@ jobs:
         os: [ubuntu-latest, macos-15, macos-13]
     steps:
       - uses: actions/checkout@v4
+      - name: Validate version
+        run: |
+          make validate-version
+          make check-version-sync
       - uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: 5.4.0
@@ -29,6 +33,12 @@ jobs:
       - run: opam install par_cli --deps-only --with-test
       - run: opam exec -- dune build
       - run: opam exec -- dune runtest
+      - name: Capture test count
+        if: always()
+        run: |
+          VERSION=$(grep -oP '(?<=\(version ")[^"]+' dune-project)
+          echo "VERSION=$VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
       - uses: actions/upload-artifact@v4
         with:
           name: par-capi-${{ matrix.os }}
