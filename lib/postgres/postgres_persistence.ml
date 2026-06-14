@@ -22,7 +22,8 @@ let init_schema (db : Postgresql.connection) =
          timestamp         DOUBLE PRECISION NOT NULL,
          idempotency_key   TEXT UNIQUE NOT NULL,
          delivery_attempt  INTEGER DEFAULT 0,
-         session_id        TEXT NOT NULL DEFAULT ''
+         session_id        TEXT NOT NULL DEFAULT '',
+         actions_json      TEXT
        )|};
     {|CREATE INDEX IF NOT EXISTS idx_events_task_id ON events(task_id)|};
     {|CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)|};
@@ -47,7 +48,19 @@ let init_schema (db : Postgresql.connection) =
   ) statements
   |> function
   | Some e -> e
-  | None -> Ok ()
+  | None ->
+    let migrations = [
+      {|ALTER TABLE events ADD COLUMN IF NOT EXISTS session_id TEXT NOT NULL DEFAULT ''|};
+      {|ALTER TABLE events ADD COLUMN IF NOT EXISTS actions_json TEXT|};
+    ] in
+    List.iter (fun sql -> ignore (exec_sql db sql)) migrations;
+    Ok ()
+
+let default_retention_ttl = 7. *. 24. *. 60. *. 60.
+
+let prune_old_events db ~ttl_seconds =
+  let cutoff = Unix.gettimeofday () -. ttl_seconds in
+  exec_sql db (Printf.sprintf "DELETE FROM events WHERE timestamp < %f" cutoff)
 
 let create conninfo =
   let db =
@@ -58,7 +71,9 @@ let create conninfo =
   match db#status with
   | Postgresql.Ok ->
     (match init_schema db with
-    | Ok () -> Ok { db; mutex = Eio.Mutex.create () }
+    | Ok () ->
+      ignore (prune_old_events db ~ttl_seconds:default_retention_ttl);
+      Ok { db; mutex = Eio.Mutex.create () }
     | Result.Error e -> db#finish; Result.Error e)
   | _ ->
     let msg = db#error_message in

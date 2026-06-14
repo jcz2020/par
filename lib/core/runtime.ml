@@ -628,10 +628,15 @@ let create ?(persistence = noop_persistence)
       if not persistence_is_noop then begin
         let bus = Event_bus.create default_event_bus_config in
         Event_bus.start_dispatcher bus switch;
+        let overflow_fn envelope =
+          Event_bus.push_to_dlq bus envelope "persistence buffer overflow"
+            (Internal "persistence buffer overflow")
+        in
         let writer =
           Persistence_writer.create
             ~capacity:1000
             ~flush_interval:0.05
+            ~overflow_fn
             persistence.save_events_fn
         in
         Persistence_writer.start_drain_fiber writer switch;
@@ -737,6 +742,8 @@ let close rt =
   Eio.Mutex.use_rw ~protect:false rt.shutdown_mutex (fun () ->
     rt.shutdown_requested := true
   );
+  Eio.Fiber.yield ();
+  Eio.Fiber.yield ();
   (match rt.persistence_writer with
    | Some writer -> Persistence_writer.flush_sync writer
    | None -> ());

@@ -111,6 +111,18 @@ let dlq_entries bus =
   List.map (fun (entry : dead_letter_entry) -> entry.envelope.payload)
     (get_dead_letters bus)
 
+let push_to_dlq bus envelope error_msg failure_reason =
+  let entry = {
+    envelope;
+    error = error_msg;
+    failure_reason;
+    failed_at = Unix.time ();
+    attempt_count = 0;
+  } in
+  Eio.Mutex.use_rw ~protect:false bus.mutex (fun () ->
+    bus.dead_letters := entry :: !(bus.dead_letters)
+  )
+
 let to_service (bus : t) : Types.event_bus_service = {
   publish_fn = (fun evt -> publish bus evt);
   subscribe_fn = (fun handler -> subscribe bus handler);

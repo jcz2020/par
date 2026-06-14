@@ -17,17 +17,16 @@ let exec_sql db sql =
   | rc -> Result.Error (Internal (Printf.sprintf "SQLite error: %s" (Sqlite3.Rc.to_string rc)))
 
 let init_schema db =
-  let statements = [
+  let core_statements = [
     {|CREATE TABLE IF NOT EXISTS events (
          id                TEXT PRIMARY KEY,
          task_id           TEXT NOT NULL,
          payload           TEXT NOT NULL,
          timestamp         REAL NOT NULL,
          idempotency_key   TEXT UNIQUE NOT NULL,
-         session_id        TEXT NOT NULL DEFAULT ''
+         session_id        TEXT NOT NULL DEFAULT '',
+         actions_json      TEXT
        )|};
-    {|CREATE INDEX IF NOT EXISTS idx_events_task_id ON events(task_id, timestamp)|};
-    {|CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id, timestamp)|};
      {|CREATE TABLE IF NOT EXISTS task_states (
          id          TEXT PRIMARY KEY,
          state       TEXT NOT NULL,
@@ -41,17 +40,38 @@ let init_schema db =
          updated_at  REAL NOT NULL
        )|};
   ] in
-  List.find_map (fun sql ->
+  (match List.find_map (fun sql ->
      match exec_sql db sql with
      | Result.Error e -> Some (Result.Error e)
      | Ok () -> None
-   ) statements
-  |> function
-  | Some e -> e
-  | None ->
-    (match exec_sql db {|ALTER TABLE events ADD COLUMN session_id TEXT NOT NULL DEFAULT ''|} with
-     | Ok () -> Ok ()
-     | Result.Error _ -> Ok ())
+   ) core_statements with
+   | Some e -> e
+   | None ->
+     let migrations = [
+       {|ALTER TABLE events ADD COLUMN session_id TEXT NOT NULL DEFAULT ''|};
+       {|ALTER TABLE events ADD COLUMN actions_json TEXT|};
+     ] in
+     List.iter (fun sql ->
+       match exec_sql db sql with
+       | Ok () -> ()
+       | Result.Error _ -> ()
+     ) migrations;
+     let indexes = [
+       {|CREATE INDEX IF NOT EXISTS idx_events_task_id ON events(task_id, timestamp)|};
+       {|CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id, timestamp)|};
+     ] in
+     List.iter (fun sql -> ignore (exec_sql db sql)) indexes;
+     Ok ())
+
+let _prune_raw db ~ttl_seconds =
+  let cutoff = Unix.gettimeofday () -. ttl_seconds in
+  exec_sql db (Printf.sprintf "DELETE FROM events WHERE timestamp < %f" cutoff)
+
+let prune_old_events t ~ttl_seconds =
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
+    _prune_raw t.db ~ttl_seconds)
+
+let default_retention_ttl = 7. *. 24. *. 60. *. 60.
 
 (* -------------------------------------------------------------------------- *)
 (* Connection init                                                       *)
@@ -60,7 +80,12 @@ let init_schema db =
 let create db_path =
   let db = Sqlite3.db_open db_path in
   match init_schema db with
-  | Ok () -> Ok { db; mutex = Eio.Mutex.create () }
+  | Ok () ->
+    (match _prune_raw db ~ttl_seconds:default_retention_ttl with
+     | Ok () -> Ok { db; mutex = Eio.Mutex.create () }
+     | Result.Error e ->
+       ignore (Sqlite3.db_close db);
+       Result.Error e)
   | Result.Error e ->
     (if not (Sqlite3.db_close db) then
        Logs.err (fun m -> m "sqlite_persistence: db_close failed during create error path"));
@@ -86,8 +111,8 @@ let insert_event db (envelope : event_envelope) =
   let session_id = extract_session_id envelope in
   let stmt =
     Sqlite3.prepare db
-      "INSERT OR IGNORE INTO events (id, task_id, payload, timestamp, idempotency_key, session_id) \
-       VALUES (?, ?, ?, ?, ?, ?)"
+      "INSERT OR IGNORE INTO events (id, task_id, payload, timestamp, idempotency_key, session_id, actions_json) \
+       VALUES (?, ?, ?, ?, ?, ?, NULL)"
   in
   let task_id = extract_task_id ev in
   let ts = envelope.metadata.timestamp in
@@ -223,6 +248,38 @@ let load_sessions t limit =
         | rc ->
           stop := true;
           error := Some (Result.Error (Internal (Printf.sprintf "Load sessions: %s" (Sqlite3.Rc.to_string rc))))
+      done;
+      match !error with
+      | Some e -> e
+      | None -> Ok (List.rev !acc)
+    in
+    let _ = Sqlite3.finalize stmt in
+    result
+  )
+
+let load_recent_events t limit =
+  Eio.Mutex.use_ro t.mutex (fun () ->
+    let stmt =
+      Sqlite3.prepare t.db
+        "SELECT payload FROM events ORDER BY timestamp DESC LIMIT ?"
+    in
+    let _ = Sqlite3.bind_int stmt 1 limit in
+    let acc = ref [] in
+    let result =
+      let stop = ref false in
+      let error = ref None in
+      while not !stop do
+        match Sqlite3.step stmt with
+        | Sqlite3.Rc.ROW ->
+          let payload = Sqlite3.column_text stmt 0 in
+          (match event_of_yojson (Yojson.Safe.from_string payload) with
+          | Ok ev -> acc := ev :: !acc
+          | Error _ -> ()
+          | exception Yojson.Json_error _ -> ())
+        | Sqlite3.Rc.DONE -> stop := true
+        | rc ->
+          stop := true;
+          error := Some (Result.Error (Internal (Printf.sprintf "Load recent: %s" (Sqlite3.Rc.to_string rc))))
       done;
       match !error with
       | Some e -> e

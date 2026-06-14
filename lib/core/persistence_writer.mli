@@ -5,6 +5,7 @@ type t
 val create :
   ?capacity:int ->
   ?flush_interval:float ->
+  ?overflow_fn:(event_envelope -> unit) ->
   (event_envelope list -> (unit, error_category) result) ->
   t
 

@@ -871,6 +871,39 @@ let cmd_stats () =
          Printf.printf "%-38s %5d %12.0f %12.0f\n"
            s.Types.session_id s.Types.event_count s.Types.first_event_at s.Types.last_event_at
        ) ss);
+    (match Sqlite_persistence.load_recent_events t 10000 with
+     | Error _ -> ()
+     | Ok events ->
+       let total = List.length events in
+       let llm_calls = List.length (List.filter (function Types.Llm_request_sent _ -> true | _ -> false) events) in
+       let tool_invoked = List.filter (function
+         | Types.Tool_invoked _ -> true
+         | Types.Bash_invoked _ -> true
+         | Types.Mcp_tool_invoked _ -> true
+         | _ -> false) events in
+       let tool_counts = Hashtbl.create 16 in
+       List.iter (fun evt ->
+         let name = match evt with
+           | Types.Tool_invoked { tool_name; _ } -> tool_name
+           | Types.Bash_invoked { tool_name; _ } -> tool_name
+           | Types.Mcp_tool_invoked { tool_name; _ } -> tool_name
+           | _ -> "unknown"
+         in
+         let prev = try Hashtbl.find tool_counts name with Not_found -> 0 in
+         Hashtbl.replace tool_counts name (prev + 1)
+       ) tool_invoked;
+       Printf.printf "\nMETRICS\n";
+       Printf.printf "  Total events:     %d\n" total;
+       Printf.printf "  LLM calls:        %d\n" llm_calls;
+       Printf.printf "  Tool calls:       %d\n" (List.length tool_invoked);
+       if Hashtbl.length tool_counts > 0 then begin
+         Printf.printf "  Top tools:\n";
+         let sorted = Hashtbl.fold (fun k v acc -> (k, v) :: acc) tool_counts [] in
+         let sorted = List.sort (fun (_, a) (_, b) -> compare b a) sorted in
+         List.iteri (fun i (name, count) ->
+           if i < 5 then Printf.printf "    %-20s %d\n" name count
+         ) sorted
+       end);
     Sqlite_persistence.close t
 
 let term_stats =

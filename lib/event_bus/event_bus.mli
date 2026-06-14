@@ -18,6 +18,8 @@ val get_dead_letters : t -> dead_letter_entry list
 
 val dlq_entries : t -> event list
 
+val push_to_dlq : t -> event_envelope -> string -> error_category -> unit
+
 val to_service : t -> Types.event_bus_service
 
 val set_session_id : t -> string -> unit
