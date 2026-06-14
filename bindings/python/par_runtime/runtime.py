@@ -70,6 +70,7 @@ class Runtime:
             "eval_limits": {"max_depth": 10, "max_node_visits": 1000},
             "llm_providers": [],
             "parallel_tool_execution": True,
+            "event_retention_seconds": 604800.0,
         }
         for key, default in defaults.items():
             if key not in cfg:

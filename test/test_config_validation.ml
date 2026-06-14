@@ -42,6 +42,7 @@ let make_config ?(persistence = `Sqlite ":memory:") ?(llm_providers = []) () = {
   eval_limits = valid_eval_limits;
   parallel_tool_execution = true;
   bash_confirm = valid_bash_confirm;
+  event_retention_seconds = 604800.0;
 }
 
 let suite = [

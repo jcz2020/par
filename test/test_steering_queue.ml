@@ -9,6 +9,7 @@ let test_config : runtime_config = {
   eval_limits = { max_depth = 10; max_node_visits = 1000 };
   parallel_tool_execution = true;
   bash_confirm = Par.Runtime.default_bash_confirm;
+  event_retention_seconds = 604800.0;
 }
 
 let make_rt () =

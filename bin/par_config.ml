@@ -30,6 +30,7 @@ type config = {
   system_prompt_template_override : string option;
   (* v0.3.3 MCP *)
   mcp_servers : mcp_server_entry list;
+  event_retention_days : float;
 }
 
 (* -------------------------------------------------------------------------- *)
@@ -52,6 +53,7 @@ let default = {
   template_variables = [("role", "AI助手"); ("task", "回答用户问题并提供帮助")];
   system_prompt_template_override = None;
   mcp_servers = [];
+  event_retention_days = 7.0;
 }
 
 (* -------------------------------------------------------------------------- *)
@@ -100,6 +102,7 @@ let to_json (cfg : config) : Yojson.Safe.t =
         ("startup_timeout", `Float s.startup_timeout);
       ]
     ) cfg.mcp_servers));
+    ("event_retention_days", `Float cfg.event_retention_days);
   ]
 
 let of_json (json : Yojson.Safe.t) : (config, string) result =
@@ -182,6 +185,10 @@ let of_json (json : Yojson.Safe.t) : (config, string) result =
                | _ -> None)
             | _ -> None) entries
         | _ -> []);
+      event_retention_days = (match Yojson.Safe.Util.(json |> member "event_retention_days") with
+        | `Float f -> f
+        | `Int i -> float_of_int i
+        | _ -> default.event_retention_days);
     }
   with exn ->
     Error (Printexc.to_string exn)
@@ -392,6 +399,7 @@ let run_wizard () =
     template_variables = [("role", role); ("task", task)];
     system_prompt_template_override = None;
     mcp_servers = [];
+    event_retention_days = default.event_retention_days;
   } in
   save cfg;
   Printf.printf "\n✓ 配置已保存到 %s\n" (config_path ())

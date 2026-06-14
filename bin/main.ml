@@ -44,6 +44,11 @@ let max_iterations =
   Arg.(value & opt int 10 &
     info [ "max-iterations" ] ~docv:"N" ~doc:"Max ReAct iterations (default: 10)")
 
+let retention_days =
+  let open Cmdliner in
+  Arg.(value & opt (some float) None &
+    info [ "retention-days" ] ~docv:"DAYS" ~doc:"Event retention in days, 0=never prune (overrides config)")
+
 let temperature_arg =
   let open Cmdliner in
   Arg.(value & opt (some float) None &
@@ -82,8 +87,10 @@ let error_category_to_string (e : Types.error_category) =
   | Types.Permission_denied s -> Printf.sprintf "Permission denied: %s" s
   | Types.Internal s -> Printf.sprintf "Internal error: %s" s
 
-let make_sqlite_persistence db_path =
-  match Sqlite_persistence.create db_path with
+let make_sqlite_persistence ?(retention_days = 7.0) db_path =
+  match Sqlite_persistence.create
+    ~retention_ttl:(retention_days *. 24. *. 60. *. 60.)
+    db_path with
   | Error e ->
     Printf.eprintf "Error opening SQLite database: %s\n" (error_category_to_string e);
     exit 1
@@ -170,7 +177,7 @@ let render_system_prompt (cfg : Par_config.config) ~agent_id ~runtime_id ~tool_n
   | Ok prompt -> prompt
   | Error _ -> cfg.Par_config.system_prompt
 
-let make_runtime_config persistence_val parallel_tool_exec =
+let make_runtime_config persistence_val parallel_tool_exec retention_days =
   { Types.
     persistence = persistence_val;
     event_bus = Runtime.default_event_bus_config;
@@ -179,7 +186,8 @@ let make_runtime_config persistence_val parallel_tool_exec =
     llm_providers = [];
     eval_limits = { max_depth = 10; max_node_visits = 1000 };
     parallel_tool_execution = parallel_tool_exec;
-    bash_confirm = Runtime.default_bash_confirm; }
+    bash_confirm = Runtime.default_bash_confirm;
+    event_retention_seconds = retention_days *. 24. *. 60. *. 60.; }
 
 (* -------------------------------------------------------------------------- *)
 (* Built-in tools                                                              *)
@@ -199,7 +207,7 @@ let merge_config
     (cfg : Par_config.config)
     provider_opt api_key_opt api_base_opt model_opt
     persistence_opt db_uri_opt temp_opt prompt_opt max_iter
-    max_tokens_opt top_p_opt no_parallel_tools =
+    max_tokens_opt top_p_opt no_parallel_tools retention_days_opt =
   { Par_config.
     provider = (match provider_opt with Some p -> p | None -> cfg.provider);
     api_key = (match api_key_opt with Some k -> k | None -> cfg.api_key);
@@ -216,6 +224,7 @@ let merge_config
     template_variables = cfg.template_variables;
     system_prompt_template_override = cfg.system_prompt_template_override;
     mcp_servers = cfg.mcp_servers;
+    event_retention_days = (match retention_days_opt with Some d -> d | None -> cfg.event_retention_days);
   }
 
 let require_config () =
@@ -234,7 +243,7 @@ let setup_runtime cfg ~f =
                (Par_config.resolve_persistence cfg) cfg.Par_config.db_uri in
   let persistence_config = Par_config.to_persistence_config cfg in
   let provider_tag = Par_config.to_provider_tag cfg in
-  let config = make_runtime_config persistence_config cfg.Par_config.parallel_tool_execution in
+  let config = make_runtime_config persistence_config cfg.Par_config.parallel_tool_execution cfg.Par_config.event_retention_days in
   Eio_main.run @@ fun env ->
   Eio.Switch.run @@ fun switch ->
   let net = Eio.Stdenv.net env in
@@ -429,11 +438,11 @@ let repl rt agent_id_val =
 let cmd_chat
     provider_opt api_key_opt api_base_opt model_opt
     persistence_opt db_uri_opt temp_opt prompt_opt max_iter
-    max_tokens_opt top_p_opt no_parallel_tools =
+    max_tokens_opt top_p_opt no_parallel_tools retention_days_opt =
   let cfg = require_config () in
   let cfg = merge_config cfg provider_opt api_key_opt api_base_opt model_opt
               persistence_opt db_uri_opt temp_opt prompt_opt max_iter
-              max_tokens_opt top_p_opt no_parallel_tools in
+              max_tokens_opt top_p_opt no_parallel_tools retention_days_opt in
   setup_runtime cfg ~f:(fun rt -> repl rt "default-agent")
 
 let term_chat =
@@ -441,7 +450,7 @@ let term_chat =
   const cmd_chat
   $ provider_arg $ api_key_arg $ api_base $ model_name
   $ persistence_arg $ db_uri $ temperature_arg $ system_prompt $ max_iterations
-  $ max_tokens_arg $ top_p_arg $ no_parallel_tools
+  $ max_tokens_arg $ top_p_arg $ no_parallel_tools $ retention_days
 
 (* -------------------------------------------------------------------------- *)
 (* 'par config' command — interactive wizard                                  *)
@@ -465,11 +474,11 @@ let cmd_ask
     question
     provider_opt api_key_opt api_base_opt model_opt
     persistence_opt db_uri_opt temp_opt prompt_opt max_iter
-    max_tokens_opt top_p_opt no_parallel_tools =
+    max_tokens_opt top_p_opt no_parallel_tools retention_days_opt =
   let cfg = require_config () in
   let cfg = merge_config cfg provider_opt api_key_opt api_base_opt model_opt
               persistence_opt db_uri_opt temp_opt prompt_opt max_iter
-              max_tokens_opt top_p_opt no_parallel_tools in
+              max_tokens_opt top_p_opt no_parallel_tools retention_days_opt in
   setup_runtime cfg ~f:(fun rt ->
     match Runtime.invoke rt ~agent_id:"default-agent" ~message:question
         ~on_tool_event:(make_tool_event_callback ())
@@ -489,7 +498,7 @@ let term_ask =
   $ question_arg
   $ provider_arg $ api_key_arg $ api_base $ model_name
   $ persistence_arg $ db_uri $ temperature_arg $ system_prompt $ max_iterations
-  $ max_tokens_arg $ top_p_arg $ no_parallel_tools
+  $ max_tokens_arg $ top_p_arg $ no_parallel_tools $ retention_days
 
 let info_ask = Cmdliner.Cmd.info "ask"
   ~doc:"Ask a single question and print the answer"
@@ -943,6 +952,7 @@ let print_custom_help () =
   opt "--persistence BACKEND"    "sqlite|postgres (default: sqlite)";
   opt "--db-uri URI"             "PostgreSQL connection URI";
   opt "--no-parallel-tools"      "Disable parallel tool execution";
+  opt "--retention-days DAYS"    "Event retention days, 0=never prune (default: 7)";
   section "EXAMPLES";
   Printf.printf "  %s\n" (dim "par                                    # start REPL");
   Printf.printf "  %s\n" (dim "par ask \"what is OCaml?\"            # single shot");

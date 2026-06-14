@@ -4,7 +4,7 @@ open Par.Types
 
 type t
 
-val create : string -> (t, error_category) result
+val create : ?retention_ttl:float -> string -> (t, error_category) result
 val close : t -> unit
 
 val save_events : t -> event_envelope list -> (unit, error_category) result

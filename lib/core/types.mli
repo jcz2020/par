@@ -504,6 +504,7 @@ type runtime_config = {
   eval_limits : eval_limits;
   parallel_tool_execution : bool;
   bash_confirm : bash_confirm_config;
+  event_retention_seconds : float;
 }
 [@@deriving yojson]
 

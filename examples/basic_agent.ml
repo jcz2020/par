@@ -10,6 +10,7 @@ let () =
     eval_limits = { max_depth = 10; max_node_visits = 1000 };
   parallel_tool_execution = true;
   bash_confirm = Runtime.default_bash_confirm;
+  event_retention_seconds = 604800.0;
   } in
   Eio_main.run (fun _env ->
     Eio.Switch.run (fun switch ->

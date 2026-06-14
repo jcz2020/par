@@ -77,15 +77,18 @@ let default_retention_ttl = 7. *. 24. *. 60. *. 60.
 (* Connection init                                                       *)
 (* -------------------------------------------------------------------------- *)
 
-let create db_path =
+let create ?(retention_ttl = default_retention_ttl) db_path =
   let db = Sqlite3.db_open db_path in
   match init_schema db with
   | Ok () ->
-    (match _prune_raw db ~ttl_seconds:default_retention_ttl with
-     | Ok () -> Ok { db; mutex = Eio.Mutex.create () }
-     | Result.Error e ->
-       ignore (Sqlite3.db_close db);
-       Result.Error e)
+    (match retention_ttl with
+     | ttl when ttl > 0.0 ->
+       (match _prune_raw db ~ttl_seconds:ttl with
+        | Ok () -> Ok { db; mutex = Eio.Mutex.create () }
+        | Result.Error e ->
+          ignore (Sqlite3.db_close db);
+          Result.Error e)
+     | _ -> Ok { db; mutex = Eio.Mutex.create () })
   | Result.Error e ->
     (if not (Sqlite3.db_close db) then
        Logs.err (fun m -> m "sqlite_persistence: db_close failed during create error path"));

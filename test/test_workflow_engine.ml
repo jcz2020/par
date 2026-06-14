@@ -588,7 +588,8 @@ let runtime_config () : runtime_config =
     llm_providers = [];
     eval_limits = { max_depth = 10; max_node_visits = 1000 };
     parallel_tool_execution = true;
-    bash_confirm = Runtime.default_bash_confirm; }
+     bash_confirm = Runtime.default_bash_confirm;
+    event_retention_seconds = 604800.0; }
 
 let dummy_workflow ?(id = "wf-test") ?(name = "Workflow Test")
                    ?(steps : workflow_step = Sequential [])

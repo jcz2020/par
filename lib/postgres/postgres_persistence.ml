@@ -62,7 +62,7 @@ let prune_old_events db ~ttl_seconds =
   let cutoff = Unix.gettimeofday () -. ttl_seconds in
   exec_sql db (Printf.sprintf "DELETE FROM events WHERE timestamp < %f" cutoff)
 
-let create conninfo =
+let create ?(retention_ttl = default_retention_ttl) conninfo =
   let db =
     try new Postgresql.connection ~conninfo ()
     with Postgresql.Error (Connection_failure msg) ->
@@ -72,7 +72,8 @@ let create conninfo =
   | Postgresql.Ok ->
     (match init_schema db with
     | Ok () ->
-      ignore (prune_old_events db ~ttl_seconds:default_retention_ttl);
+      if retention_ttl > 0.0 then
+        ignore (prune_old_events db ~ttl_seconds:retention_ttl);
       Ok { db; mutex = Eio.Mutex.create () }
     | Result.Error e -> db#finish; Result.Error e)
   | _ ->

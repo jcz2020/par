@@ -26,6 +26,7 @@ let test_config : Types.runtime_config = {
   eval_limits = { max_depth = 10; max_node_visits = 1000 };
   parallel_tool_execution = true;
   bash_confirm = Runtime.default_bash_confirm;
+  event_retention_seconds = 604800.0;
 }
 
 let make_runtime ?bash_policy () =

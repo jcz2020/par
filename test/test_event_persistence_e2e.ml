@@ -34,6 +34,7 @@ let test_runtime_create_persists_published_events () =
         eval_limits = { max_depth = 10; max_node_visits = 1000 };
         parallel_tool_execution = true;
         bash_confirm = Types.default_bash_confirm_config;
+  event_retention_seconds = 604800.0;
       } in
       let mock_llm : Types.llm_service = {
         complete_fn = (fun _ _ _ ->
