@@ -40,7 +40,7 @@ let init_schema db =
          checkpoint  TEXT,
          updated_at  REAL NOT NULL
        )|};
-   ] in
+  ] in
   List.find_map (fun sql ->
      match exec_sql db sql with
      | Result.Error e -> Some (Result.Error e)
@@ -48,7 +48,10 @@ let init_schema db =
    ) statements
   |> function
   | Some e -> e
-  | None -> Ok ()
+  | None ->
+    (match exec_sql db {|ALTER TABLE events ADD COLUMN session_id TEXT NOT NULL DEFAULT ''|} with
+     | Ok () -> Ok ()
+     | Result.Error _ -> Ok ())
 
 (* -------------------------------------------------------------------------- *)
 (* Connection init                                                       *)

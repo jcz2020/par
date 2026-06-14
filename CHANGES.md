@@ -1,21 +1,32 @@
 # CHANGES
 
-## v0.4.1 (Unreleased)
+## v0.4.1-beta (2026-06-15)
 
-> Event persistence type foundation. 879 OCaml tests.
+> Event persistence now functional end-to-end. Session scoping. CLI history/stats. 885 OCaml tests.
 
-### Added
+### New Features
+
+- **Event persistence wired**: Events published during `Runtime.invoke` are now persisted to the database via an async buffered writer subscribed to the event bus. The engine's `save_events_fn` is now called for every event.
+- **Session scoping**: Each `Runtime.invoke` call generates a fresh `session_id`. Every event envelope carries this `session_id` in its metadata. Events can be queried by session.
+- **`par history <session_id>` CLI command**: Shows all events for a given session, formatted as JSON.
+- **`par stats` CLI command**: Shows recent sessions with event counts and timestamps in a table format.
+- **`Persistence_writer` module**: Async buffered writer that batches events (50ms flush interval, 1000-event buffer capacity) and writes to persistence without blocking the event bus dispatcher. Flushes synchronously on `Runtime.close`.
+
+### Type Changes
 
 - **`session_id` field on `event_metadata`**: Every event envelope now carries a session identifier.
-- **`event_bus_service` record type**: Replaces the `EVENT_BUS_SERVICE` module type with a plain record (`publish_fn`, `subscribe_fn`, `unsubscribe_fn`, `set_session_id_fn`, `start_dispatcher_fn`). Runtime event bus injection now uses the record directly.
-- **`session_summary` type**: Summary shape for session listings.
-- **`load_events_by_session_fn` and `load_sessions_fn` on `persistence_service`**: Persistence backends can now query events by session and list sessions.
+- **`event_bus_service` record type**: Replaces the `EVENT_BUS_SERVICE` module type with a plain record. Runtime event bus injection now uses the record directly.
+- **`session_summary` type**: Summary shape for session listings (`session_id`, `event_count`, `first_event_at`, `last_event_at`).
+- **`save_events_fn` now accepts `event_envelope list`**: Preserves session and delivery metadata through persistence.
 
-### Changed
+### Bug Fixes
 
-- **`save_events_fn` now accepts `event_envelope list` instead of `event list`**: Persistence backends store full envelopes, preserving session and delivery metadata.
-- **Event bus subscribers receive `event_envelope` instead of `event`**: Subscribers now get the full envelope (metadata + payload + idempotency key).
-- **SQLite/PostgreSQL event schema**: Added `session_id` column and session index.
+- **Remove `Obj.magic` hack**: Runtime→event_bus path was unsound (fabricated bus instance). Now uses a concrete record.
+- **Event_bus.start_dispatcher uses `fork_daemon`**: Was using `fork`, causing switches to hang when dispatcher loops forever.
+
+### Schema Migration
+
+- **SQLite/PostgreSQL**: Added `session_id TEXT NOT NULL DEFAULT ''` column to events table. ALTER TABLE migration for existing databases (idempotent).
 
 ## v0.4.0-beta.20260610 (2026-06-10)
 

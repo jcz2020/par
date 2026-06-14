@@ -811,6 +811,76 @@ let info_update = Cmdliner.Cmd.info "update"
   ~doc:"Check for updates and update par to the latest version"
 
 (* -------------------------------------------------------------------------- *)
+(* par history <session_id>                                                   *)
+(* -------------------------------------------------------------------------- *)
+
+let session_id_arg =
+  let open Cmdliner in
+  Arg.(required & pos 0 (some string) None &
+    info [] ~docv:"SESSION_ID" ~doc:"Session ID to show history for")
+
+let cmd_history session_id_val =
+  let db_path = Par_config.config_dir () ^ "/par.db" in
+  match Sqlite_persistence.create db_path with
+  | Error e ->
+    Printf.eprintf "Error opening database: %s\n" (error_category_to_string e);
+    exit 1
+  | Ok t ->
+    (match Sqlite_persistence.load_events_by_session t session_id_val with
+     | Error e ->
+       Printf.eprintf "Error loading events: %s\n" (error_category_to_string e);
+       Sqlite_persistence.close t; exit 1
+     | Ok [] ->
+       Printf.printf "No events found for session: %s\n" session_id_val
+     | Ok evs ->
+       Printf.printf "Session: %s (%d events)\n\n" session_id_val (List.length evs);
+       List.iteri (fun i evt ->
+       let json = Yojson.Safe.pretty_to_string (Types.event_to_yojson evt) in
+       Printf.printf "[%3d] %s\n" (i + 1) json
+     ) evs);
+    Sqlite_persistence.close t
+
+let term_history =
+  let open Cmdliner.Term in
+  const cmd_history $ session_id_arg
+
+let info_history = Cmdliner.Cmd.info "history"
+  ~doc:"Show event history for a session"
+
+(* -------------------------------------------------------------------------- *)
+(* par stats                                                                  *)
+(* -------------------------------------------------------------------------- *)
+
+let cmd_stats () =
+  let db_path = Par_config.config_dir () ^ "/par.db" in
+  match Sqlite_persistence.create db_path with
+  | Error e ->
+    Printf.eprintf "Error opening database: %s\n" (error_category_to_string e);
+    exit 1
+  | Ok t ->
+    (match Sqlite_persistence.load_sessions t 20 with
+     | Error e ->
+       Printf.eprintf "Error loading sessions: %s\n" (error_category_to_string e);
+       Sqlite_persistence.close t; exit 1
+     | Ok [] ->
+       Printf.printf "No sessions found.\n"
+     | Ok ss ->
+       Printf.printf "%-38s %5s %12s %12s\n" "SESSION_ID" "EVTS" "FIRST" "LAST";
+       Printf.printf "%s\n" (String.make 72 '-');
+       List.iter (fun (s : Types.session_summary) ->
+         Printf.printf "%-38s %5d %12.0f %12.0f\n"
+           s.Types.session_id s.Types.event_count s.Types.first_event_at s.Types.last_event_at
+       ) ss);
+    Sqlite_persistence.close t
+
+let term_stats =
+  let open Cmdliner.Term in
+  const cmd_stats $ const ()
+
+let info_stats = Cmdliner.Cmd.info "stats"
+  ~doc:"Show usage statistics and recent sessions"
+
+(* -------------------------------------------------------------------------- *)
 (* Custom help renderer                                                       *)
 (* -------------------------------------------------------------------------- *)
 
@@ -825,6 +895,8 @@ let print_custom_help () =
   opt "par ask QUESTION"         "Single-shot Q&A, print answer and exit";
   opt "par config"               "Configure provider, API key, and model";
   opt "par update"               "Check for updates and self-update";
+  opt "par history SESSION_ID"   "Show event history for a session";
+  opt "par stats"                "Show usage statistics and recent sessions";
   section "OPTIONS";
   opt "--provider PROVIDER"      "LLM provider: openai|anthropic (default: openai)";
   opt "--api-key KEY"            "API key (overrides config file)";
@@ -858,6 +930,8 @@ let cmd =
       v info_config term_config;
       v info_ask term_ask;
       v info_update term_update;
+      v info_history term_history;
+      v info_stats term_stats;
     ]
 
 let () =
