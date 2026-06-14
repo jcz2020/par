@@ -1,5 +1,22 @@
 # CHANGES
 
+## v0.4.1 (Unreleased)
+
+> Event persistence type foundation. 879 OCaml tests.
+
+### Added
+
+- **`session_id` field on `event_metadata`**: Every event envelope now carries a session identifier.
+- **`event_bus_service` record type**: Replaces the `EVENT_BUS_SERVICE` module type with a plain record (`publish_fn`, `subscribe_fn`, `unsubscribe_fn`, `set_session_id_fn`, `start_dispatcher_fn`). Runtime event bus injection now uses the record directly.
+- **`session_summary` type**: Summary shape for session listings.
+- **`load_events_by_session_fn` and `load_sessions_fn` on `persistence_service`**: Persistence backends can now query events by session and list sessions.
+
+### Changed
+
+- **`save_events_fn` now accepts `event_envelope list` instead of `event list`**: Persistence backends store full envelopes, preserving session and delivery metadata.
+- **Event bus subscribers receive `event_envelope` instead of `event`**: Subscribers now get the full envelope (metadata + payload + idempotency key).
+- **SQLite/PostgreSQL event schema**: Added `session_id` column and session index.
+
 ## v0.4.0-beta.20260610 (2026-06-10)
 
 > Python callback tools, bash interactive confirmation, structured output validation, SSE stream termination fix, par update no longer rate-limited. 879 OCaml tests, 30 Python tests.
