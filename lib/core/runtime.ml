@@ -113,6 +113,11 @@ let register_agent rt (agent : agent_config) =
     Ok ()
   | Result.Error e -> Result.Error e
 
+let list_agents rt =
+  let acc = ref [] in
+  htbl_iter rt.agents (fun _ agent -> acc := agent :: !acc);
+  List.rev !acc
+
 let register_tool rt ~name ~description ~input_schema ~handler
     ?output_schema ?(permission = Allow) ?timeout ?concurrency_limit ?(on_update = None) () =
   let descriptor = { Types.name; description; input_schema; output_schema; permission; timeout; concurrency_limit; on_update } in

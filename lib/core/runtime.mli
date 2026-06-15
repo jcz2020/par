@@ -36,6 +36,8 @@ val install_bash_tool :
 
 val register_agent : runtime -> agent_config -> (unit, error_category) result
 
+val list_agents : runtime -> agent_config list
+
 val make_agent :
   id:string ->
   ?system_prompt:string ->

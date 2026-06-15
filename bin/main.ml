@@ -224,6 +224,7 @@ let merge_config
     template_variables = cfg.template_variables;
     system_prompt_template_override = cfg.system_prompt_template_override;
     mcp_servers = cfg.mcp_servers;
+    agents = cfg.agents;
     event_retention_days = (match retention_days_opt with Some d -> d | None -> cfg.event_retention_days);
   }
 
@@ -287,36 +288,40 @@ let setup_runtime cfg ~f =
      | Ok _ -> ()
      | Error e ->
        Printf.eprintf "Warning: bash tool not installed: %s\n" (error_category_to_string e));
-    let system_prompt = render_system_prompt cfg
-        ~agent_id:"default-agent"
-        ~runtime_id:"cli-runtime"
-        ~tool_names in
-    let model_cfg = Par_config.to_model_config cfg in
-    let agent_result = Runtime.make_agent
-      ~id:"default-agent"
-      ~system_prompt
-      ~model:model_cfg
-      ~tools:descriptors
-      ~max_iterations:cfg.Par_config.max_iterations () in
-    (match agent_result with
-     | Error e ->
-       Printf.eprintf "Agent validation failed: %s\n" (error_category_to_string e);
-       exit 1
-     | Ok agent ->
-       (match Runtime.register_agent rt agent with
-        | Error e ->
-          Printf.eprintf "Error registering agent: %s\n" (error_category_to_string e);
-          exit 1
-        | Ok () ->
-           Runtime.register_tool_call_hook rt
-              (Bash_confirm.make_hook config.Types.bash_confirm);
-            Runtime.register_tool_call_hook rt
-              (fun (ctx : Hook.tool_call_context) ->
-                Printf.eprintf "  [%s]\n" ctx.Hook.tool_name;
-                flush stderr;
-                Hook.Allow);
-           f rt;
-           ignore (Runtime.close rt)))
+    let agent_ids =
+      if cfg.Par_config.agents = [] then ["default-agent"]
+      else List.map (fun (a : Par_config.agent_entry) -> a.id) cfg.Par_config.agents
+    in
+    List.iter (fun agent_id ->
+      let entry = if cfg.Par_config.agents = [] then None
+        else List.find_opt (fun (a : Par_config.agent_entry) -> a.id = agent_id) cfg.Par_config.agents in
+      let agent_system_prompt = match entry with
+        | Some a -> a.Par_config.system_prompt
+        | None -> render_system_prompt cfg ~agent_id ~runtime_id:"cli-runtime" ~tool_names in
+      let agent_model_cfg = match entry with
+        | Some a when a.Par_config.model <> None ->
+          Par_config.to_model_config { cfg with Par_config.model = Option.get a.Par_config.model }
+        | _ -> Par_config.to_model_config cfg in
+      let agent_max_iter = match entry with
+        | Some a -> Option.value a.Par_config.max_iterations ~default:cfg.Par_config.max_iterations
+        | None -> cfg.Par_config.max_iterations in
+      (match Runtime.make_agent ~id:agent_id ~system_prompt:agent_system_prompt
+         ~model:agent_model_cfg ~tools:descriptors ~max_iterations:agent_max_iter () with
+       | Error e -> Printf.eprintf "Agent %s validation failed: %s\n" agent_id (error_category_to_string e); exit 1
+       | Ok agent ->
+         (match Runtime.register_agent rt agent with
+          | Error e -> Printf.eprintf "Error registering agent %s: %s\n" agent_id (error_category_to_string e); exit 1
+          | Ok () -> ()))
+    ) agent_ids;
+    Runtime.register_tool_call_hook rt
+      (Bash_confirm.make_hook config.Types.bash_confirm);
+    Runtime.register_tool_call_hook rt
+      (fun (ctx : Hook.tool_call_context) ->
+        Printf.eprintf "  [%s]\n" ctx.Hook.tool_name;
+        flush stderr;
+        Hook.Allow);
+    f rt;
+    ignore (Runtime.close rt)
 
 (* -------------------------------------------------------------------------- *)
 (* Health / metrics formatters                                                *)
@@ -343,6 +348,9 @@ let make_tool_event_callback () =
       Hashtbl.remove start_times (Types.Task_id.to_string task_id);
       Printf.eprintf "→ %s %s (%.1fms)\n"
         tool_name (Cli_style.red "✗") elapsed;
+      flush stderr
+    | Types.Agent_handoff { from_agent; to_agent; _ } ->
+      Printf.eprintf "↪ %s %s %s\n" from_agent (Cli_style.dim "→") to_agent;
       flush stderr
     | _ -> ()
 
@@ -376,19 +384,25 @@ let print_help () =
   Printf.printf "  /health     显示运行时健康状态\n";
   Printf.printf "  /metrics    显示运行时指标\n";
   Printf.printf "  /reset      重置对话（清除历史）\n";
+  Printf.printf "  /agents     列出已注册的 agent\n";
+  Printf.printf "  /switch <id> 切换到指定 agent\n";
   Printf.printf "  /quit       退出\n"
 
 (* -------------------------------------------------------------------------- *)
 (* REPL loop                                                                  *)
 (* -------------------------------------------------------------------------- *)
 
-let repl rt agent_id_val =
+let repl rt ~agent_ids =
   Printf.printf "%s\n"
     (Cli_style.dim "输入消息开始对话（输入 /help 查看命令，Ctrl+D 退出）");
   let conv : Types.conversation option ref = ref None in
   let on_tool_event = make_tool_event_callback () in
+  let active_agent = ref (List.hd agent_ids) in
   let rec loop () =
-    Printf.printf "%s" (Cli_style.bold_cyan "par> ");
+    let prompt_label = if List.length agent_ids > 1 then
+        Printf.sprintf "par [%s]> " !active_agent
+      else "par> " in
+    Printf.printf "%s" (Cli_style.bold_cyan prompt_label);
     flush stdout;
     (try
        match input_line stdin with
@@ -410,14 +424,29 @@ let repl rt agent_id_val =
               Printf.printf "%s\n" (Cli_style.dim "[followup] 已注入")
             | "/health" -> print_json (format_health (Runtime.health rt))
             | "/metrics" -> print_json (format_metrics (Runtime.metrics_snapshot rt))
+            | "/agents" ->
+              let agents = Runtime.list_agents rt in
+              List.iter (fun (a : Types.agent_config) ->
+                let status = if a.Types.id = !active_agent then "(active)" else "(idle)" in
+                Printf.printf "  %-20s %s\n" a.Types.id status
+              ) agents
+            | "/switch" ->
+              if rest = "" then Printf.eprintf "Usage: /switch <agent_id>\n"
+              else if not (List.mem rest agent_ids) then
+                Printf.eprintf "Unknown agent: %s. Use /agents to list.\n" rest
+              else begin
+                active_agent := rest;
+                Printf.printf "%s\n" (Cli_style.dim (Printf.sprintf "[switched to %s]" rest))
+              end
             | _ -> Printf.eprintf "未知命令: %s。输入 /help 查看命令列表。\n" cmd);
            flush stdout;
            loop ()
           end else begin
-            (match Runtime.invoke rt ~agent_id:agent_id_val ~message:line
+            (match Runtime.invoke rt ~agent_id:!active_agent ~message:line
                ?conversation:!conv
                ~on_tool_event
-               ~on_chunk:(Some stream_print_chunk) () with
+               ~on_chunk:(Some stream_print_chunk)
+               ~enable_handoff:true () with
              | Error (e, recovered_conv) ->
                conv := Some recovered_conv;
                print_error e
@@ -443,7 +472,11 @@ let cmd_chat
   let cfg = merge_config cfg provider_opt api_key_opt api_base_opt model_opt
               persistence_opt db_uri_opt temp_opt prompt_opt max_iter
               max_tokens_opt top_p_opt no_parallel_tools retention_days_opt in
-  setup_runtime cfg ~f:(fun rt -> repl rt "default-agent")
+  let agent_ids =
+    if cfg.Par_config.agents = [] then ["default-agent"]
+    else List.map (fun (a : Par_config.agent_entry) -> a.id) cfg.Par_config.agents
+  in
+  setup_runtime cfg ~f:(fun rt -> repl rt ~agent_ids)
 
 let term_chat =
   let open Cmdliner.Term in
@@ -482,7 +515,8 @@ let cmd_ask
   setup_runtime cfg ~f:(fun rt ->
     match Runtime.invoke rt ~agent_id:"default-agent" ~message:question
         ~on_tool_event:(make_tool_event_callback ())
-        ~on_chunk:(Some stream_print_chunk) () with
+        ~on_chunk:(Some stream_print_chunk)
+        ~enable_handoff:true () with
     | Error (e, _) ->
       Printf.eprintf "Error: %s\n" (error_category_to_string e);
       exit 1

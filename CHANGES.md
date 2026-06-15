@@ -1,5 +1,30 @@
 # CHANGES
 
+## v0.4.4-beta (2026-06-15)
+
+> Multi-agent REPL: config-driven multi-agent setup, handoff display, /agents and /switch commands. 901 OCaml tests.
+
+### New Features
+
+- **Multi-agent config**: `~/.par/config.json` accepts an `"agents"` array. Each entry has `id`, `system_prompt`, optional `model` (inherits default if omitted), optional `max_iterations` (inherits default). First agent in array is the default active agent. No `agents` array = current single `default-agent` behavior (backward compatible).
+- **Handoff display**: When `Agent_handoff` event fires during a conversation, the REPL prints `↪ from → to` on stderr. Matches the existing `→ tool ✓ (Nms)` style.
+- **Active agent in prompt**: When multiple agents are configured, the REPL prompt shows `par [agent_id]>` instead of plain `par>`.
+- **`/agents` REPL command**: Lists all registered agents with `(active)`/`(idle)` status markers.
+- **`/switch <agent_id>` REPL command**: Explicitly switches the active agent (user-initiated, not LLM-initiated handoff).
+- **`enable_handoff` auto-enabled**: The CLI passes `~enable_handoff:true` to `Runtime.invoke` so LLM-initiated handoffs work automatically when multiple agents are registered.
+
+### API Changes
+
+- **`Runtime.list_agents : runtime -> agent_config list`**: New SDK function. Returns all registered agents. Backs the CLI's `/agents` command and enables other consumers (Python binding, future tools) to enumerate agents.
+
+### CLI Changes
+
+- `repl` signature changed from `repl rt agent_id_val` to `repl rt ~agent_ids:string list`
+- `setup_runtime` registers multiple agents from config (loop over `cfg.agents`)
+- `make_tool_event_callback` handles `Agent_handoff` event variant
+- `print_help` documents `/agents` and `/switch`
+- `merge_config` carries through `agents` field
+
 ## v0.4.2-beta (2026-06-15)
 
 > Typed agent handoff: mid-conversation agent switching via typed ADT signal. Running max-of-chain iteration budget. 901 OCaml tests.

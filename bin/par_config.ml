@@ -12,6 +12,13 @@ type mcp_server_entry = {
   startup_timeout : float;
 }
 
+type agent_entry = {
+  id : string;
+  system_prompt : string;
+  model : string option;
+  max_iterations : int option;
+}
+
 type config = {
   provider : string;
   api_key : string;
@@ -30,6 +37,7 @@ type config = {
   system_prompt_template_override : string option;
   (* v0.3.3 MCP *)
   mcp_servers : mcp_server_entry list;
+  agents : agent_entry list;
   event_retention_days : float;
 }
 
@@ -53,6 +61,7 @@ let default = {
   template_variables = [("role", "AI助手"); ("task", "回答用户问题并提供帮助")];
   system_prompt_template_override = None;
   mcp_servers = [];
+  agents = [];
   event_retention_days = 7.0;
 }
 
@@ -102,6 +111,14 @@ let to_json (cfg : config) : Yojson.Safe.t =
         ("startup_timeout", `Float s.startup_timeout);
       ]
     ) cfg.mcp_servers));
+    ("agents", `List (List.map (fun (a : agent_entry) ->
+      `Assoc [
+        ("id", `String a.id);
+        ("system_prompt", `String a.system_prompt);
+        ("model", (match a.model with Some m -> `String m | None -> `Null));
+        ("max_iterations", (match a.max_iterations with Some n -> `Int n | None -> `Null));
+      ]
+    ) cfg.agents));
     ("event_retention_days", `Float cfg.event_retention_days);
   ]
 
@@ -183,6 +200,21 @@ let of_json (json : Yojson.Safe.t) : (config, string) result =
                | Some name, Some command ->
                  Some { name; command; args = get_sl "args"; env = get_pl "env"; startup_timeout = get_f "startup_timeout" }
                | _ -> None)
+            | _ -> None) entries
+        | _ -> []);
+      agents = (match Yojson.Safe.Util.(json |> member "agents") with
+        | `List entries ->
+          List.filter_map (fun entry ->
+            match entry with
+            | `Assoc fields ->
+              let get_s key = match List.assoc_opt key fields with Some (`String s) -> Some s | _ -> None in
+              let get_opt_int key = match List.assoc_opt key fields with Some (`Int n) -> Some n | _ -> None in
+              Some {
+                id = (match get_s "id" with Some s -> s | None -> "agent");
+                system_prompt = (match get_s "system_prompt" with Some s -> s | None -> "You are a helpful assistant.");
+                model = get_s "model";
+                max_iterations = get_opt_int "max_iterations";
+              }
             | _ -> None) entries
         | _ -> []);
       event_retention_days = (match Yojson.Safe.Util.(json |> member "event_retention_days") with
@@ -408,6 +440,7 @@ let run_wizard () =
     template_variables = [("role", role); ("task", task)];
     system_prompt_template_override = None;
     mcp_servers = [];
+    agents = [];
     event_retention_days = default.event_retention_days;
   } in
   save cfg;
