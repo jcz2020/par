@@ -51,6 +51,8 @@ val run_agent :
   ?on_tool_event:(event -> unit) option ->
   ?on_chunk:(llm_response_chunk -> unit) option ->
   ?conversation:conversation ->
+  ?agent_resolver:(string -> agent_config option) ->
+  ?enable_handoff:bool ->
   cancellation_token ->
   agent_config ->
   string ->

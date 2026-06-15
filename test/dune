@@ -225,3 +225,8 @@
  (libraries par eio_main alcotest sqlite3)
  (modules test_event_persistence_e2e)
  (action (run %{test})))
+
+(test
+ (name test_handoff)
+ (libraries par eio_main alcotest)
+ (modules test_handoff))

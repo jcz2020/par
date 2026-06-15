@@ -103,10 +103,12 @@ let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
             })
          | None -> result)
        | Error _ -> result
+       | Handoff _ -> result
       in
       (match result with
        | Success _ -> progress (Printf.sprintf "Tool %s succeeded" descriptor.name)
-       | Error _ -> progress (Printf.sprintf "Tool %s failed" descriptor.name));
+       | Error _ -> progress (Printf.sprintf "Tool %s failed" descriptor.name)
+       | Handoff _ -> progress (Printf.sprintf "Tool %s handoff" descriptor.name));
       apply_after_tool middleware (call', result) (fun ((_:tool_call), res) ->
         res
       )
@@ -167,6 +169,7 @@ let add_tool_result_message conv (call : tool_call) result =
   let content = match result with
     | Success json -> Yojson.Safe.to_string json
     | Error e -> e.message
+    | Handoff _ -> "<handoff>"
   in
   let msg = {
     role = Tool;
@@ -180,7 +183,8 @@ let add_tool_result_message conv (call : tool_call) result =
 let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
     ?(tool_call_hooks = None) ?(quota = None) ?(parallel = false)
     ?(on_progress = None) ?(on_tool_event = None) ?(on_chunk = None)
-    ?conversation token agent user_message llm registry =
+    ?conversation ?agent_resolver ?(enable_handoff = false)
+    token agent user_message llm registry =
   let sys_prompt = match Template.effective_system_prompt agent ~runtime_id with
     | Ok s -> s
     | Error e ->
@@ -212,8 +216,9 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
       i role_str
       (match msg.content with Some c -> c | None -> "<none>"))
   in
-  let rec loop conv iterations =
-    if iterations >= agent.max_iterations then
+  let rec loop ~agent ~global_max conv iterations =
+    let global_max = max global_max agent.max_iterations in
+    if iterations >= global_max then
       Result.Error (Internal "Max iterations exceeded", conv)
     else begin
       Cancellation.check_cancel token;
@@ -234,7 +239,8 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
           (fun e -> Error { category = e; message = "LLM error"; retryable = false; metadata = [] })
         in
         (match action with
-         | Error { retryable = true; _ } -> loop conv iterations
+         | Error { retryable = true; _ } -> loop ~agent ~global_max conv iterations
+         | Handoff _ -> Result.Error (Internal "Handoff reached retry path", conv)
          | _ -> Result.Error (err, conv))
        | Ok resp ->
         let resp = apply_after_llm agent.middleware resp (fun r -> r) in
@@ -315,7 +321,11 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
              | _, Error { category; _ } ->
                fire (Tool_failed { task_id = event_task_id;
                                    tool_name = event_tool_name;
-                                   error = category }));
+                                   error = category })
+             | _, Handoff _ ->
+               fire (Tool_completed { task_id = event_task_id;
+                                      tool_name = event_tool_name;
+                                      duration_ms }));
             result in
           let results : (tool_call * handler_result) list =
             if parallel then
@@ -327,20 +337,90 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
             else
               List.map invoke_one calls
           in
-          let conv = List.fold_left (fun conv ((call:tool_call), result) ->
-            add_tool_result_message conv call result
-          ) conv results in
+          let (non_handoff, handoffs) =
+            List.partition (fun (_, r) ->
+              match r with Handoff _ -> false | _ -> true) results in
+          let conv = List.fold_left (fun conv (c, r) ->
+            add_tool_result_message conv c r) conv non_handoff in
           let conv = drain_into_conv conv steering in
-          loop conv (iterations + 1)
+          let execute_handoff (call : tool_call) target_agent_id carry_context task =
+            let resolver = match agent_resolver with
+              | Some r -> r
+              | None -> (fun _ -> None)
+            in
+            match resolver target_agent_id with
+            | None ->
+              Result.Error (Invalid_input
+                (Printf.sprintf "Handoff target not found: %s" target_agent_id), conv)
+            | Some target_agent ->
+              (match on_tool_event with
+               | Some pub ->
+                 let task_id = match Task_id.of_string call.id with
+                   | Ok tid -> tid
+                   | Error _ -> Task_id.create ()
+                 in
+                 pub (Agent_handoff {
+                   from_agent = agent.id;
+                   to_agent = target_agent_id;
+                   task_id;
+                 })
+               | None -> ());
+              let target_sys_prompt =
+                match Template.effective_system_prompt target_agent ~runtime_id with
+                | Ok s -> s
+                | Error _ -> target_agent.system_prompt
+              in
+              (match carry_context with
+               | true ->
+                 let non_sys = List.filter
+                   (fun (m : message) -> m.role <> System) conv.messages in
+                 let sys_msg = {
+                   role = System; content = Some target_sys_prompt;
+                   tool_calls = None; tool_call_id = None; name = None
+                 } in
+                 let new_conv = { conv with messages = sys_msg :: non_sys } in
+                 loop ~agent:target_agent ~global_max new_conv (iterations + 1)
+               | false ->
+                 (match task with
+                  | Some t ->
+                    let sys_msg = {
+                      role = System; content = Some target_sys_prompt;
+                      tool_calls = None; tool_call_id = None; name = None
+                    } in
+                    let user_msg = {
+                      role = User; content = Some t;
+                      tool_calls = None; tool_call_id = None; name = None
+                    } in
+                    let new_conv = { messages = [sys_msg; user_msg]; metadata = [] } in
+                    loop ~agent:target_agent ~global_max new_conv (iterations + 1)
+                  | None ->
+                    Result.Error (Invalid_input
+                      "Handoff with carry_context=false requires a task", conv)))
+          in
+          (match handoffs with
+           | [] ->
+             loop ~agent ~global_max conv (iterations + 1)
+           | [(call, Handoff { target_agent_id; carry_context; task })] ->
+             if not enable_handoff then
+               Result.Error (Invalid_input
+                 "Tool returned Handoff but enable_handoff=false", conv)
+             else
+               execute_handoff call target_agent_id carry_context task
+           | [_] ->
+             Result.Error (Internal
+               "Non-Handoff result in handoffs partition", conv)
+           | _ ->
+             Result.Error (Invalid_input
+               "Multiple handoffs in one tool batch", conv))
         | _ ->
           match resp.finish_reason with
           | Max_tokens ->
-            if iterations + 1 >= agent.max_iterations then Result.Error (Internal "Max iterations exceeded", conv)
-            else loop conv (iterations + 1)
+            if iterations + 1 >= global_max then Result.Error (Internal "Max iterations exceeded", conv)
+            else loop ~agent ~global_max conv (iterations + 1)
           | _ ->
             let conv = drain_into_conv conv followup in
             if Steering_queue.has_items (Option.value followup ~default:(Steering_queue.create ())) then
-              loop conv (iterations + 1)
+              loop ~agent ~global_max conv (iterations + 1)
             else
               Ok (resp, conv)
      end
@@ -357,4 +437,4 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
         (String.length sys_prompt) (String.length user_message));
       make_conversation sys_prompt user_message
   in
-  loop conv 0
+  loop ~agent ~global_max:0 conv 0

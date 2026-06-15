@@ -55,6 +55,11 @@ type handler_result =
       retryable : bool;
       metadata : (string * Yojson.Safe.t) list;
     }
+  | Handoff of {
+      target_agent_id : string;
+      carry_context : bool;
+      task : string option;
+    }
 [@@deriving yojson]
 
 (* -------------------------------------------------------------------------- *)
@@ -370,6 +375,7 @@ type event =
   | Mcp_tool_completed of { server_id : string; tool_name : string; duration_ms : float }
   | Mcp_resource_read of { server_id : string; uri : string }
   | Mcp_prompt_rendered of { server_id : string; prompt_name : string }
+  | Agent_handoff of { from_agent : string; to_agent : string; task_id : Task_id.t }
 [@@deriving yojson]
 
 type event_envelope = {

@@ -98,9 +98,10 @@ let rec execute_step ctx step =
        (match Tool_registry.resolve ctx.registry tool_name with
         | None -> Result.Error (Internal (Printf.sprintf "Tool handler not registered: %s" tool_name))
         | Some handler ->
-          match handler input ctx.token with
-          | Success json -> Ok json
-          | Types.Error { category; _ } -> Result.Error category))
+           (match handler input ctx.token with
+            | Success json -> Ok json
+            | Types.Error { category; _ } -> Result.Error category
+            | Types.Handoff _ -> Result.Error (Invalid_input "Handoff not supported in workflow step"))))
 
   | Sequential steps ->
     execute_sequential ctx steps

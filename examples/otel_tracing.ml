@@ -63,7 +63,9 @@ let create_tracing_middleware () =
             | Types.Rate_limited -> "rate_limited"
             | Types.Permission_denied _ -> "permission_denied"
             | Types.Internal _ -> "internal" in
-          [("tool.name", `String c.Types.name); ("tool.result", `String "error"); ("error.kind", `String ek)] in
+          [("tool.name", `String c.Types.name); ("tool.result", `String "error"); ("error.kind", `String ek)]
+        | Types.Handoff _ ->
+          [("tool.name", `String c.Types.name); ("tool.result", `String "handoff")] in
       spans := { s with end_time = t; attributes = a } :: !spans;
       tsp := r';
       None

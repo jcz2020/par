@@ -327,7 +327,7 @@ let install_bash_tool ?process_mgr ?clock rt =
       Ok ()
 
 let invoke rt ~agent_id ~message ?cancellation_token ?conversation
-    ?on_tool_event ?on_chunk () =
+    ?on_tool_event ?on_chunk ?enable_handoff () =
   let session_id = Session_id.to_string (Session_id.create ()) in
   (match rt.event_bus_instance with
    | Some bus -> Event_bus.set_session_id bus session_id
@@ -365,6 +365,8 @@ let invoke rt ~agent_id ~message ?cancellation_token ?conversation
       ~on_tool_event:(Some combined_tool_event)
       ?on_chunk
       ?conversation
+      ~agent_resolver:(fun aid -> htbl_get rt.agents aid)
+      ~enable_handoff:(Option.value enable_handoff ~default:false)
       token config message rt.services.llm rt.tool_registry in
     match result with
     | Ok (resp, conv) ->

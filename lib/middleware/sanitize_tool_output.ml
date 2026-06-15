@@ -82,6 +82,7 @@ let sanitize_tool_output ?(config = default_config) () : middleware_hook =
          | Some cleaned_msg ->
            if cleaned_msg = err.message then None
            else Some (Error { err with message = cleaned_msg }))
+      | Handoff _ -> None
     );
 
     on_error = None;

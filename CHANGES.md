@@ -1,5 +1,43 @@
 # CHANGES
 
+## v0.4.2-beta (2026-06-15)
+
+> Typed agent handoff: mid-conversation agent switching via typed ADT signal. Running max-of-chain iteration budget. 901 OCaml tests.
+
+### New Features
+
+- **Typed agent handoff**: Tools can now return `Handoff of { target_agent_id; carry_context; task }` as a typed signal to switch agents mid-conversation. This is a first-class ADT constructor on `handler_result`, not a JSON convention — OCaml's exhaustive pattern matching ensures all code paths handle handoff correctly at compile time. Industry research across OpenAI Agents SDK, LangGraph, AutoGen, and Google ADK confirmed typed ADT is strictly stronger than the JSON-encoded or metadata-dict approaches used by other frameworks.
+- **Running max-of-chain iteration budget**: When agent A hands off to agent B, the iteration counter is inherited (prevents infinite handoff loops) but checked against `max(all agents' max_iterations in the chain)` rather than just the target agent's limit. This avoids the "instant-exit surprise" where a downstream agent with a smaller budget would terminate immediately after handoff. Matches the inherited-budget consensus from OpenAI/LangGraph/ADK while improving on their DX.
+- **System prompt replacement**: On handoff, the source agent's system prompt is replaced with the target agent's (computed via `Template.effective_system_prompt`). The conversation history (user/assistant/tool messages) is preserved when `carry_context=true`, or reset to just the target's system prompt + task when `carry_context=false`.
+- **Agent_handoff event**: New event variant `Agent_handoff of { from_agent; to_agent; task_id }` emitted on every handoff for observability. The `task_id` links to the triggering tool call for `par replay` traceability.
+- **Partition-first semantics**: When tools run in parallel and return a mix of `Success` and `Handoff` results, the non-handoff results are folded into the conversation BEFORE the handoff is processed. No silent data loss.
+- **`?enable_handoff` flag**: `Runtime.invoke` and `Engine.run_agent` gain `?enable_handoff:bool` (default false) for backward compatibility. When false, any tool returning `Handoff` is treated as an `Invalid_input` error.
+
+### Type Changes
+
+- **`Handoff` variant on `handler_result`**: New third constructor `Handoff of { target_agent_id : string; carry_context : bool; task : string option }`. When `carry_context=false`, the `task` field is required and becomes the target agent's initial user message.
+- **`Agent_handoff` variant on `event`**: New event for handoff observability. `extract_task_id` handles this variant (returns the linked tool call's task_id).
+- **`Engine.run_agent` signature**: Gains `?agent_resolver:(string -> agent_config option)` and `?enable_handoff:bool` optional parameters.
+- **`Runtime.invoke` signature**: Gains `?enable_handoff:bool` optional parameter. When true, passes `~agent_resolver:(fun aid -> htbl_get rt.agents aid)` to the engine.
+
+### Design Decisions (Oracle-reviewed)
+
+Four hard design questions were resolved via cross-framework research + Oracle review (see `docs/v0.4-ROADMAP.md` §3.1 Design Decisions Log):
+
+1. **History shape**: Source system prompt replaced with target's (not just dropped). `carry_context=true` preserves conversation history; `carry_context=false` resets to target's system prompt + task.
+2. **Stale tool_call_ids**: Carried as-is by default (matches OpenAI/ADK). No filter implementation — gpt-5 reasoning-chain breakage makes filtering a foot-gun.
+3. **Middleware chain**: Implicit full swap on handoff. Per-agent state isolation (Retry/Rate_limit counters reset). Diverges from OpenAI's scoped guardrails — simpler and safer.
+4. **max_iterations budget**: Inherited iterations, checked against running max-of-chain. Prevents infinite handoff loops while avoiding the instant-exit surprise.
+
+### Error Cases
+
+All error cases return `Result.Error (Invalid_input _, conversation)`:
+- Handoff target not found (agent_resolver returns None)
+- `carry_context=false` without a `task` field
+- Tool returns `Handoff` when `enable_handoff=false`
+- Multiple handoffs in a single tool batch (ambiguous, fail loud)
+- Handoff in a workflow `Tool_call` step (workflows don't support handoff)
+
 ## v0.4.1-beta (2026-06-15)
 
 > Event persistence now functional end-to-end. Session scoping. CLI history/stats. 885 OCaml tests.

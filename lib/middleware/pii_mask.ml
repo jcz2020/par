@@ -78,6 +78,7 @@ let pii_mask ?(patterns = default_patterns) ?(replacement = "[REDACTED]") () : m
           let masked_msg = mask_text e.message in
           if masked_msg = e.message then result
           else Error { e with message = masked_msg }
+        | Handoff _ -> result
       in
       if masked_result = result then None
       else Some masked_result

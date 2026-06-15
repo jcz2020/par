@@ -647,6 +647,7 @@ let middleware_suite =
                   (not (str_contains sanitized "ignore previous"))
             | Some (Success _) -> Alcotest.fail "expected string result"
             | Some (Error _) -> Alcotest.fail "expected Success, not Error"
+            | Some (Handoff _) -> Alcotest.fail "unexpected handoff"
             | None -> Alcotest.fail "should return Some (injection detected)")
        | None -> Alcotest.fail "on_after_tool should be Some"));
 
@@ -686,6 +687,7 @@ let middleware_suite =
                 ) pairs
             | Some (Success _) -> Alcotest.fail "expected Assoc result"
             | Some (Error _) -> Alcotest.fail "expected Success, not Error"
+            | Some (Handoff _) -> Alcotest.fail "unexpected handoff"
             | None -> Alcotest.fail "should return Some (injection detected)")
        | None -> Alcotest.fail "on_after_tool should be Some"));
 
@@ -706,6 +708,7 @@ let middleware_suite =
                   (str_contains blocked "[SANITIZED")
             | Some (Success _) -> Alcotest.fail "expected blocked string marker"
             | Some (Error _) -> Alcotest.fail "expected Success, not Error"
+            | Some (Handoff _) -> Alcotest.fail "unexpected handoff"
             | None -> Alcotest.fail "block mode should return Some (blocked)")
        | None -> Alcotest.fail "on_after_tool should be Some"));
 
@@ -726,6 +729,7 @@ let middleware_suite =
                   (str_contains tagged "[SANITIZED-OUTPUT")
             | Some (Success _) -> Alcotest.fail "expected tagged string"
             | Some (Error _) -> Alcotest.fail "expected Success, not Error"
+            | Some (Handoff _) -> Alcotest.fail "unexpected handoff"
             | None -> Alcotest.fail "tag mode should return Some (tagged)")
        | None -> Alcotest.fail "on_after_tool should be Some"));
 
@@ -743,6 +747,7 @@ let middleware_suite =
                 Alcotest.(check bool) "error sanitized" true
                   (not (str_contains message "ignore all previous"))
             | Some (Success _) -> Alcotest.fail "expected Error result"
+            | Some (Handoff _) -> Alcotest.fail "unexpected handoff"
             | None -> Alcotest.fail "should return Some (injection in error)")
        | None -> Alcotest.fail "on_after_tool should be Some"));
 
