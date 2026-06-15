@@ -223,4 +223,5 @@
 (test
  (name test_event_persistence_e2e)
  (libraries par eio_main alcotest sqlite3)
- (modules test_event_persistence_e2e))
+ (modules test_event_persistence_e2e)
+ (action (run %{test})))
