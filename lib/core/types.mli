@@ -516,7 +516,7 @@ module type PERSISTENCE_SERVICE = sig
   type t
 
   val save_events :
-    t -> event list -> (unit, error_category) result
+    t -> event_envelope list -> (unit, error_category) result
 
   val load_events :
     t -> Task_id.t -> (event list, error_category) result

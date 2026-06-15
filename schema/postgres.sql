@@ -6,11 +6,14 @@ CREATE TABLE IF NOT EXISTS events (
   payload           JSONB NOT NULL,
   timestamp         DOUBLE PRECISION NOT NULL,
   idempotency_key   TEXT UNIQUE NOT NULL,
-  delivery_attempt  INTEGER DEFAULT 0
+  delivery_attempt  INTEGER DEFAULT 0,
+  session_id        TEXT NOT NULL DEFAULT '',
+  actions_json      TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_task_id ON events(task_id);
 CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
+CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id);
 
 CREATE TABLE IF NOT EXISTS task_states (
   id          TEXT PRIMARY KEY,

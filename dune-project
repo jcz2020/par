@@ -49,7 +49,6 @@
   eio_main
   yojson
   mirage-crypto-rng
-  linenoise
   alcotest))
 
 (package

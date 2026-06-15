@@ -58,9 +58,13 @@ let init_schema (db : Postgresql.connection) =
 
 let default_retention_ttl = 7. *. 24. *. 60. *. 60.
 
-let prune_old_events db ~ttl_seconds =
+let _prune_raw db ~ttl_seconds =
   let cutoff = Unix.gettimeofday () -. ttl_seconds in
   exec_sql db (Printf.sprintf "DELETE FROM events WHERE timestamp < %f" cutoff)
+
+let prune_old_events t ~ttl_seconds =
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
+    _prune_raw t.db ~ttl_seconds)
 
 let create ?(retention_ttl = default_retention_ttl) conninfo =
   let db =
@@ -73,7 +77,7 @@ let create ?(retention_ttl = default_retention_ttl) conninfo =
     (match init_schema db with
     | Ok () ->
       if retention_ttl > 0.0 then
-        ignore (prune_old_events db ~ttl_seconds:retention_ttl);
+        ignore (_prune_raw db ~ttl_seconds:retention_ttl);
       Ok { db; mutex = Eio.Mutex.create () }
     | Result.Error e -> db#finish; Result.Error e)
   | _ ->
@@ -190,6 +194,27 @@ let load_sessions t limit =
       done;
       Ok (List.rev !acc)
     | _ -> Result.Error (Internal (Printf.sprintf "Load sessions: %s" res#error))
+  )
+
+let load_recent_events t limit =
+  Eio.Mutex.use_ro t.mutex (fun () ->
+    let res =
+      t.db#exec
+        ~params:[| string_of_int limit |]
+        "SELECT payload::text FROM events ORDER BY timestamp DESC LIMIT $1"
+    in
+    match res#status with
+    | Postgresql.Tuples_ok ->
+      let acc = ref [] in
+      for i = 0 to res#ntuples - 1 do
+        let payload = res#getvalue i 0 in
+        (match event_of_yojson (Yojson.Safe.from_string payload) with
+        | Ok ev -> acc := ev :: !acc
+        | Error _ -> ()
+        | exception Yojson.Json_error _ -> ())
+      done;
+      Ok (List.rev !acc)
+    | _ -> Result.Error (Internal (Printf.sprintf "Load recent: %s" res#error))
   )
 
 let save_task_state t ts =

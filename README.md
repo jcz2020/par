@@ -20,7 +20,9 @@ let config = { Types.persistence = `Sqlite "par.db";
   shutdown = Runtime.default_shutdown_config;
   llm_providers = [];
   eval_limits = { max_depth = 10; max_node_visits = 1000 };
-  parallel_tool_execution = true; }
+  parallel_tool_execution = true;
+  bash_confirm = Runtime.default_bash_confirm;
+  event_retention_seconds = 604800.0; }
 let () = Eio_main.run (fun _env ->
   Eio.Switch.run (fun switch ->
     match Runtime.create ~config switch with
