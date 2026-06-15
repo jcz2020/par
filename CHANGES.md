@@ -2,7 +2,7 @@
 
 ## v0.4.4-beta (2026-06-15)
 
-> Multi-agent REPL: config-driven multi-agent setup, handoff display, /agents and /switch commands. 901 OCaml tests.
+> Multi-agent REPL: config-driven multi-agent setup, handoff display, /agents and /switch commands. 904 OCaml tests.
 
 ### New Features
 

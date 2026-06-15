@@ -305,8 +305,12 @@ let setup_runtime cfg ~f =
       let agent_max_iter = match entry with
         | Some a -> Option.value a.Par_config.max_iterations ~default:cfg.Par_config.max_iterations
         | None -> cfg.Par_config.max_iterations in
+      let agent_descriptors = match entry with
+        | Some { Par_config.tools = Some names; _ } ->
+          List.filter (fun (d : Types.tool_descriptor) -> List.mem d.Types.name names) descriptors
+        | _ -> descriptors in
       (match Runtime.make_agent ~id:agent_id ~system_prompt:agent_system_prompt
-         ~model:agent_model_cfg ~tools:descriptors ~max_iterations:agent_max_iter () with
+         ~model:agent_model_cfg ~tools:agent_descriptors ~max_iterations:agent_max_iter () with
        | Error e -> Printf.eprintf "Agent %s validation failed: %s\n" agent_id (error_category_to_string e); exit 1
        | Ok agent ->
          (match Runtime.register_agent rt agent with

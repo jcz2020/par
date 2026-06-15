@@ -17,6 +17,7 @@ type agent_entry = {
   system_prompt : string;
   model : string option;
   max_iterations : int option;
+  tools : string list option;
 }
 
 type config = {
@@ -117,6 +118,7 @@ let to_json (cfg : config) : Yojson.Safe.t =
         ("system_prompt", `String a.system_prompt);
         ("model", (match a.model with Some m -> `String m | None -> `Null));
         ("max_iterations", (match a.max_iterations with Some n -> `Int n | None -> `Null));
+        ("tools", (match a.tools with Some names -> `List (List.map (fun n -> `String n) names) | None -> `Null));
       ]
     ) cfg.agents));
     ("event_retention_days", `Float cfg.event_retention_days);
@@ -214,6 +216,9 @@ let of_json (json : Yojson.Safe.t) : (config, string) result =
                 system_prompt = (match get_s "system_prompt" with Some s -> s | None -> "You are a helpful assistant.");
                 model = get_s "model";
                 max_iterations = get_opt_int "max_iterations";
+                tools = (match List.assoc_opt "tools" fields with
+                  | Some (`List items) -> Some (List.filter_map (function `String s -> Some s | _ -> None) items)
+                  | _ -> None);
               }
             | _ -> None) entries
         | _ -> []);

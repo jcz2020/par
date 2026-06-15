@@ -371,13 +371,6 @@ let () =
                 m.role = Tool &&
                 Option.fold ~none:false ~some:(fun c -> str_contains c "x-result") m.content
               ) conv.messages in
-              (* NOTE: This test exposes a bug in Engine.run_agent's
-                 execute_handoff closure. The function is defined before
-                 the non_handoff tool results are folded into conv, so it
-                 captures the original conv by closure and does NOT see
-                 the tool_x result. Expected: tool_x result is preserved
-                 in B's conversation. Actual: B's conv only contains
-                 system B, user, and assistant messages. *)
               Alcotest.check Alcotest.bool "B saw tool_x result" true has_x_result));
 
       Alcotest.test_case "max iterations exceeded after handoff" `Quick (fun () ->

@@ -230,3 +230,8 @@
  (name test_handoff)
  (libraries par eio_main alcotest)
  (modules test_handoff))
+
+(test
+ (name test_list_agents)
+ (libraries par eio_main alcotest)
+ (modules test_list_agents))
