@@ -166,6 +166,9 @@ let () =
     shutdown = Runtime.default_shutdown_config;
     llm_providers = [];
     eval_limits = { max_depth = 10; max_node_visits = 1000 };
+    parallel_tool_execution = true;
+    bash_confirm = Runtime.default_bash_confirm;
+    event_retention_seconds = 604800.0;
   } in
 
   (* 2. 启动 Eio 事件循环 *)
@@ -297,6 +300,9 @@ let () =
     shutdown = Runtime.default_shutdown_config;
     llm_providers = [];
     eval_limits = { max_depth = 10; max_node_visits = 1000 };
+    parallel_tool_execution = true;
+    bash_confirm = Runtime.default_bash_confirm;
+    event_retention_seconds = 604800.0;
   } in
   Eio_main.run (fun env ->
     Eio.Switch.run (fun switch ->

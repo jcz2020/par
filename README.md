@@ -7,7 +7,7 @@ A modular, type-safe agent runtime for OCaml 5.4+: LangChain + LangGraph for the
 [![Build Status](https://github.com/jcz2020/par/actions/workflows/ci.yml/badge.svg)](https://github.com/jcz2020/par/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
-[![Tests](https://img.shields.io/badge/tests-879%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-889%20passing-brightgreen)]()
 [![Version](https://img.shields.io/badge/version-0.4.0--beta.20260613-blue)]()
 
 A complete, runnable program that registers a tool, registers an agent, and prints confirmation:
@@ -115,7 +115,7 @@ The `par` facade module (`lib/par.ml`) re-exports every public submodule, so a s
 
 - 20 built-in tools, including the type-safe `bash` tool: `Bash_safe_command` ADT, `Bash_policy` functor, 31-entry `Bash_blacklist`, and `Bash_invoked` / `Bash_completed` event types. Shell injection is unrepresentable in the type layer.
 - C FFI plus a Python binding: the `par_runtime` package exposes the same runtime over ctypes, thread-safe, with its own `pytest` suite.
-- 879 OCaml tests and 25 Python tests passing; zero regressions across the v0.4 series.
+- 889 OCaml tests and 25 Python tests passing; zero regressions across the v0.4 series.
 - MIT-licensed, 100% open source. Distributed via opam and GitHub Releases.
 
 ## SDK Quick Start
@@ -258,9 +258,11 @@ The CLI is the SDK's end-user surface. For production code, use the SDK directly
 | `par config` | Configure provider, API key, and model with a guided wizard |
 | `par ask "question"` | Single-shot query, prints the answer and exits |
 | `par update` | Check for updates and update par to the latest version |
+| `par history <session_id>` | Show event history for a session |
+| `par stats` | Show usage statistics and recent sessions |
 | `par --version` | Print the installed `par` and `par_cli` versions |
 
-All commands accept the same optional overrides: `--provider`, `--api-key`, `--model`, `--persistence`, `--db-uri`, `--temperature`, `--max-iterations`, `--max-tokens`, `--top-p`, `--no-parallel-tools`. The override flags win over the config file, and the config file wins over the compiled-in defaults.
+All commands accept the same optional overrides: `--provider`, `--api-key`, `--model`, `--persistence`, `--db-uri`, `--temperature`, `--max-iterations`, `--max-tokens`, `--top-p`, `--no-parallel-tools`, `--retention-days`. The override flags win over the config file, and the config file wins over the compiled-in defaults.
 
 ## Documentation
 
@@ -345,7 +347,7 @@ par/
 |       +-- par_runtime/     Runtime, errors, FFI declarations
 |       +-- tests/           16 pytest tests
 |       +-- examples/        basic_agent.py
-+-- test/              879 OCaml unit and integration tests
++-- test/              889 OCaml unit and integration tests
 +-- examples/          Example agents and workflows (basic_agent, otel_tracing, ...)
 +-- schema/            Database schemas
 +-- docs/              User documentation (quickstart, CLI ref, SDK ref, how-to, explanation)
@@ -353,13 +355,13 @@ par/
 
 ## Dependencies
 
-Runtime: OCaml 5.4+, dune 3.23+, `cohttp-eio`, `lambdasoup`, `tls-eio`, `ca-certs`, `caqti-eio`, `sqlite3`. CLI extras: `cmdliner`, `eio_main`, `linenoise`. Python binding: `par_capi.so` plus `par_runtime` (ctypes only, no compiler needed at install time; install the wheel from [GitHub Releases](https://github.com/jcz2020/par/releases)). Optional: `postgresql` for the `par_postgres` opam package.
+Runtime: OCaml 5.4+, dune 3.23+, `cohttp-eio`, `lambdasoup`, `tls-eio`, `ca-certs`, `caqti-eio`, `sqlite3`. CLI extras: `cmdliner`, `eio_main`. Python binding: `par_capi.so` plus `par_runtime` (ctypes only, no compiler needed at install time; install the wheel from [GitHub Releases](https://github.com/jcz2020/par/releases)). Optional: `postgresql` for the `par_postgres` opam package.
 
 All runtime dependencies are pinned in `dune-project` and propagated to the generated `par.opam` and `par_cli.opam` files. To install the dev dependencies for running the test suite locally, run `opam install . --deps-only --with-test` from the repo root. The `make install` target wraps this for the common case, and also builds the C ABI shared library that the Python binding loads at import time.
 
 ## Project Size
 
-- 879 OCaml tests and 25 Python tests passing.
+- 889 OCaml tests and 25 Python tests passing.
 - Approximately 10,600 lines of OCaml in `lib/` plus 770 lines of Python in `bindings/python/`.
 - The largest single file is `lib/tools/builtin_tools.ml` at roughly 1,300 lines, dominated by the 20 tool handlers and the HTTP stack that backs `fetch_url`, `read_webpage`, and `web_search`. The SDK facade (`lib/par.ml`) is intentionally small: it re-exports submodules and adds no logic of its own.
 

@@ -16,6 +16,9 @@ par [全局选项] <子命令> [子命令选项] [参数]
 | (无) | 启动交互式 REPL（默认） |
 | `config` | 运行配置向导 |
 | `ask` | 单次问答 |
+| `update` | 检查并更新 par 到最新版本 |
+| `history <session_id>` | 显示指定会话的事件历史 |
+| `stats` | 显示使用统计和最近的会话 |
 
 ## 安装
 
@@ -28,7 +31,7 @@ dune build @install
 dune install
 ```
 
-安装后 `par` 可执行文件将可用。版本号为 `0.1.0`（见 `Cmdliner.Cmd.info` 中的 `~version` 声明）。
+安装后 `par` 可执行文件将可用。版本号为 `0.4.0-beta`（见 `Cmdliner.Cmd.info` 中的 `~version` 声明）。
 
 如需安装到自定义路径，使用：
 
@@ -54,6 +57,7 @@ dune install --prefix /path/to/prefix
 | `--max-tokens N` | int | (配置文件值) | Max tokens per LLM response |
 | `--top-p FLOAT` | float | (配置文件值) | Top-p sampling parameter (0.0-1.0) |
 | `--no-parallel-tools` | flag | (配置文件值) | Disable parallel tool execution |
+| `--retention-days N` | int | `7` | Event retention in days. 0 = never prune |
 
 所有全局选项均为可选（`opt` 类型）。未指定时从 `~/.par/config.json` 读取对应值。
 
@@ -212,6 +216,52 @@ par ask "解释 OCaml 的 GADT" --provider anthropic --model claude-3-sonnet-202
 # 覆盖温度和系统提示词
 par ask "写一段快速排序" --temperature 0.2 --system-prompt "用 OCaml 回答"
 ```
+
+## par history
+
+显示指定会话的事件历史。按时间顺序从持久化后端读取事件。
+
+**用法**
+
+```
+par history <session_id>
+```
+
+**位置参数**
+
+| 参数 | 说明 |
+|------|------|
+| `SESSION_ID` (必填) | 要查询的会话 ID |
+
+**前提条件**
+
+同 REPL：需要 `~/.par/config.json` 存在。
+
+**退出码**
+
+- `0`：历史显示成功
+- `1`：配置文件不存在 / 会话未找到
+
+## par stats
+
+显示使用统计和最近的会话。从持久化后端读取聚合指标。
+
+**用法**
+
+```
+par stats
+```
+
+该命令不接受任何额外选项。
+
+**前提条件**
+
+同 REPL：需要 `~/.par/config.json` 存在。
+
+**退出码**
+
+- `0`：统计显示成功
+- `1`：配置文件不存在 / 持久化错误
 
 ## 配置文件格式
 

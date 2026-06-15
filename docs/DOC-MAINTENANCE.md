@@ -74,7 +74,7 @@ When a new identifier crosses a category boundary (for example, a new MCP event 
 
 **Persistence:** `` `Sqlite ``, `` `Postgresql ``, `` `Noop ``
 
-**CLI commands:** `par`, `par config`, `par ask`, `par --version`
+**CLI commands:** `par`, `par config`, `par ask`, `par update`, `par history`, `par stats`, `par --version`
 
 **Bash modules:** `Bash_safe_command`, `Bash_policy`, `Bash_blacklist`, `Bash_invoked`, `Bash_completed`
 
@@ -82,7 +82,7 @@ When a new identifier crosses a category boundary (for example, a new MCP event 
 
 **File paths:** `~/.par/config.json`, `lib/par.ml`, `docs/sdk/`
 
-**JSON config field names:** `event_bus.max_queue_size`, `dlq_enabled`, `default_quota.max_concurrent_tasks`, `parallel_tool_execution`
+**JSON config field names:** `event_bus.max_queue_size`, `dlq_enabled`, `default_quota.max_concurrent_tasks`, `parallel_tool_execution`, `event_retention_days`
 
 A doc update that breaks any of these fails the identifier check in CI.
 

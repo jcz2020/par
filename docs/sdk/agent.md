@@ -22,17 +22,21 @@ type runtime_config = {
   shutdown : shutdown_config;
   llm_providers : (string * llm_provider_config) list;
   eval_limits : eval_limits;
+  parallel_tool_execution : bool;
+  bash_confirm : bash_confirm_config;
+  event_retention_seconds : float;
 }
 ```
 
-The `Par` facade (`lib/par.ml`) re-exports `Types`, `Runtime`, and the persistence and event-bus modules. The full source-of-truth `runtime_config` in `lib/core/types.ml` adds `parallel_tool_execution` and a `` `Noop `` persistence variant for tests; the snippets below use the stable subset that compiles against the published `par` opam package.
+The `Par` facade (`lib/par.ml`) re-exports `Types`, `Runtime`, and the persistence and event-bus modules. The full source-of-truth `runtime_config` is in `lib/core/types.ml`.
 
-`Par.Runtime` provides three default configuration values that you can use directly:
+`Par.Runtime` provides these default configuration values that you can use directly:
 
 ```ocaml
 Runtime.default_event_bus_config   (* buffer_capacity=10000, DLQ enabled *)
 Runtime.default_quota             (* max_concurrent_tasks=10 *)
 Runtime.default_shutdown_config   (* drain_timeout=30s *)
+Runtime.default_bash_confirm      (* Always policy *)
 ```
 
 ### Creating a runtime

@@ -67,7 +67,7 @@ The CLI is a thin wrapper over the SDK. Read it when you want to invoke `par` fr
 
 | Document | Description |
 |----------|-------------|
-| [CLI reference](cli.md) | end-user only: `par` / `par config` / `par ask` commands and flags |
+| [CLI reference](cli.md) | end-user only: `par` / `par config` / `par ask` / `par history` / `par stats` commands and flags |
 
 ## Explanation
 

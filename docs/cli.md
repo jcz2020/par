@@ -6,7 +6,7 @@
 
 # par_cli — CLI Reference
 
-par_cli is the command-line tool for P-A-R (Programmable Agent Runtime). It wraps the par SDK and provides three modes: an interactive REPL, single-shot queries, and a configuration wizard.
+par_cli is the command-line tool for P-A-R (Programmable Agent Runtime). It wraps the par SDK and provides multiple modes: an interactive REPL, single-shot queries, a configuration wizard, history lookup, and usage statistics.
 
 Command structure:
 
@@ -21,6 +21,9 @@ Subcommands:
 | (none) | Start interactive REPL (default) |
 | `config` | Run the configuration wizard |
 | `ask` | Single-shot query |
+| `update` | Check for updates and update par to the latest version |
+| `history <session_id>` | Show event history for a session |
+| `stats` | Show usage statistics and recent sessions |
 
 ## Install
 
@@ -33,7 +36,7 @@ dune build @install
 dune install
 ```
 
-After installation the `par` executable is available. The version is `0.3.1` (see the `~version` declaration in `Cmdliner.Cmd.info`).
+After installation the `par` executable is available. The version is `0.4.0-beta` (see the `~version` declaration in `Cmdliner.Cmd.info`).
 
 To install to a custom prefix:
 
@@ -59,6 +62,7 @@ The following options apply to both `par` (REPL) and `par ask`. They override th
 | `--max-tokens N` | int | (from config) | Max tokens per LLM response |
 | `--top-p FLOAT` | float | (from config) | Top-p sampling parameter (0.0–1.0) |
 | `--no-parallel-tools` | flag | (from config) | Disable parallel tool execution |
+| `--retention-days N` | int | `7` | Event retention in days. 0 = never prune |
 
 All global options are optional (`opt` type). When not specified, values are read from `~/.par/config.json`.
 
@@ -218,6 +222,52 @@ par ask "Explain OCaml GADTs" --provider anthropic --model claude-3-sonnet-20240
 par ask "Write a quicksort" --temperature 0.2 --system-prompt "Answer in OCaml"
 ```
 
+## par history
+
+Show event history for a specific session. Displays events from the persistence backend in chronological order.
+
+**Usage**
+
+```
+par history <session_id>
+```
+
+**Positional arguments**
+
+| Argument | Description |
+|----------|-------------|
+| `SESSION_ID` (required) | The session ID to query |
+
+**Prerequisites**
+
+Same as REPL: `~/.par/config.json` must exist.
+
+**Exit codes**
+
+- `0`: history displayed successfully
+- `1`: config file missing / session not found
+
+## par stats
+
+Show usage statistics and recent sessions. Displays aggregate metrics from the persistence backend.
+
+**Usage**
+
+```
+par stats
+```
+
+This command takes no additional options.
+
+**Prerequisites**
+
+Same as REPL: `~/.par/config.json` must exist.
+
+**Exit codes**
+
+- `0`: stats displayed successfully
+- `1`: config file missing / persistence error
+
 ## Configuration file format
 
 The configuration file is standard JSON at `~/.par/config.json`. Here is a complete example with all fields:
@@ -265,6 +315,9 @@ The configuration file is standard JSON at `~/.par/config.json`. Here is a compl
 
   // Whether to allow parallel execution of multiple tool calls
   "parallel_tool_execution": true,
+
+  // Event retention in days. 0 = never prune. Default: 7
+  "event_retention_days": 7,
 
   // System prompt template variables (set by par config)
   "template_variables": {
