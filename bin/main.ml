@@ -292,6 +292,22 @@ let setup_runtime cfg ~f =
       if cfg.Par_config.agents = [] then ["default-agent"]
       else List.map (fun (a : Par_config.agent_entry) -> a.id) cfg.Par_config.agents
     in
+    let handoff_target_ids = if cfg.Par_config.agents = [] then [] else agent_ids in
+    let descriptors = descriptors @ List.map (fun aid ->
+      { Types.name = "transfer_to_" ^ aid;
+        description = Printf.sprintf "Transfer the conversation to agent %s" aid;
+        input_schema = `Assoc [("type", `String "object"); ("properties", `Assoc [])];
+        output_schema = None; permission = Types.Allow;
+        timeout = None; concurrency_limit = None; on_update = None }
+    ) handoff_target_ids in
+    List.iter (fun aid ->
+      ignore (Runtime.register_tool rt
+        ~name:("transfer_to_" ^ aid)
+        ~description:(Printf.sprintf "Transfer the conversation to agent %s" aid)
+        ~input_schema:(`Assoc [("type", `String "object"); ("properties", `Assoc [])])
+        ~handler:(fun _ _ -> Types.Handoff { target_agent_id = aid; carry_context = true; task = None })
+        ())
+    ) handoff_target_ids;
     List.iter (fun agent_id ->
       let entry = if cfg.Par_config.agents = [] then None
         else List.find_opt (fun (a : Par_config.agent_entry) -> a.id = agent_id) cfg.Par_config.agents in
@@ -516,8 +532,12 @@ let cmd_ask
   let cfg = merge_config cfg provider_opt api_key_opt api_base_opt model_opt
               persistence_opt db_uri_opt temp_opt prompt_opt max_iter
               max_tokens_opt top_p_opt no_parallel_tools retention_days_opt in
+  let default_agent_id =
+    if cfg.Par_config.agents = [] then "default-agent"
+    else (List.hd cfg.Par_config.agents).Par_config.id
+  in
   setup_runtime cfg ~f:(fun rt ->
-    match Runtime.invoke rt ~agent_id:"default-agent" ~message:question
+    match Runtime.invoke rt ~agent_id:default_agent_id ~message:question
         ~on_tool_event:(make_tool_event_callback ())
         ~on_chunk:(Some stream_print_chunk)
         ~enable_handoff:true () with
