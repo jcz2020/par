@@ -238,7 +238,7 @@ let require_config () =
 let ensure_rng () =
   Mirage_crypto_rng_unix.use_default ()
 
-let setup_runtime cfg ~f =
+let setup_runtime cfg ~interactive ~f =
   ensure_rng ();
   let pers = make_persistence_service cfg.Par_config.persistence
                (Par_config.resolve_persistence cfg) cfg.Par_config.db_uri in
@@ -333,8 +333,21 @@ let setup_runtime cfg ~f =
           | Error e -> Printf.eprintf "Error registering agent %s: %s\n" agent_id (error_category_to_string e); exit 1
           | Ok () -> ()))
     ) agent_ids;
+    let confirm_fn =
+      if interactive then
+        Some (fun cmd ->
+          Printf.eprintf "\n⚠ bash: %s\nProceed? [y/n]: " cmd;
+          flush stderr;
+          try
+            let line = input_line stdin in
+            let trimmed = String.trim (String.lowercase_ascii line) in
+            trimmed = "y" || trimmed = "yes"
+          with End_of_file -> false)
+      else
+        Some (fun _ -> true)
+    in
     Runtime.register_tool_call_hook rt
-      (Bash_confirm.make_hook config.Types.bash_confirm);
+      (Bash_confirm.make_hook ?confirm_fn config.Types.bash_confirm);
     Runtime.register_tool_call_hook rt
       (fun (ctx : Hook.tool_call_context) ->
         Printf.eprintf "  [%s]\n" ctx.Hook.tool_name;
@@ -399,6 +412,7 @@ let format_metrics (snap : (string * int) list) =
 let print_help () =
   Printf.printf "可用命令:\n";
   Printf.printf "  /help       显示此帮助\n";
+  Printf.printf "  /session    显示当前会话信息\n";
   Printf.printf "  /steer MSG  注入干预消息\n";
   Printf.printf "  /follow MSG 注入后续指导\n";
   Printf.printf "  /health     显示运行时健康状态\n";
@@ -433,9 +447,15 @@ let repl rt ~agent_ids =
            let parts = String.split_on_char ' ' trimmed in
            let cmd = match parts with c :: _ -> c | [] -> "" in
            let rest = match parts with _ :: r -> String.trim (String.concat " " r) | [] -> "" in
-           (match cmd with
-             | "/help" -> print_help ()
-             | "/quit" | "/exit" -> Printf.printf "再见！\n"; exit 0
+            (match cmd with
+              | "/help" -> print_help ()
+              | "/session" ->
+                Printf.printf "Active agent: %s\n" !active_agent;
+                Printf.printf "Conversation: %s\n"
+                  (match !conv with
+                   | None -> "none"
+                   | Some c -> Printf.sprintf "%d messages" (List.length c.Types.messages))
+              | "/quit" | "/exit" -> Printf.printf "再见！\n"; exit 0
              | "/reset" -> conv := None;
                Printf.printf "%s\n" (Cli_style.dim "[对话已重置]")
             | "/steer" -> Runtime.steer rt rest;
@@ -496,7 +516,7 @@ let cmd_chat
     if cfg.Par_config.agents = [] then ["default-agent"]
     else List.map (fun (a : Par_config.agent_entry) -> a.id) cfg.Par_config.agents
   in
-  setup_runtime cfg ~f:(fun rt -> repl rt ~agent_ids)
+  setup_runtime cfg ~interactive:true ~f:(fun rt -> repl rt ~agent_ids)
 
 let term_chat =
   let open Cmdliner.Term in
@@ -536,7 +556,7 @@ let cmd_ask
     if cfg.Par_config.agents = [] then "default-agent"
     else (List.hd cfg.Par_config.agents).Par_config.id
   in
-  setup_runtime cfg ~f:(fun rt ->
+  setup_runtime cfg ~interactive:false ~f:(fun rt ->
     match Runtime.invoke rt ~agent_id:default_agent_id ~message:question
         ~on_tool_event:(make_tool_event_callback ())
         ~on_chunk:(Some stream_print_chunk)
@@ -881,12 +901,85 @@ let info_update = Cmdliner.Cmd.info "update"
 (* par history <session_id>                                                   *)
 (* -------------------------------------------------------------------------- *)
 
+let format_event_for_history (evt : Types.event) =
+  let status ok = if ok then Cli_style.green "✓" else Cli_style.red "✗" in
+  match evt with
+  | Types.Llm_request_sent { model; _ } ->
+    Printf.sprintf "Llm_request_sent: model=%s" model
+  | Types.Llm_response_received { usage; _ } ->
+    Printf.sprintf "Llm_response_received: %d tokens" usage.Types.total_tokens
+  | Types.Tool_invoked { tool_name; _ } ->
+    Printf.sprintf "Tool_invoked: %s" tool_name
+  | Types.Tool_completed { tool_name; duration_ms; _ } ->
+    Printf.sprintf "Tool_completed: %s %s (%.1fms)" tool_name (status true) duration_ms
+  | Types.Tool_failed { tool_name; _ } ->
+    Printf.sprintf "Tool_failed: %s %s" tool_name (status false)
+  | Types.Bash_invoked { tool_name; argv; risk; _ } ->
+    Printf.sprintf "Bash_invoked: %s argv=[%s] risk=%s" tool_name (String.concat "; " argv) risk
+  | Types.Bash_completed { tool_name; exit_code; duration; _ } ->
+    Printf.sprintf "Bash_completed: %s %s exit=%d (%.1fms)" tool_name (status (exit_code = 0)) exit_code duration
+  | Types.Agent_handoff { from_agent; to_agent; _ } ->
+    Printf.sprintf "Agent_handoff: %s %s %s" from_agent (Cli_style.dim "→") to_agent
+  | Types.Task_created { task_type; priority; _ } ->
+    Printf.sprintf "Task_created: type=%s priority=%d" task_type priority
+  | Types.Task_started _ -> "Task_started"
+  | Types.Task_completed { duration_ms; _ } ->
+    Printf.sprintf "Task_completed (%.1fms)" duration_ms
+  | Types.Task_failed { error; _ } ->
+    Printf.sprintf "Task_failed: %s" (error_category_to_string error)
+  | Types.Task_cancelled { reason; _ } ->
+    Printf.sprintf "Task_cancelled: %s" reason
+  | Types.Task_suspended _ -> "Task_suspended"
+  | Types.Task_resumed _ -> "Task_resumed"
+  | Types.Tool_progress { tool_name; message; _ } ->
+    Printf.sprintf "Tool_progress: %s - %s" tool_name message
+  | Types.Workflow_started { workflow_run_id } ->
+    Printf.sprintf "Workflow_started: %s" (Types.Workflow_run_id.to_string workflow_run_id)
+  | Types.Workflow_step_completed { step_id } ->
+    Printf.sprintf "Workflow_step_completed: %s" step_id
+  | Types.Workflow_completed { workflow_run_id } ->
+    Printf.sprintf "Workflow_completed: %s" (Types.Workflow_run_id.to_string workflow_run_id)
+  | Types.Workflow_failed { workflow_run_id; error } ->
+    Printf.sprintf "Workflow_failed: %s - %s" (Types.Workflow_run_id.to_string workflow_run_id) (error_category_to_string error)
+  | Types.Approval_requested { prompt; _ } ->
+    Printf.sprintf "Approval_requested: %s" prompt
+  | Types.Approval_granted { approver } ->
+    Printf.sprintf "Approval_granted: %s" approver
+  | Types.Approval_timeout -> "Approval_timeout"
+  | Types.Shutdown_initiated -> "Shutdown_initiated"
+  | Types.Shutdown_completed { exit_code } ->
+    Printf.sprintf "Shutdown_completed: exit_code=%d" exit_code
+  | Types.Mcp_server_started { server_name; _ } ->
+    Printf.sprintf "Mcp_server_started: %s" server_name
+  | Types.Mcp_server_failed { server_id; error } ->
+    Printf.sprintf "Mcp_server_failed: %s - %s" server_id (error_category_to_string error)
+  | Types.Mcp_server_stopped { server_id } ->
+    Printf.sprintf "Mcp_server_stopped: %s" server_id
+  | Types.Mcp_tool_invoked { server_id; tool_name } ->
+    Printf.sprintf "Mcp_tool_invoked: %s/%s" server_id tool_name
+  | Types.Mcp_tool_completed { server_id; tool_name; duration_ms } ->
+    Printf.sprintf "Mcp_tool_completed: %s/%s %s (%.1fms)" server_id tool_name (status true) duration_ms
+  | Types.Mcp_resource_read { server_id; uri } ->
+    Printf.sprintf "Mcp_resource_read: %s uri=%s" server_id uri
+  | Types.Mcp_prompt_rendered { server_id; prompt_name } ->
+    Printf.sprintf "Mcp_prompt_rendered: %s prompt=%s" server_id prompt_name
+
 let session_id_arg =
   let open Cmdliner in
   Arg.(required & pos 0 (some string) None &
     info [] ~docv:"SESSION_ID" ~doc:"Session ID to show history for")
 
-let cmd_history session_id_val =
+let history_json =
+  let open Cmdliner in
+  Arg.(value & flag &
+    info [ "json" ] ~doc:"Output raw JSON")
+
+let history_verbose =
+  let open Cmdliner in
+  Arg.(value & flag &
+    info [ "verbose" ] ~doc:"Show full event payloads")
+
+let cmd_history session_id_val json verbose =
   let db_path = Par_config.config_dir () ^ "/par.db" in
   match Sqlite_persistence.create db_path with
   | Error e ->
@@ -902,17 +995,67 @@ let cmd_history session_id_val =
      | Ok evs ->
        Printf.printf "Session: %s (%d events)\n\n" session_id_val (List.length evs);
        List.iteri (fun i evt ->
-       let json = Yojson.Safe.pretty_to_string (Types.event_to_yojson evt) in
-       Printf.printf "[%3d] %s\n" (i + 1) json
-     ) evs);
+         if json then
+           let j = Yojson.Safe.pretty_to_string (Types.event_to_yojson evt) in
+           Printf.printf "[%3d] %s\n" (i + 1) j
+         else
+           let line = format_event_for_history evt in
+           if verbose then begin
+             let payload = Yojson.Safe.pretty_to_string (Types.event_to_yojson evt) in
+             Printf.printf "[%3d] %s\n%s\n" (i + 1) line payload
+           end else
+             Printf.printf "[%3d] %s\n" (i + 1) line
+       ) evs);
     Sqlite_persistence.close t
 
 let term_history =
   let open Cmdliner.Term in
-  const cmd_history $ session_id_arg
+  const cmd_history $ session_id_arg $ history_json $ history_verbose
 
 let info_history = Cmdliner.Cmd.info "history"
   ~doc:"Show event history for a session"
+
+let sessions_limit =
+  let open Cmdliner in
+  Arg.(value & opt int 10 &
+    info [ "limit" ] ~docv:"N" ~doc:"Maximum number of sessions to show (default: 10)")
+
+let format_timestamp ts =
+  let tm = Unix.localtime ts in
+  Printf.sprintf "%04d-%02d-%02d %02d:%02d"
+    (tm.Unix.tm_year + 1900) (tm.Unix.tm_mon + 1) tm.Unix.tm_mday
+    tm.Unix.tm_hour tm.Unix.tm_min
+
+let cmd_sessions limit =
+  let db_path = Par_config.config_dir () ^ "/par.db" in
+  match Sqlite_persistence.create db_path with
+  | Error e ->
+    Printf.eprintf "Error opening database: %s\n" (error_category_to_string e);
+    exit 1
+  | Ok t ->
+    (match Sqlite_persistence.load_sessions t limit with
+     | Error e ->
+       Printf.eprintf "Error loading sessions: %s\n" (error_category_to_string e);
+       Sqlite_persistence.close t; exit 1
+     | Ok [] ->
+       Printf.printf "No sessions found.\n"
+     | Ok ss ->
+       Printf.printf "%-38s %5s %20s %20s\n" "SESSION_ID" "EVTS" "FIRST_EVENT" "LAST_EVENT";
+       Printf.printf "%s\n" (String.make 90 '-');
+       List.iter (fun (s : Types.session_summary) ->
+         Printf.printf "%-38s %5d %20s %20s\n"
+           s.Types.session_id s.Types.event_count
+           (format_timestamp s.Types.first_event_at)
+           (format_timestamp s.Types.last_event_at)
+       ) ss);
+    Sqlite_persistence.close t
+
+let term_sessions =
+  let open Cmdliner.Term in
+  const cmd_sessions $ sessions_limit
+
+let info_sessions = Cmdliner.Cmd.info "sessions"
+  ~doc:"List recent sessions"
 
 (* -------------------------------------------------------------------------- *)
 (* par stats                                                                  *)
@@ -931,13 +1074,15 @@ let cmd_stats () =
        Sqlite_persistence.close t; exit 1
      | Ok [] ->
        Printf.printf "No sessions found.\n"
-     | Ok ss ->
-       Printf.printf "%-38s %5s %12s %12s\n" "SESSION_ID" "EVTS" "FIRST" "LAST";
-       Printf.printf "%s\n" (String.make 72 '-');
-       List.iter (fun (s : Types.session_summary) ->
-         Printf.printf "%-38s %5d %12.0f %12.0f\n"
-           s.Types.session_id s.Types.event_count s.Types.first_event_at s.Types.last_event_at
-       ) ss);
+      | Ok ss ->
+        Printf.printf "%-38s %5s %20s %20s\n" "SESSION_ID" "EVTS" "FIRST_EVENT" "LAST_EVENT";
+        Printf.printf "%s\n" (String.make 90 '-');
+        List.iter (fun (s : Types.session_summary) ->
+          Printf.printf "%-38s %5d %20s %20s\n"
+            s.Types.session_id s.Types.event_count
+            (format_timestamp s.Types.first_event_at)
+            (format_timestamp s.Types.last_event_at)
+        ) ss);
     (match Sqlite_persistence.load_recent_events t 10000 with
      | Error _ -> ()
      | Ok events ->
@@ -995,6 +1140,7 @@ let print_custom_help () =
   opt "par ask QUESTION"         "Single-shot Q&A, print answer and exit";
   opt "par config"               "Configure provider, API key, and model";
   opt "par update"               "Check for updates and self-update";
+  opt "par sessions"             "List recent sessions";
   opt "par history SESSION_ID"   "Show event history for a session";
   opt "par stats"                "Show usage statistics and recent sessions";
   section "OPTIONS";
@@ -1031,6 +1177,7 @@ let cmd =
       v info_config term_config;
       v info_ask term_ask;
       v info_update term_update;
+      v info_sessions term_sessions;
       v info_history term_history;
       v info_stats term_stats;
     ]
