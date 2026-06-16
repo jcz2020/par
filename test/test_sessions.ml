@@ -48,7 +48,7 @@ let () =
          | Ok t ->
            List.iteri (fun i _ ->
              let sid = Printf.sprintf "session-limit-%d" i in
-             let events = [ make_envelope 0 sid 0.0 ] in
+              let events = [ make_envelope i sid (float_of_int i) ] in
              ignore (Sqlite_persistence.save_events t events)
            ) (List.init 5 (fun i -> i));
            (match Sqlite_persistence.load_sessions t 3 with
