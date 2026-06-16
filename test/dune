@@ -235,3 +235,8 @@
  (name test_list_agents)
  (libraries par eio_main alcotest)
  (modules test_list_agents))
+
+(test
+ (name test_sessions)
+ (libraries par eio_main alcotest sqlite3)
+ (modules test_sessions))

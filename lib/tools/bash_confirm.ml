@@ -1,6 +1,6 @@
 open Types
 
-let make_hook ?(confirm_fn : (string -> bool) option) (config : bash_confirm_config) : Hook.tool_call_hook =
+let make_hook ?confirm_fn (config : bash_confirm_config) : Hook.tool_call_hook =
   fun (ctx : Hook.tool_call_context) ->
     if ctx.tool_name <> "bash" then Hook.Allow
     else begin
