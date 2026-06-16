@@ -1,17 +1,30 @@
 # CHANGES
 
-## v0.4.4-beta (2026-06-15)
+## v0.4.4-beta (2026-06-16)
 
-> Multi-agent REPL: config-driven multi-agent setup, handoff display, /agents and /switch commands. 904 OCaml tests.
+> Multi-agent REPL, session management, bash confirmation. 904 OCaml tests.
 
-### New Features
+### New Features (§5.1 Multi-Agent REPL)
 
-- **Multi-agent config**: `~/.par/config.json` accepts an `"agents"` array. Each entry has `id`, `system_prompt`, optional `model` (inherits default if omitted), optional `max_iterations` (inherits default). First agent in array is the default active agent. No `agents` array = current single `default-agent` behavior (backward compatible).
-- **Handoff display**: When `Agent_handoff` event fires during a conversation, the REPL prints `↪ from → to` on stderr. Matches the existing `→ tool ✓ (Nms)` style.
-- **Active agent in prompt**: When multiple agents are configured, the REPL prompt shows `par [agent_id]>` instead of plain `par>`.
-- **`/agents` REPL command**: Lists all registered agents with `(active)`/`(idle)` status markers.
-- **`/switch <agent_id>` REPL command**: Explicitly switches the active agent (user-initiated, not LLM-initiated handoff).
-- **`enable_handoff` auto-enabled**: The CLI passes `~enable_handoff:true` to `Runtime.invoke` so LLM-initiated handoffs work automatically when multiple agents are registered.
+- **Multi-agent config**: `~/.par/config.json` accepts an `"agents"` array with `id`, `system_prompt`, optional `model`, `tools` (subset), `max_iterations`. Backward compatible: no array = single `default-agent`.
+- **Auto-generated handoff tools**: Each configured agent gets a `transfer_to_<id>` tool, enabling LLM-initiated handoff.
+- **Handoff display**: `↪ from → to` on stderr when `Agent_handoff` event fires.
+- **Active agent in prompt**: `par [agent_id]>` (multi-agent only).
+- **`/agents`**: Lists registered agents with `(active)`/`(idle)` markers.
+- **`/switch <agent_id>`**: Changes active agent.
+
+### New Features (§5.2 Session Management)
+
+- **`par sessions`**: New command lists recent sessions with readable timestamps. `--limit N` flag (default 10).
+- **`par history <id>` pretty-print**: Human-readable event chain with `✓`/`✗` styling and `↪` handoff arrows. `--json` flag for raw JSON. `--verbose` for full payloads.
+- **`par stats` enhanced**: Adds METRICS section with total events, LLM calls, tool calls, and top tools ranking.
+- **`/session` REPL command**: Shows active agent + conversation message count.
+
+### New Features (§5.3 Bash Confirmation)
+
+- **Bash confirmation prompt**: Dangerous bash commands show `⚠ bash: <cmd>\nProceed? [y/n]` in REPL mode. `par ask` auto-allows.
+- **`Bash_confirm.make_hook` callback**: Accepts optional `?confirm_fn:(string -> bool)` for custom confirmation logic.
+- **`setup_runtime ~interactive:bool`**: REPL = interactive (prompts), `par ask` = non-interactive (auto-allow).
 
 ### API Changes
 
