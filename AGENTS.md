@@ -60,7 +60,7 @@ See `docs/rules/docs.md` for full doc maintenance rules. Key points:
 
 See [`docs/rules/backlog.md`](docs/rules/backlog.md) for the full backlog spec. Key rules:
 - Work > 30 min → create a bd issue first
-- Priority P0-P4, label by milestone (e.g. `v0.5`)
+- Priority P0-P4; version labels only when planned into a milestone
 - Workflow: `bd create` → `claim` → code → `close` → `bd dolt push`
 
 ```bash
