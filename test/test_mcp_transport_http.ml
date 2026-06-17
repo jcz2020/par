@@ -46,5 +46,28 @@ let () =
          | Ok (Mcp_types.Http_server parsed) ->
            Alcotest.(check string) "url roundtrip" "https://mcp.example.com/endpoint" parsed.url
          | _ -> Alcotest.fail "expected Http_server after roundtrip"));
+
+      Alcotest.test_case "sampling_method_constant" `Quick (fun () ->
+        Alcotest.(check string) "method name"
+          "sampling/createMessage" Mcp_types.method_sampling_create);
+
+      Alcotest.test_case "sampling_request_jsonrpc_parsing" `Quick (fun () ->
+        let json = `Assoc [
+          ("jsonrpc", `String "2.0");
+          ("id", `Int 42);
+          ("method", `String "sampling/createMessage");
+          ("params", `Assoc [
+            ("messages", `List [
+              `Assoc [("role", `String "user");
+                      ("content", `Assoc [("type", `String "text"); ("text", `String "Hello")])]
+            ]);
+            ("maxTokens", `Int 100)
+          ])
+        ] in
+        (match Mcp_types.jsonrpc_request_of_yojson json with
+         | Ok req ->
+           Alcotest.(check string) "method" "sampling/createMessage" req.Mcp_types.method_;
+           Alcotest.(check bool) "has params" true (Option.is_some req.Mcp_types.params)
+         | Error e -> Alcotest.fail ("parse failed: " ^ e)));
     ];
   ]

@@ -15,4 +15,7 @@ val notify :
 
 val close : t -> unit
 
+val set_sampling_handler :
+  t -> (Yojson.Safe.t -> (Yojson.Safe.t, Types.error_category) result) -> unit
+
 val to_transport : t -> Mcp_transport.t

@@ -542,5 +542,6 @@ let method_shutdown                 = "shutdown"
 let method_progress                 = "notifications/progress"
 let method_cancelled                = "notifications/cancelled"
 let method_tools_list_changed       = "notifications/tools/list_changed"
+let method_sampling_create           = "sampling/createMessage"
 
 let protocol_version = "2025-06-18"

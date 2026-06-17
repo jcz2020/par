@@ -17,6 +17,7 @@ type t = {
   client : Cohttp_eio.Client.t;
   sw : Eio.Switch.t;
   mutable closed : bool;
+  sampling_handler : (Yojson.Safe.t -> (Yojson.Safe.t, Types.error_category) result) option ref;
 }
 
 let tls_config_lazy : Tls.Config.client Lazy.t =
@@ -50,7 +51,7 @@ let upgrade_https uri flow =
 let create ~url ~net ~sw =
   let uri = Uri.of_string url in
   let client = Cohttp_eio.Client.make ~https:(Some upgrade_https) net in
-  { uri; session_id = ref None; client; sw; closed = false }
+  { uri; session_id = ref None; client; sw; closed = false; sampling_handler = ref None }
 
 let base_headers () =
   Http.Header.of_list [
@@ -70,6 +71,32 @@ let capture_session_id t resp =
   | None -> ()
 
 let http_status resp = Cohttp.Code.code_of_status resp.Http.Response.status
+
+let drain_body body =
+  try
+    ignore
+      (Eio.Buf_read.parse_exn ~max_size:max_body_size Eio.Buf_read.take_all body)
+  with _ -> ()
+
+let set_sampling_handler t handler =
+  t.sampling_handler := Some handler
+
+let post_sampling_response t request_id result_json =
+  let resp_body = `Assoc [
+    "jsonrpc", `String "2.0";
+    "id", (match request_id with
+           | Mcp_types.Int_id n -> `Int n
+           | Mcp_types.String_id s -> `String s);
+    "result", result_json;
+  ] in
+  let body_str = Yojson.Safe.to_string resp_body in
+  let body = Cohttp_eio.Body.of_string body_str in
+  let headers = build_headers t [] in
+  (try
+     let resp, resp_body = Cohttp_eio.Client.post t.client ~sw:t.sw ~headers ~body t.uri in
+     capture_session_id t resp;
+     drain_body resp_body
+   with _ -> ())
 
 let read_body_string body : (string, Types.error_category) result =
   try
@@ -99,7 +126,7 @@ let content_type_is resp prefix =
     String.length ct >= String.length prefix
     && String.sub ct 0 (String.length prefix) = prefix
 
-let parse_sse_response _t ~target_id body =
+let parse_sse_response t ~target_id body =
   let src = (body :> [> Eio.Flow.source_ty ] Eio.Resource.t) in
   let reader = Eio.Buf_read.of_flow ~initial_size:4096 ~max_size:max_body_size src in
   let rec read_events () =
@@ -122,12 +149,24 @@ let parse_sse_response _t ~target_id body =
                Ok r
              | Ok _ -> read_events ()
              | Error _ ->
-               (match Mcp_types.notification_of_yojson json with
+               (match Mcp_types.jsonrpc_request_of_yojson json with
+                | Ok req when req.Mcp_types.method_ = Mcp_types.method_sampling_create ->
+                  (match !(t.sampling_handler) with
+                   | Some handler ->
+                     let params = Option.value req.Mcp_types.params ~default:`Null in                     let result = handler params in
+                     (match result with
+                      | Ok result_json -> post_sampling_response t req.Mcp_types.id result_json
+                      | Error _ -> ());
+                     read_events ()
+                   | None -> read_events ())
                 | Ok _ -> read_events ()
-                | Error e ->
-                  Logs.debug (fun m ->
-                    m "mcp_transport_http: skipping unknown SSE message: %s" e);
-                  read_events ()))
+                | Error _ ->
+                  (match Mcp_types.notification_of_yojson json with
+                   | Ok _ -> read_events ()
+                   | Error e ->
+                     Logs.debug (fun m ->
+                       m "mcp_transport_http: skipping unknown SSE message: %s" e);
+                     read_events ())))
       else read_events ()
     | exception End_of_file ->
       Error (Types.Internal "MCP HTTP SSE stream ended without response")
@@ -176,12 +215,6 @@ let request_response t req =
       Error
         (Types.Internal
            (Printf.sprintf "MCP HTTP POST failed: %s" (Printexc.to_string ex)))
-
-let drain_body body =
-  try
-    ignore
-      (Eio.Buf_read.parse_exn ~max_size:max_body_size Eio.Buf_read.take_all body)
-  with _ -> ()
 
 let notify t notif =
   if t.closed then Error (Types.Internal "transport closed")

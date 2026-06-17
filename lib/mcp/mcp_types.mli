@@ -132,5 +132,6 @@ val method_shutdown                  : string
 val method_progress                  : string
 val method_cancelled                 : string
 val method_tools_list_changed        : string
+val method_sampling_create           : string
 
 val protocol_version : string
