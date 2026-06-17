@@ -37,3 +37,8 @@ bindings/python/par_runtime/*.so
 __pycache__/
 *.pyc
 *.pyo
+
+# Beads / Dolt files (added by bd init)
+.beads/proxieddb/
+.claude/
+CLAUDE.md
