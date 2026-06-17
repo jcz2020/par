@@ -42,3 +42,5 @@ __pycache__/
 .beads/proxieddb/
 .claude/
 CLAUDE.md
+.claude/
+CLAUDE.md
