@@ -512,7 +512,7 @@ let default_bus_config : event_bus_config =
   { buffer_capacity = 10; delivery = {
       max_delivery_attempts = 1; initial_retry_delay = 0.1;
       retry_backoff = Fixed 0.1; delivery_timeout = 1.0 };
-    dlq_enabled = false; critical_event_types = [] }
+    dlq_enabled = false; dlq_max_size = 10; critical_event_types = [] }
 
 let event_bus_suite =
   ("Event bus", [
@@ -545,6 +545,7 @@ let event_bus_suite =
             retry_backoff = Exponential { base = 2.0; max_delay = 10.0 };
             delivery_timeout = 5.0 };
           dlq_enabled = true;
+          dlq_max_size = 10;
           critical_event_types = [ "Shutdown_initiated" ] } in
       let bus = Event_bus.create config in
       let dlq = Event_bus.get_dead_letters bus in

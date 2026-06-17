@@ -111,6 +111,7 @@ let test_integration_event_bus_to_writer () =
         delivery_timeout = 5.0;
       };
       dlq_enabled = true;
+      dlq_max_size = 10;
       critical_event_types = [];
     } in
     let writer = Persistence_writer.create ~capacity:100 save_fn in

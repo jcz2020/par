@@ -9,6 +9,7 @@ let valid_config = {
     delivery_timeout = 5.0;
   };
   dlq_enabled = true;
+  dlq_max_size = 10;
   critical_event_types = [];
 }
 

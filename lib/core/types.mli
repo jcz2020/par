@@ -412,6 +412,7 @@ type event_bus_config = {
   buffer_capacity : int;
   delivery : event_delivery_config;
   dlq_enabled : bool;
+  dlq_max_size : int;
   critical_event_types : string list;
 }
 [@@deriving yojson]

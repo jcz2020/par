@@ -49,6 +49,7 @@ let default_event_bus_config = {
     delivery_timeout = 30.0;
   };
   dlq_enabled = true;
+  dlq_max_size = 10;
   critical_event_types = [ "Shutdown_initiated"; "Shutdown_completed" ];
 }
 

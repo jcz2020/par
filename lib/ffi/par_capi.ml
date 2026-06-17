@@ -50,32 +50,29 @@ let unwrap : string option -> Obj.t = function
 let shutdown_flag = ref false
 
 let do_init (config_json : string) =
-  try
-    let json = Yojson.Safe.from_string config_json in
-    let config = match Par.Types.runtime_config_of_yojson json with
-      | Ok c -> c
-      | Error s -> failwith (Printf.sprintf "Invalid config JSON: %s" s)
-    in
-    (* Run Eio_main.run in a fresh domain. This is required because
-       Eio_main.run must be the entry point of an application — calling
-       it from a C callback (which is what we are, via par_init) hangs
-       because the event loop never gets to start.
-       See [par_ffi.c] for the C-side mirror of this design. *)
-    let result_dom = Domain.spawn (fun () ->
-      Eio_main.run (fun _env ->
-        Eio.Switch.run (fun sw ->
-          match Par.Runtime.create ~config sw with
-          | Ok r -> r
-          | Error _ -> failwith "Runtime.create failed"
-        )
+  let json = Yojson.Safe.from_string config_json in
+  let config = match Par.Types.runtime_config_of_yojson json with
+    | Ok c -> c
+    | Error s -> failwith (Printf.sprintf "Invalid config JSON: %s" s)
+  in
+  (* Run Eio_main.run in a fresh domain. This is required because
+     Eio_main.run must be the entry point of an application — calling
+     it from a C callback (which is what we are, via par_init) hangs
+     because the event loop never gets to start.
+     See [par_ffi.c] for the C-side mirror of this design. *)
+  let result_dom = Domain.spawn (fun () ->
+    Eio_main.run (fun _env ->
+      Eio.Switch.run (fun sw ->
+        match Par.Runtime.create ~config sw with
+        | Ok r -> r
+        | Error _ -> failwith "Runtime.create failed"
       )
-    ) in
-    let rt = Domain.join result_dom in
-    let handle = { rt } in
-    let id = alloc_handle handle in
-    Obj.repr id
-  with e ->
-    Obj.repr (error_json (Printexc.to_string e))
+    )
+  ) in
+  let rt = Domain.join result_dom in
+  let handle = { rt } in
+  let id = alloc_handle handle in
+  Obj.repr id
 
 let do_shutdown (id : int) =
   match get_handle id with

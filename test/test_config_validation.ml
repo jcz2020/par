@@ -10,6 +10,7 @@ let valid_event_bus = {
     delivery_timeout = 30.0;
   };
   dlq_enabled = false;
+  dlq_max_size = 10;
   critical_event_types = [];
 }
 

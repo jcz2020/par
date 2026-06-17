@@ -31,6 +31,19 @@ let create config =
     current_session_id = "";
   }
 
+let push_dlq_entry bus entry =
+  Eio.Mutex.use_rw ~protect:false bus.mutex (fun () ->
+    let new_list = entry :: !(bus.dead_letters) in
+    bus.dead_letters :=
+      if bus.config.dlq_max_size <= 0 then new_list
+      else
+        let rec take n acc = function
+          | _ when n <= 0 -> List.rev acc
+          | [] -> List.rev acc
+          | x :: xs -> take (n - 1) (x :: acc) xs
+        in
+        take bus.config.dlq_max_size [] new_list)
+
 let publish bus event =
   let id = Task_id.to_string (Task_id.create ()) in
   let envelope = {
@@ -54,9 +67,7 @@ let publish bus event =
       failed_at = Unix.time ();
       attempt_count = 0;
     } in
-    Eio.Mutex.use_rw ~protect:false bus.mutex (fun () ->
-      bus.dead_letters := entry :: !(bus.dead_letters)
-    )
+    push_dlq_entry bus entry
   end else
     Eio.Stream.add bus.buffer envelope
 
@@ -86,10 +97,8 @@ let deliver_to_subscribers bus envelope =
         failed_at = Unix.time ();
         attempt_count = envelope.delivery_attempt + 1;
       } in
-      Eio.Mutex.use_rw ~protect:false bus.mutex (fun () ->
-        bus.dead_letters := entry :: !(bus.dead_letters)
-      )
-  ) !handlers
+      push_dlq_entry bus entry
+   ) !handlers
 
 let start_dispatcher bus switch =
   ignore (Eio.Fiber.fork_daemon ~sw:switch (fun () ->
@@ -119,9 +128,7 @@ let push_to_dlq bus envelope error_msg failure_reason =
     failed_at = Unix.time ();
     attempt_count = 0;
   } in
-  Eio.Mutex.use_rw ~protect:false bus.mutex (fun () ->
-    bus.dead_letters := entry :: !(bus.dead_letters)
-  )
+  push_dlq_entry bus entry
 
 let to_service (bus : t) : Types.event_bus_service = {
   publish_fn = (fun evt -> publish bus evt);

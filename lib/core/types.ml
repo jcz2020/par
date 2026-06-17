@@ -470,6 +470,7 @@ type event_bus_config = {
   buffer_capacity : int;
   delivery : event_delivery_config;
   dlq_enabled : bool;
+  dlq_max_size : int;
   critical_event_types : string list;
 }
 [@@deriving yojson]
@@ -573,7 +574,7 @@ type _runtime_config_base = {
   eval_limits : eval_limits;
   parallel_tool_execution : bool;
 }
-[@@deriving yojson]
+[@@deriving yojson { strict = false }]
 
 type runtime_config = {
   persistence : [ `Sqlite of string | `Postgresql of string ];
