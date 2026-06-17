@@ -6,10 +6,10 @@
 
 # MCP Client API Reference
 
-This document describes the P-A-R SDK's MCP (Model Context Protocol) stdio client. A PAR agent can connect to any MCP server (filesystem, git, sqlite, github, etc.) and consume the tools, resources, and prompts it exposes.
+This document describes the P-A-R SDK's MCP (Model Context Protocol) client (stdio + HTTP/SSE). A PAR agent can connect to any MCP server (filesystem, git, sqlite, github, etc.) and consume the tools, resources, and prompts it exposes.
 
 **Version**: v0.3.1
-**Transport**: stdio
+**Transports**: stdio + HTTP/SSE (Streamable HTTP, spec 2025-06-18)
 
 ## Overview
 
@@ -27,7 +27,7 @@ Available after `open Par`:
 | `Par.Mcp_server` | Low-level server lifecycle: spawn, stop, call_method, notify |
 | `Par.Mcp_client` | High-level typed API: connect, list_tools, call_tool, read_resource, get_prompt |
 
-Most users only need `Mcp_client`. Reach for `Mcp_server` when you need to manage the lifecycle yourself (for example, dynamic add/remove of servers). The transport itself lives in `Mcp_transport_stdio`; server name validation in `Mcp_naming`; error mapping in `Mcp_errors`.
+Most users only need `Mcp_client`. Reach for `Mcp_server` when you need to manage the lifecycle yourself (for example, dynamic add/remove of servers). Transports live in `Mcp_transport_stdio` (local process) and `Mcp_transport_http` (remote HTTP/SSE); server name validation in `Mcp_naming`; error mapping in `Mcp_errors`.
 
 ### v0.3.1 scope
 
@@ -42,7 +42,7 @@ Most users only need `Mcp_client`. Reach for `Mcp_server` when you need to manag
 | notifications (list_changed, progress, cancelled) | done |
 | Startup policy: fail-fast / log-and-continue | done |
 | Graceful shutdown (SIGTERM then SIGKILL fallback) | done |
-| HTTP / SSE transport | not implemented |
+| HTTP / SSE transport | done (v0.4.3) |
 | sampling (server to LLM reverse call) | not implemented |
 | roots / elicitation | not implemented |
 
@@ -313,7 +313,7 @@ Health check. Returns the server's `pong` response.
 
 For scenarios that need to control the lifecycle manually: dynamic add/remove of servers, custom RPC methods, injecting extra notifications.
 
-The actual transport is implemented in `Mcp_transport_stdio`, which spawns the child process and wires stdin/stdout. `Mcp_server` sits one layer above that.
+The stdio transport lives in `Mcp_transport_stdio`, which spawns the child process and wires stdin/stdout. The HTTP/SSE transport lives in `Mcp_transport_http` (v0.4.3), which connects to a remote MCP server over Streamable HTTP (spec 2025-06-18). `Mcp_server` sits one layer above both transports.
 
 ### Status
 
@@ -420,7 +420,7 @@ let log_mcp_event (ev : Types.event) =
   | _ -> ()
 
 (* In the main loop *)
-let bus = Runtime.bus rt in
+(* Event subscription: pass ?on_tool_event:(event -> unit) callback to Runtime.create *)
 Event_bus.subscribe bus log_mcp_event
 ```
 
@@ -582,7 +582,6 @@ MCP child processes do **not** go through PAR's `Bash_policy.sanitize_env`. The 
 
 v0.3.1 is the minimum viable MCP integration. The following capabilities are **not yet implemented**:
 
-- HTTP / SSE transport (only stdio is supported)
 - sampling (server to LLM reverse call)
 - roots / elicitation
 - Multi-session concurrency (same `server_id` reuse, session pool)

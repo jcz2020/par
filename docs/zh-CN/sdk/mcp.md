@@ -1,10 +1,10 @@
 # MCP 客户端 API 参考
 [English](../sdk/mcp.md) · **简体中文**
 
-本文档描述 P-A-R SDK 的 MCP（Model Context Protocol）stdio 客户端。PAR agent 可以连接到任意 MCP server（filesystem、git、sqlite、github 等），直接消费它们暴露的 tools、resources 和 prompts。
+本文档描述 P-A-R SDK 的 MCP（Model Context Protocol）客户端（stdio + HTTP/SSE）。PAR agent 可以连接到任意 MCP server（filesystem、git、sqlite、github 等），直接消费它们暴露的 tools、resources 和 prompts。
 
 **版本**: v0.3.1
-**传输层**: stdio
+**传输层**: stdio + HTTP/SSE
 
 ## 概述
 
@@ -29,6 +29,7 @@ MCP 是 Anthropic 提出的 LLM 工具集成协议，server 端把工具（tools
 | 能力 | 状态 |
 |------|------|
 | stdio transport | ✅ |
+| HTTP/SSE transport | ✅ (v0.4.3) |
 | initialize / initialized 握手 | ✅ |
 | tools/list, tools/call | ✅ |
 | resources/list, resources/read | ✅ |
@@ -37,7 +38,6 @@ MCP 是 Anthropic 提出的 LLM 工具集成协议，server 端把工具（tools
 | notifications（list_changed、progress、cancelled） | ✅ |
 | 启动策略：fail-fast / log-and-continue | ✅ |
 | 优雅 shutdown（SIGTERM → SIGKILL 降级） | ✅ |
-| HTTP / SSE transport | 未实现 |
 | sampling（server → LLM 反向调用） | 未实现 |
 | roots / elicitation | 未实现 |
 
@@ -411,7 +411,7 @@ let log_mcp_event (ev : Types.event) =
   | _ -> ()
 
 (* 主循环里 *)
-let bus = Runtime.bus rt in
+(* Event subscription: pass ?on_tool_event callback to Runtime.create *)
 Event_bus.subscribe bus log_mcp_event
 ```
 
@@ -571,7 +571,6 @@ MCP 子进程**不会**经过 PAR 的 `Bash_policy.sanitize_env` 脱敏。`env` 
 
 v0.3.1 是 MCP 集成的最小可用版本。下列能力**尚未实现**：
 
-- HTTP / SSE transport（仅支持 stdio）
 - sampling（server → LLM 反向调用）
 - roots / elicitation
 - 多 session 并发（同 server_id 复用、session 池）

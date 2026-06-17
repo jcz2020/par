@@ -12,7 +12,7 @@
 
 PAR (Programmable Agent Runtime) is a modular, type-safe agent runtime for OCaml 5.4+.
 It includes a ReAct reasoning engine, OpenAI and Anthropic LLM providers (plus any OpenAI-compatible endpoint),
-20 built-in tools (including a type-safe bash tool), an MCP stdio client, workflow orchestration, and SQLite/PostgreSQL persistence.
+20 built-in tools (including a type-safe bash tool), an MCP client (stdio + HTTP/SSE), workflow orchestration, and SQLite/PostgreSQL persistence.
 
 ## Prerequisites
 

@@ -59,7 +59,7 @@ The SDK is the canonical surface. Every page below is marked **PRIMARY** because
 | [Workflow API](sdk/workflow.md) | **PRIMARY**: workflow JSON, 8 step types, checkpoints |
 | [Middleware API](sdk/middleware.md) | **PRIMARY**: 7 built-in middlewares and how to write your own |
 | [Tools API](sdk/tools.md) | **PRIMARY**: all 20 built-in tools including type-safe bash |
-| [MCP Client API](sdk/mcp.md) | **PRIMARY**: MCP stdio client, 7 event types, server lifecycle |
+| [MCP Client API](sdk/mcp.md) | **PRIMARY**: MCP client (stdio + HTTP/SSE), 7 event types, server lifecycle |
 
 ### CLI
 

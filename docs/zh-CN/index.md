@@ -37,7 +37,7 @@
 | [Workflow API](sdk/workflow.md) | 工作流定义、8 种 step 类型、检查点 |
 | [Middleware API](sdk/middleware.md) | 7 个内置中间件与自定义中间件编写 |
 | [Tools API](sdk/tools.md) | 20 个内置工具（含类型安全 bash） |
-| [MCP Client API](sdk/mcp.md) | MCP stdio 客户端：连接外部工具服务器 |
+| [MCP Client API](sdk/mcp.md) | MCP 客户端（stdio + HTTP/SSE）：连接外部工具服务器 |
 
 ## 解释 (Explanation)
 

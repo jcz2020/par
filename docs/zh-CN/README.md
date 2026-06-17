@@ -16,7 +16,7 @@ P-A-R（Programmable Agent Runtime）是一个模块化、类型安全的 Agent 
 | [Workflow API](sdk/workflow.md) | 顺序、并行、条件分支、map-reduce |
 | [Middleware](sdk/middleware.md) | 7 个内置中间件 + 自定义写法 |
 | [Tools](sdk/tools.md) | 20 个内置工具（含类型安全 bash） |
-| [MCP 客户端](sdk/mcp.md) | MCP stdio 客户端 API + 安全清单 |
+| [MCP 客户端](sdk/mcp.md) | MCP 客户端 API（stdio + HTTP/SSE）+ 安全清单 |
 
 ### How-to 指南
 

@@ -4,7 +4,7 @@
 
 # PAR SDK Overview
 
-The PAR SDK is an OCaml 5.4+ library for building LLM-powered agents. It provides a ReAct reasoning loop, multi-provider LLM abstraction, type-safe shell execution, MCP stdio client integration, and a 7-middleware pipeline. This overview is the deep dive; the README is the landing.
+The PAR SDK is an OCaml 5.4+ library for building LLM-powered agents. It provides a ReAct reasoning loop, multi-provider LLM abstraction, type-safe shell execution, MCP client integration (stdio + HTTP/SSE), and a 7-middleware pipeline. This overview is the deep dive; the README is the landing.
 
 ## What is the PAR SDK?
 
@@ -38,7 +38,7 @@ graph TD
   EVB --> EVB_API["Event_bus with DLQ + Eio.Stream"]
   MID --> MID_API["Logging / Retry / Rate_limit / Timeout / Arg_validation / Validation / Pii_mask / Sanitize_tool_output"]
   TOOL --> TOOL_API["Builtin_tools (20 incl. bash) + Bash_safe_command + Bash_policy + Bash_blacklist"]
-  MCP --> MCP_API["Mcp_types / Mcp_server / Mcp_client / Mcp_transport_stdio / Mcp_naming / Mcp_errors"]
+  MCP --> MCP_API["Mcp_types / Mcp_server / Mcp_client / Mcp_transport_stdio / Mcp_transport_http / Mcp_naming / Mcp_errors"]
   FFI --> FFI_API["par_capi.so + par_ffi.h for Python ctypes"]
   RT -.cancellation.-> EIO["Eio.Switch.t (whole-tree cancel)"]
   EVB -.events.-> RT
@@ -111,7 +111,7 @@ Pass `?cancellation_token:` to abort a long-running invoke; the cancellation pro
 Subscribe to the event bus and pattern-match on lifecycle events. MCP server events arrive on the same bus as task and tool events, so one subscriber covers the whole runtime.
 
 ```ocaml
-let bus = Runtime.bus rt in
+(* Event subscription: pass ?on_tool_event:(event -> unit) callback to Runtime.create *)
 Event_bus.subscribe bus (fun ev ->
   match ev with
   | Mcp_tool_completed { server_id; tool_name; duration_ms } ->
@@ -211,7 +211,7 @@ Every public module lives under one of the 9 sub-libraries below, plus the facad
 | `lib/event_bus` | `Par.Event_bus` | Eio-based event bus with DLQ |
 | `lib/middleware` | `Par.Logging`, `Par.Retry`, `Par.Rate_limit`, `Par.Timeout`, `Par.Arg_validation`, `Par.Validation`, `Par.Pii_mask`, `Par.Sanitize_tool_output` | 7 built-in middlewares |
 | `lib/tools` | `Par.Builtin_tools`, `Par.Bash_safe_command`, `Par.Bash_policy`, `Par.Bash_blacklist` | 20 built-in tools + the type-safe bash tool |
-| `lib/mcp` | `Par.Mcp_types`, `Par.Mcp_server`, `Par.Mcp_client`, `Par.Mcp_transport_stdio`, `Par.Mcp_naming`, `Par.Mcp_errors` | MCP stdio client (v0.3.1) |
+| `lib/mcp` | `Par.Mcp_types`, `Par.Mcp_server`, `Par.Mcp_client`, `Par.Mcp_transport_stdio`, `Par.Mcp_transport_http`, `Par.Mcp_naming`, `Par.Mcp_errors` | MCP client (stdio v0.3.1, HTTP/SSE v0.4.3) |
 | `lib/ffi` | `Par_capi` (build artifact) | C ABI for Python binding |
 | `lib/par.ml` | (facade, re-exports above) | `open Par` entry point |
 | `bin/` | (CLI entry) | `par`, `par config`, `par ask` |
