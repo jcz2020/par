@@ -240,3 +240,8 @@
  (name test_sessions)
  (libraries par eio_main alcotest sqlite3)
  (modules test_sessions))
+
+(test
+ (name test_mcp_transport_http)
+ (libraries par alcotest)
+ (modules test_mcp_transport_http))

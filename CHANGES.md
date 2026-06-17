@@ -1,5 +1,24 @@
 # CHANGES
 
+## v0.4.4-beta (2026-06-17)
+
+> MCP HTTP/SSE transport (Streamable HTTP, spec 2025-06-18). 909 OCaml tests.
+
+### New Features (§4.1 MCP HTTP/SSE Transport)
+
+- **Transport abstraction**: New `Mcp_transport` module (`lib/mcp/mcp_transport.ml`) defines a uniform `{ request_response; notify; close }` record. Stdio and HTTP both adapt into it, so `Mcp_server` no longer hardcodes a wire protocol.
+- **HTTP/SSE transport**: New `Mcp_transport_http` module (`lib/mcp/mcp_transport_http.ml`) POSTs JSON-RPC to a single endpoint URL, handles direct JSON responses and SSE streams, captures the `Mcp-Session-Id` header, and drains notification bodies. Uses `cohttp-eio` with TLS upgrade via `Tls_eio` + `Ca_certs`.
+- **`server_config` polymorphic variant**: `Mcp_types.server_config` is now `Stdio_server { command; args; env; cwd; ... } | Http_server { url; headers; ... }`. Both constructors carry `name` and `startup_timeout`. JSON encoding via `server_config_to_yojson` / `server_config_of_yojson`.
+- **Relaxed runtime requirements**: `Runtime.create` no longer hard-requires `?mcp_process_mgr` when only HTTP servers are configured. New `?mcp_net` parameter (from `Eio.Stdenv.net env`) is required only when at least one `Http_server` is present.
+- **`Mcp_server.spawn`**: Signature gains `?net`; `process_mgr` becomes optional. Dispatch is by config variant — stdio requires `process_mgr`, HTTP requires `net`.
+
+### API Changes
+
+- **`Mcp_types.server_config`**: Breaking change from record to polymorphic variant. All callers updated: `bin/main.ml`, `test/test_mcp_server.ml`, `test/test_mcp_client.ml`, `test/test_mcp_runtime.ml`. Use `Mcp_types.server_name` / `Mcp_types.server_startup_timeout` accessors.
+- **`Mcp_server.spawn`**: Signature changed from `~process_mgr:... -> ...` to `?process_mgr:... ?net:... -> ...`. Existing stdio callers compile unchanged.
+- **`Runtime.create`**: New optional parameter `?mcp_net:_ Eio.Net.t`. Error messages now distinguish stdio vs HTTP missing dependencies.
+- **`Mcp_types.request_id_matches`**: New helper to compare `request_id` values by payload.
+
 ## v0.4.4-beta (2026-06-16)
 
 > Multi-agent REPL, session management, bash confirmation. 904 OCaml tests.
