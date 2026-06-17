@@ -77,7 +77,7 @@ bd dolt pull    # pull remote changes
 
 JSONL export is available as a git-tracked fallback:
 - Path: `.beads/issues.jsonl`
-- Run `bd export > .beads/issues.jsonl` to refresh manually
+- 手动刷新：`bd export > .beads/issues.jsonl`（not auto）
 - Not a substitute for `bd dolt push`; it's a read-only snapshot
 
 ## Meeting / Discussion Capture
