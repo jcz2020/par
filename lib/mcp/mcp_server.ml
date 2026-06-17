@@ -19,6 +19,7 @@ type t = {
   capabilities : Mcp_types.capabilities ref;
   mutable status : status;
   transport    : Mcp_transport.t;
+  http_transport : Mcp_transport_http.t option;
   next_id      : int ref;
   mu           : Eio.Mutex.t;
   sleep        : float -> unit;
@@ -29,6 +30,7 @@ type t = {
 let id t = t.id
 let name t = t.name
 let pid t = Option.value t.pid ~default:0
+let http_transport t = t.http_transport
 let capabilities t = !(t.capabilities)
 let status t = t.status
 
@@ -181,18 +183,18 @@ let spawn ~sw ?process_mgr ?net ~clock (config : Mcp_types.server_config) :
               ~command:cfg.command ~args:cfg.args
               ~env:cfg.env ?cwd:cfg.cwd config with
             | Error e -> Error e
-            | Ok (transport, pid) -> Ok (Mcp_transport_stdio.to_transport transport, Some pid)))
+            | Ok (transport, pid) -> Ok (Mcp_transport_stdio.to_transport transport, Some pid, None)))
       | Mcp_types.Http_server cfg ->
         (match net with
          | None ->
            Error (Types.Invalid_input "Mcp_server.spawn: Http_server requires ~net")
          | Some net ->
            let http = Mcp_transport_http.create ~url:cfg.url ~net ~sw in
-           Ok (Mcp_transport_http.to_transport http, None))
+           Ok (Mcp_transport_http.to_transport http, None, Some http))
     in
-    (match transport_result with
-     | Error e -> Error e
-     | Ok (transport, pid) ->
+     (match transport_result with
+      | Error e -> Error e
+      | Ok (transport, pid, http_t) ->
        let next_id = ref 0 in
        let mu = Eio.Mutex.create () in
        let capabilities = ref
@@ -207,6 +209,7 @@ let spawn ~sw ?process_mgr ?net ~clock (config : Mcp_types.server_config) :
          capabilities;
          status = Starting;
          transport;
+         http_transport = http_t;
          next_id;
          mu;
          sleep = sleep_fn;

@@ -28,6 +28,7 @@ val spawn :
 val id           : t -> Mcp_types.server_id
 val name         : t -> string
 val pid          : t -> int
+val http_transport : t -> Mcp_transport_http.t option
 val capabilities : t -> Mcp_types.capabilities
 val status       : t -> status
 
