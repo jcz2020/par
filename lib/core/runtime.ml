@@ -622,6 +622,7 @@ let create ?(persistence = noop_persistence)
            ?(bash_policy = (module Bash_policy.Coder : Bash_policy.POLICY))
            ?(mcp_servers = [])
            ?mcp_process_mgr
+           ?mcp_net
            ?mcp_clock
            ?(mcp_startup_policy = Mcp_types.Log_and_continue)
            ~config switch =
@@ -688,10 +689,22 @@ let create ?(persistence = noop_persistence)
     } in
     let mcp_errors = ref [] in
     if mcp_servers <> [] then begin
-      match (mcp_process_mgr, mcp_clock) with
-      | (None, _) | (_, None) ->
-        Error (Invalid_input "Runtime.create: ?mcp_servers requires ?mcp_process_mgr and ?mcp_clock (pass Eio.Stdenv.process_mgr env / Eio.Stdenv.clock env)")
-      | (Some mgr, Some clk) ->
+      let has_stdio =
+        List.exists (function Mcp_types.Stdio_server _ -> true | _ -> false)
+          mcp_servers
+      in
+      let has_http =
+        List.exists (function Mcp_types.Http_server _ -> true | _ -> false)
+          mcp_servers
+      in
+      match (mcp_clock, has_stdio && mcp_process_mgr = None, has_http && mcp_net = None) with
+      | None, _, _ ->
+        Error (Invalid_input "Runtime.create: ?mcp_servers requires ?mcp_clock (pass Eio.Stdenv.clock env)")
+      | _, true, _ ->
+        Error (Invalid_input "Runtime.create: stdio MCP servers require ?mcp_process_mgr (pass Eio.Stdenv.process_mgr env)")
+      | _, _, true ->
+        Error (Invalid_input "Runtime.create: HTTP MCP servers require ?mcp_net (pass Eio.Stdenv.net env)")
+      | Some clk, false, false ->
         let stop_all_spawned () =
           Types.htbl_iter rt.mcp_servers (fun _id server ->
             ignore (Mcp_server.stop server);
@@ -706,14 +719,14 @@ let create ?(persistence = noop_persistence)
             end else
               Ok rt
           | cfg :: rest ->
-            match Mcp_server.spawn ~sw:switch ~process_mgr:mgr ~clock:clk cfg with
+            match Mcp_server.spawn ~sw:switch ?process_mgr:mcp_process_mgr ?net:mcp_net ~clock:clk cfg with
             | Ok server ->
               let sid = Mcp_server.id server in
               Types.htbl_set rt.mcp_servers sid server;
               publish_event rt (Mcp_server_started { server_id = Mcp_types.server_id_to_string sid; server_name = Mcp_server.name server });
               loop rest
             | Error e ->
-              publish_event rt (Mcp_server_failed { server_id = cfg.Mcp_types.name; error = e });
+              publish_event rt (Mcp_server_failed { server_id = Mcp_types.server_name cfg; error = e });
               mcp_errors := Error e :: !mcp_errors;
               if mcp_startup_policy = Mcp_types.Fail_fast then begin
                 stop_all_spawned ();

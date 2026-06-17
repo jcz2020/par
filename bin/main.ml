@@ -250,7 +250,8 @@ let setup_runtime cfg ~interactive ~f =
   let net = Eio.Stdenv.net env in
   let llm = make_llm_service provider_tag cfg.Par_config.api_key cfg.Par_config.api_base net in
   let mcp_server_configs = List.map (fun (entry : Par_config.mcp_server_entry) ->
-    { Mcp_types.name = entry.name; command = entry.command; args = entry.args;
+    Mcp_types.Stdio_server {
+      name = entry.name; command = entry.command; args = entry.args;
       env = entry.env; cwd = None; startup_timeout = entry.startup_timeout }
   ) cfg.Par_config.mcp_servers in
   match Runtime.create ~persistence:pers ~llm ~config

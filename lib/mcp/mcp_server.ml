@@ -15,10 +15,10 @@ type status =
 type t = {
   id           : Mcp_types.server_id;
   name         : string;
-  pid          : int;
+  pid          : int option;
   capabilities : Mcp_types.capabilities ref;
   mutable status : status;
-  transport    : Mcp_transport_stdio.t;
+  transport    : Mcp_transport.t;
   next_id      : int ref;
   mu           : Eio.Mutex.t;
   sleep        : float -> unit;
@@ -28,7 +28,7 @@ type t = {
 
 let id t = t.id
 let name t = t.name
-let pid t = t.pid
+let pid t = Option.value t.pid ~default:0
 let capabilities t = !(t.capabilities)
 let status t = t.status
 
@@ -66,16 +66,6 @@ let string_of_category (c : Types.error_category) : string = match c with
   | Types.Permission_denied s -> "Permission_denied(" ^ s ^ ")"
   | Types.Internal s -> "Internal(" ^ s ^ ")"
 
-let read_one_response t target_id =
-  let rec loop () =
-    match Mcp_transport_stdio.recv_message t.transport with
-    | Ok (`Response r) when r.id = Mcp_types.Int_id target_id ->
-      Ok r.result
-    | Ok (`Response _) | Ok (`Notification _) -> loop ()
-    | Error _ as e -> e
-  in
-  loop ()
-
 let call_method t ~method_ ~params :
   (Yojson.Safe.t, Types.error_category) result =
   let id =
@@ -93,12 +83,12 @@ let call_method t ~method_ ~params :
     method_;
     params = params_opt;
   } in
-  match Mcp_transport_stdio.send_request t.transport req with
+  match t.transport.request_response req with
   | Error e -> Error e
-  | Ok () ->
-    match read_one_response t id with
-    | Ok (Ok result) -> Ok result
-    | Ok (Error err) ->
+  | Ok resp ->
+    match resp.result with
+    | Ok result -> Ok result
+    | Error err ->
       let msg = Printf.sprintf "MCP server returned error %d: %s"
         err.code err.message in
       let category : Types.error_category =
@@ -112,7 +102,6 @@ let call_method t ~method_ ~params :
         else Types.Internal msg
       in
       Error category
-    | Error e -> Error e
 
 let notify t ~method_ ~params :
   (unit, Types.error_category) result =
@@ -121,7 +110,7 @@ let notify t ~method_ ~params :
     | j -> Some j
   in
   let notif : Mcp_types.jsonrpc_notification = { method_; params = params_opt } in
-  Mcp_transport_stdio.send_notification t.transport notif
+  t.transport.notify notif
 
 let kill_process pid =
   try Unix.kill (-pid) Sys.sigterm with _ -> ()
@@ -151,14 +140,17 @@ let stop t : (unit, Types.error_category) result =
   match t.status with
   | Stopped -> Ok ()
   | _ ->
-    Mcp_transport_stdio.close t.transport;
-    let _ = wait_for_exit ~sleep:t.sleep t.pid ~timeout_s:2.0 in
-    if process_alive t.pid then begin
-      kill_process t.pid;
-      let _ = wait_for_exit ~sleep:t.sleep t.pid ~timeout_s:2.0 in
-      if process_alive t.pid then
-        force_kill_process t.pid
-    end;
+    t.transport.close ();
+    (match t.pid with
+     | None -> ()
+     | Some pid ->
+       let _ = wait_for_exit ~sleep:t.sleep pid ~timeout_s:2.0 in
+       if process_alive pid then begin
+         kill_process pid;
+         let _ = wait_for_exit ~sleep:t.sleep pid ~timeout_s:2.0 in
+         if process_alive pid then
+           force_kill_process pid
+       end);
     t.stop_flag := true;
     t.status <- Stopped;
     Ok ()
@@ -166,9 +158,9 @@ let stop t : (unit, Types.error_category) result =
 let next_instance_id = ref 0
 let instance_mu = Eio.Mutex.create ()
 
-let spawn ~sw ~process_mgr ~clock (config : Mcp_types.server_config) :
+let spawn ~sw ?process_mgr ?net ~clock (config : Mcp_types.server_config) :
   (t, Types.error_category) result =
-  match Mcp_types.server_id_of_string config.name with
+  match Mcp_types.server_id_of_string (Mcp_types.server_name config) with
   | Error e -> Error e
   | Ok base_id ->
     let instance_num =
@@ -179,9 +171,24 @@ let spawn ~sw ~process_mgr ~clock (config : Mcp_types.server_config) :
     let unique_id = Mcp_types.server_id_with_suffix base_id
         ("#" ^ string_of_int instance_num) in
     let transport_result =
-      Mcp_transport_stdio.spawn_with ~sw ~process_mgr
-        ~command:config.command ~args:config.args
-        ~env:config.env ?cwd:config.cwd config
+      match config with
+      | Mcp_types.Stdio_server cfg ->
+        (match process_mgr with
+         | None ->
+           Error (Types.Invalid_input "Mcp_server.spawn: Stdio_server requires ~process_mgr")
+         | Some mgr ->
+           (match Mcp_transport_stdio.spawn_with ~sw ~process_mgr:mgr
+              ~command:cfg.command ~args:cfg.args
+              ~env:cfg.env ?cwd:cfg.cwd config with
+            | Error e -> Error e
+            | Ok (transport, pid) -> Ok (Mcp_transport_stdio.to_transport transport, Some pid)))
+      | Mcp_types.Http_server cfg ->
+        (match net with
+         | None ->
+           Error (Types.Invalid_input "Mcp_server.spawn: Http_server requires ~net")
+         | Some net ->
+           let http = Mcp_transport_http.create ~url:cfg.url ~net ~sw in
+           Ok (Mcp_transport_http.to_transport http, None))
     in
     (match transport_result with
      | Error e -> Error e
@@ -195,7 +202,7 @@ let spawn ~sw ~process_mgr ~clock (config : Mcp_types.server_config) :
        let sleep_fn = (fun s -> Eio.Time.sleep clock s) in
        let rec_t : t = {
          id = unique_id;
-         name = config.name;
+         name = Mcp_types.server_name config;
          pid;
          capabilities;
          status = Starting;
@@ -207,20 +214,26 @@ let spawn ~sw ~process_mgr ~clock (config : Mcp_types.server_config) :
          stop_flag;
        } in
        let init_params = build_initialize_params () in
+       let timeout_s = Mcp_types.server_startup_timeout config in
        let init_result =
          Eio.Fiber.first
            (fun () ->
              call_method rec_t ~method_:Mcp_types.method_initialize
                ~params:init_params)
            (fun () ->
-             Eio.Time.sleep clock config.startup_timeout;
+             Eio.Time.sleep clock timeout_s;
              Error (Timeout : Types.error_category))
        in
        (match init_result with
         | Error e ->
+          let pid_str =
+            match rec_t.pid with
+            | Some p -> Printf.sprintf "pid %d" p
+            | None -> "http"
+          in
           Logs.warn (fun m ->
-            m "MCP server %s (pid %d) handshake failed: %s"
-              rec_t.name rec_t.pid (string_of_category e));
+            m "MCP server %s (%s) handshake failed: %s"
+              rec_t.name pid_str (string_of_category e));
           let _ = stop rec_t in
           rec_t.status <- Failed e;
           Error e
@@ -228,9 +241,14 @@ let spawn ~sw ~process_mgr ~clock (config : Mcp_types.server_config) :
           let caps = extract_capabilities result in
           rec_t.capabilities := caps;
           rec_t.status <- Ready caps;
+          let pid_str =
+            match rec_t.pid with
+            | Some p -> Printf.sprintf "pid %d" p
+            | None -> "http"
+          in
           Logs.info (fun m ->
-            m "MCP server %s (pid %d) ready: tools=%b resources=%b prompts=%b"
-              rec_t.name rec_t.pid caps.Mcp_types.tools caps.Mcp_types.resources
+            m "MCP server %s (%s) ready: tools=%b resources=%b prompts=%b"
+              rec_t.name pid_str caps.Mcp_types.tools caps.Mcp_types.resources
               caps.Mcp_types.prompts);
           let _ =
             notify rec_t ~method_:Mcp_types.method_initialized

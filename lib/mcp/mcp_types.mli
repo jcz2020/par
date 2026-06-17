@@ -4,14 +4,26 @@ val server_id_to_string : server_id -> string
 val server_id_with_suffix : server_id -> string -> server_id
 val server_id_compare : server_id -> server_id -> int
 
-type server_config = {
-  name            : string;
-  command         : string;
-  args            : string list;
-  env             : (string * string) list;
-  cwd             : string option;
-  startup_timeout : float;
-}
+type server_config =
+  | Stdio_server of {
+      name : string;
+      command : string;
+      args : string list;
+      env : (string * string) list;
+      cwd : string option;
+      startup_timeout : float;
+    }
+  | Http_server of {
+      name : string;
+      url : string;
+      headers : (string * string) list;
+      startup_timeout : float;
+    }
+
+val server_name : server_config -> string
+val server_startup_timeout : server_config -> float
+val server_config_to_yojson : server_config -> Yojson.Safe.t
+val server_config_of_yojson : Yojson.Safe.t -> (server_config, string) result
 
 type prefix_style =
   | Hierarchical
@@ -69,6 +81,8 @@ type server_info = {
 [@@deriving yojson]
 
 type request_id = Int_id of int | String_id of string
+
+val request_id_matches : request_id -> request_id -> bool
 
 type jsonrpc_request = {
   id      : request_id;

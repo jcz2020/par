@@ -19,7 +19,8 @@ type status =
     (Eio.Stdenv.clock env). [config] carries command, args, env, etc. *)
 val spawn :
   sw:Eio.Switch.t ->
-  process_mgr:_ Eio.Process.mgr ->
+  ?process_mgr:_ Eio.Process.mgr ->
+  ?net:_ Eio.Net.t ->
   clock:_ Eio.Time.clock ->
   Mcp_types.server_config ->
   (t, Types.error_category) result

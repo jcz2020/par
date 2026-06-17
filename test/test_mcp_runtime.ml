@@ -73,7 +73,7 @@ let count_stopped () =
   ) 0 !captured_events
 
 let mock_config ?(name = "test-server") ?(startup_timeout = 5.0) () : Par.Mcp_types.server_config =
-  {
+  Par.Mcp_types.Stdio_server {
     name;
     command = mock_path;
     args = [];
@@ -83,7 +83,7 @@ let mock_config ?(name = "test-server") ?(startup_timeout = 5.0) () : Par.Mcp_ty
   }
 
 let bad_config () : Par.Mcp_types.server_config =
-  {
+  Par.Mcp_types.Stdio_server {
     name = "bad-server";
     command = "/nonexistent/binary_xyz";
     args = [];

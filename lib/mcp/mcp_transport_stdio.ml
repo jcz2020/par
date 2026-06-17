@@ -217,6 +217,23 @@ let spawn_with ~sw ~process_mgr ~command ~args ?env ?cwd ?stdin_timeout
       command (Printexc.to_string ex) in
     Error (Types.External_failure msg)
 
+let to_transport (t : t) : Mcp_transport.t = {
+  request_response = (fun req ->
+    match send_request t req with
+    | Error _ as e -> e
+    | Ok () ->
+      let rec loop () =
+        match recv_message t with
+        | Ok (`Response r) when Mcp_types.request_id_matches r.Mcp_types.id req.Mcp_types.id ->
+          Ok r
+        | Ok _ -> loop ()
+        | Error _ as e -> e
+      in
+      loop ());
+  notify = (fun notif -> send_notification t notif);
+  close = (fun () -> close t);
+}
+
 module Test = struct
   let pair ~sw ~mgr () =
     let p1_src, p1_sink = Eio.Process.pipe ~sw mgr in

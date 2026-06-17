@@ -28,14 +28,136 @@ let server_id_of_string (s : string) : (server_id, Types.error_category) result 
   else
     Ok s
 
-type server_config = {
-  name            : string;
-  command         : string;
-  args            : string list;
-  env             : (string * string) list;
-  cwd             : string option;
-  startup_timeout : float;
-}
+type server_config =
+  | Stdio_server of {
+      name : string;
+      command : string;
+      args : string list;
+      env : (string * string) list;
+      cwd : string option;
+      startup_timeout : float;
+    }
+  | Http_server of {
+      name : string;
+      url : string;
+      headers : (string * string) list;
+      startup_timeout : float;
+    }
+
+let server_name = function
+  | Stdio_server s -> s.name
+  | Http_server s -> s.name
+
+let server_startup_timeout = function
+  | Stdio_server s -> s.startup_timeout
+  | Http_server s -> s.startup_timeout
+
+let server_config_to_yojson (cfg : server_config) : Yojson.Safe.t =
+  match cfg with
+  | Stdio_server s ->
+    `Assoc [
+      "type", `String "stdio";
+      "name", `String s.name;
+      "command", `String s.command;
+      "args", `List (List.map (fun a -> `String a) s.args);
+      "env", `Assoc (List.map (fun (k, v) -> (k, `String v)) s.env);
+      "cwd", (match s.cwd with Some d -> `String d | None -> `Null);
+      "startup_timeout", `Float s.startup_timeout;
+    ]
+  | Http_server s ->
+    `Assoc [
+      "type", `String "http";
+      "name", `String s.name;
+      "url", `String s.url;
+      "headers", `Assoc (List.map (fun (k, v) -> (k, `String v)) s.headers);
+      "startup_timeout", `Float s.startup_timeout;
+    ]
+
+let server_config_of_yojson (j : Yojson.Safe.t) : (server_config, string) result =
+  match j with
+  | `Assoc fields ->
+    let get_string key =
+      match List.assoc_opt key fields with
+      | Some (`String s) -> Ok s
+      | Some _ -> Error (Printf.sprintf "server_config.%s must be a string" key)
+      | None -> Error (Printf.sprintf "server_config missing %s" key)
+    in
+    let get_string_list key =
+      match List.assoc_opt key fields with
+      | Some (`List items) ->
+        let rec loop acc = function
+          | [] -> Ok (List.rev acc)
+          | `String s :: rest -> loop (s :: acc) rest
+          | _ :: _ -> Error (Printf.sprintf "server_config.%s must be a string list" key)
+        in
+        loop [] items
+      | Some _ -> Error (Printf.sprintf "server_config.%s must be a list" key)
+      | None -> Ok []
+    in
+    let get_pair_list key =
+      match List.assoc_opt key fields with
+      | Some (`Assoc pairs) ->
+        let rec loop acc = function
+          | [] -> Ok (List.rev acc)
+          | (k, `String v) :: rest -> loop ((k, v) :: acc) rest
+          | _ :: _ -> Error (Printf.sprintf "server_config.%s must be string pairs" key)
+        in
+        loop [] pairs
+      | Some _ -> Error (Printf.sprintf "server_config.%s must be an object" key)
+      | None -> Ok []
+    in
+    let get_opt_string key =
+      match List.assoc_opt key fields with
+      | Some `Null | None -> Ok None
+      | Some (`String s) -> Ok (Some s)
+      | Some _ -> Error (Printf.sprintf "server_config.%s must be a string or null" key)
+    in
+    let get_float key =
+      match List.assoc_opt key fields with
+      | Some (`Float f) -> Ok f
+      | Some (`Int i) -> Ok (float_of_int i)
+      | Some _ -> Error (Printf.sprintf "server_config.%s must be a number" key)
+      | None -> Error (Printf.sprintf "server_config missing %s" key)
+    in
+    (match List.assoc_opt "type" fields with
+     | Some (`String "stdio") ->
+       (match get_string "name" with
+        | Error e -> Error e
+        | Ok name ->
+          match get_string "command" with
+          | Error e -> Error e
+          | Ok command ->
+            match get_string_list "args" with
+            | Error e -> Error e
+            | Ok args ->
+              match get_pair_list "env" with
+              | Error e -> Error e
+              | Ok env ->
+                match get_opt_string "cwd" with
+                | Error e -> Error e
+                | Ok cwd ->
+                  (match get_float "startup_timeout" with
+                   | Error e -> Error e
+                   | Ok startup_timeout ->
+                     Ok (Stdio_server { name; command; args; env; cwd; startup_timeout })))
+     | Some (`String "http") ->
+       (match get_string "name" with
+        | Error e -> Error e
+        | Ok name ->
+          match get_string "url" with
+          | Error e -> Error e
+          | Ok url ->
+            match get_pair_list "headers" with
+            | Error e -> Error e
+            | Ok headers ->
+              (match get_float "startup_timeout" with
+               | Error e -> Error e
+               | Ok startup_timeout ->
+                 Ok (Http_server { name; url; headers; startup_timeout })))
+     | Some (`String t) -> Error ("server_config: unknown type " ^ t)
+     | Some _ -> Error "server_config: type must be a string"
+     | None -> Error "server_config: missing type")
+  | _ -> Error "server_config: must be a JSON object"
 
 type prefix_style =
   | Hierarchical
@@ -46,6 +168,11 @@ type startup_policy =
   | Log_and_continue
 
 type request_id = Int_id of int | String_id of string
+
+let request_id_matches a b = match a, b with
+  | Int_id i, Int_id j -> i = j
+  | String_id s, String_id t -> s = t
+  | _ -> false
 
 type jsonrpc_request = {
   id      : request_id;

@@ -14,6 +14,7 @@ val create :
   ?bash_policy:(module Bash_policy.POLICY) ->
   ?mcp_servers:Mcp_types.server_config list ->
   ?mcp_process_mgr:_ Eio.Process.mgr ->
+  ?mcp_net:_ Eio.Net.t ->
   ?mcp_clock:_ Eio.Time.clock ->
   ?mcp_startup_policy:Mcp_types.startup_policy ->
   config:runtime_config ->

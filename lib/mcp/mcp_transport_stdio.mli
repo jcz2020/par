@@ -78,6 +78,9 @@ val spawn_with :
   Mcp_types.server_config ->
   (t * int, Types.error_category) result
 
+(** Wrap a stdio transport into the abstract [Mcp_transport.t]. *)
+val to_transport : t -> Mcp_transport.t
+
 module Test : sig
   (** Pair of in-memory transports for hermetic unit tests.
       [pair ~sw ~mgr ()] returns [(client_t, server_t)] such that:

@@ -37,7 +37,7 @@ let mock_path =
 
 let base_config ?(args = []) ?(env = []) ?(name = "mock") ?(startup_timeout = 10.0)
     ?command () : T.server_config =
-  {
+  T.Stdio_server {
     name;
     command = (match command with
                | Some c -> c
