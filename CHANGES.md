@@ -2,7 +2,7 @@
 
 ## v0.4.4-beta (2026-06-17)
 
-> MCP HTTP/SSE transport (Streamable HTTP, spec 2025-06-18). 909 OCaml tests.
+> MCP HTTP/SSE transport (Streamable HTTP, spec 2025-06-18). 918 OCaml tests.
 
 ### New Features (§4.1 MCP HTTP/SSE Transport)
 

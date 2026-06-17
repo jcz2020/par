@@ -110,7 +110,6 @@ let do_register_tool (id : int) (name : string) (desc : string) (schema : string
                (match Par.Runtime.register_tool handle.rt
                   ~name ~description:desc
                   ~input_schema:json_schema
-                  (* TODO: v0.4.0 — Add Python callback support for tool handlers *)
                   ~handler:(fun input _token ->
                     Logs.warn (fun m ->
                       m "FFI tool '%s': no-op handler invoked \

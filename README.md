@@ -7,8 +7,8 @@ A modular, type-safe agent runtime for OCaml 5.4+: LangChain + LangGraph for the
 [![Build Status](https://github.com/jcz2020/par/actions/workflows/ci.yml/badge.svg)](https://github.com/jcz2020/par/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
-[![Tests](https://img.shields.io/badge/tests-889%20passing-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-0.4.0--beta.20260613-blue)]()
+[![Tests](https://img.shields.io/badge/tests-918%20passing-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-0.4.4--beta.20260616-blue)]()
 
 A complete, runnable program that registers a tool, registers an agent, and prints confirmation:
 
@@ -86,12 +86,12 @@ graph LR
   A --> E["Event_bus: Eio + DLQ"]
   A --> F["Middleware: 7 built-in"]
   A --> G["Tools: 20 built-in incl. bash"]
-  A --> H["MCP Client: stdio"]
+  A --> H["MCP Client (stdio + HTTP/SSE)"]
   A --> I["FFI Bridge: par_capi"]
   J["CLI: par, par config, par ask"] -.->|invokes| A
   K["Python: par_runtime"] -.->|ctypes| I
   B -.->|events| E
-  H -.->|MCP stdio| A
+  H -.->|stdio + HTTP/SSE| A
 ```
 
 The `par` facade module (`lib/par.ml`) re-exports every public submodule, so a single `open Par` is enough to access the runtime, providers, persistence, middleware, tools, and MCP. The Python binding and the CLI never reach inside the facade; they go through the same public API any other consumer would use.
@@ -103,7 +103,7 @@ The `par` facade module (`lib/par.ml`) re-exports every public submodule, so a s
 - ReAct agent loop with bounded iterations, middleware hooks at every LLM and tool boundary.
 - Workflow engine with sequential, parallel, conditional, and map-reduce step types plus checkpoints.
 - Multi-provider LLM: `` `Openai ``-compatible chat completions, `` `Anthropic `` Messages API, plus an `` `Ollama `` provider for local models and a `` `Mock `` provider for deterministic tests.
-- MCP stdio client: connect any Model Context Protocol server for tools, resources, and prompts; the runtime spawns and stops the child process for you.
+- MCP client (stdio + HTTP/SSE): connect any Model Context Protocol server for tools, resources, and prompts. Stdio transport spawns and stops the child process for you; HTTP/SSE transport connects to a remote MCP server over Streamable HTTP (spec 2025-06-18).
 
 ### Concurrency and Persistence
 
@@ -115,7 +115,7 @@ The `par` facade module (`lib/par.ml`) re-exports every public submodule, so a s
 
 - 20 built-in tools, including the type-safe `bash` tool: `Bash_safe_command` ADT, `Bash_policy` functor, 31-entry `Bash_blacklist`, and `Bash_invoked` / `Bash_completed` event types. Shell injection is unrepresentable in the type layer.
 - C FFI plus a Python binding: the `par_runtime` package exposes the same runtime over ctypes, thread-safe, with its own `pytest` suite.
-- 889 OCaml tests and 25 Python tests passing; zero regressions across the v0.4 series.
+- 918 OCaml tests and 31 Python tests passing; zero regressions across the v0.4 series.
 - MIT-licensed, 100% open source. Distributed via opam and GitHub Releases.
 
 ## SDK Quick Start
@@ -145,7 +145,7 @@ For the common case, you do not write any concurrency code yourself: the ReAct l
 
 ## MCP Client
 
-PAR can connect to any Model Context Protocol (MCP) server, letting an agent call external tools, read resources, and render prompts. The runtime spawns the server as a child process over stdio, performs the `initialize` handshake, and surfaces the server through the typed `Mcp_client` API. The seven event types `Mcp_server_started`, `Mcp_server_failed`, `Mcp_server_stopped`, `Mcp_tool_invoked`, `Mcp_tool_completed`, `Mcp_resource_read`, and `Mcp_prompt_rendered` let you observe every transition.
+PAR can connect to any Model Context Protocol (MCP) server, letting an agent call external tools, read resources, and render prompts. The runtime supports two transports: **stdio** (spawn the server as a child process, communicate over stdin/stdout) and **HTTP/SSE** (connect to a remote MCP server over Streamable HTTP, spec 2025-06-18). Each server performs an `initialize` handshake and is surfaced through the typed `Mcp_client` API. The seven event types `Mcp_server_started`, `Mcp_server_failed`, `Mcp_server_stopped`, `Mcp_tool_invoked`, `Mcp_tool_completed`, `Mcp_resource_read`, and `Mcp_prompt_rendered` let you observe every transition regardless of transport.
 
 ```ocaml
 open Par
@@ -214,7 +214,7 @@ PAR ships a Python binding via ctypes, package name `par_runtime`. The C ABI liv
 
 ```bash
 # Download the wheel from the latest release
-curl -fsSL -o par_runtime.whl https://github.com/jcz2020/par/releases/latest/download/par_runtime-0.4.0-py3-none-any.whl
+curl -fsSL -o par_runtime.whl https://github.com/jcz2020/par/releases/latest/download/par_runtime-0.4.4-py3-none-any.whl
 pip install par_runtime.whl
 ```
 
@@ -246,7 +246,7 @@ with Runtime(config) as rt:
     # result = rt.invoke("my-agent", "Hello!")  # requires LLM provider
 ```
 
-See `bindings/python/examples/basic_agent.py` for the full example, and `bindings/python/tests/` for the 16-test pytest suite that exercises persistence, middleware, and the FFI surface.
+See `bindings/python/examples/basic_agent.py` for the full example, and `bindings/python/tests/` for the 31-test pytest suite that exercises persistence, middleware, and the FFI surface.
 
 ## CLI Reference
 
@@ -321,7 +321,7 @@ PAR ships 20 built-in tools. Every tool is registered through the same `Runtime.
 
 | Package | Description |
 |---------|-------------|
-| `par` | SDK: core types, ReAct engine, runtime, workflow, expression evaluator, state machine, context manager, event bus, OpenAI and Anthropic providers, SQLite persistence, 20 built-in tools, MCP stdio client, 7 middleware. PostgreSQL ships separately as `par_postgres`. |
+| `par` | SDK: core types, ReAct engine, runtime, workflow, expression evaluator, state machine, context manager, event bus, OpenAI and Anthropic providers, SQLite persistence, 20 built-in tools, MCP client (stdio + HTTP/SSE), 7 middleware. PostgreSQL ships separately as `par_postgres`. |
 | `par_cli` | CLI tool: `par` (REPL), `par config` (wizard), `par ask` (single-shot). Built on top of the SDK, not parallel to it. |
 | `par_runtime` | Python ctypes binding, thread-safe, ships a `pytest` suite. |
 | `par_postgres` | Optional PostgreSQL persistence backend, separate opam package. |
@@ -339,15 +339,15 @@ par/
 |   +-- event_bus/     Eio-based event bus with DLQ
 |   +-- middleware/    Logging, Retry, Rate_limit, Timeout, Arg_validation, Validation, Pii_mask, Sanitize_tool_output
 |   +-- tools/         20 builtin tools (calculator, web tools, file ops, bash in v0.3.1)
-|   +-- mcp/           MCP stdio client (Mcp_types, Mcp_server, Mcp_client, Mcp_transport_stdio, Mcp_naming, Mcp_errors)
+|   +-- mcp/           MCP client (Mcp_types, Mcp_server, Mcp_client, Mcp_transport_stdio, Mcp_transport_http, Mcp_naming, Mcp_errors)
 |   +-- ffi/           C FFI bridge (par_ffi.h, par_ffi.c, par_capi.ml)
 |   +-- par.ml         Facade module (re-exports all sub-modules for `open Par`)
 +-- bindings/
 |   +-- python/        Python ctypes binding (par_runtime package)
 |       +-- par_runtime/     Runtime, errors, FFI declarations
-|       +-- tests/           16 pytest tests
+|       +-- tests/           31 pytest tests
 |       +-- examples/        basic_agent.py
-+-- test/              889 OCaml unit and integration tests
++-- test/              918 OCaml unit and integration tests
 +-- examples/          Example agents and workflows (basic_agent, otel_tracing, ...)
 +-- schema/            Database schemas
 +-- docs/              User documentation (quickstart, CLI ref, SDK ref, how-to, explanation)
@@ -361,7 +361,7 @@ All runtime dependencies are pinned in `dune-project` and propagated to the gene
 
 ## Project Size
 
-- 889 OCaml tests and 25 Python tests passing.
+- 918 OCaml tests and 31 Python tests passing.
 - Approximately 10,600 lines of OCaml in `lib/` plus 770 lines of Python in `bindings/python/`.
 - The largest single file is `lib/tools/builtin_tools.ml` at roughly 1,300 lines, dominated by the 20 tool handlers and the HTTP stack that backs `fetch_url`, `read_webpage`, and `web_search`. The SDK facade (`lib/par.ml`) is intentionally small: it re-exports submodules and adds no logic of its own.
 
