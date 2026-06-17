@@ -17,12 +17,14 @@ let make_hook ?confirm_fn (config : bash_confirm_config) : Hook.tool_call_hook =
         try
           let re = Str.regexp pattern in
           if Str.string_match re input_str 0 then
-            effective_policy := policy
+            match policy with
+            | `Pattern -> ()
+            | _ -> effective_policy := policy
         with _ -> ()
       ) config.patterns;
       match !effective_policy with
-      | `Never -> Hook.Allow
-      | `Always | `Pattern ->
+      | `Never | `Pattern -> Hook.Allow
+      | `Always ->
         let allowed =
           match confirm_fn with
           | Some fn -> fn command_str

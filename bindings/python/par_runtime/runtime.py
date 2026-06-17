@@ -81,6 +81,7 @@ class Runtime:
         if "event_bus" in cfg and isinstance(cfg["event_bus"], dict):
             cfg["event_bus"].setdefault("buffer_capacity", 100)
             cfg["event_bus"].setdefault("dlq_enabled", False)
+            cfg["event_bus"].setdefault("dlq_max_size", 10)
             cfg["event_bus"].setdefault("critical_event_types", [])
             if isinstance(cfg["event_bus"].get("delivery"), dict):
                 cfg["event_bus"]["delivery"].setdefault("max_delivery_attempts", 3)

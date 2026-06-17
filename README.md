@@ -150,8 +150,8 @@ PAR can connect to any Model Context Protocol (MCP) server, letting an agent cal
 ```ocaml
 open Par
 
-let mcp_config = {
-  Mcp_types.name = "filesystem";
+let mcp_config = Mcp_types.Stdio_server {
+  name = "filesystem";
   command = "npx";
   args = ["-y"; "@anthropic/mcp-server-filesystem"; "/tmp"];
   env = [];

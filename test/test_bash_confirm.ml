@@ -43,5 +43,23 @@ let () =
          | H.Block { reason } ->
            Alcotest.(check string) "reason" "User denied bash command" reason
          | _ -> Alcotest.fail "expected Block"));
+
+      Alcotest.test_case "pattern_action_Pattern_defers_to_default_never" `Quick (fun () ->
+        let config = { Types.default_policy = `Never;
+                       patterns = [ (".*", `Pattern) ] } in
+        let hook = Bash_confirm.make_hook config in
+        let ctx = { H.tool_name = "bash"; H.tool_call_id = "1";
+                    H.input = `Assoc [("command", `String "ls")];
+                    H.has_ui = false } in
+        (match hook ctx with H.Allow -> () | _ -> Alcotest.fail "expected Allow (defer to Never)"));
+
+      Alcotest.test_case "pattern_action_Pattern_defers_to_default_always" `Quick (fun () ->
+        let config = { Types.default_policy = `Always;
+                       patterns = [ (".*", `Pattern) ] } in
+        let hook = Bash_confirm.make_hook ~confirm_fn:(fun _ -> false) config in
+        let ctx = { H.tool_name = "bash"; H.tool_call_id = "1";
+                    H.input = `Assoc [("command", `String "ls")];
+                    H.has_ui = false } in
+        (match hook ctx with H.Block _ -> () | _ -> Alcotest.fail "expected Block (defer to Always)"));
     ])
   ]
