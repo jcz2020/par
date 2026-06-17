@@ -245,3 +245,18 @@
  (name test_mcp_transport_http)
  (libraries par alcotest)
  (modules test_mcp_transport_http))
+
+(test
+ (name test_mcp_sampling)
+ (libraries par alcotest)
+ (modules test_mcp_sampling))
+
+(test
+ (name test_context_manager)
+ (libraries par alcotest)
+ (modules test_context_manager))
+
+(test
+ (name test_noop_persistence)
+ (libraries par alcotest)
+ (modules test_noop_persistence))
