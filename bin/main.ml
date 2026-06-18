@@ -437,33 +437,50 @@ let print_help () =
 (* REPL loop                                                                  *)
 (* -------------------------------------------------------------------------- *)
 
+let strip_ansi_escapes s =
+  let len = String.length s in
+  let buf = Buffer.create len in
+  let i = ref 0 in
+  while !i < len do
+    if !i + 1 < len && s.[!i] = '\027' && s.[!i + 1] = '[' then begin
+      i := !i + 2;
+      while !i < len
+            && not ((s.[!i] >= 'A' && s.[!i] <= 'Z')
+                 || (s.[!i] >= 'a' && s.[!i] <= 'z'))
+      do incr i done;
+      if !i < len then incr i
+    end else if s.[!i] = '\027' then begin
+      i := !i + 2
+    end else begin
+      Buffer.add_char buf s.[!i];
+      incr i
+    end
+  done;
+  Buffer.contents buf
+
 let repl rt ~agent_ids =
   Printf.printf "%s\n"
     (Cli_style.dim "输入消息开始对话（输入 /help 查看命令，Ctrl+D 退出）");
   flush stdout;
-  let history_file = Par_config.config_dir () ^ "/history" in
-  LNoise.catch_break true;
-  LNoise.set_multiline false;
-  (match LNoise.history_load ~filename:history_file with _ -> ());
   let conv : Types.conversation option ref = ref None in
   let on_tool_event = make_tool_event_callback () in
   let active_agent = ref (List.hd agent_ids) in
-  let last_ctrl_c = ref 0.0 in
   let rec loop () =
     let prompt_label = if List.length agent_ids > 1 then
         Printf.sprintf "par [%s]> " !active_agent
       else "par> " in
+    Printf.printf "%s" (Cli_style.bold_cyan prompt_label);
+    flush stdout;
     (try
-       match LNoise.linenoise prompt_label with
-       | None ->
-         Printf.printf "再见！\n";
+       match input_line stdin with
+       | exception End_of_file ->
+         Printf.printf "\n再见！\n";
          flush stdout
-       | Some line when String.trim line = "" -> loop ()
-       | Some line ->
-         LNoise.history_add line |> ignore;
-         LNoise.history_save ~filename:history_file |> ignore;
+       | line ->
+         let line = strip_ansi_escapes line in
          let trimmed = String.trim line in
-         if String.length trimmed > 0 && trimmed.[0] = '/' then begin
+         if trimmed = "" then loop ()
+         else if trimmed.[0] = '/' then begin
             let parts = String.split_on_char ' ' trimmed in
             let cmd = match parts with c :: _ -> c | [] -> "" in
             let rest = match parts with _ :: r -> String.trim (String.concat " " r) | [] -> "" in
@@ -517,17 +534,6 @@ let repl rt ~agent_ids =
              loop ()
            end
      with
-     | Sys.Break ->
-       let now = Unix.gettimeofday () in
-       if now -. !last_ctrl_c < 3.0 then begin
-         Printf.printf "再见！\n";
-         flush stdout
-       end else begin
-         last_ctrl_c := now;
-         Printf.eprintf "(再次 Ctrl+C 退出)\n";
-         flush stderr;
-         loop ()
-       end
      | ex ->
        Printf.eprintf "\n[error] %s\n" (Printexc.to_string ex);
        flush stderr;
