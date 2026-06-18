@@ -1,5 +1,20 @@
 # CHANGES
 
+## v0.4.6-beta (2026-06-18)
+
+> CLI stability fix. 4 bugs fixed (2 P0 + 2 P3). Removes linenoise dependency.
+
+### Bug Fixes
+
+- **PAR-qyr** (P0): CJK input and deletion now work correctly. Removed linenoise (which processed UTF-8 bytes individually, requiring 3 backspace presses per CJK character). Reverted to `input_line stdin` where the terminal natively handles UTF-8 in canonical mode. Added `strip_ansi_escapes` to filter escape sequences from arrow key presses.
+- **PAR-8yg** (P0): REPL no longer hangs after bash tool failure. Root cause was `input_line stdin` in bash_confirm conflicting with linenoise's terminal state management. Removing linenoise eliminates the conflict — REPL and bash_confirm now share the same stdin without corruption.
+- **PAR-h7d** (P3): `execute_tool` now receives the LLM's `tool_call_id` instead of generating a fresh `Task_id`. Middleware chain sees the same id as the LLM returned, enabling proper trace correlation.
+- **PAR-40a** (P3): Context manager summarization LLM call now emits `Llm_request_sent`/`Llm_response_received` events. Previously only the primary ReAct loop emitted these; `/stats` now counts all LLM calls.
+
+### Breaking Changes
+
+- **Removed dependency**: `linenoise` removed from `par_cli`. REPL arrow key line editing and history recall are no longer available. This is a deliberate trade-off: P0 (CJK input) >> P1 (arrow keys). A proper UTF-8-aware line editor is planned for a future version.
+
 ## v0.4.5 (2026-06-18)
 
 > CLI bugfix beta. 11 bugs fixed (4 P0 + 5 P1 + 2 P2). 942 OCaml tests.
