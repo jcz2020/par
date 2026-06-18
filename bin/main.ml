@@ -71,8 +71,8 @@ let no_parallel_tools =
 
 let question_arg =
   let open Cmdliner in
-  Arg.(required & pos 0 (some string) None &
-    info [] ~docv:"QUESTION" ~doc:"Question to ask")
+  Arg.(value & pos_all string [] &
+    info [] ~docv:"QUESTION..." ~doc:"Question to ask (may contain spaces)")
 
 (* -------------------------------------------------------------------------- *)
 (* Shared helpers                                                             *)
@@ -545,10 +545,11 @@ let info_config = Cmdliner.Cmd.info "config"
 (* -------------------------------------------------------------------------- *)
 
 let cmd_ask
-    question
+    question_tokens
     provider_opt api_key_opt api_base_opt model_opt
     persistence_opt db_uri_opt temp_opt prompt_opt max_iter
     max_tokens_opt top_p_opt no_parallel_tools retention_days_opt =
+  let question = String.concat " " question_tokens in
   let cfg = require_config () in
   let cfg = merge_config cfg provider_opt api_key_opt api_base_opt model_opt
               persistence_opt db_uri_opt temp_opt prompt_opt max_iter

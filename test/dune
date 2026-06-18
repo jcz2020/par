@@ -265,3 +265,8 @@
  (name test_streaming_tool_call_id)
  (libraries par eio alcotest yojson)
  (modules test_streaming_tool_call_id))
+
+(test
+ (name test_cli_args)
+ (libraries alcotest)
+ (modules test_cli_args))
