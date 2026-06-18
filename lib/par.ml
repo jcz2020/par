@@ -33,6 +33,7 @@ module Persistence_common = Persistence_common
 
 module Event_bus = Event_bus
 module Persistence_writer = Persistence_writer
+module Cli_util = Cli_util
 
 module Builtin_tools = Builtin_tools
 module Bash_safe_command = Bash_safe_command

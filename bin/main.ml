@@ -437,26 +437,7 @@ let print_help () =
 (* REPL loop                                                                  *)
 (* -------------------------------------------------------------------------- *)
 
-let strip_ansi_escapes s =
-  let len = String.length s in
-  let buf = Buffer.create len in
-  let i = ref 0 in
-  while !i < len do
-    if !i + 1 < len && s.[!i] = '\027' && s.[!i + 1] = '[' then begin
-      i := !i + 2;
-      while !i < len
-            && not ((s.[!i] >= 'A' && s.[!i] <= 'Z')
-                 || (s.[!i] >= 'a' && s.[!i] <= 'z'))
-      do incr i done;
-      if !i < len then incr i
-    end else if s.[!i] = '\027' then begin
-      i := !i + 2
-    end else begin
-      Buffer.add_char buf s.[!i];
-      incr i
-    end
-  done;
-  Buffer.contents buf
+let strip_ansi_escapes = Par.Cli_util.strip_ansi_escapes
 
 let repl rt ~agent_ids =
   Printf.printf "%s\n"

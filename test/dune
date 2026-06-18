@@ -270,3 +270,8 @@
  (name test_cli_args)
  (libraries alcotest)
  (modules test_cli_args))
+
+(test
+ (name test_strip_ansi)
+ (libraries par alcotest)
+ (modules test_strip_ansi))
