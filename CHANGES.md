@@ -20,7 +20,7 @@
 
 ### API Changes
 
-- **`Types.Tool_completed`**: Added `result_preview : string option` field. Additive change — consumers using `_` wildcard in pattern matches still compile.
+- **`Types.Tool_completed`**: Added `result_preview : string option` field. **Source-level breaking change** — consumers who construct or fully pattern-match `Tool_completed` must add the field. Consumers using `_` wildcard still compile. JSON persistence is backward-compatible (old events deserialize with `result_preview = None`).
 - **`Anthropic_provider.process_stream_event`**: Now exposed in `.mli` for unit testing.
 - **`Openai_provider.parse_stream_delta`**: Now exposed in `.mli` for unit testing.
 
