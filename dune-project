@@ -48,6 +48,7 @@
   eio
   eio_main
   yojson
+  linenoise
   mirage-crypto-rng
   alcotest))
 

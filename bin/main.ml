@@ -440,79 +440,98 @@ let print_help () =
 let repl rt ~agent_ids =
   Printf.printf "%s\n"
     (Cli_style.dim "输入消息开始对话（输入 /help 查看命令，Ctrl+D 退出）");
+  flush stdout;
+  let history_file = Par_config.config_dir () ^ "/history" in
+  LNoise.catch_break true;
+  LNoise.set_multiline false;
+  (match LNoise.history_load ~filename:history_file with _ -> ());
   let conv : Types.conversation option ref = ref None in
   let on_tool_event = make_tool_event_callback () in
   let active_agent = ref (List.hd agent_ids) in
+  let last_ctrl_c = ref 0.0 in
   let rec loop () =
     let prompt_label = if List.length agent_ids > 1 then
         Printf.sprintf "par [%s]> " !active_agent
       else "par> " in
-    Printf.printf "%s" (Cli_style.bold_cyan prompt_label);
-    flush stdout;
     (try
-       match input_line stdin with
-       | line when String.trim line = "" -> loop ()
-       | line ->
+       match LNoise.linenoise prompt_label with
+       | None ->
+         Printf.printf "再见！\n";
+         flush stdout
+       | Some line when String.trim line = "" -> loop ()
+       | Some line ->
+         LNoise.history_add line |> ignore;
+         LNoise.history_save ~filename:history_file |> ignore;
          let trimmed = String.trim line in
          if String.length trimmed > 0 && trimmed.[0] = '/' then begin
-           let parts = String.split_on_char ' ' trimmed in
-           let cmd = match parts with c :: _ -> c | [] -> "" in
-           let rest = match parts with _ :: r -> String.trim (String.concat " " r) | [] -> "" in
-            (match cmd with
-              | "/help" -> print_help ()
-              | "/session" ->
-                Printf.printf "Active agent: %s\n" !active_agent;
-                Printf.printf "Conversation: %s\n"
-                  (match !conv with
-                   | None -> "none"
-                   | Some c -> Printf.sprintf "%d messages" (List.length c.Types.messages))
-              | "/quit" | "/exit" -> Printf.printf "再见！\n"; exit 0
-             | "/reset" -> conv := None;
-               Printf.printf "%s\n" (Cli_style.dim "[对话已重置]")
-            | "/steer" -> Runtime.steer rt rest;
-              Printf.printf "%s\n" (Cli_style.dim "[steer] 已注入")
-            | "/followup" -> Runtime.follow_up rt rest;
-              Printf.printf "%s\n" (Cli_style.dim "[followup] 已注入")
-            | "/health" -> format_health_human (Runtime.health rt)
-            | "/metrics" -> print_json (format_metrics (Runtime.metrics_snapshot rt))
-            | "/agents" ->
-              let agents = Runtime.list_agents rt in
-              List.iter (fun (a : Types.agent_config) ->
-                let status = if a.Types.id = !active_agent then "(active)" else "(idle)" in
-                Printf.printf "  %-20s %s\n" a.Types.id status
-              ) agents
-            | "/switch" ->
-              if rest = "" then Printf.eprintf "Usage: /switch <agent_id>\n"
-              else if not (List.mem rest agent_ids) then
-                Printf.eprintf "Unknown agent: %s. Use /agents to list.\n" rest
-              else begin
-                active_agent := rest;
-                Printf.printf "%s\n" (Cli_style.dim (Printf.sprintf "[switched to %s]" rest))
-              end
-            | _ -> Printf.eprintf "未知命令: %s。输入 /help 查看命令列表。\n" cmd);
-           flush stdout;
-           loop ()
-          end else begin
-            (match Runtime.invoke rt ~agent_id:!active_agent ~message:line
-               ?conversation:!conv
-               ~on_tool_event
-               ~on_chunk:(Some stream_print_chunk)
-               ~enable_handoff:true () with
-             | Error (e, recovered_conv) ->
-               conv := Some recovered_conv;
-               print_error e
-              | Ok { Types.response = _; conversation = returned_conv } ->
-                conv := Some returned_conv;
-                Printf.printf "\n";
-                flush stdout);
+            let parts = String.split_on_char ' ' trimmed in
+            let cmd = match parts with c :: _ -> c | [] -> "" in
+            let rest = match parts with _ :: r -> String.trim (String.concat " " r) | [] -> "" in
+             (match cmd with
+               | "/help" -> print_help ()
+               | "/session" ->
+                 Printf.printf "Active agent: %s\n" !active_agent;
+                 Printf.printf "Conversation: %s\n"
+                   (match !conv with
+                    | None -> "none"
+                    | Some c -> Printf.sprintf "%d messages" (List.length c.Types.messages))
+               | "/quit" | "/exit" -> Printf.printf "再见！\n"; exit 0
+              | "/reset" -> conv := None;
+                Printf.printf "%s\n" (Cli_style.dim "[对话已重置]")
+             | "/steer" -> Runtime.steer rt rest;
+               Printf.printf "%s\n" (Cli_style.dim "[steer] 已注入")
+             | "/followup" -> Runtime.follow_up rt rest;
+               Printf.printf "%s\n" (Cli_style.dim "[followup] 已注入")
+             | "/health" -> format_health_human (Runtime.health rt)
+             | "/metrics" -> print_json (format_metrics (Runtime.metrics_snapshot rt))
+             | "/agents" ->
+               let agents = Runtime.list_agents rt in
+               List.iter (fun (a : Types.agent_config) ->
+                 let status = if a.Types.id = !active_agent then "(active)" else "(idle)" in
+                 Printf.printf "  %-20s %s\n" a.Types.id status
+               ) agents
+             | "/switch" ->
+               if rest = "" then Printf.eprintf "Usage: /switch <agent_id>\n"
+               else if not (List.mem rest agent_ids) then
+                 Printf.eprintf "Unknown agent: %s. Use /agents to list.\n" rest
+               else begin
+                 active_agent := rest;
+                 Printf.printf "%s\n" (Cli_style.dim (Printf.sprintf "[switched to %s]" rest))
+               end
+             | _ -> Printf.eprintf "未知命令: %s。输入 /help 查看命令列表。\n" cmd);
+            flush stdout;
             loop ()
-          end
-      with
-      | End_of_file -> Printf.printf "\n再见！\n"
-      | ex ->
-        Printf.eprintf "\n[error] %s\n" (Printexc.to_string ex);
-        flush stderr;
-        loop ())
+           end else begin
+             (match Runtime.invoke rt ~agent_id:!active_agent ~message:line
+                ?conversation:!conv
+                ~on_tool_event
+                ~on_chunk:(Some stream_print_chunk)
+                ~enable_handoff:true () with
+              | Error (e, recovered_conv) ->
+                conv := Some recovered_conv;
+                print_error e
+               | Ok { Types.response = _; conversation = returned_conv } ->
+                 conv := Some returned_conv;
+                 Printf.printf "\n";
+                 flush stdout);
+             loop ()
+           end
+     with
+     | Sys.Break ->
+       let now = Unix.gettimeofday () in
+       if now -. !last_ctrl_c < 3.0 then begin
+         Printf.printf "再见！\n";
+         flush stdout
+       end else begin
+         last_ctrl_c := now;
+         Printf.eprintf "(再次 Ctrl+C 退出)\n";
+         flush stderr;
+         loop ()
+       end
+     | ex ->
+       Printf.eprintf "\n[error] %s\n" (Printexc.to_string ex);
+       flush stderr;
+       loop ())
   in
   loop ()
 
