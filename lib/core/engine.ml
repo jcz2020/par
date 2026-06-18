@@ -85,8 +85,20 @@ let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
        | None -> ())
     in
     progress (Printf.sprintf "Starting tool %s" descriptor.name);
-    apply_before_tool middleware call (fun (call' : tool_call) ->
-      let result = handler input token in
+     apply_before_tool middleware call (fun (call' : tool_call) ->
+      let result =
+        try handler input token
+        with ex ->
+          Logs.err (fun m -> m "[engine] tool %s raised: %s"
+                       descriptor.name (Printexc.to_string ex));
+          Error {
+            category = Internal (Printf.sprintf "tool %s raised: %s"
+                        descriptor.name (Printexc.to_string ex));
+            message = Printf.sprintf "Tool handler crashed: %s" (Printexc.to_string ex);
+            retryable = false;
+            metadata = [];
+          }
+      in
       let result = match result with
        | Success output ->
         (match descriptor.output_schema with
@@ -233,6 +245,12 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
       Logs.info (fun m -> m "[engine] LLM call iter=%d: %d messages, agent=%s model=%s"
         iterations (List.length conv.messages) agent.id agent.model.model_name);
       List.iteri log_message conv.messages;
+      let llm_task_id = Task_id.create () in
+      let fire_llm evt = match on_tool_event with
+        | Some pub -> pub evt
+        | None -> ()
+      in
+      fire_llm (Llm_request_sent { task_id = llm_task_id; model = agent.model.model_name });
       match run_llm_with_optional_streaming llm agent.model agent.tools conv on_chunk with
       | Result.Error err ->
         let action = apply_on_error agent.middleware conv err
@@ -243,6 +261,7 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
          | Handoff _ -> Result.Error (Internal "Handoff reached retry path", conv)
          | _ -> Result.Error (err, conv))
        | Ok resp ->
+        fire_llm (Llm_response_received { task_id = llm_task_id; usage = resp.usage });
         let resp = apply_after_llm agent.middleware resp (fun r -> r) in
         Logs.info (fun m -> m "[engine] LLM response iter=%d: finish=%s text_len=%d tool_calls=%s"
           iterations
@@ -263,7 +282,6 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
              When parallel=true, the outer forking gives every tool a chance to run
              concurrently; the semaphore caps how many can be in-flight at once. *)
           let invoke_one (call : tool_call) : (tool_call * handler_result) =
-            let call_with_id = { call with id = Task_id.to_string (Task_id.create ()) } in
             let event_task_id = Task_id.create () in
             let event_tool_name = call.name in
             let fire evt = match on_tool_event with
@@ -275,25 +293,25 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
             let hook_result = (match tool_call_hooks with
               | Some hooks ->
                 let ctx = { Hook.tool_name = call.name;
-                            tool_call_id = call_with_id.id;
+                            tool_call_id = call.id;
                             input = call.arguments;
                             has_ui = false } in
                 Hook.run_chain hooks ctx
               | None -> Hook.Final_allow) in
             let invoke_allow original_input =
               match find_tool agent call.name with
-              | None -> (call_with_id, Error {
+              | None -> (call, Error {
                   category = Types.Invalid_input (Printf.sprintf "Tool not found: %s" call.name);
                   message = "Tool not found";
                   retryable = false;
                   metadata = []; })
               | Some descriptor -> (match Tool_registry.resolve registry call.name with
-                  | None -> (call_with_id, Error {
+                  | None -> (call, Error {
                       category = Types.Internal (Printf.sprintf "Tool handler not registered: %s" call.name);
                       message = "Handler not registered";
                       retryable = false;
                       metadata = []; })
-                  | Some handler -> (call_with_id, execute_tool token descriptor handler original_input agent.middleware on_progress))
+                  | Some handler -> (call, execute_tool token descriptor handler original_input agent.middleware on_progress))
             in
             let invoke_with_quota body =
               match quota with
@@ -303,7 +321,7 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
               | None -> body ()
             in
             let result = match hook_result with
-              | Hook.Final_block reason -> (call_with_id, Error {
+              | Hook.Final_block reason -> (call, Error {
                   category = Types.Permission_denied (Printf.sprintf "tool '%s'" call.name);
                   message = Printf.sprintf "Blocked by hook: %s" reason;
                   retryable = false;
