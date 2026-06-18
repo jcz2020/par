@@ -145,7 +145,12 @@ let run_llm_with_optional_streaming llm agent_model agent_tools conv user_cb =
       | Tool_call_delta { tool_call_id; args_json } ->
         (match Hashtbl.find_opt tc_state tool_call_id with
          | Some (_, buf) -> Buffer.add_string buf args_json
-         | None -> ())
+         | None ->
+           if Hashtbl.length tc_state = 1 then begin
+             let buf = ref (Buffer.create 0) in
+             Hashtbl.iter (fun _ (_, b) -> buf := b) tc_state;
+             Buffer.add_string !buf args_json
+           end)
       | Usage_update _ | Done _ -> ()
     in
     let stream_cfg : stream_config = { chunk_timeout = 30.0; total_timeout = None; buffer_size = 4096 } in
