@@ -16,3 +16,18 @@ val stream :
 val close : t -> unit
 
 val set_network : t -> [ `Generic] Eio.Net.ty Eio.Net.t -> unit
+
+(** Dispatch one Anthropic SSE event to the callback. The refs accumulate
+    state across events: [usage] totals, [finish] reason, [chunks] count, and
+    [current_tc_id] (id of the in-progress tool_use block, used as a fallback
+    key when a later input_json_delta does not echo the id). Exposed for unit
+    testing; production callers go through [stream]. *)
+val process_stream_event :
+  (string * string) ->
+  (llm_response_chunk -> unit) ->
+  usage_stats ref ->
+  finish_reason ref ->
+  int ref ->
+  string ref ->
+  unit
+

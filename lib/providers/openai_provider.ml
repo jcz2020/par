@@ -211,7 +211,13 @@ let parse_stream_delta json =
         | tc :: _ ->
           let fn = tc |> member "function" in
           let idx = tc |> member "index" |> to_int in
-          let key = string_of_int idx in
+          let real_id =
+            try
+              let id = tc |> member "id" |> to_string in
+              if id = "" || id = "null" then None else Some id
+            with _ -> None
+          in
+          let key = match real_id with Some id -> id | None -> string_of_int idx in
           let name = try fn |> member "name" |> to_string with _ -> "" in
           let args = try fn |> member "arguments" |> to_string with _ -> "" in
           if name <> "" then begin

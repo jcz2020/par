@@ -16,3 +16,12 @@ val stream :
 val close : t -> unit
 
 val set_network : t -> [ `Generic] Eio.Net.ty Eio.Net.t -> unit
+
+(** Parse a single OpenAI streaming chunk (one entry from the `data:` lines of
+    the SSE stream). Returns the optional text delta, the list of tool-call
+    chunks (start and/or delta), the optional finish reason, and the optional
+    usage update. Exposed for unit testing; production callers go through
+    [stream]. *)
+val parse_stream_delta : Yojson.Safe.t ->
+  (llm_response_chunk option * llm_response_chunk list *
+   finish_reason option * usage_stats option)

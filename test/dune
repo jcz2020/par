@@ -260,3 +260,8 @@
  (name test_noop_persistence)
  (libraries par alcotest)
  (modules test_noop_persistence))
+
+(test
+ (name test_streaming_tool_call_id)
+ (libraries par eio alcotest yojson)
+ (modules test_streaming_tool_call_id))

@@ -229,9 +229,9 @@ let process_stream_event (evt_type, data_str) callback usage finish chunks curre
          if typ = "tool_use" then begin
            let tc_id = block |> member "id" |> to_string in
            let name = block |> member "name" |> to_string in
-           let idx = try json |> member "index" |> to_int with _ -> 0 in
+           let _idx = try json |> member "index" |> to_int with _ -> 0 in
            current_tc_id := tc_id;
-           callback (Tool_call_start { tool_call_id = string_of_int idx; name });
+           callback (Tool_call_start { tool_call_id = tc_id; name });
            incr chunks
          end
        with _ -> ())
