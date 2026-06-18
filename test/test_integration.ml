@@ -101,6 +101,45 @@ let agent_loop_suite =
           (Engine.run_agent token agent "do something" llm reg)
           "done after tool"));
 
+    Alcotest.test_case "tool returns Error then LLM recovers (PAR-8yg)" `Quick (fun () ->
+      let failing_tool = dummy_tool ~name:"failing_tool"
+        (fun _ _ -> Error {
+           category = Internal "command not found";
+           message = "exit code 127";
+           retryable = false;
+           metadata = [];
+         }) in
+      let call : tool_call = {
+        id = "tc-fail-1"; name = "failing_tool"; arguments = `Assoc []
+      } in
+      let llm = mock_llm [
+        tool_call_response [ call ];
+        text_response "I see the tool failed. Let me help you directly.";
+      ] in
+      let agent = basic_agent ~tools:[ failing_tool ] () in
+      let reg = make_registry [ failing_tool ] in
+      with_token (fun token ->
+        check_ok_text
+          (Engine.run_agent token agent "run failing command" llm reg)
+          "I see the tool failed. Let me help you directly."));
+
+    Alcotest.test_case "tool raises exception then LLM recovers (PAR-xmb)" `Quick (fun () ->
+      let crashing_tool = dummy_tool ~name:"crashing_tool"
+        (fun _ _ -> failwith "unexpected crash") in
+      let call : tool_call = {
+        id = "tc-crash-1"; name = "crashing_tool"; arguments = `Assoc []
+      } in
+      let llm = mock_llm [
+        tool_call_response [ call ];
+        text_response "Tool crashed but I can still respond.";
+      ] in
+      let agent = basic_agent ~tools:[ crashing_tool ] () in
+      let reg = make_registry [ crashing_tool ] in
+      with_token (fun token ->
+        check_ok_text
+          (Engine.run_agent token agent "use crashing tool" llm reg)
+          "Tool crashed but I can still respond."));
+
     Alcotest.test_case "max iterations exceeded" `Quick (fun () ->
       let call : tool_call = {
         id = "tc-loop"; name = "test_tool"; arguments = `Assoc []
