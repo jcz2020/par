@@ -57,7 +57,7 @@ let find_tool (agent : agent_config) tool_name =
   List.find_opt (fun (td : tool_descriptor) -> td.name = tool_name) agent.tools
 
 let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
-    handler input middleware on_progress =
+    handler input middleware on_progress ~tool_call_id =
   match Validation.validate_tool_input_result descriptor.input_schema input with
   | Error category ->
     let message = match category with
@@ -72,7 +72,7 @@ let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
     }
   | Ok () ->
     let (call : tool_call) = {
-      id = Task_id.to_string (Task_id.create ());
+      id = tool_call_id;
       name = descriptor.name;
       arguments = input
     } in
@@ -237,7 +237,7 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
       let conv = match agent.context_strategy with
         | None -> conv
         | Some strategy ->
-          (match Context_manager.apply_strategy strategy conv (Some llm) with
+          (match Context_manager.apply_strategy strategy conv (Some llm) ~on_event:on_tool_event with
            | Ok conv' -> conv'
            | Error _ -> conv)
       in
@@ -311,7 +311,7 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
                       message = "Handler not registered";
                       retryable = false;
                       metadata = []; })
-                  | Some handler -> (call, execute_tool token descriptor handler original_input agent.middleware on_progress))
+                  | Some handler -> (call, execute_tool token descriptor handler original_input agent.middleware on_progress ~tool_call_id:call.id))
             in
             let invoke_with_quota body =
               match quota with

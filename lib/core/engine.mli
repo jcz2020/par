@@ -38,6 +38,7 @@ val execute_tool :
   Yojson.Safe.t ->
   middleware_hook list ->
   (string -> unit) option ->
+  tool_call_id:string ->
   handler_result
 
 val run_agent :

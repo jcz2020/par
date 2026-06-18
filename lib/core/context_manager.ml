@@ -71,7 +71,7 @@ let format_messages_for_summary msgs =
 let apply_truncate_oldest ~keep_system ~min_messages conv =
   truncate_conversation ~keep_system ~min_messages ~max_tokens:default_max_tokens conv
 
-let apply_summarize max_tokens summary_model conv llm_opt =
+let apply_summarize max_tokens summary_model conv llm_opt ~on_event =
   let tokens = estimate_tokens conv in
   if tokens <= max_tokens then Ok conv
   else
@@ -101,8 +101,15 @@ let apply_summarize max_tokens summary_model conv llm_opt =
           ];
           metadata = [];
         } in
+        let summary_task_id = Task_id.create () in
+        let fire evt = match on_event with
+          | Some fn -> fn evt
+          | None -> ()
+        in
+        fire (Llm_request_sent { task_id = summary_task_id; model = model.model_name });
         (match llm.complete_fn model [] summary_conv with
          | Ok resp ->
+           fire (Llm_response_received { task_id = summary_task_id; usage = resp.usage });
            (match resp.text with
             | Some summary_text ->
               let summary_msg : message = {
@@ -137,11 +144,11 @@ let apply_sliding_window max_messages max_tokens conv =
     let min_keep = max 2 (List.length system_msgs) in
     truncate_conversation ~keep_system:true ~min_messages:min_keep ~max_tokens conv'
 
-let apply_strategy strategy conv llm_opt =
+let apply_strategy strategy conv llm_opt ~on_event =
   match strategy with
   | Truncate_oldest { keep_system; min_messages } ->
     Ok (apply_truncate_oldest ~keep_system ~min_messages conv)
   | Summarize { max_tokens; summary_model } ->
-    apply_summarize max_tokens summary_model conv llm_opt
+    apply_summarize max_tokens summary_model conv llm_opt ~on_event
   | Sliding_window { max_messages; max_tokens } ->
     Ok (apply_sliding_window max_messages max_tokens conv)

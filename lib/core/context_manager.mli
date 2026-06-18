@@ -6,6 +6,7 @@ open Types
     or [Error _] on failure. *)
 val apply_strategy :
   context_strategy -> conversation -> llm_service option ->
+  on_event:(event -> unit) option ->
   (conversation, error_category) result
 
 (** Rough token estimation for a conversation.
