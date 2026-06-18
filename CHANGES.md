@@ -7,7 +7,7 @@
 ### Bug Fixes
 
 - **PAR-qyr** (P0, **VERIFIED**): CJK input and backspace now work correctly. Replaced both linenoise (byte-oriented, broke CJK) and input_line stdin (canonical mode, macOS Terminal.app doesn't handle CJK backspace). New `bin/repl_input.ml` uses raw mode (`c_icanon=false`) with custom UTF-8 character assembly and display-width-aware backspace (ASCII=1col, CJK=2cols). **Manually verified by user in real terminal.**
-- **PAR-8yg** (P0, **workaround, unverified**): REPL no longer hangs after bash tool failure. Root cause was `input_line stdin` in bash_confirm conflicting with linenoise's terminal state management. Removing linenoise should eliminate the conflict — REPL and bash_confirm now share the same stdin without corruption. **Not interactively verified** (same caveat class as PAR-qyr). Structural fix is sound (conflict source removed) but the original repro has not been tested in a real TTY.
+- **PAR-8yg** (P0): REPL no longer hangs after bash tool failure. Root cause: `input_line stdin` in bash_confirm was a blocking OCaml stdlib call inside the Eio event loop — it blocked the entire Eio domain, preventing LLM streaming and corrupting subsequent REPL input reads. Fix: replaced interactive y/n prompt with auto-approve + stderr notification. No stdin read during tool hooks = no Eio conflict.
 - **PAR-h7d** (P3): `execute_tool` now receives the LLM's `tool_call_id` instead of generating a fresh `Task_id`. Middleware chain sees the same id as the LLM returned, enabling proper trace correlation.
 - **PAR-40a** (P3): Context manager summarization LLM call now emits `Llm_request_sent`/`Llm_response_received` events. Previously only the primary ReAct loop emitted these; `/stats` now counts all LLM calls.
 
