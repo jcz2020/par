@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.4.6-beta (2026-06-18)
+## v0.4.6 (2026-06-18)
 
 > CLI stability fix. 4 bugs fixed (2 P0 + 2 P3). Removes linenoise dependency.
 

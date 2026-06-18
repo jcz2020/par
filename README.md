@@ -8,7 +8,7 @@ A modular, type-safe agent runtime for OCaml 5.4+: LangChain + LangGraph for the
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 [![Tests](https://img.shields.io/badge/tests-952%20passing-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-0.4.6--beta.20260618-blue)]()
+[![Version](https://img.shields.io/badge/version-0.4.6-blue)]()
 
 A complete, runnable program that registers a tool, registers an agent, and prints confirmation:
 
@@ -115,7 +115,7 @@ The `par` facade module (`lib/par.ml`) re-exports every public submodule, so a s
 
 - 20 built-in tools, including the type-safe `bash` tool: `Bash_safe_command` ADT, `Bash_policy` functor, 31-entry `Bash_blacklist`, and `Bash_invoked` / `Bash_completed` event types. Shell injection is unrepresentable in the type layer.
 - C FFI plus a Python binding: the `par_runtime` package exposes the same runtime over ctypes, thread-safe, with its own `pytest` suite.
-- 952 OCaml tests and 31 Python tests passing; zero regressions across the v0.4 series.
+- 954 OCaml tests and 31 Python tests passing; zero regressions across the v0.4 series.
 - MIT-licensed, 100% open source. Distributed via opam and GitHub Releases.
 
 ## SDK Quick Start
@@ -347,7 +347,7 @@ par/
 |       +-- par_runtime/     Runtime, errors, FFI declarations
 |       +-- tests/           31 pytest tests
 |       +-- examples/        basic_agent.py
-+-- test/              952 OCaml unit and integration tests
++-- test/              954 OCaml unit and integration tests
 +-- examples/          Example agents and workflows (basic_agent, otel_tracing, ...)
 +-- schema/            Database schemas
 +-- docs/              User documentation (quickstart, CLI ref, SDK ref, how-to, explanation)
