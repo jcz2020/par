@@ -1,5 +1,33 @@
 # CHANGES
 
+## v0.4.5-beta (2026-06-18)
+
+> CLI bugfix beta. 11 bugs fixed (4 P0 + 5 P1 + 2 P2). 942 OCaml tests.
+
+### Bug Fixes
+
+- **PAR-zlm** (P0): `par ask` after tool call no longer fails with LLM API 400 "tool call id is invalid". Root cause: engine overwrote LLM-returned `tool_call.id` with a fresh `Task_id`, causing assistant message and tool message to carry mismatched ids.
+- **PAR-rev** (P0): Tool execution no longer silently stops the ReAct loop. Same root cause as PAR-zlm — fixed by preserving LLM ids end-to-end.
+- **PAR-pso** (P1): Conversation context now correctly includes assistant replies with tool calls. Same root cause as PAR-zlm.
+- **PAR-xmb** (P0): REPL no longer dies when a tool handler raises an exception. Engine wraps handler calls in `try/with`, converts exceptions to `Error { category = Internal _ }`. Defense-in-depth: REPL catches all exceptions and continues.
+- **PAR-mhs** (P0): REPL no longer corrupts terminal state. Migrated from bare `input_line stdin` to `linenoise` library for proper terminal control.
+- **PAR-ngb** (P1): `Llm_request_sent` and `Llm_response_received` events now actually emitted at LLM call sites. Previously defined but never fired — `/stats` showed 0 LLM calls.
+- **PAR-v5a** (P1): `par ask 本地有哪些文件夹？` now works without quotes. Switched from single positional `string` to `pos_all` to accept multi-token prompts.
+- **PAR-wmj** (P1): Arrow keys (←→↑↓) now work in REPL for cursor movement and history recall.
+- **PAR-r05** (P1): Chinese characters can now be deleted cleanly with backspace (UTF-8 aware editing via linenoise).
+- **PAR-0yx** (P2): `Tool_completed` event now carries `result_preview : string option` (truncated to 500 chars) so persisted events show what a tool returned, not just that it completed.
+- **PAR-br3** (P2): `/health` command now outputs colored human-readable format instead of raw JSON.
+
+### API Changes
+
+- **`Types.Tool_completed`**: Added `result_preview : string option` field. Additive change — consumers using `_` wildcard in pattern matches still compile.
+- **`Anthropic_provider.process_stream_event`**: Now exposed in `.mli` for unit testing.
+- **`Openai_provider.parse_stream_delta`**: Now exposed in `.mli` for unit testing.
+
+### Dependencies
+
+- **New**: `linenoise` (BSD-3-clause) added to `par_cli` package for REPL line editing, UTF-8 support, and command history.
+
 ## v0.4.4-beta (2026-06-17)
 
 > MCP HTTP/SSE transport (Streamable HTTP, spec 2025-06-18). 918 OCaml tests.
