@@ -492,6 +492,8 @@ let repl rt ~agent_ids =
             flush stdout;
             loop ()
            end else begin
+             Printf.eprintf "[debug] invoking agent=%s msg_len=%d\n" !active_agent (String.length line);
+             flush stderr;
              (try
                 (match Runtime.invoke rt ~agent_id:!active_agent ~message:line
                    ?conversation:!conv
@@ -499,14 +501,18 @@ let repl rt ~agent_ids =
                    ~on_chunk:(Some stream_print_chunk)
                    ~enable_handoff:true () with
                  | Error (e, recovered_conv) ->
+                   Printf.eprintf "[debug] invoke returned Error\n";
+                   flush stderr;
                    conv := Some recovered_conv;
                    print_error e
                  | Ok { Types.response = _; conversation = returned_conv } ->
+                   Printf.eprintf "[debug] invoke returned Ok\n";
+                   flush stderr;
                    conv := Some returned_conv;
                    Printf.printf "\n";
                    flush stdout)
               with ex ->
-                Printf.eprintf "\n[error] %s\n" (Printexc.to_string ex);
+                Printf.eprintf "[debug] invoke raised: %s\n" (Printexc.to_string ex);
                 flush stderr);
              loop ()
            end)
