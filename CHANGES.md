@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.4.5-beta (2026-06-18)
+## v0.4.5 (2026-06-18)
 
 > CLI bugfix beta. 11 bugs fixed (4 P0 + 5 P1 + 2 P2). 942 OCaml tests.
 

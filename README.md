@@ -8,7 +8,7 @@ A modular, type-safe agent runtime for OCaml 5.4+: LangChain + LangGraph for the
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 [![Tests](https://img.shields.io/badge/tests-942%20passing-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-0.4.5--beta.20260618-blue)]()
+[![Version](https://img.shields.io/badge/version-0.4.5-blue)]()
 
 A complete, runnable program that registers a tool, registers an agent, and prints confirmation:
 
@@ -214,7 +214,7 @@ PAR ships a Python binding via ctypes, package name `par_runtime`. The C ABI liv
 
 ```bash
 # Download the wheel from the latest release
-curl -fsSL -o par_runtime.whl https://github.com/jcz2020/par/releases/latest/download/par_runtime-0.4.4-py3-none-any.whl
+curl -fsSL -o par_runtime.whl https://github.com/jcz2020/par/releases/latest/download/par_runtime-0.4.5-py3-none-any.whl
 pip install par_runtime.whl
 ```
 
