@@ -452,16 +452,15 @@ let repl rt ~agent_ids =
       else "par> " in
     Printf.printf "%s" (Cli_style.bold_cyan prompt_label);
     flush stdout;
-    (try
-       match input_line stdin with
-       | exception End_of_file ->
-         Printf.printf "\n再见！\n";
-         flush stdout
-       | line ->
-         let line = strip_ansi_escapes line in
-         let trimmed = String.trim line in
-         if trimmed = "" then loop ()
-         else if trimmed.[0] = '/' then begin
+    (match Repl_input.read_line "" with
+     | None ->
+       Printf.printf "\n再见！\n";
+       flush stdout
+     | Some line ->
+       let line = strip_ansi_escapes line in
+       let trimmed = String.trim line in
+       if trimmed = "" then loop ()
+       else if trimmed.[0] = '/' then begin
             let parts = String.split_on_char ' ' trimmed in
             let cmd = match parts with c :: _ -> c | [] -> "" in
             let rest = match parts with _ :: r -> String.trim (String.concat " " r) | [] -> "" in
@@ -500,27 +499,26 @@ let repl rt ~agent_ids =
             flush stdout;
             loop ()
            end else begin
-             (match Runtime.invoke rt ~agent_id:!active_agent ~message:line
-                ?conversation:!conv
-                ~on_tool_event
-                ~on_chunk:(Some stream_print_chunk)
-                ~enable_handoff:true () with
-              | Error (e, recovered_conv) ->
-                conv := Some recovered_conv;
-                print_error e
-               | Ok { Types.response = _; conversation = returned_conv } ->
-                 conv := Some returned_conv;
-                 Printf.printf "\n";
-                 flush stdout);
+             (try
+                (match Runtime.invoke rt ~agent_id:!active_agent ~message:line
+                   ?conversation:!conv
+                   ~on_tool_event
+                   ~on_chunk:(Some stream_print_chunk)
+                   ~enable_handoff:true () with
+                 | Error (e, recovered_conv) ->
+                   conv := Some recovered_conv;
+                   print_error e
+                 | Ok { Types.response = _; conversation = returned_conv } ->
+                   conv := Some returned_conv;
+                   Printf.printf "\n";
+                   flush stdout)
+              with ex ->
+                Printf.eprintf "\n[error] %s\n" (Printexc.to_string ex);
+                flush stderr);
              loop ()
-           end
-     with
-     | ex ->
-       Printf.eprintf "\n[error] %s\n" (Printexc.to_string ex);
-       flush stderr;
-       loop ())
-  in
-  loop ()
+           end)
+   in
+   loop ()
 
 (* -------------------------------------------------------------------------- *)
 (* 'par' default command — REPL                                               *)
