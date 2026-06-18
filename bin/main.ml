@@ -238,7 +238,7 @@ let require_config () =
 let ensure_rng () =
   Mirage_crypto_rng_unix.use_default ()
 
-let setup_runtime cfg ~interactive ~f =
+let setup_runtime cfg ~interactive:_ ~f =
   ensure_rng ();
   let pers = make_persistence_service cfg.Par_config.persistence
                (Par_config.resolve_persistence cfg) cfg.Par_config.db_uri in
@@ -334,19 +334,12 @@ let setup_runtime cfg ~interactive ~f =
           | Error e -> Printf.eprintf "Error registering agent %s: %s\n" agent_id (error_category_to_string e); exit 1
           | Ok () -> ()))
     ) agent_ids;
-    let confirm_fn =
-      if interactive then
-        Some (fun cmd ->
-          Printf.eprintf "\n⚠ bash: %s\nProceed? [y/n]: " cmd;
-          flush stderr;
-          try
-            let line = input_line stdin in
-            let trimmed = String.trim (String.lowercase_ascii line) in
-            trimmed = "y" || trimmed = "yes"
-          with End_of_file -> false)
-      else
-        Some (fun _ -> true)
-    in
+     let confirm_fn =
+       Some (fun cmd ->
+         Printf.eprintf "\n⚠ bash: %s\n" cmd;
+         flush stderr;
+         true)
+     in
     Runtime.register_tool_call_hook rt
       (Bash_confirm.make_hook ?confirm_fn config.Types.bash_confirm);
     Runtime.register_tool_call_hook rt
