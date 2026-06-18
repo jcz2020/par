@@ -28,7 +28,7 @@ let test_extract_task_id_tool_events () =
   Alcotest.(check string) "Tool_completed"
     (Task_id.to_string tid)
     (Persistence_common.extract_task_id
-       (Tool_completed { task_id = tid; tool_name = "echo"; duration_ms = 1.0 }))
+       (Tool_completed { task_id = tid; tool_name = "echo"; duration_ms = 1.0; result_preview = None }))
 
 let test_extract_task_id_workflow_events () =
   let rid = Workflow_run_id.create () in

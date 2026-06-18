@@ -332,10 +332,18 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
                 invoke_with_quota (fun () -> invoke_allow call.arguments) in
             let duration_ms = (Unix.gettimeofday () -. start_t) *. 1000.0 in
             (match result with
-             | _, Success _ ->
+             | _, Success output ->
+               let preview =
+                 let s = Yojson.Safe.to_string output in
+                 if String.length s > 500 then
+                   Some (String.sub s 0 500 ^
+                         Printf.sprintf "... (%d bytes total)" (String.length s))
+                 else Some s
+               in
                fire (Tool_completed { task_id = event_task_id;
                                       tool_name = event_tool_name;
-                                      duration_ms })
+                                      duration_ms;
+                                      result_preview = preview })
              | _, Error { category; _ } ->
                fire (Tool_failed { task_id = event_task_id;
                                    tool_name = event_tool_name;
@@ -343,7 +351,8 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
              | _, Handoff _ ->
                fire (Tool_completed { task_id = event_task_id;
                                       tool_name = event_tool_name;
-                                      duration_ms }));
+                                      duration_ms;
+                                      result_preview = None }));
             result in
           let results : (tool_call * handler_result) list =
             if parallel then

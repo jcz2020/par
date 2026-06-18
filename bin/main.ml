@@ -395,17 +395,27 @@ let stream_print_chunk (chunk : Types.llm_response_chunk) =
     flush stdout
   | _ -> ()
 
-let format_health (h : Types.health_status) =
-  `Assoc [
-    ("runtime_alive", `Bool h.Types.runtime_alive);
-    ("last_llm_call_at", (match h.Types.last_llm_call_at with
-                          | Some t -> `Float t | None -> `Null));
-    ("last_llm_call_status", (match h.Types.last_llm_call_status with
-      | `Success -> `String "success"
-      | `Error e -> `String (Printf.sprintf "error: %s" (error_category_to_string e))
-      | `Never_called -> `String "never_called"));
-    ("persistence_ok", `Bool h.Types.persistence_ok);
-  ]
+let format_health_human (h : Types.health_status) =
+  let runtime_label = Cli_style.(if h.Types.runtime_alive then green "● alive" else red "✕ dead") in
+  let persistence_label = Cli_style.(if h.Types.persistence_ok then green "ok" else red "FAILING") in
+  let llm_label = match h.Types.last_llm_call_status with
+    | `Success ->
+      let ago = match h.Types.last_llm_call_at with
+        | Some t -> Printf.sprintf " (%.0fs ago)" (Unix.gettimeofday () -. t)
+        | None -> ""
+      in
+      Cli_style.green ("ok" ^ ago)
+    | `Error e ->
+      let ago = match h.Types.last_llm_call_at with
+        | Some t -> Printf.sprintf " (%.0fs ago)" (Unix.gettimeofday () -. t)
+        | None -> ""
+      in
+      Cli_style.red ("error" ^ ago ^ ": " ^ error_category_to_string e)
+    | `Never_called -> Cli_style.dim "never called"
+  in
+  Printf.printf "  %s  %s\n" (Cli_style.bold "Runtime:    ") runtime_label;
+  Printf.printf "  %s  %s\n" (Cli_style.bold "Persistence:") persistence_label;
+  Printf.printf "  %s  %s\n" (Cli_style.bold "Last LLM:   ") llm_label
 
 let format_metrics (snap : (string * int) list) =
   `Assoc (List.map (fun (k, v) -> (k, `Int v)) snap)
@@ -463,7 +473,7 @@ let repl rt ~agent_ids =
               Printf.printf "%s\n" (Cli_style.dim "[steer] 已注入")
             | "/followup" -> Runtime.follow_up rt rest;
               Printf.printf "%s\n" (Cli_style.dim "[followup] 已注入")
-            | "/health" -> print_json (format_health (Runtime.health rt))
+            | "/health" -> format_health_human (Runtime.health rt)
             | "/metrics" -> print_json (format_metrics (Runtime.metrics_snapshot rt))
             | "/agents" ->
               let agents = Runtime.list_agents rt in
@@ -497,7 +507,12 @@ let repl rt ~agent_ids =
                 flush stdout);
             loop ()
           end
-     with End_of_file -> Printf.printf "\n再见！\n")
+      with
+      | End_of_file -> Printf.printf "\n再见！\n"
+      | ex ->
+        Printf.eprintf "\n[error] %s\n" (Printexc.to_string ex);
+        flush stderr;
+        loop ())
   in
   loop ()
 

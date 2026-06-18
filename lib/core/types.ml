@@ -395,7 +395,7 @@ type event =
   | Llm_request_sent of { task_id : Task_id.t; model : string }
   | Llm_response_received of { task_id : Task_id.t; usage : usage_stats }
   | Tool_invoked of { task_id : Task_id.t; tool_name : string }
-  | Tool_completed of { task_id : Task_id.t; tool_name : string; duration_ms : float }
+  | Tool_completed of { task_id : Task_id.t; tool_name : string; duration_ms : float; result_preview : string option }
   | Tool_failed of { task_id : Task_id.t; tool_name : string; error : error_category }
   | Tool_progress of { task_id : Task_id.t; tool_name : string; message : string }
   | Bash_invoked of {
