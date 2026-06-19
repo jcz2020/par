@@ -36,6 +36,148 @@ let http_error_to_error_category = function
   | Http_client.External_failure s -> Types.External_failure s
 
 (* -------------------------------------------------------------------------- *)
+(* Schema normalization for OpenAI strict mode                          *)
+(* -------------------------------------------------------------------------- *)
+
+(* OpenAI strict mode silently rewrites user-supplied JSON Schemas:
+     1. Forces additionalProperties:false on every object subschema
+     2. Forces all properties into the `required` array
+     3. Converts const:X into enum:[X]
+   Without local normalization + warning, users get semantically wrong
+   output while PAR reports success. We pre-normalize here so the user
+   sees what we're sending. See Oracle D5 / v0.4.8 WU-3.
+
+   Returns (normalized_schema, transformation_descriptions). The list is
+   empty when the schema is already strict-mode-compatible. *)
+let normalize_for_openai_strict (schema : Yojson.Safe.t) :
+    Yojson.Safe.t * string list =
+  let ap_forced = ref 0 in
+  let props_marked_required = ref 0 in
+  let const_converted = ref 0 in
+
+  let rec convert_const node =
+    match node with
+    | `Assoc fields ->
+      let keep = ref [] in
+      let had_const = ref false in
+      let const_value = ref `Null in
+      List.iter
+        (fun (k, v) ->
+          if k = "const" then begin
+            had_const := true;
+            const_value := v
+          end else
+            keep := (k, convert_const v) :: !keep)
+        fields;
+      if !had_const then begin
+        incr const_converted;
+        let without_enum =
+          List.filter (fun (k, _) -> k <> "enum") (List.rev !keep)
+        in
+        `Assoc (("enum", `List [!const_value]) :: without_enum)
+      end else
+        `Assoc (List.rev !keep)
+    | `List items -> `List (List.map convert_const items)
+    | other -> other
+  in
+
+  let rec normalize_object node =
+    match node with
+    | `Assoc fields ->
+      (* Recurse first so nested objects are normalized before we read them. *)
+      let fields = List.map (fun (k, v) -> (k, normalize_object v)) fields in
+      let is_object_type =
+        List.exists
+          (fun (k, v) -> k = "type" && v = `String "object")
+          fields
+      in
+      if not is_object_type then `Assoc fields
+      else begin
+        let assoc_opt k = List.assoc_opt k fields in
+        let properties = assoc_opt "properties" in
+        let existing_required = assoc_opt "required" in
+        let existing_ap = assoc_opt "additionalProperties" in
+
+        let other_fields =
+          List.filter
+            (fun (k, _) ->
+              k <> "properties" && k <> "required"
+              && k <> "additionalProperties")
+            fields
+        in
+
+        let existing_names =
+          match existing_required with
+          | Some (`List reqs) ->
+            List.filter_map
+              (function `String s -> Some s | _ -> None)
+              reqs
+          | _ -> []
+        in
+        let property_names =
+          match properties with
+          | Some (`Assoc props) -> List.map fst props
+          | _ -> []
+        in
+        let combined_rev =
+          List.fold_left
+            (fun acc name ->
+              if List.mem name acc then acc
+              else begin
+                incr props_marked_required;
+                name :: acc
+              end)
+            existing_names
+            property_names
+        in
+        let required_json =
+          `List (List.rev_map (fun s -> `String s) combined_rev)
+        in
+
+        let ap_json =
+          match existing_ap with
+          | Some (`Bool false) -> `Bool false
+          | Some _ -> incr ap_forced; `Bool false
+          | None -> incr ap_forced; `Bool false
+        in
+
+        let properties_json =
+          match properties with Some p -> p | None -> `Assoc []
+        in
+        `Assoc
+          ([ ("type", `String "object")
+           ; ("properties", properties_json)
+           ; ("required", required_json)
+           ; ("additionalProperties", ap_json)
+           ]
+           @ other_fields)
+      end
+    | `List items -> `List (List.map normalize_object items)
+    | other -> other
+  in
+
+  let normalized = normalize_object (convert_const schema) in
+
+  let transformations = ref [] in
+  if !ap_forced > 0 then
+    transformations :=
+      Printf.sprintf "added additionalProperties:false to %d object subschema(s)"
+        !ap_forced
+      :: !transformations;
+  if !props_marked_required > 0 then
+    transformations :=
+      Printf.sprintf "marked %d propert(ies) as required (was missing)"
+        !props_marked_required
+      :: !transformations;
+  if !const_converted > 0 then
+    transformations :=
+      Printf.sprintf "converted %d const -> enum"
+        !const_converted
+      :: !transformations;
+
+  (normalized, List.rev !transformations)
+
+(* -------------------------------------------------------------------------- *)
 (* JSON request building                                                 *)
 (* -------------------------------------------------------------------------- *)
 
@@ -86,7 +228,7 @@ let tool_descriptor_to_json (td : tool_descriptor) =
     ])
   ]
 
-let build_request_body ~model_config ~tools ~conversation ~stream =
+let build_request_body ~model_config ~tools ~conversation ~stream ?response_schema () =
   let fields =
     [ ("model", `String model_config.model_name)
     ; ("messages", `List (List.map build_message_json conversation.messages))
@@ -108,6 +250,30 @@ let build_request_body ~model_config ~tools ~conversation ~stream =
   let fields = if tools <> [] then
     ("tools", `List (List.map tool_descriptor_to_json tools)) :: fields
   else fields
+  in
+  let fields =
+    match response_schema with
+    | None -> fields
+    | Some schema ->
+      let normalized, transformations = normalize_for_openai_strict schema in
+      (match transformations with
+       | [] -> ()
+       | _ :: _ ->
+         Logs.warn (fun m ->
+           m "OpenAI strict-mode schema normalization: %s"
+             (String.concat "; " transformations)));
+      let response_format =
+        `Assoc
+          [ ("type", `String "json_schema")
+          ; ( "json_schema",
+              `Assoc
+                [ ("name", `String "structured_output")
+                ; ("schema", normalized)
+                ; ("strict", `Bool true)
+                ] )
+          ]
+      in
+      ("response_format", response_format) :: fields
   in
   Yojson.Safe.to_string (`Assoc fields)
 
@@ -244,7 +410,7 @@ let complete t model_config tools conversation =
   | None -> Result.Error (Internal "Network not initialized; call set_network first")
   | Some net ->
     let url = Http_client.parse_url t.base_url in
-    let body = build_request_body ~model_config ~tools ~conversation ~stream:false in
+    let body = build_request_body ~model_config ~tools ~conversation ~stream:false () in
     let headers = build_auth_headers t in
     let request =
       Http_client.build_http_request
@@ -266,12 +432,45 @@ let complete t model_config tools conversation =
       | Failure msg -> Result.Error (Invalid_input msg)
       | exn -> Result.Error (Internal (Printexc.to_string exn)) )
 
+let complete_structured t model_config tools conversation response_schema =
+  match t.net with
+  | None -> Result.Error (Internal "Network not initialized; call set_network first")
+  | Some net ->
+    let url = Http_client.parse_url t.base_url in
+    let body =
+      build_request_body ~model_config ~tools ~conversation ~stream:false
+        ~response_schema:response_schema ()
+    in
+    let headers = build_auth_headers t in
+    let request =
+      Http_client.build_http_request
+        ~host:url.Http_client.host
+        ~path:(url.Http_client.path ^ "chat/completions")
+        ~headers ~body
+    in
+    ( try
+        let raw = Http_client.do_request net url request in
+        let headers, raw_body = Http_client.split_response raw in
+        let status = Http_client.parse_status_line headers in
+        let resp_body = Http_client.decode_body headers raw_body in
+        if status <> 200 then
+          Result.Error
+            (http_error_to_error_category
+               (Http_client.map_http_status status resp_body))
+        else
+          let json = Yojson.Safe.from_string resp_body in
+          parse_llm_response json
+      with
+      | Eio.Io _ -> Result.Error (External_failure "Network error during OpenAI structured request")
+      | Failure msg -> Result.Error (Invalid_input msg)
+      | exn -> Result.Error (Internal (Printexc.to_string exn)) )
+
 let stream t model_config tools conversation _stream_config callback =
   match t.net with
   | None -> Result.Error (Internal "Network not initialized; call set_network first")
   | Some net ->
     let url = Http_client.parse_url t.base_url in
-    let body = build_request_body ~model_config ~tools ~conversation ~stream:true in
+    let body = build_request_body ~model_config ~tools ~conversation ~stream:true () in
     let headers = build_auth_headers t in
     let request =
       Http_client.build_http_request
