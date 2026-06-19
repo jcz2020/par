@@ -8,6 +8,10 @@ val complete :
   t -> model_config -> tool_descriptor list -> conversation ->
   (llm_response, error_category) result
 
+val complete_structured :
+  t -> model_config -> tool_descriptor list -> conversation -> Yojson.Safe.t ->
+  (llm_response, error_category) result
+
 val stream :
   t -> model_config -> tool_descriptor list -> conversation -> stream_config ->
   (llm_response_chunk -> unit) ->

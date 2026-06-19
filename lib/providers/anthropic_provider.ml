@@ -106,7 +106,7 @@ let tool_descriptor_to_json (td : tool_descriptor) =
     ("input_schema", td.input_schema);
   ]
 
-let build_request_body ~model_config ~tools ~conversation ~stream =
+let build_request_body ~model_config ~tools ~conversation ~stream ?response_schema () =
   let system_text, conv = extract_system_prompt conversation in
   let fields =
     [ ("model", `String model_config.model_name)
@@ -132,6 +132,20 @@ let build_request_body ~model_config ~tools ~conversation ~stream =
   let fields = if tools <> [] then
     ("tools", `List (List.map tool_descriptor_to_json tools)) :: fields
   else fields
+  in
+  let fields =
+    match response_schema with
+    | Some schema ->
+      ("output_config",
+       `Assoc
+         [ ("format",
+            `Assoc
+              [ ("type", `String "json_schema")
+              ; ("schema", schema)
+              ])
+         ])
+      :: fields
+    | None -> fields
   in
   Yojson.Safe.to_string (`Assoc fields)
 
@@ -285,7 +299,7 @@ let complete t model_config tools conversation =
   | None -> Result.Error (Internal "Network not initialized; call set_network first")
   | Some net ->
     let url = Http_client.parse_url t.base_url in
-    let body = build_request_body ~model_config ~tools ~conversation ~stream:false in
+    let body = build_request_body ~model_config ~tools ~conversation ~stream:false () in
     let headers = auth_headers t in
     let request =
       Http_client.build_http_request
@@ -307,12 +321,47 @@ let complete t model_config tools conversation =
       | Failure msg -> Result.Error (Invalid_input msg)
       | exn -> Result.Error (Internal (Printexc.to_string exn)) )
 
+let complete_structured t model_config tools conversation schema =
+  match t.net with
+  | None -> Result.Error (Internal "Network not initialized; call set_network first")
+  | Some net ->
+    let url = Http_client.parse_url t.base_url in
+    let body =
+      build_request_body ~model_config ~tools ~conversation ~stream:false
+        ~response_schema:schema ()
+    in
+    let headers = auth_headers t in
+    let request =
+      Http_client.build_http_request
+        ~host:url.Http_client.host
+        ~path:(url.Http_client.path ^ "v1/messages")
+        ~headers ~body
+    in
+    ( try
+        let raw = Http_client.do_request net url request in
+        let headers, raw_body = Http_client.split_response raw in
+        let status = Http_client.parse_status_line headers in
+        let resp_body = Http_client.decode_body headers raw_body in
+        if status <> 200 then
+          Result.Error
+            (http_error_to_error_category
+               (Http_client.map_http_status status resp_body))
+        else
+          let json = Yojson.Safe.from_string resp_body in
+          parse_llm_response json
+      with
+      | Eio.Io _ ->
+        Result.Error
+          (External_failure "Network error during Anthropic structured request")
+      | Failure msg -> Result.Error (Invalid_input msg)
+      | exn -> Result.Error (Internal (Printexc.to_string exn)) )
+
 let stream t model_config tools conversation _stream_config callback =
   match t.net with
   | None -> Result.Error (Internal "Network not initialized; call set_network first")
   | Some net ->
     let url = Http_client.parse_url t.base_url in
-    let body = build_request_body ~model_config ~tools ~conversation ~stream:true in
+    let body = build_request_body ~model_config ~tools ~conversation ~stream:true () in
     let headers = auth_headers t in
     let request =
       Http_client.build_http_request
