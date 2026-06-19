@@ -19,7 +19,8 @@ jobs:
             platform: linux-x64
           - os: macos-15
             platform: macos-arm64
-          # macOS-x64 is built manually on Intel Mac via scripts/build-macos-x64.sh
+          - os: macos-13
+            platform: macos-x64
     steps:
       - uses: actions/checkout@v4
 
@@ -101,4 +102,5 @@ jobs:
           files: |
             artifacts/par-${{ github.ref_name }}-linux-x64
             artifacts/par-${{ github.ref_name }}-macos-arm64
+            artifacts/par-${{ github.ref_name }}-macos-x64
             artifacts/sha512-checksums.txt
