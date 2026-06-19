@@ -862,10 +862,10 @@ let cmd_update () =
              (try Unix.mkdir tmpdir 0o700
               with Unix.Unix_error (Unix.EEXIST, _, _) -> ());
              let bin_path = tmpdir ^ "/" ^ asset_name in
-             (match http_download_to_file client ~sw bin_uri bin_path with
-              | Error e ->
-                Printf.eprintf "Download failed: %s\n" e;
-                exit 1
+              (match http_download_to_file client ~sw bin_uri bin_path with
+               | Error _ ->
+                 Printf.eprintf "No prebuilt binary for %s.\nReinstall with: curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash\n" platform;
+                 exit 1
               | Ok () ->
                 (match parse_checksum_for chk_content platform with
                  | None ->

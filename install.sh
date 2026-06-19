@@ -81,7 +81,12 @@ download_binary() {
   local checksum_url="https://github.com/$GITHUB_REPO/releases/download/v${ver}/sha512-checksums.txt"
 
   info "Downloading PAR v${ver} for ${platform}..."
-  curl -fsSL -o "$tmpdir/par" "$url" || die "Download failed: $url"
+  if ! curl -fsSL -o "$tmpdir/par" "$url" 2>/dev/null; then
+    rm -rf "$tmpdir"
+    info "No prebuilt binary for ${platform}. Building from source..."
+    build_from_source "$ver"
+    return $?
+  fi
 
   info "Downloading checksums..."
   if curl -fsSL -o "$tmpdir/checksums.txt" "$checksum_url" 2>/dev/null; then
@@ -100,6 +105,31 @@ download_binary() {
     warn "Checksums file not found, skipping verification"
   fi
 
+  echo "$tmpdir"
+}
+
+build_from_source() {
+  local ver="$1"
+  command -v git >/dev/null 2>&1 || die "git not found (required for build-from-source)"
+  command -v opam >/dev/null 2>&1 || die "opam not found (required for build-from-source). Install from https://opam.ocaml.org/doc/Install.html"
+
+  local build_dir="$(mktemp -d)"
+  info "Cloning PAR v${ver} source..."
+  git clone --depth 1 --branch "v${ver}" "https://github.com/$GITHUB_REPO.git" "$build_dir/par" || die "git clone failed"
+
+  cd "$build_dir/par"
+  info "Installing dependencies (this may take a few minutes on first run)..."
+  opam install . --deps-only -y || die "opam dependency install failed"
+
+  info "Building..."
+  opam exec -- dune build bin/main.exe || die "Build failed"
+
+  local tmpdir="$(mktemp -d)"
+  cp _build/default/bin/main.exe "$tmpdir/par"
+  cd - >/dev/null
+  rm -rf "$build_dir"
+
+  info "Build successful."
   echo "$tmpdir"
 }
 
