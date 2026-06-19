@@ -385,9 +385,45 @@ let invoke rt ~agent_id ~message ?cancellation_token ?conversation
 let invoke_structured rt ~agent_id ~message ~response_schema
     ?(max_repair_attempts = 3) ?cancellation_token ?conversation
     ?on_tool_event ?on_repair_attempt () =
-  ignore (rt, agent_id, message, response_schema, max_repair_attempts,
-          cancellation_token, conversation, on_tool_event, on_repair_attempt);
-  failwith "Runtime.invoke_structured: not implemented yet (WU-6 will provide real impl)"
+  let session_id = Session_id.to_string (Session_id.create ()) in
+  (match rt.event_bus_instance with
+   | Some bus -> Event_bus.set_session_id bus session_id
+   | None -> rt.services.event_bus.set_session_id_fn session_id);
+  let agent = htbl_get rt.agents agent_id in
+  match agent with
+  | None -> Result.Error (Invalid_input (Printf.sprintf "Agent not found: %s" agent_id),
+                           { Types.messages = []; metadata = [] })
+  | Some config ->
+    let token = match cancellation_token with
+      | Some t -> t
+      | None -> Cancellation.create_token rt.cancellation_root
+    in
+    let _ = on_tool_event in
+    let _ = conversation in
+    let result = Engine.run_structured
+      ~max_repair_attempts
+      ~response_schema
+      ?on_repair_attempt
+      rt.services.llm token config message in
+    (match result with
+     | Ok struct_result ->
+       record_llm_success rt;
+       let evt = Types.Structured_output_completed {
+         attempts = struct_result.attempts;
+         schema_valid = true;
+         task_id = Task_id.create ();
+       } in
+       publish_event rt evt;
+       Result.Ok struct_result
+     | Error (err, conv) ->
+       record_llm_error rt err;
+       let evt = Types.Structured_output_completed {
+         attempts = max_repair_attempts;
+         schema_valid = false;
+         task_id = Task_id.create ();
+       } in
+       publish_event rt evt;
+       Result.Error (err, conv))
 
 let submit_task rt ?(priority = 5) ?(timeout = 300.0) input =
   let id = Task_id.create () in

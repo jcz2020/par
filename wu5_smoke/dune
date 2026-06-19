@@ -1,0 +1,3 @@
+(executable
+ (name test_wu5)
+ (libraries par))
