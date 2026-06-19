@@ -114,8 +114,13 @@ build_from_source() {
   command -v opam >/dev/null 2>&1 || die "opam not found (required for build-from-source). Install from https://opam.ocaml.org/doc/Install.html"
 
   local build_dir="$(mktemp -d)"
-  info "Cloning PAR v${ver} source..."
-  git clone --depth 1 --branch "v${ver}" "https://github.com/$GITHUB_REPO.git" "$build_dir/par" || die "git clone failed"
+  if [ "$ver" = "latest" ] || ! git ls-remote --exit-code --heads "https://github.com/$GITHUB_REPO.git" "v${ver}" >/dev/null 2>&1; then
+    info "Cloning PAR main branch (latest)..."
+    git clone --depth 1 "https://github.com/$GITHUB_REPO.git" "$build_dir/par" || die "git clone failed"
+  else
+    info "Cloning PAR v${ver} source..."
+    git clone --depth 1 --branch "v${ver}" "https://github.com/$GITHUB_REPO.git" "$build_dir/par" || die "git clone failed"
+  fi
 
   cd "$build_dir/par"
   info "Installing dependencies (this may take a few minutes on first run)..."
