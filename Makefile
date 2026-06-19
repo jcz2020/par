@@ -60,7 +60,7 @@ SEMVER_RE := ^\(0\|\[1-9\][0-9]*\)\.\(0\|\[1-9\][0-9]*\)\.\(0\|\[1-9\][0-9]*\)
 
 validate-version: ## Validate dune-project version is valid semver
 	@VERSION="$(get-version)"; \
-	if ! echo "$$VERSION" | grep -qP '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[a-zA-Z0-9._-]+)?$$'; then \
+	if ! echo "$$VERSION" | grep -qE '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[a-zA-Z0-9._-]+)?$$'; then \
 		echo "ERROR: Invalid semver: $$VERSION"; exit 1; \
 	fi; \
 	echo "OK $$VERSION is valid semver"
