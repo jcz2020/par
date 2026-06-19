@@ -1,5 +1,40 @@
 # CHANGES
 
+## v0.4.8-beta.20260619 (2026-06-19)
+
+> Feature: Runtime.invoke_structured — schema-validated LLM output. PAR-xd5 + PAR-5cc.
+
+### New Features
+
+- **Structured output API** (PAR-xd5, P0): `Runtime.invoke_structured ~agent_id ~message ~response_schema` returns schema-validated JSON instead of free text. The function returns `structured_invoke_result = { value; raw_response; conversation; attempts }` so callers can chain follow-up turns and observe repair-loop behavior.
+- **OpenAI native structured output** (WU-3): `Openai_provider.complete_structured` emits `response_format: { type: "json_schema", json_schema: { name, schema, strict: true } }` per the [OpenAI Structured Outputs spec](https://platform.openai.com/docs/guides/structured-outputs).
+- **Schema normalization for OpenAI strict mode** (Oracle D5 must-fix): `Openai_provider.normalize_for_openai_strict` warns about silent server-side rewrites (forces `additionalProperties: false`, marks all properties `required`, converts `const → enum`). Without local normalization, users get semantically wrong output while PAR reports success.
+- **Anthropic native structured output** (WU-4): `Anthropic_provider.complete_structured` uses the 2026 GA `output_config.format` field. JSON lands in `content[0].text` as a JSON-encoded string.
+- **Engine feedback repair loop** (WU-2.2): on JSON parse or schema-validation failure, `Engine.run_structured` appends repair messages to conversation and retries up to `max_repair_attempts` (default 3). Cancellation token is checked at the top of each iteration (Oracle BS-1 must-fix). Middleware `on_before_llm` / `on_after_llm` hooks still fire (Oracle D2 must-fix); only `on_error` is bypassed because the loop is the repair authority.
+- **Mock provider structured support** (WU-5): `Mock_provider.create` now accepts `?structured_response:Yojson.Safe.t` for test override, or synthesizes a minimal valid object from the request schema's top-level properties.
+- **Generic fallback path**: when `llm_service.complete_structured_fn = None` (e.g. Ollama, Custom providers), the engine prepends a JSON Schema directive to the system prompt, calls `complete_fn`, then locally validates the response against the schema. Falls back gracefully without rejecting the provider.
+- **Python FFI binding** (WU-7): `Runtime.invoke_structured(agent_id, message, response_schema)` accepts a Python dict schema, returns a parsed dict, raises `PARInvokeError` on failure. C ABI `par_invoke_structured` exposed alongside `par_invoke`.
+- **New event type**: `Structured_output_completed of { attempts; schema_valid; task_id }` fires after every structured call for observability subscribers.
+- **Lenient JSON extraction** (WU-2.1): `Json_extract.extract_json_from_text` strips markdown fences (` ```json `, ` ``` `), extracts balanced `{...}` / `[...]` blocks from prose, and skips over string literals to avoid false-depth scans.
+
+### API Changes
+
+- **`Types.llm_service`** (additive, non-breaking): new optional field `complete_structured_fn : (... -> Yojson.Safe.t -> (llm_response, error_category) result) option`. Default `None` means fallback path. Existing custom providers keep compiling; they just don't get native structured support until they populate the field.
+- **`Types.structured_invoke_result`** (new type): `{ value : Yojson.Safe.t; raw_response : llm_response; conversation : conversation; attempts : int }`.
+- **`Types.event`** (additive variant): new constructor `Structured_output_completed of { attempts : int; schema_valid : bool; task_id : Task_id.t }`. Exhaustive `match event with ...` consumers without a catch-all arm must add an explicit branch.
+- **`Runtime.invoke_structured`** (new public val): signature in `runtime.mli` after `invoke`.
+- **`Engine.run_structured`** (new public val): signature in `engine.mli` after `run_agent`.
+- **`Mock_provider.create`** (additive, optional param): new `?structured_response:Yojson.Safe.t`.
+
+### Limitations (documented per Oracle D4)
+
+The in-tree JSON Schema validator (`Validation.validate_value`) checks **top-level object properties only** in the fallback path (type, required, enum, minimum/maximum, minLength/maxLength). Array `items`, nested object `properties`, and `oneOf` / `anyOf` are NOT validated locally. **Native providers (OpenAI strict mode, Anthropic output_config.format) validate deeply server-side** — the local limitation only affects the fallback path. Full nested validation deferred to v0.5.
+
+### Test Count
+
+- 986 OCaml tests (+13 new: engine_structured feedback loop, cancellation, middleware hooks, json_extract variants).
+- 32 Python tests (+2 new: invoke_structured signature + error path).
+
 ## v0.4.7 (2026-06-19)
 
 > Hotfix: ignore hallucinated tool_calls when agent has no tools.
