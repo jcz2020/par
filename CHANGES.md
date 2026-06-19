@@ -1,5 +1,13 @@
 # CHANGES
 
+## v0.4.7 (2026-06-19)
+
+> Hotfix: ignore hallucinated tool_calls when agent has no tools.
+
+### Bug Fixes
+
+- **PAR-70i** (P1): When `agent.tools = []`, LLM providers that hallucinate tool_calls (e.g. MiniMax) no longer cause API 400 errors. Engine now checks `agent.tools <> []` before entering tool execution branch. Hallucinated tool_calls are safely ignored and `resp.text` is used as the final output.
+
 ## v0.4.6 (2026-06-18)
 
 > CLI stability fix. 4 bugs fixed (2 P0 + 2 P3). Removes linenoise dependency.
