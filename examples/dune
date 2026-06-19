@@ -7,3 +7,7 @@
 (executable
  (name otel_tracing)
  (libraries par eio eio_main yojson unix))
+
+(executable
+ (name verify_structured)
+ (libraries par eio eio_main yojson))
