@@ -197,6 +197,161 @@ let add_tool_result_message conv (call : tool_call) result =
   } in
   { conv with messages = conv.messages @ [ msg ] }
 
+(* -------------------------------------------------------------------------- *)
+(* Schema-driven structured output with repair-on-failure loop.               *)
+(* See docs/v0.4.8-ROADMAP.md §Feedback Retry Loop.                           *)
+(* -------------------------------------------------------------------------- *)
+
+let add_user_feedback conv feedback_message =
+  let msg = {
+    role = User;
+    content = Some feedback_message;
+    tool_calls = None;
+    tool_call_id = None;
+    name = None;
+  } in
+  { conv with messages = conv.messages @ [ msg ] }
+
+(* Local pretty-printer for error_category. Cannot call
+   Runtime.string_of_error_category here because Runtime depends on Engine
+   (Runtime.invoke calls Engine.run_agent) — a module cycle would form.
+   Mirrors Runtime.string_of_error_category verbatim. *)
+let error_category_to_string (e : error_category) =
+  match e with
+  | Timeout -> "Timeout"
+  | Invalid_input msg -> Printf.sprintf "Invalid_input: %s" msg
+  | External_failure msg -> Printf.sprintf "External_failure: %s" msg
+  | Rate_limited -> "Rate_limited"
+  | Permission_denied msg -> Printf.sprintf "Permission_denied: %s" msg
+  | Internal msg -> Printf.sprintf "Internal: %s" msg
+
+(* Schema-driven structured output. Calls the LLM (native structured endpoint
+   when available, else a fallback that prepends a JSON-schema directive to
+   the system prompt), extracts JSON from the response via Json_extract,
+   validates against [response_schema], and on failure appends an assistant
+   reply + user feedback message to the conversation and retries, up to
+   [max_repair_attempts] times. *)
+let run_structured
+    ?(max_repair_attempts = 3)
+    ?(on_before_llm : (conversation -> conversation option) option = None)
+    ?(on_after_llm : (llm_response -> llm_response option) option = None)
+    ?on_repair_attempt
+    ~response_schema
+    (llm : llm_service)
+    token (agent : agent_config) user_message =
+  (* System prompt construction mirrors run_agent (engine.ml L205-216). *)
+  let sys_prompt =
+    match Template.effective_system_prompt agent ~runtime_id:"structured" with
+    | Ok s -> s
+    | Error e ->
+      let msg = match e with
+        | Invalid_input m -> m
+        | Internal m -> m
+        | _ -> "render failed"
+      in
+      Logs.warn (fun m ->
+        m "[engine] Template render failed (structured), falling back to plain system_prompt: %s" msg);
+      agent.system_prompt
+  in
+  let conv0 = make_conversation sys_prompt user_message in
+
+  (* Dispatch: native when llm.complete_structured_fn = Some _, otherwise
+     fallback that injects the schema directive into the system message text.
+     The fallback does NOT add a separate User message before user_message —
+     the existing user_message is preserved as the second conversation
+     message, and the system message gains the schema instruction. *)
+  let dispatch (model : model_config) tools conv (schema : Yojson.Safe.t) =
+    match llm.complete_structured_fn with
+    | Some fn -> fn model tools conv schema
+    | None ->
+      let directive = Printf.sprintf
+        "You MUST respond with a valid JSON object matching this exact schema: %s\nDo not include any text outside the JSON object."
+        (Yojson.Safe.to_string schema) in
+      let messages = match conv.messages with
+        | [] -> conv.messages
+        | first :: rest ->
+          let first_text = match first.content with
+            | Some t -> t ^ "\n\n" ^ directive
+            | None -> directive
+          in
+          { first with content = Some first_text } :: rest
+      in
+      llm.complete_fn model tools { conv with messages }
+  in
+
+  let rec loop (attempt : int) (conv : conversation)
+      : (structured_invoke_result, error_category * conversation) result =
+    (* BS-1: cancellation check at top of each iteration. Prevents unbounded
+       LLM calls when the caller signals cancel between repair attempts. *)
+    if Cancellation.is_cancelled token then
+      Result.Error ((Timeout : error_category), conv)
+    else begin
+      (* D2: fire on_before_llm if set — conversation-aware but non-mutating
+         observability hook (e.g. Logging middleware captures structured
+         calls). *)
+      let conv_after_before = match on_before_llm with
+        | Some fn -> (match fn conv with Some c -> c | None -> conv)
+        | None -> conv
+      in
+      let result = dispatch agent.model agent.tools conv_after_before response_schema in
+      match result with
+      | Error cat ->
+        (* LLM/network error — propagate, no repair. HTTP retry is the
+           existing Retry middleware's responsibility (it wraps on_error),
+           and the structured loop only owns post-LLM parse/schema
+           failures — see ROADMAP §Bypassing middleware. *)
+        Result.Error (cat, conv_after_before)
+      | Ok llm_resp ->
+        (* D2: fire on_after_llm if set. *)
+        let llm_resp_after = match on_after_llm with
+          | Some fn -> (match fn llm_resp with Some r -> r | None -> llm_resp)
+          | None -> llm_resp
+        in
+        let conv_with_assistant = add_assistant_message conv_after_before llm_resp_after in
+        let text = match llm_resp_after.text with
+          | Some t -> t
+          | None -> ""
+        in
+        (match Json_extract.extract_json_from_text text with
+         | Error msg ->
+           (* Parse failure — feedback + retry. *)
+           (match on_repair_attempt with
+            | Some cb ->
+              cb attempt (Invalid_input ("JSON parse: " ^ msg)) conv_with_assistant
+            | None -> ());
+           if attempt >= max_repair_attempts then
+             Result.Error
+               (Invalid_input
+                  (Printf.sprintf "JSON parse failed after %d attempt(s): %s" attempt msg),
+                conv_with_assistant)
+           else
+             let conv' = add_user_feedback conv_with_assistant
+               (Printf.sprintf
+                  "Your previous response was not valid JSON: %s. Please respond with valid JSON matching the schema."
+                  msg) in
+             loop (attempt + 1) conv'
+         | Ok json ->
+           (match Validation.validate_tool_input_result response_schema json with
+            | Ok () ->
+              Ok ({ value = json; raw_response = llm_resp_after;
+                    conversation = conv_with_assistant; attempts = attempt }
+                 : structured_invoke_result)
+            | Error cat ->
+              (match on_repair_attempt with
+               | Some cb -> cb attempt cat conv_with_assistant
+               | None -> ());
+              if attempt >= max_repair_attempts then
+                Result.Error (cat, conv_with_assistant)
+              else
+                let conv' = add_user_feedback conv_with_assistant
+                  (Printf.sprintf
+                     "Schema violation: %s. Please respond with JSON matching the schema."
+                     (error_category_to_string cat)) in
+                loop (attempt + 1) conv'))
+    end
+  in
+  loop 1 conv0
+
 let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
     ?(tool_call_hooks = None) ?(quota = None) ?(parallel = false)
     ?(on_progress = None) ?(on_tool_event = None) ?(on_chunk = None)
