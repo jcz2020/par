@@ -265,6 +265,28 @@ let do_invoke (id : int) (agent_id : string) (message : string) =
        Some json
      with e -> Some (error_json (Printexc.to_string e)))
 
+let do_invoke_structured (id : int) (agent_id : string) (message : string) (schema_json : string) =
+  match get_handle id with
+  | None -> None
+  | Some handle ->
+    (try
+       let response_schema = Yojson.Safe.from_string schema_json in
+       let result = Par.Runtime.invoke_structured handle.rt
+         ~agent_id ~message ~response_schema () in
+       let json = match result with
+         | Ok { Par.Types.value; raw_response; conversation = _; attempts } ->
+           Printf.sprintf
+             "{\"status\": \"ok\", \"value\": %s, \"raw\": %s, \"attempts\": %d}"
+             (Yojson.Safe.to_string value)
+             (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson raw_response))
+             attempts
+         | Error (err, _) ->
+           error_json (Printf.sprintf "Invoke_structured failed: %s"
+             (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
+       in
+       Some json
+     with e -> Some (error_json (Printexc.to_string e)))
+
 let parse_workflow (json : Yojson.Safe.t) : Par.Types.workflow =
   let open Yojson.Safe.Util in
   let id = json |> member "id" |> to_string in
@@ -419,6 +441,12 @@ let () =
     (fun (rt_val : Obj.t) (agent_id : string) (message : string) ->
       let id = Obj.magic rt_val in
       unwrap (do_invoke id agent_id message))
+
+let () =
+  Callback.register "par_invoke_structured"
+    (fun (rt_val : Obj.t) (agent_id : string) (message : string) (schema_json : string) ->
+      let id = Obj.magic rt_val in
+      unwrap (do_invoke_structured id agent_id message schema_json))
 
 let () =
   Callback.register "par_submit_workflow"

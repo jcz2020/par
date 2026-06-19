@@ -215,6 +215,42 @@ class Runtime:
             pass
         return result
 
+    def invoke_structured(self, agent_id: str, message: str,
+                          response_schema: dict) -> dict:
+        """Invoke an agent with structured output constraint.
+
+        Args:
+            agent_id: The agent's identifier.
+            message: The user message.
+            response_schema: JSON Schema dict describing the desired output.
+
+        Returns:
+            Parsed JSON dict matching response_schema.
+
+        Raises:
+            PARInvokeError: If invocation fails or output doesn't match schema.
+        """
+        self._check_handle()
+        schema_json = json.dumps(response_schema)
+        result_ptr = _lib.par_invoke_structured(
+            self._handle, _c_str(agent_id), _c_str(message), _c_str(schema_json)
+        )
+        result = _py_str(result_ptr)
+        if not result:
+            raise PARInvokeError(f"Invoke_structured failed for agent: {agent_id}")
+        try:
+            parsed = json.loads(result)
+            if isinstance(parsed, dict) and "status" in parsed:
+                if parsed["status"] == "ok":
+                    return json.loads(parsed["value"])
+                if "message" in parsed:
+                    raise PARInvokeError(parsed["message"])
+            if isinstance(parsed, dict) and "error" in parsed:
+                raise PARInvokeError(parsed["error"])
+        except json.JSONDecodeError:
+            pass
+        raise PARInvokeError(f"Invoke_structured returned unexpected: {result}")
+
     def submit_workflow(self, workflow_json: str) -> str:
         """Submit a workflow for execution.
 

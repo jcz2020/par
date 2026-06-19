@@ -33,6 +33,11 @@ int par_register_agent(par_runtime_t* rt, const char* config_json);
 char* par_invoke(par_runtime_t* rt, const char* agent_id,
                  const char* message);
 
+/* Synchronous structured invocation — returns JSON envelope with value/raw/attempts.
+   Caller must free(). schema_json is a JSON-encoded JSON Schema string. */
+char* par_invoke_structured(par_runtime_t* rt, const char* agent_id,
+                            const char* message, const char* schema_json);
+
 /* Workflow API */
 char* par_submit_workflow(par_runtime_t* rt, const char* workflow_json);
 int   par_approve_workflow(par_runtime_t* rt, const char* run_id,

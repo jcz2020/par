@@ -72,6 +72,12 @@ _lib.par_register_agent.restype = ctypes.c_int
 _lib.par_invoke.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
 _lib.par_invoke.restype = ctypes.c_void_p
 
+# char* par_invoke_structured(par_runtime_t* rt, const char* agent_id,
+#                              const char* message, const char* schema_json);
+_lib.par_invoke_structured.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
+                                       ctypes.c_char_p, ctypes.c_char_p]
+_lib.par_invoke_structured.restype = ctypes.c_void_p
+
 # char* par_submit_workflow(par_runtime_t* rt, const char* workflow_json);
 _lib.par_submit_workflow.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_submit_workflow.restype = ctypes.c_void_p

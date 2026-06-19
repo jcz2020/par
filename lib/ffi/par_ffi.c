@@ -201,6 +201,20 @@ char* par_invoke(par_runtime_t* rt, const char* agent_id,
     return ret;
 }
 
+char* par_invoke_structured(par_runtime_t* rt, const char* agent_id,
+                            const char* message, const char* schema_json) {
+    value c_aid = caml_copy_string(agent_id);
+    value c_msg = caml_copy_string(message);
+    value c_schema = caml_copy_string(schema_json);
+
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call4_exn("par_invoke_structured", rt->_ocaml_value,
+                             c_aid, c_msg, c_schema);
+    char* ret = extract_string(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return ret;
+}
+
 char* par_submit_workflow(par_runtime_t* rt, const char* workflow_json) {
     value c_wf = caml_copy_string(workflow_json);
 
