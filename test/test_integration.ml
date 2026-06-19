@@ -30,6 +30,7 @@ let mock_llm responses =
     stream_fn = (fun _ _tools _ _ _ -> Ok {
         final_usage = dummy_usage; finish_reason = Stop; chunks_received = 0 });
     close_fn = (fun () -> ());
+    complete_structured_fn = None;
   }
 
 let with_token f =
@@ -616,6 +617,7 @@ let middleware_suite =
         stream_fn = (fun _ _tools _ _ _ -> Ok {
             final_usage = dummy_usage; finish_reason = Stop; chunks_received = 0 });
         close_fn = (fun () -> ());
+        complete_structured_fn = None;
       } in
       let retry_mw = Retry.retry ~config:{ max_attempts = 3; base_delay = 0.01; max_delay = 0.01 } () in
       let agent = basic_agent ~middleware:[ retry_mw ] () in

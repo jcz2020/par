@@ -382,6 +382,13 @@ let invoke rt ~agent_id ~message ?cancellation_token ?conversation
       record_llm_error rt err;
       Result.Error (err, conv)
 
+let invoke_structured rt ~agent_id ~message ~response_schema
+    ?(max_repair_attempts = 3) ?cancellation_token ?conversation
+    ?on_tool_event ?on_repair_attempt () =
+  ignore (rt, agent_id, message, response_schema, max_repair_attempts,
+          cancellation_token, conversation, on_tool_event, on_repair_attempt);
+  failwith "Runtime.invoke_structured: not implemented yet (WU-6 will provide real impl)"
+
 let submit_task rt ?(priority = 5) ?(timeout = 300.0) input =
   let id = Task_id.create () in
   let task = {
@@ -619,7 +626,8 @@ let create ?(persistence = noop_persistence)
            ?(event_bus = noop_event_bus_service)
            ?(llm = { complete_fn = (fun _ _tools _ -> Result.Error (Internal "LLM not initialized"));
                      stream_fn = (fun _ _tools _ _ _ -> Result.Error (Internal "LLM not initialized"));
-                     close_fn = ignore })
+                     close_fn = ignore;
+                     complete_structured_fn = None })
            ?(bash_policy = (module Bash_policy.Coder : Bash_policy.POLICY))
            ?(mcp_servers = [])
            ?mcp_process_mgr

@@ -142,6 +142,13 @@ type invoke_result = {
   conversation : conversation;
 }
 
+type structured_invoke_result = {
+  value        : Yojson.Safe.t;   (* schema-validated JSON returned by LLM *)
+  raw_response : llm_response;    (* original LLM reply (debugging / token accounting) *)
+  conversation : conversation;    (* updated, includes any repair messages *)
+  attempts     : int;             (* 1 = happy path; >1 = repairs happened *)
+}
+
 (* -------------------------------------------------------------------------- *)
 (* Agent configuration types                                            *)
 (* -------------------------------------------------------------------------- *)
@@ -434,6 +441,11 @@ type event =
   | Mcp_resource_read of { server_id : string; uri : string }
   | Mcp_prompt_rendered of { server_id : string; prompt_name : string }
   | Agent_handoff of { from_agent : string; to_agent : string; task_id : Task_id.t }
+  | Structured_output_completed of {
+      attempts : int;
+      schema_valid : bool;
+      task_id : Task_id.t;
+    }
 [@@deriving yojson]
 
 type event_envelope = {
@@ -688,6 +700,10 @@ type llm_service = {
     (llm_response_chunk -> unit) ->
     (stream_complete, error_category) result;
   close_fn : unit -> unit;
+  complete_structured_fn :
+    (model_config -> tool_descriptor list -> conversation ->
+     Yojson.Safe.t ->                             (* response_schema *)
+     (llm_response, error_category) result) option;  (* None = fallback path *)
 }
 
 (* -------------------------------------------------------------------------- *)

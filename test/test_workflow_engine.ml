@@ -33,6 +33,7 @@ let mock_llm responses =
     stream_fn = (fun _ _tools _ _ _ -> Ok {
         final_usage = dummy_usage; finish_reason = Stop; chunks_received = 0 });
     close_fn = (fun () -> ());
+    complete_structured_fn = None;
   }
 
 let error_to_string = function

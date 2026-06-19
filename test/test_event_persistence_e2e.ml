@@ -43,6 +43,7 @@ let test_runtime_create_persists_published_events () =
                model = "mock" });
         stream_fn = (fun _ _ _ _ _ -> Error (Timeout));
         close_fn = ignore;
+        complete_structured_fn = None;
       } in
       match Sqlite_persistence.create db with
       | Error e -> cleanup (); Alcotest.fail ("sqlite create: " ^ err_str e)

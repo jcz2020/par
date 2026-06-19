@@ -77,7 +77,8 @@ let mock_llm rs =
   let i = ref 0 in
   { Types.complete_fn = (fun _ _tools _ -> incr i; Ok (List.nth rs (!i - 1)));
     stream_fn = (fun _ _tools _ _ _ -> Ok { final_usage = { prompt_tokens = 10; completion_tokens = 5; total_tokens = 15 }; finish_reason = Types.Stop; chunks_received = 0 });
-    close_fn = ignore }
+    close_fn = ignore;
+    complete_structured_fn = None; }
 
 let () =
   let rs = [

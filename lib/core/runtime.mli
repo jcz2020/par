@@ -79,6 +79,19 @@ val invoke :
   unit ->
   (invoke_result, error_category * conversation) result
 
+val invoke_structured :
+  runtime ->
+  agent_id:string ->
+  message:string ->
+  response_schema:Yojson.Safe.t ->
+  ?max_repair_attempts:int ->
+  ?cancellation_token:cancellation_token ->
+  ?conversation:conversation ->
+  ?on_tool_event:(event -> unit) ->
+  ?on_repair_attempt:(int -> error_category -> conversation -> unit) ->
+  unit ->
+  (structured_invoke_result, error_category * conversation) result
+
 val submit_task :
   runtime ->
   ?priority:int ->

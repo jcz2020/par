@@ -33,6 +33,7 @@ let extract_task_id : event -> string = function
   | Mcp_resource_read _ -> ""
   | Mcp_prompt_rendered _ -> ""
   | Agent_handoff { task_id; _ } -> Task_id.to_string task_id
+  | Structured_output_completed { task_id; _ } -> Task_id.to_string task_id
 
 let extract_session_id (envelope : event_envelope) : string =
   envelope.metadata.session_id

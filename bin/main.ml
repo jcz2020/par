@@ -141,7 +141,8 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
         Openai_provider.set_network t net_gen;
         { complete_fn = (fun mc tools conv -> Openai_provider.complete t mc tools conv);
           stream_fn = (fun mc tools conv sc cb -> Openai_provider.stream t mc tools conv sc cb);
-          close_fn = (fun () -> Openai_provider.close t) })
+          close_fn = (fun () -> Openai_provider.close t);
+          complete_structured_fn = None })
   | `Anthropic ->
     let cfg = Anthropic { api_key = api_key_val; base_url = api_base_val } in
     (match Anthropic_provider.create cfg with
@@ -150,9 +151,10 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
        exit 1
      | Ok t ->
        Anthropic_provider.set_network t net_gen;
-       { complete_fn = (fun mc tools conv -> Anthropic_provider.complete t mc tools conv);
-         stream_fn = (fun mc tools conv sc cb -> Anthropic_provider.stream t mc tools conv sc cb);
-         close_fn = (fun () -> Anthropic_provider.close t) })
+        { complete_fn = (fun mc tools conv -> Anthropic_provider.complete t mc tools conv);
+          stream_fn = (fun mc tools conv sc cb -> Anthropic_provider.stream t mc tools conv sc cb);
+          close_fn = (fun () -> Anthropic_provider.close t);
+          complete_structured_fn = None })
 
 let default_template =
   "你是{{role}}，你的任务是{{task}}。\n当前可用工具：{{available_tools}}。\n当前时间：{{current_time}}。"
@@ -978,6 +980,8 @@ let format_event_for_history (evt : Types.event) =
     Printf.sprintf "Mcp_resource_read: %s uri=%s" server_id uri
   | Types.Mcp_prompt_rendered { server_id; prompt_name } ->
     Printf.sprintf "Mcp_prompt_rendered: %s prompt=%s" server_id prompt_name
+  | Types.Structured_output_completed { attempts; schema_valid; _ } ->
+    Printf.sprintf "Structured_output_completed: attempts=%d valid=%s" attempts (status schema_valid)
 
 let session_id_arg =
   let open Cmdliner in

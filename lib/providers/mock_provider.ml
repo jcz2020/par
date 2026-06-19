@@ -184,5 +184,6 @@ let create ?(delay = None) ?(usage = default_usage) ?(model_name = default_model
     close_fn = (fun () ->
       state.history.close_calls <- state.history.close_calls + 1
     );
+    complete_structured_fn = None;
   } in
   (service, state.history)

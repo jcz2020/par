@@ -13,6 +13,7 @@ let mock_llm : llm_service = {
          model = "mock" });
   stream_fn = (fun _ _ _ _ _ -> Error (Timeout));
   close_fn = ignore;
+  complete_structured_fn = None;
 }
 
 let tmp_db () =

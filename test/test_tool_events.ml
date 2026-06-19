@@ -30,6 +30,7 @@ let mock_llm responses =
     stream_fn = (fun _ _ _ _ _ ->
        Ok { final_usage = dummy_usage; finish_reason = Stop; chunks_received = 0 });
     close_fn = (fun () -> ());
+    complete_structured_fn = None;
   }
 
 let with_token f =
