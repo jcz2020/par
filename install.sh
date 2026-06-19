@@ -124,10 +124,10 @@ build_from_source() {
 
   cd "$build_dir/par"
   info "Installing dependencies (this may take a few minutes on first run)..."
-  opam install . --deps-only -y 2>/dev/null; true
+  opam install . --deps-only -y >&2 2>/dev/null; true
 
   info "Building..."
-  opam exec -- dune build bin/main.exe || die "Build failed"
+  opam exec -- dune build bin/main.exe >&2 || die "Build failed"
 
   local tmpdir="$(mktemp -d)"
   cp _build/default/bin/main.exe "$tmpdir/par"
