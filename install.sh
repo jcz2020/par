@@ -124,7 +124,7 @@ build_from_source() {
 
   cd "$build_dir/par"
   info "Installing dependencies (this may take a few minutes on first run)..."
-  opam install . --deps-only -y >&2 2>/dev/null; true
+  opam install . --deps-only -y 2>&1 | grep -v -i 'postgresql\|conf-postgresql\|pg_config\|No changes have been' >&2; true
 
   info "Building..."
   opam exec -- dune build bin/main.exe >&2 || die "Build failed"
