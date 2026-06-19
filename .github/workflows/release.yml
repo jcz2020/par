@@ -62,8 +62,35 @@ jobs:
         working-directory: artifacts
         run: sha512sum par-${{ github.ref_name }}-* > sha512-checksums.txt
 
-      - name: Render release notes
-        run: sed "s/__VERSION__/${{ github.ref_name }}/g" docs/RELEASE-TEMPLATE.md > release-notes.md
+      - name: Generate release notes from CHANGES.md
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          VERSION_NUM="${VERSION#v}"
+          SECTION=$(awk -v v="$VERSION_NUM" '
+            /^## v/ { if (in_section) exit; if ($0 ~ "## v"v) { in_section=1; next } }
+            in_section { print }
+          ' CHANGES.md)
+          if [ -z "$SECTION" ]; then
+            SECTION="(No changelog entry found for $VERSION_NUM)"
+          fi
+          cat > release-notes.md << RELEASE_EOF
+          $SECTION
+
+          ---
+
+          ## Install
+
+          \`\`\`bash
+          curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
+          \`\`\`
+
+          Or upgrade: \`par update\`
+
+          > **macOS:** binary is unsigned. Run \`xattr -cr "$(command -v par)"\` once after install.
+
+          Full changelog: https://github.com/jcz2020/par/blob/main/CHANGES.md
+          RELEASE_EOF
 
       - uses: softprops/action-gh-release@v2
         with:
@@ -71,7 +98,6 @@ jobs:
           name: ${{ github.ref_name }}
           body_path: release-notes.md
           prerelease: ${{ contains(github.ref_name, '-beta.') || contains(github.ref_name, '-rc.') }}
-          generate_release_notes: true
           files: |
             artifacts/par-${{ github.ref_name }}-linux-x64
             artifacts/par-${{ github.ref_name }}-macos-arm64
