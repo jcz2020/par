@@ -139,10 +139,10 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
        exit 1
       | Ok t ->
         Openai_provider.set_network t net_gen;
-        { complete_fn = (fun mc tools conv -> Openai_provider.complete t mc tools conv);
+         { complete_fn = (fun mc tools conv -> Openai_provider.complete t mc tools conv);
           stream_fn = (fun mc tools conv sc cb -> Openai_provider.stream t mc tools conv sc cb);
           close_fn = (fun () -> Openai_provider.close t);
-          complete_structured_fn = None })
+          complete_structured_fn = Some (fun mc tools conv schema -> Openai_provider.complete_structured t mc tools conv schema) })
   | `Anthropic ->
     let cfg = Anthropic { api_key = api_key_val; base_url = api_base_val } in
     (match Anthropic_provider.create cfg with
@@ -151,10 +151,10 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
        exit 1
      | Ok t ->
        Anthropic_provider.set_network t net_gen;
-        { complete_fn = (fun mc tools conv -> Anthropic_provider.complete t mc tools conv);
-          stream_fn = (fun mc tools conv sc cb -> Anthropic_provider.stream t mc tools conv sc cb);
-          close_fn = (fun () -> Anthropic_provider.close t);
-          complete_structured_fn = None })
+       { complete_fn = (fun mc tools conv -> Anthropic_provider.complete t mc tools conv);
+         stream_fn = (fun mc tools conv sc cb -> Anthropic_provider.stream t mc tools conv sc cb);
+         close_fn = (fun () -> Anthropic_provider.close t);
+         complete_structured_fn = Some (fun mc tools conv schema -> Anthropic_provider.complete_structured t mc tools conv schema) })
 
 let default_template =
   "你是{{role}}，你的任务是{{task}}。\n当前可用工具：{{available_tools}}。\n当前时间：{{current_time}}。"
