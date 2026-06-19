@@ -864,8 +864,9 @@ let cmd_update () =
              let bin_path = tmpdir ^ "/" ^ asset_name in
               (match http_download_to_file client ~sw bin_uri bin_path with
                | Error _ ->
-                 Printf.eprintf "No prebuilt binary for %s.\nReinstall with: curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash\n" platform;
-                 exit 1
+                 Printf.eprintf "No prebuilt binary for %s. Reinstalling from source...\n" platform;
+                 flush stderr;
+                 exit (Sys.command "curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash")
               | Ok () ->
                 (match parse_checksum_for chk_content platform with
                  | None ->
