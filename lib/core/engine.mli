@@ -3,14 +3,14 @@ open Types
 val apply_before_llm :
   middleware_hook list ->
   conversation ->
-  (conversation -> llm_response) ->
-  llm_response
+  (conversation -> 'a) ->
+  'a
 
 val apply_after_llm :
   middleware_hook list ->
   llm_response ->
-  (llm_response -> llm_response) ->
-  llm_response
+  (llm_response -> 'a) ->
+  'a
 
 val apply_before_tool :
   middleware_hook list ->
@@ -76,6 +76,7 @@ val run_structured :
   ?on_before_llm:(conversation -> conversation option) option ->
   ?on_after_llm:(llm_response -> llm_response option) option ->
   ?on_repair_attempt:(int -> error_category -> conversation -> unit) ->
+  ?conversation:conversation ->
   response_schema:Yojson.Safe.t ->
   llm_service ->
   cancellation_token ->

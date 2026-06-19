@@ -236,6 +236,7 @@ let run_structured
     ?(on_before_llm : (conversation -> conversation option) option = None)
     ?(on_after_llm : (llm_response -> llm_response option) option = None)
     ?on_repair_attempt
+    ?conversation
     ~response_schema
     (llm : llm_service)
     token (agent : agent_config) user_message =
@@ -253,7 +254,13 @@ let run_structured
         m "[engine] Template render failed (structured), falling back to plain system_prompt: %s" msg);
       agent.system_prompt
   in
-  let conv0 = make_conversation sys_prompt user_message in
+  let conv0 = match conversation with
+    | Some existing ->
+      let usr = { role = User; content = Some user_message; tool_calls = None;
+                  tool_call_id = None; name = None } in
+      { existing with messages = existing.messages @ [ usr ] }
+    | None -> make_conversation sys_prompt user_message
+  in
 
   (* Dispatch: native when llm.complete_structured_fn = Some _, otherwise
      fallback that injects the schema directive into the system message text.

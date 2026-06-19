@@ -399,10 +399,18 @@ let invoke_structured rt ~agent_id ~message ~response_schema
       | None -> Cancellation.create_token rt.cancellation_root
     in
     let _ = on_tool_event in
-    let _ = conversation in
+    let on_before_llm_hook conv =
+      Some (Engine.apply_before_llm config.middleware conv (fun c -> c))
+    in
+    let on_after_llm_hook resp =
+      Some (Engine.apply_after_llm config.middleware resp (fun r -> r))
+    in
     let result = Engine.run_structured
       ~max_repair_attempts
+      ~on_before_llm:(Some on_before_llm_hook)
+      ~on_after_llm:(Some on_after_llm_hook)
       ~response_schema
+      ?conversation
       ?on_repair_attempt
       rt.services.llm token config message in
     (match result with

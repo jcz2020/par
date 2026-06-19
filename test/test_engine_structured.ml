@@ -374,8 +374,33 @@ let structured_suite =
           (match Validation.validate_tool_input_result person_schema missing_field with
            | Ok () -> Alcotest.fail "validator should reject missing required field"
            | Error _ -> ())
-        | Error (e, _) ->
+         | Error (e, _) ->
           Alcotest.fail ("expected Ok, got Error: " ^ error_to_string e)));
+
+    Alcotest.test_case "13. ?conversation resumes existing conversation (GAP-2 fix)" `Quick (fun () ->
+      let llm = mock_llm_with_structured
+        [ text_response (Yojson.Safe.to_string valid_person_json) ] in
+      let agent = basic_agent () in
+      with_token (fun token ->
+        let conv1 = match Engine.run_structured ~response_schema:person_schema
+            llm token agent "First" with
+          | Ok r -> r.conversation
+          | Error (e, _) -> Alcotest.fail ("first call: " ^ error_to_string e)
+        in
+        Alcotest.(check int) "first conv has system + user" 2 (List.length conv1.messages);
+        match Engine.run_structured ~response_schema:person_schema
+            ~conversation:conv1
+            llm token agent "Second" with
+        | Ok r ->
+          Alcotest.(check int) "resumed conv appends user" 3 (List.length r.conversation.messages);
+          (match List.nth_opt r.conversation.messages 2 with
+           | Some m ->
+             (match m.content with
+              | Some "Second" -> ()
+              | _ -> Alcotest.fail "third message should be user 'Second'")
+           | None -> Alcotest.fail "third message missing")
+        | Error (e, _) ->
+          Alcotest.fail ("second call: " ^ error_to_string e)));
   ])
 
 let () =
