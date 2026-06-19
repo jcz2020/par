@@ -48,6 +48,7 @@ module Timeout = Timeout
 module Arg_validation = Arg_validation
 module Output_validation = Output_validation
 module Validation = Validation
+module Json_extract = Json_extract
 module Pii_mask = Pii_mask
 module Sanitize_tool_output = Sanitize_tool_output
 module Version = Version

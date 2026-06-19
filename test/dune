@@ -275,3 +275,8 @@
  (name test_strip_ansi)
  (libraries par alcotest)
  (modules test_strip_ansi))
+
+(test
+ (name test_json_extract)
+ (libraries par alcotest yojson)
+ (modules test_json_extract))
