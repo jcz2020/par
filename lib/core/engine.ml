@@ -275,7 +275,7 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
           (match resp.text with Some t -> String.length t | None -> 0)
           (match resp.tool_calls with Some tcs -> string_of_int (List.length tcs) | None -> "none"));
         match resp.tool_calls with
-        | Some calls when calls <> [] ->
+        | Some calls when calls <> [] && agent.tools <> [] ->
           let conv = add_assistant_message conv resp in
           (* 3-phase execution: preflight (serial) → execute → finalize (serial).
              When parallel_tool_execution is enabled, tools in a batch run via
