@@ -40,11 +40,19 @@ val create :
   ?delay:float option ->
   ?usage:usage_stats ->
   ?model_name:string ->
+  ?structured_response:Yojson.Safe.t ->
   scripted_response list ->
   llm_service * call_history
 (** Create a mock LLM service and its shared call history.
     - [delay] — optional simulated latency in seconds
     - [usage] — usage stats included in every response (default: 10/20/30)
     - [model_name] — model string in responses (default: "mock-llm")
+    - [structured_response] — when set, [complete_structured_fn] returns this
+      JSON verbatim (wrapped as [llm_response.text]). When unset, the mock
+      synthesizes a minimal valid object from the request schema's
+      top-level [properties] (string→"", integer→0, etc.).
     - [responses] — scripted sequence; empty list yields a default Text "mock"
-    Returns ([llm_service], [call_history]) for injection and assertion. *)
+    Returns ([llm_service], [call_history]) for injection and assertion.
+
+    The returned [llm_service.complete_structured_fn] is always [Some _],
+    enabling deterministic structured-output testing without real LLM calls. *)

@@ -126,10 +126,46 @@ let count_chunks resp =
   (* text + tool + usage + done *)
   text_chunks + tool_chunks + 2
 
+(* --- Schema synthesis for structured output tests --- *)
+
+let synthesize_from_schema (schema : Yojson.Safe.t) : Yojson.Safe.t =
+  let default_for_type ty =
+    match ty with
+    | `String "string" -> `String ""
+    | `String "integer" -> `Int 0
+    | `String "number" -> `Float 0.0
+    | `String "boolean" -> `Bool false
+    | `String "array" -> `List []
+    | `String "object" -> `Assoc []
+    | `String "null" -> `Null
+    | _ -> `Null
+  in
+  match schema with
+  | `Assoc fields ->
+    (match List.assoc_opt "type" fields with
+     | Some (`String "object") ->
+       (match List.assoc_opt "properties" fields with
+        | Some (`Assoc props) ->
+          let synthesized = List.map (fun (k, subschema) ->
+            let default =
+              match subschema with
+              | `Assoc sf -> (match List.assoc_opt "type" sf with
+                  | Some ty -> default_for_type ty
+                  | None -> `Null)
+              | _ -> `Null
+            in
+            (k, default)
+          ) props in
+          `Assoc synthesized
+        | _ -> `Assoc [])
+     | Some ty -> default_for_type ty
+     | None -> `Assoc [])
+  | _ -> `Null
+
 (* --- Public API --- *)
 
 let create ?(delay = None) ?(usage = default_usage) ?(model_name = default_model)
-    responses =
+    ?structured_response responses =
   let state = {
     config = { responses; delay; usage; model_name };
     history = create_history ();
@@ -184,6 +220,20 @@ let create ?(delay = None) ?(usage = default_usage) ?(model_name = default_model
     close_fn = (fun () ->
       state.history.close_calls <- state.history.close_calls + 1
     );
-    complete_structured_fn = None;
+    complete_structured_fn = Some (fun model tools conv response_schema ->
+      maybe_delay state.config.delay;
+      let record = {
+        model; tools; conversation = conv;
+        timestamp = Unix.gettimeofday ();
+      } in
+      state.history.complete_calls <- record :: state.history.complete_calls;
+      let json = match structured_response with
+        | Some j -> j
+        | None -> synthesize_from_schema response_schema
+      in
+      Ok { text = Some (Yojson.Safe.to_string json);
+           tool_calls = None; finish_reason = Stop;
+           usage = state.config.usage; model = state.config.model_name }
+    );
   } in
   (service, state.history)
