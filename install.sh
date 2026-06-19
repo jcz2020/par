@@ -124,7 +124,7 @@ build_from_source() {
 
   cd "$build_dir/par"
   info "Installing dependencies (this may take a few minutes on first run)..."
-  opam install . --deps-only -y || die "opam dependency install failed"
+  opam install par par_cli --deps-only -y || die "opam dependency install failed"
 
   info "Building..."
   opam exec -- dune build bin/main.exe || die "Build failed"
