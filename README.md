@@ -8,7 +8,7 @@ A modular, type-safe agent runtime for OCaml 5.4+: LangChain + LangGraph for the
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 [![Tests](https://img.shields.io/badge/tests-987%20passing-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-0.4.7-blue)]()
+[![Version](https://img.shields.io/badge/version-0.4.8-blue)]()
 
 A complete, runnable program that registers a tool, registers an agent, and prints confirmation:
 

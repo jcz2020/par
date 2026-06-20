@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.4.8-beta.20260619 (2026-06-19)
+## v0.4.8 (2026-06-21)
 
 > Feature: Runtime.invoke_structured — schema-validated LLM output. PAR-xd5 + PAR-5cc.
 
