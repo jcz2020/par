@@ -1,13 +1,4 @@
-(executable
- (name basic_agent)
- (libraries par eio eio_main)
- (preprocess
-  (pps ppx_deriving_yojson)))
-
-(executable
- (name otel_tracing)
- (libraries par eio eio_main yojson unix))
 
 (executable
  (name verify_structured)
- (libraries par eio eio_main yojson))
+ (libraries par eio eio_main yojson mirage-crypto-rng.unix))
