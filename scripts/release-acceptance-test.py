@@ -107,11 +107,14 @@ def main() -> int:
 
     # Level 1: import + version match (BLOCKING)
     print("\n=== Level 1: import + version (MUST pass) ===")
+    # Avoid f-string / quote conflict by using a plain string + assertions
+    # outside the embedded code, plus a clean repr()-based error message.
     code = (
-        f"import par_runtime; "
-        f"assert par_runtime.__version__ == {expected_version!r}, "
-        f"f'version mismatch: {{par_runtime.__version__}} != {expected_version!r}'; "
-        f"print('import ok, version', par_runtime.__version__)"
+        "import par_runtime\n"
+        f"_v = par_runtime.__version__\n"
+        f"_e = {expected_version!r}\n"
+        f"assert _v == _e, 'version mismatch: ' + repr(_v) + ' != ' + repr(_e)\n"
+        "print('import ok, version', _v)\n"
     )
     rc, out, err = run_in_venv(venv_python, code)
     if rc != 0:
