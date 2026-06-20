@@ -32,8 +32,8 @@ The in-tree JSON Schema validator (`Validation.validate_value`) checks **top-lev
 
 ### Test Count
 
-- 986 OCaml tests (+13 new: engine_structured feedback loop, cancellation, middleware hooks, json_extract variants).
-- 32 Python tests (+2 new: invoke_structured signature + error path).
+- 987 OCaml tests (+13 new: engine_structured feedback loop, cancellation, middleware hooks, json_extract variants).
+- 33 Python tests (+2 new: invoke_structured signature + error path).
 
 ## v0.4.7 (2026-06-19)
 
