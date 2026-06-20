@@ -86,7 +86,18 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${TAG#v}"
+          # PEP 440 normalization: {sep}{word}{sep} collapses to {word}{num}
+          # Examples:
+          #   0.4.11-beta.20260621     -> 0.4.11b20260621
+          #   0.4.11-beta.20260621.post1 -> 0.4.11b20260621.post1
+          #   0.4.11-rc.1              -> 0.4.11rc1
+          # We do best-effort normalization in bash; the canonical normalization
+          # happens in setuptools/packaging when the wheel is built.
           VERSION="${VERSION//-beta./b}"
+          VERSION="${VERSION//-alpha./a}"
+          VERSION="${VERSION//-rc./rc}"
+          VERSION="${VERSION//-dev./dev}"
+          VERSION="${VERSION//-post./post}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Resolved VERSION=${VERSION}"
 
