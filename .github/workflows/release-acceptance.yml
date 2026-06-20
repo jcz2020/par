@@ -1,0 +1,153 @@
+name: Release acceptance
+
+on:
+  workflow_run:
+    workflows: ["PyPI publish"]   # MUST match pypi-publish.yml's top-level `name:` exactly
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref (tag or branch) to test'
+        required: true
+        default: 'main'
+        type: string
+
+# Two-run protection. cancel-in-progress: false — never kill a half-finished Docker test.
+concurrency:
+  group: release-acceptance-${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read      # download release assets
+  actions: read       # inspect upstream run (optional)
+  issues: write       # open issue on failure
+
+jobs:
+  accept:
+    name: Acceptance test in ${{ matrix.container }}
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event != 'pull_request' &&
+       startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        container:
+          - debian:12
+          - ubuntu:22.04
+          - ubuntu:24.04
+    steps:
+      - name: Checkout (workflow_run uses upstream HEAD SHA; dispatch uses inputs.ref)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+
+      - name: Resolve TAG
+        id: resolve-tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.ref }}"
+          else
+            TAG="${{ github.event.workflow_run.head_branch }}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Resolved TAG=${TAG}"
+
+      - name: Download wheel from GH Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.resolve-tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p wheels
+          gh release download "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern '*.whl' \
+            --dir wheels/
+          ls -la wheels/
+          # Rename to deterministic path for the next step
+          WHEEL=$(ls wheels/*.whl | head -1)
+          if [ -z "$WHEEL" ]; then
+            echo "ERROR: no wheel found in release $TAG" >&2
+            exit 1
+          fi
+          cp -f "$WHEEL" wheels/test-wheel.whl
+          echo "Using wheel: $WHEEL"
+
+      - name: Compute PEP 440 version
+        id: resolve-version
+        env:
+          TAG: ${{ steps.resolve-tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          VERSION="${VERSION//-beta./b}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Resolved VERSION=${VERSION}"
+
+      - name: Run acceptance test in ${{ matrix.container }}
+        run: |
+          docker run --rm -i \
+            -v "$PWD/wheels:/wheels:ro" \
+            -v "$PWD/scripts:/scripts:ro" \
+            ${{ matrix.container }} \
+            bash -euo pipefail <<'SCRIPT'
+          set -euo pipefail
+          apt-get update -qq
+          apt-get install -y -qq python3 python3-pip python3-venv
+          python3 -m venv /tmp/venv
+          /tmp/venv/bin/pip install --upgrade pip
+          /tmp/venv/bin/pip install /wheels/test-wheel.whl
+          python3 /scripts/release-acceptance-test.py /wheels/test-wheel.whl "$RELEASE_VERSION"
+          SCRIPT
+        env:
+          RELEASE_VERSION: ${{ steps.resolve-version.outputs.version }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Acceptance summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Container: ${{ matrix.container }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- TAG: ${{ steps.resolve-tag.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- VERSION: ${{ steps.resolve-version.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Result: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+
+  report-failure:
+    name: Report failure (open issue)
+    if: always() && needs.accept.result == 'failure'
+    needs: accept
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open regression issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.ref }}"
+          else
+            TAG="${{ github.event.workflow_run.head_branch }}"
+          fi
+          BODY=$(cat <<EOF
+          Release acceptance FAILED for \`${TAG}\`.
+
+          **Run:** ${RUN_URL}
+          **Trigger:** ${{ github.event_name }}
+          **Upstream conclusion:** ${{ github.event.workflow_run.conclusion }}
+
+          At least one matrix container reported a non-zero exit. Inspect the run linked above to see which container(s) failed and the underlying acceptance script output.
+
+          /cc release engineers
+          EOF
+          )
+          gh issue create \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Release acceptance FAILED for ${TAG}" \
+            --body "$BODY" \
+            --label release \
+            --label regression
