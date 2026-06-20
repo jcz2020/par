@@ -1,5 +1,42 @@
 # CHANGES
 
+## v0.4.12 (DRAFT — not yet released)
+
+> CI/release pipeline hardening + audit pass. No user-facing OCaml/Python API changes. All work is in `.github/workflows/`, `docker/`, and test infrastructure.
+
+### Fixed
+
+- **3-way GH Release race**: `release.yml`, `pypi-publish.yml`, and `opam-publish.yml` all called `softprops/action-gh-release@v2` on the same tag push, causing intermittent "Validation Failed: already_exists" failures (notably opam-publish on v0.4.11). Now `release.yml` is the sole release creator; `pypi-publish.yml` and `opam-publish.yml` use `gh release upload --clobber` after polling for the release to exist (30 retries × 10s).
+- **opam-publish.yml `${VERSION}` unset bug**: the `Print manual instructions` step referenced a shell variable that was scoped to a different step. Now derived from `github.ref_name` at step level.
+- **opam package surface inconsistency**: `pypi-publish.yml` and `opam-publish.yml` used `*.opam` wildcard (would include `par_postgres.opam`, which CI explicitly excludes). Now all 4 release-related workflows use the explicit list `par.opam + par_cli.opam`, matching CI.
+
+### Added
+
+- **Nightly build** (`.github/workflows/nightly.yml`): scheduled 06:00 UTC daily, runs full OCaml + Python test suite on `ubuntu-22.04` + `macos-15` matrix. Catches upstream bit-rot from opam dependencies. Includes `workflow_dispatch` for manual re-runs and `pull_request: paths:` trigger so PRs that touch the nightly YAML can test it without waiting for midnight.
+- **CodeQL security scan** (`.github/workflows/codeql.yml`): weekly scan of Python bindings + GitHub Actions workflows. CodeQL does NOT support OCaml (verified 2026-06-21 against the official supported-languages list), so OCaml source is excluded — the ctypes surface and workflow injection paths are the real vuln surface anyway.
+- **Dependency Review** (`.github/workflows/dependency-review.yml`): every PR to main gets a vulnerability scan via `actions/dependency-review-action@v4`. Fails on high-severity runtime vulnerabilities. Comments on PR only on failure (avoids spam). Shows OpenSSF scorecard for newly-added deps.
+- **Python version matrix** in `ci.yml`: expanded from `3.11` only to `3.8 / 3.9 / 3.10 / 3.11 / 3.12 / 3.13 / pypy3.10`. ctypes is version-agnostic in theory, but Python 3.13 changed `RTLD_GLOBAL` default and PyPy has its own quirks.
+- **OIDC PyPI trusted publisher** in `pypi-publish.yml`: new `pypi-upload` job uses `pypa/gh-action-pypi-publish@release/v1` with `id-token: write` permission. **Requires one-time user setup**: register the trusted publisher at `https://pypi.org/manage/project/par-runtime/settings/publishing/` (owner=`jcz2020`, repo=`par`, workflow=`pypi-publish.yml`, environment=`pypi`). Until done, this job fails with 403 and the manual `twine upload` fallback in `build-wheel` is used.
+- **manylinux Dockerfile** (`docker/manylinux-ocaml-5.4/Dockerfile`): scaffold for future manylinux_2_28_x86_64 wheel builds. Not yet integrated into `pypi-publish.yml` — requires auditwheel + dummy C extension work that was deferred to v0.4.13+.
+
+### Changed
+
+- `bindings/python/pyproject.toml`: added `wheel` to `[build-system] requires` (standard practice; was implicit).
+
+### Verification Evidence (to fill after release)
+
+- CI run URLs: `<pending v0.4.12-beta tag push>`
+- All 5 existing workflows (CI, Release, PyPI publish, opam publish, Release acceptance) must remain green.
+- All 3 new workflows (Nightly, CodeQL, Dependency Review) must run on first push without config errors.
+- OIDC PyPI upload job expected to FAIL on v0.4.12-beta (user has not yet registered trusted publisher). This is OK — `build-wheel` still produces the wheel and uploads to GH Release. The acceptance workflow still validates it. Manual `twine upload` remains the actual publish path for v0.4.12.
+
+### Test Count
+
+- **987 OCaml tests (unchanged from v0.4.11)**. v0.4.12 changes are CI workflows + Docker scaffolding + pyproject.toml only; no `.ml` files in `lib/`, `bin/`, or `test/` were modified.
+- 33 Python tests passing (unchanged).
+
+---
+
 ## v0.4.11 (RELEASED 2026-06-21)
 
 > Release engineering fix: thoroughly solve 3 P0 release bugs from v0.4.8/9/10 + add end-to-end acceptance test to prevent recurrence. PAR-j8i epic.

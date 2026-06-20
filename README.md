@@ -8,7 +8,7 @@ A modular, type-safe agent runtime for OCaml 5.4+: LangChain + LangGraph for the
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 [![Tests](https://img.shields.io/badge/tests-987%20passing-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-0.4.11-blue)]()
+[![Version](https://img.shields.io/badge/version-0.4.12-blue)]()
 
 > **PyPI status (2026-06-21)**: `pip install par-runtime` is **fixed in v0.4.11**. The 3 P0 release bugs from v0.4.8/9/10 (PAR-0qf, PAR-8cs, PAR-cog) are resolved, and every release now passes an end-to-end install test on 3 target platforms (debian:12, ubuntu:22.04, ubuntu:24.04) before upload. Use `install.sh` for the CLI binary on macOS or when you want a pinned binary install. See [`docs/release-pipeline-redesign.md`](docs/release-pipeline-redesign.md) for the postmortem.
 
