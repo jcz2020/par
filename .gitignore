@@ -34,6 +34,7 @@ bindings/python/build/
 bindings/python/dist/
 bindings/python/*.egg-info/
 bindings/python/par_runtime/*.so
+bindings/python/par_runtime/lib/
 __pycache__/
 *.pyc
 *.pyo
