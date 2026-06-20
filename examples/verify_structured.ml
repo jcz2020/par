@@ -9,7 +9,7 @@ let base_url =
   try Some (Sys.getenv "OPENAI_BASE_URL")
   with Not_found -> Some "https://api.minimaxi.com/v1"
 
-let model_name = "MiniMax-M3"
+let model_name = "MiniMax-M2.7"
 
 let err_str (e : error_category) = match e with
   | (Timeout : error_category) -> "Timeout"
@@ -21,13 +21,29 @@ let err_str (e : error_category) = match e with
 
 let dummy_model : model_config =
   { provider = `Openai; model_name; api_base = base_url;
-    temperature = 0.0; max_tokens = Some 500; top_p = None; stop_sequences = None }
+    temperature = 0.0; max_tokens = Some 2000; top_p = None; stop_sequences = None }
+
+let find_sub s sub =
+  let slen = String.length sub in
+  let rec loop i =
+    if i + slen > String.length s then None
+    else if String.sub s i slen = sub then Some i
+    else loop (i + 1)
+  in loop 0
+
+let strip_think text =
+  match find_sub text "</think>" with
+  | Some i -> String.trim (String.sub text (i + 8) (String.length text - i - 8))
+  | None -> text
 
 let make_llm net cfg : llm_service = {
   complete_fn = (fun model tools conv ->
     (match Openai_provider.create cfg with
      | Error e -> Error e
-     | Ok t -> Openai_provider.set_network t net; Openai_provider.complete t model tools conv));
+     | Ok t -> Openai_provider.set_network t net;
+       (match Openai_provider.complete t model tools conv with
+        | Ok resp -> Ok { resp with Types.text = Option.map strip_think resp.Types.text }
+        | Error e -> Error e)));
   stream_fn = (fun _ _ _ _ _ -> Error (Internal "no streaming"));
   close_fn = (fun () -> ());
   complete_structured_fn = None;
