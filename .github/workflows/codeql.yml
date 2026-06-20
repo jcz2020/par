@@ -1,0 +1,42 @@
+name: CodeQL
+
+# CodeQL does NOT support OCaml (verified 2026-06-21 against
+# https://codeql.github.com/docs/codeql-overview/supported-languages-and-frameworks/).
+# PAR scans Python (ctypes bindings — real vuln surface for type confusion,
+# SQL injection via the sqlite3 path, and unsafe shell exec via bash tool)
+# plus Actions (catches workflow injection, pull_request_target misuse).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 4 * * 1"  # weekly Monday 04:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze ${{ matrix.language }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, actions]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"

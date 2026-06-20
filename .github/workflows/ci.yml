@@ -49,6 +49,13 @@ jobs:
   python:
     needs: ocaml
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # Test on all supported Python versions (pyproject.toml declares >=3.8).
+        # ctypes is version-agnostic, but Python 3.13 changed RTLD_GLOBAL default
+        # and PyPy has its own quirks — worth catching regressions.
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13', 'pypy3.10']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -57,6 +64,6 @@ jobs:
           path: _build/default/lib/ffi/
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
       - run: pip install pytest
       - run: cd bindings/python && python3 -m pytest tests/ -v

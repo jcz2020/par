@@ -1,0 +1,82 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "0 6 * * *"  # 06:00 UTC = 14:00 HKT daily
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to test (default: main)"
+        required: false
+        default: main
+  pull_request:
+    paths:
+      - ".github/workflows/nightly.yml"
+    branches: [main]
+
+permissions: read-all
+
+jobs:
+  ocaml:
+    name: OCaml tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-15]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
+
+      - name: Validate version sync
+        run: |
+          make validate-version
+          make check-version-sync
+
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: "5.4.0"
+          dune-cache: true
+          opam-local-packages: |
+            par.opam
+            par_cli.opam
+
+      - run: opam install par_cli --deps-only --with-test -y
+
+      - run: opam exec -- dune build
+
+      - run: opam exec -- dune runtest
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-par-capi-${{ matrix.os }}
+          path: _build/default/lib/ffi/par_capi.so
+          if-no-files-found: warn
+
+  python:
+    name: Python bindings tests (${{ matrix.python-version }})
+    needs: ocaml
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: nightly-par-capi-ubuntu-22.04
+          path: _build/default/lib/ffi/
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - run: pip install pytest
+
+      - run: cd bindings/python && python3 -m pytest tests/ -v
