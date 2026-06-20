@@ -24,10 +24,12 @@
 
 ### Verification
 
-- Acceptance test PASS on all 3 platforms (CI run #27884516848)
+- Acceptance test PASS on all 3 platforms (CI run #27884516848, manual re-trigger on v0.4.11-beta.20260621.post2 release)
+- Acceptance test PASS on v0.4.11 stable (CI run #27884715322, workflow_run trigger from pypi-publish)
 - Real-machine install on Debian 12 (glibc 2.36) dev box: PASS
-- `pip install par-runtime==0.4.11b20260621.post2` then `import par_runtime` then `Runtime(config)` lifecycle: PASS
+- PyPI install: `pip install par-runtime==0.4.11` (from official PyPI) then `import par_runtime` then `Runtime(config)` lifecycle: PASS
 - Wheel `par_runtime-0.4.11-py3-none-any.whl` uploaded to PyPI
+- URL: https://pypi.org/project/par-runtime/0.4.11/
 
 ### Documentation
 
@@ -39,10 +41,17 @@
 - 987 OCaml tests (unchanged).
 - 33 Python tests (unchanged).
 
-### Verification Evidence (TODO — fill in during actual release)
+### Verification Evidence
 
-- CI run URL for v0.4.11-beta tag: `<pending>`
-- CI run URL for v0.4.11 stable tag: `<pending>`
+- **v0.4.11 stable** CI run URLs (all green):
+  - CI (main): https://github.com/jcz2020/par/actions/runs/27884642182 — 5m13s
+  - PyPI publish: https://github.com/jcz2020/par/actions/runs/27884642217 — 3m3s
+  - opam publish: https://github.com/jcz2020/par/actions/runs/27884642230 — 3m31s
+  - Release acceptance: https://github.com/jcz2020/par/actions/runs/27884715322 — 14s
+- **v0.4.11-beta.20260621.post2** (advance verification) CI run URLs (all green):
+  - Manual re-trigger acceptance: https://github.com/jcz2020/par/actions/runs/27884516848 — 16s
+- **PyPI verification**: https://pypi.org/project/par-runtime/0.4.11/ shows v0.4.11 stable; `pip install par-runtime==0.4.11` succeeds in a clean venv.
+- **bd issue closures**: PAR-0qf, PAR-8cs, PAR-cog, PAR-j8i, PAR-b94 all CLOSED via `bd close`.
 - Acceptance workflow run URL (must be green): `<pending>`
 - Real-machine install matrix results: `<pending>`
 
