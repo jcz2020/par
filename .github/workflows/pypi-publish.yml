@@ -10,7 +10,7 @@ permissions:
 jobs:
   build-wheel:
     name: Build Python wheel
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 

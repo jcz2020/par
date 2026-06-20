@@ -1,5 +1,25 @@
 # CHANGES
 
+## v0.4.10 (2026-06-21)
+
+> Hotfix: CI builds now use ubuntu-22.04 (glibc 2.35 baseline) instead of ubuntu-latest (glibc 2.38). PAR-8cs.
+
+### Bug Fixes
+
+- **PAR-8cs** (P0, **CRITICAL**): All release artifacts built on `ubuntu-latest` (= Ubuntu 24.04, glibc 2.39) required `GLIBC_2.38` symbols. This excluded Debian 12 (glibc 2.36), Ubuntu 22.04 LTS (glibc 2.35), and RHEL 9 (glibc 2.34) — i.e. most production Linux distros. Users on these systems saw `version GLIBC_2.38 not found` when running `par --version` or `import par_runtime`. Fix: pin all 4 workflows (ci/release/opam-publish/pypi-publish) to `ubuntu-22.04`. Resulting binaries require only glibc 2.35, compatible with Ubuntu 22.04 LTS+, Debian 12+, RHEL 9+. RHEL 8 (glibc 2.28) and older still require source build — manylinux wheel is a separate follow-up.
+
+### Workflow Changes
+
+- `.github/workflows/ci.yml`: matrix `ubuntu-latest` → `ubuntu-22.04`; python job `runs-on` updated; artifact name `par-capi-ubuntu-latest` → `par-capi-ubuntu-22.04`.
+- `.github/workflows/release.yml`: matrix `ubuntu-latest` → `ubuntu-22.04`; release job `runs-on` updated.
+- `.github/workflows/opam-publish.yml`: `runs-on: ubuntu-latest` → `ubuntu-22.04`.
+- `.github/workflows/pypi-publish.yml`: `runs-on: ubuntu-latest` → `ubuntu-22.04`.
+
+### Test Count
+
+- 987 OCaml tests (unchanged).
+- 33 Python tests (unchanged).
+
 ## v0.4.9 (2026-06-21)
 
 > Hotfix: par-runtime 0.4.8 wheel on PyPI was broken (missing `par_capi.so`). PAR-0qf.
