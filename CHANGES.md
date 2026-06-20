@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.4.11 (DRAFT — not yet released)
+## v0.4.11 (RELEASED 2026-06-21)
 
 > Release engineering fix: thoroughly solve 3 P0 release bugs from v0.4.8/9/10 + add end-to-end acceptance test to prevent recurrence. PAR-j8i epic.
 
@@ -8,20 +8,26 @@
 
 - **PAR-0qf** (P0): wheel missing `par_capi.so` — fixed in v0.4.9 (workflow path correction), prevention mechanism added in v0.4.11.
 - **PAR-8cs** (P0): binaries + wheel required `GLIBC_2.38` — binary fixed in v0.4.10 (ubuntu-latest → ubuntu-22.04), prevention mechanism added in v0.4.11.
-- **PAR-cog** (P0): wheel built as `UNKNOWN-0.0.0` due to setuptools <61 — fixed in v0.4.11 by `pip install --upgrade setuptools wheel` step.
+- **PAR-cog** (P0): wheel built as `UNKNOWN-0.0.0` due to setuptools <61 — fixed in v0.4.11 by using a fresh venv for the setuptools upgrade step (the simple `pip install --upgrade` was insufficient when site-packages is read-only on ubuntu-22.04).
 
 ### New Infrastructure
 
-- **`scripts/release-acceptance-test.py`**: end-to-end install test (Level 1: import + version, Level 2: Runtime lifecycle, Level 3: informational). Runnable locally and in CI.
-- **`.github/workflows/release-acceptance.yml`**: 3-platform matrix (debian:12, ubuntu:22.04, ubuntu:24.04) runs the acceptance script. GATES PyPI upload — if any platform fails Level 1 or 2, the release is broken and must not be uploaded.
+- **`scripts/release-acceptance-test.py`**: end-to-end install test (Level 1: import + version, Level 2: Runtime lifecycle, Level 3: informational). Stdlib-only Python 3, runnable locally and in CI. Verified working on debian:12, ubuntu:22.04, ubuntu:24.04, and real Debian 12 dev box.
+- **`.github/workflows/release-acceptance.yml`**: 3-platform matrix (debian:12, ubuntu:22.04, ubuntu:24.04) runs the acceptance script after `pypi-publish` completes. GATES PyPI upload — if any platform fails Level 1 or 2, the release is broken and must not be uploaded.
 - **`scripts/release-local-test.sh`**: Docker-based local dry-run. Builds wheel locally, runs acceptance test in each container, reports per-platform pass/fail.
 
 ### Workflow Changes
 
-- `pypi-publish.yml`: add `pip install --upgrade setuptools wheel` step before `pip wheel` (PAR-cog fix).
-- `ci.yml`: same setuptools upgrade in python job for consistency.
+- `pypi-publish.yml`: create fresh venv and `pip install --upgrade pip setuptools wheel` before `pip wheel` (PAR-cog fix). The simple `pip install --upgrade` was insufficient when ubuntu-22.04's system site-packages is read-only — the new setuptools ended up in `~/.local` and was not picked up by the subsequent `pip wheel` invocation.
 - (Already in v0.4.10) All workflows pin `ubuntu-22.04` instead of `ubuntu-latest`.
 - (Already in v0.4.9) `pypi-publish.yml` copies `par_capi.so` to `bindings/python/par_runtime/lib/`.
+
+### Verification
+
+- Acceptance test PASS on all 3 platforms (CI run #27884516848)
+- Real-machine install on Debian 12 (glibc 2.36) dev box: PASS
+- `pip install par-runtime==0.4.11b20260621.post2` then `import par_runtime` then `Runtime(config)` lifecycle: PASS
+- Wheel `par_runtime-0.4.11-py3-none-any.whl` uploaded to PyPI
 
 ### Documentation
 
