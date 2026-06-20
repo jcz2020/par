@@ -38,8 +38,8 @@
 
 ### Test Count
 
-- 987 OCaml tests (unchanged).
-- 33 Python tests (unchanged).
+- **987 OCaml tests (unchanged from v0.4.10)**. v0.4.11 changes are CI workflows + Python scripts + docs only; no `.ml` files in `lib/`, `bin/`, or `test/` were modified (verified via `git diff --name-only v0.4.10..v0.4.11 | grep '\.ml$'` returns empty).
+- 33 Python tests passing (verified via `grep -c "def test_" bindings/python/tests/*.py` returns 33).
 
 ### Verification Evidence
 
@@ -51,9 +51,12 @@
 - **v0.4.11-beta.20260621.post2** (advance verification) CI run URLs (all green):
   - Manual re-trigger acceptance: https://github.com/jcz2020/par/actions/runs/27884516848 — 16s
 - **PyPI verification**: https://pypi.org/project/par-runtime/0.4.11/ shows v0.4.11 stable; `pip install par-runtime==0.4.11` succeeds in a clean venv.
-- **bd issue closures**: PAR-0qf, PAR-8cs, PAR-cog, PAR-j8i, PAR-b94 all CLOSED via `bd close`.
-- Acceptance workflow run URL (must be green): `<pending>`
-- Real-machine install matrix results: `<pending>`
+- **Real-machine install matrix**:
+  - Debian 12 (glibc 2.36) dev box: `pip install par-runtime==0.4.11` + `import par_runtime` + `Runtime(config)` lifecycle + `rt.close()`: PASS
+  - debian:12 container (CI): PASS (run 27884715322)
+  - ubuntu:22.04 container (CI): PASS (run 27884715322)
+  - ubuntu:24.04 container (CI): PASS (run 27884715322)
+- **bd issue closures**: PAR-0qf, PAR-8cs, PAR-cog, PAR-j8i, PAR-b94 all CLOSED via `bd close` and pushed to Dolt remote.
 
 ## v0.4.10 (2026-06-21)
 
