@@ -1,5 +1,22 @@
 # CHANGES
 
+## v0.4.9 (2026-06-21)
+
+> Hotfix: par-runtime 0.4.8 wheel on PyPI was broken (missing `par_capi.so`). PAR-0qf.
+
+### Bug Fixes
+
+- **PAR-0qf** (P0, **CRITICAL**): `pypi-publish.yml` workflow copied `par_capi.so` to `bindings/python/par_runtime/` (package root), but `pyproject.toml` and `_ffi.py` expect it at `bindings/python/par_runtime/lib/par_capi.so`. Result: any user who ran `pip install par-runtime==0.4.8` got `OSError: par_capi.so: cannot open shared object file` on `import par_runtime`. Verified locally: fixed workflow builds wheel (9.9 MB) containing `par_runtime/lib/par_capi.so`; Runtime init + tool registration + close all work end-to-end in clean venv. v0.4.8 on PyPI should be yanked manually by maintainer (upload-scoped token lacks management scope).
+
+### Workflow Changes
+
+- `.github/workflows/pypi-publish.yml`: `Copy shared library for wheel` step now `mkdir -p bindings/python/par_runtime/lib` before `cp` (1-line fix).
+
+### Test Count
+
+- 987 OCaml tests (unchanged from v0.4.8).
+- 33 Python tests (unchanged from v0.4.8).
+
 ## v0.4.8 (2026-06-21)
 
 > Feature: Runtime.invoke_structured — schema-validated LLM output. PAR-xd5 + PAR-5cc.
