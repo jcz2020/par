@@ -19,7 +19,8 @@ jobs:
           ocaml-compiler: "5.4.0"
           dune-cache: true
           opam-local-packages: |
-            *.opam
+            par.opam
+            par_cli.opam
 
       - run: opam install par_cli --deps-only -y
 
@@ -50,12 +51,26 @@ jobs:
           cd bindings/python
           sha512sum dist/*.whl > dist/sha512-checksums.txt
 
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          files: |
-            bindings/python/dist/*.whl
+      - name: Upload wheel to existing GH Release
+        # NOTE: do NOT use softprops/action-gh-release@v2 here — that would race
+        # with release.yml's release job over who creates the release first.
+        # release.yml is the sole release creator. This step only uploads assets.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Wait for release.yml to create the release (race-safe)
+          for i in {1..30}; do
+            if gh release view "${{ github.ref_name }}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              break
+            fi
+            echo "Release ${{ github.ref_name }} not yet created, retrying in 10s ($i/30)..."
+            sleep 10
+          done
+          gh release upload "${{ github.ref_name }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber \
+            bindings/python/dist/*.whl \
             bindings/python/dist/sha512-checksums.txt
 
       - name: Print manual upload command

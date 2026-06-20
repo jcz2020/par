@@ -19,7 +19,8 @@ jobs:
           ocaml-compiler: "5.4.0"
           dune-cache: true
           opam-local-packages: |
-            *.opam
+            par.opam
+            par_cli.opam
 
       - run: opam install par_cli --deps-only -y
 
@@ -36,18 +37,36 @@ jobs:
       - name: Generate SHA-512 checksums
         run: sha512sum par-*.tar.gz > sha512-checksums.txt
 
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          files: |
-            par-*.tar.gz
-            _build/default/par.opam
-            _build/default/par_cli.opam
+      - name: Upload opam archive to existing GH Release
+        # NOTE: do NOT use softprops/action-gh-release@v2 here — that would race
+        # with release.yml's release job over who creates the release first.
+        # release.yml is the sole release creator. This step only uploads assets.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # Wait for release.yml to create the release (race-safe)
+          for i in {1..30}; do
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              break
+            fi
+            echo "Release $TAG not yet created, retrying in 10s ($i/30)..."
+            sleep 10
+          done
+          gh release upload "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber \
+            par-*.tar.gz \
+            _build/default/par.opam \
+            _build/default/par_cli.opam \
             sha512-checksums.txt
 
       - name: Print manual instructions
+        env:
+          TAG: ${{ github.ref_name }}
         run: |
+          VERSION="${TAG#v}"
           echo "Archive uploaded to GitHub Release."
           echo "To submit to opam-repository:"
           echo "  1. Fork opam-repository"
