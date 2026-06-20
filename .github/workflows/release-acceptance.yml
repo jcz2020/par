@@ -57,6 +57,7 @@ jobs:
           echo "Resolved TAG=${TAG}"
 
       - name: Download wheel from GH Release
+        id: resolve-wheel
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.resolve-tag.outputs.tag }}
@@ -68,14 +69,15 @@ jobs:
             --pattern '*.whl' \
             --dir wheels/
           ls -la wheels/
-          # Rename to deterministic path for the next step
-          WHEEL=$(ls wheels/*.whl | head -1)
-          if [ -z "$WHEEL" ]; then
-            echo "ERROR: no wheel found in release $TAG" >&2
+          # Verify exactly one wheel was downloaded and capture its name
+          WHEEL_COUNT=$(ls wheels/*.whl 2>/dev/null | wc -l)
+          if [ "$WHEEL_COUNT" -ne 1 ]; then
+            echo "ERROR: expected exactly 1 wheel in release $TAG, found $WHEEL_COUNT" >&2
             exit 1
           fi
-          cp -f "$WHEEL" wheels/test-wheel.whl
-          echo "Using wheel: $WHEEL"
+          WHEEL_NAME=$(basename wheels/*.whl)
+          echo "name=${WHEEL_NAME}" >> "$GITHUB_OUTPUT"
+          echo "Using wheel: ${WHEEL_NAME}"
 
       - name: Compute PEP 440 version
         id: resolve-version
@@ -90,20 +92,21 @@ jobs:
 
       - name: Run acceptance test in ${{ matrix.container }}
         run: |
-          docker run --rm -i \
+          docker run --rm \
             -v "$PWD/wheels:/wheels:ro" \
             -v "$PWD/scripts:/scripts:ro" \
             ${{ matrix.container }} \
-            bash -euo pipefail <<'SCRIPT'
+            bash -euo pipefail <<SCRIPT
           set -euo pipefail
           apt-get update -qq
           apt-get install -y -qq python3 python3-pip python3-venv
           python3 -m venv /tmp/venv
           /tmp/venv/bin/pip install --upgrade pip
-          /tmp/venv/bin/pip install /wheels/test-wheel.whl
-          python3 /scripts/release-acceptance-test.py /wheels/test-wheel.whl "$RELEASE_VERSION"
+          /tmp/venv/bin/pip install --no-cache-dir /wheels/${WHEEL_NAME}
+          python3 /scripts/release-acceptance-test.py /wheels/${WHEEL_NAME} "${RELEASE_VERSION}"
           SCRIPT
         env:
+          WHEEL_NAME: ${{ steps.resolve-wheel.outputs.name }}
           RELEASE_VERSION: ${{ steps.resolve-version.outputs.version }}
 
       - name: Summary

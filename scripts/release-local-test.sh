@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# release-local-test.sh - Local dry-run of the v0.4.11 release acceptance test.
+# release-local-test.sh — Local dry-run of the v0.4.11 release acceptance test.
 # Usage: release-local-test.sh
 #
 # Builds the par_runtime wheel locally, then runs scripts/release-acceptance-test.py
@@ -14,16 +14,14 @@ if ! command -v docker >/dev/null 2>&1; then
     exit 1
 fi
 
-# Best-effort cleanup of any orphan containers (e.g. from a previous failed run).
 cleanup() {
     local code=$?
-    docker ps -a --filter "label=par-acceptance" -q 2>/dev/null \
-        | xargs -r docker rm -f >/dev/null 2>&1 || true
+    # Best-effort cleanup of any orphan containers
+    docker ps -a --filter "label=par-acceptance" -q | xargs -r docker rm -f >/dev/null 2>&1 || true
     exit "$code"
 }
 trap cleanup EXIT
 
-# Build the wheel locally, mirroring what .github/workflows/pypi-publish.yml does.
 echo "=== Building wheel locally ==="
 make install-dev >/dev/null 2>&1 || {
     echo "ERROR: make install-dev failed" >&2
@@ -33,7 +31,7 @@ make install-dev >/dev/null 2>&1 || {
 mkdir -p bindings/python/par_runtime/lib
 cp -f _build/default/lib/ffi/par_capi.so bindings/python/par_runtime/lib/
 
-# Build wheel using a fresh venv to get modern setuptools (PEP 621 support).
+# Build wheel using a fresh venv to get modern setuptools (PEP 621 support)
 WHEEL_VENV="/tmp/par-wheel-venv"
 rm -rf "$WHEEL_VENV"
 python3 -m venv "$WHEEL_VENV"
@@ -47,7 +45,7 @@ VERSION=$(sed -n 's/^(version "\([^"]*\)").*/\1/p' dune-project)
 echo "Wheel: $WHEEL"
 echo "Version: $VERSION"
 
-# Stage the wheel in a deterministic path that the container will mount read-only.
+# Stage the wheel in a known path that the container will mount
 mkdir -p wheels
 cp -f "$WHEEL" wheels/test-wheel.whl
 
