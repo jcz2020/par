@@ -1,5 +1,45 @@
 # CHANGES
 
+## v0.4.11 (DRAFT — not yet released)
+
+> Release engineering fix: thoroughly solve 3 P0 release bugs from v0.4.8/9/10 + add end-to-end acceptance test to prevent recurrence. PAR-j8i epic.
+
+### Bug Fixes
+
+- **PAR-0qf** (P0): wheel missing `par_capi.so` — fixed in v0.4.9 (workflow path correction), prevention mechanism added in v0.4.11.
+- **PAR-8cs** (P0): binaries + wheel required `GLIBC_2.38` — binary fixed in v0.4.10 (ubuntu-latest → ubuntu-22.04), prevention mechanism added in v0.4.11.
+- **PAR-cog** (P0): wheel built as `UNKNOWN-0.0.0` due to setuptools <61 — fixed in v0.4.11 by `pip install --upgrade setuptools wheel` step.
+
+### New Infrastructure
+
+- **`scripts/release-acceptance-test.py`**: end-to-end install test (Level 1: import + version, Level 2: Runtime lifecycle, Level 3: informational). Runnable locally and in CI.
+- **`.github/workflows/release-acceptance.yml`**: 3-platform matrix (debian:12, ubuntu:22.04, ubuntu:24.04) runs the acceptance script. GATES PyPI upload — if any platform fails Level 1 or 2, the release is broken and must not be uploaded.
+- **`scripts/release-local-test.sh`**: Docker-based local dry-run. Builds wheel locally, runs acceptance test in each container, reports per-platform pass/fail.
+
+### Workflow Changes
+
+- `pypi-publish.yml`: add `pip install --upgrade setuptools wheel` step before `pip wheel` (PAR-cog fix).
+- `ci.yml`: same setuptools upgrade in python job for consistency.
+- (Already in v0.4.10) All workflows pin `ubuntu-22.04` instead of `ubuntu-latest`.
+- (Already in v0.4.9) `pypi-publish.yml` copies `par_capi.so` to `bindings/python/par_runtime/lib/`.
+
+### Documentation
+
+- `docs/rules/release.md`: new "End-to-End Release Test" section documents the 4-step mandatory procedure (local dry-run, CI gate, manual twine upload, post-upload matrix verification).
+- `docs/release-pipeline-redesign.md`: postmortem + scope split (v0.4.11 MVP vs v0.5+ stretch goals like manylinux).
+
+### Test Count
+
+- 987 OCaml tests (unchanged).
+- 33 Python tests (unchanged).
+
+### Verification Evidence (TODO — fill in during actual release)
+
+- CI run URL for v0.4.11-beta tag: `<pending>`
+- CI run URL for v0.4.11 stable tag: `<pending>`
+- Acceptance workflow run URL (must be green): `<pending>`
+- Real-machine install matrix results: `<pending>`
+
 ## v0.4.10 (2026-06-21)
 
 > Hotfix: CI builds now use ubuntu-22.04 (glibc 2.35 baseline) instead of ubuntu-latest (glibc 2.38). PAR-8cs.

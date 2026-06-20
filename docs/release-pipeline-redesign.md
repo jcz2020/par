@@ -1,8 +1,10 @@
 # Release Pipeline Redesign — Post v0.4.10 Postmortem
 
-**Status**: Proposal. Created 2026-06-21 after v0.4.8 / v0.4.9 / v0.4.10 each shipped with a distinct P0 release-engineering bug.
-**Scope**: v0.5.0 Phase 1 (blocks any future PyPI upload).
-**Decision needed**: Option A (manylinux + auditwheel), B (cibuildwheel), C (pinned ubuntu + setuptools upgrade), or combination.
+**Status**: Updated 2026-06-21 — scope split into v0.4.11 (MVP fix) and v0.5+ (stretch goals).
+**Scope**:
+- **v0.4.11** (PATCH, immediate): minimum viable fix + end-to-end acceptance test → see [`v0.4.11-ROADMAP.md`](v0.4.11-ROADMAP.md) for execution plan
+- **v0.5.0+** (MINOR, stretch): manylinux + auditwheel + ARM64 + macOS wheel + OIDC auto-upload
+**Decision needed**: answered in v0.4.11 ROADMAP for the immediate scope; v0.5+ open questions in §8 below.
 
 ---
 
