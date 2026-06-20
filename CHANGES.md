@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.4.12 (DRAFT — not yet released)
+## v0.4.12 (RELEASED 2026-06-21)
 
 > CI/release pipeline hardening + audit pass. No user-facing OCaml/Python API changes. All work is in `.github/workflows/`, `docker/`, and test infrastructure.
 
@@ -23,12 +23,19 @@
 
 - `bindings/python/pyproject.toml`: added `wheel` to `[build-system] requires` (standard practice; was implicit).
 
-### Verification Evidence (to fill after release)
+### Verification Evidence
 
-- CI run URLs: `<pending v0.4.12-beta tag push>`
-- All 5 existing workflows (CI, Release, PyPI publish, opam publish, Release acceptance) must remain green.
-- All 3 new workflows (Nightly, CodeQL, Dependency Review) must run on first push without config errors.
-- OIDC PyPI upload job expected to FAIL on v0.4.12-beta (user has not yet registered trusted publisher). This is OK — `build-wheel` still produces the wheel and uploads to GH Release. The acceptance workflow still validates it. Manual `twine upload` remains the actual publish path for v0.4.12.
+- **v0.4.12-beta.20260621** CI run URLs:
+  - CI (main): https://github.com/jcz2020/par/actions/runs/27886279614 — 4m53s SUCCESS (Python 3.8-3.13 + pypy3.10 matrix)
+  - CodeQL: https://github.com/jcz2020/par/actions/runs/27886279621 — 1m7s SUCCESS (Python + Actions, no OCaml)
+  - Release: https://github.com/jcz2020/par/actions/runs/27886279613 — 7m55s SUCCESS
+  - opam publish: https://github.com/jcz2020/par/actions/runs/27886279620 — 8m2s SUCCESS (race fix verified — no more "already_exists")
+  - PyPI publish (build-wheel): SUCCESS — wheel `par_runtime-0.4.12b20260621-py3-none-any.whl` on GH Release
+  - PyPI publish (pypi-upload OIDC): FAILED (expected — user has not yet registered trusted publisher on PyPI). `continue-on-error: true` prevents cascade failure.
+  - Release acceptance (manual re-trigger): https://github.com/jcz2020/par/actions/runs/27886492611 — SUCCESS on all 3 platforms (debian:12, ubuntu:22.04, ubuntu:24.04)
+- **Race fix verified**: opam-publish succeeded (was failing in v0.4.11 with "already_exists").
+- **New workflows verified working**: CodeQL ran successfully on first push. Nightly + Dependency-review will trigger on schedule / next PR respectively.
+- **PyPI verification**: v0.4.12 stable wheel will be uploaded via manual `twine upload` (OIDC not yet active). URL: https://pypi.org/project/par-runtime/0.4.12/ (after upload)
 
 ### Test Count
 
