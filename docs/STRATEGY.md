@@ -171,3 +171,5 @@
   - 触发 release workflow
   - 更新 README/CHANGES 中的正式版本号和 test count
 - beta 阶段可以更新 CHANGES.md 添加 beta 条目，但版本号必须带 `-beta`
+
+| 2026-06-21 | **v0.5.0 scope: ARM64 Linux + ARM64 macOS wheels** | 用户决策："那就开搞吧 v0.5.0"。**scope 锁定**: (1) `manylinux_2_28_aarch64` (新) — `ubuntu-22.04-arm64` runner + `quay.io/pypa/manylinux_2_28_aarch64` 容器 + auditwheel。**不**做 universal2 — `macos-13` (Intel) 2026-06-19 已永久放弃（free tier queue 24h+ 必超时，见 `.github/workflows/ci.yml` L16），Intel Mac 用户回退到 sdist 源码编译（PyPI 2026 流量 <5%，可接受）。**scope 排除**: musllinux wheels (≥95% PyPI Linux 由 manylinux 覆盖)、Windows wheel (MSVC 编译链过重)、`-manylinux_2_17` RHEL 7/CentOS 7（用户 2026-06-21 明确拒绝）。**CI 成本**: 3 job matrix, ~$0.18/release (x86_64 $0.08 + aarch64 $0.016 + macos-15 $0.08)。**SemVer**: MINOR (新增平台 = MINOR per SemVer §7，public API 不变)。**验证**: Oracle 终审必须确认 PyPI 3 wheels + GH Release 3 assets + acceptance CI 5 platforms (debian:12/ubuntu:22.04/ubuntu:24.04/debian:bookworm-arm64/macos-15) 全绿。 |
