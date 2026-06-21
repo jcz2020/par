@@ -68,8 +68,24 @@ jobs:
           sha512sum *.whl > sha512-checksums.txt
           ls -la
 
-      - name: Upload wheel to existing GH Release
-        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-dist
+          path: bindings/python/dist/
+          if-no-files-found: error
+
+  gh-release-upload:
+    name: Upload wheel to GH Release
+    needs: build-wheel
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-dist
+          path: dist/
+      - name: Wait for release to exist, then upload
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -84,19 +100,8 @@ jobs:
           gh release upload "${{ github.ref_name }}" \
             --repo "$GITHUB_REPOSITORY" \
             --clobber \
-            bindings/python/dist/*.whl \
-            bindings/python/dist/sha512-checksums.txt
-
-      - name: Print manual upload command
-        run: |
-          echo "Manylinux wheel uploaded to GitHub Release."
-          echo "Upload to PyPI: twine upload bindings/python/dist/*.whl"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: wheel-dist
-          path: bindings/python/dist/
-          if-no-files-found: error
+            dist/*.whl \
+            dist/sha512-checksums.txt
 
   pypi-upload:
     name: Publish to PyPI (OIDC)
