@@ -1,5 +1,30 @@
 # CHANGES
 
+## v0.5.0 (DRAFT — not yet released)
+
+> Multi-arch wheel support. `pip install par-runtime` now works natively on ARM64 Linux servers and Apple Silicon Macs, no source build or Rosetta required. Intel Mac users still fall back to source distribution (`macos-13` runner permanently abandoned 2026-06-19 — see `ci.yml` L16).
+
+### Added
+
+- **`par_runtime-0.5.0-py3-none-manylinux_2_28_aarch64.whl`** (~10 MB) — ARM64 Linux manylinux wheel. Built on `ubuntu-22.04-arm64` runner inside `quay.io/pypa/manylinux_2_28_aarch64:latest` container, `auditwheel repair --plat manylinux_2_28_aarch64`.
+- **`par_runtime-0.5.0-py3-none-macosx_11_0_arm64.whl`** (~10 MB) — ARM64 macOS wheel. Built on `macos-15` runner, `brew install gmp sqlite3`, `delocate-wheel` for dylib bundling.
+- **Release acceptance matrix expanded** (5 platforms): `debian:12`, `ubuntu:22.04`, `ubuntu:24.04` (linux-x86_64 wheel), `debian:bookworm-arm64` (linux-aarch64 wheel via qemu binfmt on `ubuntu-22.04-arm64` runner), `macos-15` (macos-arm64 wheel).
+
+### Changed
+
+- **`pypi-publish.yml`**: single hardcoded job refactored into a 3-job matrix `{linux-x86_64, linux-aarch64, macos-arm64}`. `gh-release-upload` and `pypi-upload` jobs download all 3 artifacts and publish in one go. `auditwheel` for Linux, `delocate-wheel` for macOS.
+- **`release-acceptance.yml`**: split into 3 jobs (`accept-linux-x64`, `accept-linux-arm64`, `accept-macos-arm64`). Each downloads only its matching wheel by glob pattern (`*-manylinux_2_28_x86_64.whl` etc). The v0.4.13 `WHEEL_COUNT -ne 1` guard is gone (each job expects exactly 1 wheel, the one it cares about).
+
+### Trade-off accepted
+
+- **No Intel Mac native wheel in v0.5.0.** True `universal2` requires both `macos-13` (Intel) + `macos-15` (ARM) runners; the free-tier GitHub Actions macos-13 queue consistently hits 24h+ and then max-execution-time (`ci.yml` L16). Options: (a) accept source-build fallback for Intel Mac users (PyPI 2026 Intel Mac share <5%), or (b) pay for GitHub Actions minutes. **Decision: (a)**. Defer to v0.6+ if Intel Mac demand materializes.
+
+### Verification Evidence
+
+- `<pending v0.5.0-beta.20260621.post1 build completion>`
+
+---
+
 ## v0.4.13 (RELEASED 2026-06-21)
 
 > Wheel platform tag fix: `py3-none-any` → `py3-none-manylinux_2_28_x86_64`. Resolves the misleading tag that claimed "any platform" while shipping a 29 MB x86_64 Linux ELF binary. Built inside `quay.io/pypa/manylinux_2_28_x86_64` container so glibc baseline is 2.28 (RHEL 8+, Ubuntu 18.10+, Debian 10+). GMP and sqlite3 bundled via auditwheel.

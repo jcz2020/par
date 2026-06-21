@@ -2,7 +2,7 @@ name: Release acceptance
 
 on:
   workflow_run:
-    workflows: ["PyPI publish"]   # MUST match pypi-publish.yml's top-level `name:` exactly
+    workflows: ["PyPI publish"]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -12,25 +12,24 @@ on:
         default: 'main'
         type: string
 
-# Two-run protection. cancel-in-progress: false — never kill a half-finished Docker test.
 concurrency:
   group: release-acceptance-${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event.workflow_run.head_branch }}
   cancel-in-progress: false
 
 permissions:
-  contents: read      # download release assets
-  actions: read       # inspect upstream run (optional)
-  issues: write       # open issue on failure
+  contents: read
+  actions: read
+  issues: write
 
 jobs:
-  accept:
-    name: Acceptance test in ${{ matrix.container }}
+  accept-linux-x64:
+    name: Acceptance (linux-x86_64) in ${{ matrix.container }}
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event != 'pull_request' &&
        startsWith(github.event.workflow_run.head_branch, 'v'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
@@ -39,12 +38,6 @@ jobs:
           - ubuntu:22.04
           - ubuntu:24.04
     steps:
-      - name: Checkout (workflow_run uses upstream HEAD SHA; dispatch uses inputs.ref)
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event.workflow_run.head_sha }}
-          fetch-depth: 1
-
       - name: Resolve TAG
         id: resolve-tag
         run: |
@@ -54,9 +47,8 @@ jobs:
             TAG="${{ github.event.workflow_run.head_branch }}"
           fi
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "Resolved TAG=${TAG}"
 
-      - name: Download wheel from GH Release
+      - name: Download linux-x86_64 wheel
         id: resolve-wheel
         env:
           GH_TOKEN: ${{ github.token }}
@@ -66,13 +58,11 @@ jobs:
           mkdir -p wheels
           gh release download "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
-            --pattern '*.whl' \
+            --pattern 'par_runtime-*-manylinux_2_28_x86_64.whl' \
             --dir wheels/
-          ls -la wheels/
-          # Verify exactly one wheel was downloaded and capture its name
           WHEEL_COUNT=$(ls wheels/*.whl 2>/dev/null | wc -l)
           if [ "$WHEEL_COUNT" -ne 1 ]; then
-            echo "ERROR: expected exactly 1 wheel in release $TAG, found $WHEEL_COUNT" >&2
+            echo "ERROR: expected 1 linux-x86_64 wheel in release $TAG, found $WHEEL_COUNT" >&2
             exit 1
           fi
           WHEEL_NAME=$(basename wheels/*.whl)
@@ -86,20 +76,12 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${TAG#v}"
-          # PEP 440 normalization: {sep}{word}{sep} collapses to {word}{num}
-          # Examples:
-          #   0.4.11-beta.20260621     -> 0.4.11b20260621
-          #   0.4.11-beta.20260621.post1 -> 0.4.11b20260621.post1
-          #   0.4.11-rc.1              -> 0.4.11rc1
-          # We do best-effort normalization in bash; the canonical normalization
-          # happens in setuptools/packaging when the wheel is built.
           VERSION="${VERSION//-beta./b}"
           VERSION="${VERSION//-alpha./a}"
           VERSION="${VERSION//-rc./rc}"
           VERSION="${VERSION//-dev./dev}"
           VERSION="${VERSION//-post./post}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Resolved VERSION=${VERSION}"
 
       - name: Run acceptance test in ${{ matrix.container }}
         run: |
@@ -120,21 +102,149 @@ jobs:
           WHEEL_NAME: ${{ steps.resolve-wheel.outputs.name }}
           RELEASE_VERSION: ${{ steps.resolve-version.outputs.version }}
 
-      - name: Summary
-        if: always()
+  accept-linux-arm64:
+    name: Acceptance (linux-aarch64) in debian:bookworm-arm64
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event != 'pull_request' &&
+       startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: ubuntu-22.04-arm64
+    steps:
+      - name: Resolve TAG
+        id: resolve-tag
         run: |
-          echo "## Acceptance summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Container: ${{ matrix.container }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- TAG: ${{ steps.resolve-tag.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- VERSION: ${{ steps.resolve-version.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Result: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.ref }}"
+          else
+            TAG="${{ github.event.workflow_run.head_branch }}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Download linux-aarch64 wheel
+        id: resolve-wheel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.resolve-tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p wheels
+          gh release download "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'par_runtime-*-manylinux_2_28_aarch64.whl' \
+            --dir wheels/
+          WHEEL_COUNT=$(ls wheels/*.whl 2>/dev/null | wc -l)
+          if [ "$WHEEL_COUNT" -ne 1 ]; then
+            echo "ERROR: expected 1 linux-aarch64 wheel in release $TAG, found $WHEEL_COUNT" >&2
+            exit 1
+          fi
+          WHEEL_NAME=$(basename wheels/*.whl)
+          echo "name=${WHEEL_NAME}" >> "$GITHUB_OUTPUT"
+          echo "Using wheel: ${WHEEL_NAME}"
+
+      - name: Compute PEP 440 version
+        id: resolve-version
+        env:
+          TAG: ${{ steps.resolve-tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          VERSION="${VERSION//-beta./b}"
+          VERSION="${VERSION//-alpha./a}"
+          VERSION="${VERSION//-rc./rc}"
+          VERSION="${VERSION//-dev./dev}"
+          VERSION="${VERSION//-post./post}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Run acceptance test in debian:bookworm-arm64
+        run: |
+          docker run --rm \
+            --platform linux/arm64 \
+            -v "$PWD/wheels:/wheels:ro" \
+            -v "$PWD/scripts:/scripts:ro" \
+            debian:bookworm \
+            bash -euo pipefail <<SCRIPT
+          set -euo pipefail
+          apt-get update -qq
+          apt-get install -y -qq python3 python3-pip python3-venv
+          python3 -m venv /tmp/venv
+          /tmp/venv/bin/pip install --upgrade pip
+          /tmp/venv/bin/pip install --no-cache-dir /wheels/${WHEEL_NAME}
+          python3 /scripts/release-acceptance-test.py /wheels/${WHEEL_NAME} "${RELEASE_VERSION}"
+          SCRIPT
+        env:
+          WHEEL_NAME: ${{ steps.resolve-wheel.outputs.name }}
+          RELEASE_VERSION: ${{ steps.resolve-version.outputs.version }}
+
+  accept-macos-arm64:
+    name: Acceptance (macos-arm64) on macos-15
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event != 'pull_request' &&
+       startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: macos-15
+    steps:
+      - name: Resolve TAG
+        id: resolve-tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.ref }}"
+          else
+            TAG="${{ github.event.workflow_run.head_branch }}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Download macos-arm64 wheel
+        id: resolve-wheel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.resolve-tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p wheels
+          gh release download "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'par_runtime-*-macosx_11_0_arm64.whl' \
+            --dir wheels/
+          WHEEL_COUNT=$(ls wheels/*.whl 2>/dev/null | wc -l)
+          if [ "$WHEEL_COUNT" -ne 1 ]; then
+            echo "ERROR: expected 1 macos-arm64 wheel in release $TAG, found $WHEEL_COUNT" >&2
+            exit 1
+          fi
+          WHEEL_NAME=$(basename wheels/*.whl)
+          echo "name=${WHEEL_NAME}" >> "$GITHUB_OUTPUT"
+          echo "Using wheel: ${WHEEL_NAME}"
+
+      - name: Compute PEP 440 version
+        id: resolve-version
+        env:
+          TAG: ${{ steps.resolve-tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          VERSION="${VERSION//-beta./b}"
+          VERSION="${VERSION//-alpha./a}"
+          VERSION="${VERSION//-rc./rc}"
+          VERSION="${VERSION//-dev./dev}"
+          VERSION="${VERSION//-post./post}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Run acceptance test on macos-15
+        run: |
+          python3 -m venv /tmp/venv
+          /tmp/venv/bin/pip install --upgrade pip
+          /tmp/venv/bin/pip install --no-cache-dir wheels/${WHEEL_NAME}
+          python3 scripts/release-acceptance-test.py wheels/${WHEEL_NAME} "${RELEASE_VERSION}"
+        env:
+          WHEEL_NAME: ${{ steps.resolve-wheel.outputs.name }}
+          RELEASE_VERSION: ${{ steps.resolve-version.outputs.version }}
 
   report-failure:
     name: Report failure (open issue)
-    if: always() && needs.accept.result == 'failure'
-    needs: accept
-    runs-on: ubuntu-latest
+    if: always() && (needs.accept-linux-x64.result == 'failure' || needs.accept-linux-arm64.result == 'failure' || needs.accept-macos-arm64.result == 'failure')
+    needs: [accept-linux-x64, accept-linux-arm64, accept-macos-arm64]
+    runs-on: ubuntu-22.04
     steps:
       - name: Open regression issue
         env:
@@ -147,14 +257,18 @@ jobs:
           else
             TAG="${{ github.event.workflow_run.head_branch }}"
           fi
+          FAILED=()
+          [ "${{ needs.accept-linux-x64.result }}" = "failure" ] && FAILED+=("linux-x86_64")
+          [ "${{ needs.accept-linux-arm64.result }}" = "failure" ] && FAILED+=("linux-aarch64")
+          [ "${{ needs.accept-macos-arm64.result }}" = "failure" ] && FAILED+=("macos-arm64")
+          FAIL_LIST=$(IFS=', '; echo "${FAILED[*]}")
           BODY=$(cat <<EOF
-          Release acceptance FAILED for \`${TAG}\`.
+          Release acceptance FAILED for \`${TAG}\` on: ${FAIL_LIST}
 
           **Run:** ${RUN_URL}
           **Trigger:** ${{ github.event_name }}
-          **Upstream conclusion:** ${{ github.event.workflow_run.conclusion }}
 
-          At least one matrix container reported a non-zero exit. Inspect the run linked above to see which container(s) failed and the underlying acceptance script output.
+          Inspect the run linked above to see which platform(s) failed and the underlying acceptance script output.
 
           /cc release engineers
           EOF

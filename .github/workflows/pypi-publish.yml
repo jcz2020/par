@@ -9,14 +9,48 @@ permissions:
 
 jobs:
   build-wheel:
-    name: Build manylinux_2_28 wheel
-    runs-on: ubuntu-latest
-    container: quay.io/pypa/manylinux_2_28_x86_64:latest
+    name: Build wheel (${{ matrix.label }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: linux-x86_64
+            runner: ubuntu-22.04
+            container: quay.io/pypa/manylinux_2_28_x86_64:latest
+            python_bin: /opt/python/cp311-cp311/bin/python
+            repair_tool: auditwheel
+            repair_args: --plat manylinux_2_28_x86_64
+            artifact: wheel-linux-x86_64
+          - label: linux-aarch64
+            runner: ubuntu-22.04-arm64
+            container: quay.io/pypa/manylinux_2_28_aarch64:latest
+            python_bin: /opt/python/cp311-cp311/bin/python
+            repair_tool: auditwheel
+            repair_args: --plat manylinux_2_28_aarch64
+            artifact: wheel-linux-aarch64
+          - label: macos-arm64
+            runner: macos-15
+            container: ""
+            python_bin: python3
+            repair_tool: delocate
+            repair_args: ""
+            artifact: wheel-macos-arm64
+    container: ${{ matrix.container != '' && matrix.container || null }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system deps for OCaml
-        run: dnf install -y gmp-devel sqlite-devel git perl bubblewrap
+      - name: Install system deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          dnf install -y gmp-devel sqlite-devel git perl bubblewrap \
+            libffi-devel openssl-devel
+
+      - name: Install system deps (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install gmp sqlite3 pkg-config openssl@3
 
       - uses: ocaml/setup-ocaml@v3
         with:
@@ -26,7 +60,7 @@ jobs:
             par.opam
             par_cli.opam
 
-      - name: Install PAR deps
+      - name: Install PAR deps via opam
         run: opam install par_cli --deps-only -y
 
       - name: Build C FFI shared library
@@ -37,27 +71,40 @@ jobs:
           mkdir -p bindings/python/par_runtime/lib
           cp -f _build/default/lib/ffi/par_capi.so bindings/python/par_runtime/lib/
 
-      - name: Setup Python + build tools
+      - name: Setup Python venv + build tools
         run: |
-          /opt/python/cp311-cp311/bin/python -m venv /tmp/wheel-venv
-          /tmp/wheel-venv/bin/pip install --upgrade pip setuptools wheel auditwheel
+          ${{ matrix.python_bin }} -m venv /tmp/wheel-venv
+          /tmp/wheel-venv/bin/pip install --upgrade pip setuptools wheel auditwheel delocate
 
       - name: Build wheel (no isolation — needs in-place par_capi.so)
         run: |
           cd bindings/python
           /tmp/wheel-venv/bin/pip wheel . --no-build-isolation -w /tmp/raw-wheel/ --no-deps
 
-      - name: Repair wheel with auditwheel (manylinux_2_28)
-        # auditwheel bundles GMP and sqlite3 (the only non-glibc deps of
-        # par_capi.so) into the wheel and tags it manylinux_2_28_x86_64.
-        # The _loader.c dummy extension makes par_capi.so visible to
-        # auditwheel's DT_NEEDED scanner (pypa/auditwheel#197).
+      - name: Repair wheel with ${{ matrix.repair_tool }}
         run: |
           mkdir -p /tmp/final-wheel
-          /tmp/wheel-venv/bin/auditwheel repair \
-            --plat manylinux_2_28_x86_64 \
-            -w /tmp/final-wheel \
-            /tmp/raw-wheel/*.whl
+          if [ "${{ matrix.repair_tool }}" = "auditwheel" ]; then
+            /tmp/wheel-venv/bin/auditwheel repair \
+              ${{ matrix.repair_args }} \
+              -w /tmp/final-wheel \
+              /tmp/raw-wheel/*.whl
+          else
+            # delocate: copy bundled libs into the wheel and rewrite Mach-O load paths
+            /tmp/wheel-venv/bin/delocate-wheel -w /tmp/final-wheel /tmp/raw-wheel/*.whl
+            # Rename wheel to canonical macosx_11_0_arm64 tag (delocate preserves source tag
+            # which may be "macosx_*_x86_64" if local Python arch != arm64).
+            cd /tmp/final-wheel
+            for whl in *.whl; do
+              if [[ "$whl" != *"macosx_11_0_arm64"* ]]; then
+                newname=$(echo "$whl" | sed -E 's/macosx_[0-9]+_[0-9]+_(x86_64|arm64)/macosx_11_0_arm64/')
+                if [ "$newname" != "$whl" ]; then
+                  mv -f "$whl" "$newname"
+                  echo "Renamed: $whl -> $newname"
+                fi
+              fi
+            done
+          fi
           ls -la /tmp/final-wheel/
 
       - name: Stage final wheel + checksums
@@ -70,21 +117,39 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheel-dist
+          name: ${{ matrix.artifact }}
           path: bindings/python/dist/
           if-no-files-found: error
 
   gh-release-upload:
-    name: Upload wheel to GH Release
+    name: Upload all wheels to GH Release
     needs: build-wheel
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       contents: write
+    continue-on-error: true
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: wheel-dist
+          name: wheel-linux-x86_64
           path: dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-linux-aarch64
+          path: dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-macos-arm64
+          path: dist/
+      - name: Merge checksums + show summary
+        run: |
+          cd dist
+          # Concatenate per-artifact sha512 lists into a single file
+          cat sha512-checksums.txt > ../sha512-checksums-merged.txt 2>/dev/null || true
+          for f in sha512-checksums.txt; do cat "$f" >> ../sha512-checksums-merged.txt; done
+          rm -f sha512-checksums.txt
+          mv -f ../sha512-checksums-merged.txt sha512-checksums.txt
+          ls -la
       - name: Wait for release to exist, then upload
         env:
           GH_TOKEN: ${{ github.token }}
@@ -104,7 +169,7 @@ jobs:
             dist/sha512-checksums.txt
 
   pypi-upload:
-    name: Publish to PyPI (OIDC)
+    name: Publish all wheels to PyPI (OIDC)
     needs: build-wheel
     runs-on: ubuntu-22.04
     environment: pypi
@@ -115,8 +180,17 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: wheel-dist
+          name: wheel-linux-x86_64
           path: dist/
-
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-linux-aarch64
+          path: dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-macos-arm64
+          path: dist/
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
