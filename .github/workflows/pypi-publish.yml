@@ -26,7 +26,7 @@ jobs:
             runner: ubuntu-22.04
             container:
               image: quay.io/pypa/manylinux_2_28_aarch64:latest
-              platforms: linux/arm64
+              options: --platform linux/arm64
             python_bin: /opt/python/cp311-cp311/bin/python
             repair_tool: auditwheel
             repair_args: --plat manylinux_2_28_aarch64
