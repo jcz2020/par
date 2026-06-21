@@ -20,7 +20,7 @@
 
 ### Verification Evidence
 
-- `<pending v0.4.13-beta tag push>`
+- `<pending v0.4.13-beta.20260621.post1 build completion>`
 
 ### Test Count
 

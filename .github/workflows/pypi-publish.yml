@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install system deps for OCaml
-        run: dnf install -y gmp-devel sqlite-devel
+        run: dnf install -y gmp-devel sqlite-devel git perl
 
       - name: Install opam
         run: |
