@@ -2,7 +2,7 @@
 
 ## v0.5.0 (RELEASED 2026-06-21)
 
-> Apple Silicon macOS native wheel added. `pip install par-runtime` now works natively on Apple Silicon Macs, no source build or Rosetta required. Intel Mac users still fall back to source distribution (`macos-13` runner permanently abandoned 2026-06-19 — see `ci.yml` L16). ARM64 Linux wheel **deferred to v0.5.1+** — GitHub Actions free-tier ARM64 runners are saturated (queue 45min+, never dispatched) and qemu-binfmt on x86_64 host crashes manylinux container on start.
+> Apple Silicon macOS native wheel added. `pip install par-runtime` now works natively on Apple Silicon Macs, no source build or Rosetta required. Intel Mac users (`x86_64`) cannot `pip install` in v0.5.0 (no `macosx_*_x86_64` wheel and no sdist shipped — `macos-13` runner permanently abandoned 2026-06-19, see `ci.yml` L16); they can either (a) stay on `par-runtime==0.4.13` until v0.5.1 ships an sdist, or (b) build from source via `git clone && make install`. ARM64 Linux wheel **deferred to v0.5.1+** — GitHub Actions free-tier ARM64 runners are saturated (queue 45min+, never dispatched) and qemu-binfmt on x86_64 host crashes manylinux container on start.
 
 ### Added
 
