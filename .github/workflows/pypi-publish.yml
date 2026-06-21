@@ -85,12 +85,14 @@ jobs:
           else
             # delocate: copy bundled libs into the wheel and rewrite Mach-O load paths
             /tmp/wheel-venv/bin/delocate-wheel -w /tmp/final-wheel /tmp/raw-wheel/*.whl
-            # Rename wheel to canonical macosx_11_0_arm64 tag (delocate preserves source tag
-            # which may be "macosx_*_x86_64" if local Python arch != arm64).
+            # Rename wheel to canonical macosx_11_0_arm64 tag.
+            # Source wheel has 'py3-none-any' tag (ctypes .so isn't a real CPython ext),
+            # so setuptools leaves the platform placeholder. delocate preserves it.
+            # We force the platform tag here so pip's resolver matches arm64 Macs.
             cd /tmp/final-wheel
             for whl in *.whl; do
               if [[ "$whl" != *"macosx_11_0_arm64"* ]]; then
-                newname=$(echo "$whl" | sed -E 's/macosx_[0-9]+_[0-9]+_(x86_64|arm64)/macosx_11_0_arm64/')
+                newname=$(echo "$whl" | sed -E 's/(py3-none-any|macosx_[0-9]+_[0-9]+_(x86_64|arm64))/macosx_11_0_arm64/')
                 if [ "$newname" != "$whl" ]; then
                   mv -f "$whl" "$newname"
                   echo "Renamed: $whl -> $newname"
