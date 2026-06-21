@@ -69,6 +69,7 @@ jobs:
           ls -la
 
       - name: Upload wheel to existing GH Release
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
