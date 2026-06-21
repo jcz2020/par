@@ -23,8 +23,10 @@ jobs:
             repair_args: --plat manylinux_2_28_x86_64
             artifact: wheel-linux-x86_64
           - label: linux-aarch64
-            runner: ubuntu-24.04-arm64
-            container: quay.io/pypa/manylinux_2_28_aarch64:latest
+            runner: ubuntu-22.04
+            container:
+              image: quay.io/pypa/manylinux_2_28_aarch64:latest
+              platforms: linux/arm64
             python_bin: /opt/python/cp311-cp311/bin/python
             repair_tool: auditwheel
             repair_args: --plat manylinux_2_28_aarch64
@@ -53,6 +55,7 @@ jobs:
           brew install gmp sqlite3 pkg-config openssl@3
 
       - uses: ocaml/setup-ocaml@v3
+        if: matrix.label != 'linux-aarch64'
         with:
           ocaml-compiler: "5.4.0"
           dune-cache: true
@@ -60,7 +63,20 @@ jobs:
             par.opam
             par_cli.opam
 
+      - name: Install OCaml + opam inside aarch64 container (cross-arch workaround)
+        if: matrix.label == 'linux-aarch64'
+        run: |
+          dnf install -y ocaml opam gcc gcc-c++ make patch perl \
+            libffi-devel openssl-devel gmp-devel sqlite-devel \
+            libunwind-devel bzip2 tar
+          opam init --bare --disable-sandboxing -y
+          opam switch create ocaml-system ocaml-base-compiler
+          eval $(opam env --switch=ocaml-system)
+          opam install dune -y
+          opam install par_cli --deps-only --no-depexts -y
+
       - name: Install PAR deps via opam
+        if: matrix.label != 'linux-aarch64'
         run: opam install par_cli --deps-only -y
 
       - name: Build C FFI shared library
