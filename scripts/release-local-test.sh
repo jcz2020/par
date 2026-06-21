@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# release-local-test.sh — Local dry-run of the v0.4.11 release acceptance test.
+# release-local-test.sh — Local dry-run of the release acceptance test.
 # Usage: release-local-test.sh
 #
 # Builds the par_runtime wheel locally, then runs scripts/release-acceptance-test.py

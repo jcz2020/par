@@ -8,9 +8,9 @@ A modular, type-safe agent runtime for OCaml 5.4+: LangChain + LangGraph for the
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 [![Tests](https://img.shields.io/badge/tests-987%20passing-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-0.4.12-blue)]()
+[![Version](https://img.shields.io/badge/version-0.5.0-blue)]()
 
-> **PyPI status (2026-06-21)**: `pip install par-runtime` is **fixed in v0.4.11**. The 3 P0 release bugs from v0.4.8/9/10 (PAR-0qf, PAR-8cs, PAR-cog) are resolved, and every release now passes an end-to-end install test on 3 target platforms (debian:12, ubuntu:22.04, ubuntu:24.04) before upload. Use `install.sh` for the CLI binary on macOS or when you want a pinned binary install. See [`docs/release-pipeline-redesign.md`](docs/release-pipeline-redesign.md) for the postmortem.
+> **PyPI status (2026-06-21)**: `pip install par-runtime` ships native wheels for **Linux x86_64** (`manylinux_2_28`) and **macOS arm64** (Apple Silicon). ARM64 Linux and Intel Mac wheels are deferred — see [CHANGES.md](CHANGES.md) v0.5.0 entry for the trade-off. Every release passes an end-to-end install test on 4 platforms (debian:12, ubuntu:22.04, ubuntu:24.04, macos-15) before upload. Use `install.sh` for the CLI binary on macOS or when you want a pinned binary install.
 
 A complete, runnable program that registers a tool, registers an agent, and prints confirmation:
 
@@ -117,7 +117,7 @@ The `par` facade module (`lib/par.ml`) re-exports every public submodule, so a s
 
 - 20 built-in tools, including the type-safe `bash` tool: `Bash_safe_command` ADT, `Bash_policy` functor, 31-entry `Bash_blacklist`, and `Bash_invoked` / `Bash_completed` event types. Shell injection is unrepresentable in the type layer.
 - C FFI plus a Python binding: the `par_runtime` package exposes the same runtime over ctypes, thread-safe, with its own `pytest` suite.
-- 987 OCaml tests and 33 Python tests passing; zero regressions across the v0.4 series.
+- 987 OCaml tests and 33 Python tests passing; zero regressions across the v0.4 and v0.5 series.
 - MIT-licensed, 100% open source. Distributed via opam and GitHub Releases.
 
 ## SDK Quick Start
@@ -212,11 +212,21 @@ Adding a new MCP server is a trust decision, not a config edit. Before promoting
 
 PAR ships a Python binding via ctypes, package name `par_runtime`. The C ABI lives in `par_capi.so`; the Python wrapper calls into it directly, so there is no GIL contention with the OCaml runtime and no separate process to coordinate.
 
-**Install from GitHub Release:**
+**Install from PyPI:**
 
 ```bash
-# Download the wheel from the latest release
-curl -fsSL -o par_runtime.whl https://github.com/jcz2020/par/releases/latest/download/par_runtime-0.4.6-py3-none-any.whl
+pip install par-runtime
+```
+
+**Install from GitHub Release (specific version):**
+
+```bash
+# Linux x86_64 (manylinux_2_28)
+curl -fsSL -o par_runtime.whl https://github.com/jcz2020/par/releases/latest/download/par_runtime-py3-none-manylinux_2_28_x86_64.whl
+pip install par_runtime.whl
+
+# macOS arm64 (Apple Silicon)
+curl -fsSL -o par_runtime.whl https://github.com/jcz2020/par/releases/latest/download/par_runtime-py3-none-macosx_11_0_arm64.whl
 pip install par_runtime.whl
 ```
 

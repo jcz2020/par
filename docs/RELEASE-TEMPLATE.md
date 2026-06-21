@@ -50,12 +50,14 @@ backend.
 ### PyPI (Python binding)
 
 ```bash
-pip install par_runtime
+pip install par-runtime
 ```
 
 The Python binding ships as a ctypes wrapper around the C ABI
-(`par_capi.so`). The wheel bundles the ABI, so no OCaml toolchain is
-required at install time.
+(`par_capi.so`). v0.5.0+ ships native wheels for **linux x86_64**
+(`manylinux_2_28`) and **macOS arm64** (Apple Silicon). On other platforms
+(Intel Mac, ARM Linux, Windows), pip falls back to source build — see
+[`CHANGES.md`](../CHANGES.md) for the current platform support matrix.
 
 ### Build from source
 
@@ -79,14 +81,19 @@ par --version
 
 ## Assets
 
-This release ships binaries plus a checksum file:
+This release ships binaries, wheels, and a checksum file:
 
 | Asset | Platform |
 |-------|----------|
 | `par-__VERSION__-linux-x64` | Linux x86_64 (Ubuntu, Debian, Fedora, Arch, Alpine) |
 | `par-__VERSION__-macos-arm64` | macOS 15+ on Apple Silicon |
-| `par-__VERSION__-macos-x64` | macOS 13+ on Intel (manual build) |
+| `par_runtime-__VERSION__-py3-none-manylinux_2_28_x86_64.whl` | Python wheel — Linux x86_64 |
+| `par_runtime-__VERSION__-py3-none-macosx_11_0_arm64.whl` | Python wheel — macOS arm64 |
 | `sha512-checksums.txt` | SHA-512 digests for all binaries |
+
+**Note**: Intel Mac binary (`macos-x64`) is not shipped since v0.5.0 — the
+`macos-13` GH Actions runner was permanently abandoned (free-tier queue
+24h+). ARM64 Linux wheel deferred to v0.5.1+. See [`CHANGES.md`](../CHANGES.md).
 
 To verify a downloaded binary manually:
 

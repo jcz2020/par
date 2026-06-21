@@ -1,6 +1,8 @@
 # Release Pipeline Redesign — Post v0.4.10 Postmortem
 
-**Status**: Updated 2026-06-21 — scope split into v0.4.11 (MVP fix) and v0.5+ (stretch goals).
+> **✅ RESOLVED 2026-06-21**: v0.4.11 shipped the MVP fix (3-platform acceptance test, setuptools upgrade, ubuntu-22.04 pinning). v0.4.13 shipped manylinux_2_28 wheel (auditwheel + GMP/sqlite3 bundling). v0.5.0 shipped macOS arm64 wheel (delocate + `wheel tags`). ARM64 Linux deferred to v0.5.1+ (GH Actions free-tier ARM runners saturated). OIDC trusted publisher pending user registration at pypi.org. See [`CHANGES.md`](../CHANGES.md) for release notes; this doc is now a historical retrospective.
+
+**Status (historical)**: Updated 2026-06-21 — scope split into v0.4.11 (MVP fix) and v0.5+ (stretch goals).
 **Scope**:
 - **v0.4.11** (PATCH, immediate): minimum viable fix + end-to-end acceptance test → see [`v0.4.11-ROADMAP.md`](v0.4.11-ROADMAP.md) for execution plan
 - **v0.5.0+** (MINOR, stretch): manylinux + auditwheel + ARM64 + macOS wheel + OIDC auto-upload
