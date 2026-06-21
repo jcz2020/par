@@ -36,13 +36,9 @@ jobs:
           restore-keys: opam-par-
 
       - name: Install PAR deps
-        # `opam install .` calls `git ls-files` internally; git refuses to
-        # operate on repos not owned by current user (git 2.35.2+ security fix).
-        # Inside the container, checkout is owned by runner user but processes
-        # run as root — git exits 128. Mark all dirs as safe before opam.
-        run: |
-          git config --global --add safe.directory '*'
-          eval $(opam env) && opam install . --deps-only -y
+        # Install deps from the .opam files directly (not `opam install .` which
+        # needs git ls-files and fails inside containers due to safe.directory).
+        run: eval $(opam env) && opam install par.opam par_cli.opam --deps-only -y
 
       - name: Build C FFI shared library
         run: opam exec -- dune build lib/ffi/par_capi.so
