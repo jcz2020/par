@@ -1,8 +1,8 @@
 # CHANGES
 
-## v0.4.13 (DRAFT — not yet released)
+## v0.4.13 (RELEASED 2026-06-21)
 
-> Wheel platform tag fix: `py3-none-any` → `cp311-cp311-manylinux_2_28_x86_64`. Resolves the misleading tag that claimed "any platform" while shipping a 29 MB x86_64 Linux ELF binary. Built inside `quay.io/pypa/manylinux_2_28_x86_64` container so glibc baseline is 2.28 (RHEL 8+, Ubuntu 18.10+, Debian 10+).
+> Wheel platform tag fix: `py3-none-any` → `py3-none-manylinux_2_28_x86_64`. Resolves the misleading tag that claimed "any platform" while shipping a 29 MB x86_64 Linux ELF binary. Built inside `quay.io/pypa/manylinux_2_28_x86_64` container so glibc baseline is 2.28 (RHEL 8+, Ubuntu 18.10+, Debian 10+). GMP and sqlite3 bundled via auditwheel.
 
 ### Fixed
 
