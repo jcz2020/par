@@ -128,10 +128,6 @@ jobs:
           path: dist/
       - uses: actions/download-artifact@v4
         with:
-          name: wheel-linux-aarch64
-          path: dist/
-      - uses: actions/download-artifact@v4
-        with:
           name: wheel-macos-arm64
           path: dist/
       - name: Merge checksums + show summary
@@ -174,10 +170,6 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: wheel-linux-x86_64
-          path: dist/
-      - uses: actions/download-artifact@v4
-        with:
-          name: wheel-linux-aarch64
           path: dist/
       - uses: actions/download-artifact@v4
         with:
