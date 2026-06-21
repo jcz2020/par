@@ -36,9 +36,14 @@ jobs:
           restore-keys: opam-par-
 
       - name: Install PAR deps
-        # Install deps from the .opam files directly (not `opam install .` which
-        # needs git ls-files and fails inside containers due to safe.directory).
-        run: eval $(opam env) && opam install par.opam par_cli.opam --deps-only -y
+        # Pin local packages from .opam files (avoids `opam install .` which
+        # needs git ls-files and also pulls par_postgres deps). Then install
+        # only the dependencies of par + par_cli.
+        run: |
+          eval $(opam env)
+          opam pin add -y --no-action par par.opam
+          opam pin add -y --no-action par_cli par_cli.opam
+          opam install -y par par_cli --deps-only
 
       - name: Build C FFI shared library
         run: opam exec -- dune build lib/ffi/par_capi.so
