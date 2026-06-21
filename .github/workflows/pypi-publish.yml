@@ -36,7 +36,12 @@ jobs:
           restore-keys: opam-par-
 
       - name: Install PAR deps
-        run: opam install par_cli --deps-only -y
+        # `opam install . --deps-only` (note the `.`) auto-discovers local
+        # opam packages from dune-project. Using `opam install par_cli` would
+        # fail with "No package named par_cli found" because the local .opam
+        # files aren't registered with opam without ocaml/setup-ocaml's
+        # opam-local-packages feature.
+        run: eval $(opam env) && opam install . --deps-only -y
 
       - name: Build C FFI shared library
         run: opam exec -- dune build lib/ffi/par_capi.so
