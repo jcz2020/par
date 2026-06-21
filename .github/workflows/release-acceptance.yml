@@ -38,6 +38,8 @@ jobs:
           - ubuntu:22.04
           - ubuntu:24.04
     steps:
+      - uses: actions/checkout@v4
+
       - name: Resolve TAG
         id: resolve-tag
         run: |
@@ -111,6 +113,8 @@ jobs:
        startsWith(github.event.workflow_run.head_branch, 'v'))
     runs-on: macos-15
     steps:
+      - uses: actions/checkout@v4
+
       - name: Resolve TAG
         id: resolve-tag
         run: |
