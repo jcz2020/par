@@ -96,7 +96,7 @@ make install
 - **多 provider LLM** — OpenAI、Anthropic、Ollama（本地）、Mock（测试）+ 自定义注册任何 OpenAI 兼容端点
 - **MCP 客户端**（stdio + HTTP/SSE）— 连接任何 Model Context Protocol 服务器获取工具、资源、提示
 - **20 个内置工具** — 包括类型安全的 bash（`Bash_safe_command` ADT，shell 注入在类型层不可能）
-- **7 个中间件** — Logging、Retry、Rate_limit、Timeout、Arg_validation、Validation、PII_mask、Sanitize_tool_output
+- **7 个中间件** — Logging、Retry、Rate_limit、Timeout、Validation、PII_mask、Sanitize_tool_output
 - **双层持久化** — SQLite（开发）、PostgreSQL（生产，单独的 `par_postgres` 包）、Noop（测试）
 - **结构化并发** — OCaml 5.4 effects + Eio，无孤立 fiber，无回调地狱
 - **Python ctypes 绑定** — `par_runtime` 包，线程安全，与 OCaml 运行时无 GIL 竞争

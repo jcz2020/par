@@ -96,7 +96,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - **Multi-provider LLM** — OpenAI, Anthropic, Ollama (local), Mock (tests), + custom registration for any OpenAI-compatible endpoint
 - **MCP client** (stdio + HTTP/SSE) — connect any Model Context Protocol server for tools, resources, prompts
 - **20 built-in tools** including type-safe bash (`Bash_safe_command` ADT, shell injection unrepresentable)
-- **7 middleware** — Logging, Retry, Rate_limit, Timeout, Arg_validation, Validation, PII_mask, Sanitize_tool_output
+- **7 middleware** — Logging, Retry, Rate_limit, Timeout, Validation, PII_mask, Sanitize_tool_output
 - **Dual persistence** — SQLite (dev), PostgreSQL (prod, separate `par_postgres` package), Noop (tests)
 - **Structured concurrency** — OCaml 5.4 effects with Eio, no orphan fibers, no callback hell
 - **Python ctypes binding** — `par_runtime` package, thread-safe, no GIL contention with OCaml runtime
