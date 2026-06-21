@@ -1,27 +1,28 @@
 # CHANGES
 
-## v0.5.0 (DRAFT — not yet released)
+## v0.5.0 (RELEASED 2026-06-21)
 
-> Multi-arch wheel support. `pip install par-runtime` now works natively on ARM64 Linux servers and Apple Silicon Macs, no source build or Rosetta required. Intel Mac users still fall back to source distribution (`macos-13` runner permanently abandoned 2026-06-19 — see `ci.yml` L16).
+> Apple Silicon macOS native wheel added. `pip install par-runtime` now works natively on Apple Silicon Macs, no source build or Rosetta required. Intel Mac users still fall back to source distribution (`macos-13` runner permanently abandoned 2026-06-19 — see `ci.yml` L16). ARM64 Linux wheel **deferred to v0.5.1+** — GitHub Actions free-tier ARM64 runners are saturated (queue 45min+, never dispatched) and qemu-binfmt on x86_64 host crashes manylinux container on start.
 
 ### Added
 
-- **`par_runtime-0.5.0-py3-none-manylinux_2_28_aarch64.whl`** (~10 MB) — ARM64 Linux manylinux wheel. Built on `ubuntu-22.04-arm64` runner inside `quay.io/pypa/manylinux_2_28_aarch64:latest` container, `auditwheel repair --plat manylinux_2_28_aarch64`.
-- **`par_runtime-0.5.0-py3-none-macosx_11_0_arm64.whl`** (~10 MB) — ARM64 macOS wheel. Built on `macos-15` runner, `brew install gmp sqlite3`, `delocate-wheel` for dylib bundling.
-- **Release acceptance matrix expanded** (5 platforms): `debian:12`, `ubuntu:22.04`, `ubuntu:24.04` (linux-x86_64 wheel), `debian:bookworm-arm64` (linux-aarch64 wheel via qemu binfmt on `ubuntu-22.04-arm64` runner), `macos-15` (macos-arm64 wheel).
+- **`par_runtime-0.5.0-py3-none-macosx_11_0_arm64.whl`** (6.5 MB) — ARM64 macOS wheel. Built on `macos-15` runner, `brew install gmp sqlite3`, `delocate-wheel` for dylib bundling, `wheel tags --platform-tag macosx_11_0_arm64` to set the platform tag (ctypes .so gets `py3-none-any` by default from setuptools).
 
 ### Changed
 
-- **`pypi-publish.yml`**: single hardcoded job refactored into a 3-job matrix `{linux-x86_64, linux-aarch64, macos-arm64}`. `gh-release-upload` and `pypi-upload` jobs download all 3 artifacts and publish in one go. `auditwheel` for Linux, `delocate-wheel` for macOS.
-- **`release-acceptance.yml`**: split into 3 jobs (`accept-linux-x64`, `accept-linux-arm64`, `accept-macos-arm64`). Each downloads only its matching wheel by glob pattern (`*-manylinux_2_28_x86_64.whl` etc). The v0.4.13 `WHEEL_COUNT -ne 1` guard is gone (each job expects exactly 1 wheel, the one it cares about).
+- **`pypi-publish.yml`**: single hardcoded job refactored into a 2-job matrix `{linux-x86_64, macos-arm64}`. `gh-release-upload` and `pypi-upload` jobs download both artifacts and publish together. `auditwheel` for Linux (existing v0.4.13 path unchanged), `delocate-wheel` + `wheel tags` for macOS.
+- **`release-acceptance.yml`**: split into 2 jobs (`accept-linux-x64` 3-container matrix + `accept-macos-arm64` native runner). Removed the v0.4.13 `WHEEL_COUNT -ne 1` guard (each job downloads its matching wheel by glob pattern, e.g. `*-manylinux_2_28_x86_64.whl`).
 
-### Trade-off accepted
+### Trade-offs accepted
 
-- **No Intel Mac native wheel in v0.5.0.** True `universal2` requires both `macos-13` (Intel) + `macos-15` (ARM) runners; the free-tier GitHub Actions macos-13 queue consistently hits 24h+ and then max-execution-time (`ci.yml` L16). Options: (a) accept source-build fallback for Intel Mac users (PyPI 2026 Intel Mac share <5%), or (b) pay for GitHub Actions minutes. **Decision: (a)**. Defer to v0.6+ if Intel Mac demand materializes.
+- **No ARM64 Linux wheel in v0.5.0.** Attempted `ubuntu-22.04-arm64`, `ubuntu-24.04-arm64` runners — both saturated 45min+ on free tier. Attempted qemu-binfmt on `ubuntu-22.04` host with `quay.io/pypa/manylinux_2_28_aarch64:latest` container — container crashes on start (`Error response from daemon: container is not running`). User decision 2026-06-21: skip ARM64 Linux for v0.5.0, defer to v0.5.1+ when GH Actions ARM quota improves OR self-hosted runner is available.
+- **No Intel Mac native wheel.** `macos-13` (Intel) runner queue 24h+ then max-execution-time on free tier (`ci.yml` L16). True `universal2` (which needs both `macos-13` + `macos-15` slices) is NOT achievable without paid minutes. Intel Mac users continue to fall back to source distribution (PyPI 2026 Intel Mac share <5%).
 
 ### Verification Evidence
 
-- `<pending v0.5.0-beta.20260621.post1 build completion>`
+- **PyPI**: https://pypi.org/project/par-runtime/0.5.0/ — 2 wheels: `par_runtime-0.5.0-py3-none-manylinux_2_28_x86_64.whl` (11.3 MB) + `par_runtime-0.5.0-py3-none-macosx_11_0_arm64.whl` (6.5 MB)
+- **GH Release**: https://github.com/jcz2020/par/releases/tag/v0.5.0 — 2 wheel assets
+- **CI iterations**: 8 (post1 → post8). Key fixes: (a) drop aarch64 job after ARM runner saturation; (b) rename macos wheel from `py3-none-any` to `macosx_11_0_arm64` via `wheel tags` (filename-only rename fails PyPI 400 — internal WHEEL Tag field must match); (c) remove stale aarch64 download steps after matrix shrink.
 
 ---
 
