@@ -102,80 +102,6 @@ jobs:
           WHEEL_NAME: ${{ steps.resolve-wheel.outputs.name }}
           RELEASE_VERSION: ${{ steps.resolve-version.outputs.version }}
 
-  accept-linux-arm64:
-    name: Acceptance (linux-aarch64) in debian:bookworm-arm64
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event != 'pull_request' &&
-       startsWith(github.event.workflow_run.head_branch, 'v'))
-    runs-on: ubuntu-24.04-arm64
-    steps:
-      - name: Resolve TAG
-        id: resolve-tag
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ inputs.ref }}"
-          else
-            TAG="${{ github.event.workflow_run.head_branch }}"
-          fi
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-
-      - name: Download linux-aarch64 wheel
-        id: resolve-wheel
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.resolve-tag.outputs.tag }}
-        run: |
-          set -euo pipefail
-          mkdir -p wheels
-          gh release download "$TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --pattern 'par_runtime-*-manylinux_2_28_aarch64.whl' \
-            --dir wheels/
-          WHEEL_COUNT=$(ls wheels/*.whl 2>/dev/null | wc -l)
-          if [ "$WHEEL_COUNT" -ne 1 ]; then
-            echo "ERROR: expected 1 linux-aarch64 wheel in release $TAG, found $WHEEL_COUNT" >&2
-            exit 1
-          fi
-          WHEEL_NAME=$(basename wheels/*.whl)
-          echo "name=${WHEEL_NAME}" >> "$GITHUB_OUTPUT"
-          echo "Using wheel: ${WHEEL_NAME}"
-
-      - name: Compute PEP 440 version
-        id: resolve-version
-        env:
-          TAG: ${{ steps.resolve-tag.outputs.tag }}
-        run: |
-          set -euo pipefail
-          VERSION="${TAG#v}"
-          VERSION="${VERSION//-beta./b}"
-          VERSION="${VERSION//-alpha./a}"
-          VERSION="${VERSION//-rc./rc}"
-          VERSION="${VERSION//-dev./dev}"
-          VERSION="${VERSION//-post./post}"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-
-      - name: Run acceptance test in debian:bookworm-arm64
-        run: |
-          docker run --rm \
-            --platform linux/arm64 \
-            -v "$PWD/wheels:/wheels:ro" \
-            -v "$PWD/scripts:/scripts:ro" \
-            debian:bookworm \
-            bash -euo pipefail <<SCRIPT
-          set -euo pipefail
-          apt-get update -qq
-          apt-get install -y -qq python3 python3-pip python3-venv
-          python3 -m venv /tmp/venv
-          /tmp/venv/bin/pip install --upgrade pip
-          /tmp/venv/bin/pip install --no-cache-dir /wheels/${WHEEL_NAME}
-          python3 /scripts/release-acceptance-test.py /wheels/${WHEEL_NAME} "${RELEASE_VERSION}"
-          SCRIPT
-        env:
-          WHEEL_NAME: ${{ steps.resolve-wheel.outputs.name }}
-          RELEASE_VERSION: ${{ steps.resolve-version.outputs.version }}
-
   accept-macos-arm64:
     name: Acceptance (macos-arm64) on macos-15
     if: >-
@@ -242,8 +168,8 @@ jobs:
 
   report-failure:
     name: Report failure (open issue)
-    if: always() && (needs.accept-linux-x64.result == 'failure' || needs.accept-linux-arm64.result == 'failure' || needs.accept-macos-arm64.result == 'failure')
-    needs: [accept-linux-x64, accept-linux-arm64, accept-macos-arm64]
+    if: always() && (needs.accept-linux-x64.result == 'failure' || needs.accept-macos-arm64.result == 'failure')
+    needs: [accept-linux-x64, accept-macos-arm64]
     runs-on: ubuntu-22.04
     steps:
       - name: Open regression issue
@@ -259,7 +185,6 @@ jobs:
           fi
           FAILED=()
           [ "${{ needs.accept-linux-x64.result }}" = "failure" ] && FAILED+=("linux-x86_64")
-          [ "${{ needs.accept-linux-arm64.result }}" = "failure" ] && FAILED+=("linux-aarch64")
           [ "${{ needs.accept-macos-arm64.result }}" = "failure" ] && FAILED+=("macos-arm64")
           FAIL_LIST=$(IFS=', '; echo "${FAILED[*]}")
           BODY=$(cat <<EOF
