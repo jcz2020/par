@@ -16,34 +16,18 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install system deps for OCaml
-        run: dnf install -y gmp-devel sqlite-devel git perl
+        run: dnf install -y gmp-devel sqlite-devel git perl bubblewrap
 
-      - name: Install opam
-        run: |
-          curl -fsSL -o /usr/local/bin/opam \
-            "https://github.com/ocaml/opam/releases/download/2.4.1/opam-2.4.1-x86_64-linux"
-          chmod 755 /usr/local/bin/opam
-          opam init --disable-sandboxing --bare -y
-
-      - name: Create OCaml 5.4 switch
-        run: opam switch create par 5.4.0 -y
-
-      - name: Cache opam deps
-        uses: actions/cache@v4
+      - uses: ocaml/setup-ocaml@v3
         with:
-          path: /root/.opam
-          key: opam-par-${{ hashFiles('par.opam', 'par_cli.opam') }}
-          restore-keys: opam-par-
+          ocaml-compiler: "5.4.0"
+          dune-cache: true
+          opam-local-packages: |
+            par.opam
+            par_cli.opam
 
       - name: Install PAR deps
-        # Pin local packages from .opam files (avoids `opam install .` which
-        # needs git ls-files and also pulls par_postgres deps). Then install
-        # only the dependencies of par + par_cli.
-        run: |
-          eval $(opam env)
-          opam pin add -y --no-action par par.opam
-          opam pin add -y --no-action par_cli par_cli.opam
-          opam install -y par par_cli --deps-only
+        run: opam install par_cli --deps-only -y
 
       - name: Build C FFI shared library
         run: opam exec -- dune build lib/ffi/par_capi.so
