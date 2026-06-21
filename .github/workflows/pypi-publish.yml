@@ -23,7 +23,7 @@ jobs:
             repair_args: --plat manylinux_2_28_x86_64
             artifact: wheel-linux-x86_64
           - label: linux-aarch64
-            runner: ubuntu-22.04-arm64
+            runner: ubuntu-24.04-arm64
             container: quay.io/pypa/manylinux_2_28_aarch64:latest
             python_bin: /opt/python/cp311-cp311/bin/python
             repair_tool: auditwheel
