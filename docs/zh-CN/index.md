@@ -46,3 +46,18 @@
 | 文档 | 内容 |
 |------|------|
 | [架构深度解析](explanation/architecture.md) | 核心抽象、模块结构、数据流、类型系统、并发模型、事件流 |
+
+### 文档内部规则
+
+[文档维护规则](../DOC-MAINTENANCE.md)：保持 PAR 文档整洁的规则（标识符保留、语言标记、CJK 检查、CI 集成）。
+
+## 项目链接
+
+不在上述四个分类中的项目级文档。
+
+- [`README.md`](../../README.md)：项目概览
+- [`CHANGES.md`](../../CHANGES.md)：版本历史
+- [`CONTRIBUTING.md`](../../CONTRIBUTING.md)：如何贡献
+- [`SECURITY.md`](../../SECURITY.md)：安全披露
+- [GitHub 仓库](https://github.com/jcz2020/par)：源码、Issues、PR
+- [opam 包 `par`](https://opam.ocaml.org/packages/par/)：发布后可用
