@@ -1,6 +1,6 @@
 # PAR — Programmable Agent Runtime
 
-**English** · [简体中文](docs/zh-CN/README.md)
+**English** · [简体中文](docs/zh/README.md)
 
 A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you can use it from Python or the CLI without writing a single line of OCaml.
 

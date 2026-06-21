@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](../zh-CN/howto/concurrency.md)
+**English** · [简体中文](../zh/howto/concurrency.md)
 
 > Translated to English for v0.3.2.
 

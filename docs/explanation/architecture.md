@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](../zh-CN/explanation/architecture.md)
+**English** · [简体中文](../zh/explanation/architecture.md)
 
 > Translated to English for v0.3.2.
 

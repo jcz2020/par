@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](../zh-CN/sdk/agent.md)
+**English** · [简体中文](../zh/sdk/agent.md)
 
 # Agent API Reference
 

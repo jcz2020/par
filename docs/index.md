@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](zh-CN/index.md)
+**English** · [简体中文](zh/index.md)
 
 # PAR Documentation
 

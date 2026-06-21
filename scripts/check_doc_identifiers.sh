@@ -46,7 +46,7 @@ EOF
 declare -A TOT=( [PK]=4 [API]=5 [LLM]=4 [PER]=3 [CLI]=4 [BSH]=5 [MCP]=7 [PTH]=3 [JSN]=4 )
 
 req_for() { case "$1" in
-  */zh-CN/README.md|*/docs/zh-CN/README.md|docs/zh-CN/README.md) echo "PK:1 CLI:1" ;;
+  */zh/README.md|*/docs/zh/README.md|docs/zh/README.md) echo "PK:1 CLI:1" ;;
   */README.md|README.md)                                  echo "PK:1 CLI:1 PTH:1" ;;
   */docs/cli.md|docs/cli.md|*/docs/quickstart.md|docs/quickstart.md) echo "CLI:1 PK:1" ;;
   */docs/index.md|docs/index.md)                          echo "PK:1" ;;

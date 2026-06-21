@@ -1,0 +1,1787 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/sdk/overview/">
+      
+      
+        <link rel="prev" href="../../cli/">
+      
+      
+        <link rel="next" href="../agent/">
+      
+      
+        
+          <link rel="alternate" href="./" hreflang="en">
+        
+          <link rel="alternate" href="../../zh/sdk/overview/" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>SDK Overview - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#par-sdk-overview" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              SDK Overview
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../zh/sdk/overview/" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Tutorial
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  How-to
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../cli/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorial
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-the-par-sdk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is the PAR SDK?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture-at-a-glance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture at a glance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#five-minute-sdk-tour" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Five-minute SDK tour
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Five-minute SDK tour">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-runtime-tool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Runtime + tool
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-llm-invoke" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. LLM invoke
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-event-subscription" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Event subscription
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-mcp-client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. MCP client
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-to-use-the-sdk-vs-the-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use the SDK vs the CLI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#module-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module map
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key invariants
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-the-par-sdk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is the PAR SDK?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture-at-a-glance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture at a glance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#five-minute-sdk-tour" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Five-minute SDK tour
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Five-minute SDK tour">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-runtime-tool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Runtime + tool
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-llm-invoke" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. LLM invoke
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-event-subscription" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Event subscription
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-mcp-client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. MCP client
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-to-use-the-sdk-vs-the-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use the SDK vs the CLI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#module-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module map
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key invariants
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<!-- language: en -->
+
+<p><strong>English</strong> · <a href="../zh/sdk/overview.md">简体中文</a></p>
+<h1 id="par-sdk-overview">PAR SDK Overview<a class="headerlink" href="#par-sdk-overview" title="Permanent link">&para;</a></h1>
+<p>The PAR SDK is an OCaml 5.4+ library for building LLM-powered agents. It provides a ReAct reasoning loop, multi-provider LLM abstraction, type-safe shell execution, MCP client integration (stdio + HTTP/SSE), and a 7-middleware pipeline. This overview is the deep dive; the README is the landing.</p>
+<h2 id="what-is-the-par-sdk">What is the PAR SDK?<a class="headerlink" href="#what-is-the-par-sdk" title="Permanent link">&para;</a></h2>
+<p>PAR (Programmable Agent Runtime) ships as two opam packages. <code>par</code> is the SDK; <code>par_cli</code> is a thin CLI that exercises the SDK for end users. The SDK is the production surface. Anything you can do via the CLI, you can do programmatically through <code>Par.Runtime.*</code> functions.</p>
+<ul>
+<li>Two opam packages: <code>par</code> (SDK) and <code>par_cli</code> (CLI)</li>
+<li>9 sub-libraries under <code>lib/</code> plus a facade module <code>Par</code> (re-exports all sub-modules)</li>
+<li>20 built-in tools including the type-safe <code>bash</code> tool</li>
+<li>7 built-in middlewares (logging, retry, rate-limit, timeout, input validation, PII mask, tool-output sanitization)</li>
+<li>Multi-provider: OpenAI compatible + Anthropic Messages API + custom registration</li>
+<li>666 OCaml tests + 16 Python tests passing</li>
+</ul>
+<h2 id="architecture-at-a-glance">Architecture at a glance<a class="headerlink" href="#architecture-at-a-glance" title="Permanent link">&para;</a></h2>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>graph TD
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  P[&quot;Par facade: open Par&quot;]
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  P --&gt; CORE[&quot;lib/core&quot;]
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  P --&gt; PROV[&quot;lib/providers&quot;]
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  P --&gt; PERS[&quot;lib/persistence&quot;]
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  P --&gt; POST[&quot;lib/postgres (par_postgres)&quot;]
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  P --&gt; EVB[&quot;lib/event_bus&quot;]
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  P --&gt; MID[&quot;lib/middleware&quot;]
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  P --&gt; TOOL[&quot;lib/tools&quot;]
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  P --&gt; MCP[&quot;lib/mcp&quot;]
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  P --&gt; FFI[&quot;lib/ffi&quot;]
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  CORE --&gt; RT[&quot;Runtime / Engine / Workflow_engine / Expression / State_machine / Context_manager / Cancellation / Tool_registry / Template / Steering_queue / Hook / Metrics&quot;]
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>  PROV --&gt; PROV_API[&quot;Openai_provider / Anthropic_provider / Mock_provider&quot;]
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>  PERS --&gt; PERS_API[&quot;Sqlite_persistence / Noop_persistence&quot;]
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>  POST --&gt; POST_API[&quot;Postgres_persistence (optional opam)&quot;]
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>  EVB --&gt; EVB_API[&quot;Event_bus with DLQ + Eio.Stream&quot;]
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>  MID --&gt; MID_API[&quot;Logging / Retry / Rate_limit / Timeout / Arg_validation / Validation / Pii_mask / Sanitize_tool_output&quot;]
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>  TOOL --&gt; TOOL_API[&quot;Builtin_tools (20 incl. bash) + Bash_safe_command + Bash_policy + Bash_blacklist&quot;]
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>  MCP --&gt; MCP_API[&quot;Mcp_types / Mcp_server / Mcp_client / Mcp_transport_stdio / Mcp_transport_http / Mcp_naming / Mcp_errors&quot;]
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>  FFI --&gt; FFI_API[&quot;par_capi.so + par_ffi.h for Python ctypes&quot;]
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>  RT -.cancellation.-&gt; EIO[&quot;Eio.Switch.t (whole-tree cancel)&quot;]
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>  EVB -.events.-&gt; RT
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>  PROV -.stream.-&gt; RT
+</span></code></pre></div>
+<p>The facade <code>Par</code> is the single import surface: <code>open Par</code> brings every sub-module listed above into scope, so call sites read <code>Par.Runtime.invoke</code> only when they want to disambiguate from a local <code>Runtime</code> name. The dashed edges are the cross-cutting concerns: cancellation flows from <code>Eio.Switch.t</code> into every tool handler, the event bus feeds observability back into the runtime, and provider streaming responses drive the ReAct loop in <code>Engine.run_agent</code>.</p>
+<h2 id="five-minute-sdk-tour">Five-minute SDK tour<a class="headerlink" href="#five-minute-sdk-tour" title="Permanent link">&para;</a></h2>
+<p>Five self-contained examples, one per subsystem. Each compiles against the published <code>par</code> opam package.</p>
+<h3 id="1-runtime-tool">1. Runtime + tool<a class="headerlink" href="#1-runtime-tool" title="Permanent link">&para;</a></h3>
+<p>Create a runtime, register a tool, register an agent. The handler receives JSON input and a cancellation token, returns a typed <code>handler_result</code>.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="k">let</span> <span class="n">config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">persistence</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Sqlite</span> <span class="s2">&quot;par.db&quot;</span><span class="o">;</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  <span class="n">event_bus</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">default_event_bus_config</span><span class="o">;</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>  <span class="n">default_quota</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">default_quota</span><span class="o">;</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>  <span class="n">shutdown</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">default_shutdown_config</span><span class="o">;</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>  <span class="n">llm_providers</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>  <span class="n">eval_limits</span> <span class="o">=</span> <span class="o">{</span> <span class="n">max_depth</span> <span class="o">=</span> <span class="mi">10</span><span class="o">;</span> <span class="n">max_node_visits</span> <span class="o">=</span> <span class="mi">1000</span> <span class="o">};</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>  <span class="n">parallel_tool_execution</span> <span class="o">=</span> <span class="bp">true</span><span class="o">;</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>  <span class="n">bash_confirm</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">default_bash_confirm</span><span class="o">;</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>  <span class="n">event_retention_seconds</span> <span class="o">=</span> <span class="mi">604800</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="o">}</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="k">let</span> <span class="bp">()</span> <span class="o">=</span> <span class="nn">Eio_main</span><span class="p">.</span><span class="n">run</span> <span class="o">(</span><span class="k">fun</span> <span class="o">_</span><span class="n">env</span> <span class="o">-&gt;</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>  <span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">run</span> <span class="o">(</span><span class="k">fun</span> <span class="n">switch</span> <span class="o">-&gt;</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    <span class="k">let</span> <span class="n">rt</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">create</span> <span class="o">~</span><span class="n">config</span> <span class="n">switch</span> <span class="o">|&gt;</span> <span class="nn">Result</span><span class="p">.</span><span class="n">get_ok</span> <span class="k">in</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>    <span class="k">let</span> <span class="n">tool</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">register_tool</span> <span class="n">rt</span> <span class="o">~</span><span class="n">name</span><span class="o">:</span><span class="s2">&quot;echo&quot;</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>      <span class="o">~</span><span class="n">description</span><span class="o">:</span><span class="s2">&quot;Echoes back the input&quot;</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>      <span class="o">~</span><span class="n">input_schema</span><span class="o">:(`</span><span class="nc">Assoc</span> <span class="o">[</span><span class="s2">&quot;type&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;object&quot;</span><span class="o">;</span>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>                              <span class="s2">&quot;properties&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">Assoc</span> <span class="bp">[]</span><span class="o">])</span>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>      <span class="o">~</span><span class="n">handler</span><span class="o">:(</span><span class="k">fun</span> <span class="n">input</span> <span class="o">_</span><span class="n">token</span> <span class="o">-&gt;</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>        <span class="nn">Types</span><span class="p">.</span><span class="nc">Success</span> <span class="o">(`</span><span class="nc">String</span> <span class="o">(</span><span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;Echo: %s&quot;</span>
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>          <span class="o">(</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">to_string</span> <span class="n">input</span><span class="o">))))</span>
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>      <span class="bp">()</span> <span class="o">|&gt;</span> <span class="nn">Result</span><span class="p">.</span><span class="n">get_ok</span> <span class="k">in</span>
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>    <span class="n">ignore</span> <span class="o">(</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">register_agent</span> <span class="n">rt</span>
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>      <span class="o">{</span> <span class="n">id</span> <span class="o">=</span> <span class="s2">&quot;echo-agent&quot;</span><span class="o">;</span> <span class="n">system_prompt</span> <span class="o">=</span> <span class="s2">&quot;You are an echo assistant.&quot;</span><span class="o">;</span>
+</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>        <span class="n">system_prompt_template</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-1-29"><a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>        <span class="n">model</span> <span class="o">=</span> <span class="o">{</span> <span class="n">provider</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Openai</span><span class="o">;</span> <span class="n">model_name</span> <span class="o">=</span> <span class="s2">&quot;gpt-4&quot;</span><span class="o">;</span> <span class="n">api_base</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-1-30"><a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>                  <span class="n">temperature</span> <span class="o">=</span> <span class="mi">0</span><span class="o">.</span><span class="mi">7</span><span class="o">;</span> <span class="n">max_tokens</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span> <span class="n">top_p</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-1-31"><a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a>                  <span class="n">stop_sequences</span> <span class="o">=</span> <span class="nc">None</span> <span class="o">};</span>
+</span><span id="__span-1-32"><a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a>        <span class="n">tools</span> <span class="o">=</span> <span class="o">[</span><span class="n">tool</span><span class="o">.</span><span class="n">descriptor</span><span class="o">];</span> <span class="n">max_iterations</span> <span class="o">=</span> <span class="mi">5</span><span class="o">;</span>
+</span><span id="__span-1-33"><a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a>        <span class="n">middleware</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span> <span class="n">retry_policy</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span> <span class="n">context_strategy</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-1-34"><a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a>        <span class="n">resource_quota</span> <span class="o">=</span> <span class="nc">None</span> <span class="o">}))</span>
+</span></code></pre></div>
+<h3 id="2-llm-invoke">2. LLM invoke<a class="headerlink" href="#2-llm-invoke" title="Permanent link">&para;</a></h3>
+<p>Once an agent is registered, <code>Runtime.invoke</code> runs the ReAct loop until the LLM signals <code>Stop</code>, all tool calls return, or <code>max_iterations</code> is reached.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke</span> <span class="o">~</span><span class="n">agent_id</span><span class="o">:</span><span class="s2">&quot;echo-agent&quot;</span> <span class="o">~</span><span class="n">message</span><span class="o">:</span><span class="s2">&quot;Hello!&quot;</span> <span class="n">rt</span> <span class="k">with</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">resp</span> <span class="o">-&gt;</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Response: %s</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="o">(</span><span class="nn">Option</span><span class="p">.</span><span class="n">value</span> <span class="n">resp</span><span class="o">.</span><span class="nn">Types</span><span class="p">.</span><span class="n">text</span> <span class="o">~</span><span class="n">default</span><span class="o">:</span><span class="s2">&quot;(no text)&quot;</span><span class="o">)</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">err</span> <span class="o">-&gt;</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">eprintf</span> <span class="s2">&quot;Error: %s</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="o">(</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">to_string</span> <span class="o">(</span><span class="nn">Types</span><span class="p">.</span><span class="n">error_category_to_yojson</span> <span class="n">err</span><span class="o">))</span>
+</span></code></pre></div>
+<p>Pass <code>?cancellation_token:</code> to abort a long-running invoke; the cancellation propagates to every tool handler through the Eio switch. Full signature and <code>error_category</code> variants live in <a href="../agent/"><code>agent.md</code></a>.</p>
+<h3 id="3-event-subscription">3. Event subscription<a class="headerlink" href="#3-event-subscription" title="Permanent link">&para;</a></h3>
+<p>Subscribe to the event bus and pattern-match on lifecycle events. MCP server events arrive on the same bus as task and tool events, so one subscriber covers the whole runtime.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c">(* Event subscription: pass ?on_tool_event:(event -&gt; unit) callback to Runtime.create *)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nn">Event_bus</span><span class="p">.</span><span class="n">subscribe</span> <span class="n">bus</span> <span class="o">(</span><span class="k">fun</span> <span class="n">ev</span> <span class="o">-&gt;</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  <span class="k">match</span> <span class="n">ev</span> <span class="k">with</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  <span class="o">|</span> <span class="nc">Mcp_tool_completed</span> <span class="o">{</span> <span class="n">server_id</span><span class="o">;</span> <span class="n">tool_name</span><span class="o">;</span> <span class="n">duration_ms</span> <span class="o">}</span> <span class="o">-&gt;</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;[mcp] %s/%s done in %.1fms</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>      <span class="n">server_id</span> <span class="n">tool_name</span> <span class="n">duration_ms</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>  <span class="o">|</span> <span class="nc">Bash_invoked</span> <span class="o">{</span> <span class="n">argv</span><span class="o">;</span> <span class="n">risk</span><span class="o">;</span> <span class="o">_</span> <span class="o">}</span> <span class="o">-&gt;</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;[bash] risk=%s argv=%s</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>      <span class="n">risk</span> <span class="o">(</span><span class="nn">String</span><span class="p">.</span><span class="n">concat</span> <span class="s2">&quot; &quot;</span> <span class="n">argv</span><span class="o">)</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>  <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="bp">()</span><span class="o">)</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="n">ignore</span> <span class="o">(</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke</span> <span class="o">~</span><span class="n">agent_id</span><span class="o">:</span><span class="s2">&quot;echo-agent&quot;</span> <span class="o">~</span><span class="n">message</span><span class="o">:</span><span class="s2">&quot;hi&quot;</span> <span class="n">rt</span><span class="o">)</span>
+</span></code></pre></div>
+<h3 id="4-workflow">4. Workflow<a class="headerlink" href="#4-workflow" title="Permanent link">&para;</a></h3>
+<p>A workflow is a tree of steps: agent calls, tool calls, parallel, sequential, conditional, map-reduce, human approval, and sub-workflow. The runtime submits a workflow definition and returns a <code>Workflow_run_id.t</code> for status queries.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">let</span> <span class="n">wf</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">id</span> <span class="o">=</span> <span class="s2">&quot;research&quot;</span><span class="o">;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Research and Summarize&quot;</span><span class="o">;</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">version</span> <span class="o">=</span> <span class="mi">1</span><span class="o">;</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">steps</span> <span class="o">=</span> <span class="nc">Sequential</span> <span class="o">[</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="nc">Agent_call</span> <span class="o">{</span> <span class="n">agent_id</span> <span class="o">=</span> <span class="s2">&quot;researcher&quot;</span><span class="o">;</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>                 <span class="n">prompt_template</span> <span class="o">=</span> <span class="s2">&quot;Research: {{topic}}&quot;</span> <span class="o">};</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="nc">Human_approval</span> <span class="o">{</span> <span class="n">prompt_template</span> <span class="o">=</span> <span class="s2">&quot;Approve summary of {{topic}}?&quot;</span><span class="o">;</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>                     <span class="n">timeout</span> <span class="o">=</span> <span class="mi">60</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span> <span class="n">allowed_roles</span> <span class="o">=</span> <span class="o">[</span><span class="s2">&quot;admin&quot;</span><span class="o">]</span> <span class="o">};</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="nc">Agent_call</span> <span class="o">{</span> <span class="n">agent_id</span> <span class="o">=</span> <span class="s2">&quot;summarizer&quot;</span><span class="o">;</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>                 <span class="n">prompt_template</span> <span class="o">=</span> <span class="s2">&quot;Summarize: {{topic}}&quot;</span> <span class="o">}</span> <span class="o">];</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">variables</span> <span class="o">=</span> <span class="o">[(</span><span class="s2">&quot;topic&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;OCaml 5 effects&quot;</span><span class="o">)];</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">failure_policy</span> <span class="o">=</span> <span class="nc">Fail_fast</span><span class="o">;</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">parallel_limit</span> <span class="o">=</span> <span class="mi">3</span><span class="o">;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">timeout</span> <span class="o">=</span> <span class="mi">600</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">on_complete</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="o">}</span> <span class="k">in</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="n">ignore</span> <span class="o">(</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">register_workflow</span> <span class="n">rt</span> <span class="n">wf</span><span class="o">);</span>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="k">let</span> <span class="n">run_id</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">submit_workflow</span> <span class="n">rt</span> <span class="n">wf</span> <span class="o">|&gt;</span> <span class="nn">Result</span><span class="p">.</span><span class="n">get_ok</span> <span class="k">in</span>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="n">ignore</span> <span class="o">(</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">approve_workflow</span> <span class="n">rt</span> <span class="n">run_id</span> <span class="o">~</span><span class="n">approver</span><span class="o">:</span><span class="s2">&quot;alice&quot;</span><span class="o">)</span>
+</span></code></pre></div>
+<p>Reference: <a href="../workflow/"><code>workflow.md</code></a> covers checkpointing, resume, and the full step taxonomy.</p>
+<h3 id="5-mcp-client">5. MCP client<a class="headerlink" href="#5-mcp-client" title="Permanent link">&para;</a></h3>
+<p>Pass MCP server configs to <code>Runtime.create</code>; the runtime spawns each child, completes the initialize handshake, and hands back a <code>Runtime</code> whose <code>mcp_server</code> accessor returns a typed client handle.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">let</span> <span class="n">mcp_fs</span> <span class="o">:</span> <span class="nn">Mcp_types</span><span class="p">.</span><span class="n">server_config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>  <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;fs&quot;</span><span class="o">;</span> <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;npx&quot;</span><span class="o">;</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>  <span class="n">args</span> <span class="o">=</span> <span class="o">[</span> <span class="s2">&quot;-y&quot;</span><span class="o">;</span> <span class="s2">&quot;@modelcontextprotocol/server-filesystem&quot;</span><span class="o">;</span> <span class="s2">&quot;/tmp&quot;</span> <span class="o">];</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>  <span class="n">env</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span> <span class="n">cwd</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span> <span class="n">startup_timeout</span> <span class="o">=</span> <span class="mi">10</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="o">}</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="k">let</span> <span class="bp">()</span> <span class="o">=</span> <span class="nn">Eio_main</span><span class="p">.</span><span class="n">run</span> <span class="o">(</span><span class="k">fun</span> <span class="n">env</span> <span class="o">-&gt;</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>  <span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">run</span> <span class="o">(</span><span class="k">fun</span> <span class="n">sw</span> <span class="o">-&gt;</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="k">let</span> <span class="n">mgr</span> <span class="o">=</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Stdenv</span><span class="p">.</span><span class="n">process_mgr</span> <span class="n">env</span> <span class="k">in</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>    <span class="k">let</span> <span class="n">clock</span> <span class="o">=</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Stdenv</span><span class="p">.</span><span class="n">clock</span> <span class="n">env</span> <span class="k">in</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    <span class="k">let</span> <span class="n">rt</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">create</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>      <span class="o">~</span><span class="n">mcp_servers</span><span class="o">:[</span><span class="n">mcp_fs</span><span class="o">]</span> <span class="o">~</span><span class="n">mcp_process_mgr</span><span class="o">:</span><span class="n">mgr</span> <span class="o">~</span><span class="n">mcp_clock</span><span class="o">:</span><span class="n">clock</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>      <span class="o">~</span><span class="n">config</span> <span class="n">sw</span> <span class="o">|&gt;</span> <span class="nn">Result</span><span class="p">.</span><span class="n">get_ok</span> <span class="k">in</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>    <span class="k">let</span> <span class="n">sid</span> <span class="o">=</span> <span class="nn">Mcp_types</span><span class="p">.</span><span class="n">server_id_of_string</span> <span class="s2">&quot;fs&quot;</span> <span class="o">|&gt;</span> <span class="nn">Result</span><span class="p">.</span><span class="n">get_ok</span> <span class="k">in</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>    <span class="k">let</span> <span class="n">client</span> <span class="o">=</span> <span class="nn">Mcp_client</span><span class="p">.</span><span class="n">of_server</span>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>      <span class="o">(</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">mcp_server</span> <span class="n">rt</span> <span class="n">sid</span> <span class="o">|&gt;</span> <span class="nn">Result</span><span class="p">.</span><span class="n">get_ok</span><span class="o">)</span> <span class="k">in</span>
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>    <span class="k">match</span> <span class="nn">Mcp_client</span><span class="p">.</span><span class="n">list_tools</span> <span class="n">client</span> <span class="k">with</span>
+</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>    <span class="o">|</span> <span class="nc">Ok</span> <span class="n">tools</span> <span class="o">-&gt;</span> <span class="nn">List</span><span class="p">.</span><span class="n">iter</span> <span class="o">(</span><span class="k">fun</span> <span class="n">t</span> <span class="o">-&gt;</span>
+</span><span id="__span-5-19"><a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>        <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;- %s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="n">t</span><span class="o">.</span><span class="nn">Mcp_types</span><span class="p">.</span><span class="n">name</span><span class="o">)</span> <span class="n">tools</span>
+</span><span id="__span-5-20"><a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>    <span class="o">|</span> <span class="nc">Error</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="bp">()</span><span class="o">)</span>
+</span></code></pre></div>
+<p>The seven MCP event types (started, failed, stopped, tool invoked, tool completed, resource read, prompt rendered) all flow through the same event bus shown in tour step 3. Reference: <a href="../mcp/"><code>mcp.md</code></a>.</p>
+<h2 id="when-to-use-the-sdk-vs-the-cli">When to use the SDK vs the CLI<a class="headerlink" href="#when-to-use-the-sdk-vs-the-cli" title="Permanent link">&para;</a></h2>
+<p>The CLI is a thin exercise of the SDK, so anything the CLI can do, the SDK can do in code. The split is about ergonomics: the CLI favors the person typing a one-shot question; the SDK favors the person embedding PAR in another system.</p>
+<table>
+<thead>
+<tr>
+<th>Use case</th>
+<th>SDK</th>
+<th>CLI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Production agent serving web traffic</td>
+<td>recommended</td>
+<td>not designed for it</td>
+</tr>
+<tr>
+<td>Ad-hoc LLM question from terminal</td>
+<td>Possible but verbose</td>
+<td><code>par ask "..."</code></td>
+</tr>
+<tr>
+<td>Reproducible batch jobs</td>
+<td><code>Runtime.invoke</code> in a script</td>
+<td>REPL is interactive</td>
+</tr>
+<tr>
+<td>Custom UIs (web, Slack, IDE plugin)</td>
+<td>embed the SDK</td>
+<td>not applicable</td>
+</tr>
+<tr>
+<td>Trying PAR for the first time</td>
+<td>Possible but heavy setup</td>
+<td><code>par config</code> then <code>par</code></td>
+</tr>
+<tr>
+<td>Multi-agent orchestration with workflows</td>
+<td>register and <code>submit_workflow</code></td>
+<td>not exposed</td>
+</tr>
+<tr>
+<td>MCP server integration in your app</td>
+<td>pass <code>~mcp_servers</code> to <code>Runtime.create</code></td>
+<td>not exposed</td>
+</tr>
+<tr>
+<td>Long-running event monitoring</td>
+<td>subscribe to <code>Event_bus</code> in-process</td>
+<td>pipe logs</td>
+</tr>
+</tbody>
+</table>
+<p>The CLI ships as a separate opam package (<code>par_cli</code>) so consumers of <code>par</code> do not pull in <code>cmdliner</code> and the REPL dependencies.</p>
+<h2 id="module-map">Module map<a class="headerlink" href="#module-map" title="Permanent link">&para;</a></h2>
+<p>Every public module lives under one of the 9 sub-libraries below, plus the facade in <code>lib/par.ml</code>. <code>open Par</code> re-exports the marked modules; unmarked modules are still addressable as <code>Par.&lt;Module&gt;</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Library</th>
+<th>Public modules (excerpt)</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lib/core</code></td>
+<td><code>Par.Types</code>, <code>Par.Runtime</code>, <code>Par.Engine</code>, <code>Par.Workflow_engine</code>, <code>Par.Expression</code>, <code>Par.State_machine</code>, <code>Par.Context_manager</code>, <code>Par.Cancellation</code>, <code>Par.Tool_registry</code>, <code>Par.Template</code>, <code>Par.Steering_queue</code>, <code>Par.Hook</code>, <code>Par.Metrics</code></td>
+<td>Core types, runtime, ReAct loop, workflow, expression evaluator, state machine, context manager, cancellation tokens, tool registry</td>
+</tr>
+<tr>
+<td><code>lib/providers</code></td>
+<td><code>Par.Openai_provider</code>, <code>Par.Anthropic_provider</code>, <code>Par.Mock_provider</code></td>
+<td>LLM provider implementations</td>
+</tr>
+<tr>
+<td><code>lib/persistence</code></td>
+<td><code>Par.Sqlite_persistence</code>, <code>Par.Noop_persistence</code></td>
+<td>Sqlite backend (dev), no-op (tests)</td>
+</tr>
+<tr>
+<td><code>lib/postgres</code></td>
+<td>(separate <code>par_postgres</code> opam package)</td>
+<td>PostgreSQL backend (prod)</td>
+</tr>
+<tr>
+<td><code>lib/event_bus</code></td>
+<td><code>Par.Event_bus</code></td>
+<td>Eio-based event bus with DLQ</td>
+</tr>
+<tr>
+<td><code>lib/middleware</code></td>
+<td><code>Par.Logging</code>, <code>Par.Retry</code>, <code>Par.Rate_limit</code>, <code>Par.Timeout</code>, <code>Par.Arg_validation</code>, <code>Par.Validation</code>, <code>Par.Pii_mask</code>, <code>Par.Sanitize_tool_output</code></td>
+<td>7 built-in middlewares</td>
+</tr>
+<tr>
+<td><code>lib/tools</code></td>
+<td><code>Par.Builtin_tools</code>, <code>Par.Bash_safe_command</code>, <code>Par.Bash_policy</code>, <code>Par.Bash_blacklist</code></td>
+<td>20 built-in tools + the type-safe bash tool</td>
+</tr>
+<tr>
+<td><code>lib/mcp</code></td>
+<td><code>Par.Mcp_types</code>, <code>Par.Mcp_server</code>, <code>Par.Mcp_client</code>, <code>Par.Mcp_transport_stdio</code>, <code>Par.Mcp_transport_http</code>, <code>Par.Mcp_naming</code>, <code>Par.Mcp_errors</code></td>
+<td>MCP client (stdio v0.3.1, HTTP/SSE v0.4.3)</td>
+</tr>
+<tr>
+<td><code>lib/ffi</code></td>
+<td><code>Par_capi</code> (build artifact)</td>
+<td>C ABI for Python binding</td>
+</tr>
+<tr>
+<td><code>lib/par.ml</code></td>
+<td>(facade, re-exports above)</td>
+<td><code>open Par</code> entry point</td>
+</tr>
+<tr>
+<td><code>bin/</code></td>
+<td>(CLI entry)</td>
+<td><code>par</code>, <code>par config</code>, <code>par ask</code></td>
+</tr>
+<tr>
+<td><code>bindings/python/</code></td>
+<td><code>par_runtime</code> PyPI package</td>
+<td>Python ctypes binding</td>
+</tr>
+</tbody>
+</table>
+<p>The facade <code>Par</code> is generated by <code>lib/par.ml</code>. The CLI binary in <code>bin/main.ml</code> is the only consumer of <code>par_cli</code>; everything else links against <code>par</code> directly.</p>
+<h2 id="key-invariants">Key invariants<a class="headerlink" href="#key-invariants" title="Permanent link">&para;</a></h2>
+<p>The type system enforces five guarantees that would be runtime checks in a less strict language. Each one moves a class of bugs from "ship and discover" to "does not compile".</p>
+<ul>
+<li>The 8-state machine in <code>Par.State_machine</code> rejects illegal task transitions at compile time (configurable in the type itself).</li>
+<li>The <code>Bash_safe_command.command</code> ADT has no <code>Exec_raw_shell</code> constructor; shell injection is unrepresentable.</li>
+<li>The <code>error_category</code> sum type forces every error path to be explicitly handled; no untyped exceptions in the public API.</li>
+<li><code>Eio.Switch.t</code> cancellation propagates to every tool handler via <code>Cancellation_token.t</code>; <code>Runtime.close</code> triggers whole-tree cancel.</li>
+<li>Tool registration surfaces <code>Error (\</code>Duplicate_tool)` instead of silently overwriting; tool names are unique by construction.</li>
+</ul>
+<p>Together these turn the SDK into a library that fails loudly at the boundary (compile error, typed <code>Error</code> variant, <code>Cancelled</code> exception) rather than silently at runtime.</p>
+<h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../agent/"><code>docs/sdk/agent.md</code></a>: primary reference, covers <code>Runtime.create</code>, <code>register_agent</code>, <code>register_tool</code>, the ReAct loop</li>
+<li><a href="../workflow/"><code>docs/sdk/workflow.md</code></a>: step taxonomy, checkpointing, human approval, JSON workflow format</li>
+<li><a href="../mcp/"><code>docs/sdk/mcp.md</code></a>: MCP client lifecycle, event types, server naming and isolation</li>
+<li><a href="../middleware/"><code>docs/sdk/middleware.md</code></a>: all 7 built-in middlewares and the <code>middleware_hook</code> shape</li>
+<li><a href="../tools/"><code>docs/sdk/tools.md</code></a>: all 20 built-in tools with input/output schemas</li>
+<li><a href="../../quickstart/"><code>docs/quickstart.md</code></a>: 30-minute hands-on for new users</li>
+<li><a href="../../explanation/architecture/"><code>docs/explanation/architecture.md</code></a>: deep dive on data flow, the Eio model, and event payload schema</li>
+<li><a href="../../CHANGES.md"><code>CHANGES.md</code></a>: release notes, including the v0.3.1 bash addition and the current test count</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

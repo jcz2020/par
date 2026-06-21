@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](../zh-CN/howto/custom-llm-provider.md)
+**English** · [简体中文](../zh/howto/custom-llm-provider.md)
 
 > Translated to English for v0.3.2.
 

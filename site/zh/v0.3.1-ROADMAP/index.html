@@ -1,0 +1,2950 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/zh/v0.3.1-ROADMAP/">
+      
+      
+      
+      
+        
+          <link rel="alternate" href="../../v0.3.1-ROADMAP/" hreflang="en">
+        
+          <link rel="alternate" href="./" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>P-A-R v0.3.1 开发路线图 - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#p-a-r-v031" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../" title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              P-A-R v0.3.1 开发路线图
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="选择当前语言">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../v0.3.1-ROADMAP/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="分享" aria-label="分享" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  教程
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  实用指南
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../cli/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  参考
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  解释
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    教程
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    教程
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    实用指南
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    实用指南
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    参考
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    参考
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    解释
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    解释
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#v031" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🎯 v0.3.1 一句话定位
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📋 关键设计决策（11 条）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v030" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ⚠️ 关键边界声明（继承 v0.3.0）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        概述
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wave" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wave 计划
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tool-1g-bash" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ✅ TOOL-1g: bash 工具
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="✅ TOOL-1g: bash 工具">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        问题陈述
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        核心设计
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        文件结构
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#safe_command-adt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safe_command ADT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#policy-functor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Policy Functor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#policy-coder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        默认 Policy 选择：🟢 Coder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9 维度安全机制
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-bus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        风险评分（仅 event bus 暴露）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        集成点
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        成功标准
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        估时
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pi-par" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        与 pi 对比（PAR 优势）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        风险
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        暂不实施（v0.4+ 候选）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mcp-1-mcp-stdio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ✅ MCP-1: MCP stdio 客户端
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="✅ MCP-1: MCP stdio 客户端">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        问题陈述
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v031_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        核心设计（v0.3.1 范围）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        文件结构
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API 设计（分层）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tool-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tool 命名 Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        错误映射
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-bus_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event Bus 集成
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        集成点
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        测试策略
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        成功标准
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        估时
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        风险
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v04_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        暂不实施（v0.4+ 候选）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        决策记录（详细依据）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="决策记录（详细依据）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d1-v031-bash-mcp-par-9e1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D1: v0.3.1 = bash + MCP（不含 PAR-9e1）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d2-bash-policy-coder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D2: bash 默认 Policy = Coder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d3-bash-event-bus-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D3: bash 风险评分只进 event bus，不进 metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d4-mcp-transport-stdio-onlyhttp-v04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D4: MCP transport = stdio only（HTTP 推 v0.4）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d5-mcp-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D5: MCP 生命周期 = 分层 API
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d6-mcp-fail_fast" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D6: MCP 启动失败 = 可配置（默认 Fail_fast）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d7-mcp-mcptoolsresourcespromptssampling-v04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D7: MCP 能力范围 = 标准 MCP（tools+resources+prompts，sampling 推 v0.4）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d8-mcp-tool-hierarchical-flat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D8: MCP tool 命名 = Hierarchical 默认 + Flat 可切
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d9-par-9e1-v04-minor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D9: PAR-9e1 归 v0.4（独立 minor）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d10-v031-5-8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D10: v0.3.1 估时 = 5-8 天
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d11-changesmd-v031-entry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D11: CHANGES.md = 独立 v0.3.1 entry
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        估时汇总
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="估时汇总">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#wave-1tool-1g-bash-1-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wave 1（TOOL-1g bash）—— 1-2 天
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wave-2mcp-1-stdio-3-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wave 2（MCP-1 stdio）—— 3-5 天
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wave-3release-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wave 3（Release）—— 1 天
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        总计
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        依赖关系
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v031_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🚫 不做的项目（v0.3.1 防呆清单）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v04-2026-06-04" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.4 移交清单（确认 2026-06-04）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        成功标准
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="成功标准">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        实施完成标志
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        发布就绪
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        用户视角验收
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        相关文档
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="p-a-r-v031">P-A-R v0.3.1 开发路线图<a class="headerlink" href="#p-a-r-v031" title="Permanent link">&para;</a></h1>
+<p><strong>版本</strong>: v0.3.1
+<strong>状态</strong>: 🆕 规划阶段（2026-06-04 决策完成）
+<strong>目标读者</strong>: LLM 后端工程师（部署性 &gt; 学术性）
+<strong>前置版本</strong>: v0.3.0（22/22 任务完成，297 OCaml + 16 Python 测试通过）
+<strong>核心定位</strong>: "Post-release polish" — 纯 additive，零 breaking change</p>
+<hr />
+<h2 id="v031">🎯 v0.3.1 一句话定位<a class="headerlink" href="#v031" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>v0.3.0 把 SDK 基础打稳了。v0.3.1 给两件<strong>真正提升 LLM 后端工程师日常工作</strong>的事：安全的 bash + 任意 MCP server 接入。</p>
+</blockquote>
+<ul>
+<li>✅ 100% backward-compatible（<strong>不</strong>删 <code>persistence_service.save_events/load_events</code>、<strong>不</strong>改 schema、<strong>不</strong>动 Runtime API）</li>
+<li>✅ 纯 additive（新增 <code>lib/mcp/</code>, <code>lib/tools/bash_*</code>）</li>
+<li>✅ 5-8 天可完成</li>
+</ul>
+<hr />
+<h2 id="11">📋 关键设计决策（11 条）<a class="headerlink" href="#11" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>维度</th>
+<th>决定</th>
+<th>决策日</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>范围</td>
+<td>bash + MCP（不含 PAR-9e1）</td>
+<td>2026-06-04</td>
+</tr>
+<tr>
+<td>2</td>
+<td>bash 默认 policy</td>
+<td>Coder（可写+联网+60s）</td>
+<td>2026-06-04</td>
+</tr>
+<tr>
+<td>3</td>
+<td>bash 风险评分</td>
+<td>仅 event bus 暴露（metrics 推 v0.4）</td>
+<td>2026-06-04</td>
+</tr>
+<tr>
+<td>4</td>
+<td>MCP transport</td>
+<td>stdio only（HTTP 推 v0.4）</td>
+<td>2026-06-04</td>
+</tr>
+<tr>
+<td>5</td>
+<td>MCP 生命周期</td>
+<td>分层 API（低阶 manual + 高阶 config）</td>
+<td>2026-06-04</td>
+</tr>
+<tr>
+<td>6</td>
+<td>MCP 启动失败</td>
+<td>可配置（默认 Fail_fast）</td>
+<td>2026-06-04</td>
+</tr>
+<tr>
+<td>7</td>
+<td>MCP 能力范围</td>
+<td>标准 MCP（tools+resources+prompts；sampling 推 v0.4）</td>
+<td>2026-06-04</td>
+</tr>
+<tr>
+<td>8</td>
+<td>MCP tool 命名</td>
+<td>默认 <code>mcp__&lt;server&gt;__&lt;tool&gt;</code>（Hierarchical），可切 Flat</td>
+<td>2026-06-04</td>
+</tr>
+<tr>
+<td>9</td>
+<td>PAR-9e1 归 v0.4</td>
+<td>独立 minor（schema + 公共 API 破坏）</td>
+<td>2026-06-04</td>
+</tr>
+<tr>
+<td>10</td>
+<td>v0.3.1 估时</td>
+<td>5-8 天</td>
+<td>2026-06-04</td>
+</tr>
+<tr>
+<td>11</td>
+<td>CHANGES.md</td>
+<td>独立 v0.3.1 entry（不并入 v0.3.0-post）</td>
+<td>2026-06-04</td>
+</tr>
+</tbody>
+</table>
+<p><strong>决策依据</strong>：见文末"决策记录"章节。</p>
+<hr />
+<h2 id="v030">⚠️ 关键边界声明（继承 v0.3.0）<a class="headerlink" href="#v030" title="Permanent link">&para;</a></h2>
+<p><strong>PAR 是 SDK 库，不是部署框架。</strong></p>
+<ul>
+<li>✅ SDK 提供<strong>机制</strong>：MCP client 是接 MCP server 的机制；bash 安全 ADT 是声明安全边界的机制</li>
+<li>❌ SDK <strong>不</strong>强制特定 MCP server 实现</li>
+<li>❌ SDK <strong>不</strong>内置 sandbox（OS 层 bwrap/landlock 推 v0.4+ 评估）</li>
+<li>❌ SDK <strong>不</strong>替代用户的安全策略</li>
+</ul>
+<hr />
+<h2 id="_1">概述<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>v0.3.1 = <strong>bash 工具（TOOL-1g）+ MCP stdio 客户端（MCP-1）</strong>。两件事在 v0.3.0 路线图里都已规划，但<strong>安全风险高</strong>（bash）和<strong>新协议风险</strong>（MCP）让它们不适合塞进 v0.3.0 的大版本。</p>
+<p><strong>为什么 v0.3.1 不是 v0.3.0 的一部分</strong>：
+- bash：LLM 调用 shell 是<strong>最危险的内置工具</strong>。安全设计需要单独 review（9 维安全机制 + 4 维 type-level 防御），混在 22 个任务里会模糊注意力。
+- MCP：MCP 协议 2025 后才成为事实标准，<strong>首次接入新协议</strong>风险高，独立 minor 让用户单独评估。</p>
+<p><strong>来源标注</strong>：
+- <strong>TOOL-1g bash</strong>：从 v0.3-ROADMAP §TOOL-1 移出，沿用其 Safe_command ADT + Policy Functor 设计
+- <strong>MCP-1</strong>：从 v0.3-ROADMAP §MCP-1 移出，stdio only（HTTP/SSE 推 v0.4）</p>
+<hr />
+<h2 id="wave">Wave 计划<a class="headerlink" href="#wave" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Wave</th>
+<th>ID</th>
+<th>名称</th>
+<th>估时</th>
+<th>风险</th>
+<th>依赖</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>W1</strong></td>
+<td>TOOL-1g</td>
+<td>bash 工具（Safe_command ADT + Policy Functor + 9 维安全）</td>
+<td>1-2 天</td>
+<td>🔴 高</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>W2</strong></td>
+<td>MCP-1</td>
+<td>MCP stdio client（JSON-RPC + tools/resources/prompts + 命名空间）</td>
+<td>3-5 天</td>
+<td>🟡 中</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>W3</strong></td>
+<td>RELEASE</td>
+<td>集成测试 + 文档 + CHANGES.md + release</td>
+<td>1 天</td>
+<td>🟢 低</td>
+<td>W1, W2</td>
+</tr>
+</tbody>
+</table>
+<p><strong>总估时</strong>: 5-8 天</p>
+<p><strong>W1 和 W2 可并行</strong>（无共享代码）。建议<strong>W1 先做</strong>——bash 安全设计需要用户单独 review，W1 完成后用户 review 通过再开 W2，缩短 review 反馈环。</p>
+<hr />
+<h2 id="tool-1g-bash">✅ TOOL-1g: bash 工具<a class="headerlink" href="#tool-1g-bash" title="Permanent link">&para;</a></h2>
+<h3 id="_2">问题陈述<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<p>LLM 调用 shell 是<strong>最危险的内置工具</strong>。PAR v0.3.0 已加 6 个 read 类（read/ls/find/grep）和 2 个 write 类（write/edit）工具，但<strong>故意没做 bash</strong>——等 v0.3.1 单独 review。</p>
+<h3 id="_3">核心设计<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<p><strong>核心理念</strong>（来自 v0.3-ROADMAP §TOOL-1g，v0.3.1 沿用）：</p>
+<blockquote>
+<p>从"裸 shell string + 黑名单"升级为"<strong>类型化 Safe_command ADT + Policy Functor + 黑名单</strong>"——把安全检查从运行时前移到<strong>编译期</strong>，体现 Q4 #1 "类型严谨"。</p>
+</blockquote>
+<h3 id="_4">文件结构<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>lib/tools/
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── bash_safe_command.ml     (* ADT + sandboxed_path + risk 评分 *)
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── bash_policy.ml           (* POLICY Functor 接口 + 3 个预置 *)
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── bash_blacklist.ml        (* ~30 个黑名单正则 *)
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>└── builtin_tools.ml         (* 集成 bash 工具实现，新增 *)
+</span></code></pre></div>
+<h3 id="safe_command-adt">Safe_command ADT<a class="headerlink" href="#safe_command-adt" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c">(* lib/tools/bash_safe_command.ml *)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c">(* 没有 Exec_raw_shell 构造器——从类型上杜绝 shell 注入 *)</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="k">type</span> <span class="n">sandboxed_path</span> <span class="o">=</span> <span class="k">private</span> <span class="nc">Path</span> <span class="k">of</span> <span class="kt">string</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="k">val</span> <span class="n">sandboxed_path_of_string</span> <span class="o">:</span> <span class="kt">string</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="n">sandboxed_path</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c">(** 构造时校验：拒绝 `..`、绝对敏感路径（/etc、~/.ssh 等） *)</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="k">type</span> <span class="n">command</span> <span class="o">=</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>  <span class="o">|</span> <span class="nc">Exec</span> <span class="k">of</span> <span class="o">{</span>                                  <span class="c">(* 不接受裸 shell string！*)</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>      <span class="n">argv</span> <span class="o">:</span> <span class="kt">string</span> <span class="kt">list</span><span class="o">;</span>                       <span class="c">(* 必须是 argv 数组 *)</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>      <span class="n">cwd</span> <span class="o">:</span> <span class="n">sandboxed_path</span><span class="o">;</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>      <span class="n">env</span> <span class="o">:</span> <span class="o">(</span><span class="kt">string</span> <span class="o">*</span> <span class="kt">string</span><span class="o">)</span> <span class="kt">list</span><span class="o">;</span>             <span class="c">(* 已脱敏的 env *)</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>      <span class="n">timeout</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span>                          <span class="c">(* 秒 *)</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    <span class="o">}</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>  <span class="o">|</span> <span class="nc">Pipeline</span> <span class="k">of</span> <span class="n">command</span> <span class="kt">list</span>                    <span class="c">(* 已知安全命令的有限管道 *)</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>  <span class="o">|</span> <span class="nc">No_op</span>                                      <span class="c">(* 用于测试/禁用 *)</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="c">(* 风险评分：编译期已知，运行时快速评估 *)</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="k">type</span> <span class="n">risk</span> <span class="o">=</span> <span class="nc">Low</span> <span class="o">|</span> <span class="nc">Medium</span> <span class="o">|</span> <span class="nc">High</span> <span class="o">|</span> <span class="nc">Critical</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="k">val</span> <span class="n">assess_risk</span> <span class="o">:</span> <span class="n">command</span> <span class="o">-&gt;</span> <span class="n">risk</span>
+</span></code></pre></div>
+<p><strong>关键安全约束</strong>：
+- <strong>没有 <code>Exec_raw_shell</code></strong>——所有 shell 命令必须分解为 argv 数组
+- 路径通过抽象类型 <code>sandboxed_path</code> 强制 CWD 相对性
+- 管道仅允许连接已知安全的 <code>command list</code>
+- 风险评分在 ADT 构造后即可计算（无需看运行时行为）</p>
+<h3 id="policy-functor">Policy Functor<a class="headerlink" href="#policy-functor" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c">(* lib/tools/bash_policy.ml *)</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">module</span> <span class="k">type</span> <span class="nc">POLICY</span> <span class="o">=</span> <span class="k">sig</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  <span class="k">val</span> <span class="n">name</span> <span class="o">:</span> <span class="kt">string</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  <span class="k">val</span> <span class="n">filter</span> <span class="o">:</span> <span class="n">command</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="n">command</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  <span class="k">val</span> <span class="n">max_cpu_seconds</span> <span class="o">:</span> <span class="kt">float</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  <span class="k">val</span> <span class="n">max_memory_kb</span> <span class="o">:</span> <span class="kt">int</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>  <span class="k">val</span> <span class="n">allow_network</span> <span class="o">:</span> <span class="kt">bool</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>  <span class="k">val</span> <span class="n">allow_write</span> <span class="o">:</span> <span class="kt">bool</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="k">end</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="c">(* 预置策略——可被 Runtime.config.bash_policy 覆盖 *)</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="k">module</span> <span class="nc">ReadOnly</span> <span class="o">:</span> <span class="nc">POLICY</span> <span class="o">=</span> <span class="o">...</span>        <span class="c">(* 任何写操作拒绝 *)</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="k">module</span> <span class="nc">ReadOnlyNoNet</span> <span class="o">:</span> <span class="nc">POLICY</span> <span class="o">=</span> <span class="o">...</span>   <span class="c">(* + 网络拒绝 *)</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="k">module</span> <span class="nc">Coder</span> <span class="o">:</span> <span class="nc">POLICY</span> <span class="o">=</span> <span class="o">...</span>           <span class="c">(* 默认：可写 + 可联网 + 60s timeout *)</span>
+</span></code></pre></div>
+<p><strong>关键设计</strong>：
+- <strong>Policy 在 <code>Runtime.create</code> 时注入</strong>（不运行时切换）
+- 不同 Agent 可绑定不同 Policy（编译期即确定）
+- <strong>Policy Functor 保证"无策略 = 无执行"</strong>（不能"忘了配"）</p>
+<h3 id="policy-coder">默认 Policy 选择：🟢 Coder<a class="headerlink" href="#policy-coder" title="Permanent link">&para;</a></h3>
+<p><strong>理由</strong>（来自 v0.3 决策）：
+- 与 pi 默认行为接近（写代码场景最常见）
+- ReadOnly 太严，会让 LLM 抱怨"为什么我能 <code>find</code> 不能 <code>mkdir</code>"
+- "无默认必须显式选"会让 80% 用户被启动配置卡住
+- <strong>Coder 配 60s timeout + 默认黑名单 + env 脱敏</strong>已足够安全，剩余风险可由用户配置收紧</p>
+<h3 id="9">9 维度安全机制<a class="headerlink" href="#9" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>机制</th>
+<th>状态</th>
+<th>设计</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>CWD 锁定</strong></td>
+<td>✅ 硬性不可关</td>
+<td><code>sandboxed_path</code> 抽象 + 构造时校验</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>黑名单</strong></td>
+<td>✅ 默认 + 可关</td>
+<td>黑名单在 Policy Functor 的 <code>filter</code> 实现里</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>白名单模式</strong></td>
+<td>🟡 可选配置</td>
+<td>Policy Functor 自定义实现</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>超时强制</strong></td>
+<td>✅ 有默认 60s</td>
+<td><code>Eio.Process.spawn</code> + <code>killpg</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>进程组清理</strong></td>
+<td>✅ 硬性</td>
+<td><code>setpgid</code> + <code>killpg -SIGKILL</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>环境脱敏</strong></td>
+<td>✅ 有默认（<strong>比 pi 强</strong>）</td>
+<td>默认 strip <code>*_SECRET*</code> / <code>*_KEY*</code> 等</td>
+</tr>
+<tr>
+<td>7</td>
+<td><strong>输出截断</strong></td>
+<td>✅ 有（学 pi）</td>
+<td>50KB byte / 2000 lines</td>
+</tr>
+<tr>
+<td>8</td>
+<td><strong>二进制清洗</strong></td>
+<td>✅ 有（学 pi）</td>
+<td>ANSI escape 剥离</td>
+</tr>
+<tr>
+<td>9</td>
+<td><strong>审计日志</strong></td>
+<td>✅ 走 event bus</td>
+<td><code>Bash_invoked</code> / <code>Bash_completed</code> 事件</td>
+</tr>
+</tbody>
+</table>
+<h3 id="event-bus">风险评分（仅 event bus 暴露）<a class="headerlink" href="#event-bus" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">type</span> <span class="n">risk</span> <span class="o">=</span> <span class="nc">Low</span> <span class="o">|</span> <span class="nc">Medium</span> <span class="o">|</span> <span class="nc">High</span> <span class="o">|</span> <span class="nc">Critical</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">val</span> <span class="n">assess_risk</span> <span class="o">:</span> <span class="n">command</span> <span class="o">-&gt;</span> <span class="n">risk</span>
+</span></code></pre></div>
+<p><strong>风险评分暴露面</strong>（v0.3.1 决定）：
+- ✅ event bus emit <code>Bash_invoked { command; pid; cwd; timestamp; risk }</code> 携带 risk
+- ❌ <strong>不</strong>进 <code>Runtime.metrics</code>（避免 v0.3.1 metrics API 反复改）</p>
+<p>v0.4 再考虑加 <code>bash_risk_high_total</code> 之类的 counter（v0.4+ 评估）。</p>
+<h3 id="_5">集成点<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>lib/tools/builtin_tools.ml</code>：注册 <code>bash</code> 工具，handler 接收 <code>command</code> ADT</li>
+<li><code>lib/core/types.ml</code>：<code>tool_descriptor</code> 不变（仍 <code>input_schema</code> + <code>handler</code>）</li>
+<li><code>lib/core/runtime.ml</code>：<code>Runtime.create</code> 接受 <code>?bash_policy</code> 参数（默认 <code>Coder</code>）</li>
+<li><code>lib/core/event_bus/</code>：新增 <code>Bash_invoked</code> / <code>Bash_completed</code> 事件类型</li>
+</ul>
+<h3 id="_6">成功标准<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] <code>bash_safe_command.ml</code> 实现完整 ADT（含 <code>sandboxed_path_of_string</code> 校验 + <code>assess_risk</code>）</li>
+<li>[ ] <code>bash_policy.ml</code> 实现 POLICY 接口 + 3 个预置（ReadOnly / ReadOnlyNoNet / Coder）</li>
+<li>[ ] <code>bash_blacklist.ml</code> ~30 个正则（<code>rm -rf /</code>、<code>dd if=</code>、<code>mkfs</code>、<code>:(){:|:&amp;};:</code> 等）</li>
+<li>[ ] 集成到 <code>builtin_tools.ml</code>，bash 工具可被 LLM 调用</li>
+<li>[ ] 单元测试：ADT 构造、Policy 过滤、blacklist 命中、happy path、timeout、env 脱敏、输出截断、ANSI 剥离</li>
+<li>[ ] 集成测试：完整 ReAct 循环调用 bash，验证 stdout/stderr 返回 + 错误路径</li>
+<li>[ ] 现有 297 OCaml + 16 Python 测试不退化</li>
+<li>[ ] 文档：<code>docs/sdk/tools.md</code> 加 bash 章节 + 安全使用建议</li>
+</ul>
+<h3 id="_7">估时<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>子任务</th>
+<th>时间</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>设计 + 写出 <code>bash_safe_command.ml</code>（ADT + 路径校验 + 风险评分）</td>
+<td>0.5-0.75 天</td>
+</tr>
+<tr>
+<td>设计 + 写出 <code>bash_policy.ml</code>（Policy Functor + 3 个预置）</td>
+<td>0.5 天</td>
+</tr>
+<tr>
+<td><code>bash_blacklist.ml</code>（~30 个正则）</td>
+<td>0.25 天</td>
+</tr>
+<tr>
+<td>集成到 <code>builtin_tools.ml</code>（bash 工具实现）</td>
+<td>0.5 天</td>
+</tr>
+<tr>
+<td>测试（10+ 用例：ADT 构造、Policy 过滤、blacklist、happy path、timeout、env 脱敏）</td>
+<td>0.5 天</td>
+</tr>
+<tr>
+<td><strong>总估时</strong></td>
+<td><strong>2.25-2.5 天</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="pi-par">与 pi 对比（PAR 优势）<a class="headerlink" href="#pi-par" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>pi 默认</th>
+<th><strong>PAR v0.3.1</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>类型化命令</td>
+<td>❌ 裸 shell string</td>
+<td>✅ <strong>Safe_command ADT</strong></td>
+</tr>
+<tr>
+<td>策略边界</td>
+<td>❌ Extension 模式</td>
+<td>✅ <strong>Policy Functor</strong>（编译期）</td>
+</tr>
+<tr>
+<td>敏感信息脱敏</td>
+<td>❌</td>
+<td>✅ 默认 strip</td>
+</tr>
+<tr>
+<td>黑名单</td>
+<td>❌</td>
+<td>✅ 默认有</td>
+</tr>
+<tr>
+<td>超时默认值</td>
+<td>❌</td>
+<td>✅ 60s</td>
+</tr>
+<tr>
+<td>进程组清理</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>CWD 锁定</td>
+<td>✅</td>
+<td>✅（<strong>用 ADT 强化</strong>）</td>
+</tr>
+<tr>
+<td>截断 / ANSI 剥离</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_8">风险<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h3>
+<ul>
+<li>🟢 <strong>ADT 设计</strong>：已成熟（v0.3 路线图定稿）</li>
+<li>🟡 <strong>Policy 边界</strong>：3 个预置可能不够，需用户实测后调</li>
+<li>🟡 <strong>黑名单维护</strong>：30 个正则可能漏真威胁，v0.4+ 评估"白名单优先"模式</li>
+<li>🟡 <strong>Pipeline 构造器</strong>：<code>cat file | grep pattern</code> 这种 LLM 常见诉求需 Pipeline ADT。<strong>留作 W1 实施时 design issue</strong>（不阻塞 W1 启动）</li>
+</ul>
+<h3 id="v04">暂不实施（v0.4+ 候选）<a class="headerlink" href="#v04" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>机制</th>
+<th>理由</th>
+<th>引入版本</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>OS 沙箱</strong>（bwrap / sandbox-exec）</td>
+<td>跨平台锁定、需要 root 权限、<strong>单独立项 <code>par_sandbox</code> opam 包</strong></td>
+<td>v0.4+ 评估</td>
+</tr>
+<tr>
+<td><strong>用户交互式确认</strong></td>
+<td>OPS-6 hook 机制已提供</td>
+<td>v0.4+ 通过 hook 集成</td>
+</tr>
+<tr>
+<td><strong>Landlock / seccomp</strong></td>
+<td>Linux 专属、要求现代内核</td>
+<td>v0.5+ 评估</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="mcp-1-mcp-stdio">✅ MCP-1: MCP stdio 客户端<a class="headerlink" href="#mcp-1-mcp-stdio" title="Permanent link">&para;</a></h2>
+<h3 id="_9">问题陈述<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h3>
+<p>2025 后 LLM 工具生态的事实标准是 <a href="https://modelcontextprotocol.io/">MCP</a>。LangChain/LlamaIndex 都在接 MCP。PAR 当前没有 MCP 客户端——意味着 PAR 用户无法直接用 1000+ 现有 MCP server（filesystem / git / sqlite / github / postgres / 等）。</p>
+<h3 id="v031_1">核心设计（v0.3.1 范围）<a class="headerlink" href="#v031_1" title="Permanent link">&para;</a></h3>
+<p>v0.3.1 = <strong>stdio only</strong>，实现 MCP 协议核心：
+- ✅ <strong>Tools</strong>（LLM 调用）
+- ✅ <strong>Resources</strong>（read-only 数据源）
+- ✅ <strong>Prompts</strong>（预定义 prompt 模板）
+- ❌ <strong>Sampling</strong>（server → LLM）— 推 v0.4
+- ❌ <strong>HTTP/SSE transport</strong> — 推 v0.4</p>
+<h3 id="_10">文件结构<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h3>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>lib/mcp/
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>├── mcp_client.ml         (* 高阶 client API：connect/list/call/read_resource/get_prompt *)
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>├── mcp_server.ml         (* MCP server 进程管理：spawn/stop/lifecycle *)
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>├── mcp_transport_stdio.ml (* stdio transport：JSON-RPC over stdin/stdout *)
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>├── mcp_types.ml          (* MCP 协议类型镜像（resources/tools/prompts 强类型）*)
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>├── mcp_naming.ml         (* 工具命名 mangle：sanitize + prefix + 长度截断 *)
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>└── mcp_errors.ml         (* JSON-RPC 错误 → PAR error_category 映射 *)
+</span></code></pre></div>
+<h3 id="api">API 设计（分层）<a class="headerlink" href="#api" title="Permanent link">&para;</a></h3>
+<p><strong>高阶（config 驱动，应用开发者用）</strong>：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c">(* runtime_config 新增字段 *)</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">type</span> <span class="n">runtime_config</span> <span class="o">+=</span> <span class="o">{</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>  <span class="o">...</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>  <span class="n">mcp_servers</span> <span class="o">:</span> <span class="n">mcp_server_config</span> <span class="kt">list</span><span class="o">;</span>     <span class="c">(* Runtime.create 时自动 start *)</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>  <span class="n">mcp_namespace</span> <span class="o">:</span> <span class="n">mcp_prefix_style</span><span class="o">;</span>         <span class="c">(* 默认 Hierarchical *)</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>  <span class="n">mcp_startup_failure</span> <span class="o">:</span> <span class="n">mcp_startup_policy</span><span class="o">;</span> <span class="c">(* 默认 Fail_fast *)</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="o">}</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="c">(* mcp_server_config *)</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="k">type</span> <span class="n">mcp_server_config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>  <span class="n">name</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>                            <span class="c">(* 用户定义的 stable name，例 &quot;filesystem&quot; *)</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>  <span class="n">command</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>                         <span class="c">(* 例 &quot;npx&quot; *)</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>  <span class="n">args</span> <span class="o">:</span> <span class="kt">string</span> <span class="kt">list</span><span class="o">;</span>                       <span class="c">(* 例 [&quot;-y&quot;, &quot;@modelcontextprotocol/server-filesystem&quot;, &quot;/tmp&quot;] *)</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>  <span class="n">env</span> <span class="o">:</span> <span class="o">(</span><span class="kt">string</span> <span class="o">*</span> <span class="kt">string</span><span class="o">)</span> <span class="kt">list</span> <span class="n">option</span><span class="o">;</span>      <span class="c">(* 可选环境变量 *)</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>  <span class="n">cwd</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>                      <span class="c">(* 可选 CWD *)</span>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="o">}</span>
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>
+</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="k">type</span> <span class="n">mcp_prefix_style</span> <span class="o">=</span>
+</span><span id="__span-5-19"><a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>  <span class="o">|</span> <span class="nc">Hierarchical</span>        <span class="c">(* mcp__&lt;server&gt;__&lt;tool&gt;，默认 *)</span>
+</span><span id="__span-5-20"><a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>  <span class="o">|</span> <span class="nc">Flat</span>                <span class="c">(* &lt;server&gt;_&lt;tool&gt;，opt-in *)</span>
+</span><span id="__span-5-21"><a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>
+</span><span id="__span-5-22"><a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a><span class="k">type</span> <span class="n">mcp_startup_policy</span> <span class="o">=</span>
+</span><span id="__span-5-23"><a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>  <span class="o">|</span> <span class="nc">Fail_fast</span>           <span class="c">(* 任一 server 启动失败 → Runtime.create 失败 *)</span>
+</span><span id="__span-5-24"><a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a>  <span class="o">|</span> <span class="nc">Log_and_continue</span>    <span class="c">(* 启动失败 → 记日志，tools 不可用，可手动重试 *)</span>
+</span></code></pre></div>
+<p><strong>低阶（手动生命周期，库作者用）</strong>：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">val</span> <span class="n">register_mcp_server</span> <span class="o">:</span> <span class="n">runtime</span> <span class="o">-&gt;</span> <span class="n">mcp_server_config</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>                        <span class="o">-&gt;</span> <span class="o">(</span><span class="n">mcp_server_id</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="k">val</span> <span class="n">start_mcp_server</span>    <span class="o">:</span> <span class="n">runtime</span> <span class="o">-&gt;</span> <span class="n">mcp_server_id</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="kt">unit</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="k">val</span> <span class="n">stop_mcp_server</span>     <span class="o">:</span> <span class="n">runtime</span> <span class="o">-&gt;</span> <span class="n">mcp_server_id</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="kt">unit</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="k">val</span> <span class="n">list_mcp_servers</span>    <span class="o">:</span> <span class="n">runtime</span> <span class="o">-&gt;</span> <span class="n">mcp_server_id</span> <span class="kt">list</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="k">val</span> <span class="n">list_mcp_tools</span>      <span class="o">:</span> <span class="n">runtime</span> <span class="o">-&gt;</span> <span class="n">mcp_server_id</span> <span class="o">-&gt;</span> <span class="n">tool_descriptor</span> <span class="kt">list</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="k">val</span> <span class="n">list_mcp_resources</span>  <span class="o">:</span> <span class="n">runtime</span> <span class="o">-&gt;</span> <span class="n">mcp_server_id</span> <span class="o">-&gt;</span> <span class="n">mcp_resource</span> <span class="kt">list</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="k">val</span> <span class="n">list_mcp_prompts</span>    <span class="o">:</span> <span class="n">runtime</span> <span class="o">-&gt;</span> <span class="n">mcp_server_id</span> <span class="o">-&gt;</span> <span class="n">mcp_prompt</span> <span class="kt">list</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="k">val</span> <span class="n">call_mcp_tool</span>       <span class="o">:</span> <span class="n">runtime</span> <span class="o">-&gt;</span> <span class="n">mcp_server_id</span> <span class="o">-&gt;</span> <span class="n">tool_name</span><span class="o">:</span><span class="kt">string</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>                        <span class="o">-&gt;</span> <span class="n">arguments</span><span class="o">:</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>                        <span class="o">-&gt;</span> <span class="o">(</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="k">val</span> <span class="n">read_mcp_resource</span>   <span class="o">:</span> <span class="n">runtime</span> <span class="o">-&gt;</span> <span class="n">mcp_server_id</span> <span class="o">-&gt;</span> <span class="n">uri</span><span class="o">:</span><span class="kt">string</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>                        <span class="o">-&gt;</span> <span class="o">(</span><span class="kt">string</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="k">val</span> <span class="n">get_mcp_prompt</span>      <span class="o">:</span> <span class="n">runtime</span> <span class="o">-&gt;</span> <span class="n">mcp_server_id</span> <span class="o">-&gt;</span> <span class="n">name</span><span class="o">:</span><span class="kt">string</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>                        <span class="o">-&gt;</span> <span class="n">args</span><span class="o">:(</span><span class="kt">string</span> <span class="o">*</span> <span class="kt">string</span><span class="o">)</span> <span class="kt">list</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>                        <span class="o">-&gt;</span> <span class="o">(</span><span class="kt">string</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<h3 id="tool-pipeline">Tool 命名 Pipeline<a class="headerlink" href="#tool-pipeline" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c">(* lib/mcp/mcp_naming.ml *)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">type</span> <span class="n">prefix_style</span> <span class="o">=</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>  <span class="o">|</span> <span class="nc">Hierarchical</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>  <span class="o">|</span> <span class="nc">Flat</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="c">(* 协议 regex: ^[a-zA-Z0-9_-]{1,64}$ *)</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="k">let</span> <span class="n">sanitize</span> <span class="n">s</span> <span class="o">=</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>  <span class="nn">String</span><span class="p">.</span><span class="n">map</span> <span class="o">(</span><span class="k">fun</span> <span class="n">c</span> <span class="o">-&gt;</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="k">match</span> <span class="n">c</span> <span class="k">with</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    <span class="o">|</span> <span class="sc">&#39;:&#39;</span> <span class="o">|</span> <span class="sc">&#39;.&#39;</span> <span class="o">|</span> <span class="sc">&#39;/&#39;</span> <span class="o">|</span> <span class="sc">&#39;\\&#39;</span> <span class="o">-&gt;</span> <span class="sc">&#39;_&#39;</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>    <span class="o">|</span> <span class="n">c</span> <span class="k">when</span> <span class="nn">Char</span><span class="p">.</span><span class="n">is_alphanum</span> <span class="n">c</span> <span class="o">||</span> <span class="n">c</span> <span class="o">=</span> <span class="sc">&#39;_&#39;</span> <span class="o">||</span> <span class="n">c</span> <span class="o">=</span> <span class="sc">&#39;-&#39;</span> <span class="o">-&gt;</span> <span class="n">c</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>    <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="sc">&#39;_&#39;</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>  <span class="o">)</span> <span class="n">s</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="k">let</span> <span class="n">mangle_tool_name</span> <span class="o">~</span><span class="n">style</span> <span class="o">~</span><span class="n">server_name</span> <span class="o">~</span><span class="n">tool_name</span> <span class="o">=</span>
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>  <span class="k">let</span> <span class="n">s</span> <span class="o">=</span> <span class="n">sanitize</span> <span class="n">server_name</span> <span class="k">in</span>
+</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>  <span class="k">let</span> <span class="n">t</span> <span class="o">=</span> <span class="n">sanitize</span> <span class="n">tool_name</span> <span class="k">in</span>
+</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>  <span class="k">let</span> <span class="n">prefix</span> <span class="o">=</span> <span class="k">match</span> <span class="n">style</span> <span class="k">with</span>
+</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>    <span class="o">|</span> <span class="nc">Hierarchical</span> <span class="o">-&gt;</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;mcp__%s__&quot;</span> <span class="n">s</span>
+</span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a>    <span class="o">|</span> <span class="nc">Flat</span>         <span class="o">-&gt;</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;%s_&quot;</span> <span class="n">s</span>
+</span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a>  <span class="k">in</span>
+</span><span id="__span-7-22"><a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a>  <span class="k">let</span> <span class="n">full</span> <span class="o">=</span> <span class="n">prefix</span> <span class="o">^</span> <span class="n">t</span> <span class="k">in</span>
+</span><span id="__span-7-23"><a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a>  <span class="k">let</span> <span class="n">len</span> <span class="o">=</span> <span class="nn">String</span><span class="p">.</span><span class="n">length</span> <span class="n">full</span> <span class="k">in</span>
+</span><span id="__span-7-24"><a id="__codelineno-7-24" name="__codelineno-7-24" href="#__codelineno-7-24"></a>  <span class="k">if</span> <span class="n">len</span> <span class="o">&gt;</span> <span class="mi">60</span> <span class="k">then</span> <span class="o">(</span>
+</span><span id="__span-7-25"><a id="__codelineno-7-25" name="__codelineno-7-25" href="#__codelineno-7-25"></a>    <span class="nn">Logs</span><span class="p">.</span><span class="n">warn</span> <span class="o">(</span><span class="k">fun</span> <span class="n">m</span> <span class="o">-&gt;</span> <span class="n">m</span> <span class="s2">&quot;MCP tool name exceeds 60 chars (will be truncated): %s&quot;</span> <span class="n">full</span><span class="o">);</span>
+</span><span id="__span-7-26"><a id="__codelineno-7-26" name="__codelineno-7-26" href="#__codelineno-7-26"></a>    <span class="nn">String</span><span class="p">.</span><span class="n">sub</span> <span class="n">full</span> <span class="mi">0</span> <span class="mi">60</span>
+</span><span id="__span-7-27"><a id="__codelineno-7-27" name="__codelineno-7-27" href="#__codelineno-7-27"></a>  <span class="o">)</span> <span class="k">else</span> <span class="n">full</span>
+</span></code></pre></div>
+<p><strong>安全约束</strong>：
+- ✅ <code>server_name</code> 强制用用户 config（<strong>不信 <code>serverInfo.name</code></strong>，协议建议）
+- ✅ 替换 <code>:/.\\</code> 为 <code>_</code>（防协议违规）
+- ✅ 60 字符硬截断，50 字符 warn
+- ✅ <code>display_title</code> 字段保留原始名给 UI 用</p>
+<h3 id="_11">错误映射<a class="headerlink" href="#_11" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c">(* lib/mcp/mcp_errors.ml *)</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="c">(* JSON-RPC 标准错误码 + MCP 自定义错误码 *)</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="k">let</span> <span class="n">jsonrpc_error_to_category</span> <span class="o">(</span><span class="n">code</span> <span class="o">:</span> <span class="kt">int</span><span class="o">)</span> <span class="o">(</span><span class="n">message</span> <span class="o">:</span> <span class="kt">string</span><span class="o">)</span> <span class="o">:</span> <span class="n">error_category</span> <span class="o">=</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>  <span class="k">match</span> <span class="n">code</span> <span class="k">with</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>  <span class="o">|</span> <span class="o">-</span><span class="mi">32700</span> <span class="o">-&gt;</span> <span class="nc">Invalid_input</span> <span class="o">(</span><span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;MCP parse error: %s&quot;</span> <span class="n">message</span><span class="o">)</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>  <span class="o">|</span> <span class="o">-</span><span class="mi">32600</span> <span class="o">-&gt;</span> <span class="nc">Invalid_input</span> <span class="o">(</span><span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;MCP invalid request: %s&quot;</span> <span class="n">message</span><span class="o">)</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>  <span class="o">|</span> <span class="o">-</span><span class="mi">32601</span> <span class="o">-&gt;</span> <span class="nc">Invalid_input</span> <span class="o">(</span><span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;MCP method not found: %s&quot;</span> <span class="n">message</span><span class="o">)</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>  <span class="o">|</span> <span class="o">-</span><span class="mi">32602</span> <span class="o">-&gt;</span> <span class="nc">Invalid_input</span> <span class="o">(</span><span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;MCP invalid params: %s&quot;</span> <span class="n">message</span><span class="o">)</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>  <span class="o">|</span> <span class="o">-</span><span class="mi">32603</span> <span class="o">-&gt;</span> <span class="nc">Internal</span> <span class="o">(</span><span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;MCP internal error: %s&quot;</span> <span class="n">message</span><span class="o">)</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>  <span class="o">|</span> <span class="o">-</span><span class="mi">32000</span> <span class="o">-&gt;</span> <span class="nc">Internal</span> <span class="o">(</span><span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;MCP server error: %s&quot;</span> <span class="n">message</span><span class="o">)</span>
+</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>  <span class="o">|</span> <span class="o">-</span><span class="mi">32002</span> <span class="o">-&gt;</span> <span class="nc">External_failure</span> <span class="o">(</span><span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;MCP server not initialized: %s&quot;</span> <span class="n">message</span><span class="o">)</span>
+</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>  <span class="o">|</span> <span class="o">-</span><span class="mi">32003</span> <span class="o">-&gt;</span> <span class="nc">Invalid_input</span> <span class="o">(</span><span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;MCP unknown resource: %s&quot;</span> <span class="n">message</span><span class="o">)</span>
+</span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>  <span class="o">|</span> <span class="o">-</span><span class="mi">32004</span> <span class="o">-&gt;</span> <span class="nc">Invalid_input</span> <span class="o">(</span><span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;MCP unknown prompt: %s&quot;</span> <span class="n">message</span><span class="o">)</span>
+</span><span id="__span-8-14"><a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>  <span class="o">|</span> <span class="n">code</span> <span class="k">when</span> <span class="n">code</span> <span class="o">&gt;=</span> <span class="o">-</span><span class="mi">32099</span> <span class="o">&amp;&amp;</span> <span class="n">code</span> <span class="o">&lt;=</span> <span class="o">-</span><span class="mi">32000</span> <span class="o">-&gt;</span>
+</span><span id="__span-8-15"><a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a>      <span class="nc">External_failure</span> <span class="o">(</span><span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;MCP server-defined error %d: %s&quot;</span> <span class="n">code</span> <span class="n">message</span><span class="o">)</span>
+</span><span id="__span-8-16"><a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a>  <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="nc">Internal</span> <span class="o">(</span><span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;MCP unknown error code %d: %s&quot;</span> <span class="n">code</span> <span class="n">message</span><span class="o">)</span>
+</span></code></pre></div>
+<h3 id="event-bus_1">Event Bus 集成<a class="headerlink" href="#event-bus_1" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c">(* lib/core/event_bus/ 新增事件类型 *)</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="k">type</span> <span class="n">event</span> <span class="o">+=</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>  <span class="o">|</span> <span class="nc">Mcp_server_started</span> <span class="k">of</span> <span class="o">{</span> <span class="n">server_id</span> <span class="o">:</span> <span class="n">mcp_server_id</span><span class="o">;</span> <span class="n">name</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span> <span class="n">pid</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span> <span class="n">started_at</span> <span class="o">:</span> <span class="kt">float</span> <span class="o">}</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>  <span class="o">|</span> <span class="nc">Mcp_server_failed</span> <span class="k">of</span> <span class="o">{</span> <span class="n">server_id</span> <span class="o">:</span> <span class="n">mcp_server_id</span><span class="o">;</span> <span class="n">name</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span> <span class="n">reason</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span> <span class="n">failed_at</span> <span class="o">:</span> <span class="kt">float</span> <span class="o">}</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>  <span class="o">|</span> <span class="nc">Mcp_server_stopped</span> <span class="k">of</span> <span class="o">{</span> <span class="n">server_id</span> <span class="o">:</span> <span class="n">mcp_server_id</span><span class="o">;</span> <span class="n">name</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span> <span class="n">stopped_at</span> <span class="o">:</span> <span class="kt">float</span> <span class="o">}</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>  <span class="o">|</span> <span class="nc">Mcp_tool_invoked</span> <span class="k">of</span> <span class="o">{</span> <span class="n">server_id</span> <span class="o">:</span> <span class="n">mcp_server_id</span><span class="o">;</span> <span class="n">tool_name</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span> <span class="n">arguments</span> <span class="o">:</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">;</span> <span class="n">started_at</span> <span class="o">:</span> <span class="kt">float</span> <span class="o">}</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>  <span class="o">|</span> <span class="nc">Mcp_tool_completed</span> <span class="k">of</span> <span class="o">{</span> <span class="n">server_id</span> <span class="o">:</span> <span class="n">mcp_server_id</span><span class="o">;</span> <span class="n">tool_name</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span> <span class="n">result</span> <span class="o">:</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">;</span> <span class="n">duration</span> <span class="o">:</span> <span class="kt">float</span> <span class="o">}</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>  <span class="o">|</span> <span class="nc">Mcp_resource_read</span> <span class="k">of</span> <span class="o">{</span> <span class="n">server_id</span> <span class="o">:</span> <span class="n">mcp_server_id</span><span class="o">;</span> <span class="n">uri</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span> <span class="n">bytes</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span> <span class="n">read_at</span> <span class="o">:</span> <span class="kt">float</span> <span class="o">}</span>
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>  <span class="o">|</span> <span class="nc">Mcp_prompt_rendered</span> <span class="k">of</span> <span class="o">{</span> <span class="n">server_id</span> <span class="o">:</span> <span class="n">mcp_server_id</span><span class="o">;</span> <span class="n">prompt_name</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span> <span class="n">rendered_at</span> <span class="o">:</span> <span class="kt">float</span> <span class="o">}</span>
+</span></code></pre></div>
+<h3 id="_12">集成点<a class="headerlink" href="#_12" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>lib/par.ml</code>（facade）：暴露 <code>module Mcp = Mcp</code> + <code>module Mcp_client = Mcp_client</code></li>
+<li><code>lib/core/runtime.ml</code>：</li>
+<li><code>create</code> 接受 <code>?mcp_servers</code> / <code>?mcp_namespace</code> / <code>?mcp_startup_failure</code> 参数</li>
+<li><code>close</code> 自动 stop 所有 MCP server</li>
+<li>内部 <code>mcp_servers</code> 字段跟踪 server 状态</li>
+<li><code>lib/core/types.ml</code>：<code>runtime_config</code> 加 mcp 字段</li>
+<li><code>lib/core/event_bus/</code>：event types 加 MCP 系列</li>
+<li><code>lib/tools/builtin_tools.ml</code>：<strong>不</strong>注册 MCP 工具为内置工具（MCP 工具由 <code>mcp_naming.ml</code> 动态生成 tool_descriptor）</li>
+</ul>
+<h3 id="_13">测试策略<a class="headerlink" href="#_13" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>测试层级</th>
+<th>怎么做</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>单元</strong></td>
+<td>mock JSON-RPC 响应（用 in-memory transport），验证 parse / serialize / 错误映射</td>
+</tr>
+<tr>
+<td><strong>集成（mock server）</strong></td>
+<td>写一个最简单的 MCP server（echo 工具），用 stdio transport 连真进程</td>
+</tr>
+<tr>
+<td><strong>集成（真 server）</strong></td>
+<td>用 <code>@modelcontextprotocol/server-filesystem</code> 这种公开 server 做 smoke test（CI 跳过，文档化）</td>
+</tr>
+<tr>
+<td><strong>端到端</strong></td>
+<td>ReAct 循环 → LLM 决定调 MCP tool → call → result 回流</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Mock server 实现策略</strong>：
+- 不引外部 MCP SDK 做测试依赖
+- 在 <code>test/mcp/mock_server.ml</code> 写一个最小 MCP server（~150 行），CI 默认跑
+- 公开 MCP server smoke test 文档化但不进 CI（依赖 npx 环境）</p>
+<h3 id="_14">成功标准<a class="headerlink" href="#_14" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] <code>mcp_types.ml</code> 实现 MCP 协议强类型镜像（resources/tools/prompts 三大类）</li>
+<li>[ ] <code>mcp_transport_stdio.ml</code> 实现 JSON-RPC over stdio（含 framing、line-delimited、error handling）</li>
+<li>[ ] <code>mcp_client.ml</code> 高阶 API（connect/list/call/read_resource/get_prompt）</li>
+<li>[ ] <code>mcp_server.ml</code> 进程管理（spawn/stop/lifecycle/pid tracking）</li>
+<li>[ ] <code>mcp_naming.ml</code> 实现 mangle_tool_name（sanitize + prefix + 60 字符截断）</li>
+<li>[ ] <code>mcp_errors.ml</code> JSON-RPC 错误 → PAR error_category 映射</li>
+<li>[ ] <code>Runtime.create</code> 接受 <code>?mcp_servers</code> / <code>?mcp_namespace</code> / <code>?mcp_startup_failure</code> 参数</li>
+<li>[ ] <code>Runtime.close</code> 自动 stop 所有 MCP server</li>
+<li>[ ] event bus 加 7 个 MCP 事件类型</li>
+<li>[ ] 单元测试：JSON-RPC 编解码、naming mangle、错误映射、transport framing</li>
+<li>[ ] 集成测试：mock MCP server 完整流程</li>
+<li>[ ] 端到端测试：ReAct + MCP tool 调用</li>
+<li>[ ] 现有 297 OCaml + 16 Python 测试不退化</li>
+<li>[ ] 文档：<code>docs/sdk/mcp.md</code> 新文件（用户视角）+ <code>lib/mcp/*.mli</code> API 文档完整</li>
+</ul>
+<h3 id="_15">估时<a class="headerlink" href="#_15" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>子任务</th>
+<th>时间</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mcp_types.ml</code> + <code>mcp_errors.ml</code>（协议类型 + 错误映射）</td>
+<td>0.5 天</td>
+</tr>
+<tr>
+<td><code>mcp_transport_stdio.ml</code>（JSON-RPC over stdio）</td>
+<td>1 天</td>
+</tr>
+<tr>
+<td><code>mcp_server.ml</code>（进程管理 + lifecycle）</td>
+<td>0.5 天</td>
+</tr>
+<tr>
+<td><code>mcp_client.ml</code>（高阶 API）</td>
+<td>1 天</td>
+</tr>
+<tr>
+<td><code>mcp_naming.ml</code>（命名 pipeline）</td>
+<td>0.25 天</td>
+</tr>
+<tr>
+<td>集成到 <code>Runtime</code> + event bus</td>
+<td>0.5 天</td>
+</tr>
+<tr>
+<td>测试（mock server + 集成 + 端到端）</td>
+<td>1-1.5 天</td>
+</tr>
+<tr>
+<td>文档（<code>docs/sdk/mcp.md</code>）</td>
+<td>0.5 天</td>
+</tr>
+<tr>
+<td><strong>总估时</strong></td>
+<td><strong>4.5-5.75 天</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="_16">风险<a class="headerlink" href="#_16" title="Permanent link">&para;</a></h3>
+<ul>
+<li>🟡 <strong>MCP 协议稳定度</strong>：2025 后协议还在演进，2026 早期定稿。v0.3.1 锁定某版本 spec（如 2025-06-18），更新由 v0.4 承担</li>
+<li>🟡 <strong>stdio 进程管理</strong>：Eio 纤程与传统子进程交互的取消语义需仔细设计</li>
+<li>🟡 <strong>Token 成本</strong>：MCP tools 一次 list 可能暴露 50+ 工具，LLM context 压力。v0.4+ 评估"按需加载"或"分组"</li>
+<li>🟢 <strong>错误映射</strong>：JSON-RPC 错误码已标准化</li>
+</ul>
+<h3 id="v04_1">暂不实施（v0.4+ 候选）<a class="headerlink" href="#v04_1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>理由</th>
+<th>引入版本</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>HTTP/SSE transport</strong></td>
+<td>远程 MCP server 场景，估时 1-2 周</td>
+<td>v0.4</td>
+</tr>
+<tr>
+<td><strong>Sampling</strong>（server → LLM）</td>
+<td>双向流，需要 server 端 LLM hook 集成</td>
+<td>v0.4</td>
+</tr>
+<tr>
+<td><strong>Elicitation</strong>（server → user）</td>
+<td>UI 集成复杂</td>
+<td>v0.5+ 评估</td>
+</tr>
+<tr>
+<td><strong>Roots</strong>（filesystem 边界声明）</td>
+<td>跟 sandbox 重叠</td>
+<td>v0.4+ 通过 par_sandbox 集成</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_17">决策记录（详细依据）<a class="headerlink" href="#_17" title="Permanent link">&para;</a></h2>
+<h3 id="d1-v031-bash-mcp-par-9e1">D1: v0.3.1 = bash + MCP（不含 PAR-9e1）<a class="headerlink" href="#d1-v031-bash-mcp-par-9e1" title="Permanent link">&para;</a></h3>
+<p><strong>触发</strong>：2026-06-04 规划讨论。
+<strong>备选</strong>：包含 PAR-9e1（persistence redesign）一起做。
+<strong>理由</strong>：
+- PAR-9e1 涉及 schema migration + 删 <code>persistence_service</code> 公共 API 函数 = <strong>breaking change</strong>
+- v0.3.1 定位"post-release polish"，应<strong>纯 additive</strong>（不破坏现有 par.db / 用户代码）
+- PAR-9e1 升为 v0.4 主题，与 MCP HTTP/SSE、MCP sampling 等其他架构变更打包
+- 维持 semver 故事清晰：v0.3.x = 增量；v0.4 = 架构</p>
+<h3 id="d2-bash-policy-coder">D2: bash 默认 Policy = Coder<a class="headerlink" href="#d2-bash-policy-coder" title="Permanent link">&para;</a></h3>
+<p><strong>触发</strong>：2026-06-04 规划讨论。
+<strong>备选</strong>：ReadOnly 默认 / 无默认必须显式选。
+<strong>理由</strong>：
+- LLM 后端工程师（Q2 目标用户）的核心场景是"AI 写代码"，Coder 覆盖 90% 用例
+- ReadOnly 太严，LLM 频繁撞墙（"为什么我能 find 不能 mkdir"）用户体验差
+- 无默认会让 80% 用户卡在 <code>Runtime.create</code> 配置上
+- Coder 配 60s timeout + 默认黑名单 + env 脱敏已足够安全，剩余风险由用户配置收紧</p>
+<h3 id="d3-bash-event-bus-metrics">D3: bash 风险评分只进 event bus，不进 metrics<a class="headerlink" href="#d3-bash-event-bus-metrics" title="Permanent link">&para;</a></h3>
+<p><strong>触发</strong>：2026-06-04 规划讨论。
+<strong>理由</strong>：
+- v0.3.0 刚加 <code>Runtime.metrics</code> API，v0.3.1 不应反复改 metrics surface
+- event bus 已经支持自定义事件（v0.3 加的 Tool_progress），风险评分挂这里扩展成本低
+- v0.4+ 评估"风险评分 counter"是否值得加 metrics（要看实际 LLM 使用模式）</p>
+<h3 id="d4-mcp-transport-stdio-onlyhttp-v04">D4: MCP transport = stdio only（HTTP 推 v0.4）<a class="headerlink" href="#d4-mcp-transport-stdio-onlyhttp-v04" title="Permanent link">&para;</a></h3>
+<p><strong>触发</strong>：2026-06-04 规划讨论。
+<strong>备选</strong>：stdio + HTTP/SSE 同时做 / 全部 deferred。
+<strong>理由</strong>：
+- stdio 覆盖 90% 真实场景（filesystem / git / sqlite / 等本地 server）
+- HTTP/SSE 估时翻倍（4-5 天 → 8-10 天），v0.3.1 控不住
+- 增量交付：v0.3.1 stdio 验证协议 + API 形状，v0.4 再加 HTTP/SSE 减少 rework</p>
+<h3 id="d5-mcp-api">D5: MCP 生命周期 = 分层 API<a class="headerlink" href="#d5-mcp-api" title="Permanent link">&para;</a></h3>
+<p><strong>触发</strong>：2026-06-04 规划讨论。
+<strong>备选</strong>：Runtime 隐式管理 / 显式 register-start-stop。
+<strong>理由</strong>：
+- 符合 STRATEGY "机制 vs 策略" 原则
+- 简单场景零摩擦（config 写 1 行 mcp_servers = [...]）
+- 复杂场景可下沉（库作者包 start/stop 做热重载）
+- 显式 <code>Runtime.close</code> 路径下自动清理防泄露</p>
+<h3 id="d6-mcp-fail_fast">D6: MCP 启动失败 = 可配置（默认 Fail_fast）<a class="headerlink" href="#d6-mcp-fail_fast" title="Permanent link">&para;</a></h3>
+<p><strong>触发</strong>：2026-06-04 规划讨论。
+<strong>理由</strong>：
+- 默认 Fail_fast：避免"启动了一半 server，应用跑起来发现某些 tool 不可用"的惊喜
+- 提供 Log_and_continue：本地开发 / demo 场景更友好
+- 决策权交给用户，不替用户做</p>
+<h3 id="d7-mcp-mcptoolsresourcespromptssampling-v04">D7: MCP 能力范围 = 标准 MCP（tools+resources+prompts，sampling 推 v0.4）<a class="headerlink" href="#d7-mcp-mcptoolsresourcespromptssampling-v04" title="Permanent link">&para;</a></h3>
+<p><strong>触发</strong>：2026-06-04 规划讨论（用户原话："我希望是标准 MCP 协议"）。
+<strong>理由</strong>：
+- "标准 MCP" = 协议规定的能力完整支持 = tools + resources + prompts
+- sampling（server → LLM 回调）涉及双向流架构，复杂度高，v0.3.1 控不住
+- v0.3.1 验证三大类 + stdio transport，sampling 跟 HTTP/SSE 一起进 v0.4</p>
+<h3 id="d8-mcp-tool-hierarchical-flat">D8: MCP tool 命名 = Hierarchical 默认 + Flat 可切<a class="headerlink" href="#d8-mcp-tool-hierarchical-flat" title="Permanent link">&para;</a></h3>
+<p><strong>触发</strong>：2026-06-04 规划讨论（基于背景调研）。
+<strong>调研结论</strong>（见 docs/v0.3.1-ROADMAP 内部 reference）：4 个生态模式
+- 裸名（SDK 原生）
+- 单下划线扁平（LangChain Python / LiteLLM）
+- 双下划线层级（LangChain JS / Claude Code / Anthropic SDK）
+- 短随机 ID（Cline，有 known bug）</p>
+<p><strong>理由</strong>：
+- Claude Code / Anthropic SDK 是 Q2 目标用户最大生态
+- 双下划线 <code>mcp__&lt;server&gt;__&lt;tool&gt;</code> 是协议推荐 + 主流实现一致选择
+- 提供 <code>mcp_namespace: Hierarchical | Flat</code> 让用户在 token 成本 vs 兼容性之间选
+- 不用短随机 ID（Cline 的 nanoid bug 模式 #8087 是反面教材）</p>
+<h3 id="d9-par-9e1-v04-minor">D9: PAR-9e1 归 v0.4（独立 minor）<a class="headerlink" href="#d9-par-9e1-v04-minor" title="Permanent link">&para;</a></h3>
+<p><strong>触发</strong>：2026-06-04 规划讨论。
+<strong>理由</strong>：
+- PAR-9e1 涉及公共 API 删改（<code>save_events/load_events</code> 从 <code>persistence_service</code> 移除）+ schema migration
+- v0.3.1 应<strong>纯 additive</strong>（不动现有 par.db / 用户代码）
+- v0.4 主题已确定：PAR-9e1 + MCP HTTP/SSE + MCP sampling + bash interactive confirm
+- 维持 v0.3.x = 增量 / v0.4 = 架构 的清晰 semver 故事</p>
+<h3 id="d10-v031-5-8">D10: v0.3.1 估时 = 5-8 天<a class="headerlink" href="#d10-v031-5-8" title="Permanent link">&para;</a></h3>
+<p><strong>依据</strong>：
+- TOOL-1g bash：1-2 天（v0.3 路线图估时 1-2 天，设计已就绪）
+- MCP-1 stdio：3-5 天（v0.3 估时 3-5 天 + 新增 resources/prompts 实现 0.5-1 天）
+- 集成测试 + 文档 + release：1 天</p>
+<h3 id="d11-changesmd-v031-entry">D11: CHANGES.md = 独立 v0.3.1 entry<a class="headerlink" href="#d11-changesmd-v031-entry" title="Permanent link">&para;</a></h3>
+<p><strong>理由</strong>：
+- v0.3.0-post 是 v0.3.0 的 hotfix/微调，<strong>没新增 feature</strong>
+- v0.3.1 是<strong>新 feature release</strong>（bash + MCP），应单独 entry 让用户清楚看到新增
+- 行业惯例（SemVer）：.0 → .1 之间通常有 .1 patch，但 .0+.1 = 2nd minor release</p>
+<hr />
+<h2 id="_18">估时汇总<a class="headerlink" href="#_18" title="Permanent link">&para;</a></h2>
+<h3 id="wave-1tool-1g-bash-1-2">Wave 1（TOOL-1g bash）—— 1-2 天<a class="headerlink" href="#wave-1tool-1g-bash-1-2" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>子任务</th>
+<th>估时</th>
+<th>优先级</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bash_safe_command.ml</code>（ADT + 路径校验 + 风险评分）</td>
+<td>0.5-0.75 天</td>
+<td>🟡 高</td>
+</tr>
+<tr>
+<td><code>bash_policy.ml</code>（Policy Functor + 3 个预置）</td>
+<td>0.5 天</td>
+<td>🟡 高</td>
+</tr>
+<tr>
+<td><code>bash_blacklist.ml</code>（~30 个正则）</td>
+<td>0.25 天</td>
+<td>🟡 高</td>
+</tr>
+<tr>
+<td>集成到 <code>builtin_tools.ml</code></td>
+<td>0.5 天</td>
+<td>🟡 高</td>
+</tr>
+<tr>
+<td>测试</td>
+<td>0.5 天</td>
+<td>🟡 高</td>
+</tr>
+</tbody>
+</table>
+<h3 id="wave-2mcp-1-stdio-3-5">Wave 2（MCP-1 stdio）—— 3-5 天<a class="headerlink" href="#wave-2mcp-1-stdio-3-5" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>子任务</th>
+<th>估时</th>
+<th>优先级</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mcp_types.ml</code> + <code>mcp_errors.ml</code></td>
+<td>0.5 天</td>
+<td>🟡 高</td>
+</tr>
+<tr>
+<td><code>mcp_transport_stdio.ml</code></td>
+<td>1 天</td>
+<td>🟡 高</td>
+</tr>
+<tr>
+<td><code>mcp_server.ml</code>（进程管理）</td>
+<td>0.5 天</td>
+<td>🟡 高</td>
+</tr>
+<tr>
+<td><code>mcp_client.ml</code>（高阶 API）</td>
+<td>1 天</td>
+<td>🟡 高</td>
+</tr>
+<tr>
+<td><code>mcp_naming.ml</code></td>
+<td>0.25 天</td>
+<td>🟡 中</td>
+</tr>
+<tr>
+<td>集成到 <code>Runtime</code> + event bus</td>
+<td>0.5 天</td>
+<td>🟡 高</td>
+</tr>
+<tr>
+<td>测试（mock server + 集成 + 端到端）</td>
+<td>1-1.5 天</td>
+<td>🟡 高</td>
+</tr>
+<tr>
+<td>文档</td>
+<td>0.5 天</td>
+<td>🟢 必做</td>
+</tr>
+</tbody>
+</table>
+<h3 id="wave-3release-1">Wave 3（Release）—— 1 天<a class="headerlink" href="#wave-3release-1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>子任务</th>
+<th>估时</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>完整集成测试</td>
+<td>0.5 天</td>
+</tr>
+<tr>
+<td>CHANGES.md v0.3.1 entry</td>
+<td>0.1 天</td>
+</tr>
+<tr>
+<td>版本号 bump（dune-project）</td>
+<td>0.1 天</td>
+</tr>
+<tr>
+<td><code>par</code> CLI 测试（手动）</td>
+<td>0.2 天</td>
+</tr>
+<tr>
+<td><code>par_runtime</code> Python 测试</td>
+<td>0.1 天</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_19">总计<a class="headerlink" href="#_19" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>估时</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v0.3.1 实施</td>
+<td><strong>5-8 天</strong></td>
+</tr>
+<tr>
+<td>含 review + 修 review 反馈</td>
+<td>+ 1-2 天</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_20">依赖关系<a class="headerlink" href="#_20" title="Permanent link">&para;</a></h2>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>TOOL-1g bash  ──→ 独立（仅依赖 Eio.Process）
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>MCP-1 stdio   ──→ 独立（仅依赖 yojson 已有）
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>RELEASE       ──→ 依赖 TOOL-1g + MCP-1 都完成
+</span></code></pre></div>
+<p><strong>并行执行</strong>：W1 (bash) 和 W2 (MCP) 可完全并行。<strong>建议串行</strong>：W1 先做，让用户单独 review bash 安全设计，review 通过再开 W2，缩短 review 反馈环。</p>
+<hr />
+<h2 id="v031_2">🚫 不做的项目（v0.3.1 防呆清单）<a class="headerlink" href="#v031_2" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>不做的理由</th>
+<th>推迟到</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>PAR-9e1 persistence redesign</strong></td>
+<td>breaking API，独立 minor</td>
+<td><strong>v0.4</strong></td>
+</tr>
+<tr>
+<td><strong>MCP HTTP/SSE transport</strong></td>
+<td>估时翻倍，stdio 验证后再做</td>
+<td><strong>v0.4</strong></td>
+</tr>
+<tr>
+<td><strong>MCP sampling</strong></td>
+<td>双向流架构，复杂度高</td>
+<td><strong>v0.4</strong></td>
+</tr>
+<tr>
+<td><strong>OS sandbox (bwrap/landlock)</strong></td>
+<td>跨平台锁定，<strong>单独立项 <code>par_sandbox</code></strong></td>
+<td>v0.4+ 评估</td>
+</tr>
+<tr>
+<td><strong>bash 交互式确认</strong></td>
+<td>OPS-6 hook 已提供机制</td>
+<td>v0.4+ 通过 hook</td>
+</tr>
+<tr>
+<td><strong>WhiteList mode (bash)</strong></td>
+<td>Policy Functor 已支持自定义</td>
+<td>留给 v0.4 真实使用反馈</td>
+</tr>
+<tr>
+<td><strong>MCP roots / elicitation</strong></td>
+<td>边缘能力，主流 server 不用</td>
+<td>v0.5+ 评估</td>
+</tr>
+<tr>
+<td><strong>Landlock / seccomp</strong></td>
+<td>Linux 专属</td>
+<td>v0.5+ 评估</td>
+</tr>
+<tr>
+<td><strong>Par_sandbox 独立 opam 包</strong></td>
+<td>跨平台风险隔离</td>
+<td>v0.4+ 评估</td>
+</tr>
+<tr>
+<td><strong>MCP 多 server 并发启动</strong></td>
+<td>顺序启动足够</td>
+<td>v0.4+ 真实使用反馈</td>
+</tr>
+<tr>
+<td><strong>MCP tool 按需加载</strong></td>
+<td>50+ tools 一次性 list 给 LLM</td>
+<td>v0.4+ 评估</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="v04-2026-06-04">v0.4 移交清单（确认 2026-06-04）<a class="headerlink" href="#v04-2026-06-04" title="Permanent link">&para;</a></h2>
+<p>v0.4 主题（<strong>已在 v0.3.1 规划中确认归属</strong>）：</p>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>来源</th>
+<th>估时</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>PAR-9e1</strong> persistence redesign（schema + 死代码清理 + CLI）</td>
+<td>用户原有 P2 bead</td>
+<td>5-10 天</td>
+</tr>
+<tr>
+<td><strong>MCP HTTP/SSE transport</strong></td>
+<td>v0.3.1 推迟</td>
+<td>1-2 周</td>
+</tr>
+<tr>
+<td><strong>MCP sampling</strong>（server → LLM）</td>
+<td>v0.3.1 推迟</td>
+<td>1 周</td>
+</tr>
+<tr>
+<td><strong>bash 交互式确认</strong>（通过 OPS-6 hook 集成）</td>
+<td>v0.3.1 推迟</td>
+<td>0.5 天</td>
+</tr>
+<tr>
+<td><strong>par_sandbox 独立 opam 包</strong> 评估</td>
+<td>v0.3 路线图 ADR</td>
+<td>2-3 周（若做）</td>
+</tr>
+<tr>
+<td><strong>MCP tool 按需加载</strong></td>
+<td>50+ tool 场景反馈</td>
+<td>1 周（若做）</td>
+</tr>
+</tbody>
+</table>
+<p>详见 <code>docs/v0.4-ROADMAP.md</code>（v0.3.1 实施完成后建）。</p>
+<hr />
+<h2 id="_21">成功标准<a class="headerlink" href="#_21" title="Permanent link">&para;</a></h2>
+<h3 id="_22">实施完成标志<a class="headerlink" href="#_22" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] TOOL-1g bash 全部成功标准 ✅</li>
+<li>[ ] MCP-1 stdio 全部成功标准 ✅</li>
+<li>[ ] 现有 297 OCaml + 16 Python 测试不退化</li>
+<li>[ ] 新增 ≥40 个 OCaml 测试（bash + MCP 单元/集成/端到端）</li>
+<li>[ ] 文档完整：<code>docs/sdk/tools.md</code>（bash 章节）+ <code>docs/sdk/mcp.md</code>（新文件）</li>
+</ul>
+<h3 id="_23">发布就绪<a class="headerlink" href="#_23" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] <code>dune-project</code> 版本号 bump 到 <code>0.3.1</code></li>
+<li>[ ] <code>CHANGES.md</code> 加 v0.3.1 entry（独立 section）</li>
+<li>[ ] <code>par_runtime</code> Python wheel 重建（如有 API 变化）</li>
+<li>[ ] release note 写完</li>
+<li>[ ] <code>dune build</code> 0 errors</li>
+<li>[ ] <code>dune runtest</code> 全 pass</li>
+<li>[ ] <code>par</code> CLI 手动 smoke test（par ask / par config / par /help）</li>
+</ul>
+<h3 id="_24">用户视角验收<a class="headerlink" href="#_24" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] <strong>bash</strong>：用户能配 <code>bash_policy = Coder</code>，LLM 能调 <code>bash</code> 工具，shell 注入被 ADT 拦截</li>
+<li>[ ] <strong>MCP</strong>：用户能在 config 写 <code>mcp_servers = [...]</code>，PAR 自动接 filesystem MCP server，LLM 能调 <code>mcp__filesystem__read_file</code></li>
+<li>[ ] <strong>兼容</strong>：老 v0.3.0 用户升级 v0.3.1 无任何代码改动</li>
+</ul>
+<hr />
+<h2 id="_25">相关文档<a class="headerlink" href="#_25" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>文档</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../STRATEGY/"><code>docs/STRATEGY.md</code></a></td>
+<td>长期战略（5 个 P0 决策）</td>
+</tr>
+<tr>
+<td><a href="../v0.3-ROADMAP/"><code>docs/v0.3-ROADMAP.md</code></a></td>
+<td>v0.3.0 路线图（已完成 22/22）</td>
+</tr>
+<tr>
+<td><a href="../DESIGN.md"><code>DESIGN.md</code></a></td>
+<td>内部设计文档</td>
+</tr>
+<tr>
+<td><a href="../CHANGES.md"><code>CHANGES.md</code></a></td>
+<td>变更日志（v0.3.0-post 已记）</td>
+</tr>
+<tr>
+<td><code>docs/v0.3.1-ROADMAP.md</code>（本文件）</td>
+<td>v0.3.1 路线图</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>最后更新</strong>: 2026-06-04
+<strong>状态</strong>: 🆕 规划完成，等待用户启动 W1 实施</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

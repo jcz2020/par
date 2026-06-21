@@ -1,0 +1,2333 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/zh/v0.4.8-ROADMAP/">
+      
+      
+      
+      
+        
+          <link rel="alternate" href="../../v0.4.8-ROADMAP/" hreflang="en">
+        
+          <link rel="alternate" href="./" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>v0.4.8 Roadmap — Structured Output (Runtime.invoke_structured) - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#v048-roadmap-structured-output-runtimeinvoke_structured" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../" title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              v0.4.8 Roadmap — Structured Output (Runtime.invoke_structured)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="选择当前语言">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../v0.4.8-ROADMAP/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="分享" aria-label="分享" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  教程
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  实用指南
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../cli/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  参考
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  解释
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    教程
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    教程
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    实用指南
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    实用指南
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    参考
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    参考
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    解释
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    解释
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#rationale" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rationale
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Design
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#primary-entry-point" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Primary entry point
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#return-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Return type
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-generic-yojsonsafet-not-typed-a" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why generic Yojson.Safe.t (not typed 'a)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#convenience-pattern-for-callers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Convenience pattern for callers
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#provider-strategy-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provider Strategy Matrix
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Provider Strategy Matrix">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#architecture-new-llm_service-field-strategy-b-additive-non-breaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture: new llm_service field (Strategy B — additive, non-breaking)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#json-schema-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JSON Schema Validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="JSON Schema Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#reuse-existing-in-tree-validator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reuse: existing in-tree validator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v048-limitation-documented-honestly-per-oracle-d4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.4.8 limitation (documented honestly per Oracle D4)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#feedback-retry-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Feedback Retry Loop
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Feedback Retry Loop">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The gap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#new-enginerun_structured-helper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        New Engine.run_structured helper
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reuse-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reuse points
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bypassing-middleware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bypassing middleware
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lenient-json-extraction-new-helper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lenient JSON Extraction (new helper)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#work-units" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Work Units
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Work Units">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-conventions-post-survey-2026-06-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Conventions (post-survey, 2026-06-19)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wu-1-type-additions-api-surface-05-day" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WU-1 · Type additions + API surface — 0.5 day
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wu-2-enginerun_structured-with-feedback-loop-2-days" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WU-2 · Engine.run_structured with feedback loop — 2 days
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wu-3-openai-native-structured-output-1-day" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WU-3 · OpenAI native structured output — 1 day
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wu-4-anthropic-native-output_configformat-05-day" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WU-4 · Anthropic native output_config.format — 0.5 day
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wu-5-generic-fallback-path-mock-05-day" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WU-5 · Generic fallback path + Mock — 0.5 day
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wu-6-runtimeinvoke_structured-public-api-05-day" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WU-6 · Runtime.invoke_structured public API — 0.5 day
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wu-7-python-ffi-binding-05-day" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WU-7 · Python FFI binding — 0.5 day
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wu-8-documentation-05-day" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WU-8 · Documentation — 0.5 day
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#execution-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Execution Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Execution Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#wave-1-foundation-sequential-blocks-everything" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wave 1 — Foundation (sequential, blocks everything)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wave-2-parallel-implementation-3-agents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wave 2 — Parallel implementation (3 agents)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wave-3-engine-integration-sequential-depends-on-wave-12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wave 3 — Engine integration (sequential, depends on Wave 1+2)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wave-4-public-surface-sequential-depends-on-wave-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wave 4 — Public surface (sequential, depends on Wave 3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wave-5-polish-sequential-last" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wave 5 — Polish (sequential, last)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-bump" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version Bump
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#definition-of-done" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Definition of Done
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Definition of Done">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#functional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functional
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#api-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API surface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quality
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#strategic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Strategic
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#not-in-v048-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not in v0.4.8 Scope
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#design-decisions-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design Decisions Log
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related Documents
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="v048-roadmap-structured-output-runtimeinvoke_structured">v0.4.8 Roadmap — Structured Output (<code>Runtime.invoke_structured</code>)<a class="headerlink" href="#v048-roadmap-structured-output-runtimeinvoke_structured" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>Status</strong>: Draft v1. Created 2026-06-19.
+<strong>Theme</strong>: Single feature — typed structured LLM output via JSON Schema. Provider-native (OpenAI <code>response_format</code>, Anthropic tool_use hack) with graceful fallback for other providers.
+<strong>Type</strong>: Feature. Minor-equivalent bump from v0.4.7 (would be v0.5.0 under strict SemVer; staying in v0.4.x per project convention until v0.5 theme emerges).
+<strong>Predecessor</strong>: <a href="../CHANGES.md">v0.4.7</a> (hotfix — ignore hallucinated tool_calls).
+<strong>Source issues</strong>: PAR-xd5 (P0), PAR-5cc (P1).
+<strong>Strategic alignment</strong>: STRATEGY.md §4 priority #1 = <strong>类型严谨</strong>. This is the strongest differentiator vs Python frameworks (LangChain/PydanticAI run-time crashes → PAR compile-time + schema-validated LLM output).</p>
+</blockquote>
+<hr />
+<h2 id="rationale">Rationale<a class="headerlink" href="#rationale" title="Permanent link">&para;</a></h2>
+<p>Today, <code>Runtime.invoke</code> returns free-text LLM output. Users who need structured data must:</p>
+<ol>
+<li>Hand-write a system prompt instructing the LLM to "respond in JSON",</li>
+<li>Strip markdown fences (<code></code>json ... <code></code>) themselves,</li>
+<li>Call <code>Yojson.Safe.from_string</code> and hope the LLM obeyed,</li>
+<li>Manually validate the shape.</li>
+</ol>
+<p>Every step is a foot-gun. Worse, <strong>PAR doesn't use the native structured-output APIs</strong> of its providers — OpenAI's <code>response_format: { type: "json_schema", ... }</code> (Aug 2024) and Anthropic's tool_use synthesis are both unsupported. STRATEGY.md §4 priority #1 is type rigor; an OCaml LLM SDK without first-class structured output undercuts the core value proposition.</p>
+<p>v0.4.8 closes the gap with one new public API: <code>Runtime.invoke_structured</code>. It is provider-aware (uses native structured output where available, falls back to prompt+validate elsewhere), runs an in-band retry loop on schema violations, and reuses PAR's existing JSON Schema validator (added v0.4.0 for tool output validation).</p>
+<hr />
+<h2 id="api-design">API Design<a class="headerlink" href="#api-design" title="Permanent link">&para;</a></h2>
+<h3 id="primary-entry-point">Primary entry point<a class="headerlink" href="#primary-entry-point" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c">(* lib/core/runtime.mli — new val after line 80 *)</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="k">val</span> <span class="n">invoke_structured</span> <span class="o">:</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  <span class="n">runtime</span> <span class="o">-&gt;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  <span class="n">agent_id</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  <span class="n">message</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  <span class="n">response_schema</span><span class="o">:</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span>       <span class="c">(* JSON Schema describing desired output *)</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  <span class="o">?</span><span class="n">max_repair_attempts</span><span class="o">:</span><span class="kt">int</span> <span class="o">-&gt;</span>            <span class="c">(* default 3; feedback retries on violation *)</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  <span class="o">?</span><span class="n">cancellation_token</span><span class="o">:</span><span class="n">cancellation_token</span> <span class="o">-&gt;</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  <span class="o">?</span><span class="n">conversation</span><span class="o">:</span><span class="n">conversation</span> <span class="o">-&gt;</span>           <span class="c">(* resume an existing conversation *)</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  <span class="o">?</span><span class="n">on_tool_event</span><span class="o">:(</span><span class="n">event</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>  <span class="o">(</span><span class="n">structured_invoke_result</span><span class="o">,</span> <span class="n">error_category</span> <span class="o">*</span> <span class="n">conversation</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<h3 id="return-type">Return type<a class="headerlink" href="#return-type" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c">(* lib/core/types.ml — new type near invoke_result at line 140-143 *)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="k">type</span> <span class="n">structured_invoke_result</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  <span class="n">value</span>        <span class="o">:</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">;</span>   <span class="c">(* schema-validated JSON *)</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  <span class="n">raw_response</span> <span class="o">:</span> <span class="n">llm_response</span><span class="o">;</span>    <span class="c">(* original LLM reply (for debugging / token accounting) *)</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>  <span class="n">conversation</span> <span class="o">:</span> <span class="n">conversation</span><span class="o">;</span>    <span class="c">(* updated, includes any repair messages *)</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>  <span class="n">attempts</span>     <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>             <span class="c">(* 1 = happy path; &gt;1 = repairs happened *)</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="o">}</span> <span class="o">[@@</span><span class="n">deriving</span> <span class="n">yojson</span><span class="o">]</span>
+</span></code></pre></div>
+<p><strong>Mirrors <code>invoke_result</code> shape</strong> (<code>types.ml:140-143</code>) so callers can chain <code>?conversation</code> across calls — same convention as <code>Runtime.invoke</code>.</p>
+<h3 id="why-generic-yojsonsafet-not-typed-a">Why generic <code>Yojson.Safe.t</code> (not typed <code>'a</code>)<a class="headerlink" href="#why-generic-yojsonsafet-not-typed-a" title="Permanent link">&para;</a></h3>
+<p>A higher-order <code>invoke_structured_t ~decode:(Yojson.Safe.t -&gt; ('a, _) result)</code> was considered. Deferred to v0.5 — the generic API + caller-side <code>[%of_yojson: T]</code> covers v0.4.8 use cases without polymorphic-record gymnastics that complicate the FFI surface.</p>
+<h3 id="convenience-pattern-for-callers">Convenience pattern for callers<a class="headerlink" href="#convenience-pattern-for-callers" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">type</span> <span class="n">person</span> <span class="o">=</span> <span class="o">{</span> <span class="n">name</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span> <span class="n">age</span> <span class="o">:</span> <span class="kt">int</span> <span class="o">}</span> <span class="o">[@@</span><span class="n">deriving</span> <span class="n">yojson</span><span class="o">]</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="k">let</span> <span class="n">get_person</span> <span class="n">rt</span> <span class="o">~</span><span class="n">message</span> <span class="o">=</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  <span class="k">let</span> <span class="n">schema</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Assoc</span> <span class="o">[</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="o">(</span><span class="s2">&quot;type&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;object&quot;</span><span class="o">);</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="o">(</span><span class="s2">&quot;properties&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">Assoc</span> <span class="o">[</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>      <span class="o">(</span><span class="s2">&quot;name&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">Assoc</span> <span class="o">[(</span><span class="s2">&quot;type&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;string&quot;</span><span class="o">)]);</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>      <span class="o">(</span><span class="s2">&quot;age&quot;</span><span class="o">,</span>  <span class="o">`</span><span class="nc">Assoc</span> <span class="o">[(</span><span class="s2">&quot;type&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;integer&quot;</span><span class="o">)]);</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="o">]);</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    <span class="o">(</span><span class="s2">&quot;required&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">List</span> <span class="o">[`</span><span class="nc">String</span> <span class="s2">&quot;name&quot;</span><span class="o">;</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;age&quot;</span><span class="o">]);</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>  <span class="o">]</span> <span class="k">in</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>  <span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke_structured</span> <span class="n">rt</span> <span class="o">~</span><span class="n">agent_id</span><span class="o">:</span><span class="s2">&quot;default&quot;</span> <span class="o">~</span><span class="n">message</span> <span class="o">~</span><span class="n">response_schema</span><span class="o">:</span><span class="n">schema</span> <span class="k">with</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>  <span class="o">|</span> <span class="nc">Error</span> <span class="o">(</span><span class="n">cat</span><span class="o">,</span> <span class="o">_)</span> <span class="o">-&gt;</span> <span class="nc">Error</span> <span class="o">(</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">cat</span><span class="o">)</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>  <span class="o">|</span> <span class="nc">Ok</span> <span class="o">{</span> <span class="n">value</span><span class="o">;</span> <span class="o">_</span> <span class="o">}</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>    <span class="k">match</span> <span class="nn">Person</span><span class="p">.</span><span class="n">of_yojson</span> <span class="n">value</span> <span class="k">with</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>    <span class="o">|</span> <span class="nc">Ok</span> <span class="n">p</span> <span class="o">-&gt;</span> <span class="nc">Ok</span> <span class="n">p</span>
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>    <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="nc">Error</span> <span class="o">(</span><span class="s2">&quot;PPX decode failed: &quot;</span> <span class="o">^</span> <span class="n">e</span><span class="o">)</span>
+</span></code></pre></div>
+<hr />
+<h2 id="provider-strategy-matrix">Provider Strategy Matrix<a class="headerlink" href="#provider-strategy-matrix" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p><strong>UPDATE 2026-06-19</strong> (post-librarian research): Anthropic now has native structured output via <code>output_config.format</code> (GA on Opus 4.5–4.8, Sonnet 4.5–4.6, Haiku 4.5). This replaces the originally-planned tool_use synthesis hack and simplifies WU-4.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Strategy</th>
+<th>Implementation</th>
+<th>Effort</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>OpenAI</strong></td>
+<td>Native <code>response_format</code></td>
+<td>Add <code>response_format: { type: "json_schema", json_schema: { name, schema, strict: true } }</code> to <code>build_request_body</code> (<code>openai_provider.ml:89-112</code>)</td>
+<td>0.5 day</td>
+</tr>
+<tr>
+<td><strong>Anthropic</strong></td>
+<td>Native <code>output_config.format</code> (2026 GA)</td>
+<td>Add <code>output_config: { format: { type: "json_schema", schema: &lt;user_schema&gt; } }</code> to <code>build_request_body</code> (<code>anthropic_provider.ml:109-136</code>). Parse JSON from <code>content[0].text</code> (text block, not tool_use).</td>
+<td>0.5 day (was 1d under tool_use plan)</td>
+</tr>
+<tr>
+<td><strong>Mock</strong></td>
+<td>Direct JSON emit</td>
+<td>Test fixtures return canned JSON matching the schema. New <code>mock_provider.ml</code> field.</td>
+<td>0.5 day</td>
+</tr>
+<tr>
+<td><strong>Ollama / Custom</strong></td>
+<td>Prompt directive + lenient parse + local validate</td>
+<td>Inject "You must respond with valid JSON matching this schema: ..." into system prompt. Strip markdown fences. Parse. Validate via <code>Validation.validate_tool_input_result</code>.</td>
+<td>0.5 day</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Decision</strong>: Native providers (OpenAI, Anthropic) self-register structured capability via the new <code>complete_structured_fn</code> field on <code>llm_service</code>. Generic fallback covers everything else — <strong>no provider is rejected</strong>. Mock implements structured for deterministic tests.</p>
+<h3 id="architecture-new-llm_service-field-strategy-b-additive-non-breaking">Architecture: new <code>llm_service</code> field (Strategy B — additive, non-breaking)<a class="headerlink" href="#architecture-new-llm_service-field-strategy-b-additive-non-breaking" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c">(* lib/core/types.ml:685-691 — extend llm_service record *)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="k">type</span> <span class="n">llm_service</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  <span class="n">complete_fn</span> <span class="o">:</span> <span class="o">...;</span>                                            <span class="c">(* unchanged *)</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>  <span class="n">stream_fn</span>   <span class="o">:</span> <span class="o">...;</span>                                            <span class="c">(* unchanged *)</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>  <span class="n">close_fn</span>    <span class="o">:</span> <span class="kt">unit</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">;</span>                                   <span class="c">(* unchanged *)</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>  <span class="c">(* NEW in v0.4.8 *)</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>  <span class="n">complete_structured_fn</span> <span class="o">:</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    <span class="o">(</span><span class="n">model_config</span> <span class="o">-&gt;</span> <span class="n">tool_descriptor</span> <span class="kt">list</span> <span class="o">-&gt;</span> <span class="n">conversation</span> <span class="o">-&gt;</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>     <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span>                                          <span class="c">(* response_schema *)</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>     <span class="o">(</span><span class="n">llm_response</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span><span class="o">)</span> <span class="n">option</span><span class="o">;</span>            <span class="c">(* None = fallback path *)</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="o">}</span>
+</span></code></pre></div>
+<p><strong>Why this approach</strong> (not <code>?response_format</code> on <code>complete</code>):
+- <strong>Non-breaking</strong>: existing custom providers (<code>docs/howto/custom-llm-provider.md</code>) keep compiling — they just don't get native structured support.
+- <strong>Capability self-declares</strong>: <code>Runtime.invoke_structured</code> checks <code>complete_structured_fn = Some _</code> to pick native vs fallback path. No provider-variant sniffing on <code>model_config.provider</code>.
+- <strong>Matches existing pattern</strong>: <code>event_bus_service</code> (<code>types.ml:669-675</code>) uses the same "function-record as service" style.</p>
+<hr />
+<h2 id="json-schema-validation">JSON Schema Validation<a class="headerlink" href="#json-schema-validation" title="Permanent link">&para;</a></h2>
+<h3 id="reuse-existing-in-tree-validator">Reuse: existing in-tree validator<a class="headerlink" href="#reuse-existing-in-tree-validator" title="Permanent link">&para;</a></h3>
+<p><code>lib/core/validation.ml</code> already has a partial JSON Schema validator added in v0.4.0:</p>
+<ul>
+<li><code>validate_value : Yojson.t -&gt; Yojson.t -&gt; string list -&gt; (unit, validation_error) result</code> (<code>validation.ml:107</code>) — recursive walker</li>
+<li><code>validate_tool_input : Yojson.t -&gt; Yojson.t -&gt; (unit, validation_error) result</code> (<code>validation.ml:162</code>) — top-level entry; checks <code>type</code>, <code>required</code>, <code>properties</code></li>
+<li><code>validate_tool_input_result : Yojson.t -&gt; Yojson.t -&gt; (unit, error_category) result</code> (<code>validation.ml:199</code>) — wraps as <code>Invalid_input</code></li>
+</ul>
+<p><strong>Already used at <code>engine.ml:104-114</code></strong> for <code>register_tool ~output_schema</code> validation. <strong>Clone this exact call pattern</strong> for structured output.</p>
+<h3 id="v048-limitation-documented-honestly-per-oracle-d4">v0.4.8 limitation (documented honestly per Oracle D4)<a class="headerlink" href="#v048-limitation-documented-honestly-per-oracle-d4" title="Permanent link">&para;</a></h3>
+<p>The in-tree validator is <strong>more limited than "1-level nesting" suggests</strong>:</p>
+<ul>
+<li><code>validate_value</code> checks type/enum/min/max/length at ONE path</li>
+<li><code>validate_tool_input</code> recurses into <code>properties.X</code> via <code>validate_value</code> — BUT does NOT recurse into nested <code>properties</code> or <code>items</code></li>
+<li><strong>Consequence</strong>: "1-level for objects, <strong>0-level for arrays</strong>". A schema <code>{"type": "array", "items": {"type": "string"}}</code> is validated only as "is it an array" — element types unchecked.</li>
+</ul>
+<p><strong>v0.4.8 scope</strong>: Top-level object properties validated (type/required/enum/bounds). Array <code>items</code>, nested object <code>properties</code>, and <code>oneOf</code>/<code>anyOf</code> are NOT validated in the fallback path. <strong>Native providers (OpenAI/Anthropic) validate deeply server-side</strong> — this limitation only affects Ollama/Custom fallback.
+<strong>Deferred to v0.5</strong>: either extend <code>validate_value</code> to recurse properly (and handle <code>items</code>, <code>oneOf</code>, <code>$ref</code>), or add <code>jsonschema</code> opam dependency.</p>
+<p><strong>Documentation requirement (WU-8)</strong>: SDK reference must state this honestly. Example callout: "The fallback path validates top-level object properties only. For nested objects or arrays, use OpenAI or Anthropic providers which validate server-side."</p>
+<hr />
+<h2 id="feedback-retry-loop">Feedback Retry Loop<a class="headerlink" href="#feedback-retry-loop" title="Permanent link">&para;</a></h2>
+<h3 id="the-gap">The gap<a class="headerlink" href="#the-gap" title="Permanent link">&para;</a></h3>
+<p>The existing <code>Retry</code> middleware (<code>lib/middleware/retry.ml</code>) wraps the <code>on_error</code> hook, but <strong><code>on_error : error_category -&gt; handler_result option</code></strong> (<code>types.ml:215</code>) does <strong>not receive <code>conversation</code></strong> — it cannot append a repair message to the conversation. Confirmed: zero matches for <code>feedback|retry_with|repair</code> in <code>lib/</code>.</p>
+<p><strong>Implication</strong>: structured-output repair cannot be implemented as middleware. It must be a local loop in <code>Engine</code>.</p>
+<h3 id="new-enginerun_structured-helper">New <code>Engine.run_structured</code> helper<a class="headerlink" href="#new-enginerun_structured-helper" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c">(* lib/core/engine.ml — new function near run_agent (after line 204) *)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c">(* Pseudocode — actual implementation in WU-2 *)</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="k">let</span> <span class="k">rec</span> <span class="n">run_structured</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="o">~</span><span class="n">response_schema</span><span class="o">:</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="o">~</span><span class="n">max_repair_attempts</span><span class="o">:</span><span class="kt">int</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="o">~(</span><span class="n">complete_fn</span> <span class="o">:</span> <span class="o">...</span> <span class="o">-&gt;</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="n">llm_response</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span><span class="o">)</span> <span class="c">(* native or fallback *)</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    <span class="o">~</span><span class="n">agent</span> <span class="o">~</span><span class="n">conv</span> <span class="o">...</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="n">attempt</span> <span class="o">=</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>  <span class="c">(* 1. Make the LLM call (native structured or fallback with prompt directive *)</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>  <span class="k">let</span> <span class="n">result</span> <span class="o">=</span> <span class="n">complete_fn</span> <span class="n">agent</span><span class="o">.</span><span class="nn">Model</span><span class="p">.</span><span class="n">model</span> <span class="n">agent</span><span class="o">.</span><span class="n">tools</span> <span class="n">conv</span> <span class="n">response_schema</span> <span class="k">in</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>  <span class="o">(</span><span class="k">match</span> <span class="n">result</span> <span class="k">with</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>   <span class="o">|</span> <span class="nc">Error</span> <span class="n">cat</span> <span class="o">-&gt;</span> <span class="nc">Error</span> <span class="o">(</span><span class="n">cat</span><span class="o">,</span> <span class="n">conv</span><span class="o">)</span>  <span class="c">(* LLM/network error → no retry, propagate *)</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>   <span class="o">|</span> <span class="nc">Ok</span> <span class="n">llm_resp</span> <span class="o">-&gt;</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>     <span class="c">(* 2. Extract JSON from response (handles ```json fences for fallback path *)</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>     <span class="k">let</span> <span class="n">text</span> <span class="o">=</span> <span class="n">llm_resp</span><span class="o">.</span><span class="n">text</span> <span class="k">in</span>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>     <span class="o">(</span><span class="k">match</span> <span class="nn">Util</span><span class="p">.</span><span class="n">extract_json_from_text</span> <span class="n">text</span> <span class="k">with</span>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>      <span class="o">|</span> <span class="nc">Error</span> <span class="n">msg</span> <span class="o">-&gt;</span>
+</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>        <span class="k">if</span> <span class="n">attempt</span> <span class="o">&gt;=</span> <span class="n">max_repair_attempts</span>
+</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>        <span class="k">then</span> <span class="nc">Error</span> <span class="o">(</span><span class="nc">Invalid_input</span> <span class="o">(</span><span class="s2">&quot;JSON parse failed after &quot;</span> <span class="o">^</span> <span class="n">string_of_int</span> <span class="n">attempt</span> <span class="o">^</span> <span class="s2">&quot; attempts: &quot;</span> <span class="o">^</span> <span class="n">msg</span><span class="o">,</span> <span class="nc">None</span><span class="o">),</span> <span class="n">conv_with_assistant</span> <span class="n">llm_resp</span><span class="o">)</span>
+</span><span id="__span-4-21"><a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>        <span class="k">else</span>
+</span><span id="__span-4-22"><a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a>          <span class="c">(* 3a. Append assistant reply + user feedback, recurse *)</span>
+</span><span id="__span-4-23"><a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a>          <span class="k">let</span> <span class="n">conv&#39;</span> <span class="o">=</span> <span class="n">add_assistant_message</span> <span class="n">conv</span> <span class="n">llm_resp</span> <span class="k">in</span>
+</span><span id="__span-4-24"><a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a>          <span class="k">let</span> <span class="n">conv&#39;&#39;</span> <span class="o">=</span> <span class="n">add_user_feedback</span> <span class="n">conv&#39;</span> <span class="o">(</span><span class="s2">&quot;Your previous response was not valid JSON: &quot;</span> <span class="o">^</span> <span class="n">msg</span> <span class="o">^</span> <span class="s2">&quot;. Please respond with valid JSON matching the schema.&quot;</span><span class="o">)</span> <span class="k">in</span>
+</span><span id="__span-4-25"><a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a>          <span class="n">run_structured</span> <span class="o">~</span><span class="n">response_schema</span> <span class="o">~</span><span class="n">max_repair_attempts</span> <span class="o">~</span><span class="n">complete_fn</span> <span class="o">~</span><span class="n">agent</span> <span class="o">~</span><span class="n">conv</span><span class="o">:</span><span class="n">conv&#39;&#39;</span> <span class="o">(</span><span class="n">attempt</span> <span class="o">+</span> <span class="mi">1</span><span class="o">)</span>
+</span><span id="__span-4-26"><a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a>      <span class="o">|</span> <span class="nc">Ok</span> <span class="n">json</span> <span class="o">-&gt;</span>
+</span><span id="__span-4-27"><a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a>        <span class="c">(* 3b. Validate JSON against schema *)</span>
+</span><span id="__span-4-28"><a id="__codelineno-4-28" name="__codelineno-4-28" href="#__codelineno-4-28"></a>        <span class="o">(</span><span class="k">match</span> <span class="nn">Validation</span><span class="p">.</span><span class="n">validate_tool_input_result</span> <span class="n">response_schema</span> <span class="n">json</span> <span class="k">with</span>
+</span><span id="__span-4-29"><a id="__codelineno-4-29" name="__codelineno-4-29" href="#__codelineno-4-29"></a>         <span class="o">|</span> <span class="nc">Ok</span> <span class="bp">()</span> <span class="o">-&gt;</span> <span class="nc">Ok</span> <span class="o">({</span> <span class="n">value</span> <span class="o">=</span> <span class="n">json</span><span class="o">;</span> <span class="n">raw_response</span> <span class="o">=</span> <span class="n">llm_resp</span><span class="o">;</span> <span class="n">conversation</span> <span class="o">=</span> <span class="n">conv_with_assistant</span> <span class="n">conv</span> <span class="n">llm_resp</span><span class="o">;</span> <span class="n">attempts</span> <span class="o">=</span> <span class="n">attempt</span> <span class="o">})</span>
+</span><span id="__span-4-30"><a id="__codelineno-4-30" name="__codelineno-4-30" href="#__codelineno-4-30"></a>         <span class="o">|</span> <span class="nc">Error</span> <span class="n">cat</span> <span class="o">-&gt;</span>
+</span><span id="__span-4-31"><a id="__codelineno-4-31" name="__codelineno-4-31" href="#__codelineno-4-31"></a>           <span class="k">if</span> <span class="n">attempt</span> <span class="o">&gt;=</span> <span class="n">max_repair_attempts</span>
+</span><span id="__span-4-32"><a id="__codelineno-4-32" name="__codelineno-4-32" href="#__codelineno-4-32"></a>           <span class="k">then</span> <span class="nc">Error</span> <span class="o">(</span><span class="n">cat</span><span class="o">,</span> <span class="n">conv_with_assistant</span> <span class="n">conv</span> <span class="n">llm_resp</span><span class="o">)</span>
+</span><span id="__span-4-33"><a id="__codelineno-4-33" name="__codelineno-4-33" href="#__codelineno-4-33"></a>           <span class="k">else</span>
+</span><span id="__span-4-34"><a id="__codelineno-4-34" name="__codelineno-4-34" href="#__codelineno-4-34"></a>             <span class="k">let</span> <span class="n">conv&#39;</span> <span class="o">=</span> <span class="n">add_assistant_message</span> <span class="n">conv</span> <span class="n">llm_resp</span> <span class="k">in</span>
+</span><span id="__span-4-35"><a id="__codelineno-4-35" name="__codelineno-4-35" href="#__codelineno-4-35"></a>             <span class="k">let</span> <span class="n">conv&#39;&#39;</span> <span class="o">=</span> <span class="n">add_user_feedback</span> <span class="n">conv&#39;</span> <span class="o">(</span><span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;Schema violation: %s. Please respond with JSON matching this schema.&quot;</span> <span class="o">(</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">cat</span><span class="o">))</span> <span class="k">in</span>
+</span><span id="__span-4-36"><a id="__codelineno-4-36" name="__codelineno-4-36" href="#__codelineno-4-36"></a>             <span class="n">run_structured</span> <span class="o">~</span><span class="n">response_schema</span> <span class="o">~</span><span class="n">max_repair_attempts</span> <span class="o">~</span><span class="n">complete_fn</span> <span class="o">~</span><span class="n">agent</span> <span class="o">~</span><span class="n">conv</span><span class="o">:</span><span class="n">conv&#39;&#39;</span> <span class="o">(</span><span class="n">attempt</span> <span class="o">+</span> <span class="mi">1</span><span class="o">))))</span>
+</span></code></pre></div>
+<h3 id="reuse-points">Reuse points<a class="headerlink" href="#reuse-points" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>Engine.add_assistant_message</code> (<code>engine.ml:175</code>) — append LLM reply to conversation</li>
+<li>New <code>Engine.add_user_feedback</code> — small helper, mirrors <code>add_assistant_message</code> shape</li>
+<li><code>Validation.validate_tool_input_result</code> (<code>validation.ml:199</code>) — schema check (reuses v0.4.0 code)</li>
+<li><code>drain_into_conv</code> pattern (<code>engine.ml:217-227</code>) — template for mid-loop conversation mutation</li>
+</ul>
+<h3 id="bypassing-middleware">Bypassing middleware<a class="headerlink" href="#bypassing-middleware" title="Permanent link">&para;</a></h3>
+<p>The structured repair loop is local to <code>Engine.run_structured</code>. It does <strong>not</strong> flow through <code>on_error</code>. Rationale:</p>
+<ul>
+<li>Middleware <code>on_error</code> cannot see conversation (signature gap, see above).</li>
+<li>Structured-output violations are a different failure mode than HTTP/network retry.</li>
+<li>Keeping the loop local means zero middleware signature changes — fully backward compatible.</li>
+</ul>
+<p><strong>Retry policy reuse</strong>: when LLM call itself returns <code>Error (Rate_limited | Timeout | External_failure, _)</code>, the existing Retry middleware handles it as usual (via <code>Runtime.invoke</code>'s normal path). The structured loop only handles <strong>post-LLM parse/schema failures</strong>.</p>
+<hr />
+<h2 id="lenient-json-extraction-new-helper">Lenient JSON Extraction (new helper)<a class="headerlink" href="#lenient-json-extraction-new-helper" title="Permanent link">&para;</a></h2>
+<p>LLMs (especially fallback-path providers) often wrap JSON in markdown fences or prose. New helper:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c">(* lib/core/util.ml or lib/core/json_extract.ml — new module *)</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="k">val</span> <span class="n">extract_json_from_text</span> <span class="o">:</span> <span class="kt">string</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">,</span> <span class="kt">string</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c">(** [extract_json_from_text text] extracts a JSON value from a free-form LLM response.</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c">    - Strips ```json ... ``` and ``` ... ``` fences</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="c">    - Finds the first balanced {...} or [...] block</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c">    - Returns [Error msg] if no valid JSON found *)</span>
+</span></code></pre></div>
+<p>Implementation sketch:
+1. Strip leading/trailing whitespace
+2. If starts with <code>```</code>, strip first line + last line
+3. Try <code>Yojson.Safe.from_string</code> directly; on success, return
+4. On failure, scan for first <code>{</code> or <code>[</code>, then track depth to find matching close
+5. Try <code>Yojson.Safe.from_string</code> on the substring</p>
+<p><strong>Tests</strong>: 8+ cases covering plain JSON, fenced JSON, JSON in prose, malformed JSON, nested objects, arrays, empty input, multiple JSON blocks (return first).</p>
+<hr />
+<h2 id="work-units">Work Units<a class="headerlink" href="#work-units" title="Permanent link">&para;</a></h2>
+<h3 id="test-conventions-post-survey-2026-06-19">Test Conventions (post-survey, 2026-06-19)<a class="headerlink" href="#test-conventions-post-survey-2026-06-19" title="Permanent link">&para;</a></h3>
+<p>Survey of existing test infrastructure revealed these conventions — new tests MUST follow them:</p>
+<ol>
+<li><strong>Provider tests are consolidated</strong> in <code>test/test_providers.ml</code>, NOT split per provider. → Create ONE <code>test/test_providers_structured.ml</code> for both OpenAI + Anthropic structured tests.</li>
+<li><strong>Engine/Runtime integration tests</strong> use <code>test/test_integration.ml</code> pattern (local <code>mock_llm</code> closure + <code>Engine.run_agent</code> direct call). → Create <code>test/test_engine_structured.ml</code> and <code>test/test_runtime_structured.ml</code>.</li>
+<li><strong>No shared helpers</strong> — copy-paste fixtures (<code>dummy_model</code>, <code>text_response</code>, <code>mock_llm</code>, <code>with_token</code>, <code>basic_agent</code>, <code>make_registry</code>, <code>error_to_string</code>) from <code>test_integration.ml</code> verbatim. Do NOT factor into a shared module.</li>
+<li><strong>No HTTP mock infrastructure</strong> — provider tests assert on request body shape (build body → Yojson parse → assert keys), NOT on canned HTTP responses. Real-network tests only test error paths (connection refused).</li>
+<li><strong>Python tests use <code>unittest.TestCase</code></strong>, NOT pytest fixtures. No <code>conftest.py</code>. Copy <code>_test_config()</code> helper from <code>test_runtime.py:14-45</code> (uses poly variant encoding <code>["Sqlite", ":memory:"]</code>, NOT <code>{"tag":...}</code>).</li>
+<li><strong>Mock_provider extension</strong> (lib/providers/mock_provider.ml): currently has <code>Text | With_tool_calls | Error</code> variants. For structured output tests, prefer local closure pattern (option 2 in survey) over extending Mock_provider — matches existing convention. Mock_provider gets a <code>complete_structured_fn = Some _</code> field like other providers.</li>
+<li><strong>test/dune stanzas</strong>: every new test file needs a <code>(test (name ...) (libraries par eio_main alcotest ...) (modules ...))</code> entry. Provider tests need additional <code>eio eio_main tls-eio x509 mirage-crypto-rng.unix</code>.</li>
+</ol>
+<h3 id="wu-1-type-additions-api-surface-05-day">WU-1 · Type additions + API surface — 0.5 day<a class="headerlink" href="#wu-1-type-additions-api-surface-05-day" title="Permanent link">&para;</a></h3>
+<p><strong>Files</strong>: <code>lib/core/types.ml</code>, <code>lib/core/runtime.mli</code>, <code>lib/core/runtime.ml</code></p>
+<p><strong>Scope</strong>:
+- Add <code>structured_invoke_result</code> record to <code>types.ml</code> near line 140
+- Add <code>complete_structured_fn</code> field to <code>llm_service</code> record (<code>types.ml:685-691</code>) — make it <code>option</code>, default <code>None</code>
+- Update all <code>llm_service</code> constructors (runtime.ml:618-622, mock_provider.ml:138, both providers) to set the field to <code>None</code> initially (WU-3/WU-4/WU-5 will populate with <code>Some _</code>)
+- Add <code>Runtime.invoke_structured</code> to <code>runtime.mli</code> and stub in <code>runtime.ml</code> (delegates to WU-7 real impl)
+- Add new <code>Structured_output_completed of { attempts : int; schema_valid : bool; task_id : Task_id.t }</code> event to <code>event</code> variant</p>
+<p><strong>Verification (UPDATED post-Oracle BS-3)</strong>:
+- <code>dune build</code> clean — covers <strong>entire tree</strong> including <code>bin/</code>, <code>examples/</code>, <code>test/</code> (not just <code>lib/</code>). Adding new <code>event</code> variant breaks every exhaustive match without catch-all.
+- <code>dune runtest</code> — existing 952 tests pass (no behavior change, all new code paths stubbed)
+- <code>grep -rn "match.*event with" bin/ examples/ test/ lib/</code> — identify every consumer of <code>event</code> variant; ensure no exhaustive match breaks
+- lsp_diagnostics clean on all touched files</p>
+<h3 id="wu-2-enginerun_structured-with-feedback-loop-2-days">WU-2 · <code>Engine.run_structured</code> with feedback loop — 2 days<a class="headerlink" href="#wu-2-enginerun_structured-with-feedback-loop-2-days" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p><strong>UPDATED post-Oracle review (2026-06-19)</strong>: Oracle flagged 2 must-fix issues — (1) cancellation token not checked between repair attempts, (2) bypassing all middleware creates observability gap. Both addressed below.</p>
+</blockquote>
+<p><strong>Files</strong>: <code>lib/core/engine.ml</code>, <code>lib/core/engine.mli</code>, new <code>lib/core/json_extract.ml</code></p>
+<p><strong>Scope</strong>:
+- Implement <code>Engine.run_structured</code> per pseudocode below
+- Add <code>Engine.add_user_feedback : conversation -&gt; string -&gt; conversation</code> helper (mirrors <code>add_assistant_message</code> at engine.ml:175)
+- <strong>MUST FIX BS-1 — Cancellation check</strong>: At the top of each loop iteration, check <code>Cancellation.is_cancelled token</code>. If cancelled, return <code>Error (Timeout, conv)</code>. ~3 LOC, prevents unbounded LLM calls on cancelled token.
+- <strong>MUST FIX D2 — Fire middleware hooks</strong>: <code>run_structured</code> MUST invoke <code>on_before_llm</code> and <code>on_after_llm</code> middleware hooks (the conversation-aware-but-not-mutating ones) around each LLM call within the repair loop. These hooks already work without signature changes. Rationale: an agent with <code>middleware = [Logging]</code> must have structured calls logged same as regular calls.
+- For <code>on_error</code>: keep local loop as repair authority (do NOT widen <code>on_error</code> signature — breaking change). Add new <code>?on_repair_attempt:(int -&gt; error_category -&gt; conversation -&gt; unit) option</code> callback parameter to <code>invoke_structured</code> (purely observational).
+- Implement <code>Json_extract.extract_json_from_text</code> (WU-6 component, do together)
+- Wire native vs fallback dispatch: pick <code>llm.complete_structured_fn</code> if <code>Some</code>, else synth fallback closure</p>
+<p><strong>Verification</strong>: 12+ new unit tests in <code>test/test_engine_structured.ml</code>:
+- Happy path (1 attempt, native)
+- Happy path (1 attempt, fallback)
+- Repair loop (3 attempts: parse fail → schema fail → success)
+- Max attempts exhaustion (returns Error with last attempt metadata)
+- Parse failure on all attempts
+- Schema failure on all attempts
+- Conversation chaining (returned conv has repair messages)
+- <strong>Cancellation mid-loop</strong> (BS-1 fix — token cancelled between attempt 2 and 3 returns Error Timeout, no 3rd LLM call)
+- <strong>Middleware hooks fired</strong> (D2 fix — Logging middleware captures structured calls)
+- on_repair_attempt callback invoked per attempt</p>
+<h3 id="wu-3-openai-native-structured-output-1-day">WU-3 · OpenAI native structured output — 1 day<a class="headerlink" href="#wu-3-openai-native-structured-output-1-day" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p><strong>UPDATED post-Oracle review (2026-06-19)</strong>: Oracle flagged this as highest-risk decision. OpenAI strict mode silently rewrites schemas (forces <code>additionalProperties: false</code>, marks ALL properties <code>required</code>, converts <code>const → enum</code>). Without local normalization + warning, users get semantically wrong output while PAR reports success. MUST implement normalization before ship.</p>
+</blockquote>
+<p><strong>Files</strong>: <code>lib/providers/openai_provider.ml</code>, <code>lib/providers/openai_provider.mli</code>, new <code>lib/core/schema_normalize.ml</code></p>
+<p><strong>Scope</strong>:
+- Extend <code>build_request_body</code> (<code>openai_provider.ml:89-112</code>) to accept <code>?response_schema:Yojson.Safe.t</code>
+- <strong>New module <code>lib/core/schema_normalize.ml</code></strong> — function <code>normalize_for_openai_strict : Yojson.Safe.t -&gt; Yojson.Safe.t * string list</code>:
+  1. Add <code>additionalProperties: false</code> to every object subschema
+  2. Mark all properties as <code>required</code> (union with existing <code>required</code>)
+  3. Convert <code>const: X</code> → <code>enum: [X]</code>
+  4. Return list of transformations applied
+- In <code>complete_structured</code>: call normalizer; if transformation list non-empty, <code>Logs.warn</code> with summary + emit <code>Structured_output_completed</code> event metadata flag <code>("schema_normalized", \</code>Assoc [...])<code>for observability
+- When schema present (post-normalization), emit</code>response_format = { type: "json_schema"; json_schema = { name = "structured_output"; schema = <normalized_schema>; strict = true } }<code>field
+- Implement</code>complete_structured<code>with same signature as</code>complete<code>plus</code>response_schema<code>parameter
+- Wire</code>Some complete_structured<code>into OpenAI provider's</code>llm_service` construction</p>
+<p><strong>Anthropic note</strong>: Anthropic <code>output_config.format</code> does NOT rewrite schemas the same way — no universal <code>strict</code> equivalent. Normalization stays OpenAI-specific.</p>
+<p><strong>Verification</strong>: 5+ tests in <code>test/test_providers_structured.ml</code>:
+- Request body shape (asserts <code>response_format.json_schema.strict == true</code>)
+- Schema normalization correctness (optional field → required; missing additionalProperties → added; const → enum)
+- Warning emission on schema mutation (capture Logs.warn output)
+- Graceful handling when schema absent (no response_format field)
+- Response parsing (canned <code>choices[0].message.content</code> JSON)</p>
+<h3 id="wu-4-anthropic-native-output_configformat-05-day">WU-4 · Anthropic native <code>output_config.format</code> — 0.5 day<a class="headerlink" href="#wu-4-anthropic-native-output_configformat-05-day" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p><strong>UPDATED 2026-06-19</strong> post-librarian research: Anthropic GA'd native structured output (<code>output_config.format</code>) in 2026. The originally-planned tool_use synthesis is no longer the canonical approach.</p>
+</blockquote>
+<p><strong>Files</strong>: <code>lib/providers/anthropic_provider.ml</code>, <code>lib/providers/anthropic_provider.mli</code></p>
+<p><strong>Scope</strong>:
+- Extend <code>build_request_body</code> (<code>anthropic_provider.ml:109-136</code>) to accept <code>?response_schema:Yojson.Safe.t</code>
+- When schema present, add <code>output_config: { format: { type: "json_schema"; schema: &lt;user_schema&gt; } }</code> field to request body
+- Response parsing: JSON payload appears in <code>content[0].text</code> as a JSON-encoded string (NOT a tool_use block). Parse via <code>Yojson.Safe.from_string</code> on the text field.
+- Wire <code>Some complete_structured</code> into Anthropic provider's <code>llm_service</code> construction
+- <strong>Supported models</strong> (2026 GA): Opus 4.5–4.8, Sonnet 4.5–4.6, Haiku 4.5. For unsupported models, the runtime falls back to prompt-directive path (WU-5).</p>
+<p><strong>Verification</strong>: 3+ tests in <code>test/test_providers_structured.ml</code> covering request body shape (asserts <code>output_config.format.type == "json_schema"</code>), response parsing (canned text-block JSON), and graceful handling when schema absent.</p>
+<p><strong>Reference</strong>: <a href="https://docs.anthropic.com/en/docs/build-with-claude/structured-outputs">docs.anthropic.com/en/docs/build-with-claude/structured-outputs</a></p>
+<h3 id="wu-5-generic-fallback-path-mock-05-day">WU-5 · Generic fallback path + Mock — 0.5 day<a class="headerlink" href="#wu-5-generic-fallback-path-mock-05-day" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p><strong>UPDATED post-Oracle BS-4</strong>: Don't build schema-fuzzer for Mock. Return canned JSON, matches existing scripted_response philosophy.</p>
+</blockquote>
+<p><strong>Files</strong>: <code>lib/providers/mock_provider.ml</code>, <code>lib/core/engine.ml</code> (fallback closure)</p>
+<p><strong>Scope</strong>:
+- <strong>Mock provider</strong>: extend <code>complete_structured_fn</code> to return <code>Some (\</code>Assoc [])<code>(empty object) by default, OR accept</code>?structured_response:Yojson.Safe.t<code>parameter at</code>create<code>time (matches existing</code>scripted_response<code>philosophy at mock_provider.ml:53-56). Tests pass expected JSON via the param. **DO NOT synthesize from schema** — building a schema-fuzzer is overkill for tests.
+- **Engine fallback closure**: when</code>complete_structured_fn = None<code>, build a fallback that:
+  1. Prepends "You MUST respond with a valid JSON object matching this exact schema: &lt;schema&gt;. Do not include any text outside the JSON object." to system prompt
+  2. Calls existing</code>complete_fn<code>3. Returns the raw</code>llm_response<code>(the</code>Engine.run_structured<code>loop handles parsing + validation via</code>Json_extract<code>+</code>Validation.validate_tool_input_result`)</p>
+<p><strong>Verification</strong>: 4+ tests using Mock provider through <code>Runtime.invoke_structured</code> end-to-end:
+- Happy path with explicit <code>?structured_response</code>
+- Fallback path with prompt directive (use a mock that returns JSON-wrapped-in-text)
+- Repair loop in fallback mode
+- Schema validation failure in fallback mode (catches the documented limitation: array items not validated)</p>
+<h3 id="wu-6-runtimeinvoke_structured-public-api-05-day">WU-6 · <code>Runtime.invoke_structured</code> public API — 0.5 day<a class="headerlink" href="#wu-6-runtimeinvoke_structured-public-api-05-day" title="Permanent link">&para;</a></h3>
+<p><strong>Files</strong>: <code>lib/core/runtime.ml</code>, <code>lib/core/runtime.mli</code></p>
+<p><strong>Scope</strong>:
+- Implement <code>Runtime.invoke_structured</code> body mirroring <code>Runtime.invoke</code> (<code>runtime.ml:335-383</code>):
+  - Session id generation, event bus binding
+  - Agent lookup
+  - Dispatch to <code>Engine.run_structured</code> with the right <code>complete_fn</code> (native or fallback)
+  - Wrap result in <code>structured_invoke_result</code>, fire <code>Llm_request_sent</code>/<code>Llm_response_received</code>/new <code>Structured_output_completed</code> events
+- New event type <code>Structured_output_completed of { attempts : int; schema_valid : bool; task_id : Task_id.t }</code> for observability</p>
+<p><strong>Verification</strong>: 5+ integration tests in <code>test/test_runtime_structured.ml</code> covering full flow with Mock provider.</p>
+<h3 id="wu-7-python-ffi-binding-05-day">WU-7 · Python FFI binding — 0.5 day<a class="headerlink" href="#wu-7-python-ffi-binding-05-day" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p><strong>UPDATED post-Oracle BS-5</strong>: FFI error contract must match existing <code>par_invoke</code> — JSON status envelope, NOT NULL on error.</p>
+</blockquote>
+<p><strong>Files</strong>: <code>lib/ffi/par_capi.ml</code>, <code>lib/ffi/par_ffi.h</code>, <code>lib/ffi/par_ffi.c</code>, <code>bindings/python/par_runtime/__init__.py</code>, <code>bindings/python/par_runtime/runtime.py</code></p>
+<p><strong>Scope</strong>:
+- New C ABI function <code>par_invoke_structured(rt, agent_id, message, schema_json) -&gt; char*</code> (4 params, matching <code>par_invoke</code>'s 3-param pattern at par_ffi.h:33)
+- <strong>FFI error contract</strong> (post-Oracle BS-5): always return a JSON string <code>{"status": "ok", "value": &lt;json&gt;, "raw": &lt;llm_resp&gt;, "attempts": N}</code> or <code>{"status": "error", "message": "..."}</code>. NULL only for invalid runtime handle (matches <code>do_invoke</code> at par_capi.ml:250-266 exactly).
+- Python method <code>Runtime.invoke_structured(agent_id, message, response_schema)</code> — accepts schema as Python dict (auto-converts to JSON via <code>json.dumps</code>). Returns Python dict (parsed from C JSON return). Errors raise <code>PARError</code> (matches existing pattern).
+- FFI drops <code>?max_repair_attempts</code>, <code>?cancellation_token</code>, <code>?conversation</code>, <code>?on_tool_event</code> — CONSISTENT with existing <code>par_invoke</code> dropping the same params. Defaults: <code>max_repair_attempts=3</code>, others None.</p>
+<p><strong>Verification</strong>: 3+ tests in <code>bindings/python/tests/test_structured.py</code> (unittest style, matches <code>test_runtime.py</code>):
+- Happy path (Mock provider returns valid JSON matching schema)
+- Schema violation (Mock returns invalid JSON, verify error)
+- Conversation chaining (pass <code>conversation</code> back via Python API — note: this requires Python-side conversation handle, may need separate FFI function)</p>
+<h3 id="wu-8-documentation-05-day">WU-8 · Documentation — 0.5 day<a class="headerlink" href="#wu-8-documentation-05-day" title="Permanent link">&para;</a></h3>
+<p><strong>Files</strong>: new <code>docs/sdk/structured-output.md</code>, <code>docs/index.md</code>, <code>README.md</code> (Features section)</p>
+<p><strong>Scope</strong>:
+- New SDK reference: API signature, schema format, provider capabilities matrix, retry semantics, limitation note (1-level nesting)
+- How-to: "Get structured data from LLM" (3 examples: OpenAI native, Anthropic, fallback)
+- README features bullet: "Structured output via <code>Runtime.invoke_structured</code> — schema-validated, with native provider support"</p>
+<hr />
+<h2 id="execution-plan">Execution Plan<a class="headerlink" href="#execution-plan" title="Permanent link">&para;</a></h2>
+<h3 id="wave-1-foundation-sequential-blocks-everything">Wave 1 — Foundation (sequential, blocks everything)<a class="headerlink" href="#wave-1-foundation-sequential-blocks-everything" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Task</th>
+<th>Files</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agent-1</td>
+<td><strong>WU-1</strong>: Types + record extension + stub API</td>
+<td><code>types.ml</code>, <code>runtime.ml/mli</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>GATE</strong>: <code>dune build</code> clean, 952 tests pass. No behavior change.</p>
+<h3 id="wave-2-parallel-implementation-3-agents">Wave 2 — Parallel implementation (3 agents)<a class="headerlink" href="#wave-2-parallel-implementation-3-agents" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Task</th>
+<th>Files</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agent-2</td>
+<td><strong>WU-3</strong>: OpenAI native</td>
+<td><code>openai_provider.ml/mli</code></td>
+</tr>
+<tr>
+<td>Agent-3</td>
+<td><strong>WU-4</strong>: Anthropic tool_use hack</td>
+<td><code>anthropic_provider.ml/mli</code></td>
+</tr>
+<tr>
+<td>Agent-4</td>
+<td><strong>WU-5</strong>: Mock + fallback closure</td>
+<td><code>mock_provider.ml</code>, <code>engine.ml</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>GATE</strong>: each provider test suite passes independently.</p>
+<h3 id="wave-3-engine-integration-sequential-depends-on-wave-12">Wave 3 — Engine integration (sequential, depends on Wave 1+2)<a class="headerlink" href="#wave-3-engine-integration-sequential-depends-on-wave-12" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Task</th>
+<th>Files</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agent-5</td>
+<td><strong>WU-2</strong>: <code>Engine.run_structured</code> + <code>Json_extract</code> + <code>add_user_feedback</code></td>
+<td><code>engine.ml/mli</code>, new <code>json_extract.ml</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>GATE</strong>: 10+ unit tests pass; feedback loop proven with mock provider.</p>
+<h3 id="wave-4-public-surface-sequential-depends-on-wave-3">Wave 4 — Public surface (sequential, depends on Wave 3)<a class="headerlink" href="#wave-4-public-surface-sequential-depends-on-wave-3" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Task</th>
+<th>Files</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agent-6</td>
+<td><strong>WU-6</strong>: <code>Runtime.invoke_structured</code> real impl + new event</td>
+<td><code>runtime.ml/mli</code>, <code>types.ml</code></td>
+</tr>
+<tr>
+<td>Agent-7</td>
+<td><strong>WU-7</strong>: Python FFI twin</td>
+<td><code>par_capi.ml</code>, <code>par_ffi.*</code>, <code>bindings/python/*</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>GATE</strong>: end-to-end integration tests pass with Mock provider. Python tests pass.</p>
+<h3 id="wave-5-polish-sequential-last">Wave 5 — Polish (sequential, last)<a class="headerlink" href="#wave-5-polish-sequential-last" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Task</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agent-8</td>
+<td><strong>WU-8</strong>: Docs + README</td>
+</tr>
+<tr>
+<td>Agent-9</td>
+<td>Version bump <code>0.4.7 → 0.4.8-beta.YYYYMMDD</code>, CHANGES.md entry, git push</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="version-bump">Version Bump<a class="headerlink" href="#version-bump" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>From</strong>: <code>0.4.7</code></li>
+<li><strong>To</strong>: <code>0.4.8-beta.20260619</code> (per STRATEGY.md §10 beta-first)</li>
+<li><strong>Type</strong>: Feature bump within v0.4.x series</li>
+<li><strong>Stable release</strong>: deferred until user explicitly says "发布正式版"</li>
+</ul>
+<hr />
+<h2 id="definition-of-done">Definition of Done<a class="headerlink" href="#definition-of-done" title="Permanent link">&para;</a></h2>
+<h3 id="functional">Functional<a class="headerlink" href="#functional" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] <code>Runtime.invoke_structured ~agent_id ~message ~response_schema</code> returns schema-validated JSON on happy path</li>
+<li>[ ] OpenAI provider uses native <code>response_format</code> (verified in request body)</li>
+<li>[ ] Anthropic provider uses tool_use synthesis (verified — synthetic tool appears, <code>tool_choice</code> forces it)</li>
+<li>[ ] Mock provider returns deterministic schema-valid JSON</li>
+<li>[ ] Custom/Ollama providers use prompt-directive fallback (auto-detected, not rejected)</li>
+<li>[ ] Feedback retry loop runs up to <code>max_repair_attempts</code> (default 3) on schema violation</li>
+<li>[ ] Conversation includes repair messages when retries happened (<code>attempts &gt; 1</code>)</li>
+<li>[ ] Returned <code>conversation</code> can be passed back via <code>?conversation</code> for follow-up calls</li>
+</ul>
+<h3 id="api-surface">API surface<a class="headerlink" href="#api-surface" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] <code>Runtime.invoke_structured</code> in <code>runtime.mli</code></li>
+<li>[ ] <code>structured_invoke_result</code> type in <code>types.ml</code></li>
+<li>[ ] <code>complete_structured_fn</code> field in <code>llm_service</code> record (option, default None)</li>
+<li>[ ] New <code>Structured_output_completed</code> event in event bus</li>
+<li>[ ] Python <code>Runtime.invoke_structured</code> method in <code>par_runtime</code></li>
+</ul>
+<h3 id="quality">Quality<a class="headerlink" href="#quality" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] <code>dune build</code> clean</li>
+<li>[ ] <code>dune runtest</code> passes (existing 952 + new ~30 tests = ~982)</li>
+<li>[ ] <code>bindings/python &amp;&amp; pytest tests/</code> passes (existing 31 + new ~3 = ~34)</li>
+<li>[ ] No new opam dependencies (reuses <code>yojson</code>, <code>ppx_deriving_yojson</code>)</li>
+<li>[ ] No type suppressions (<code>as any</code>, <code>Obj.magic</code>, etc.) — clean compile</li>
+<li>[ ] No public API breakage: existing <code>Runtime.invoke</code> unchanged</li>
+</ul>
+<h3 id="documentation">Documentation<a class="headerlink" href="#documentation" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] New <code>docs/sdk/structured-output.md</code> with 3 provider examples</li>
+<li>[ ] README Features section updated</li>
+<li>[ ] <code>docs/index.md</code> links the new doc</li>
+<li>[ ] <code>CHANGES.md</code> v0.4.8-beta entry added</li>
+<li>[ ] Limitation note (1-level nesting) documented in SDK reference</li>
+</ul>
+<h3 id="strategic">Strategic<a class="headerlink" href="#strategic" title="Permanent link">&para;</a></h3>
+<ul>
+<li>[ ] Demo-able: caller writes <code>type t = {...} [@@deriving yojson]</code>, passes schema, gets typed result via <code>T.of_yojson (result.value)</code></li>
+<li>[ ] PAR-xd5 issue closed</li>
+<li>[ ] PAR-5cc issue closed (subsumed by this implementation)</li>
+<li>[ ] STRATEGY.md §4 priority #1 (类型严谨) demonstrably advanced</li>
+</ul>
+<hr />
+<h2 id="not-in-v048-scope">Not in v0.4.8 Scope<a class="headerlink" href="#not-in-v048-scope" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Reason</th>
+<th>Defer to</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nested JSON Schema validation (deep objects/arrays-of-objects)</td>
+<td>Existing validator is 1-level; extension is its own ticket</td>
+<td>v0.5</td>
+</tr>
+<tr>
+<td>Typed <code>'a</code> return variant (<code>invoke_structured_t</code>)</td>
+<td>Generic Yojson + caller PPX is sufficient for v1</td>
+<td>v0.5</td>
+</tr>
+<tr>
+<td>Streaming structured output</td>
+<td>LLM streams tokens; structured parse needs full response</td>
+<td>v0.5+</td>
+</tr>
+<tr>
+<td>Schema-aware middleware (e.g. <code>Structured_output</code> middleware hook)</td>
+<td>Loop is local by design (middleware <code>on_error</code> cannot see conversation)</td>
+<td>v0.5 if at all</td>
+</tr>
+<tr>
+<td><code>Schema_violation</code> as new <code>retryable_condition</code> variant</td>
+<td>Use <code>Invalid_input</code> + metadata <code>("schema_violation", \</code>Bool true)<code>(precedented at</code>engine.ml:114`)</td>
+<td>v0.5 if needed</td>
+</tr>
+<tr>
+<td><code>jsonschema</code> opam dependency</td>
+<td>In-tree validator sufficient for v0.4.8 surface</td>
+<td>v0.5 if nested schemas land</td>
+</tr>
+<tr>
+<td>Python-side <code>pydantic</code>-style schema generation</td>
+<td>Out of scope; users pass <code>dict</code> schemas</td>
+<td>v0.5+</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="design-decisions-log">Design Decisions Log<a class="headerlink" href="#design-decisions-log" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Decision</th>
+<th>Date</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D1</td>
+<td>Generic Yojson return, not typed <code>'a</code></td>
+<td>2026-06-19</td>
+<td>Avoid polymorphic-record gymnastics; PPX <code>[%of_yojson: T]</code> at call site covers typed use</td>
+</tr>
+<tr>
+<td>D2</td>
+<td>Strategy B (additive <code>complete_structured_fn</code> field)</td>
+<td>2026-06-19</td>
+<td>Non-breaking for custom providers; matches existing <code>event_bus_service</code> pattern; capability self-declares</td>
+</tr>
+<tr>
+<td>D3</td>
+<td>Feedback retry local to Engine, not middleware</td>
+<td>2026-06-19</td>
+<td>Middleware <code>on_error</code> cannot see conversation (signature gap at <code>types.ml:215</code>); middleware change would be breaking</td>
+</tr>
+<tr>
+<td>D4</td>
+<td>1-level schema nesting only</td>
+<td>2026-06-19</td>
+<td>Existing validator (<code>validation.ml:107</code>) supports this; covers ~90% of LLM structured-output use cases; nested deferred to v0.5</td>
+</tr>
+<tr>
+<td>D5</td>
+<td>Anthropic via tool_use synthesis, not prompt-only</td>
+<td>2026-06-19</td>
+<td>Tool_use forcing is more reliable than prompt directives; matches PydanticAI pattern; reuses existing <code>parse_content_blocks</code></td>
+</tr>
+<tr>
+<td>D6</td>
+<td>Generic fallback (prompt + lenient parse) for unknown providers</td>
+<td>2026-06-19</td>
+<td>Don't reject providers; graceful degrade. Mock provider implements structured for tests</td>
+</tr>
+<tr>
+<td>D7</td>
+<td>New <code>Structured_output_completed</code> event for observability</td>
+<td>2026-06-19</td>
+<td>Pattern matches existing <code>Llm_response_received</code>/<code>Tool_completed</code> events; enables <code>/stats</code> tracking of repair attempts</td>
+</tr>
+<tr>
+<td>D8</td>
+<td><code>max_repair_attempts</code> default = 3</td>
+<td>2026-06-19</td>
+<td>Industry consensus (PydanticAI: 1, OpenAI structured docs: "retry up to 3x"); 3 balances cost vs success rate</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="related-documents">Related Documents<a class="headerlink" href="#related-documents" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Document</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../STRATEGY/"><code>docs/STRATEGY.md</code></a> §4</td>
+<td>Priority order — type rigor is #1</td>
+</tr>
+<tr>
+<td><a href="../v0.4-ROADMAP/"><code>docs/v0.4-ROADMAP.md</code></a> §1.3</td>
+<td>Structured output middleware (v0.4.0 — foundation this builds on)</td>
+</tr>
+<tr>
+<td><a href="v0.4.6-ROADMAP.md"><code>docs/v0.4.6-ROADMAP.md</code></a></td>
+<td>Predecessor — CLI bugfix patch</td>
+</tr>
+<tr>
+<td><a href="../CHANGES.md"><code>CHANGES.md</code></a></td>
+<td>Version history</td>
+</tr>
+<tr>
+<td><a href="../sdk/agent/"><code>docs/sdk/agent.md</code></a></td>
+<td>Existing <code>Runtime.invoke</code> reference (this adds sibling)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>Estimated total</strong>: 6 days (5.5 days code + 0.5 day docs), parallelizable to ~3 calendar days with 3 agents in Wave 2.</p>
+<p><strong>Risk level</strong>: Medium. Reuses ~70% existing infrastructure (validator, conversation append helpers, provider request builders). New code is the Engine feedback loop (~150 lines) + provider-specific structured implementations (~200 lines each).</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

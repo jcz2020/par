@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](zh-CN/cli.md)
+**English** · [简体中文](zh/cli.md)
 
 > Translated to English for v0.3.2. Source-of-truth: bin/ CLI implementation.
 

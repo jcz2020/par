@@ -1,0 +1,116 @@
+site_name: PAR — Programmable Agent Runtime
+site_url: https://jcz2020.github.io/par/
+site_description: A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.
+site_author: PAR contributors
+repo_url: https://github.com/jcz2020/par
+repo_name: jcz2020/par
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    logo: material/console-network
+  language: en
+
+plugins:
+  - search:
+      separator: '[\s\-\.]+'
+  - i18n:
+      docs_structure: folder
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: zh
+          default: false
+          name: 简体中文
+          build: true
+          nav_translations:
+            Tutorial: 教程
+            How-to: 实用指南
+            Reference: 参考
+            Explanation: 解释
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+  - def_list
+  - footnotes
+  - tables
+
+nav:
+  - Home: index.md
+  - Tutorial:
+      - Quickstart: quickstart.md
+  - How-to:
+      - Concurrency: howto/concurrency.md
+      - Custom LLM Provider: howto/custom-llm-provider.md
+      - Error Handling: howto/error-handling.md
+  - Reference:
+      - CLI: cli.md
+      - SDK Overview: sdk/overview.md
+      - Agent API: sdk/agent.md
+      - Workflow API: sdk/workflow.md
+      - Middleware: sdk/middleware.md
+      - Tools: sdk/tools.md
+      - MCP Client: sdk/mcp.md
+  - Explanation:
+      - Architecture: explanation/architecture.md
+
+not_in_nav: |
+  rules/*
+  STRATEGY.md
+  v*-ROADMAP.md
+  RELEASE-TEMPLATE.md
+  release-pipeline-redesign.md
+  release.md
+  DOC-MAINTENANCE.md
+  archive/*
+  evaluations/*

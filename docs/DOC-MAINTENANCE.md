@@ -40,21 +40,21 @@ If a CLI command surfaces a behavior that the SDK exposes, link the SDK section 
 
 ### No CJK in English public docs
 
-English docs under `docs/` (root) must not contain Chinese characters (Unicode U+4E00 to U+9FFF) in body text. The Chinese mirror lives in `docs/zh-CN/` and is exempt from this rule. The language-switch text `简体中文` that appears in every English doc header is the sole allowed exception. CI runs this check on every PR:
+English docs under `docs/` (root) must not contain Chinese characters (Unicode U+4E00 to U+9FFF) in body text. The Chinese mirror lives in `docs/zh/` and is exempt from this rule. The language-switch text `简体中文` that appears in every English doc header is the sole allowed exception. CI runs this check on every PR:
 
 ```bash
-# Step 1: find English docs with CJK (excluding zh-CN mirror and internal docs)
+# Step 1: find English docs with CJK (excluding zh mirror and internal docs)
 # Step 2: for each, check if the only CJK is the language-switch text "简体中文"
 grep -rPl "[\x{4e00}-\x{9fff}]" README.md docs/ --include='*.md' \
   | grep -v DOC-MAINTENANCE \
-  | grep -v zh-CN \
+  | grep -v zh \
   | while read f; do
       extra=$(grep -P '[\x{4e00}-\x{9fff}]' "$f" | grep -v '简体中文')
       if [ -n "$extra" ]; then echo "$f"; fi
     done
 ```
 
-Output must be empty. The exclusions: `DOC-MAINTENANCE` lets this rule reference the CJK block range; `zh-CN` skips the Chinese mirror directory; the language-switch text `简体中文` in English doc headers is allowed. The `while` loop ensures only files with CJK **beyond** the language-switch link are flagged.
+Output must be empty. The exclusions: `DOC-MAINTENANCE` lets this rule reference the CJK block range; `zh` skips the Chinese mirror directory; the language-switch text `简体中文` in English doc headers is allowed. The `while` loop ensures only files with CJK **beyond** the language-switch link are flagged.
 
 ### Identifier preservation
 
@@ -167,23 +167,23 @@ PAR ships docs in two languages:
 | Language | Directory | Status |
 |----------|-----------|--------|
 | English | `docs/` (root) | Primary — ships to opam and PyPI |
-| 简体中文 | `docs/zh-CN/` | Mirror — for Chinese-speaking users |
+| 简体中文 | `docs/zh/` | Mirror — for Chinese-speaking users |
 
 ### Rules
 
-1. Every English doc that has a Chinese counterpart must include a language-switch link at the top: `**English** · [简体中文](path-to-zh-CN)`.
+1. Every English doc that has a Chinese counterpart must include a language-switch link at the top: `**English** · [简体中文](path-to-zh)`.
 2. Every Chinese doc must include a reciprocal link: `[English](path-to-en) · **简体中文**`.
-3. The Chinese mirror lives under `docs/zh-CN/` with the same relative structure as the English original. The directory mirrors `docs/` — if the English file is `docs/howto/concurrency.md`, the Chinese file is `docs/zh-CN/howto/concurrency.md`.
-4. `README.md` has the language switch at the top, pointing to `docs/zh-CN/README.md` as the Chinese entry point.
-5. The CJK ban applies only to the English docs under `docs/` (root). Chinese docs under `docs/zh-CN/` are exempt.
-6. The `scripts/check_doc_identifiers.sh` check runs only on English docs, not on `docs/zh-CN/`.
+3. The Chinese mirror lives under `docs/zh/` with the same relative structure as the English original. The directory mirrors `docs/` — if the English file is `docs/howto/concurrency.md`, the Chinese file is `docs/zh/howto/concurrency.md`.
+4. `README.md` has the language switch at the top, pointing to `docs/zh/README.md` as the Chinese entry point.
+5. The CJK ban applies only to the English docs under `docs/` (root). Chinese docs under `docs/zh/` are exempt.
+6. The `scripts/check_doc_identifiers.sh` check runs only on English docs, not on `docs/zh/`.
 7. When adding a new public doc, create both the English and Chinese versions and add the language-switch links.
 
 ### How to add a new language
 
-Follow the `docs/zh-CN/` pattern:
+Follow the `docs/zh/` pattern:
 
 1. Create a directory like `docs/ja-JP/` (using the BCP 47 tag).
 2. Mirror the English docs into it.
-3. Add the language to the switch row in `README.md`: `**English** · [简体中文](docs/zh-CN/README.md) · [日本語](docs/ja-JP/README.md)`.
+3. Add the language to the switch row in `README.md`: `**English** · [简体中文](docs/zh/README.md) · [日本語](docs/ja-JP/README.md)`.
 4. Add reciprocal links at the top of every file in both the new directory and the English originals.

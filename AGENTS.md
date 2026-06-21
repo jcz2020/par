@@ -48,7 +48,7 @@ Only tag/release on explicit "publish release" instruction. Before that: no tags
 ## Documentation
 
 See `docs/rules/docs.md` for full doc maintenance rules. Key points:
-- English only in public docs (`docs/` root, not `zh-CN/`)
+- English only in public docs (`docs/` root, not `zh/`)
 - OCaml identifiers must never be translated
 - `make docs-check` validates CJK, links, identifiers
 

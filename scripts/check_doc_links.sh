@@ -6,7 +6,7 @@ is_internal_doc() {
     docs/STRATEGY.md|docs/DESIGN.md|docs/release.md) return 0 ;;
     docs/v*-ROADMAP.md) return 0 ;;
     docs/plans/*) return 0 ;;
-    docs/zh-CN/STRATEGY.md) return 0 ;;
+    docs/zh/STRATEGY.md) return 0 ;;
   esac
   return 1
 }

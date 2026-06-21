@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](../zh-CN/sdk/workflow.md)
+**English** · [简体中文](../zh/sdk/workflow.md)
 
 > Translated to English for v0.3.2. Source-of-truth: the OCaml types in lib/core/workflow.ml.
 

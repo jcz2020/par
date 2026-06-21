@@ -1,0 +1,1495 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/DOC-MAINTENANCE/">
+      
+      
+      
+      
+        
+          <link rel="alternate" href="./" hreflang="en">
+        
+          <link rel="alternate" href="../zh/DOC-MAINTENANCE/" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>DOC MAINTENANCE - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#documentation-maintenance" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              DOC MAINTENANCE
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../zh/DOC-MAINTENANCE/" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Tutorial
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  How-to
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../cli/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorial
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why-this-document-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why this document exists
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#authoring-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authoring rules
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Authoring rules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#language-indicator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Language indicator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sdk-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SDK-first
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#no-cjk-in-english-public-docs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No CJK in English public docs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#identifier-preservation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Identifier preservation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#translation-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Translation rules
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pre-release-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pre-release checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ci-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CI integration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#linking-and-diagrams" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linking and diagrams
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Linking and diagrams">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#linking-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linking conventions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#diagram-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagram conventions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multilingual-docs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multilingual docs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Multilingual docs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-to-add-a-new-language" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to add a new language
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<!-- language: en -->
+
+<h1 id="documentation-maintenance">Documentation Maintenance<a class="headerlink" href="#documentation-maintenance" title="Permanent link">&para;</a></h1>
+<p>PAR's public docs ship to opam and PyPI. Internal docs (strategy, roadmap, design rationale) stay gitignored. This file is the public contract for how we keep the boundary clean.</p>
+<h2 id="why-this-document-exists">Why this document exists<a class="headerlink" href="#why-this-document-exists" title="Permanent link">&para;</a></h2>
+<p>PAR publishes two kinds of documents, and the boundary between them is enforced by tooling, not by convention. Public docs (<code>README.md</code>, <code>docs/index.md</code>, <code>docs/**/*.md</code>) ship inside the opam package and the PyPI wheel, so they live in git and reach every user who installs PAR. Internal docs (<code>STRATEGY.md</code>, <code>DESIGN.md</code>, all ROADMAPs, <code>plans/</code>, <code>sisyphus/</code>, <code>opencode/</code>, <code>beads/</code>) stay gitignored, since they only matter to the maintainer. This file is the public contract that keeps the two streams separate: it states which rules apply, which scripts enforce them, and which checks run on every PR.</p>
+<p>The rules below are not aesthetic. Each one maps to a check script in <code>scripts/</code> and a target in the Makefile, so a doc PR that drifts from the contract fails CI before a reviewer ever sees it. Treat the contract as part of the public API: breaking it breaks downstream users, even though the breakage is invisible until someone tries to translate, install, or link against the broken page.</p>
+<p>If you are a new contributor, read this file end to end before opening a doc PR. The contributor guide in <code>CONTRIBUTING.md</code> summarizes the rules, but the rationale and the script-by-script mechanics live here, since the summary drifts if we repeat it in two places. If a rule seems arbitrary, check the linked script: the script is the source of truth, and this file explains why the script exists.</p>
+<p>This file is itself versioned with the docs. When the rules change, edit this file in the same commit that changes the script, the Makefile target, or the identifier list. A rule that lives only in this file is a wish; a rule that lives in the script is enforced. Maintainers audit the two together at every release.</p>
+<h2 id="authoring-rules">Authoring rules<a class="headerlink" href="#authoring-rules" title="Permanent link">&para;</a></h2>
+<p>The four subsections below apply to every public doc at every commit. The rules are not optional, and there is no per-doc override: if a doc cannot satisfy a rule, the doc is wrong, not the rule. The scripts enforce the rules; this section explains what they enforce and why.</p>
+<p>When a rule and an existing doc disagree, fix the doc. The scripts are the source of truth. A doc that was written before a rule was added is grandfathered only until the next touch, at which point the rule applies in full.</p>
+<h3 id="language-indicator">Language indicator<a class="headerlink" href="#language-indicator" title="Permanent link">&para;</a></h3>
+<p>Every new or modified public doc must open with <code>&lt;!-- language: en --&gt;</code> on line 1. The marker is invisible when the file renders, but it gives translation tooling an anchor to branch from. Future translations keep the marker on line 1 and change the language tag, so a machine can always find the source-of-truth file by scanning for the marker line. If you are editing an existing doc and the marker is missing, add it as part of the same commit. The grep <code>grep -L '&lt;!-- language: en --&gt;' docs/**/*.md</code> should return empty for every public doc.</p>
+<p>The marker must be the very first line, with no leading blank line and no BOM. Markdown renderers treat a leading comment as a no-op, so the rendered output looks identical to a markerless file, but a parser that walks the raw bytes can use the line as an anchor. If a tool inserts a front-matter block (title, weight, slug) above the comment, the marker is no longer on line 1, and the linter flags the file. Move the marker to the top.</p>
+<p>When a tool regenerates a doc from a template, the template must include the marker. If the tool strips leading comments, patch the tool, not the output, since regenerated output overwrites the patch on the next build.</p>
+<p>A doc that is split across multiple files (for example, a tutorial with one file per chapter) needs the marker on every file, not just the first. The marker is a per-file anchor, and a missing marker in a chapter file makes the chapter invisible to translation tooling. The same rule applies to diagrams: a Mermaid block in a chapter file must be valid on its own, since the chapter is rendered as a standalone page.</p>
+<h3 id="sdk-first">SDK-first<a class="headerlink" href="#sdk-first" title="Permanent link">&para;</a></h3>
+<p>SDK docs are the primary source of truth. CLI docs exist to support the end-user experience, never to replace the SDK reference. When a behavior changes in code, update the SDK docs first, then mirror the change in the CLI guide. This ordering matters: if the SDK and CLI guides drift, the SDK wins, and the CLI guide is rewritten to match. When you add new SDK documentation, <code>README.md</code> must include a working code example in its first 50 lines, since the README is the entry point for the entire package and users rarely scroll past the first screen.</p>
+<p>The CLI guide covers invocation, flags, exit codes, and config file locations. Anything else (semantics, error categories, retry policy, custom provider protocol) belongs in the SDK reference, even if a CLI example would be shorter. Users who hit a wall on the CLI should always find the SDK reference, not a wall of CLI flags that does not explain the underlying behavior.</p>
+<p>If a CLI command surfaces a behavior that the SDK exposes, link the SDK section from the CLI page and stop. Do not duplicate the explanation, since the two will drift. The link is the contract: the SDK page is canonical, the CLI page is a thin wrapper that points at the canonical source.</p>
+<h3 id="no-cjk-in-english-public-docs">No CJK in English public docs<a class="headerlink" href="#no-cjk-in-english-public-docs" title="Permanent link">&para;</a></h3>
+<p>English docs under <code>docs/</code> (root) must not contain Chinese characters (Unicode U+4E00 to U+9FFF) in body text. The Chinese mirror lives in <code>docs/zh/</code> and is exempt from this rule. The language-switch text <code>简体中文</code> that appears in every English doc header is the sole allowed exception. CI runs this check on every PR:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Step 1: find English docs with CJK (excluding zh mirror and internal docs)</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="c1"># Step 2: for each, check if the only CJK is the language-switch text &quot;简体中文&quot;</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>grep<span class="w"> </span>-rPl<span class="w"> </span><span class="s2">&quot;[\x{4e00}-\x{9fff}]&quot;</span><span class="w"> </span>README.md<span class="w"> </span>docs/<span class="w"> </span>--include<span class="o">=</span><span class="s1">&#39;*.md&#39;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-v<span class="w"> </span>DOC-MAINTENANCE<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-v<span class="w"> </span>zh<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="p">|</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>f<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">      </span><span class="nv">extra</span><span class="o">=</span><span class="k">$(</span>grep<span class="w"> </span>-P<span class="w"> </span><span class="s1">&#39;[\x{4e00}-\x{9fff}]&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-v<span class="w"> </span><span class="s1">&#39;简体中文&#39;</span><span class="k">)</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-n<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$extra</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">fi</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="k">done</span>
+</span></code></pre></div>
+<p>Output must be empty. The exclusions: <code>DOC-MAINTENANCE</code> lets this rule reference the CJK block range; <code>zh</code> skips the Chinese mirror directory; the language-switch text <code>简体中文</code> in English doc headers is allowed. The <code>while</code> loop ensures only files with CJK <strong>beyond</strong> the language-switch link are flagged.</p>
+<h3 id="identifier-preservation">Identifier preservation<a class="headerlink" href="#identifier-preservation" title="Permanent link">&para;</a></h3>
+<p>These literals must never be translated, renamed, or modified in any doc or PR. Inline backticks only, never fenced code blocks, since fenced blocks hide the literal from the search index and make the identifier check skip the line. When you copy an identifier into a new doc, paste it verbatim from this list. When a refactor renames an identifier in code, search the docs with the identifier name, then update every occurrence in the same commit that renames the symbol.</p>
+<p>The list is the source of truth. If a new identifier is added to the codebase, add it to this section in the same commit that introduces it. If an identifier is removed, remove it from this section in the commit that deletes it from code. Out-of-date identifier lists cause silent rot: the linter checks that the listed identifiers appear in the right places, but it cannot know which identifiers belong in the list without reading this section.</p>
+<p>The list is grouped by category so a reviewer can audit a PR by category. Package names change rarely, MCP event names change when the protocol evolves, JSON field names change when the config schema breaks. Each category is a separate grep target, and a failure in one category points the reviewer at the right mental model.</p>
+<p>When a new identifier crosses a category boundary (for example, a new MCP event that also needs a new JSON field), add the new literal to every category it belongs to in the same commit. Splitting the addition across two commits hides a partial failure from the diff and makes the next refactor harder to reason about.</p>
+<p><strong>Package names:</strong> <code>par</code>, <code>par_cli</code>, <code>par_runtime</code>, <code>par_postgres</code></p>
+<p><strong>Core APIs:</strong> <code>Runtime.create</code>, <code>Runtime.invoke</code>, <code>Runtime.register_tool</code>, <code>Runtime.register_agent</code>, <code>Runtime.mcp_server</code></p>
+<p><strong>LLM providers:</strong> <code>`Openai</code>, <code>`Anthropic</code>, <code>`Mock</code>, <code>`Ollama</code></p>
+<p><strong>Persistence:</strong> <code>`Sqlite</code>, <code>`Postgresql</code>, <code>`Noop</code></p>
+<p><strong>CLI commands:</strong> <code>par</code>, <code>par config</code>, <code>par ask</code>, <code>par update</code>, <code>par history</code>, <code>par stats</code>, <code>par --version</code></p>
+<p><strong>Bash modules:</strong> <code>Bash_safe_command</code>, <code>Bash_policy</code>, <code>Bash_blacklist</code>, <code>Bash_invoked</code>, <code>Bash_completed</code></p>
+<p><strong>MCP events:</strong> <code>Mcp_server_started</code>, <code>Mcp_server_failed</code>, <code>Mcp_server_stopped</code>, <code>Mcp_tool_invoked</code>, <code>Mcp_tool_completed</code>, <code>Mcp_resource_read</code>, <code>Mcp_prompt_rendered</code></p>
+<p><strong>File paths:</strong> <code>~/.par/config.json</code>, <code>lib/par.ml</code>, <code>docs/sdk/</code></p>
+<p><strong>JSON config field names:</strong> <code>event_bus.max_queue_size</code>, <code>dlq_enabled</code>, <code>default_quota.max_concurrent_tasks</code>, <code>parallel_tool_execution</code>, <code>event_retention_days</code></p>
+<p>A doc update that breaks any of these fails the identifier check in CI.</p>
+<h2 id="translation-rules">Translation rules<a class="headerlink" href="#translation-rules" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Preserve all OCaml identifiers, opam package names, CLI commands, JSON field names, polymorphic-variant tags, and file paths verbatim. Translation never paraphrases code, never spells out an acronym, and never substitutes a synonym for a type constructor. A translated doc that says <code>runtime.create</code> instead of <code>Runtime.create</code> is wrong, even if it reads more naturally in the target language. The CI check greps for the exact case-sensitive literal, so a lowercase substitution breaks the link from the doc to the source.</li>
+<li>Replace prose only. Target length 0.80 to 1.20 of the original. A translation may shrink slightly because some languages pack more meaning per word, but it must never grow or shrink by a factor of two. If the target language needs a longer explanation, split it into a separate paragraph and link the original for the user who wants the full version. Length is a proxy for faithfulness: a 300% growth usually means the translator added opinion, not information.</li>
+<li>When translating from Chinese (or any non-English) into English, open the new file with the <code>&lt;!-- language: en --&gt;</code> marker, since English is the source of truth for v0.3.2 and later. When translating from English into another language, replace the marker with the appropriate <code>&lt;!-- language: &lt;code&gt; --&gt;</code> and keep the English version untouched. The English file stays canonical; every other language is a derivative. If a future refactor changes the English source, the translator must re-run the diff and update the derivative file in a follow-up commit.</li>
+<li>Never translate a doc that links to a non-translated doc. A broken link in a translated page is worse than no translation, since the user assumes the link works and lands in English mid-paragraph. Translate in dependency order: leaf pages first, hub pages last. The Diataxis index (<code>docs/index.md</code>) is translated last, since it links to every other page.</li>
+<li>Mark translated files with the language code that matches the prose, not the language code of the original. A French translation of an English doc uses <code>&lt;!-- language: fr --&gt;</code> on line 1, not <code>&lt;!-- language: en --&gt;</code> with a French body. The marker tells the reader which prose to expect, and a stale marker is a bug.</li>
+<li>Translation review is required before merge. The translator opens a PR, and a second contributor who reads the target language natively reviews for clarity and faithfulness. Automated translation tools are acceptable as a starting point, but the human review is the gate. The identifier check runs on the translated file and catches any identifier drift the human reviewer missed.</li>
+</ul>
+<h2 id="pre-release-checklist">Pre-release checklist<a class="headerlink" href="#pre-release-checklist" title="Permanent link">&para;</a></h2>
+<p>Run all 12 items before tagging a release. Capture the test count from step 2 and propagate it through steps 3, 4, and 9.</p>
+<ol>
+<li><code>make docs-check</code> exits 0 (catches CJK residue, broken links, identifier drift).</li>
+<li><code>dune runtest</code> passes. Capture the actual test count.</li>
+<li>Update the test count in <code>README.md</code> and <code>CHANGES.md</code> to match the captured number (resolve the 680 / 462 / 644 inconsistency).</li>
+<li>Verify all 20 built-in tools are listed in the <code>README.md</code> "Built-in Tools" table (not 13).</li>
+<li>Verify <code>README.md</code> first 50 lines contain a working OCaml code example.</li>
+<li>Verify mermaid blocks render: <code>grep -E '^\</code>``mermaid' README.md docs/sdk/overview.md`.</li>
+<li>Verify no internal link rot: <code>bash scripts/check_doc_links.sh</code>.</li>
+<li>Verify OCaml identifiers preserved: <code>bash scripts/check_doc_identifiers.sh README.md docs/**/*.md</code>.</li>
+<li>Verify <code>CHANGES.md</code> has an entry for the new version, dated, with the test count.</li>
+<li>Verify <code>CONTRIBUTING.md</code> and <code>SECURITY.md</code> exist at repo root.</li>
+<li>Verify this file (<code>docs/DOC-MAINTENANCE.md</code>) is referenced from both <code>CONTRIBUTING.md</code> and <code>AGENTS.md</code>.</li>
+<li>Verify <code>.gitignore</code> covers all internal docs (<code>STRATEGY.md</code>, <code>DESIGN.md</code>, all ROADMAPs, <code>plans/</code>, <code>AGENTS.md</code>, <code>sisyphus/</code>, <code>opencode/</code>, <code>beads/</code>, <code>release.md</code>).</li>
+</ol>
+<p>If any item fails, do not tag the release. Fix the underlying issue, re-run the failed step, then re-run the full list. Skipping an item to "save time" is how drift enters the release branch, and un-drifting after the tag is two orders of magnitude more expensive.</p>
+<p>If two consecutive items both fail for the same root cause (for example, a typo that breaks the identifier list and the changelog), fix the root cause once and re-run both. Do not patch one to mask the other; the masked failure will resurface on the next release.</p>
+<p>If a checklist item needs a new tool or a new script, add the tool in the same release cycle. A checklist item that has no executable form is decoration, and decoration drifts. The maintainers review the checklist at every minor version bump and prune items that are no longer useful.</p>
+<h2 id="ci-integration">CI integration<a class="headerlink" href="#ci-integration" title="Permanent link">&para;</a></h2>
+<p>Three check scripts and one Make target gate every PR. Add new checks as <code>scripts/check_doc_*.sh</code> and wire them into the Makefile target, so every new rule ships with an executable gate. A rule that is not enforced by a script will drift, since humans forget, and the docs decay silently until a release catches the rot.</p>
+<ul>
+<li><code>scripts/check_doc_identifiers.sh</code> runs the identifier preservation check. It greps the docs for the full identifier list and fails if any literal is missing from a doc that should mention it, or misspelled. The script exits non-zero on the first miss so CI surfaces the error fast.</li>
+<li><code>scripts/check_doc_links.sh</code> runs the link-rot check. It walks every markdown file, extracts relative and anchor links, and verifies that each target exists in the repo. Absolute <code>http://</code> and <code>https://</code> links are reported but not gated, since external pages can move without warning.</li>
+<li><code>make docs-check</code> orchestrates both scripts plus the CJK grep. Local contributors should run this target before pushing, since it is faster than waiting for the CI runner to report the same failure. The Make target is the entry point: contributors who only know <code>make</code> get every check by running it once.</li>
+</ul>
+<p>When you add a new check, place the script in <code>scripts/</code> with a name that matches the rule, register it in the Makefile target, and reference it from the rule's section in this file. The triple (script, Make entry, doc reference) keeps the rule discoverable from any of the three directions: a developer who hits a CI failure reads the script, a release manager reads the Makefile, a new contributor reads this file.</p>
+<p>Local contributors who want a faster loop can run the individual scripts directly. The scripts are standalone bash and exit non-zero on the first failure, so <code>bash scripts/check_doc_links.sh &amp;&amp; bash scripts/check_doc_identifiers.sh</code> is a reasonable pre-push hook for the impatient. The Make target exists for the rest of us.</p>
+<p>If a CI run fails on a doc-only PR, the failure is almost always a missed identifier, a stale link, or a CJK slip. Re-read the failing line against the relevant section of this file; the rule that catches the failure is the rule that needs to be satisfied. Do not patch the script to make the failure go away, since the rule is the contract.</p>
+<h2 id="linking-and-diagrams">Linking and diagrams<a class="headerlink" href="#linking-and-diagrams" title="Permanent link">&para;</a></h2>
+<h3 id="linking-conventions">Linking conventions<a class="headerlink" href="#linking-conventions" title="Permanent link">&para;</a></h3>
+<p>Use relative paths in markdown links. No absolute <code>/docs/...</code>. Anchor links use <code>#section-name</code> form. Relative paths survive moves inside the repo and stay valid when the docs ship to opam or PyPI, where the install root is not the repo root. When linking to a section, use the heading text in lowercase with hyphens, not the original prose. When the heading changes, the link must change in the same commit, or <code>scripts/check_doc_links.sh</code> fails on the next push.</p>
+<p>Cross-doc links use the <code>../&lt;dir&gt;/&lt;file&gt;.md</code> form, since the docs ship as a tree and the install root varies. Do not use <code>https://github.com/&lt;org&gt;/par/...</code> style links inside prose, since the repo URL may move, and the link will silently break. Reserve absolute URLs for the README's badges and the CHANGELOG's release notes, where the URL is the content.</p>
+<p>When a section is renamed, search the repo for the old anchor with <code>grep -rnF '#old-anchor' docs/</code>. The link check is strict, but it only fires at the next push; the rename commit will land before the broken link is reported. Run the link check locally before pushing to catch the break in the same commit.</p>
+<h3 id="diagram-conventions">Diagram conventions<a class="headerlink" href="#diagram-conventions" title="Permanent link">&para;</a></h3>
+<p>Mermaid only. No images hosted in the repo. No external image links. Mermaid blocks must be validated by render, in CI if available, otherwise manually before the PR merges. Mermaid renders inline in GitHub, opam's HTML docs, and most static site generators, so a single source serves every distribution channel. Image files rot when the URL moves, and binary blobs bloat the repo, so we ban both. If a diagram is too complex for Mermaid, simplify it: a smaller diagram that renders is worth more than a precise one that breaks on a future toolchain upgrade.</p>
+<p>A Mermaid block uses the standard fence (<code>mermaid</code> after the opening triple backtick). Do not use <code>mermaid-flowchart</code> or vendor-specific syntax, since the linter only knows <code>mermaid</code>. Each diagram is a sibling paragraph in the doc, never an inline fragment inside a sentence, since inline fragments render inconsistently across platforms.</p>
+<p>If a Mermaid block is wider than roughly 20 nodes, split it into a top-level overview plus a per-component zoom-in. The overview is one diagram; each zoom-in links from a node in the overview. Users get the bird's-eye view first and the detail on demand, and each diagram stays small enough to render on a phone screen.</p>
+<p>Diagrams must use a color palette that survives both light and dark themes. Mermaid's default theme works on light backgrounds; for dark backgrounds, declare <code>%%{init: {'theme':'base', 'themeVariables':{'primaryColor':'#1f2937'}}}%%</code> at the top of the block. Test the diagram in both themes by toggling the GitHub theme before merging. A diagram that disappears in dark mode is broken, even if the source compiles.</p>
+<p>A diagram that needs to show data shape (table rows, field types) belongs in prose, not in Mermaid. Mermaid renders shapes, not records. Use a markdown table for tabular data and link to it from the diagram's caption.</p>
+<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../CONTRIBUTING.md"><code>CONTRIBUTING.md</code></a> — public contributor guide</li>
+<li><a href="../AGENTS.md"><code>AGENTS.md</code></a> — local agent / maintainer rules</li>
+<li><a href="../"><code>docs/index.md</code></a> — documentation index</li>
+</ul>
+<h2 id="multilingual-docs">Multilingual docs<a class="headerlink" href="#multilingual-docs" title="Permanent link">&para;</a></h2>
+<p>PAR ships docs in two languages:</p>
+<table>
+<thead>
+<tr>
+<th>Language</th>
+<th>Directory</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>English</td>
+<td><code>docs/</code> (root)</td>
+<td>Primary — ships to opam and PyPI</td>
+</tr>
+<tr>
+<td>简体中文</td>
+<td><code>docs/zh/</code></td>
+<td>Mirror — for Chinese-speaking users</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rules">Rules<a class="headerlink" href="#rules" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Every English doc that has a Chinese counterpart must include a language-switch link at the top: <code>**English** · [简体中文](path-to-zh)</code>.</li>
+<li>Every Chinese doc must include a reciprocal link: <code>[English](path-to-en) · **简体中文**</code>.</li>
+<li>The Chinese mirror lives under <code>docs/zh/</code> with the same relative structure as the English original. The directory mirrors <code>docs/</code> — if the English file is <code>docs/howto/concurrency.md</code>, the Chinese file is <code>docs/zh/howto/concurrency.md</code>.</li>
+<li><code>README.md</code> has the language switch at the top, pointing to <code>docs/zh/README.md</code> as the Chinese entry point.</li>
+<li>The CJK ban applies only to the English docs under <code>docs/</code> (root). Chinese docs under <code>docs/zh/</code> are exempt.</li>
+<li>The <code>scripts/check_doc_identifiers.sh</code> check runs only on English docs, not on <code>docs/zh/</code>.</li>
+<li>When adding a new public doc, create both the English and Chinese versions and add the language-switch links.</li>
+</ol>
+<h3 id="how-to-add-a-new-language">How to add a new language<a class="headerlink" href="#how-to-add-a-new-language" title="Permanent link">&para;</a></h3>
+<p>Follow the <code>docs/zh/</code> pattern:</p>
+<ol>
+<li>Create a directory like <code>docs/ja-JP/</code> (using the BCP 47 tag).</li>
+<li>Mirror the English docs into it.</li>
+<li>Add the language to the switch row in <code>README.md</code>: <code>**English** · [简体中文](docs/zh/README.md) · [日本語](docs/ja-JP/README.md)</code>.</li>
+<li>Add reciprocal links at the top of every file in both the new directory and the English originals.</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

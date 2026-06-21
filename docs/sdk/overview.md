@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](../zh-CN/sdk/overview.md)
+**English** · [简体中文](../zh/sdk/overview.md)
 
 # PAR SDK Overview
 

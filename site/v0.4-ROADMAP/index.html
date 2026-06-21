@@ -1,0 +1,2244 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/v0.4-ROADMAP/">
+      
+      
+      
+      
+        
+          <link rel="alternate" href="./" hreflang="en">
+        
+          <link rel="alternate" href="../zh/v0.4-ROADMAP/" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>v0.4 Roadmap — Event Persistence + Architecture Upgrade - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#v04-roadmap-event-persistence-architecture-upgrade" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              v0.4 Roadmap — Event Persistence + Architecture Upgrade
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../zh/v0.4-ROADMAP/" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Tutorial
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  How-to
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../cli/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorial
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#background" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Background">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#research-basis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Research Basis
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sub-version-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sub-Version Plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v040-quick-wins-phase-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.4.0 — Quick Wins (Phase 1)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v0.4.0 — Quick Wins (Phase 1)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-python-callback-register_tool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Python Callback register_tool
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-bash-interactive-confirmation-ops-6-hook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Bash Interactive Confirmation (OPS-6 Hook)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-structured-output-validation-middleware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Structured Output Validation Middleware
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v041-event-persistence-session-scoping-phase-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.4.1 — Event Persistence + Session Scoping (Phase 2)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v0.4.1 — Event Persistence + Session Scoping (Phase 2)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-persistence-as-event-bus-tail-consumer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Persistence as Event Bus Tail Consumer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-session_id-wiring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Session_id Wiring
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-cli-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 CLI Commands
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v042-typed-agent-handoff-eventactions-phase-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.4.2 — Typed Agent Handoff + EventActions (Phase 3)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v0.4.2 — Typed Agent Handoff + EventActions (Phase 3)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-typed-agent-handoff" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Typed Agent Handoff
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.1 Typed Agent Handoff">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#design-decisions-log-oracle-reviewed-2026-06-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design Decisions Log (Oracle-reviewed 2026-06-15)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#common-pitfalls-defended-against-from-cross-framework-bug-research" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common pitfalls defended against (from cross-framework bug research)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-eventactions-schema-column-reserved" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 EventActions Schema Column (Reserved)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-par-replay-cli-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 par replay CLI Command
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v043-mcp-transport-evaluations-phase-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.4.3 — MCP Transport + Evaluations (Phase 4)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v0.4.3 — MCP Transport + Evaluations (Phase 4)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-mcp-httpsse-transport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 MCP HTTP/SSE Transport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-mcp-sampling-serverllm-bidirectional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 MCP Sampling (Server→LLM Bidirectional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-evaluations-decision-documents-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Evaluations (Decision Documents Only)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v044-cli-upgrade-for-v04-features-phase-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.4.4 — CLI Upgrade for v0.4 Features (Phase 5)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v0.4.4 — CLI Upgrade for v0.4 Features (Phase 5)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-multi-agent-repl-with-handoff-display" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Multi-Agent REPL with Handoff Display
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-session-management-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 Session Management Commands
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-bash-confirmation-prompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 Bash Confirmation Prompt
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#not-in-v04-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not in v0.4 Scope
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#execution-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Execution Order
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#design-decisions-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design Decisions Log
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related Documents
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="v04-roadmap-event-persistence-architecture-upgrade">v0.4 Roadmap — Event Persistence + Architecture Upgrade<a class="headerlink" href="#v04-roadmap-event-persistence-architecture-upgrade" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>Status</strong>: Draft v2. Updated 2026-06-09 after Oracle review of 6-framework agent conversation research.
+<strong>Theme</strong>: Make the persistence layer actually work end-to-end, add typed agent handoff, expand MCP transport, and unblock Python tool authors.
+<strong>Strategic change</strong>: STRATEGY.md §3.2 "不做多 agent 协作" restriction lifted 2026-06-09. Handoff (single-chain A→B via typed ADT) now in scope.</p>
+</blockquote>
+<hr />
+<h2 id="background">Background<a class="headerlink" href="#background" title="Permanent link">&para;</a></h2>
+<p>v0.3 shipped a working SDK (20 tools, 7 middleware, MCP stdio, workflow engine, streaming CLI, 871 tests). The persistence layer is the biggest gap: SQLite, PostgreSQL, and Noop backends exist, the interfaces are exported, but the Runtime engine never calls <code>save_events</code>. SDK users see a misleading API.</p>
+<p>v0.4 closes this gap and adds typed agent handoff, structured output validation, MCP transport upgrades, Python callback support, and several smaller items deferred from v0.3.1.</p>
+<h3 id="research-basis">Research Basis<a class="headerlink" href="#research-basis" title="Permanent link">&para;</a></h3>
+<p>7 mainstream agent frameworks were researched and Oracle-reviewed in 2026-06-09:</p>
+<table>
+<thead>
+<tr>
+<th>Framework</th>
+<th>Key Takeaway for PAR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LangGraph</td>
+<td>3-table persistence (checkpoints + blobs + writes); Checkpointer per thread_id</td>
+</tr>
+<tr>
+<td>OpenAI Agents SDK</td>
+<td>Handoff = synthetic <code>transfer_to_&lt;agent&gt;</code> tool; RunContextWrapper DI (never sent to LLM)</td>
+</tr>
+<tr>
+<td>AutoGen</td>
+<td>BaseChatMessage/BaseAgentEvent; save_state/restore_state serialization</td>
+</tr>
+<tr>
+<td>Google ADK</td>
+<td>EventActions (state_delta, transfer_to_agent); 3-level state prefix (app:/user:/session:)</td>
+</tr>
+<tr>
+<td>PydanticAI</td>
+<td>Structured output = synthetic output tool; RunContext for deps; <code>message_history</code> passthrough</td>
+</tr>
+<tr>
+<td>Anthropic</td>
+<td>append-only content blocks; Session Runner for disconnect recovery (not needed for PAR)</td>
+</tr>
+<tr>
+<td>CrewAI</td>
+<td>Task.context for prior output passthrough; ContextualMemory; unified memory in v1.14</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Cross-cutting consensus</strong>: flat append-only message array; session_id/thread_id isolation; context window = sliding window + large content offload; handoff via synthetic tool (Python) or typed event (OCaml).</p>
+<hr />
+<h2 id="sub-version-plan">Sub-Version Plan<a class="headerlink" href="#sub-version-plan" title="Permanent link">&para;</a></h2>
+<p>v0.4 is broken into 5 sub-versions, each independently shippable with a clean test suite.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>v0.4.0 ── Phase 1: Python callback + Bash confirm + Structured output middleware
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>v0.4.1 ── Phase 2: Event persistence + Session_id + CLI history/stats
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>v0.4.2 ── Phase 3: Typed Agent Handoff + EventActions schema column + par replay
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>v0.4.3 ── Phase 4: MCP HTTP/SSE + MCP Sampling + evaluations
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>v0.4.4 ── Phase 5: CLI upgrade — handoff support, session management, output formatting
+</span></code></pre></div>
+<hr />
+<h2 id="v040-quick-wins-phase-1">v0.4.0 — Quick Wins (Phase 1)<a class="headerlink" href="#v040-quick-wins-phase-1" title="Permanent link">&para;</a></h2>
+<p><strong>Goal</strong>: Unblock Python tool authors, add user-facing bash safety, ship structured output validation.
+<strong>Estimated</strong>: 3.5 days total, parallelizable.</p>
+<h3 id="11-python-callback-register_tool">1.1 Python Callback <code>register_tool</code><a class="headerlink" href="#11-python-callback-register_tool" title="Permanent link">&para;</a></h3>
+<p><strong>Source</strong>: <code>lib/ffi/par_capi.ml:103</code> TODO, v0.3.3 ROADMAP PYFFI-10.</p>
+<p><strong>Current state</strong>: <code>Runtime.register_tool("echo", ...)</code> in Python stores metadata but the handler is a no-op. C FFI bridge lacks a way to call back into Python.</p>
+<p><strong>Scope</strong>:
+- Add <code>CFUNCTYPE</code> callback typedef in <code>par_ffi.h</code>
+- Add C shim in <code>par_ffi.c</code> that stores the function pointer and calls it from OCaml
+- Wire in <code>par_capi.ml</code> via <code>Runtime.register_tool</code> with the callback
+- Python side: <code>Runtime.register_tool(name, desc, schema, handler)</code> where <code>handler</code> is a callable</p>
+<p><strong>Estimated</strong>: ~1 day.</p>
+<p><strong>Success Criteria</strong>:
+- [ ] Python users can register custom tools with real handlers
+- [ ] Handler receives JSON input, returns JSON output
+- [ ] Thread-safe: no GIL contention
+- [ ] 2+ new Python tests</p>
+<h3 id="12-bash-interactive-confirmation-ops-6-hook">1.2 Bash Interactive Confirmation (OPS-6 Hook)<a class="headerlink" href="#12-bash-interactive-confirmation-ops-6-hook" title="Permanent link">&para;</a></h3>
+<p><strong>Source</strong>: v0.3.1 ROADMAP deferred item.</p>
+<p><strong>Current state</strong>: <code>Hook</code> module exists (OPS-6). <code>Bash_invoked</code> event fires before execution. No mechanism to pause execution and ask for user confirmation.</p>
+<p><strong>Scope</strong>:
+- Hook handler can return <code>Confirm</code> verdict
+- CLI intercepts <code>Confirm</code>, prompts user, feeds response back to engine
+- Configurable per-tool or per-command pattern</p>
+<p><strong>Estimated</strong>: 0.5 day.</p>
+<p><strong>Success Criteria</strong>:
+- [ ] User sees <code>[y/n] bash: rm -rf /tmp/test</code> before execution
+- [ ] Configurable: which tools/commands require confirmation</p>
+<h3 id="13-structured-output-validation-middleware">1.3 Structured Output Validation Middleware<a class="headerlink" href="#13-structured-output-validation-middleware" title="Permanent link">&para;</a></h3>
+<p><strong>Source</strong>: Oracle review finding: PAR's bash tool already validates the synthetic-tool pattern. PydanticAI-style output validation doesn't need GADTs.</p>
+<p><strong>Current state</strong>: <code>register_tool</code> accepts <code>input_schema</code> for validation, but has no <code>output_schema</code>. Tool handlers return <code>Yojson.Safe.t</code> with no structural validation.</p>
+<p><strong>Scope</strong>:
+- Add optional <code>output_schema : Yojson.Safe.t option</code> parameter to <code>register_tool</code>
+- New <code>Arg_validation</code> middleware path for output: validate handler result against schema
+- On mismatch: return <code>Error { category = Invalid_input; ... }</code> with schema violations listed
+- Does NOT require generic result types — validation is JSON Schema against JSON value</p>
+<p><strong>Estimated</strong>: ~2 days.</p>
+<p><strong>Success Criteria</strong>:
+- [ ] <code>register_tool ~output_schema:schema</code> validates tool output
+- [ ] Invalid output returns structured error with violation details
+- [ ] Existing 871 tests pass (backward compatible — <code>output_schema</code> is optional)
+- [ ] 3+ new tests</p>
+<hr />
+<h2 id="v041-event-persistence-session-scoping-phase-2">v0.4.1 — Event Persistence + Session Scoping (Phase 2)<a class="headerlink" href="#v041-event-persistence-session-scoping-phase-2" title="Permanent link">&para;</a></h2>
+<p><strong>Goal</strong>: Make the persistence layer actually work end-to-end. Add session_id to events. CLI commands for history/stats.
+<strong>Estimated</strong>: 5–6 days (Oracle-reviewed, up from original 5–10 day estimate but scoped tighter).</p>
+<h3 id="21-persistence-as-event-bus-tail-consumer">2.1 Persistence as Event Bus Tail Consumer<a class="headerlink" href="#21-persistence-as-event-bus-tail-consumer" title="Permanent link">&para;</a></h3>
+<p><strong>Source</strong>: Original P2 bead, deferred from v0.3.1. Oracle review: don't thread <code>save_events_fn</code> into engine — subscribe persistence as event-bus consumer instead.</p>
+<p><strong>Current state</strong>: <code>save_events_fn</code> / <code>load_events_fn</code> interfaces defined in <code>PERSISTENCE_SERVICE</code> module type. Three implementations compile. <code>Runtime.create</code> sets <code>save_events_fn = (fun _events -&gt; Ok ())</code> (noop). Engine never calls it.</p>
+<p><strong>Architecture decision</strong>: Persistence subscribes to the event bus as a tail consumer. Engine stays pure (no I/O). Event bus fans out to both in-memory subscribers and the persistence writer.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Engine → on_tool_event callback → Event_bus.publish → in-memory subscribers
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>                                                  → Persistence writer fiber (batched)
+</span></code></pre></div>
+<p><strong>Scope</strong>:
+1. <strong>Subscribe persistence to event bus</strong>: On <code>Runtime.create</code>, register the persistence backend as a subscriber. Events flow through the existing <code>publish</code> path; no engine changes needed.
+2. <strong>Async buffered writer</strong>: Persistence writes happen in a background fiber via <code>Eio.Fiber.fork_promise</code>. Bounded buffer (configurable, default 1000 events). Flush on <code>Runtime.close</code>.
+3. <strong>Batch writes</strong>: Micro-batch with configurable flush interval (default 50ms). Reduces SQLite lock contention under high event volume.
+4. <strong>DLQ interaction</strong>: When persistence buffer is full, overflow events go to the existing DLQ. No event loss — worst case is delayed persistence.
+5. <strong>Retention</strong>: Configurable TTL (default 7 days). Prune expired events on <code>Runtime.create</code>.
+6. <strong>Schema</strong>: Reuse existing <code>events</code> table. Add <code>session_id</code> column (see 2.2). Add <code>actions_json</code> column (reserved for v0.4.2, nullable).</p>
+<p><strong>Estimated</strong>: 3–4 days.</p>
+<p><strong>Success Criteria</strong>:
+- [ ] <code>Runtime.create ~config:{ persistence = \</code>Sqlite "par.db"; ... }<code>persists every event to the database
+- [ ] Persistence writes are async — agent loop is never blocked by SQLite/PG writes
+- [ ]</code>Runtime.close` flushes buffered events before returning
+- [ ] DLQ catches overflow when buffer is full
+- [ ] Existing 871 OCaml tests + 16 Python tests pass (zero regressions)
+- [ ] New tests: persistence integration, buffer overflow, retention pruning</p>
+<h3 id="22-session_id-wiring">2.2 Session_id Wiring<a class="headerlink" href="#22-session_id-wiring" title="Permanent link">&para;</a></h3>
+<p><strong>Source</strong>: Oracle review: Session_id type exists but is unused on events. Without session scoping, persisted events are an unqueryable firehose.</p>
+<p><strong>Current state</strong>: <code>Session_id.t</code> defined at <code>types.ml:40-49</code>. Created once at runtime init as <code>runtime_id</code>. Not on <code>event_metadata</code>. Not indexed by persistence. <code>extract_task_id</code> returns <code>""</code> for 14 of 28 event variants.</p>
+<p><strong>Scope</strong>:
+1. Add <code>session_id : string</code> to <code>event_metadata</code> (<code>types.ml:372-377</code>)
+2. <code>Event_bus.publish</code> threads session_id — capture from bus config (one bus per runtime instance)
+3. Session granularity: <strong>one Runtime.Invoke call = one session</strong>. Each <code>invoke</code> generates a fresh session_id. This enables "show me all events for this conversation."
+4. All three persistence implementations: add <code>session_id</code> column, index, update queries
+5. <code>extract_session_id</code> companion to <code>extract_task_id</code> — reads from envelope metadata, not payload</p>
+<p><strong>Estimated</strong>: 2–3 days (touching types, event_bus, 3 persistence impls, schema).</p>
+<p><strong>Success Criteria</strong>:
+- [ ] Every event envelope carries <code>session_id</code>
+- [ ] <code>load_events</code> can query by session_id (new overload or parameter)
+- [ ] Session granularity = one <code>Runtime.invoke</code> call
+- [ ] Existing tests pass</p>
+<h3 id="23-cli-commands">2.3 CLI Commands<a class="headerlink" href="#23-cli-commands" title="Permanent link">&para;</a></h3>
+<p><strong>Scope</strong>: New CLI commands powered by the persistence layer.</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>par history &lt;session_id&gt;</code></td>
+<td>Show the event chain for a session</td>
+</tr>
+<tr>
+<td><code>par stats</code></td>
+<td>Token usage, tool call frequency, agent run counts</td>
+</tr>
+</tbody>
+</table>
+<p>Note: <code>par replay &lt;session_id&gt;</code> deferred to v0.4.2 — it's a debugging tool, not a runtime feature, and depends on having real persisted events to replay.</p>
+<p><strong>Estimated</strong>: 1 day.</p>
+<p><strong>Success Criteria</strong>:
+- [ ] <code>par history &lt;id&gt;</code> prints a readable event chain
+- [ ] <code>par stats</code> shows aggregated usage data</p>
+<hr />
+<h2 id="v042-typed-agent-handoff-eventactions-phase-3">v0.4.2 — Typed Agent Handoff + EventActions (Phase 3)<a class="headerlink" href="#v042-typed-agent-handoff-eventactions-phase-3" title="Permanent link">&para;</a></h2>
+<p><strong>Goal</strong>: Enable typed mid-conversation agent switching. Reserve EventActions column in event schema.
+<strong>Estimated</strong>: 6–8 days.</p>
+<h3 id="31-typed-agent-handoff">3.1 Typed Agent Handoff<a class="headerlink" href="#31-typed-agent-handoff" title="Permanent link">&para;</a></h3>
+<p><strong>Source</strong>: OpenAI Agents SDK, AutoGen, Google ADK research (2026-06-15 cross-framework study). STRATEGY.md §3.2 restriction lifted 2026-06-09.</p>
+<p><strong>Current state</strong>: <code>Runtime.register_agent</code> stores agents in a hashtable. <code>Engine.run_agent</code> receives a single <code>agent_config</code> (immutable binding). No agent-switching primitive exists. The workflow engine has <code>agent_resolver</code> pattern (<code>workflow_engine.ml:35</code>, plumbed at <code>runtime.ml:465,483,561</code>) that can be reused.</p>
+<p><strong>Architecture decision</strong>: OCaml typed ADT, NOT JSON synthetic tool (preserves STRATEGY Q4 priority #1: type rigor). Strictly stronger than OpenAI's JSON-encoded <code>function_call_output</code>, LangGraph's metadata-encoded <code>ToolMessage.response_metadata</code>, and ADK's <code>Optional[str]</code> flag — compile-time exhaustiveness checking on handoff handling is impossible in all three reference frameworks.</p>
+<p><strong>Scope</strong>:
+1. <strong>Add <code>?agent_resolver</code> to <code>Engine.run_agent</code></strong>: <code>(string -&gt; agent_config option)</code> closure, plumbed from <code>Runtime.invoke</code> via <code>(fun aid -&gt; htbl_get rt.agents aid)</code>. Reuses pattern from <code>workflow_engine.ml:35</code>. Also add <code>?enable_handoff:bool</code> (default false) for backward compatibility.
+2. <strong>New <code>handler_result</code> variant</strong> (revised 2026-06-15 per Oracle review):
+   <div class="language-ocaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="o">|</span> <span class="nc">Handoff</span> <span class="k">of</span> <span class="o">{</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="n">target_agent_id</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="n">carry_context</span> <span class="o">:</span> <span class="kt">bool</span><span class="o">;</span>       <span class="c">(* true = preserve conversation history (default) *)</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">task</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>        <span class="c">(* when carry_context=false, becomes target&#39;s initial user message *)</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  <span class="o">}</span>
+</span></code></pre></div>
+   The <code>task</code> field is <strong>required</strong> when <code>carry_context=false</code> (else <code>Invalid_input</code> error). When <code>carry_context=true</code>, <code>task</code> is optional and treated as an additional instruction appended to the conversation.
+3. <strong>Engine handoff logic</strong> (revised 2026-06-15 per Oracle review — see Design Decisions Log below):
+   - Refactor <code>let rec loop conv iterations</code> → <code>let rec loop ~agent ~global_max conv iterations</code> (thread agent + global_max through recursion; 5 recursive call sites at <code>engine.ml:217,237,334,339,343</code>)
+   - Before the tool-result fold at <code>engine.ml:330-332</code>, partition results into <code>(non_handoff, handoffs)</code> via <code>List.partition</code>
+   - Fold <code>non_handoff</code> results into <code>conv</code> first (preserve their tool outputs)
+   - If <code>handoffs = []</code>: normal recursion path
+   - If <code>handoffs</code> has exactly 1 entry AND <code>enable_handoff=true</code>: resolve target via <code>agent_resolver</code>, fire <code>Agent_handoff</code> event, recurse with <code>~agent:target_agent ~global_max</code>
+   - If <code>handoffs</code> has &gt;1 entry: <code>Result.Error (Invalid_input "Multiple handoffs in one tool batch", conv)</code> (ambiguous, fail loud — matches OpenAI Agents SDK <code>turn_resolution.py:426</code>)
+   - If <code>handoffs</code> has 1 entry AND <code>enable_handoff=false</code>: <code>Result.Error (Invalid_input "Tool returned Handoff but enable_handoff=false", conv)</code>
+   - On resolver miss (<code>agent_resolver target_agent_id = None</code>): <code>Result.Error (Invalid_input "Handoff target not found: &lt;id&gt;", conv)</code> — matches <code>workflow_engine.ml:88</code> convention
+   - <strong>Iteration budget</strong>: use running max-of-chain <code>global_max = max global_max agent.max_iterations</code> (see Decision 4 below for rationale)
+   - <strong>Middleware chain</strong>: implicit swap — target agent's full chain takes over on next LLM call (see Decision 3)
+   - <strong>System_prompt</strong>: silently replaced — target agent's <code>system_prompt</code> is used on next LLM call, source agent's is dropped (matches OpenAI Agents SDK default; see Decision 1)
+4. <strong>New event type</strong>: <code>Agent_handoff of { from_agent : string; to_agent : string; task_id : Task_id.t }</code> for observability. The <code>task_id</code> MUST link to the triggering tool call (use the <code>tool_call.id</code> from the handoff result, not a fresh <code>Task_id.create ()</code>) for <code>par replay</code> traceability.
+5. <strong>API surface</strong>:
+   - <code>Runtime.invoke</code> gains <code>?enable_handoff:bool</code> (default false)
+   - When true, passes <code>~agent_resolver:(fun aid -&gt; htbl_get rt.agents aid)</code> + <code>~enable_handoff:true</code> to <code>Engine.run_agent</code> at <code>runtime.ml:358-368</code>
+6. <strong>Exhaustiveness updates</strong> (11 match sites on <code>handler_result</code>):
+   - <code>engine.ml:90-105</code> (execute_tool output-schema check): <code>| Handoff _ -&gt; result</code> (passthrough)
+   - <code>engine.ml:107-109</code> (progress log): <code>| Handoff _ -&gt; progress "Tool handoff"</code>
+   - <code>engine.ml:166-178</code> (<code>add_tool_result_message</code>): <code>| Handoff _ -&gt; "&lt;handoff&gt;"</code> (unreachable in normal path due to partition, but type-exhaustive)
+   - <code>engine.ml:237</code> (retry decision): <code>| Handoff _ -&gt; Result.Error (Internal "Handoff reached retry path", conv)</code> (defensive)
+   - <code>engine.ml:310-318</code> (event firing): handled by partition logic above
+   - <code>middleware/logging.ml:22</code>, <code>pii_mask.ml:73</code>, <code>output_validation.ml:20,34</code>, <code>sanitize_tool_output.ml:73</code>: passthrough arms
+   - <code>workflow_engine.ml:102</code>: <code>| Handoff _ -&gt; Result.Error (Invalid_input "Handoff not supported in workflow Agent_call", ...)</code> (workflows don't hand off)
+7. <strong>Persistence</strong>: <code>extract_task_id</code> at <code>persistence_common.ml:34</code> gains <code>| Agent_handoff { task_id; _ } -&gt; Task_id.to_string task_id</code> as 15th task-bearing arm.</p>
+<p><strong>Estimated</strong>: 5.5–7.5 days (revised 2026-06-15; +0.5 day for running-max threading, <code>task</code> field yojson/FFI ripple, and partition-before-handoff logic).</p>
+<h4 id="design-decisions-log-oracle-reviewed-2026-06-15">Design Decisions Log (Oracle-reviewed 2026-06-15)<a class="headerlink" href="#design-decisions-log-oracle-reviewed-2026-06-15" title="Permanent link">&para;</a></h4>
+<p>The original 4 "hard questions" (lines 215-219 of pre-revision ROADMAP) are now <strong>RESOLVED</strong>. Each was researched across OpenAI Agents SDK / LangGraph / AutoGen / Google ADK and Oracle-reviewed:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Decision</th>
+<th>Industry basis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>D1</strong></td>
+<td>How does handoff appear in message history (mixed system_prompt framing)?</td>
+<td><strong>Source system_prompt replaced with target agent's system_prompt + <code>carry_context: bool</code> field.</strong> When <code>carry_context=true</code> (default): preserve conversation history (user/assistant/tool messages), strip source agent's System message, prepend target agent's System message computed via <code>Template.effective_system_prompt</code>. When <code>false</code>: fresh conversation with target's System message + <code>task</code> field as the User message. No <code>HandoffMessage</code> marker inserted into conversation (unlike AutoGen) — the <code>Agent_handoff</code> event provides observability via event bus instead.</td>
+<td>OpenAI Agents SDK default + Google ADK consensus (silent replacement). Verified via OpenAI Agents SDK handoffs doc: "the new agent takes over the conversation, and gets to see the entire previous conversation history" — <code>instructions</code> is per-Agent, injected at call time, never stored in items. PAR differs architecturally: system_prompt IS stored as conversation message[0], so we actively replace it rather than rely on per-call injection. <code>nest_handoff_history</code> is opt-in beta, disabled by default. AutoGen's <code>HandoffMessage</code> is cleanest but adds a message type PAR doesn't need.</td>
+</tr>
+<tr>
+<td><strong>D2</strong></td>
+<td>Tool_call_ids when target agent lacks tools?</td>
+<td><strong>Default: carry as-is.</strong> OpenAI/Anthropic APIs tolerate historical tool_calls not matching current tool set (they're transcript items, not contract requirements). No filter implementation in v0.4.2.</td>
+<td>OpenAI Agents SDK default carries history flat; <code>remove_all_tools</code> is an opt-in filter. gpt-5 reasoning-chain breakage (issues #985, #2020) makes filtering a foot-gun — defer to v0.4.3 with proper reasoning-item handling.</td>
+</tr>
+<tr>
+<td><strong>D3</strong></td>
+<td>Middleware chain switch mid-conversation?</td>
+<td><strong>Implicit full swap + per-agent state isolation.</strong> Target agent's full middleware chain takes over on next LLM call. Stateful middleware (Retry counter, Rate_limit token bucket) is FRESH for target agent — does NOT inherit source agent's retry attempts or rate budget. Self-handoff retry-bypass threat is negligible (agents are dev-configured, not adversarial) and is backstopped by D4 iteration budget. <strong>Divergence from OpenAI</strong>: OpenAI scopes input-guardrails to first agent, output-guardrails to last agent. PAR's full swap is more aggressive but simpler and safer (no silent Validation bypass).</td>
+<td>All 4 frameworks do implicit swap. Per-agent state isolation matches AutoGen fresh-budget semantics.</td>
+</tr>
+<tr>
+<td><strong>D4</strong></td>
+<td><code>max_iterations</code> budget semantics?</td>
+<td><strong>Inherit iterations + check against running max-of-chain.</strong> Track <code>global_max = max global_max agent.max_iterations</code> as agents swap. Check is <code>iterations &gt;= global_max</code>. This replaces the original "reset counter" plan (line 208 of pre-revision ROADMAP) which would have allowed A→B→A→B infinite loops.</td>
+<td>OpenAI Agents SDK + LangGraph + Google ADK all INHERIT (single global counter). AutoGen is lone dissenter (per-agent fresh, but has separate group-chat budget). PAR has no group-chat layer, so invoke-level budget is the only safety net. <strong>Running max-of-chain</strong> (instead of plain inherit) avoids the instant-exit surprise: A(max=10) hands off at iter=5 to B(max=3) → check <code>5 &gt;= max(10,3)=10</code> → B gets 5 more iterations, instead of instant-exit under plain "check against target's max".</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Why typed ADT is strictly stronger than the alternatives</strong> (strategic differentiator):</p>
+<table>
+<thead>
+<tr>
+<th>Framework</th>
+<th>Handoff signal representation</th>
+<th>Compile-time exhaustiveness?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OpenAI Agents SDK</td>
+<td>JSON-encoded <code>function_call_output</code></td>
+<td>❌</td>
+</tr>
+<tr>
+<td>LangGraph</td>
+<td><code>ToolMessage.response_metadata[METADATA_KEY_HANDOFF_DESTINATION]</code> (string-keyed dict)</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>Google ADK</td>
+<td><code>EventActions.transfer_to_agent : Optional[str]</code></td>
+<td>❌</td>
+</tr>
+<tr>
+<td>AutoGen</td>
+<td><code>HandoffMessage</code> (typed) — closest to PAR</td>
+<td>⚠️ Partial (Python mypy only)</td>
+</tr>
+<tr>
+<td><strong>PAR</strong></td>
+<td><strong><code>Handoff of { target_agent_id; carry_context; task }</code> ADT constructor</strong></td>
+<td><strong>✅ OCaml exhaustive match</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The cost is one extra type the user must learn; the payoff is compile-time exhaustiveness checking on handoff handling, which is impossible in any of the four reference frameworks.</p>
+<h4 id="common-pitfalls-defended-against-from-cross-framework-bug-research">Common pitfalls defended against (from cross-framework bug research)<a class="headerlink" href="#common-pitfalls-defended-against-from-cross-framework-bug-research" title="Permanent link">&para;</a></h4>
+<ol>
+<li><strong>Multiple handoffs in one tool batch</strong> — OpenAI silently ignores the 2nd+; PAR errors loudly (<code>Invalid_input "Multiple handoffs in one tool batch"</code>).</li>
+<li><strong>gpt-5 reasoning-chain breakage</strong> when filtering history — PAR doesn't filter by default (D2), sidestepping this entirely.</li>
+<li><strong>ADK <code>transfer_to_agent</code> from <code>after_model_callback</code> silently ignored</strong> (issue #5125) — PAR's handoff works from any tool result uniformly, no lifecycle-hook restrictions.</li>
+<li><strong>LangGraph full-history handoff "confuses" target agent</strong> (per official docs) — PAR's <code>carry_context=false</code> escape hatch gives users the option to reset.</li>
+<li><strong>Tool-call/Tool-message pairing invariant</strong> — when handoff is the sole result (after partition), no orphaned tool_call_ids reach the LLM API.</li>
+<li><strong>Per-agent identity in tracing</strong> — <code>Agent_handoff</code> event records <code>from_agent</code> + <code>to_agent</code> explicitly for observability; downstream consumers (CLI, metrics) never lose track of the active agent.</li>
+</ol>
+<p><strong>Success Criteria</strong>:
+- [ ] Agent A can hand off to Agent B mid-conversation (happy path: <code>carry_context=true, task=None</code>)
+- [ ] Agent A can delegate fresh task to Agent B (<code>carry_context=false, task=Some "..."</code>)
+- [ ] <code>carry_context=false</code> without <code>task</code> returns <code>Invalid_input</code> error
+- [ ] Conversation history carries across handoff when <code>carry_context=true</code>
+- [ ] Conversation is reset when <code>carry_context=false</code>
+- [ ] Source agent's system_prompt is silently dropped (target's takes over)
+- [ ] Iteration budget uses running max-of-chain (A max=10 → B max=3 at iter=5 → B runs until iter=10, not instant-exit)
+- [ ] Handoff event <code>Agent_handoff { from_agent; to_agent; task_id }</code> appears in event bus
+- [ ] <code>task_id</code> in event links to triggering tool call (not fresh)
+- [ ] Multiple handoffs in one tool batch → <code>Invalid_input</code> error
+- [ ] Resolver miss → <code>Invalid_input "Handoff target not found"</code> error
+- [ ] <code>?enable_handoff=false</code> (default) preserves exact current behavior (tool returning Handoff → <code>Invalid_input</code> error)
+- [ ] Middleware state (Retry counter, Rate_limit bucket) is per-agent, not inherited across handoff
+- [ ] Type-safe: handoff signal is an ADT constructor, not a JSON convention
+- [ ] All 11 exhaustive match sites on <code>handler_result</code> updated
+- [ ] <code>extract_task_id</code> handles <code>Agent_handoff</code> variant
+- [ ] 10+ new tests covering: happy path, carry_context variants, resolver miss, multiple-handoff error, enable_handoff=false error, middleware isolation, budget running-max, event emission</p>
+<h3 id="32-eventactions-schema-column-reserved">3.2 EventActions Schema Column (Reserved)<a class="headerlink" href="#32-eventactions-schema-column-reserved" title="Permanent link">&para;</a></h3>
+<p><strong>Source</strong>: Google ADK EventActions research. Oracle: "cheaper to design the column now even if you never populate it."</p>
+<p><strong>Scope</strong>:
+- Add <code>actions_json TEXT NULL</code> column to <code>events</code> table (all persistence backends)
+- No runtime code reads or writes it yet — purely a schema reservation
+- Document the intended shape: <code>{ "state_delta": {}, "transfer_to_agent": null, "escalate": false }</code></p>
+<p><strong>Estimated</strong>: 0.5 day.</p>
+<p><strong>Success Criteria</strong>:
+- [ ] Column exists in all persistence schemas
+- [ ] Migration path documented for existing databases</p>
+<h3 id="33-par-replay-cli-command">3.3 <code>par replay</code> CLI Command<a class="headerlink" href="#33-par-replay-cli-command" title="Permanent link">&para;</a></h3>
+<p><strong>Status</strong>: 🚧 <strong>搁置 (Shelved 2026-06-16)</strong> — 实际业务价值不大，暂时不做。<code>par history</code>（v0.4.1 已交付）已能满足基本调试需求。如果未来用户反馈需要"事后回放"功能，再重新评估。</p>
+<p><strong>Scope</strong>: Replay a session's event chain for debugging. Reads persisted events, reconstructs conversation flow.</p>
+<p><strong>Estimated</strong>: 1 day.</p>
+<p><strong>Success Criteria</strong>:
+- [ ] <code>par replay &lt;session_id&gt;</code> shows chronological event flow with timestamps
+- [ ] Displays tool inputs/outputs, LLM requests/responses, handoff events</p>
+<hr />
+<h2 id="v043-mcp-transport-evaluations-phase-4">v0.4.3 — MCP Transport + Evaluations (Phase 4)<a class="headerlink" href="#v043-mcp-transport-evaluations-phase-4" title="Permanent link">&para;</a></h2>
+<p><strong>Goal</strong>: MCP HTTP/SSE, MCP Sampling, and deferred evaluations.
+<strong>Estimated</strong>: 3–4 weeks if all items done. Can be partially shipped.</p>
+<h3 id="41-mcp-httpsse-transport">4.1 MCP HTTP/SSE Transport<a class="headerlink" href="#41-mcp-httpsse-transport" title="Permanent link">&para;</a></h3>
+<p><strong>Source</strong>: v0.3.1 ROADMAP deferred item.</p>
+<p><strong>Current state</strong>: MCP stdio transport works. Remote MCP servers (HTTP/SSE) not supported.</p>
+<p><strong>Scope</strong>:
+- New transport module: <code>Mcp_transport_http</code>
+- Connect to remote MCP servers via HTTP POST (client→server) + SSE (server→client)
+- Same <code>Mcp_client</code> API surface — transport is transparent
+- Server config gains <code>transport: `Stdio | `Http of Uri.t</code></p>
+<p><strong>Estimated</strong>: 1–2 weeks.</p>
+<h3 id="42-mcp-sampling-serverllm-bidirectional">4.2 MCP Sampling (Server→LLM Bidirectional)<a class="headerlink" href="#42-mcp-sampling-serverllm-bidirectional" title="Permanent link">&para;</a></h3>
+<p><strong>Source</strong>: v0.3.1 ROADMAP deferred item.</p>
+<p><strong>Status (v0.4.4-beta)</strong>: 🟡 <strong>Partially delivered</strong> — transport-side hook only.</p>
+<ul>
+<li>✅ <strong>Scope 1 — Transport hook</strong>: <code>Mcp_transport_http.sampling_handler</code> field, <code>Mcp_transport_http.set_sampling_handler</code> API, SSE-side detection of <code>sampling/createMessage</code> notifications. The transport invokes the registered handler when a server requests sampling. Implementation: <code>lib/mcp/mcp_transport_http.ml</code>, <code>lib/mcp/mcp_server.ml</code>.</li>
+<li>⏸ <strong>Scope 2 — LLM routing</strong> (deferred to v0.5): wiring a default sampling handler that routes through PAR's LLM provider stack. Currently the user must register a handler themselves via <code>Mcp_transport_http.set_sampling_handler</code>. Production callers: 0.</li>
+<li>⏸ <strong>Scope 3 — Per-server allow/deny configuration</strong> (deferred to v0.5): config-level gating of which servers may request sampling. Not implemented.</li>
+</ul>
+<p><strong>Scope</strong> (full original plan):
+- Handle <code>sampling/createMessage</code> requests from MCP servers
+- Route through PAR's LLM provider stack
+- Per-server allow/deny configuration</p>
+<p><strong>Estimated</strong>: 1 week (Scope 1 done; Scopes 2+3 deferred).</p>
+<h3 id="43-evaluations-decision-documents-only">4.3 Evaluations (Decision Documents Only)<a class="headerlink" href="#43-evaluations-decision-documents-only" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Deliverable</th>
+<th>Effort</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>par_sandbox evaluation</td>
+<td>ADR: bwrap/landlock feasibility, user demand</td>
+<td>2–3 days</td>
+</tr>
+<tr>
+<td>MCP tool on-demand loading</td>
+<td>Decision doc: profile real-world usage first</td>
+<td>1 day</td>
+</tr>
+<tr>
+<td>MCP <code>?mcp_default_env</code> parameter</td>
+<td>Evaluation doc</td>
+<td>0.5 day</td>
+</tr>
+<tr>
+<td>par_postgres opam publication</td>
+<td>Decision doc: pgx migration vs self-host vs source-only</td>
+<td>1 day</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="v044-cli-upgrade-for-v04-features-phase-5">v0.4.4 — CLI Upgrade for v0.4 Features (Phase 5)<a class="headerlink" href="#v044-cli-upgrade-for-v04-features-phase-5" title="Permanent link">&para;</a></h2>
+<p><strong>Goal</strong>: Make all v0.4 SDK capabilities accessible and pleasant from the CLI.
+<strong>Prerequisite</strong>: v0.4.0 + v0.4.1 + v0.4.2 must ship first (v0.4.3 is optional).
+<strong>Estimated</strong>: 3–4 days.</p>
+<h3 id="51-multi-agent-repl-with-handoff-display">5.1 Multi-Agent REPL with Handoff Display<a class="headerlink" href="#51-multi-agent-repl-with-handoff-display" title="Permanent link">&para;</a></h3>
+<p><strong>Source</strong>: v0.4.2 ships typed agent handoff in the SDK. The CLI currently runs a single <code>default-agent</code> and has no concept of agent switching.</p>
+<p><strong>Current state</strong>: <code>bin/main.ml</code> registers one agent (<code>default-agent</code>, line 282-287), the REPL invokes it in a loop (line 402). The <code>make_tool_event_callback</code> (line 310-332) prints <code>→ tool_name ✓ (Nms)</code> for tool events but has no handler for <code>Agent_handoff</code> events.</p>
+<p><strong>Scope</strong>:</p>
+<ol>
+<li>
+<p><strong>Config-driven multi-agent</strong>: Extend <code>par_config.ml</code> to accept an <code>agents</code> array in <code>~/.par/config.json</code>. Each entry has <code>id</code>, <code>system_prompt</code>, <code>model</code> (optional, inherits default), <code>tools</code> (optional subset), <code>max_iterations</code> (optional). Example:
+   <div class="language-json highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">&quot;agents&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;researcher&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;system_prompt&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;You are a research assistant...&quot;</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;writer&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;system_prompt&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;You are a writing assistant...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;model&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;claude-sonnet-4-20250514&quot;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="p">]</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="p">}</span>
+</span></code></pre></div>
+   If no <code>agents</code> array: current behavior (single <code>default-agent</code>). Backward compatible.</p>
+</li>
+<li>
+<p><strong>Agent registration at startup</strong>: <code>setup_runtime</code> reads the agents array, registers each one with <code>Runtime.register_agent</code>. First agent in array = default.</p>
+</li>
+<li>
+<p><strong>Handoff display in REPL</strong>: When <code>Agent_handoff { from_agent; to_agent }</code> event fires, print to stderr:
+   <div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>↪ researcher → writer
+</span></code></pre></div>
+   (Matches existing <code>→ tool ✓ (Nms)</code> style — tool events on stderr, stdout clean.)</p>
+</li>
+<li>
+<p><strong>Handoff indicator in prompt</strong>: After a handoff, the <code>par&gt;</code> prompt shows the active agent:
+   <div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>par [researcher]&gt; hello
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>...
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>↪ researcher → writer
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>par [writer]&gt; continue
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong><code>/agents</code> REPL command</strong>: List registered agents and their status.
+   <div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>/agents
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>  researcher  (active, 3 turns)
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>  writer      (idle)
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong><code>/switch &lt;agent_id&gt;</code> REPL command</strong>: Explicitly switch agents (user-initiated, not LLM-initiated handoff).</p>
+</li>
+</ol>
+<p><strong>Estimated</strong>: 2 days.</p>
+<p><strong>Success Criteria</strong>:
+- [ ] <code>~/.par/config.json</code> with <code>agents</code> array registers multiple agents
+- [ ] Backward compatible: no <code>agents</code> array = single <code>default-agent</code> (current behavior)
+- [ ] Handoff events show <code>↪ from → to</code> in stderr
+- [ ] Prompt shows active agent: <code>par [agent_id]&gt;</code>
+- [ ] <code>/agents</code> lists registered agents
+- [ ] <code>/switch &lt;id&gt;</code> changes active agent
+- [ ] 3+ new tests</p>
+<h3 id="52-session-management-commands">5.2 Session Management Commands<a class="headerlink" href="#52-session-management-commands" title="Permanent link">&para;</a></h3>
+<p><strong>Source</strong>: v0.4.1 ships <code>session_id</code> on every event. The CLI needs commands to work with sessions.</p>
+<p><strong>Current state</strong>: No session concept in CLI. <code>par history</code> and <code>par stats</code> (added in v0.4.1 §2.3) query by <code>session_id</code> but the user needs to discover session IDs.</p>
+<p><strong>Scope</strong>:</p>
+<ol>
+<li>
+<p><strong><code>par sessions</code> command</strong>: List recent sessions with summary.
+   <div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>$ par sessions
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>SESSION_ID                            AGENT          TURNS  TOKENS   DURATION  TIME
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>a1b2c3d4-...                          default-agent  12     8,421    34.2s     2 min ago
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>e5f6a7b8-...                          researcher     5      3,102    12.1s     1 hour ago
+</span></code></pre></div>
+   Reads from persistence (SQLite). Default: last 10 sessions. <code>--limit N</code> flag.</p>
+</li>
+<li>
+<p><strong><code>par history &lt;session_id&gt;</code> output formatting</strong> (enhances v0.4.1 §2.3): Pretty-print with colors and structure instead of raw JSON.
+   <div class="language-text highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>$ par history a1b2c3d4
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>[14:30:01] USER: What is OCaml?
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>[14:30:03] ASSISTANT: OCaml is a functional...  (842 tokens, 1.2s)
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>[14:30:03] TOOL: calculator (+ 1 2) ✓ (23ms)
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>[14:30:05] ASSISTANT: The result is 3.  (412 tokens, 0.8s)
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>[14:30:08] ↪ default-agent → writer
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>[14:30:10] ASSISTANT: Let me write that up...  (1,204 tokens, 3.1s)
+</span></code></pre></div>
+   Flags: <code>--json</code> for machine-readable output, <code>--verbose</code> for full tool inputs/outputs.</p>
+</li>
+<li>
+<p><strong><code>par replay &lt;session_id&gt;</code> output</strong> (enhances v0.4.2 §3.3): Same format as <code>par history</code> but with streaming playback (print events one at a time with configurable delay, like a terminal recording).</p>
+</li>
+<li>
+<p><strong><code>par stats</code> output formatting</strong> (enhances v0.4.1 §2.3): Table format instead of JSON.
+   <div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>$ par stats
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>Metric              Last 24h    All time
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>Sessions            12          47
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>Total turns         89          312
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>Tokens (input)      124,500     489,200
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>Tokens (output)     31,200      102,800
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>Tool calls          156         523
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>Avg session time    18.3s       22.1s
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>Top tools:
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>  bash              42          198
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>  calculator        31          87
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>  web_search        28          76
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>REPL <code>/session</code> command</strong>: Show current session info.
+   <div class="language-text highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>/session
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>Session: a1b2c3d4-...
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>Agent:   researcher (2 turns)
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>Tokens:  1,842 in / 421 out
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>Started: 2 min ago
+</span></code></pre></div></p>
+</li>
+</ol>
+<p><strong>Estimated</strong>: 2 days.</p>
+<p><strong>Success Criteria</strong>:
+- [ ] <code>par sessions</code> lists recent sessions with summary table
+- [ ] <code>par history &lt;id&gt;</code> shows colored, structured event chain
+- [ ] <code>par history --json</code> for machine-readable output
+- [ ] <code>par stats</code> shows formatted usage table
+- [ ] <code>/session</code> in REPL shows current session info
+- [ ] 3+ new tests</p>
+<h3 id="53-bash-confirmation-prompt">5.3 Bash Confirmation Prompt<a class="headerlink" href="#53-bash-confirmation-prompt" title="Permanent link">&para;</a></h3>
+<p><strong>Source</strong>: v0.4.0 §1.2 ships bash interactive confirmation in the SDK. The CLI needs the UI.</p>
+<p><strong>Current state</strong>: <code>bin/main.ml:298-302</code> installs a tool-call hook that prints tool names to stderr (<code>[tool_name]</code>). No <code>Confirm</code> verdict handling.</p>
+<p><strong>Scope</strong>:</p>
+<ol>
+<li>
+<p><strong>Hook returns Confirm</strong>: The existing <code>tool_call_hook</code> (line 298) returns <code>Hook.Allow</code>. Change to check the bash command against a configurable confirmation list. When matched, return <code>Hook.Confirm</code>.</p>
+</li>
+<li>
+<p><strong>REPL prompt</strong>: When engine receives <code>Confirm</code>, pause the ReAct loop, print the command, wait for <code>[y/n]</code>:
+   <div class="language-text highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>par [researcher]&gt; delete the temp files
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>⚠ bash: rm -rf /tmp/test
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>Proceed? [y/n]: y
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>→ bash ✓ (123ms)
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>Done. The files have been removed.
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Configurable rules</strong>: In <code>~/.par/config.json</code>:
+   <div class="language-json highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="p">{</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="nt">&quot;bash_confirm&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="nt">&quot;patterns&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;rm -rf*&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;dd *&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;mkfs*&quot;</span><span class="p">],</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="nt">&quot;default&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;allow&quot;</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="p">}</span>
+</span></code></pre></div>
+   <code>default</code> can be <code>allow</code> (confirm only matched patterns) or <code>confirm</code> (confirm everything).</p>
+</li>
+<li>
+<p><strong><code>par ask</code> mode</strong>: For non-interactive <code>par ask</code>, <code>Confirm</code> is treated as <code>Allow</code> (no prompting). Users can override with <code>--confirm</code> flag to get interactive confirmation in ask mode too.</p>
+</li>
+</ol>
+<p><strong>Estimated</strong>: 0.5 day (small delta on top of v0.4.0 §1.2 SDK hook).</p>
+<p><strong>Success Criteria</strong>:
+- [ ] Matching bash commands show <code>[y/n]</code> prompt in REPL
+- [ ] <code>y</code> proceeds, <code>n</code> returns permission-denied error to the agent
+- [ ] Configurable patterns in config.json
+- [ ] <code>par ask</code> auto-allows (no TTY prompt)
+- [ ] 2+ new tests</p>
+<hr />
+<h2 id="not-in-v04-scope">Not in v0.4 Scope<a class="headerlink" href="#not-in-v04-scope" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Reason</th>
+<th>Defer to</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Persistent Process Manager (OPS-PROC-1)</td>
+<td>Useful but orthogonal to persistence theme</td>
+<td>v0.5</td>
+</tr>
+<tr>
+<td>Session tree + branching（完整版）</td>
+<td>STRATEGY.md narrows to single-chain handoff only</td>
+<td>Never (tree), v0.5+ (if needed)</td>
+</tr>
+<tr>
+<td>Compaction / LLM summary compression</td>
+<td>STRATEGY.md explicitly excludes</td>
+<td>Never</td>
+</tr>
+<tr>
+<td>Docker official images</td>
+<td>STRATEGY.md explicitly excludes</td>
+<td>Never</td>
+</tr>
+<tr>
+<td>Thinking levels, custom message types</td>
+<td>STRATEGY.md explicitly excludes</td>
+<td>Never</td>
+</tr>
+<tr>
+<td>Walk-the-log crash recovery</td>
+<td>Oracle: wrong problem space for in-process engine; valuable only if PAR becomes a network service</td>
+<td>v0.5+</td>
+</tr>
+<tr>
+<td>Full EventActions (state_delta, escalate, etc.)</td>
+<td>Schema reserved in v0.4.2; population deferred until replay validates the use case</td>
+<td>v0.5+</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="execution-order">Execution Order<a class="headerlink" href="#execution-order" title="Permanent link">&para;</a></h2>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>v0.4.0 (Phase 1, ~3.5 days, parallel):
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>  ├── 1.1 Python callback register_tool (1 day)
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>  ├── 1.2 Bash interactive confirm (0.5 day)
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>  └── 1.3 Structured output middleware (2 days)
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>v0.4.1 (Phase 2, ~5-6 days, sequential):
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>  ├── 2.1 Persistence as event-bus tail consumer (3-4 days)
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>  │     ├── Subscribe persistence to event_bus
+</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>  │     ├── Async buffered writer fiber
+</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>  │     ├── Batch writes + DLQ overflow
+</span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>  │     └── Retention pruning
+</span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>  ├── 2.2 Session_id wiring (2-3 days)
+</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>  │     ├── event_metadata + event_bus + schema
+</span><span id="__span-13-14"><a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a>  │     └── extract_session_id + persistence queries
+</span><span id="__span-13-15"><a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a>  └── 2.3 CLI history + stats (1 day)
+</span><span id="__span-13-16"><a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a>
+</span><span id="__span-13-17"><a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a>v0.4.2 (Phase 3, ~6-8 days):
+</span><span id="__span-13-18"><a id="__codelineno-13-18" name="__codelineno-13-18" href="#__codelineno-13-18"></a>  ├── 3.1 Typed Agent Handoff (5-7 days)
+</span><span id="__span-13-19"><a id="__codelineno-13-19" name="__codelineno-13-19" href="#__codelineno-13-19"></a>  │     ├── agent_resolver plumbed to engine
+</span><span id="__span-13-20"><a id="__codelineno-13-20" name="__codelineno-13-20" href="#__codelineno-13-20"></a>  │     ├── Handoff ADT + engine re-entry logic
+</span><span id="__span-13-21"><a id="__codelineno-13-21" name="__codelineno-13-21" href="#__codelineno-13-21"></a>  │     ├── Agent_handoff event type
+</span><span id="__span-13-22"><a id="__codelineno-13-22" name="__codelineno-13-22" href="#__codelineno-13-22"></a>  │     └── Edge case tests
+</span><span id="__span-13-23"><a id="__codelineno-13-23" name="__codelineno-13-23" href="#__codelineno-13-23"></a>  ├── 3.2 EventActions schema column (0.5 day)
+</span><span id="__span-13-24"><a id="__codelineno-13-24" name="__codelineno-13-24" href="#__codelineno-13-24"></a>  └── 3.3 par replay CLI (1 day)
+</span><span id="__span-13-25"><a id="__codelineno-13-25" name="__codelineno-13-25" href="#__codelineno-13-25"></a>
+</span><span id="__span-13-26"><a id="__codelineno-13-26" name="__codelineno-13-26" href="#__codelineno-13-26"></a>v0.4.3 (Phase 4, ~3-4 weeks if all done):
+</span><span id="__span-13-27"><a id="__codelineno-13-27" name="__codelineno-13-27" href="#__codelineno-13-27"></a>  ├── 4.1 MCP HTTP/SSE transport (1-2 weeks)
+</span><span id="__span-13-28"><a id="__codelineno-13-28" name="__codelineno-13-28" href="#__codelineno-13-28"></a>  ├── 4.2 MCP Sampling (1 week)
+</span><span id="__span-13-29"><a id="__codelineno-13-29" name="__codelineno-13-29" href="#__codelineno-13-29"></a>  └── 4.3 Evaluations (decision docs)
+</span><span id="__span-13-30"><a id="__codelineno-13-30" name="__codelineno-13-30" href="#__codelineno-13-30"></a>
+</span><span id="__span-13-31"><a id="__codelineno-13-31" name="__codelineno-13-31" href="#__codelineno-13-31"></a>v0.4.4 (Phase 5, ~3-4 days, after v0.4.0+v0.4.1+v0.4.2):
+</span><span id="__span-13-32"><a id="__codelineno-13-32" name="__codelineno-13-32" href="#__codelineno-13-32"></a>  ├── 5.1 Multi-agent REPL with handoff display (2 days)
+</span><span id="__span-13-33"><a id="__codelineno-13-33" name="__codelineno-13-33" href="#__codelineno-13-33"></a>  ├── 5.2 Session management commands (2 days)
+</span><span id="__span-13-34"><a id="__codelineno-13-34" name="__codelineno-13-34" href="#__codelineno-13-34"></a>  └── 5.3 Bash confirmation prompt (0.5 day)
+</span></code></pre></div>
+<p><strong>Fast path</strong>: v0.4.0 + v0.4.1 = ~2 weeks, delivers working persistence + Python tools + bash safety.
+<strong>CLI-complete path</strong>: v0.4.0 + v0.4.1 + v0.4.2 + v0.4.4 = ~4 weeks, adds handoff + CLI polish.
+<strong>Full v0.4</strong>: 6–8 weeks if all phases completed.</p>
+<hr />
+<h2 id="design-decisions-log">Design Decisions Log<a class="headerlink" href="#design-decisions-log" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Decision</th>
+<th>Date</th>
+<th>Choice</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Persistence architecture</td>
+<td>2026-06-09</td>
+<td>Subscribe to event bus (not thread into engine)</td>
+<td>Engine stays pure (no I/O), natural backpressure via DLQ, same pattern as in-memory subscribers</td>
+</tr>
+<tr>
+<td>Session granularity</td>
+<td>2026-06-09</td>
+<td>One <code>Runtime.invoke</code> call = one session</td>
+<td>Fine-grained enough for <code>par history</code>, coarse enough to be useful. Matches PydanticAI/LangGraph thread_id semantics</td>
+</tr>
+<tr>
+<td>Handoff mechanism</td>
+<td>2026-06-09</td>
+<td>Typed ADT constructor (not JSON synthetic tool)</td>
+<td>STRATEGY Q4 priority #1 = type rigor. Python frameworks use duck typing; OCaml needs explicit typed signal</td>
+</tr>
+<tr>
+<td>Handoff scope</td>
+<td>2026-06-09</td>
+<td>Single-chain only (A→B), no tree branching</td>
+<td>STRATEGY §7 still excludes full session tree. Narrow exception for pre-registered agent delegation</td>
+</tr>
+<tr>
+<td>Structured output</td>
+<td>2026-06-09</td>
+<td>Middleware on <code>register_tool</code> (not GADT generic result)</td>
+<td>Reuses existing bash validation pattern. No type-system gymnastics. 2 days vs 2 weeks</td>
+</tr>
+<tr>
+<td>Event schema</td>
+<td>2026-06-09</td>
+<td>Keep flat <code>events</code> table + add <code>session_id</code> + <code>actions_json</code> columns</td>
+<td>Oracle: don't introduce LangGraph 3-table design — PAR already has <code>workflow_states</code> for checkpoints. Flat log + session index is sufficient for v0.4</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="related-documents">Related Documents<a class="headerlink" href="#related-documents" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Document</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../STRATEGY/"><code>docs/STRATEGY.md</code></a></td>
+<td>5 P0 strategic decisions (gates all feature work)</td>
+</tr>
+<tr>
+<td><a href="../v0.3-ROADMAP/"><code>docs/v0.3-ROADMAP.md</code></a></td>
+<td>v0.3.0 roadmap (done, 22/22 items)</td>
+</tr>
+<tr>
+<td><a href="../v0.3.1-ROADMAP/"><code>docs/v0.3.1-ROADMAP.md</code></a></td>
+<td>v0.3.1 roadmap (done), v0.4 hand-off list at line 656</td>
+</tr>
+<tr>
+<td><a href="../CHANGES.md"><code>CHANGES.md</code></a></td>
+<td>Change log (current: v0.3.7)</td>
+</tr>
+<tr>
+<td><a href="../AGENTS.md"><code>AGENTS.md</code></a></td>
+<td>Build rules, release rules, v0.4 planning section</td>
+</tr>
+<tr>
+<td>v0.4.1 test</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](zh-CN/quickstart.md)
+**English** · [简体中文](zh/quickstart.md)
 
 > Translated to English for v0.3.2. Source-of-truth: the OCaml modules in lib/ and the README.
 
