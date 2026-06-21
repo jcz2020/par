@@ -8,19 +8,20 @@
 
 - **Wheel platform tag** (PAR-cog class): wheel was tagged `py3-none-any` (any platform) but actually requires x86_64 Linux + glibc ≥ 2.35 (ubuntu-22.04 build host). macOS / Windows / ARM users would `pip install` successfully, then crash at `import par_runtime` with `OSError: cannot open shared object file`. Now built in manylinux_2_28 container, repaired with auditwheel, and correctly tagged `manylinux_2_28_x86_64`.
 
-### Added
-
-- **`bindings/python/par_runtime/_loader.c`**: 1-symbol CPython extension shim. Exists solely to make `par_capi.so`'s DT_NEEDED visible to auditwheel (pypa/auditwheel#197 — auditwheel does not follow ctypes-loaded libraries). The `probe()` function calls `par_health()` to prevent the linker from discarding the reference.
-- **`bindings/python/setup.py`**: conditional ext-module build. Compiles `_loader` only when `par_capi.so` is present (skipped on pure-Python source installs). Uses `-l:par_capi.so` (exact filename form) because OCaml's `.so` lacks the `lib` prefix.
-
 ### Changed
 
-- **`pypi-publish.yml`**: `build-wheel` job now runs inside `quay.io/pypa/manylinux_2_28_x86_64:latest` container (was `ubuntu-22.04`). Installs opam + OCaml 5.4 + PAR deps inside the container, builds `par_capi.so` against glibc 2.28, runs `auditwheel repair --plat manylinux_2_28_x86_64` to bundle GMP + sqlite3 and tag the wheel.
-- **`pypi-publish.yml`**: `pip wheel` now uses `--no-build-isolation` flag so setup.py runs in-place and can locate the just-built `par_capi.so` (PEP 517 isolated builds copy the source tree to a temp dir, missing gitignored artifacts).
+- **`pypi-publish.yml`**: `build-wheel` job now runs inside `quay.io/pypa/manylinux_2_28_x86_64:latest` container (was `ubuntu-22.04`). Installs opam + OCaml 5.4 + PAR deps inside the container, builds `par_capi.so` against glibc 2.28, runs `auditwheel repair --plat manylinux_2_28_x86_64` to bundle GMP + sqlite3 and tag the wheel. Uses `ocaml/setup-ocaml@v3` inside the container (handles opam pinning) plus `opam install par_cli --deps-only -y` to fetch runtime deps (gmp, sqlite3, etc.) in the manylinux env.
+
+### Removed (after iteration)
+
+- **`bindings/python/par_runtime/_loader.c`** and **`bindings/python/setup.py`** (added then removed across post1-post8). Initially added to give auditwheel a DT_NEEDED entry that the bare ctypes-loaded `.so` lacked (pypa/auditwheel#197). Removed when confirmed that modern auditwheel v6+ uses `allow_graft=True` by default and walks ALL ELF files in the wheel tree, including ctypes-loaded `.so` referenced via `package_data`. No dummy extension is needed.
 
 ### Verification Evidence
 
-- `<pending v0.4.13-beta.20260621.post1 build completion>`
+- **PyPI**: https://pypi.org/project/par-runtime/0.4.13/ — `par_runtime-0.4.13-py3-none-manylinux_2_28_x86_64.whl` (11.3 MB)
+- **GH Release**: https://github.com/jcz2020/par/releases/tag/v0.4.13 — wheel asset uploaded
+- **Acceptance CI** (run #27902139530): success on `debian:12`, `ubuntu:22.04`, `ubuntu:24.04`
+- **CI iterations**: 12 (post1 → post12) — key fixes were (a) use `ocaml/setup-ocaml@v3` inside container instead of bare `opam install`, (b) drop `_loader.c` after auditwheel proved it walks ctypes `.so` via `allow_graft`, (c) separate `gh-release-upload` job outside container (gh CLI not in manylinux image)
 
 ### Test Count
 
