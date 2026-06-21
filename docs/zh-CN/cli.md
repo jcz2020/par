@@ -31,7 +31,7 @@ dune build @install
 dune install
 ```
 
-安装后 `par` 可执行文件将可用。版本号为 `0.4.0-beta`（见 `Cmdliner.Cmd.info` 中的 `~version` 声明）。
+安装后 `par` 可执行文件将可用。运行 `par --version` 查看已安装版本（源自 `dune-project`，通过 `Cmdliner.Cmd.info` 的 `~version` 声明）。
 
 如需安装到自定义路径，使用：
 

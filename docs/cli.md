@@ -36,7 +36,7 @@ dune build @install
 dune install
 ```
 
-After installation the `par` executable is available. The version is `0.4.0-beta` (see the `~version` declaration in `Cmdliner.Cmd.info`).
+After installation the `par` executable is available. Run `par --version` to see the installed version (sourced from `dune-project` via `Cmdliner.Cmd.info`'s `~version` declaration).
 
 To install to a custom prefix:
 
