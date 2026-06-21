@@ -1,5 +1,34 @@
 # CHANGES
 
+## v0.4.13 (DRAFT — not yet released)
+
+> Wheel platform tag fix: `py3-none-any` → `cp311-cp311-manylinux_2_28_x86_64`. Resolves the misleading tag that claimed "any platform" while shipping a 29 MB x86_64 Linux ELF binary. Built inside `quay.io/pypa/manylinux_2_28_x86_64` container so glibc baseline is 2.28 (RHEL 8+, Ubuntu 18.10+, Debian 10+).
+
+### Fixed
+
+- **Wheel platform tag** (PAR-cog class): wheel was tagged `py3-none-any` (any platform) but actually requires x86_64 Linux + glibc ≥ 2.35 (ubuntu-22.04 build host). macOS / Windows / ARM users would `pip install` successfully, then crash at `import par_runtime` with `OSError: cannot open shared object file`. Now built in manylinux_2_28 container, repaired with auditwheel, and correctly tagged `manylinux_2_28_x86_64`.
+
+### Added
+
+- **`bindings/python/par_runtime/_loader.c`**: 1-symbol CPython extension shim. Exists solely to make `par_capi.so`'s DT_NEEDED visible to auditwheel (pypa/auditwheel#197 — auditwheel does not follow ctypes-loaded libraries). The `probe()` function calls `par_health()` to prevent the linker from discarding the reference.
+- **`bindings/python/setup.py`**: conditional ext-module build. Compiles `_loader` only when `par_capi.so` is present (skipped on pure-Python source installs). Uses `-l:par_capi.so` (exact filename form) because OCaml's `.so` lacks the `lib` prefix.
+
+### Changed
+
+- **`pypi-publish.yml`**: `build-wheel` job now runs inside `quay.io/pypa/manylinux_2_28_x86_64:latest` container (was `ubuntu-22.04`). Installs opam + OCaml 5.4 + PAR deps inside the container, builds `par_capi.so` against glibc 2.28, runs `auditwheel repair --plat manylinux_2_28_x86_64` to bundle GMP + sqlite3 and tag the wheel.
+- **`pypi-publish.yml`**: `pip wheel` now uses `--no-build-isolation` flag so setup.py runs in-place and can locate the just-built `par_capi.so` (PEP 517 isolated builds copy the source tree to a temp dir, missing gitignored artifacts).
+
+### Verification Evidence
+
+- `<pending v0.4.13-beta tag push>`
+
+### Test Count
+
+- 987 OCaml tests (unchanged — no `.ml` files modified).
+- 33 Python tests (unchanged).
+
+---
+
 ## v0.4.12 (RELEASED 2026-06-21)
 
 > CI/release pipeline hardening + audit pass. No user-facing OCaml/Python API changes. All work is in `.github/workflows/`, `docker/`, and test infrastructure.
