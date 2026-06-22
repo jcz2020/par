@@ -71,5 +71,20 @@ class TestHTTPTimeout(unittest.TestCase):
             }))
             with self.assertRaises(Exception) as ctx:
                 rt.invoke("a", "hello " * 200)
+            self.assertIn("timeout", str(ctx.exception).lower())
+        finally:
+            rt.close()
+
+    def test_stream_returns_timeout_error(self):
+        rt = Runtime(_config(f"http://127.0.0.1:{self.port}/v1"))
+        try:
+            rt.register_agent(json.dumps({
+                "id": "a", "system_prompt": "test",
+                "model": {"provider": "openai", "model_name": "gpt-4"},
+                "max_iterations": 1, "tools": []
+            }))
+            with self.assertRaises(Exception) as ctx:
+                list(rt.invoke_stream("a", "hello " * 200))
+            self.assertIn("timeout", str(ctx.exception).lower())
         finally:
             rt.close()
