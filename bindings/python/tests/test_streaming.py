@@ -32,7 +32,7 @@ from par_runtime import (
     ToolCallStart,
     UsageUpdate,
 )
-from par_runtime.runtime import _DONE, _decode_event, _StreamReader
+from par_runtime.runtime import _decode_event, _StreamReader
 
 
 def _test_config():

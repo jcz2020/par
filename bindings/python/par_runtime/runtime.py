@@ -1,8 +1,6 @@
 """High-level Runtime class wrapping the PAR C FFI."""
 import ctypes
 import json
-import queue
-import threading
 from dataclasses import dataclass
 from typing import Any, Iterator, Optional, Union
 
@@ -47,9 +45,6 @@ class Done:
     finish_reason: str
 
 Event = Union[TextDelta, ToolCallStart, ToolCallDelta, UsageUpdate, Done]
-
-
-_DONE = object()
 
 
 def _decode_event(payload) -> Event:
@@ -99,10 +94,8 @@ def _decode_event(payload) -> Event:
 class _StreamReader:
     """Iterator over streaming chunks from a single invoke_stream call.
 
-    Calls par_invoke_stream on the calling thread (no daemon thread).
-    The OCaml work loop buffers chunks internally and returns them all
-    with the final result. This iterator then yields each chunk as an
-    Event.
+    Calls par_invoke_stream on the calling thread. The OCaml work loop
+    buffers chunks internally and returns them all with the final result.
     """
 
     def __init__(self, rt_handle: Any, agent_id: str, message: str):
@@ -126,10 +119,11 @@ class _StreamReader:
         )
         raw = _py_str(result_ptr)
         if not raw:
-            return
+            raise PARInvokeError("invoke_stream returned empty result")
         parsed = json.loads(raw)
         if parsed.get("status") != "ok":
-            return
+            err = parsed.get("error", "unknown error")
+            raise PARInvokeError(f"invoke_stream failed: {err}")
         for item in parsed.get("chunks", []):
             chunk_data = item.get("chunk", item)
             self._events.append(_decode_event(chunk_data))
@@ -423,18 +417,13 @@ class Runtime:
     def invoke_stream(self, agent_id: str, message: str) -> Iterator[Event]:
         """Invoke an agent and yield each LLM response chunk as an Event.
 
-        Mirrors ``Runtime.invoke ~on_chunk`` on the OCaml side. Returns a
-        lazy iterator: the underlying OCaml fiber only produces chunk N+1
-        when the consumer asks for it via ``next()``. The iterator runs
-        the OCaml invoke on a background daemon thread and bridges chunks
-        through a bounded queue (maxsize=64, per docs/sdk/streaming.md).
-
-        The CFUNCTYPE callback closure is held alive for the lifetime of
-        the returned reader, so the caller may iterate at any pace.
+        The OCaml work loop executes the full invoke (including streaming)
+        and buffers all chunks. This iterator fetches them on first access
+        and yields each chunk as an Event. The fetch is eager — all chunks
+        arrive at once after the LLM completes, not incrementally.
 
         Raises:
-            PARInvokeError: if OCaml returns an error envelope before any
-                chunk is produced, or if a chunk callback raises.
+            PARInvokeError: if OCaml returns an error.
             PARError: if the runtime has been shut down.
 
         Example:

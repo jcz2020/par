@@ -1,6 +1,52 @@
 # CHANGES
 
-## v0.5.1-beta.20260622 (IN DEVELOPMENT)
+## v0.5.1-beta.20260623 (IN DEVELOPMENT)
+
+> **Theme**: RAG foundation + Python streaming (buffered) + FFI work-loop architecture + configurable embedding model.
+
+### Changed — Streaming architecture (buffered, no daemon thread)
+
+**Root cause fixed**: Python `_StreamReader` previously ran `par_invoke_stream` on a daemon `threading.Thread` that had no OCaml domain lock, causing `Fatal: no domain lock held` on every streaming call. Fix: removed the daemon thread entirely. `_StreamReader` now calls `par_invoke_stream` on the main thread. The OCaml work loop buffers chunks internally and returns them all with the final result as JSON. Python parses the chunks array and yields Events.
+
+Trade-off: chunks arrive all at once after the LLM completes (buffered, not incremental). True incremental streaming is planned for v0.5.2.
+
+### Changed — Configurable embedding model
+
+Added `embedding_model : string option` to the `Openai` provider config variant. When set, overrides the default `"text-embedding-3-small"`. Example:
+```json
+["Openai", {"api_key": "...", "embedding_model": "Qwen/Qwen3-Embedding-8B"}]
+```
+The `Ollama` variant does not yet have this field — Ollama embeddings use the OpenAI default (tracked as known limitation).
+
+### Changed — Dead code cleanup
+
+Removed `import queue`, `import threading`, `_DONE` sentinel from `runtime.py` (no longer needed after streaming refactor).
+
+### Changed — Error handling
+
+`_StreamReader._fetch` now raises `PARInvokeError` on `status != "ok"` instead of silently returning an empty iterator.
+
+### Changed — Documentation
+
+Updated `docs/sdk/streaming.md` implementation notes to describe the buffered architecture. Updated `invoke_stream` docstring in `runtime.py`.
+
+### Real API Verification (SiliconFlow)
+
+All 5 endpoints verified against real API:
+- embed (Qwen3-Embedding-8B, 4096 dims): PASS
+- add_documents: PASS
+- invoke (Qwen2.5-7B-Instruct): PASS
+- invoke_with_rag: PASS
+- invoke_stream (4 chunks, no crash): PASS
+
+### Test Count
+
+- 998 OCaml tests
+- 57 Python tests (1 skipped)
+
+---
+
+## v0.5.1-beta.20260622
 
 > **Theme**: RAG foundation (OCaml SDK) + Python streaming output + full FFI work-loop architecture. First feature release of the 0.5.x series.
 >

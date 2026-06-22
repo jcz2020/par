@@ -167,30 +167,19 @@ Notes:
 
 - The method name carries the streaming semantic. There is no `stream=True` flag on `invoke`; callers who want non-streaming behavior use `invoke`, callers who want streaming use `invoke_stream`. Two methods, two intents, no boolean trap.
 - The return type is `Iterator[Event]`, not `List[Event]`. The iterator is lazy: the OCaml side does not produce chunk N+1 until the caller asks for it via `next()`.
-- The first `next()` call may raise `PARInvokeError` if OCaml returns an error envelope before any chunk is produced (for example, `agent_id` not found). After the first chunk, errors surface as `PARInvokeError` from the `next()` that would have yielded the next chunk.
-- The iterator supports `generator.close()` for early cancellation. Calling `close()` triggers a `GeneratorExit` inside the generator body, which runs the `finally` block and cancels the underlying OCaml fiber.
+- The first `next()` call fetches all chunks from the OCaml work loop. If the invoke fails, `PARInvokeError` is raised on first access.
+- All chunks arrive at once after the LLM completes (buffered, not incremental). This is a v0.5.1-beta limitation; true incremental streaming is deferred to v0.5.2.
 - Keyword-only extensions (cancellation tokens, conversation IDs, RAG options) will be added in later versions under their own keyword arguments. The v0.5.1 signature is intentionally minimal.
 
-## Backpressure strategy
+## Buffered chunk delivery
 
-A bounded `queue.Queue(maxsize=64)` mediates between the OCaml callback (producer) and the Python generator (consumer).
+The OCaml work loop executes the full `Runtime.invoke` (including streaming) and buffers all chunks in a ref list. After the invoke completes, chunks are serialized as a JSON array and returned with the final result. Python parses the JSON and yields Events.
 
-- **Bounded queue, size 64.** Large enough to absorb brief consumer stalls without blocking the OCaml fiber, small enough to bound memory if the consumer hangs. 64 is the same default used by the event bus (`event_bus.max_queue_size`).
-- **Blocking put on the producer.** When the queue is full, the ctypes callback blocks on `queue.put()`. This is intentional. A full queue means the consumer is slower than the producer, and the right response is to slow the producer down, not to allocate unbounded memory.
-- **Sentinel for end-of-stream.** After the final `Done` event, the producer pushes a module-level sentinel object, `_DONE = object()`, onto the queue. The consumer loop sees the sentinel and exits. Identity comparison (`is _DONE`) is reliable and cannot collide with any real `Event` payload.
-- **Error passthrough.** If the OCaml side raises, or if the callback itself throws, the exception is caught inside the callback and pushed onto the queue as an `Exception` instance (not an `Event`). The consumer loop checks `isinstance(item, Exception)`, pops the exception, and re-raises it from `next()`. This works around CPython's behavior of swallowing exceptions raised from ctypes callbacks.
-- **Polling timeout for Ctrl-C responsiveness.** The consumer calls `q.get(timeout=0.5)` in a loop. Without a timeout, a stuck stream would block `KeyboardInterrupt` until the next chunk arrives. With a 0.5-second timeout, worst-case Ctrl-C latency is 500 ms, which is acceptable for interactive use. The timeout is invisible to the caller: a `queue.Empty` exception is caught and the loop retries.
-
-## Threading model
-
-The streaming bridge crosses three boundaries: the OCaml runtime (which calls the C callback on its own fiber), the C trampoline (which hands control to CPython), and the Python consumer (which runs on the caller's thread). Each boundary has a rule.
-
-- **GIL is auto-acquired.** CPython's ctypes callback dispatch (`closure_fcn` in `Modules/_ctypes/callbacks.c` in the CPython source) calls `PyGILState_Ensure()` before invoking the Python callable and `PyGILState_Release()` afterwards. The FFI layer does not need to manage the GIL explicitly.
-- **Exceptions in callbacks are swallowed.** CPython prints a traceback to stderr and returns a default value when a ctypes callback raises. The OCaml side sees a normal return, not an error. To surface the error to the consumer, the callback must catch its own exceptions and push them onto the queue as `Exception` instances (see Backpressure above). Never let an exception escape a ctypes callback.
-- **The CFUNCTYPE object must be kept alive.** CPython's ctypes holds a weak reference to the callback closure internally. If the only reference goes out of scope, CPython garbage-collects the closure, the next OCaml chunk invokes a dangling pointer, and the process segfaults. The Python binding MUST store the callback on `self._cb_keepalive` (an instance attribute) for the lifetime of the runtime. This is non-negotiable.
-- **Main thread enters the generator loop.** The caller's thread is the one that calls `invoke_stream` and iterates the result. The generator body sits in a `while True: item = q.get(timeout=0.5)` loop and yields events one at a time.
-- **Background fiber invokes the callback.** When `invoke_stream` is called, the binding kicks off `Runtime.invoke` on a background OCaml fiber with the callback wired in. The fiber produces chunks as the LLM streams; each chunk crosses CPython via `closure_fcn`, lands in the Python callback, and is pushed onto the queue.
-- **Do not use `threading.local()` inside the callback.** CPython dispatches ctypes callbacks on dummy threads that do not persist between calls. `threading.local()` storage allocated in one callback invocation is not visible in the next. If state must be carried across chunks, store it on the queue, on the runtime instance, or in a closure captured by the callback.
+This means:
+- No daemon thread, no queue, no ctypes callback — eliminating the domain lock crash that affected v0.5.1-beta's initial streaming implementation.
+- All chunks are available immediately after the first `__iter__` call.
+- Memory usage scales with response length (all chunks in memory simultaneously).
+- True incremental streaming (chunk-by-chunk delivery) is planned for v0.5.2 via a non-blocking start/poll/wait API.
 
 ## Provider support
 
