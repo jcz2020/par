@@ -2,7 +2,15 @@
 
 ## v0.5.1-beta.20260623 (IN DEVELOPMENT)
 
-> **Theme**: RAG foundation + Python streaming (buffered) + FFI work-loop architecture + configurable embedding model.
+> **Theme**: RAG foundation + Python streaming (buffered) + FFI work-loop architecture + configurable embedding model + HTTP timeout fix.
+
+### Changed — HTTP request timeout (fixes engine hang on long prompts)
+
+**Root cause**: cohttp-eio `Client.call` and `Buf_read.take_all` had no timeout. When LLM response was slow (correlated with 800-1500 char prompts), the HTTP read blocked indefinitely. Combined with the single-threaded work loop, one stuck request wedged the entire Runtime.
+
+**Fix**: Added `Http_client.with_timeout` — each `do_request`/`do_request_streaming` forks a daemon fiber that sleeps 60s then fails the switch. Timeout errors are mapped to `Types.Timeout` (not `Invalid_input`), enabling `Retry` middleware to retry automatically.
+
+**Known limitation**: MCP HTTP/SSE transport (`mcp_transport_http.ml`) and `fetch_url` builtin tool do not yet have timeouts. A stuck MCP server or URL fetch can still wedge the Runtime. Deferred to v0.5.2.
 
 ### Changed — Streaming architecture (buffered, no daemon thread)
 

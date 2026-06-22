@@ -431,7 +431,8 @@ let complete t model_config tools conversation =
           parse_llm_response json
       with
       | Eio.Io _ -> Result.Error (External_failure "Network error during OpenAI request")
-      | Failure msg -> Result.Error (Invalid_input msg)
+      | Failure msg when (try Str.search_forward (Str.regexp "timed out") msg 0 >= 0 with _ -> false) -> Result.Error Timeout
+     | Failure msg -> Result.Error (Invalid_input msg)
       | exn -> Result.Error (Internal (Printexc.to_string exn)) )
 
 let complete_structured t model_config tools conversation response_schema =
@@ -464,7 +465,8 @@ let complete_structured t model_config tools conversation response_schema =
           parse_llm_response json
       with
       | Eio.Io _ -> Result.Error (External_failure "Network error during OpenAI structured request")
-      | Failure msg -> Result.Error (Invalid_input msg)
+      | Failure msg when (try Str.search_forward (Str.regexp "timed out") msg 0 >= 0 with _ -> false) -> Result.Error Timeout
+     | Failure msg -> Result.Error (Invalid_input msg)
       | exn -> Result.Error (Internal (Printexc.to_string exn)) )
 
 let stream t model_config tools conversation _stream_config callback =
@@ -539,7 +541,8 @@ let stream t model_config tools conversation _stream_config callback =
           (http_error_to_error_category
              (Http_client.map_http_status status body))
       | Eio.Io _ -> Result.Error (External_failure "Network error during OpenAI stream")
-      | Failure msg -> Result.Error (Invalid_input msg)
+      | Failure msg when (try Str.search_forward (Str.regexp "timed out") msg 0 >= 0 with _ -> false) -> Result.Error Timeout
+     | Failure msg -> Result.Error (Invalid_input msg)
       | exn -> Result.Error (Internal (Printexc.to_string exn)) )
 
 (* -------------------------------------------------------------------------- *)
@@ -621,7 +624,8 @@ let embed t messages =
           parse_embeddings_response json
       with
       | Eio.Io _ -> Result.Error (External_failure "Network error during OpenAI embedding request")
-      | Failure msg -> Result.Error (Invalid_input msg)
+      | Failure msg when (try Str.search_forward (Str.regexp "timed out") msg 0 >= 0 with _ -> false) -> Result.Error Timeout
+     | Failure msg -> Result.Error (Invalid_input msg)
       | exn -> Result.Error (Internal (Printexc.to_string exn)) )
 
 let close _t = ()
