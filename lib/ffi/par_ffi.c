@@ -462,3 +462,12 @@ char* par_version(void) {
     pthread_mutex_unlock(&ocaml_lock);
     return ret;
 }
+
+int par_set_request_timeout(double seconds) {
+    pthread_mutex_lock(&ocaml_lock);
+    ensure_initialized();
+    value result = call1_exn("par_set_request_timeout", caml_copy_double(seconds));
+    int rc = Is_exception_result(result) ? -1 : Int_val(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return rc;
+}

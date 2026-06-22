@@ -419,7 +419,10 @@ let do_request_streaming net url request k =
       ) in
       let r = Eio.Buf_read.of_flow ~max_size:(100 * 1024 * 1024) resp_body in
       k ~status ~headers:headers_str ~read_line:(fun () ->
-        try Some (Eio.Buf_read.line r) with _ -> None)))
+        try Some (Eio.Buf_read.line r)
+        with Failure msg when (try Str.search_forward (Str.regexp "timed out") msg 0 >= 0 with _ -> false) ->
+          raise (Failure msg)
+        | _ -> None)))
 
 type _exec_result = {
   status : int;

@@ -1019,6 +1019,12 @@ let () =
       Obj.repr (do_version ()))
 
 let () =
+  Callback.register "par_set_request_timeout"
+    (fun (seconds : float) ->
+      Http_client.set_request_timeout seconds;
+      Obj.repr 0)
+
+let () =
   Callback.register "par_add_documents"
     (fun (state_id_obj : Obj.t) (docs_json : string) ->
       let state_id : int = Obj.magic state_id_obj in

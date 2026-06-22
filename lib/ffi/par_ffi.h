@@ -86,6 +86,7 @@ int par_event_subscribe(par_runtime_t* rt, par_event_callback cb);
 
 /* Version */
 char* par_version(void);
+int   par_set_request_timeout(double seconds);
 
 /* Cleanup */
 void par_result_free(par_result_t* result);

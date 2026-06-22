@@ -164,6 +164,10 @@ _lib.par_event_subscribe.restype = ctypes.c_int
 _lib.par_version.argtypes = []
 _lib.par_version.restype = ctypes.c_void_p
 
+# int par_set_request_timeout(double seconds);
+_lib.par_set_request_timeout.argtypes = [ctypes.c_double]
+_lib.par_set_request_timeout.restype = ctypes.c_int
+
 # --- Helper: libc free() for strings returned by C ---
 if sys.platform == "darwin":
     _libc = ctypes.CDLL("libc.dylib")
