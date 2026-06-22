@@ -159,6 +159,25 @@ let tls_config =
     | Ok cfg -> cfg
     | Result.Error (`Msg msg) -> failwith ("TLS configuration error: " ^ msg))
 
+let clock_ref : Obj.t option ref = ref None
+
+let set_clock (c : 'a) = clock_ref := Some (Obj.repr c)
+
+let request_timeout = ref 60.0
+
+let set_request_timeout s = request_timeout := s
+
+let with_timeout sw f =
+  match !clock_ref with
+  | None -> f ()
+  | Some clock_obj ->
+    let clock = (Obj.obj clock_obj : _ Eio.Time.clock_ty Eio.Resource.t) in
+    Eio.Fiber.fork_daemon ~sw (fun () ->
+      Eio.Time.sleep clock !request_timeout;
+      Eio.Switch.fail sw (Failure (Printf.sprintf "HTTP request timed out after %.0fs" !request_timeout));
+      `Stop_daemon);
+    f ()
+
 let tls_host_of_string host =
   match Domain_name.of_string host with
   | Error _ -> None
@@ -236,22 +255,23 @@ let do_request net url request =
   let uri_str = Printf.sprintf "%s://%s:%d%s" scheme url.host url.port req_path in
   let uri = Uri.of_string uri_str in
   Eio.Switch.run (fun sw ->
-    let client = cohttp_client_of_net net in
-    let cohttp_headers = Cohttp.Header.of_list req_headers in
-    let body = Cohttp_eio.Body.of_string req_body in
-    let resp, resp_body = Cohttp_eio.Client.call ~sw
-      ~headers:cohttp_headers ~body client `POST uri in
-    let status_code = Cohttp.Code.code_of_status (Http.Response.status resp) in
-    let body_string =
-      Eio.Buf_read.parse_exn ~max_size:(100 * 1024 * 1024) Eio.Buf_read.take_all resp_body
-    in
-    let resp_headers =
-      Cohttp.Header.to_list (Http.Response.headers resp)
-      |> List.filter (fun (k, _) ->
-        let lower = String.lowercase_ascii k in
-        lower <> "content-length" && lower <> "transfer-encoding")
-    in
-    format_raw_response status_code "OK" resp_headers body_string)
+    with_timeout sw (fun () ->
+      let client = cohttp_client_of_net net in
+      let cohttp_headers = Cohttp.Header.of_list req_headers in
+      let body = Cohttp_eio.Body.of_string req_body in
+      let resp, resp_body = Cohttp_eio.Client.call ~sw
+        ~headers:cohttp_headers ~body client `POST uri in
+      let status_code = Cohttp.Code.code_of_status (Http.Response.status resp) in
+      let body_string =
+        Eio.Buf_read.parse_exn ~max_size:(100 * 1024 * 1024) Eio.Buf_read.take_all resp_body
+      in
+      let resp_headers =
+        Cohttp.Header.to_list (Http.Response.headers resp)
+        |> List.filter (fun (k, _) ->
+          let lower = String.lowercase_ascii k in
+          lower <> "content-length" && lower <> "transfer-encoding")
+      in
+      format_raw_response status_code "OK" resp_headers body_string))
 
 (* -------------------------------------------------------------------------- *)
 (* Incremental streaming response                                              *)
@@ -387,18 +407,19 @@ let do_request_streaming net url request k =
   let uri_str = Printf.sprintf "%s://%s:%d%s" scheme url.host url.port req_path in
   let uri = Uri.of_string uri_str in
   Eio.Switch.run (fun sw ->
-    let client = cohttp_client_of_net net in
-    let cohttp_headers = Cohttp.Header.of_list req_headers in
-    let body = Cohttp_eio.Body.of_string req_body in
-    let resp, resp_body = Cohttp_eio.Client.call ~sw
-      ~headers:cohttp_headers ~body client `POST uri in
-    let status = Cohttp.Code.code_of_status (Http.Response.status resp) in
-    let headers_str = String.concat "\r\n" (
-      List.map (fun (k,v) -> k ^ ": " ^ v) (Cohttp.Header.to_list (Http.Response.headers resp))
-    ) in
-    let r = Eio.Buf_read.of_flow ~max_size:(100 * 1024 * 1024) resp_body in
-    k ~status ~headers:headers_str ~read_line:(fun () ->
-      try Some (Eio.Buf_read.line r) with _ -> None))
+    with_timeout sw (fun () ->
+      let client = cohttp_client_of_net net in
+      let cohttp_headers = Cohttp.Header.of_list req_headers in
+      let body = Cohttp_eio.Body.of_string req_body in
+      let resp, resp_body = Cohttp_eio.Client.call ~sw
+        ~headers:cohttp_headers ~body client `POST uri in
+      let status = Cohttp.Code.code_of_status (Http.Response.status resp) in
+      let headers_str = String.concat "\r\n" (
+        List.map (fun (k,v) -> k ^ ": " ^ v) (Cohttp.Header.to_list (Http.Response.headers resp))
+      ) in
+      let r = Eio.Buf_read.of_flow ~max_size:(100 * 1024 * 1024) resp_body in
+      k ~status ~headers:headers_str ~read_line:(fun () ->
+        try Some (Eio.Buf_read.line r) with _ -> None)))
 
 type _exec_result = {
   status : int;

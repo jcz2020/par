@@ -50,3 +50,6 @@ val do_request_streaming_with_flow :
    read_line:(unit -> string option) ->
    'a) ->
   'a
+
+val set_clock : 'a -> unit
+val set_request_timeout : float -> unit

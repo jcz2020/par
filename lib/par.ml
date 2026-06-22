@@ -28,6 +28,7 @@ module Tool_registry = Tool_registry
 module Openai_provider = Openai_provider
 module Anthropic_provider = Anthropic_provider
 module Mock_provider = Mock_provider
+module Http_client = Http_client
 
 module Sqlite_persistence = Sqlite_persistence
 module Noop_persistence = Noop_persistence

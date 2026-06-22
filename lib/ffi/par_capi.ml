@@ -252,6 +252,7 @@ let do_init (config_json : string) =
       (* Initialize the mirage-crypto RNG so TLS works. Required by
          Http_client for HTTPS connections. *)
       Mirage_crypto_rng_unix.use_default ();
+      Http_client.set_clock (Eio.Stdenv.clock env);
       try
         let net = Eio.Stdenv.net env in
         let providers = config.Par.Types.llm_providers in
