@@ -21,6 +21,8 @@ module Workflow_engine = Workflow_engine
 module State_machine = State_machine
 module Context_manager = Context_manager
 module Cancellation = Cancellation
+module Chunking = Chunking
+module Vector_store = Vector_store
 module Tool_registry = Tool_registry
 
 module Openai_provider = Openai_provider

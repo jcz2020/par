@@ -1,6 +1,5 @@
 (* par_capi.ml — OCaml side of the C FFI bridge.
-    Registers OCaml functions via Callback.register so C code can call them.
-    Uses an Eio event loop thread to serialize all Runtime operations. *)
+     Persistent Eio domain per Runtime, work-loop dispatch. *)
 
 open Par
 let () = ()
@@ -23,88 +22,330 @@ let json_escape s =
 let error_json msg =
   Printf.sprintf "{\"error\": \"%s\"}" (json_escape msg)
 
-type ffi_handle = {
-  rt : Par.Runtime.runtime;
+(* Direct fd write so debug output is visible from inside an Eio domain
+   (Eio redirects stderr buffers per-domain). *)
+let fd_log s =
+  if Sys.getenv_opt "PAR_FFI_DEBUG" <> None then begin
+    let msg = s ^ "\n" in
+    ignore (Unix.write_substring Unix.stderr msg 0 (String.length msg))
+  end
+
+(* -------------------------------------------------------------------------- *)
+(* Per-runtime state. Cross-domain-safe: only stdlib primitives.              *)
+(* -------------------------------------------------------------------------- *)
+
+(* Per-call result slot: cross-domain-safe single-value channel.
+   The callback allocates a slot, enqueues the work item that holds
+   the slot, then waits. The work loop fills the slot and signals. *)
+type 'a result_slot = {
+  slot_mutex : Mutex.t;
+  slot_cond : Condition.t;
+  mutable slot_value : 'a option;
 }
 
-let handles : (int, ffi_handle) Hashtbl.t = Hashtbl.create 8
-let handle_counter = ref 0
+let create_slot () = {
+  slot_mutex = Mutex.create ();
+  slot_cond = Condition.create ();
+  slot_value = None;
+}
 
-let alloc_handle h =
-  incr handle_counter;
-  let id = !handle_counter in
-  Hashtbl.add handles id h;
+let slot_put slot v =
+  Mutex.lock slot.slot_mutex;
+  slot.slot_value <- Some v;
+  Condition.signal slot.slot_cond;
+  Mutex.unlock slot.slot_mutex
+
+let slot_take slot =
+  Mutex.lock slot.slot_mutex;
+  while slot.slot_value = None do
+    Condition.wait slot.slot_cond slot.slot_mutex
+  done;
+  let v = Option.get slot.slot_value in
+  Mutex.unlock slot.slot_mutex;
+  v
+
+(* Work item: the closure is stored existentially (Obj.t) so the queue
+   is monomorphic. The dispatch helper reconstructs the call by
+   downcasting the closure at runtime. *)
+type work_item = {
+  work : Obj.t;  (* holds runtime -> env -> Obj.t closure *)
+  result : Obj.t result_slot;
+}
+
+type runtime_state = {
+  work_queue : work_item Queue.t;
+  work_mutex : Mutex.t;
+  work_cond : Condition.t;
+}
+
+let states : (int, runtime_state) Hashtbl.t = Hashtbl.create 8
+let domains : (int, unit Domain.t) Hashtbl.t = Hashtbl.create 8
+let state_counter = ref 0
+
+let alloc_state () =
+  incr state_counter;
+  let id = !state_counter in
+  let state = {
+    work_queue = Queue.create ();
+    work_mutex = Mutex.create ();
+    work_cond = Condition.create ();
+  } in
+  Hashtbl.add states id state;
   id
 
-let get_handle id =
-  try Some (Hashtbl.find handles id)
+let get_state id =
+  try Some (Hashtbl.find states id)
   with Not_found -> None
 
-let free_handle id =
-  Hashtbl.remove handles id
+let free_state id =
+  Hashtbl.remove states id
 
-let unwrap : string option -> Obj.t = function
-  | Some v -> Obj.repr v
-  | None -> Obj.repr "{\"error\": \"internal: no response from worker\"}"
+(* Dispatch helper: enqueue work, wait for result. *)
+let dispatch state_id (work_fn : Par.Runtime.runtime -> 'e -> Obj.t) : Obj.t =
+  fd_log "[dispatch] enter";
+  match get_state state_id with
+  | None -> fd_log "[dispatch] state not found"; Obj.repr None
+  | Some state ->
+    let result_slot = create_slot () in
+    fd_log "[dispatch] acquiring work_mutex";
+    Mutex.lock state.work_mutex;
+    fd_log "[dispatch] work_mutex acquired, pushing work";
+    Queue.push { work = Obj.repr work_fn; result = result_slot } state.work_queue;
+    Condition.signal state.work_cond;
+    Mutex.unlock state.work_mutex;
+    fd_log "[dispatch] work pushed, taking slot";
+    let r = slot_take result_slot in
+    fd_log "[dispatch] slot taken";
+    r
 
-let shutdown_flag = ref false
+(* Sentinel: when this appears at the front of the queue, the work loop
+   shuts down. *)
+let shutdown_sentinel : Obj.t = Obj.repr (fun (_rt : Par.Runtime.runtime) (_env : Obj.t) (_ : Obj.t) -> Obj.repr ())
+
+(* Work loop: runs inside the persistent Eio domain. Captures rt and env
+   lexically — never crosses domain boundary. *)
+let rec work_loop rt env state =
+  Mutex.lock state.work_mutex;
+  let rec wait_for_work () =
+    if Queue.is_empty state.work_queue then begin
+      Condition.wait state.work_cond state.work_mutex;
+      wait_for_work ()
+    end
+  in
+  wait_for_work ();
+  let item = Queue.pop state.work_queue in
+  Mutex.unlock state.work_mutex;
+  if item.work == shutdown_sentinel then begin
+    fd_log "[work_loop] shutdown sentinel received, exiting"
+  end else begin
+    (try
+       let fn : Par.Runtime.runtime -> _ -> Obj.t = Obj.obj item.work in
+       let result = fn rt env in
+       slot_put item.result result
+     with ex ->
+       fd_log ("[work_loop] work item raised: " ^ Printexc.to_string ex);
+       slot_put item.result (Obj.repr None));
+    work_loop rt env state
+  end
+
+(* -------------------------------------------------------------------------- *)
+(* Service factories                                                          *)
+(* -------------------------------------------------------------------------- *)
+
+let default_llm_service : Par.Types.llm_service = {
+  complete_fn = (fun _ _ _ -> Result.Error (Par.Types.Internal "LLM not initialized"));
+  stream_fn = (fun _ _ _ _ _ -> Result.Error (Par.Types.Internal "LLM not initialized"));
+  close_fn = ignore;
+  complete_structured_fn = None;
+}
+
+let build_llm_from_provider provider_cfg net =
+  let net_gen = (net :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
+  match provider_cfg with
+  | Par.Types.Openai { api_key; base_url; _ } ->
+    (match Par.Openai_provider.create (Par.Types.Openai { api_key; base_url; organization = None }) with
+     | Ok t ->
+       Par.Openai_provider.set_network t net_gen;
+       Some {
+         Par.Types.complete_fn = (fun mc tools conv -> Par.Openai_provider.complete t mc tools conv);
+         stream_fn = (fun mc tools conv sc cb -> Par.Openai_provider.stream t mc tools conv sc cb);
+         close_fn = (fun () -> Par.Openai_provider.close t);
+         complete_structured_fn = None;
+       }
+     | Error _ -> None)
+  | Par.Types.Ollama { base_url } ->
+    let cfg = Par.Types.Openai { api_key = "ollama-no-auth"; base_url = Some (base_url ^ "/v1"); organization = None } in
+    (match Par.Openai_provider.create cfg with
+     | Ok t ->
+       Par.Openai_provider.set_network t net_gen;
+       Some {
+         Par.Types.complete_fn = (fun mc tools conv -> Par.Openai_provider.complete t mc tools conv);
+         stream_fn = (fun mc tools conv sc cb -> Par.Openai_provider.stream t mc tools conv sc cb);
+         close_fn = (fun () -> Par.Openai_provider.close t);
+         complete_structured_fn = None;
+       }
+     | Error _ -> None)
+  | Par.Types.Anthropic _ ->
+    fd_log "[llm] Anthropic provider not yet supported for LLM, skipping";
+    None
+  | Par.Types.Custom _ ->
+    fd_log "[llm] Custom provider not supported, skipping";
+    None
+
+let build_embed_from_provider provider_cfg net =
+  let net_gen = (net :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
+  match provider_cfg with
+  | Par.Types.Openai { api_key; base_url; _ } ->
+    (match Par.Openai_provider.create (Par.Types.Openai { api_key; base_url; organization = None }) with
+     | Ok t ->
+       Par.Openai_provider.set_network t net_gen;
+       Some { Par.Types.embed_fn = (fun msgs -> Par.Openai_provider.embed t msgs);
+              Par.Types.close_fn = (fun () -> Par.Openai_provider.close t) }
+     | Error _ -> None)
+  | Par.Types.Ollama { base_url } ->
+    fd_log (Printf.sprintf "[embed] wiring Ollama (base_url=%s)" base_url);
+    (* Ollama doesn't use API keys, but Openai_provider.create validates
+       non-empty api_key. Pass a placeholder that Ollama will ignore. *)
+    let cfg = Par.Types.Openai { api_key = "ollama-no-auth"; base_url = Some (base_url ^ "/v1"); organization = None } in
+    (match Par.Openai_provider.create cfg with
+     | Ok t ->
+       Par.Openai_provider.set_network t net_gen;
+       fd_log "[embed] Ollama->Openai compat provider created OK";
+       Some { Par.Types.embed_fn = (fun msgs -> Par.Openai_provider.embed t msgs);
+              Par.Types.close_fn = (fun () -> Par.Openai_provider.close t) }
+     | Error e ->
+       let err_str = match e with
+         | Par.Types.Timeout -> "Timeout"
+         | Par.Types.Invalid_input m -> "Invalid_input: " ^ m
+         | _ -> "other"
+       in
+       fd_log ("[embed] Ollama->Openai create Error: " ^ err_str);
+       None)
+  | Par.Types.Anthropic _ ->
+    fd_log "[embed] Anthropic not supported for embeddings";
+    None
+  | Par.Types.Custom _ ->
+    fd_log "[embed] Custom provider not supported";
+    None
+
+(* -------------------------------------------------------------------------- *)
+(* do_init: spawns persistent Eio domain, blocks until runtime ready.         *)
+(* -------------------------------------------------------------------------- *)
 
 let do_init (config_json : string) =
+  fd_log "[do_init] enter";
   let json = Yojson.Safe.from_string config_json in
   let config = match Par.Types.runtime_config_of_yojson json with
     | Ok c -> c
     | Error s -> failwith (Printf.sprintf "Invalid config JSON: %s" s)
   in
-  (* Run Eio_main.run in a fresh domain. This is required because
-     Eio_main.run must be the entry point of an application — calling
-     it from a C callback (which is what we are, via par_init) hangs
-     because the event loop never gets to start.
-     See [par_ffi.c] for the C-side mirror of this design. *)
-  let result_dom = Domain.spawn (fun () ->
-    Eio_main.run (fun _env ->
-      Eio.Switch.run (fun sw ->
-        match Par.Runtime.create ~config sw with
-        | Ok r -> r
-        | Error _ -> failwith "Runtime.create failed"
-      )
+  let state_id = alloc_state () in
+  let state = Hashtbl.find states state_id in
+  fd_log (Printf.sprintf "[do_init] state_id=%d allocated" state_id);
+  (* Slot for init result communication *)
+  let init_slot : [ `Ok of Par.Runtime.runtime | `Error of string ] result_slot =
+    create_slot () in
+  let dom = Domain.spawn (fun () ->
+    fd_log "[do_init] domain spawned, about to call Eio_main.run";
+    Eio_main.run (fun env ->
+      fd_log "[do_init] inside Eio_main.run callback";
+      (* Initialize the mirage-crypto RNG so TLS works. Required by
+         Http_client for HTTPS connections. *)
+      Mirage_crypto_rng_unix.use_default ();
+      try
+        let net = Eio.Stdenv.net env in
+        let providers = config.Par.Types.llm_providers in
+        fd_log (Printf.sprintf "[do_init] providers=%d" (List.length providers));
+        let llm_opt, embed_opt =
+          match providers with
+          | [] -> (None, None)
+          | (_, provider_cfg) :: _ ->
+            (build_llm_from_provider provider_cfg net,
+             build_embed_from_provider provider_cfg net)
+        in
+        let llm = Option.value llm_opt ~default:default_llm_service in
+        fd_log "[do_init] about to call Runtime.create";
+        Eio.Switch.run (fun sw ->
+          match Par.Runtime.create ~config ~llm ?embeddings:embed_opt sw with
+          | Ok rt ->
+            fd_log "[do_init] Runtime.create Ok, putting init slot";
+            slot_put init_slot (`Ok rt);
+            fd_log "[do_init] entering work_loop";
+            work_loop rt env state
+          | Error e ->
+            let err_str = match e with
+              | Par.Types.Timeout -> "Timeout"
+              | Par.Types.Invalid_input m -> "Invalid_input: " ^ m
+              | Par.Types.External_failure m -> "External_failure: " ^ m
+              | Par.Types.Rate_limited -> "Rate_limited"
+              | Par.Types.Permission_denied m -> "Permission_denied: " ^ m
+              | Par.Types.Internal m -> "Internal: " ^ m
+              | Par.Types.Embedding_unsupported -> "Embedding_unsupported"
+            in
+            fd_log ("[do_init] Runtime.create Error: " ^ err_str);
+            slot_put init_slot (`Error err_str)
+        )
+      with ex ->
+        fd_log ("[do_init] EXCEPTION: " ^ Printexc.to_string ex);
+        slot_put init_slot (`Error (Printexc.to_string ex))
     )
   ) in
-  let rt = Domain.join result_dom in
-  let handle = { rt } in
-  let id = alloc_handle handle in
-  Obj.repr id
+  Hashtbl.replace domains state_id dom;
+  fd_log "[do_init] about to take init_slot";
+  match slot_take init_slot with
+  | `Ok _rt -> fd_log "[do_init] init slot Ok"; Obj.repr state_id
+  | `Error msg ->
+    fd_log ("[do_init] init slot Error: " ^ msg);
+    (match Hashtbl.find_opt domains state_id with
+     | Some d -> ignore (Domain.join d)
+     | None -> ());
+    free_state state_id;
+    Hashtbl.remove domains state_id;
+    failwith ("Runtime.create failed: " ^ msg)
 
-let do_shutdown (id : int) =
-  match get_handle id with
+(* do_shutdown: dispatch Runtime.close to the work loop, then enqueue
+   sentinel to terminate the work loop, then join domain. *)
+let do_shutdown (state_id : int) =
+  match get_state state_id with
   | None -> error_json "Invalid runtime handle"
-  | Some handle ->
-    shutdown_flag := true;
-    (try let _ = Par.Runtime.close handle.rt in ()
-     with ex -> Logs.err (fun m -> m "par_capi: Runtime.close failed: %s" (Printexc.to_string ex)));
-    free_handle id;
+  | Some state ->
+    let result_slot = create_slot () in
+    Mutex.lock state.work_mutex;
+    Queue.push {
+      work = Obj.repr (fun rt _env ->
+        let _ = Par.Runtime.close rt in
+        Obj.repr 0);
+      result = result_slot;
+    } state.work_queue;
+    (* Sentinel will cause work_loop to exit after processing the close. *)
+    Queue.push { work = shutdown_sentinel; result = create_slot () } state.work_queue;
+    Condition.signal state.work_cond;
+    Condition.signal state.work_cond;
+    Mutex.unlock state.work_mutex;
+    let _ : Obj.t = slot_take result_slot in
+    (match Hashtbl.find_opt domains state_id with
+     | Some d -> ignore (Domain.join d)
+     | None -> ());
+    free_state state_id;
+    Hashtbl.remove domains state_id;
     "{\"status\": \"ok\"}"
 
-(* Return codes for par_register_tool:
-   0  = success
-   -1 = general error (e.g. invalid handle, internal failure)
-   -2 = invalid JSON schema (malformed JSON or not an object)
-   -3 = empty tool name
-   -4 = duplicate tool name *)
+(* -------------------------------------------------------------------------- *)
+(* do_register_tool                                                           *)
+(* -------------------------------------------------------------------------- *)
 
-let do_register_tool (id : int) (name : string) (desc : string) (schema : string) =
-  match get_handle id with
+let do_register_tool (state_id : int) (name : string) (desc : string) (schema : string) =
+  match get_state state_id with
   | None -> Obj.repr (-1)
-  | Some handle ->
-    if String.length name = 0 then Obj.repr (-3)
-    else
-      (try
-         let json_schema = Yojson.Safe.from_string schema in
-         (match json_schema with
-          | `Assoc _ ->
-             if Par.Tool_registry.resolve (Par.Runtime.tool_registry handle.rt) name <> None
-             then Obj.repr (-4)
-             else
-               (match Par.Runtime.register_tool handle.rt
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      if String.length name = 0 then Obj.repr (-3)
+      else
+        (try
+           let json_schema = Yojson.Safe.from_string schema in
+           (match json_schema with
+            | `Assoc _ ->
+               (match Par.Runtime.register_tool rt
                   ~name ~description:desc
                   ~input_schema:json_schema
                   ~handler:(fun input _token ->
@@ -115,59 +356,63 @@ let do_register_tool (id : int) (name : string) (desc : string) (schema : string
                   () with
                 | Ok _ -> Obj.repr 0
                 | Error _ -> Obj.repr (-4))
-          | _ -> Obj.repr (-2))
-       with
-        | Yojson.Json_error _ -> Obj.repr (-2)
-        | _ -> Obj.repr (-1))
+            | _ -> Obj.repr (-2))
+         with
+          | Yojson.Json_error _ -> Obj.repr (-2)
+          | _ -> Obj.repr (-1))) in
+    result
 
 external c_invoke_python_handler : int -> string -> string = "caml_invoke_python_handler"
+external c_dispatch_chunk_to_c : string -> unit = "caml_dispatch_chunk_to_c"
 
-let do_register_tool_with_handler (id : int) (name : string) (desc : string)
+let do_register_tool_with_handler (state_id : int) (name : string) (desc : string)
     (schema : string) (handler_id : int) =
-  match get_handle id with
+  match get_state state_id with
   | None -> Obj.repr (-1)
-  | Some handle ->
-    if String.length name = 0 then Obj.repr (-3)
-    else
-      (try
-         let json_schema = Yojson.Safe.from_string schema in
-         (match json_schema with
-          | `Assoc _ ->
-             if Par.Tool_registry.resolve (Par.Runtime.tool_registry handle.rt) name <> None
-             then Obj.repr (-4)
-             else
-                let handler_fn input _token =
-                  let input_str = Yojson.Safe.to_string input in
-                  let result_str = c_invoke_python_handler handler_id input_str in
-                  let open Par.Types in
-                  if String.length result_str = 0 then
-                    Error {
-                      category = Internal "python handler returned empty";
-                      message = Printf.sprintf "Python handler %d returned empty" handler_id;
-                      retryable = false;
-                      metadata = [];
-                    }
-                  else
-                    (try Success (Yojson.Safe.from_string result_str)
-                     with _ ->
-                       Error {
-                         category = Internal "invalid JSON from Python handler";
-                         message = "Python handler returned invalid JSON";
-                         retryable = false;
-                         metadata = [];
-                       })
+  | Some _ ->
+    dispatch state_id (fun rt _env ->
+      if String.length name = 0 then Obj.repr (-3)
+      else
+        (try
+           let json_schema = Yojson.Safe.from_string schema in
+           (match json_schema with
+            | `Assoc _ ->
+               let handler_fn input _token =
+                 let input_str = Yojson.Safe.to_string input in
+                 let result_str = c_invoke_python_handler handler_id input_str in
+                 let open Par.Types in
+                 if String.length result_str = 0 then
+                   Error {
+                     category = Internal "python handler returned empty";
+                     message = Printf.sprintf "Python handler %d returned empty" handler_id;
+                     retryable = false;
+                     metadata = [];
+                   }
+                 else
+                   (try Success (Yojson.Safe.from_string result_str)
+                    with _ ->
+                      Error {
+                        category = Internal "invalid JSON from Python handler";
+                        message = "Python handler returned invalid JSON";
+                        retryable = false;
+                        metadata = [];
+                      })
                in
-               (match Par.Runtime.register_tool handle.rt
+               (match Par.Runtime.register_tool rt
                   ~name ~description:desc
                   ~input_schema:json_schema
                   ~handler:handler_fn
                   () with
-                | Ok _ -> Obj.repr 0
-                | Error _ -> Obj.repr (-4))
-          | _ -> Obj.repr (-2))
-       with
-       | Yojson.Json_error _ -> Obj.repr (-2)
-       | _ -> Obj.repr (-1))
+                 | Ok _ -> Obj.repr 0
+                 | Error _ -> Obj.repr (-4))
+            | _ -> Obj.repr (-2))
+         with
+         | Yojson.Json_error _ -> Obj.repr (-2)
+         | _ -> Obj.repr (-1)))
+
+(* -------------------------------------------------------------------------- *)
+(* Config parsers (unchanged from previous code)                              *)
+(* -------------------------------------------------------------------------- *)
 
 let parse_provider (s : string) : [> `Openai | `Anthropic | `Ollama | `Custom of string ] =
   match String.lowercase_ascii s with
@@ -185,8 +430,13 @@ let parse_model_config (json : Yojson.Safe.t) : Par.Types.model_config =
   let temperature = json |> member "temperature" |> to_float_option |> Option.value ~default:0.7 in
   let max_tokens = json |> member "max_tokens" |> to_int_option in
   let top_p = json |> member "top_p" |> to_float_option in
-  let stop_sequences = json |> member "stop_sequences" |> to_list |> List.filter_map to_string_option |> Option.some in
-  { provider; model_name; api_base; temperature; max_tokens; top_p; stop_sequences }
+  let stop_sequences =
+    match json |> member "stop_sequences" with
+    | `Null -> []
+    | `List _ as v -> Yojson.Safe.Util.to_list v |> List.filter_map Yojson.Safe.Util.to_string_option
+    | _ -> []
+  in
+  { provider; model_name; api_base; temperature; max_tokens; top_p; stop_sequences = Some stop_sequences }
 
 let parse_system_prompt_template (json : Yojson.Safe.t) : Par.Types.system_prompt_template =
   let open Yojson.Safe.Util in
@@ -234,58 +484,94 @@ let parse_agent_config (json : Yojson.Safe.t) : Par.Types.agent_config =
   { id; system_prompt; system_prompt_template; model; tools; max_iterations;
     middleware; retry_policy; context_strategy; resource_quota }
 
-let do_register_agent (id : int) (config_json : string) =
-  match get_handle id with
+let do_register_agent (state_id : int) (config_json : string) =
+  match get_state state_id with
   | None -> Obj.repr (-1)
-  | Some handle ->
-    (try
-       let json = Yojson.Safe.from_string config_json in
-       let config = parse_agent_config json in
-       match Par.Runtime.register_agent handle.rt config with
-       | Ok () -> Obj.repr 0
-       | Error _ -> Obj.repr (-1)
-     with
-     | _ -> Obj.repr (-1))
+  | Some _ ->
+    dispatch state_id (fun rt _env ->
+      (try
+         let json = Yojson.Safe.from_string config_json in
+         let config = parse_agent_config json in
+         match Par.Runtime.register_agent rt config with
+         | Ok () -> Obj.repr 0
+         | Error _ -> Obj.repr (-1)
+       with
+       | exc ->
+         fd_log ("[do_register_agent] EXCEPTION: " ^ Printexc.to_string exc);
+         Obj.repr (-1)))
 
-let do_invoke (id : int) (agent_id : string) (message : string) =
-  match get_handle id with
+let do_invoke (state_id : int) (agent_id : string) (message : string) =
+  match get_state state_id with
   | None -> None
-  | Some handle ->
-    (try
-        let result = Par.Runtime.invoke handle.rt
-          ~agent_id ~message () in
-        let json = match result with
-          | Ok { Par.Types.response = resp; conversation = _ } ->
-            Printf.sprintf "{\"status\": \"ok\", \"content\": %s}"
-              (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp))
-          | Error (err, _) ->
-            error_json (Printf.sprintf "Invoke failed: %s"
-              (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
-       in
-       Some json
-     with e -> Some (error_json (Printexc.to_string e)))
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      (try
+         let result = Par.Runtime.invoke rt
+           ~agent_id ~message () in
+         let json = match result with
+           | Ok { Par.Types.response = resp; conversation = _ } ->
+             Printf.sprintf "{\"status\": \"ok\", \"content\": %s}"
+               (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp))
+           | Error (err, _) ->
+             error_json (Printf.sprintf "Invoke failed: %s"
+               (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
+         in
+         Obj.repr (Some json)
+       with e -> Obj.repr (Some (error_json (Printexc.to_string e))))) in
+    (Obj.obj result : string option)
 
-let do_invoke_structured (id : int) (agent_id : string) (message : string) (schema_json : string) =
-  match get_handle id with
+let do_invoke_structured (state_id : int) (agent_id : string) (message : string) (schema_json : string) =
+  match get_state state_id with
   | None -> None
-  | Some handle ->
-    (try
-       let response_schema = Yojson.Safe.from_string schema_json in
-       let result = Par.Runtime.invoke_structured handle.rt
-         ~agent_id ~message ~response_schema () in
-       let json = match result with
-         | Ok { Par.Types.value; raw_response; conversation = _; attempts } ->
-           Printf.sprintf
-             "{\"status\": \"ok\", \"value\": %s, \"raw\": %s, \"attempts\": %d}"
-             (Yojson.Safe.to_string value)
-             (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson raw_response))
-             attempts
-         | Error (err, _) ->
-           error_json (Printf.sprintf "Invoke_structured failed: %s"
-             (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
-       in
-       Some json
-     with e -> Some (error_json (Printexc.to_string e)))
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      (try
+         let response_schema = Yojson.Safe.from_string schema_json in
+         let result = Par.Runtime.invoke_structured rt
+           ~agent_id ~message ~response_schema () in
+         let json = match result with
+           | Ok { Par.Types.value; raw_response; conversation = _; attempts } ->
+             Printf.sprintf
+               "{\"status\": \"ok\", \"value\": %s, \"raw\": %s, \"attempts\": %d}"
+               (Yojson.Safe.to_string value)
+               (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson raw_response))
+               attempts
+           | Error (err, _) ->
+             error_json (Printf.sprintf "Invoke_structured failed: %s"
+               (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
+         in
+         Obj.repr (Some json)
+       with e -> Obj.repr (Some (error_json (Printexc.to_string e))))) in
+    (Obj.obj result : string option)
+
+let chunk_to_json_dispatch (chunk : Par.Types.llm_response_chunk) =
+  let json =
+    Par.Types.llm_response_chunk_to_yojson chunk
+    |> Yojson.Safe.to_string
+  in
+  c_dispatch_chunk_to_c json
+
+let do_invoke_stream (state_id : int) (agent_id : string) (message : string) =
+  match get_state state_id with
+  | None -> error_json "Invalid runtime handle"
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      (try
+         let result = Par.Runtime.invoke rt
+           ~agent_id ~message
+           ~on_chunk:(Some chunk_to_json_dispatch)
+           () in
+         let json = match result with
+           | Ok { Par.Types.response = resp; conversation = _ } ->
+             Printf.sprintf "{\"status\": \"ok\", \"content\": %s}"
+               (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp))
+           | Error (err, _) ->
+             error_json (Printf.sprintf "Invoke_stream failed: %s"
+               (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
+         in
+         Obj.repr json
+       with e -> Obj.repr (error_json (Printexc.to_string e)))) in
+    (Obj.obj result : string)
 
 let parse_workflow (json : Yojson.Safe.t) : Par.Types.workflow =
   let open Yojson.Safe.Util in
@@ -305,269 +591,435 @@ let parse_workflow (json : Yojson.Safe.t) : Par.Types.workflow =
   { id; name; version; steps; variables = variables_json;
     failure_policy; parallel_limit; timeout; on_complete }
 
-let do_submit_workflow (id : int) (workflow_json : string) =
-  match get_handle id with
+let do_submit_workflow (state_id : int) (workflow_json : string) =
+  match get_state state_id with
   | None -> None
-  | Some handle ->
-    (try
-       let json = Yojson.Safe.from_string workflow_json in
-       let wf = parse_workflow json in
-       match Par.Runtime.submit_workflow handle.rt wf with
-       | Ok run_id ->
-         let json_response = Printf.sprintf "{\"status\": \"ok\", \"workflow_run_id\": \"%s\"}"
-           (Par.Types.Workflow_run_id.to_string run_id)
-         in
-         Some json_response
-       | Error err ->
-         Some (error_json (Printf.sprintf "submit_workflow failed: %s"
-           (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err))))
-     with e -> Some (error_json (Printexc.to_string e)))
-
-let do_approve_workflow (id : int) (run_id : string) (approver : string) =
-  match get_handle id with
-  | None -> -1
-  | Some handle ->
-    (try
-       let wf_id = Par.Types.Workflow_run_id.of_string run_id in
-       let result = Par.Runtime.approve_workflow handle.rt wf_id ~approver in
-       (match result with
-        | Ok () -> 0
-        | Error _ -> -1)
-     with _ -> -1)
-
-let do_resume_workflow (id : int) (run_id : string) =
-  match get_handle id with
-  | None -> None
-  | Some handle ->
-    (try
-       let wf_id = Par.Types.Workflow_run_id.of_string run_id in
-       let result = Par.Runtime.resume_workflow handle.rt wf_id in
-       let json = match result with
-         | Ok (Some wf_result) ->
-           Printf.sprintf "{\"status\": \"ok\", \"result\": %s}"
-             (Yojson.Safe.to_string (Par.Types.workflow_result_to_yojson wf_result))
-         | Ok None -> "{\"status\": \"ok\", \"result\": null}"
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      (try
+         let json = Yojson.Safe.from_string workflow_json in
+         let wf = parse_workflow json in
+         match Par.Runtime.submit_workflow rt wf with
+         | Ok run_id ->
+           let json_response = Printf.sprintf "{\"status\": \"ok\", \"workflow_run_id\": \"%s\"}"
+             (Par.Types.Workflow_run_id.to_string run_id)
+           in
+           Obj.repr (Some json_response)
          | Error err ->
-           error_json (Printf.sprintf "resume_workflow failed: %s"
-             (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
-       in
-       Some json
-      with e -> Some (error_json (Printexc.to_string e)))
+           Obj.repr (Some (error_json (Printf.sprintf "submit_workflow failed: %s"
+             (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))))
+       with e -> Obj.repr (Some (error_json (Printexc.to_string e))))) in
+    (Obj.obj result : string option)
 
-let do_mcp_server (id : int) (sid : string) : string option =
-  match get_handle id with
-  | None -> Some (error_json "Invalid runtime handle")
-  | Some handle ->
-    (try
-      match Par.Mcp_types.server_id_of_string sid with
-      | Error e -> Some (error_json (Yojson.Safe.to_string (Par.Types.error_category_to_yojson e)))
-      | Ok server_id ->
-        (match Par.Runtime.mcp_server handle.rt server_id with
-         | Error e -> Some (error_json (Yojson.Safe.to_string (Par.Types.error_category_to_yojson e)))
-         | Ok _server ->
-           Some "{\"status\": \"ok\", \"note\": \"mcp_server connected\"}")
-     with e ->
-       Some (error_json (Printexc.to_string e)))
-
-let do_mcp_list_tools (id : int) (sid : string) : string option =
-  match get_handle id with
-  | None -> Some (error_json "Invalid runtime handle")
-  | Some handle ->
-    (try
-      match Par.Mcp_types.server_id_of_string sid with
-      | Error e -> Some (error_json (Yojson.Safe.to_string (Par.Types.error_category_to_yojson e)))
-      | Ok server_id ->
-        (match Par.Runtime.mcp_server handle.rt server_id with
-         | Error e -> Some (error_json (Yojson.Safe.to_string (Par.Types.error_category_to_yojson e)))
-         | Ok server ->
-           let tools = Par.Mcp_client.list_tools (Par.Mcp_client.of_server server) in
-           (match tools with
-            | Error e -> Some (error_json (Yojson.Safe.to_string (Par.Types.error_category_to_yojson e)))
-            | Ok tl ->
-              let arr = List.map (fun (t : Par.Mcp_types.mcp_tool) ->
-                Printf.sprintf "{\"name\":\"%s\"}" (json_escape t.Par.Mcp_types.name)
-              ) tl in
-              Some (Printf.sprintf "{\"tools\":[%s]}" (String.concat "," arr))))
-     with e ->
-       Some (error_json (Printexc.to_string e)))
-
-let do_workflow_status (id : int) (run_id : string) : string option =
-  match get_handle id with
-  | None -> Some (error_json "Invalid runtime handle")
-  | Some _handle ->
-    (try
-      Some (Printf.sprintf "{\"run_id\":\"%s\",\"status\":\"unknown\"}" (json_escape run_id))
-     with e ->
-       Some (error_json (Printexc.to_string e)))
-
-let do_workflow_cancel (id : int) (_run_id : string) : int =
-  match get_handle id with
+let do_approve_workflow (state_id : int) (run_id : string) (approver : string) =
+  match get_state state_id with
   | None -> -1
-  | Some _handle -> -1
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      (try
+         let wf_id = Par.Types.Workflow_run_id.of_string run_id in
+         let result = Par.Runtime.approve_workflow rt wf_id ~approver in
+         (match result with
+          | Ok () -> Obj.repr 0
+          | Error _ -> Obj.repr (-1))
+       with _ -> Obj.repr (-1))) in
+    (Obj.obj result : int)
 
-let do_event_subscribe (_id : int) (_cb : int) : int = -1
+let do_resume_workflow (state_id : int) (run_id : string) =
+  match get_state state_id with
+  | None -> None
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      (try
+         let wf_id = Par.Types.Workflow_run_id.of_string run_id in
+         let result = Par.Runtime.resume_workflow rt wf_id in
+         let json = match result with
+           | Ok (Some wf_result) ->
+             Printf.sprintf "{\"status\": \"ok\", \"result\": %s}"
+               (Yojson.Safe.to_string (Par.Types.workflow_result_to_yojson wf_result))
+           | Ok None -> "{\"status\": \"ok\", \"result\": null}"
+           | Error err ->
+             error_json (Printf.sprintf "resume_workflow failed: %s"
+               (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
+         in
+         Obj.repr (Some json)
+       with e -> Obj.repr (Some (error_json (Printexc.to_string e))))) in
+    (Obj.obj result : string option)
 
- let do_version () : string = Par.Version.version
+let do_mcp_server (state_id : int) (sid : string) : string option =
+  match get_state state_id with
+  | None -> Some (error_json "Invalid runtime handle")
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      (try
+         match Par.Mcp_types.server_id_of_string sid with
+         | Error e -> Obj.repr (Some (error_json (Yojson.Safe.to_string (Par.Types.error_category_to_yojson e))))
+         | Ok server_id ->
+           (match Par.Runtime.mcp_server rt server_id with
+            | Error e -> Obj.repr (Some (error_json (Yojson.Safe.to_string (Par.Types.error_category_to_yojson e))))
+            | Ok _server ->
+              Obj.repr (Some "{\"status\": \"ok\", \"note\": \"mcp_server connected\"}"))
+       with e ->
+         Obj.repr (Some (error_json (Printexc.to_string e))))) in
+    (Obj.obj result : string option)
+
+let do_mcp_list_tools (state_id : int) (sid : string) : string option =
+  match get_state state_id with
+  | None -> Some (error_json "Invalid runtime handle")
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      (try
+         match Par.Mcp_types.server_id_of_string sid with
+         | Error e -> Obj.repr (Some (error_json (Yojson.Safe.to_string (Par.Types.error_category_to_yojson e))))
+         | Ok server_id ->
+           (match Par.Runtime.mcp_server rt server_id with
+            | Error e -> Obj.repr (Some (error_json (Yojson.Safe.to_string (Par.Types.error_category_to_yojson e))))
+            | Ok server ->
+              let tools = Par.Mcp_client.list_tools (Par.Mcp_client.of_server server) in
+              (match tools with
+               | Error e -> Obj.repr (Some (error_json (Yojson.Safe.to_string (Par.Types.error_category_to_yojson e))))
+               | Ok tl ->
+                 let arr = List.map (fun (t : Par.Mcp_types.mcp_tool) ->
+                   Printf.sprintf "{\"name\":\"%s\"}" (json_escape t.Par.Mcp_types.name)
+                 ) tl in
+                 Obj.repr (Some (Printf.sprintf "{\"tools\":[%s]}" (String.concat "," arr)))))
+       with e ->
+         Obj.repr (Some (error_json (Printexc.to_string e))))) in
+    (Obj.obj result : string option)
+
+let do_workflow_status (state_id : int) (run_id : string) : string option =
+  match get_state state_id with
+  | None -> Some (error_json "Invalid runtime handle")
+  | Some _ ->
+    Obj.obj (Obj.repr (Some (Printf.sprintf "{\"run_id\":\"%s\",\"status\":\"unknown\"}" (json_escape run_id))))
+
+let do_workflow_cancel (state_id : int) (_run_id : string) : int =
+  match get_state state_id with
+  | None -> -1
+  | Some _ -> -1
+
+let do_event_subscribe (_state_id : int) (_cb : int) : int =
+  incr state_counter;
+  !state_counter
+
+let do_version () : string = Par.Version.version
+
+let do_health (state_id : int) : string =
+  match get_state state_id with
+  | None -> error_json "Invalid runtime handle"
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      let h = Par.Runtime.health rt in
+      let json = Printf.sprintf
+        "{\"status\": \"ok\", \"runtime_alive\": %s, \"persistence_ok\": %s, \
+         \"last_llm_call_at\": %s, \"last_llm_call_status\": \"%s\"}"
+        (if h.runtime_alive then "true" else "false")
+        (if h.persistence_ok then "true" else "false")
+        (match h.last_llm_call_at with Some f -> Printf.sprintf "%f" f | None -> "null")
+        (match h.last_llm_call_status with
+         | `Success -> "Success" | `Never_called -> "Never_called"
+         | `Error (Types.Internal _) -> "Error.Internal"
+         | `Error (Types.Timeout) -> "Error.Timeout"
+         | `Error (Types.Invalid_input _) -> "Error.Invalid_input"
+         | `Error (Types.External_failure _) -> "Error.External_failure"
+         | `Error (Types.Rate_limited) -> "Error.Rate_limited"
+         | `Error (Types.Permission_denied _) -> "Error.Permission_denied"
+         | `Error (Types.Embedding_unsupported) -> "Error.Embedding_unsupported")
+      in
+      Obj.repr json) in
+    (Obj.obj result : string)
+
+let do_metrics (state_id : int) : string =
+  match get_state state_id with
+  | None -> error_json "Invalid runtime handle"
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      let snap = Par.Runtime.metrics_snapshot rt in
+      let pairs = List.map (fun (k, v) ->
+        Printf.sprintf "\"%s\": %d" k v
+      ) snap in
+      let json = Printf.sprintf "{\"status\": \"ok\", \"metrics\": {%s}}"
+        (String.concat ", " pairs) in
+      Obj.repr json) in
+    (Obj.obj result : string)
+
+let do_steer (state_id : int) (message : string) : int =
+  match get_state state_id with
+  | None -> -1
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      Par.Runtime.steer rt message;
+      Obj.repr 0) in
+    (Obj.obj result : int)
+
+let do_follow_up (state_id : int) (message : string) : int =
+  match get_state state_id with
+  | None -> -1
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      Par.Runtime.follow_up rt message;
+      Obj.repr 0) in
+    (Obj.obj result : int)
+
+(* -------------------------------------------------------------------------- *)
+(* Vector store lifecycle (lazy per-runtime)                                  *)
+(* -------------------------------------------------------------------------- *)
+
+let vec_extension_path =
+  if Sys.os_type = "Unix"
+  then "vendor/sqlite-vec/linux-x86_64/vec0.so"
+  else "vendor/sqlite-vec/macos-aarch64/vec0.dylib"
+
+let runtime_vector_stores : (int, Par.Vector_store.t) Hashtbl.t = Hashtbl.create 8
+
+let ensure_vector_store state_id dim =
+  match Hashtbl.find_opt runtime_vector_stores state_id with
+  | Some vs -> vs
+  | None ->
+    (match Par.Vector_store.create
+       ~db_path:":memory:"
+       ~vec_extension_path
+       ~dimension:dim () with
+     | Ok vs -> Hashtbl.add runtime_vector_stores state_id vs; vs
+     | Error e -> failwith (Types.error_category_to_yojson e |> Yojson.Safe.to_string))
+
+(* -------------------------------------------------------------------------- *)
+(* RAG operations: dispatch through work loop                                  *)
+(* -------------------------------------------------------------------------- *)
+
+let do_embed (state_id : int) (messages_json : string) : string =
+  match get_state state_id with
+  | None -> "{\"error\":\"runtime handle not found\"}"
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      (try
+         let messages =
+           match Yojson.Safe.from_string messages_json with
+           | `List xs -> List.map (function `String s -> s | _ -> "") xs
+           | `String s -> [s]
+           | _ -> []
+         in
+         (match Runtime.embed rt messages with
+          | Ok vecs ->
+            let vec_to_json vec =
+              `List (Array.to_list (Array.map (fun f -> `Float f) vec))
+            in
+            Obj.repr (Yojson.Safe.to_string (`List (List.map vec_to_json vecs)))
+          | Error err ->
+            let err_str = match err with
+              | Par.Types.Timeout -> "Timeout"
+              | Par.Types.Invalid_input m -> "Invalid_input: " ^ m
+              | Par.Types.External_failure m -> "External_failure: " ^ m
+              | Par.Types.Rate_limited -> "Rate_limited"
+              | Par.Types.Permission_denied m -> "Permission_denied: " ^ m
+              | Par.Types.Internal m -> "Internal: " ^ json_escape m
+              | Par.Types.Embedding_unsupported -> "Embedding_unsupported"
+            in
+            Obj.repr (Printf.sprintf "{\"error\":\"embed failed: %s\"}" err_str))
+       with exc ->
+         Obj.repr (Printf.sprintf "{\"error\":\"exception: %s\"}" (Printexc.to_string exc)))) in
+    (Obj.obj result : string)
+
+let do_add_documents (state_id : int) (docs_json : string) : int =
+  match get_state state_id with
+  | None -> -1
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      (try
+         let docs =
+           match Yojson.Safe.from_string docs_json with
+           | `List xs ->
+             List.map (fun item ->
+               match item with
+               | `Assoc fields ->
+                 let id = match List.assoc_opt "id" fields with Some (`String s) -> s | _ -> Printf.sprintf "doc_%d" (Random.int 1000000) in
+                 let content = match List.assoc_opt "content" fields with Some (`String s) -> s | _ -> "" in
+                 let metadata = List.assoc_opt "metadata" fields in
+                 { Par.Vector_store.id; content; metadata }
+               | `String s -> { Par.Vector_store.id = Printf.sprintf "doc_%d" (Random.int 1000000); content = s; metadata = None }
+               | _ -> { Par.Vector_store.id = Printf.sprintf "doc_%d" (Random.int 1000000); content = Yojson.Safe.to_string item; metadata = None }
+             ) xs
+           | _ -> []
+         in
+         if docs = [] then Obj.repr 0
+         else
+           (match Runtime.embed rt (List.map (fun d -> d.Vector_store.content) docs) with
+            | Error _ -> Obj.repr (-2)
+            | Ok [] -> Obj.repr (-3)
+            | Ok (first_vec :: _ as vecs) ->
+              let dim = Array.length first_vec in
+              let vs = ensure_vector_store state_id dim in
+              let doc_vecs = List.mapi (fun i vec ->
+                (List.nth docs i, vec)) vecs in
+              (match Par.Vector_store.add vs doc_vecs with
+               | Ok () -> Obj.repr 0
+               | Error _ -> Obj.repr (-4)))
+       with _ -> Obj.repr (-5))) in
+    (Obj.obj result : int)
+
+let do_invoke_with_rag (state_id : int) (agent_id : string) (message : string) (k_str : string) : string =
+  match get_state state_id with
+  | None -> "{\"error\":\"runtime handle not found\"}"
+  | Some _ ->
+    let k = try int_of_string k_str with _ -> 4 in
+    let vs = Hashtbl.find_opt runtime_vector_stores state_id in
+    let result = dispatch state_id (fun rt _env ->
+      (try
+         (match Runtime.invoke_with_rag rt
+            ~agent_id ~message ~k ?vector_store:vs () with
+          | Ok (result, _docs) ->
+            Obj.repr (Types.llm_response_to_yojson result.Types.response |> Yojson.Safe.to_string)
+          | Error e ->
+            Obj.repr (Printf.sprintf "{\"error\":\"%s\"}" (Types.error_category_to_yojson e |> Yojson.Safe.to_string)))
+       with exc ->
+         Obj.repr (Printf.sprintf "{\"error\":\"exception: %s\"}" (Printexc.to_string exc)))) in
+    (Obj.obj result : string)
+
+(* -------------------------------------------------------------------------- *)
+(* Callback registrations                                                     *)
+(* -------------------------------------------------------------------------- *)
+
+let unwrap : string option -> Obj.t = function
+  | Some v -> Obj.repr v
+  | None -> Obj.repr "{\"error\": \"internal: no response from worker\"}"
 
 let () =
   Callback.register "par_init" (fun (config_json : string) ->
     do_init config_json)
 
 let () =
-  Callback.register "par_shutdown" (fun (_rt_val : Obj.t) ->
-    let id = Obj.magic _rt_val in
-    do_shutdown id)
+  Callback.register "par_shutdown" (fun (state_id_obj : Obj.t) ->
+    let state_id : int = Obj.magic state_id_obj in
+    do_shutdown state_id)
 
 let () =
   Callback.register "par_register_tool"
-    (fun (rt_val : Obj.t) (name : string) (desc : string) (schema : string) ->
-      let id = Obj.magic rt_val in
-      do_register_tool id name desc schema)
+    (fun (state_id_obj : Obj.t) (name : string) (desc : string) (schema : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_register_tool state_id name desc schema)
 
 let () =
   Callback.register "par_register_tool_with_handler"
-    (fun (rt_val : Obj.t) (name : string) (desc : string) (schema : string) (handler_id : int) ->
-      let id = Obj.magic rt_val in
-      do_register_tool_with_handler id name desc schema handler_id)
+    (fun (state_id_obj : Obj.t) (name : string) (desc : string) (schema : string) (handler_id : int) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_register_tool_with_handler state_id name desc schema handler_id)
 
 let () =
   Callback.register "par_register_agent"
-    (fun (rt_val : Obj.t) (config_json : string) ->
-      let id = Obj.magic rt_val in
-      do_register_agent id config_json)
+    (fun (state_id_obj : Obj.t) (config_json : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_register_agent state_id config_json)
 
 let () =
   Callback.register "par_invoke"
-    (fun (rt_val : Obj.t) (agent_id : string) (message : string) ->
-      let id = Obj.magic rt_val in
-      unwrap (do_invoke id agent_id message))
+    (fun (state_id_obj : Obj.t) (agent_id : string) (message : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      unwrap (do_invoke state_id agent_id message))
+
+let () =
+  Callback.register "par_embed"
+    (fun (state_id_obj : Obj.t) (messages_json : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_embed state_id messages_json)
 
 let () =
   Callback.register "par_invoke_structured"
-    (fun (rt_val : Obj.t) (agent_id : string) (message : string) (schema_json : string) ->
-      let id = Obj.magic rt_val in
-      unwrap (do_invoke_structured id agent_id message schema_json))
+    (fun (state_id_obj : Obj.t) (agent_id : string) (message : string) (schema_json : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      unwrap (do_invoke_structured state_id agent_id message schema_json))
+
+let () =
+  Callback.register "par_invoke_stream"
+    (fun (state_id_obj : Obj.t) (agent_id : string) (message : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_invoke_stream state_id agent_id message)
 
 let () =
   Callback.register "par_submit_workflow"
-    (fun (rt_val : Obj.t) (workflow_json : string) ->
-      let id = Obj.magic rt_val in
-      unwrap (do_submit_workflow id workflow_json))
+    (fun (state_id_obj : Obj.t) (workflow_json : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      unwrap (do_submit_workflow state_id workflow_json))
 
 let () =
   Callback.register "par_approve_workflow"
-    (fun (rt_val : Obj.t) (run_id : string) (approver : string) ->
-      let id = Obj.magic rt_val in
-      do_approve_workflow id run_id approver)
+    (fun (state_id_obj : Obj.t) (run_id : string) (approver : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_approve_workflow state_id run_id approver)
 
 let () =
   Callback.register "par_resume_workflow"
-    (fun (rt_val : Obj.t) (run_id : string) ->
-      let id = Obj.magic rt_val in
-      unwrap (do_resume_workflow id run_id))
-
-let do_health (id : int) : string =
-  match get_handle id with
-  | None -> error_json "Invalid runtime handle"
-  | Some handle ->
-    let h = Par.Runtime.health handle.rt in
-    let json = Printf.sprintf
-      "{\"status\": \"ok\", \"runtime_alive\": %s, \"persistence_ok\": %s, \
-       \"last_llm_call_at\": %s, \"last_llm_call_status\": \"%s\"}"
-      (if h.runtime_alive then "true" else "false")
-      (if h.persistence_ok then "true" else "false")
-      (match h.last_llm_call_at with Some f -> Printf.sprintf "%f" f | None -> "null")
-      (match h.last_llm_call_status with
-       | `Success -> "Success" | `Never_called -> "Never_called"
-       | `Error (Types.Internal _) -> "Error.Internal"
-       | `Error (Types.Timeout) -> "Error.Timeout"
-       | `Error (Types.Invalid_input _) -> "Error.Invalid_input"
-       | `Error (Types.External_failure _) -> "Error.External_failure"
-       | `Error (Types.Rate_limited) -> "Error.Rate_limited"
-       | `Error (Types.Permission_denied _) -> "Error.Permission_denied")
-    in json
-
-let do_metrics (id : int) : string =
-  match get_handle id with
-  | None -> error_json "Invalid runtime handle"
-  | Some handle ->
-    let snap = Par.Runtime.metrics_snapshot handle.rt in
-    let pairs = List.map (fun (k, v) ->
-      Printf.sprintf "\"%s\": %d" k v
-    ) snap in
-    Printf.sprintf "{\"status\": \"ok\", \"metrics\": {%s}}"
-      (String.concat ", " pairs)
-
-let do_steer (id : int) (message : string) : int =
-  match get_handle id with
-  | None -> -1
-  | Some handle ->
-    Par.Runtime.steer handle.rt message;
-    0
-
-let do_follow_up (id : int) (message : string) : int =
-  match get_handle id with
-  | None -> -1
-  | Some handle ->
-    Par.Runtime.follow_up handle.rt message;
-    0
+    (fun (state_id_obj : Obj.t) (run_id : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      unwrap (do_resume_workflow state_id run_id))
 
 let () =
   Callback.register "par_health"
-    (fun (rt_val : Obj.t) ->
-      let id = Obj.magic rt_val in
-      do_health id)
+    (fun (state_id_obj : Obj.t) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_health state_id)
 
 let () =
   Callback.register "par_metrics"
-    (fun (rt_val : Obj.t) ->
-      let id = Obj.magic rt_val in
-      do_metrics id)
+    (fun (state_id_obj : Obj.t) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_metrics state_id)
 
 let () =
   Callback.register "par_steer"
-    (fun (rt_val : Obj.t) (message : string) ->
-      let id = Obj.magic rt_val in
-      do_steer id message)
+    (fun (state_id_obj : Obj.t) (message : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_steer state_id message)
 
 let () =
   Callback.register "par_follow_up"
-    (fun (rt_val : Obj.t) (message : string) ->
-      let id = Obj.magic rt_val in
-      do_follow_up id message)
+    (fun (state_id_obj : Obj.t) (message : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_follow_up state_id message)
 
 let () =
   Callback.register "par_mcp_server"
-    (fun (rt_val : Obj.t) (server_id : string) ->
-      let id = Obj.magic rt_val in
-      unwrap (do_mcp_server id server_id))
+    (fun (state_id_obj : Obj.t) (server_id : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      unwrap (do_mcp_server state_id server_id))
 
 let () =
   Callback.register "par_mcp_list_tools"
-    (fun (rt_val : Obj.t) (server_id : string) ->
-      let id = Obj.magic rt_val in
-      unwrap (do_mcp_list_tools id server_id))
+    (fun (state_id_obj : Obj.t) (server_id : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      unwrap (do_mcp_list_tools state_id server_id))
 
 let () =
   Callback.register "par_workflow_status"
-    (fun (rt_val : Obj.t) (run_id : string) ->
-      let id = Obj.magic rt_val in
-      unwrap (do_workflow_status id run_id))
+    (fun (state_id_obj : Obj.t) (run_id : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      unwrap (do_workflow_status state_id run_id))
 
 let () =
   Callback.register "par_workflow_cancel"
-    (fun (rt_val : Obj.t) (run_id : string) ->
-      let id = Obj.magic rt_val in
-      do_workflow_cancel id run_id)
+    (fun (state_id_obj : Obj.t) (run_id : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_workflow_cancel state_id run_id)
 
 let () =
   Callback.register "par_event_subscribe"
-    (fun (rt_val : Obj.t) (cb_val : Obj.t) ->
-      let id = Obj.magic rt_val in
+    (fun (state_id_obj : Obj.t) (cb_val : Obj.t) ->
+      let state_id : int = Obj.magic state_id_obj in
       let cb = Obj.magic cb_val in
-      do_event_subscribe id cb)
+      do_event_subscribe state_id cb)
 
 let () =
   Callback.register "par_version"
     (fun (_unit : Obj.t) ->
       Obj.repr (do_version ()))
+
+let () =
+  Callback.register "par_add_documents"
+    (fun (state_id_obj : Obj.t) (docs_json : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      Obj.repr (do_add_documents state_id docs_json))
+
+let () =
+  Callback.register "par_invoke_with_rag"
+    (fun (state_id_obj : Obj.t) (agent_id : string) (message : string) (k_str : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_invoke_with_rag state_id agent_id message k_str)

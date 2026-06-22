@@ -11,6 +11,7 @@ let format_error : error_category -> string = function
   | Types.Rate_limited -> "rate_limited"
   | Types.Permission_denied s -> s
   | Types.Internal s -> s
+  | Types.Embedding_unsupported -> "embedding_unsupported"
 
 (* --- Call history for test assertions --- *)
 
@@ -47,6 +48,26 @@ let last_stream_call h =
 
 let nth_stream_call h n =
   try Some (List.nth h.stream_calls n) with Invalid_argument _ -> None
+
+type embed_call_record = {
+  inputs : string list;
+  timestamp : float;
+}
+[@@@warning "-32-69"]
+
+type embed_call_history = {
+  mutable embed_calls : embed_call_record list;
+}
+
+let create_embed_history () = { embed_calls = [] }
+
+let embed_call_count h = List.length h.embed_calls
+
+let last_embed_call h =
+  match h.embed_calls with [] -> None | x :: _ -> Some x
+
+let nth_embed_call h n =
+  try Some (List.nth h.embed_calls n) with Invalid_argument _ -> None
 
 (* --- Scripted response variant --- *)
 
@@ -237,3 +258,20 @@ let create ?(delay = None) ?(usage = default_usage) ?(model_name = default_model
     );
   } in
   (service, state.history)
+
+let vector_for_input msg =
+  let seed = Hashtbl.hash msg in
+  let rng = Random.State.make [| seed |] in
+  Array.init 1536 (fun _ -> Random.State.float rng 2.0 -. 1.0)
+
+let mock_embed_service () =
+  let history = create_embed_history () in
+  let service = {
+    embed_fn = (fun inputs ->
+      let record = { inputs; timestamp = Unix.gettimeofday () } in
+      history.embed_calls <- record :: history.embed_calls;
+      Ok (List.map vector_for_input inputs)
+    );
+    close_fn = ignore;
+  } in
+  (service, history)

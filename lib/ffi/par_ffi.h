@@ -33,6 +33,26 @@ int par_register_agent(par_runtime_t* rt, const char* config_json);
 char* par_invoke(par_runtime_t* rt, const char* agent_id,
                  const char* message);
 
+char* par_embed(par_runtime_t* rt, const char* messages_json);
+
+int par_add_documents(par_runtime_t* rt, const char* docs_json);
+
+char* par_invoke_with_rag(par_runtime_t* rt, const char* agent_id,
+                         const char* message, const char* k_str);
+
+/* Streaming invocation — invokes an agent and dispatches each
+   llm_response_chunk to the supplied callback as a JSON string. The
+   callback receives the chunk JSON plus the user_data pointer that
+   was registered with par_invoke_stream; ownership of the JSON
+   string is held by the runtime, so the callback must copy it
+   before returning if it needs to outlive the call.
+   Returns the final result JSON string (caller must free()) or
+   NULL on error. */
+typedef void (*par_chunk_callback)(const char* json_chunk, void* user_data);
+char* par_invoke_stream(par_runtime_t* rt, const char* agent_id,
+                        const char* message,
+                        par_chunk_callback cb, void* user_data);
+
 /* Synchronous structured invocation — returns JSON envelope with value/raw/attempts.
    Caller must free(). schema_json is a JSON-encoded JSON Schema string. */
 char* par_invoke_structured(par_runtime_t* rt, const char* agent_id,

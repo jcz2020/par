@@ -9,6 +9,7 @@ let error_to_string (e : Types.error_category) =
   | Types.Rate_limited -> "Rate_limited"
   | Types.Permission_denied s -> Printf.sprintf "Permission_denied %S" s
   | Types.Internal s -> Printf.sprintf "Internal %S" s
+  | Types.Embedding_unsupported -> "Embedding_unsupported"
 
 let expect_invalid_input msg result =
   match result with

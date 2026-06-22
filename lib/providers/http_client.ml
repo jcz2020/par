@@ -5,15 +5,15 @@
 (* URL parsing                                                                *)
 (* -------------------------------------------------------------------------- *)
 
-type parsed_url = { host : string; port : int; path : string }
+type parsed_url = { host : string; port : int; path : string; use_tls : bool }
 
 let parse_url url =
-  let without_proto =
+  let use_tls, without_proto =
     if String.starts_with ~prefix:"https://" url then
-      String.sub url 8 (String.length url - 8)
+      (true, String.sub url 8 (String.length url - 8))
     else if String.starts_with ~prefix:"http://" url then
-      String.sub url 7 (String.length url - 7)
-    else url
+      (false, String.sub url 7 (String.length url - 7))
+    else (true, url)
   in
   let host_part, path =
     match String.index_opt without_proto '/' with
@@ -28,10 +28,10 @@ let parse_url url =
       ( String.sub host_part 0 i,
         int_of_string
           (String.sub host_part (i + 1) (String.length host_part - i - 1)) )
-    | None -> (host_part, 443)
+    | None -> (host_part, if use_tls then 443 else 80)
   in
   let path = if String.ends_with ~suffix:"/" path then path else path ^ "/" in
-  { host; port; path }
+  { host; port; path; use_tls }
 
 (* -------------------------------------------------------------------------- *)
 (* HTTP request building                                                      *)
@@ -165,24 +165,93 @@ let tls_host_of_string host =
   | Ok dn -> ( match Domain_name.host dn with Ok h -> Some h | Error _ -> None )
 
 (* -------------------------------------------------------------------------- *)
-(* TCP + TLS connection                                                       *)
+(* HTTP via cohttp-eio (handles Content-Length, chunked encoding, TLS properly) *)
 (* -------------------------------------------------------------------------- *)
 
+let tls_https_wrapper ?(cfg = Lazy.force tls_config) uri raw_flow =
+  match Uri.host uri with
+  | None -> Tls_eio.client_of_flow cfg raw_flow
+  | Some host ->
+    (match Domain_name.of_string host with
+     | Ok dn ->
+       (match Domain_name.host dn with
+        | Ok h -> Tls_eio.client_of_flow cfg ~host:h raw_flow
+        | Error _ -> Tls_eio.client_of_flow cfg raw_flow)
+     | Error _ -> Tls_eio.client_of_flow cfg raw_flow)
+
+let cohttp_client_of_net net =
+  Cohttp_eio.Client.make ~https:(Some (tls_https_wrapper)) net
+
+let parse_raw_request request =
+  let header_end =
+    let rec find i =
+      if i + 4 > String.length request then String.length request
+      else if String.sub request i 4 = "\r\n\r\n" then i
+      else find (i + 1)
+    in
+    find 0
+  in
+  let header_block = String.sub request 0 header_end in
+  let body =
+    if header_end + 4 <= String.length request then
+      String.sub request (header_end + 4) (String.length request - header_end - 4)
+    else ""
+  in
+  let lines = String.split_on_char '\n' header_block
+    |> List.map (fun l ->
+      if String.length l > 0 && l.[String.length l - 1] = '\r' then
+        String.sub l 0 (String.length l - 1) else l)
+  in
+  let path =
+    match lines with
+    | first :: _ ->
+      (match String.split_on_char ' ' first with
+       | _ :: p :: _ -> p
+       | _ -> "/")
+    | [] -> "/"
+  in
+  let headers =
+    List.filter_map (fun line ->
+      match String.index_opt line ':' with
+      | Some i ->
+        let k = String.sub line 0 i |> String.trim in
+        let v = String.sub line (i + 1) (String.length line - i - 1) |> String.trim in
+        if k = "" then None else Some (k, v)
+      | None -> None
+    ) (List.tl lines)
+  in
+  (path, headers, body)
+
+let format_raw_response status_code reason headers body =
+  let status_line = Printf.sprintf "HTTP/1.1 %d %s\r\n" status_code reason in
+  let header_str =
+    List.map (fun (k, v) -> Printf.sprintf "%s: %s\r\n" k v) headers
+    |> String.concat ""
+  in
+  Printf.sprintf "%s%sContent-Length: %d\r\n\r\n%s" status_line header_str (String.length body) body
+
 let do_request net url request =
-  Eio.Net.with_tcp_connect
-    ~host:url.host
-    ~service:(string_of_int url.port)
-    net
-    (fun flow ->
-      let cfg = Lazy.force tls_config in
-      let tls =
-        match tls_host_of_string url.host with
-        | Some h -> Tls_eio.client_of_flow cfg ~host:h flow
-        | None -> Tls_eio.client_of_flow cfg flow
-      in
-      Eio.Flow.copy_string request tls;
-      Eio.Flow.shutdown tls `Send;
-      Eio.Flow.read_all tls)
+  let (req_path, req_headers, req_body) = parse_raw_request request in
+  let scheme = if url.use_tls then "https" else "http" in
+  let uri_str = Printf.sprintf "%s://%s:%d%s" scheme url.host url.port req_path in
+  let uri = Uri.of_string uri_str in
+  Eio.Switch.run (fun sw ->
+    let client = cohttp_client_of_net net in
+    let cohttp_headers = Cohttp.Header.of_list req_headers in
+    let body = Cohttp_eio.Body.of_string req_body in
+    let resp, resp_body = Cohttp_eio.Client.call ~sw
+      ~headers:cohttp_headers ~body client `POST uri in
+    let status_code = Cohttp.Code.code_of_status (Http.Response.status resp) in
+    let body_string =
+      Eio.Buf_read.parse_exn ~max_size:(100 * 1024 * 1024) Eio.Buf_read.take_all resp_body
+    in
+    let resp_headers =
+      Cohttp.Header.to_list (Http.Response.headers resp)
+      |> List.filter (fun (k, _) ->
+        let lower = String.lowercase_ascii k in
+        lower <> "content-length" && lower <> "transfer-encoding")
+    in
+    format_raw_response status_code "OK" resp_headers body_string)
 
 (* -------------------------------------------------------------------------- *)
 (* Incremental streaming response                                              *)
@@ -313,20 +382,23 @@ let do_request_streaming_with_flow flow k =
   k ~status ~headers ~read_line
 
 let do_request_streaming net url request k =
-  Eio.Net.with_tcp_connect
-    ~host:url.host
-    ~service:(string_of_int url.port)
-    net
-    (fun flow ->
-      let cfg = Lazy.force tls_config in
-      let tls =
-        match tls_host_of_string url.host with
-        | Some h -> Tls_eio.client_of_flow cfg ~host:h flow
-        | None -> Tls_eio.client_of_flow cfg flow
-      in
-      Eio.Flow.copy_string request tls;
-      Eio.Flow.shutdown tls `Send;
-      do_request_streaming_with_flow tls k)
+  let (req_path, req_headers, req_body) = parse_raw_request request in
+  let scheme = if url.use_tls then "https" else "http" in
+  let uri_str = Printf.sprintf "%s://%s:%d%s" scheme url.host url.port req_path in
+  let uri = Uri.of_string uri_str in
+  Eio.Switch.run (fun sw ->
+    let client = cohttp_client_of_net net in
+    let cohttp_headers = Cohttp.Header.of_list req_headers in
+    let body = Cohttp_eio.Body.of_string req_body in
+    let resp, resp_body = Cohttp_eio.Client.call ~sw
+      ~headers:cohttp_headers ~body client `POST uri in
+    let status = Cohttp.Code.code_of_status (Http.Response.status resp) in
+    let headers_str = String.concat "\r\n" (
+      List.map (fun (k,v) -> k ^ ": " ^ v) (Cohttp.Header.to_list (Http.Response.headers resp))
+    ) in
+    let r = Eio.Buf_read.of_flow ~max_size:(100 * 1024 * 1024) resp_body in
+    k ~status ~headers:headers_str ~read_line:(fun () ->
+      try Some (Eio.Buf_read.line r) with _ -> None))
 
 type _exec_result = {
   status : int;

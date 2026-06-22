@@ -9,7 +9,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.5.0 beta. First PyPI release shipped 2026-06-21. Native wheels for Linux x86_64 and macOS arm64. API may change before v1.0.
+> **Status**: v0.5.1-beta. RAG foundation (embeddings, vector store, chunking, invoke_with_rag) + Python streaming output. API may change before v1.0.
 
 ---
 
@@ -99,8 +99,8 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - **7 middleware** — Logging, Retry, Rate_limit, Timeout, Validation, PII_mask, Sanitize_tool_output
 - **Dual persistence** — SQLite (dev), PostgreSQL (prod, separate `par_postgres` package), Noop (tests)
 - **Structured concurrency** — OCaml 5.4 effects with Eio, no orphan fibers, no callback hell
-- **Python ctypes binding** — `par_runtime` package, thread-safe, no GIL contention with OCaml runtime
-- **987 OCaml tests + 33 Python tests** passing
+- **Python ctypes binding** — `par_runtime` package, thread-safe, no GIL contention with OCaml runtime. Persistent Eio domain per Runtime for full concurrency support.
+- **998 OCaml tests + 58 Python tests** (1 skipped) passing
 
 ## Language tracks
 
@@ -117,7 +117,7 @@ config = json.dumps({
 with Runtime(config) as rt:
     rt.register_tool("echo", "Echo tool", '{"type": "object"}')
 ```
-See [`bindings/python/examples/basic_agent.py`](bindings/python/examples/basic_agent.py) and [`bindings/python/tests/`](bindings/python/tests/) (33 pytest tests).
+See [`bindings/python/examples/basic_agent.py`](bindings/python/examples/basic_agent.py) and [`bindings/python/tests/`](bindings/python/tests/) (58 pytest tests, 1 skipped).
 
 ### OCaml SDK
 ```ocaml
@@ -142,9 +142,9 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.5.0 — native PyPI wheels for Linux x86_64 + macOS arm64. ARM64 Linux wheel deferred (GitHub Actions free-tier ARM runners saturated). Intel Mac not shipped (`macos-13` runner abandoned).
+**Current**: v0.5.1-beta — RAG foundation (embeddings, vector store, chunking, invoke_with_rag) + Python streaming output + Python RAG FFI (embed, add_documents, invoke_with_rag, real end-to-end with mock HTTP server) + full FFI work-loop architecture (persistent Eio domain per Runtime). ARM64 Linux wheel deferred.
 
-**Coming in v0.5.1+**: ARM64 Linux wheel, RAG foundation (`Runtime.embed`, `Vector_store`, `invoke_with_rag`), streaming output, dual-tier persistence improvements.
+**Coming in v0.5.2+**: ARM64 Linux wheel, dual-tier persistence improvements, external vector stores (Qdrant/Milvus).
 
 ## Getting help
 

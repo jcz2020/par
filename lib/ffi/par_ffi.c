@@ -29,6 +29,13 @@ static pthread_mutex_t ocaml_lock = PTHREAD_MUTEX_INITIALIZER;
 #define MAX_PYTHON_HANDLERS 256
 static par_tool_callback python_handler_table[MAX_PYTHON_HANDLERS];
 
+/* Streaming chunk callback (par_invoke_stream).
+   Single-slot: only one stream in flight per process at a time. The
+   OCaml lock serializes invocations, so concurrent streams would
+   already be broken; this is a deliberate simplification. */
+static par_chunk_callback g_chunk_callback = NULL;
+static void* g_chunk_user_data = NULL;
+
 void par_store_python_handler(int handler_id, par_tool_callback fn) {
     if (handler_id >= 0 && handler_id < MAX_PYTHON_HANDLERS) {
         python_handler_table[handler_id] = fn;
@@ -47,6 +54,19 @@ value caml_invoke_python_handler(value v_handler_id, value v_input_json) {
         }
     }
     return caml_copy_string("");
+}
+
+/* Called by OCaml's chunk callback (par_capi.ml) to dispatch a
+   serialized llm_response_chunk to the C-side chunk callback
+   registered by par_invoke_stream. Receives a JSON string value
+   (no copy required — we read it under the OCaml lock and hand
+   the pointer to the callback synchronously). */
+value caml_dispatch_chunk_to_c(value v_json_chunk) {
+    if (g_chunk_callback != NULL) {
+        const char* json = String_val(v_json_chunk);
+        g_chunk_callback(json, g_chunk_user_data);
+    }
+    return Val_unit;
 }
 
 static void ensure_initialized(void) {
@@ -201,6 +221,91 @@ char* par_invoke(par_runtime_t* rt, const char* agent_id,
     return ret;
 }
 
+char* par_embed(par_runtime_t* rt, const char* messages_json) {
+    pthread_mutex_lock(&ocaml_lock);
+
+    const value* cb = caml_named_value("par_embed");
+    if (!cb) {
+        pthread_mutex_unlock(&ocaml_lock);
+        return NULL;
+    }
+
+    value c_msgs = caml_copy_string(messages_json);
+    value result = caml_callback2_exn(*cb, rt->_ocaml_value, c_msgs);
+    char* ret = extract_string(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return ret;
+}
+
+int par_add_documents(par_runtime_t* rt, const char* docs_json) {
+    pthread_mutex_lock(&ocaml_lock);
+
+    const value* cb = caml_named_value("par_add_documents");
+    if (!cb) {
+        pthread_mutex_unlock(&ocaml_lock);
+        return -1;
+    }
+
+    value c_docs = caml_copy_string(docs_json);
+    value result = caml_callback2_exn(*cb, rt->_ocaml_value, c_docs);
+    int ret = Is_exception_result(result) ? -99 : Int_val(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return ret;
+}
+
+char* par_invoke_with_rag(par_runtime_t* rt, const char* agent_id,
+                         const char* message, const char* k_str) {
+    pthread_mutex_lock(&ocaml_lock);
+
+    const value* cb = caml_named_value("par_invoke_with_rag");
+    if (!cb) {
+        pthread_mutex_unlock(&ocaml_lock);
+        return NULL;
+    }
+    value c_aid = caml_copy_string(agent_id);
+    value c_msg = caml_copy_string(message);
+    value c_k = caml_copy_string(k_str);
+    value args[4] = { rt->_ocaml_value, c_aid, c_msg, c_k };
+    value result = caml_callbackN_exn(*cb, 4, args);
+    char* ret = extract_string(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return ret;
+}
+
+/* Streaming invocation. The C-side chunk callback is stored in
+   g_chunk_callback / g_chunk_user_data BEFORE acquiring the OCaml
+   lock, because the OCaml side will call caml_dispatch_chunk_to_c
+   while inside the lock, and that function needs the globals set.
+   After the call returns, we clear them so a subsequent
+   par_invoke_stream (or any unrelated code) doesn't accidentally
+   invoke a stale callback. */
+char* par_invoke_stream(par_runtime_t* rt, const char* agent_id,
+                        const char* message,
+                        par_chunk_callback cb, void* user_data) {
+    if (!rt || !agent_id || !message) return NULL;
+
+    /* Store the callback + user_data BEFORE entering the OCaml lock
+       so the dispatch function (called from inside the lock) can
+       see them. */
+    g_chunk_callback = cb;
+    g_chunk_user_data = user_data;
+
+    value c_aid = caml_copy_string(agent_id);
+    value c_msg = caml_copy_string(message);
+
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call3_exn("par_invoke_stream", rt->_ocaml_value,
+                             c_aid, c_msg);
+    char* ret = extract_string(result);
+    pthread_mutex_unlock(&ocaml_lock);
+
+    /* Clear globals so we don't dispatch into a stale callback. */
+    g_chunk_callback = NULL;
+    g_chunk_user_data = NULL;
+
+    return ret;
+}
+
 char* par_invoke_structured(par_runtime_t* rt, const char* agent_id,
                             const char* message, const char* schema_json) {
     value c_aid = caml_copy_string(agent_id);
@@ -334,6 +439,11 @@ int par_workflow_cancel(par_runtime_t* rt, const char* run_id) {
 }
 
 int par_event_subscribe(par_runtime_t* rt, par_event_callback cb) {
+    /* cb is not used here directly: the OCaml side stores its own
+       dispatch table keyed by an int callback_id and invokes the C
+       function via the registered "caml_dispatch_event_to_c"
+       external. For now we just pass a placeholder 0; the real
+       wiring is in par_capi.ml::do_event_subscribe. */
     (void)cb;
     value c_cb = Val_int(0);
     pthread_mutex_lock(&ocaml_lock);

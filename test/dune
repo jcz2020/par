@@ -285,3 +285,13 @@
  (name test_engine_structured)
  (libraries par eio_main alcotest yojson)
  (modules test_engine_structured))
+
+(test
+ (name test_embedding_api)
+ (libraries par eio_main alcotest yojson)
+ (modules test_embedding_api))
+
+(test
+ (name test_rag)
+ (libraries par eio_main alcotest sqlite3)
+ (modules test_rag))

@@ -1,5 +1,64 @@
 # CHANGES
 
+## v0.5.1-beta.20260622 (IN DEVELOPMENT)
+
+> **Theme**: RAG foundation (OCaml SDK) + Python streaming output + full FFI work-loop architecture. First feature release of the 0.5.x series.
+>
+> **Status**: Beta — OCaml SDK has full RAG + streaming. Python SDK has streaming (13 tests), `rt.embed()` (real end-to-end via mock HTTP server), and `add_documents`/`invoke_with_rag` (real end-to-end with internal vector store).
+
+### Added — Track B (RAG Foundation, OCaml SDK)
+
+- `Runtime.embed : runtime -> string list -> (float array list, error_category) result` — batch embedding API (OpenAI, Mock, Anthropic-raises-unsupported)
+- `lib/core/vector_store.ml` — embedding-agnostic vector store with SQLite + sqlite-vec backend (cosine similarity, upsert, KNN search)
+- `lib/core/chunking.ml` — text chunking (char/token/recursive splitters, LangChain-compatible)
+- `Runtime.invoke_with_rag` — RAG orchestration (embed → search → augment → invoke)
+- `EMBEDDING_SERVICE` module type + `embedding_service` record in types.ml
+- `Embedding_unsupported` error constructor
+- sqlite-vec v0.1.9 vendored at `vendor/sqlite-vec/linux-x86_64/vec0.so` and `vendor/sqlite-vec/macos-aarch64/vec0.dylib`
+
+### Added — Track C (Python Streaming, full)
+
+- `Runtime.invoke_stream(agent_id, message) -> Iterator[Event]` — Python generator yielding streaming events
+- `Event` union: `TextDelta`, `ToolCallStart`, `ToolCallDelta`, `UsageUpdate`, `Done` (all exported from `par_runtime` package)
+- `par_invoke_stream` C entrypoint + `par_chunk_callback` typedef in FFI
+- `par_event_subscribe` wired (was stub)
+- `docs/sdk/streaming.md` — design + 3 runnable examples
+- 13 streaming tests (all passing)
+
+### Added — Documentation
+
+- `docs/sdk/rag.md` — RAG API reference with 3 examples
+- `docs/sdk/streaming.md` — streaming design + examples
+- `docs/plans/b2-vector-store-design.md` — vector store interface design rationale
+- `docs/v0.5.1-ROADMAP.md` — release roadmap with execution tracker
+
+### Changed — FFI Architecture Overhaul (方案 1: config-based embedding)
+
+The Python FFI bridge was rebuilt to fix a fundamental Eio context issue.
+
+- **Persistent Eio domain per Runtime**: `do_init` now spawns a long-lived Domain running `Eio_main.run` with a work-loop. All FFI callbacks (`par_invoke`, `par_embed`, `par_register_tool`, etc.) dispatch work items through a `Mutex`/`Condition`/`Queue` to this domain. The runtime value never crosses domain boundaries — eliminating the prior `Stdlib.Effect.Unhandled(Eio__core__Cancel.Get_context)` crash that affected every end-to-end LLM call.
+- **Config-based provider wiring**: when `llm_providers` is set in the config JSON, `do_init` automatically constructs both an `llm_service` (wired to `Openai_provider.complete`/`stream`/`close`) and an `embedding_service` (wired to `Openai_provider.embed`/`close`). Ollama providers are mapped to an OpenAI-compatible endpoint with a placeholder API key. Anthropic and Custom providers raise a clear "not yet supported" log message and fall back to the default no-op service.
+- **HTTP_client gained `http://` support**: `parsed_url` now carries a `use_tls` flag, and `do_request`/`do_request_streaming` skip TLS for plain HTTP URLs. Enables testing against local mock OpenAI-compatible servers and connecting to local Ollama without TLS.
+- **`Mirage_crypto_rng_unix.use_default ()`** is now called inside `Eio_main.run` so HTTPS/TLS works on first call (previously failed with "default generator is not yet initialized").
+- **Shutdown via sentinel**: `do_shutdown` enqueues a sentinel work item after the `Runtime.close` work item; the work loop exits cleanly when it sees the sentinel, and `Domain.join` reaps the domain. Avoids `Domain.terminate` (broken in OCaml 5) and ensures no leaked domains.
+- **Debug logging gated by `PAR_FFI_DEBUG=1`**: `fd_log` writes directly to fd 2 (bypassing per-domain stderr buffering); enable with `PAR_FFI_DEBUG=1` to see work-loop activity.
+
+### Added — Python package exports
+
+- `Done`, `Event`, `TextDelta`, `ToolCallStart`, `ToolCallDelta`, `UsageUpdate` are now exported from the top-level `par_runtime` package (previously only accessible via `par_runtime.runtime`).
+
+### Known Limitations (beta)
+
+- **Event bus types** (`Embedding_request_sent`, etc.) — not added (skipped to avoid cascading pattern match changes).
+- **Python streaming against real LLM** — `par_invoke_stream` is wired through the work loop, but no end-to-end test exists yet (streaming chunk callback runs in the work-loop domain).
+
+### Test Count
+
+- 998 OCaml tests (987 baseline + 8 embedding/chunking + 3 RAG integration)
+- 58 Python tests (32 baseline + 13 streaming + 4 embed + 2 RAG provider + 3 end-to-end mock server + 4 misc, 1 skipped)
+
+---
+
 ## v0.5.0 (RELEASED 2026-06-21)
 
 > Apple Silicon macOS native wheel added. `pip install par-runtime` now works natively on Apple Silicon Macs, no source build or Rosetta required. Intel Mac users (`x86_64`) cannot `pip install` in v0.5.0 (no `macosx_*_x86_64` wheel and no sdist shipped — `macos-13` runner permanently abandoned 2026-06-19, see `ci.yml` L16); they can either (a) stay on `par-runtime==0.4.13` until v0.5.1 ships an sdist, or (b) build from source via `git clone && make install`. ARM64 Linux wheel **deferred to v0.5.1+** — GitHub Actions free-tier ARM64 runners are saturated (queue 45min+, never dispatched) and qemu-binfmt on x86_64 host crashes manylinux container on start.

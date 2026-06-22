@@ -6,12 +6,26 @@ from par_runtime._errors import (
     PARToolError,
     PARWorkflowError,
 )
-from par_runtime.runtime import Runtime
+from par_runtime.runtime import (
+    Runtime,
+    Done,
+    Event,
+    TextDelta,
+    ToolCallStart,
+    ToolCallDelta,
+    UsageUpdate,
+)
 
-__version__ = "0.5.0"
+__version__ = "0.5.1-beta.20260622"
 
 __all__ = [
     "Runtime",
+    "Done",
+    "Event",
+    "TextDelta",
+    "ToolCallStart",
+    "ToolCallDelta",
+    "UsageUpdate",
     "PARError",
     "PARInitError",
     "PARInvokeError",

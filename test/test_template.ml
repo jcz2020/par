@@ -8,6 +8,7 @@ let show_error : error_category -> string = function
   | Rate_limited -> "rate_limited"
   | Permission_denied s -> s
   | Internal s -> s
+  | Embedding_unsupported -> "embedding_unsupported"
 
 let dummy_model : Types.model_config = {
   Types.provider = `Openai; model_name = "gpt-4"; api_base = None;

@@ -8,6 +8,7 @@ let string_of_error_category (e : Types.error_category) =
   | Types.Rate_limited -> "Rate_limited"
   | Types.Permission_denied msg -> Printf.sprintf "Permission_denied: %s" msg
   | Types.Internal msg -> Printf.sprintf "Internal: %s" msg
+  | Types.Embedding_unsupported -> "Embedding_unsupported"
 
 (* -------------------------------------------------------------------------- *)
 (* SDK — Runtime                                                          *)
@@ -433,6 +434,44 @@ let invoke_structured rt ~agent_id ~message ~response_schema
        publish_event rt evt;
        Result.Error (err, conv))
 
+let embed rt messages =
+  match rt.services.embeddings with
+  | None -> Result.Error (Internal "Embeddings not initialized")
+  | Some svc -> svc.embed_fn messages
+
+let invoke_with_rag rt ~agent_id ~message ?(k = 4) ?vector_store () =
+  match vector_store with
+  | None ->
+    (match invoke rt ~agent_id ~message () with
+     | Result.Ok answer -> Result.Ok (answer, [])
+     | Result.Error (e, _) -> Result.Error e)
+  | Some vs ->
+    (match embed rt [message] with
+     | Result.Error e -> Result.Error e
+     | Result.Ok [] -> Result.Error (Internal "embed returned empty list")
+     | Result.Ok (query_vec :: _) ->
+       (match Vector_store.search vs ~query:query_vec ~k with
+        | Result.Error e -> Result.Error e
+         | Result.Ok [] ->
+           (match invoke rt ~agent_id ~message () with
+            | Result.Ok answer -> Result.Ok (answer, [])
+            | Result.Error (e, _) -> Result.Error e)
+        | Result.Ok results ->
+          let context_buf = Buffer.create 1024 in
+          List.iteri
+            (fun i r ->
+              if i > 0 then Buffer.add_string context_buf "\n\n";
+              Buffer.add_string context_buf r.Vector_store.doc.content)
+            results;
+          let augmented =
+            Printf.sprintf "Context:\n%s\n\nQuestion: %s"
+              (Buffer.contents context_buf) message
+          in
+          (match invoke rt ~agent_id ~message:augmented () with
+           | Result.Error (e, _) -> Result.Error e
+           | Result.Ok answer ->
+              Result.Ok (answer, List.map (fun r -> r.Vector_store.doc) results))))
+
 let submit_task rt ?(priority = 5) ?(timeout = 300.0) input =
   let id = Task_id.create () in
   let task = {
@@ -672,6 +711,7 @@ let create ?(persistence = noop_persistence)
                      stream_fn = (fun _ _tools _ _ _ -> Result.Error (Internal "LLM not initialized"));
                      close_fn = ignore;
                      complete_structured_fn = None })
+           ?embeddings
            ?(bash_policy = (module Bash_policy.Coder : Bash_policy.POLICY))
            ?(mcp_servers = [])
            ?mcp_process_mgr
@@ -714,6 +754,7 @@ let create ?(persistence = noop_persistence)
       services = {
         persistence;
         llm;
+        embeddings;
         event_bus = event_bus_service;
         config;
       };
@@ -822,6 +863,9 @@ let close rt =
    | None -> ());
   rt.services.persistence.close_fn ();
   rt.services.llm.close_fn ();
+  (match rt.services.embeddings with
+   | Some svc -> svc.close_fn ()
+   | None -> ());
   0
 
 let tool_registry rt = rt.tool_registry

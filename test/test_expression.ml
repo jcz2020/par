@@ -12,6 +12,7 @@ let eval_ok ctx expr =
         | Rate_limited -> "Rate_limited"
         | Permission_denied s -> "Permission_denied: " ^ s
         | Internal s -> "Internal: " ^ s
+        | Embedding_unsupported -> "Embedding_unsupported"
       in
       Alcotest.fail ("expected Ok, got Error: " ^ msg)
 

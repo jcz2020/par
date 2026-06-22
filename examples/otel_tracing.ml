@@ -63,6 +63,7 @@ let create_tracing_middleware () =
             | Types.Rate_limited -> "rate_limited"
             | Types.Permission_denied _ -> "permission_denied"
             | Types.Internal _ -> "internal" in
+            | Types.Embedding_unsupported -> "Embedding_unsupported"
           [("tool.name", `String c.Types.name); ("tool.result", `String "error"); ("error.kind", `String ek)]
         | Types.Handoff _ ->
           [("tool.name", `String c.Types.name); ("tool.result", `String "handoff")] in
@@ -100,6 +101,7 @@ let () =
     | Ok (r, _) -> Printf.printf "Agent: %s\n" (match r.Types.text with Some t -> t | None -> "no text")
     | Error (e, _) -> Printf.eprintf "Error: %s\n" (match e with
       | Types.Internal s -> s
+      | Types.Embedding_unsupported -> "Embedding_unsupported"
       | Types.Invalid_input s -> s
       | Types.External_failure s -> s
       | Types.Timeout -> "timeout"

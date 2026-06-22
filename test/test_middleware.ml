@@ -20,6 +20,7 @@ let string_of_error_category (ec : error_category) =
   | Rate_limited -> "Rate_limited"
   | Permission_denied s -> "Permission_denied(" ^ s ^ ")"
   | Internal s -> "Internal(" ^ s ^ ")"
+  | Embedding_unsupported -> "Embedding_unsupported"
 
 let error_category_pp fmt ec = Format.pp_print_string fmt (string_of_error_category ec)
 let error_category_testable = Alcotest.testable error_category_pp (=)

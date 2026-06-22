@@ -26,6 +26,7 @@ let error_to_string = function
   | Permission_denied s -> s
   | Timeout -> "Timeout"
   | Rate_limited -> "Rate_limited"
+  | Embedding_unsupported -> "Embedding_unsupported"
 
 let mock_llm responses =
   let counter = ref 0 in

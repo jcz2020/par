@@ -16,6 +16,7 @@ let string_of_error_category (ec : Types.error_category) =
   | Types.Rate_limited -> "Rate_limited"
   | Types.Permission_denied s -> Printf.sprintf "Permission_denied(%s)" s
   | Types.Internal s -> Printf.sprintf "Internal(%s)" s
+  | Types.Embedding_unsupported -> "Embedding_unsupported"
 
 let error_category_pp fmt ec =
   Format.pp_print_string fmt (string_of_error_category ec)

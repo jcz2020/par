@@ -13,6 +13,7 @@ let test_openai_create_rejects_empty_api_key () =
      | _ -> Alcotest.failf "expected Invalid_input, got: %s"
          (match e with
           | Internal s -> "Internal(" ^ s ^ ")"
+  | Embedding_unsupported -> "Embedding_unsupported"
           | Invalid_input s -> "Invalid_input(" ^ s ^ ")"
           | External_failure s -> "External_failure(" ^ s ^ ")"
           | Rate_limited -> "Rate_limited"

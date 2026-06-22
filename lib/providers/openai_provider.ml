@@ -540,4 +540,90 @@ let stream t model_config tools conversation _stream_config callback =
       | Failure msg -> Result.Error (Invalid_input msg)
       | exn -> Result.Error (Internal (Printexc.to_string exn)) )
 
+(* -------------------------------------------------------------------------- *)
+(* Embedding parsing                                                       *)
+(* -------------------------------------------------------------------------- *)
+
+(* v1: model hard-coded to text-embedding-3-small (1536 dims).
+   Per-call override deferred until callers need it. See commit message. *)
+let default_embedding_model = "Qwen/Qwen3-Embedding-8B"
+
+ let parse_embeddings_response (json : Yojson.Safe.t) :
+     (float array list, error_category) result =
+   let open Yojson.Safe.Util in
+   let data_opt =
+     try Some (json |> member "data" |> to_list) with _ -> None
+   in
+   match data_opt with
+   | None ->
+     (match json |> member "error" |> member "message" |> to_string_option with
+      | Some msg -> Error (External_failure msg)
+      | None -> Error (Invalid_input "OpenAI embeddings response missing 'data' field"))
+   | Some items ->
+     let indexed =
+       List.filter_map
+         (fun item ->
+           let idx =
+             try Some (item |> member "index" |> to_int)
+             with _ -> None
+           in
+           let vec_opt =
+             try
+               let arr = item |> member "embedding" |> to_list in
+               let to_num v = match v with
+                 | `Float f -> f
+                 | `Int i -> float_of_int i
+                 | _ -> failwith "expected number in embedding"
+               in
+               Some (Array.of_list (List.map to_num arr))
+             with _ -> None
+           in
+           match idx, vec_opt with
+           | Some i, Some v -> Some (i, v)
+           | _ -> None)
+         items
+     in
+     if List.length indexed <> List.length items then
+       Error (Invalid_input "OpenAI embeddings response had malformed entries")
+     else
+       let sorted = List.sort (fun (a, _) (b, _) -> compare a b) indexed in
+       Ok (List.map snd sorted)
+
+let embed t messages =
+  match t.net with
+  | None -> Result.Error (Internal "Network not initialized; call set_network first")
+  | Some net ->
+    let url = Http_client.parse_url t.base_url in
+    let body =
+      let input_json = `List (List.map (fun s -> `String s) messages) in
+      let fields = [
+        ("model", `String default_embedding_model);
+        ("input", input_json);
+      ] in
+      Yojson.Safe.to_string (`Assoc fields)
+    in
+    let headers = build_auth_headers t in
+    let request =
+      Http_client.build_http_request
+        ~host:url.Http_client.host
+        ~path:(url.Http_client.path ^ "embeddings")
+        ~headers ~body
+    in
+    ( try
+        let raw = Http_client.do_request net url request in
+        let headers, raw_body = Http_client.split_response raw in
+        let status = Http_client.parse_status_line headers in
+        let resp_body = Http_client.decode_body headers raw_body in
+        if status <> 200 then
+          Result.Error
+            (http_error_to_error_category
+               (Http_client.map_http_status status resp_body))
+        else
+          let json = Yojson.Safe.from_string resp_body in
+          parse_embeddings_response json
+      with
+      | Eio.Io _ -> Result.Error (External_failure "Network error during OpenAI embedding request")
+      | Failure msg -> Result.Error (Invalid_input msg)
+      | exn -> Result.Error (Internal (Printexc.to_string exn)) )
+
 let close _t = ()

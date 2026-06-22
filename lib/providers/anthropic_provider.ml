@@ -423,4 +423,6 @@ let stream t model_config tools conversation _stream_config callback =
       | Failure msg -> Result.Error (Invalid_input msg)
       | exn -> Result.Error (Internal (Printexc.to_string exn)) )
 
+let embed _t _messages = Result.Error Embedding_unsupported
+
 let close _t = ()

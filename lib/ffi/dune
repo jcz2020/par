@@ -4,7 +4,7 @@
 ; Build with: dune build lib/ffi/par_capi.so
 (executable
  (name par_capi)
- (libraries par eio_main eio.unix unix threads)
+ (libraries par eio_main eio.unix unix threads mirage-crypto-rng.unix)
  (foreign_stubs
   (language c)
   (names par_ffi))

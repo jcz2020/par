@@ -78,6 +78,7 @@ let error_to_string = function
   | Permission_denied s -> s
   | Timeout -> "Timeout"
   | Rate_limited -> "Rate_limited"
+  | Embedding_unsupported -> "Embedding_unsupported"
 
 let check_ok_text resp expected =
   match resp with

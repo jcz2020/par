@@ -63,6 +63,26 @@ _PYTHON_TOOL_CALLBACK = ctypes.CFUNCTYPE(ctypes.c_char_p, ctypes.c_int, ctypes.c
 _lib.par_store_python_handler.argtypes = [ctypes.c_int, _PYTHON_TOOL_CALLBACK]
 _lib.par_store_python_handler.restype = None
 
+# char* par_invoke_stream(par_runtime_t* rt, const char* agent_id,
+#                         const char* message,
+#                         par_chunk_callback cb, void* user_data);
+# par_chunk_callback = void (*)(const char* json_chunk, void* user_data)
+# The callback receives a JSON-encoded llm_response_chunk; the bytes are
+# owned by the OCaml runtime for the duration of the call only, so the
+# callback MUST copy/decode before returning. user_data is opaque to C;
+# the Python binding always passes NULL because the ctypes closure already
+# captures state.
+# Returns: final result JSON string (caller MUST free()) or NULL on error.
+_STREAM_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_char_p, ctypes.c_void_p)
+_lib.par_invoke_stream.argtypes = [
+    ctypes.c_void_p,    # rt handle
+    ctypes.c_char_p,    # agent_id
+    ctypes.c_char_p,    # message
+    _STREAM_CALLBACK,   # chunk callback (closure captures queue)
+    ctypes.c_void_p,    # user_data (always NULL — closure captures state)
+]
+_lib.par_invoke_stream.restype = ctypes.c_void_p
+
 # int par_register_agent(par_runtime_t* rt, const char* config_json);
 _lib.par_register_agent.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_register_agent.restype = ctypes.c_int
@@ -71,6 +91,20 @@ _lib.par_register_agent.restype = ctypes.c_int
 # Caller MUST free() the returned string — returns c_void_p, not c_char_p
 _lib.par_invoke.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
 _lib.par_invoke.restype = ctypes.c_void_p
+
+# char* par_embed(par_runtime_t* rt, const char* messages_json);
+_lib.par_embed.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_embed.restype = ctypes.c_void_p
+
+# int par_add_documents(par_runtime_t* rt, const char* docs_json);
+_lib.par_add_documents.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_add_documents.restype = ctypes.c_int
+
+# char* par_invoke_with_rag(par_runtime_t* rt, const char* agent_id,
+#                           const char* message, const char* k_str);
+_lib.par_invoke_with_rag.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
+                                     ctypes.c_char_p, ctypes.c_char_p]
+_lib.par_invoke_with_rag.restype = ctypes.c_void_p
 
 # char* par_invoke_structured(par_runtime_t* rt, const char* agent_id,
 #                              const char* message, const char* schema_json);

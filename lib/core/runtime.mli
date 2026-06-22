@@ -11,6 +11,7 @@ val create :
   ?persistence:persistence_service ->
   ?event_bus:Types.event_bus_service ->
   ?llm:llm_service ->
+  ?embeddings:embedding_service ->
   ?bash_policy:(module Bash_policy.POLICY) ->
   ?mcp_servers:Mcp_types.server_config list ->
   ?mcp_process_mgr:_ Eio.Process.mgr ->
@@ -91,6 +92,17 @@ val invoke_structured :
   ?on_repair_attempt:(int -> error_category -> conversation -> unit) ->
   unit ->
   (structured_invoke_result, error_category * conversation) result
+
+val embed : runtime -> string list -> (float array list, error_category) result
+
+val invoke_with_rag :
+  runtime ->
+  agent_id:string ->
+  message:string ->
+  ?k:int ->
+  ?vector_store:Vector_store.t ->
+  unit ->
+  (invoke_result * Vector_store.document list, error_category) result
 
 val submit_task :
   runtime ->

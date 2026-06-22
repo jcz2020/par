@@ -1,9 +1,18 @@
 """High-level Runtime class wrapping the PAR C FFI."""
 import ctypes
 import json
-from typing import Any, Optional
+import queue
+import threading
+from dataclasses import dataclass
+from typing import Any, Iterator, Optional, Union
 
-from par_runtime._ffi import _lib, _c_str, _py_str, _PYTHON_TOOL_CALLBACK
+from par_runtime._ffi import (
+    _lib,
+    _c_str,
+    _py_str,
+    _PYTHON_TOOL_CALLBACK,
+    _STREAM_CALLBACK,
+)
 from par_runtime._errors import (
     PARError,
     PARInitError,
@@ -11,6 +20,151 @@ from par_runtime._errors import (
     PARToolError,
     PARWorkflowError,
 )
+
+
+@dataclass(frozen=True)
+class TextDelta:
+    text: str
+
+@dataclass(frozen=True)
+class ToolCallStart:
+    tool_call_id: str
+    name: str
+
+@dataclass(frozen=True)
+class ToolCallDelta:
+    tool_call_id: str
+    args_json: str
+
+@dataclass(frozen=True)
+class UsageUpdate:
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+
+@dataclass(frozen=True)
+class Done:
+    finish_reason: str
+
+Event = Union[TextDelta, ToolCallStart, ToolCallDelta, UsageUpdate, Done]
+
+
+_DONE = object()
+
+
+def _decode_event(payload) -> Event:
+    """Decode a JSON-decoded llm_response_chunk payload into an Event.
+
+    ppx_deriving_yojson (the version in this repo) encodes variants as
+    ``[Constructor, {fields}]``. A future ppx_yojson may switch to
+    ``{"tag": "Constructor", ...}``; we accept both so an OCaml upgrade
+    does not silently break the Python binding.
+    """
+    if isinstance(payload, list) and len(payload) == 2:
+        tag = payload[0]
+        fields = payload[1] if isinstance(payload[1], dict) else {}
+    elif isinstance(payload, dict):
+        tag = payload.get("tag") or payload.get("constructor")
+        fields = payload
+    else:
+        return TextDelta(text=str(payload))
+
+    if tag == "Text_delta":
+        return TextDelta(text=fields.get("text", ""))
+    if tag == "Tool_call_start":
+        return ToolCallStart(
+            tool_call_id=fields.get("tool_call_id", ""),
+            name=fields.get("name", ""),
+        )
+    if tag == "Tool_call_delta":
+        return ToolCallDelta(
+            tool_call_id=fields.get("tool_call_id", ""),
+            args_json=fields.get("args_json", ""),
+        )
+    if tag == "Usage_update":
+        return UsageUpdate(
+            prompt_tokens=int(fields.get("prompt_tokens", 0)),
+            completion_tokens=int(fields.get("completion_tokens", 0)),
+            total_tokens=int(fields.get("total_tokens", 0)),
+        )
+    if tag == "Done":
+        finish_reason = fields.get("finish_reason", "stop")
+        # finish_reason is itself a polymorphic variant: ["Stop"], ["Tool_calls"]
+        if isinstance(finish_reason, list) and finish_reason:
+            finish_reason = finish_reason[0]
+        return Done(finish_reason=str(finish_reason).lower())
+    return TextDelta(text=str(payload))
+
+
+class _StreamReader:
+    """Bridge between the OCaml chunk callback and a Python iterator.
+
+    The OCaml runtime invokes ``_on_chunk`` on its own fiber/thread;
+    the callback pushes decoded Events onto a bounded queue. The
+    consumer (``__iter__``) drains the queue on the caller's thread.
+    """
+
+    _QUEUE_MAX = 64
+    _POLL_TIMEOUT = 0.5
+
+    def __init__(self, rt_handle: Any, agent_id: str, message: str):
+        self._q: "queue.Queue[Any]" = queue.Queue(maxsize=self._QUEUE_MAX)
+        self._rt = rt_handle
+        self._agent_id = agent_id
+        self._message = message
+        self._exc: Optional[BaseException] = None
+        # CFUNCTYPE closure MUST be kept alive for the duration the C
+        # side may invoke it. Storing on self prevents GC.
+        self._cb_keepalive = _STREAM_CALLBACK(self._on_chunk)
+
+    def _on_chunk(self, json_bytes: bytes, _user_data: Any) -> None:
+        # ctypes swallows exceptions raised from callbacks (prints to
+        # stderr, returns default). Catch everything here and surface
+        # via the queue so the consumer sees the failure.
+        try:
+            data = json.loads(json_bytes.decode("utf-8"))
+            self._q.put(_decode_event(data))
+        except BaseException as e:  # noqa: BLE001 — must not escape callback
+            self._q.put(e)
+
+    def _run_invoke(self) -> None:
+        try:
+            result_ptr = _lib.par_invoke_stream(
+                self._rt,
+                _c_str(self._agent_id),
+                _c_str(self._message),
+                self._cb_keepalive,
+                None,  # user_data: closure captures state
+            )
+            if result_ptr:
+                _py_str(result_ptr)  # free the final-result string
+        except BaseException as e:  # noqa: BLE001 — surface to consumer
+            self._exc = e
+        finally:
+            self._q.put(_DONE)
+
+    def __iter__(self) -> Iterator[Event]:
+        worker = threading.Thread(target=self._run_invoke, daemon=True)
+        worker.start()
+        try:
+            while True:
+                try:
+                    item = self._q.get(timeout=self._POLL_TIMEOUT)
+                except queue.Empty:
+                    if not worker.is_alive() and self._q.empty():
+                        if self._exc is not None:
+                            raise self._exc
+                        return
+                    continue
+                if item is _DONE:
+                    if self._exc is not None:
+                        raise self._exc
+                    return
+                if isinstance(item, BaseException):
+                    raise item
+                yield item
+        finally:
+            worker.join(timeout=1.0)
 
 
 class Runtime:
@@ -214,6 +368,110 @@ class Runtime:
         except json.JSONDecodeError:
             pass
         return result
+
+    def embed(self, messages: list[str]) -> list[list[float]]:
+        """Embed a batch of texts.
+
+        Args:
+            messages: List of text strings to embed.
+
+        Returns:
+            List of embedding vectors (each a list of floats).
+
+        Raises:
+            PARError: If embedding fails.
+        """
+        self._check_handle()
+        messages_json = json.dumps(messages)
+        result_ptr = _lib.par_embed(self._handle, _c_str(messages_json))
+        result = _py_str(result_ptr)
+        if not result:
+            raise PARError("Embed failed: null result from runtime")
+        parsed = json.loads(result)
+        if isinstance(parsed, dict) and "error" in parsed:
+            raise PARError(parsed["error"])
+        return [[float(x) for x in vec] for vec in parsed]
+
+    def add_documents(self, documents: list[str | dict]) -> int:
+        """Add documents to the runtime's internal vector store for RAG.
+
+        Documents are embedded via the configured provider and stored
+        in an in-memory sqlite-vec index. The vector store is created
+        lazily on first call.
+
+        Args:
+            documents: List of text strings or dicts with id/content/metadata.
+
+        Returns:
+            Number of documents added.
+
+        Raises:
+            PARError: If embedding or storage fails.
+        """
+        self._check_handle()
+        docs_json = json.dumps(documents)
+        result = _lib.par_add_documents(self._handle, _c_str(docs_json))
+        if result < 0:
+            raise PARError(f"add_documents failed with code {result}")
+        return result
+
+    def invoke_with_rag(self, agent_id: str, message: str, k: int = 4) -> str:
+        """Invoke an agent with RAG-augmented context.
+
+        Embeds the query, retrieves top-k documents from the internal
+        vector store, augments the prompt with retrieved context, and
+        invokes the agent.
+
+        Args:
+            agent_id: The agent's identifier.
+            message: The user message.
+            k: Number of documents to retrieve (default 4).
+
+        Returns:
+            JSON response string.
+
+        Raises:
+            PARError: If invocation fails.
+        """
+        self._check_handle()
+        result_ptr = _lib.par_invoke_with_rag(
+            self._handle, _c_str(agent_id), _c_str(message), _c_str(str(k))
+        )
+        result = _py_str(result_ptr)
+        if not result:
+            raise PARError(f"invoke_with_rag failed for agent: {agent_id}")
+        try:
+            parsed = json.loads(result)
+            if isinstance(parsed, dict) and "error" in parsed:
+                raise PARError(parsed["error"])
+        except json.JSONDecodeError:
+            pass
+        return result
+
+    def invoke_stream(self, agent_id: str, message: str) -> Iterator[Event]:
+        """Invoke an agent and yield each LLM response chunk as an Event.
+
+        Mirrors ``Runtime.invoke ~on_chunk`` on the OCaml side. Returns a
+        lazy iterator: the underlying OCaml fiber only produces chunk N+1
+        when the consumer asks for it via ``next()``. The iterator runs
+        the OCaml invoke on a background daemon thread and bridges chunks
+        through a bounded queue (maxsize=64, per docs/sdk/streaming.md).
+
+        The CFUNCTYPE callback closure is held alive for the lifetime of
+        the returned reader, so the caller may iterate at any pace.
+
+        Raises:
+            PARInvokeError: if OCaml returns an error envelope before any
+                chunk is produced, or if a chunk callback raises.
+            PARError: if the runtime has been shut down.
+
+        Example:
+            for event in rt.invoke_stream("agent", "hello"):
+                if isinstance(event, TextDelta):
+                    print(event.text, end="", flush=True)
+        """
+        self._check_handle()
+        return iter(_StreamReader(self._handle, agent_id, message))
 
     def invoke_structured(self, agent_id: str, message: str,
                           response_schema: dict) -> dict:

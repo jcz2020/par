@@ -15,6 +15,7 @@ let string_of_error_category (ec : Types.error_category) =
   | Types.Invalid_input s -> Printf.sprintf "Invalid_input(%s)" s
   | Types.External_failure s -> Printf.sprintf "External_failure(%s)" s
   | Types.Rate_limited -> "Rate_limited"
+  | Types.Embedding_unsupported -> "Embedding_unsupported"
   | Types.Permission_denied s -> Printf.sprintf "Permission_denied(%s)" s
   | Types.Internal s -> Printf.sprintf "Internal(%s)" s
 

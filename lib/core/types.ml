@@ -59,6 +59,7 @@ type error_category =
   | Rate_limited
   | Permission_denied of string
   | Internal of string
+  | Embedding_unsupported
 [@@deriving yojson]
 
 type handler_result =
@@ -676,6 +677,16 @@ module type LLM_SERVICE = sig
   val close : t -> unit
 end
 
+module type EMBEDDING_SERVICE = sig
+  type t
+
+  val create : llm_provider_config -> (t, error_category) result
+
+  val embed : t -> string list -> (float array list, error_category) result
+
+  val close : t -> unit
+end
+
 type event_subscription = string
 
 type event_bus_service = {
@@ -704,6 +715,11 @@ type llm_service = {
     (model_config -> tool_descriptor list -> conversation ->
      Yojson.Safe.t ->                             (* response_schema *)
      (llm_response, error_category) result) option;  (* None = fallback path *)
+}
+
+type embedding_service = {
+  embed_fn : string list -> (float array list, error_category) result;
+  close_fn : unit -> unit;
 }
 
 (* -------------------------------------------------------------------------- *)
@@ -823,6 +839,7 @@ type persistence_service = {
 type service_registry = {
   persistence : persistence_service;
   llm : llm_service;
+  embeddings : embedding_service option;
   event_bus : event_bus_service;
   config : runtime_config;
 }

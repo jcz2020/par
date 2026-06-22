@@ -56,3 +56,26 @@ val create :
 
     The returned [llm_service.complete_structured_fn] is always [Some _],
     enabling deterministic structured-output testing without real LLM calls. *)
+
+(** {1 Embedding Service Mock} *)
+
+type embed_call_record = {
+  inputs : string list;
+  timestamp : float;
+}
+
+type embed_call_history = {
+  mutable embed_calls : embed_call_record list;
+}
+
+val create_embed_history : unit -> embed_call_history
+
+val embed_call_count : embed_call_history -> int
+
+val last_embed_call : embed_call_history -> embed_call_record option
+
+val nth_embed_call : embed_call_history -> int -> embed_call_record option
+
+val mock_embed_service : unit -> embedding_service * embed_call_history
+(** Create a mock embedding service that returns deterministic float arrays
+    (hash-based) and records every call for assertion in tests. *)

@@ -1,4 +1,4 @@
-type parsed_url = { host : string; port : int; path : string }
+type parsed_url = { host : string; port : int; path : string; use_tls : bool }
 
 type http_error =
   | Invalid_input of string

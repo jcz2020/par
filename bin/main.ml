@@ -86,6 +86,7 @@ let error_category_to_string (e : Types.error_category) =
   | Types.Rate_limited -> "Rate limited"
   | Types.Permission_denied s -> Printf.sprintf "Permission denied: %s" s
   | Types.Internal s -> Printf.sprintf "Internal error: %s" s
+  | Types.Embedding_unsupported -> "Embedding unsupported"
 
 let make_sqlite_persistence ?(retention_days = 7.0) db_path =
   match Sqlite_persistence.create
@@ -155,6 +156,37 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
          stream_fn = (fun mc tools conv sc cb -> Anthropic_provider.stream t mc tools conv sc cb);
          close_fn = (fun () -> Anthropic_provider.close t);
          complete_structured_fn = Some (fun mc tools conv schema -> Anthropic_provider.complete_structured t mc tools conv schema) })
+
+let make_embedding_service provider_tag api_key_val api_base_val (net : [< `Generic | `Unix > `Generic ] Eio.Net.ty Eio.Resource.t) =
+  let open Types in
+  let net_gen = (net :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
+  match provider_tag with
+  | `Openai ->
+    let cfg = Openai { api_key = api_key_val; base_url = api_base_val; organization = None } in
+    (match Openai_provider.create cfg with
+     | Error e ->
+       Printf.eprintf "Error creating OpenAI embedding provider: %s\n" (error_category_to_string e);
+       exit 1
+     | Ok t ->
+       Openai_provider.set_network t net_gen;
+       { embed_fn = (fun msgs -> Openai_provider.embed t msgs);
+         close_fn = (fun () -> Openai_provider.close t) })
+  | `Anthropic ->
+    { embed_fn = (fun _msgs -> Result.Error Embedding_unsupported);
+      close_fn = ignore }
+  | `Ollama ->
+    let cfg = Openai { api_key = api_key_val; base_url = Some "http://localhost:11434/v1"; organization = None } in
+    (match Openai_provider.create cfg with
+     | Error e ->
+       Printf.eprintf "Error creating Ollama embedding provider: %s\n" (error_category_to_string e);
+       exit 1
+     | Ok t ->
+       Openai_provider.set_network t net_gen;
+       { embed_fn = (fun msgs -> Openai_provider.embed t msgs);
+         close_fn = (fun () -> Openai_provider.close t) })
+  | `Custom _ ->
+    Printf.eprintf "Error: custom provider embeddings not supported in CLI\n";
+    exit 1
 
 let default_template =
   "你是{{role}}，你的任务是{{task}}。\n当前可用工具：{{available_tools}}。\n当前时间：{{current_time}}。"
@@ -251,12 +283,13 @@ let setup_runtime cfg ~interactive:_ ~f =
   Eio.Switch.run @@ fun switch ->
   let net = Eio.Stdenv.net env in
   let llm = make_llm_service provider_tag cfg.Par_config.api_key cfg.Par_config.api_base net in
+  let embeddings = make_embedding_service provider_tag cfg.Par_config.api_key cfg.Par_config.api_base net in
   let mcp_server_configs = List.map (fun (entry : Par_config.mcp_server_entry) ->
     Mcp_types.Stdio_server {
       name = entry.name; command = entry.command; args = entry.args;
       env = entry.env; cwd = None; startup_timeout = entry.startup_timeout }
   ) cfg.Par_config.mcp_servers in
-  match Runtime.create ~persistence:pers ~llm ~config
+  match Runtime.create ~persistence:pers ~llm ~embeddings ~config
       ~mcp_servers:mcp_server_configs
       ~mcp_process_mgr:(Eio.Stdenv.process_mgr env)
       ~mcp_clock:(Eio.Stdenv.clock env)

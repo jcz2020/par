@@ -8,6 +8,12 @@ val complete :
   t -> model_config -> tool_descriptor list -> conversation ->
   (llm_response, error_category) result
 
+val embed :
+  t -> string list -> (float array list, error_category) result
+
+(** Parse an OpenAI /embeddings response body. Exposed for unit testing. *)
+val parse_embeddings_response : Yojson.Safe.t -> (float array list, error_category) result
+
 val complete_structured :
   t -> model_config -> tool_descriptor list -> conversation ->
   Yojson.Safe.t ->
