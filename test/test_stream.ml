@@ -18,7 +18,7 @@ let test_openai_stream () =
   Eio_main.run @@ fun env ->
   let net = (Eio.Stdenv.net env :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
   let t = match Openai_provider.create (Openai {
-      api_key; base_url = Some "https://open.bigmodel.cn/api/paas/v4"; organization = None
+      api_key; base_url = Some "https://open.bigmodel.cn/api/paas/v4"; organization = None; embedding_model = None
     }) with
     | Ok t -> Openai_provider.set_network t net; t
     | Error e -> Alcotest.fail ("create: " ^ show_error e)

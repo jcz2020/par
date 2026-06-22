@@ -237,7 +237,7 @@ let test_http_map_http_status_502_retryable () =
 let test_openai_create_valid () =
   match
     Openai_provider.create
-      (Openai { api_key = "sk-valid"; base_url = None; organization = None })
+      (Openai { api_key = "sk-valid"; base_url = None; organization = None; embedding_model = None })
   with
   | Ok _ -> ()
   | Error e -> Alcotest.failf "expected Ok, got %s" (show_error e)
@@ -245,7 +245,7 @@ let test_openai_create_valid () =
 let test_openai_create_empty_api_key () =
   match
     Openai_provider.create
-      (Openai { api_key = ""; base_url = None; organization = None })
+      (Openai { api_key = ""; base_url = None; organization = None; embedding_model = None })
   with
   | Ok _ -> Alcotest.fail "expected Error for empty api_key"
   | Error (Invalid_input msg) ->
@@ -269,7 +269,7 @@ let test_openai_create_custom_base_url () =
     Openai_provider.create
       (Openai { api_key = "sk-valid"
               ; base_url = Some "https://gateway.example.com/v1"
-              ; organization = Some "org-test" })
+              ; organization = Some "org-test"; embedding_model = None })
   with
   | Ok _ -> ()
   | Error e -> Alcotest.failf "expected Ok, got %s" (show_error e)
@@ -277,7 +277,7 @@ let test_openai_create_custom_base_url () =
 let test_openai_complete_without_network () =
   match
     Openai_provider.create
-      (Openai { api_key = "sk-test"; base_url = None; organization = None })
+      (Openai { api_key = "sk-test"; base_url = None; organization = None; embedding_model = None })
   with
   | Error e -> Alcotest.failf "create failed: %s" (show_error e)
   | Ok t ->
@@ -291,7 +291,7 @@ let test_openai_complete_without_network () =
 let test_openai_stream_without_network () =
   match
     Openai_provider.create
-      (Openai { api_key = "sk-test"; base_url = None; organization = None })
+      (Openai { api_key = "sk-test"; base_url = None; organization = None; embedding_model = None })
   with
   | Error e -> Alcotest.failf "create failed: %s" (show_error e)
   | Ok t ->
@@ -368,7 +368,7 @@ let test_openai_request_body_with_tools () =
 let test_openai_close_is_safe () =
   match
     Openai_provider.create
-      (Openai { api_key = "sk-x"; base_url = None; organization = None })
+      (Openai { api_key = "sk-x"; base_url = None; organization = None; embedding_model = None })
   with
   | Error e -> Alcotest.failf "create failed: %s" (show_error e)
   | Ok t ->
@@ -401,7 +401,7 @@ let test_anthropic_create_empty_api_key () =
 let test_anthropic_create_wrong_variant () =
   match
     Anthropic_provider.create
-      (Openai { api_key = "sk-valid"; base_url = None; organization = None })
+      (Openai { api_key = "sk-valid"; base_url = None; organization = None; embedding_model = None })
   with
   | Ok _ -> Alcotest.fail "expected Error for wrong variant"
   | Error (Invalid_input msg) ->
@@ -540,7 +540,7 @@ let test_openai_connection_refused_returns_external_failure () =
     Openai_provider.create
       (Openai { api_key = "sk-test"
               ; base_url = Some "https://127.0.0.1:1"
-              ; organization = None })
+              ; organization = None; embedding_model = None })
   with
   | Error e -> Alcotest.failf "create failed: %s" (show_error e)
   | Ok t ->

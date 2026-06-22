@@ -101,7 +101,7 @@ let suite = [
 
   Alcotest.test_case "empty openai api_key fails" `Quick (fun () ->
     let cfg = { (make_config ()) with
-                llm_providers = ["openai", Types.Openai { api_key = ""; base_url = None; organization = None }] } in
+                llm_providers = ["openai", Types.Openai { api_key = ""; base_url = None; organization = None; embedding_model = None }] } in
     match Validation.validate_runtime_config cfg with
     | Ok () -> Alcotest.fail "expected Error for empty api_key"
     | Error msg ->
@@ -110,7 +110,7 @@ let suite = [
 
   Alcotest.test_case "valid openai config passes" `Quick (fun () ->
     let cfg = { (make_config ()) with
-                llm_providers = ["openai", Types.Openai { api_key = "sk-valid"; base_url = None; organization = None }] } in
+                llm_providers = ["openai", Types.Openai { api_key = "sk-valid"; base_url = None; organization = None; embedding_model = None }] } in
     match Validation.validate_runtime_config cfg with
     | Ok () -> ()
     | Error e -> Alcotest.failf "expected Ok, got: %s" e);

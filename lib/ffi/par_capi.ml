@@ -162,8 +162,8 @@ let default_llm_service : Par.Types.llm_service = {
 let build_llm_from_provider provider_cfg net =
   let net_gen = (net :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
   match provider_cfg with
-  | Par.Types.Openai { api_key; base_url; _ } ->
-    (match Par.Openai_provider.create (Par.Types.Openai { api_key; base_url; organization = None }) with
+  | Par.Types.Openai { api_key; base_url; organization; embedding_model = _ } ->
+    (match Par.Openai_provider.create (Par.Types.Openai { api_key; base_url; organization; embedding_model = None }) with
      | Ok t ->
        Par.Openai_provider.set_network t net_gen;
        Some {
@@ -174,7 +174,7 @@ let build_llm_from_provider provider_cfg net =
        }
      | Error _ -> None)
   | Par.Types.Ollama { base_url } ->
-    let cfg = Par.Types.Openai { api_key = "ollama-no-auth"; base_url = Some (base_url ^ "/v1"); organization = None } in
+    let cfg = Par.Types.Openai { api_key = "ollama-no-auth"; base_url = Some (base_url ^ "/v1"); organization = None; embedding_model = None } in
     (match Par.Openai_provider.create cfg with
      | Ok t ->
        Par.Openai_provider.set_network t net_gen;
@@ -195,8 +195,8 @@ let build_llm_from_provider provider_cfg net =
 let build_embed_from_provider provider_cfg net =
   let net_gen = (net :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
   match provider_cfg with
-  | Par.Types.Openai { api_key; base_url; _ } ->
-    (match Par.Openai_provider.create (Par.Types.Openai { api_key; base_url; organization = None }) with
+  | Par.Types.Openai { api_key; base_url; organization; embedding_model } ->
+    (match Par.Openai_provider.create (Par.Types.Openai { api_key; base_url; organization; embedding_model }) with
      | Ok t ->
        Par.Openai_provider.set_network t net_gen;
        Some { Par.Types.embed_fn = (fun msgs -> Par.Openai_provider.embed t msgs);
@@ -206,7 +206,7 @@ let build_embed_from_provider provider_cfg net =
     fd_log (Printf.sprintf "[embed] wiring Ollama (base_url=%s)" base_url);
     (* Ollama doesn't use API keys, but Openai_provider.create validates
        non-empty api_key. Pass a placeholder that Ollama will ignore. *)
-    let cfg = Par.Types.Openai { api_key = "ollama-no-auth"; base_url = Some (base_url ^ "/v1"); organization = None } in
+    let cfg = Par.Types.Openai { api_key = "ollama-no-auth"; base_url = Some (base_url ^ "/v1"); organization = None; embedding_model = None } in
     (match Par.Openai_provider.create cfg with
      | Ok t ->
        Par.Openai_provider.set_network t net_gen;
@@ -363,7 +363,6 @@ let do_register_tool (state_id : int) (name : string) (desc : string) (schema : 
     result
 
 external c_invoke_python_handler : int -> string -> string = "caml_invoke_python_handler"
-external c_dispatch_chunk_to_c : string -> unit = "caml_dispatch_chunk_to_c"
 
 let do_register_tool_with_handler (state_id : int) (name : string) (desc : string)
     (schema : string) (handler_id : int) =
@@ -544,27 +543,33 @@ let do_invoke_structured (state_id : int) (agent_id : string) (message : string)
        with e -> Obj.repr (Some (error_json (Printexc.to_string e))))) in
     (Obj.obj result : string option)
 
-let chunk_to_json_dispatch (chunk : Par.Types.llm_response_chunk) =
-  let json =
-    Par.Types.llm_response_chunk_to_yojson chunk
-    |> Yojson.Safe.to_string
-  in
-  c_dispatch_chunk_to_c json
-
 let do_invoke_stream (state_id : int) (agent_id : string) (message : string) =
   match get_state state_id with
   | None -> error_json "Invalid runtime handle"
   | Some _ ->
     let result = dispatch state_id (fun rt _env ->
       (try
+         let chunk_buf = ref [] in
+         let on_chunk chunk =
+           let json =
+             Par.Types.llm_response_chunk_to_yojson chunk
+             |> Yojson.Safe.to_string
+           in
+           chunk_buf := json :: !chunk_buf
+         in
          let result = Par.Runtime.invoke rt
            ~agent_id ~message
-           ~on_chunk:(Some chunk_to_json_dispatch)
+           ~on_chunk:(Some on_chunk)
            () in
+         let chunks_json =
+           `List (List.rev_map (fun s -> `Assoc [("chunk", Yojson.Safe.from_string s)]) !chunk_buf)
+           |> Yojson.Safe.to_string
+         in
          let json = match result with
            | Ok { Par.Types.response = resp; conversation = _ } ->
-             Printf.sprintf "{\"status\": \"ok\", \"content\": %s}"
+             Printf.sprintf "{\"status\": \"ok\", \"content\": %s, \"chunks\": %s}"
                (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp))
+               chunks_json
            | Error (err, _) ->
              error_json (Printf.sprintf "Invoke_stream failed: %s"
                (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))

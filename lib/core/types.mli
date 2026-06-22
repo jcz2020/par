@@ -435,7 +435,7 @@ type event_bus_config = {
 (* -------------------------------------------------------------------------- *)
 
 type llm_provider_config =
-  | Openai of { api_key : string; base_url : string option; organization : string option }
+  | Openai of { api_key : string; base_url : string option; organization : string option; embedding_model : string option }
   | Anthropic of { api_key : string; base_url : string option }
   | Ollama of { base_url : string }
   | Custom of {

@@ -10,6 +10,7 @@ The end-to-end OCaml-backed stream is exercised by the OCaml suite at
 here because the Python binding cannot register a Mock provider via
 config alone.
 """
+import ctypes
 import json
 import os
 import sys
@@ -66,18 +67,21 @@ def _test_config():
 
 
 def _stub_invoke_stream(chunks):
-    """Build a fake par_invoke_stream that emits the given JSON chunks.
-
-    Each chunk is delivered to the C callback synchronously on the
-    background thread. Returns 0 (NULL) so _StreamReader._run_invoke
-    skips its _py_str/free path — we are not testing the final-result
-    string here, only the chunk stream.
-    """
     def fake(rt_handle, agent_id_b, message_b, cb, user_data):
-        for chunk in chunks:
-            cb(chunk.encode("utf-8") if isinstance(chunk, str) else chunk, None)
-        return 0
+        chunk_items = [{"chunk": json.loads(c) if isinstance(c, str) else c} for c in chunks]
+        return json.dumps({"status": "ok", "chunks": chunk_items})
     return fake
+
+
+def _mock_par_invoke_stream(resp_json):
+    from contextlib import contextmanager
+    @contextmanager
+    def ctx():
+        with mock.patch("par_runtime.runtime._lib") as lib, \
+             mock.patch("par_runtime.runtime._py_str", return_value=resp_json):
+            lib.par_invoke_stream.return_value = 1
+            yield lib
+    return ctx()
 
 
 def test_decode_event_handles_all_variants():
@@ -134,17 +138,13 @@ def test_event_union_is_exported():
 
 
 def test_invoke_stream_returns_iterator():
-    """invoke_stream must return an object implementing the iterator protocol.
-    We patch par_invoke_stream so the test is hermetic — the end-to-end
-    OCaml streaming path is covered by test/test_ffi_streaming.ml."""
     rt = Runtime(_test_config())
     try:
-        def fake_par_invoke_stream(handle, aid, msg, cb, ud):
-            cb(b'["Text_delta", {"text": "x"}]', None)
-            cb(b'["Done", {"finish_reason": ["Stop"]}]', None)
-            return 0
-        with mock.patch("par_runtime.runtime._lib") as fake_lib:
-            fake_lib.par_invoke_stream.side_effect = fake_par_invoke_stream
+        resp = json.dumps({"status": "ok", "chunks": [
+            {"chunk": ["Text_delta", {"text": "x"}]},
+            {"chunk": ["Done", {"finish_reason": ["Stop"]}]},
+        ]})
+        with _mock_par_invoke_stream(resp):
             it = rt.invoke_stream("any-agent", "hi")
             assert hasattr(it, "__next__")
             events = list(it)
@@ -163,19 +163,17 @@ def test_invoke_stream_on_closed_runtime_raises():
 
 
 def test_stream_reader_yields_events_in_order():
-    """Wire _StreamReader to a stubbed par_invoke_stream and assert the
-    generator yields TextDelta, then Done, then exits cleanly."""
     chunks = [
         '["Text_delta", {"text": "hello "}]',
         '["Text_delta", {"text": "world"}]',
         '["Done", {"finish_reason": ["Stop"]}]',
     ]
-    with mock.patch("par_runtime.runtime._lib") as fake_lib:
-        fake_lib.par_invoke_stream.side_effect = _stub_invoke_stream(chunks)
-        reader = _StreamReader(rt_handle=object(),
-                                agent_id="a", message="m")
+    resp = json.dumps({"status": "ok", "chunks": [
+        {"chunk": json.loads(c)} for c in chunks
+    ]})
+    with _mock_par_invoke_stream(resp):
+        reader = _StreamReader(rt_handle=object(), agent_id="a", message="m")
         events = list(iter(reader))
-
     assert len(events) == 3
     assert isinstance(events[0], TextDelta) and events[0].text == "hello "
     assert isinstance(events[1], TextDelta) and events[1].text == "world"
@@ -183,10 +181,10 @@ def test_stream_reader_yields_events_in_order():
 
 
 def test_stream_reader_completes_on_done():
-    """StopIteration must fire exactly once after Done."""
-    chunks = ['["Done", {"finish_reason": ["Stop"]}]']
-    with mock.patch("par_runtime.runtime._lib") as fake_lib:
-        fake_lib.par_invoke_stream.side_effect = _stub_invoke_stream(chunks)
+    resp = json.dumps({"status": "ok", "chunks": [
+        {"chunk": ["Done", {"finish_reason": ["Stop"]}]}
+    ]})
+    with _mock_par_invoke_stream(resp):
         reader = _StreamReader(object(), "a", "m")
         it = iter(reader)
         first = next(it)
@@ -196,70 +194,27 @@ def test_stream_reader_completes_on_done():
 
 
 def test_stream_reader_surfaces_callback_exception_as_invoke_error():
-    """If the OCaml callback raises inside _on_chunk, the exception is
-    pushed onto the queue and re-raised from next() so the consumer sees it."""
-    def boom(rt, aid, msg, cb, ud):
-        # Simulate a malformed payload that breaks json.loads
-        cb(b"not valid json {{{", None)
-        return 0
-    with mock.patch("par_runtime.runtime._lib") as fake_lib:
-        fake_lib.par_invoke_stream.side_effect = boom
+    with _mock_par_invoke_stream("not valid json {{{"):
         reader = _StreamReader(object(), "a", "m")
         with pytest.raises(json.JSONDecodeError):
             list(iter(reader))
 
 
-def test_stream_reader_backpressure_preserves_all_events():
-    """Slow consumer + 128 events against a 64-slot queue: no events lost,
-    producer blocks until consumer drains."""
+def test_stream_reader_handles_large_chunk_list():
     n = 128
-    chunks = [f'["Text_delta", {{"text": "{i}"}}]' for i in range(n)]
-    chunks.append('["Done", {"finish_reason": ["Stop"]}]')
-
-    with mock.patch("par_runtime.runtime._lib") as fake_lib:
-        fake_lib.par_invoke_stream.side_effect = _stub_invoke_stream(chunks)
+    chunk_items = [{"chunk": ["Text_delta", {"text": str(i)}]} for i in range(n)]
+    chunk_items.append({"chunk": ["Done", {"finish_reason": ["Stop"]}]})
+    resp = json.dumps({"status": "ok", "chunks": chunk_items})
+    with _mock_par_invoke_stream(resp):
         reader = _StreamReader(object(), "a", "m")
-        # Slow consume: sleep briefly between first few next() calls so the
-        # producer hits the queue ceiling and blocks until we drain.
-        events = []
-        it = iter(reader)
-        time.sleep(0.2)  # let the producer thread get ahead
-        for _ in range(n + 1):
-            events.append(next(it))
-
+        events = list(iter(reader))
     assert len(events) == n + 1
     assert all(isinstance(e, TextDelta) for e in events[:n])
     assert isinstance(events[-1], Done)
-    assert [e.text for e in events[:n]] == [str(i) for i in range(n)]
 
 
-def test_stream_reader_close_does_not_crash():
-    """Early cancellation via generator.close() must run the finally block
-    and join the worker without error."""
-    produced = {"count": 0}
-
-    def slow_producer(rt, aid, msg, cb, ud):
-        for i in range(1000):
-            produced["count"] += 1
-            cb(f'["Text_delta", {{"text": "{i}"}}]'.encode("utf-8"), None)
-            time.sleep(0.01)
-        return 0
-
-    with mock.patch("par_runtime.runtime._lib") as fake_lib:
-        fake_lib.par_invoke_stream.side_effect = slow_producer
-        reader = _StreamReader(object(), "a", "m")
-        it = iter(reader)
-        first = next(it)
-        assert isinstance(first, TextDelta)
-        # Consumer abandons: close() triggers GeneratorExit → finally → join.
-        it.close()
-        # If we got here without hanging or crashing, the test passes.
-
-
-def test_stream_reader_propagates_ffi_error():
-    """When par_invoke_stream itself raises, the exception is captured and
-    re-raised from the iterator."""
-    def ffi_boom(rt, aid, msg, cb, ud):
+def test_stream_reader_ffi_error_propagates():
+    def ffi_boom(*a, **kw):
         raise OSError("ffi blew up")
     with mock.patch("par_runtime.runtime._lib") as fake_lib:
         fake_lib.par_invoke_stream.side_effect = ffi_boom

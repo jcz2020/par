@@ -133,7 +133,7 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
   let net_gen = (net :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
   match provider_tag with
   | `Openai ->
-    let cfg = Openai { api_key = api_key_val; base_url = api_base_val; organization = None } in
+    let cfg = Openai { api_key = api_key_val; base_url = api_base_val; organization = None; embedding_model = None } in
     (match Openai_provider.create cfg with
      | Error e ->
        Printf.eprintf "Error creating OpenAI provider: %s\n" (error_category_to_string e);
@@ -162,7 +162,7 @@ let make_embedding_service provider_tag api_key_val api_base_val (net : [< `Gene
   let net_gen = (net :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
   match provider_tag with
   | `Openai ->
-    let cfg = Openai { api_key = api_key_val; base_url = api_base_val; organization = None } in
+    let cfg = Openai { api_key = api_key_val; base_url = api_base_val; organization = None; embedding_model = None } in
     (match Openai_provider.create cfg with
      | Error e ->
        Printf.eprintf "Error creating OpenAI embedding provider: %s\n" (error_category_to_string e);
@@ -175,7 +175,7 @@ let make_embedding_service provider_tag api_key_val api_base_val (net : [< `Gene
     { embed_fn = (fun _msgs -> Result.Error Embedding_unsupported);
       close_fn = ignore }
   | `Ollama ->
-    let cfg = Openai { api_key = api_key_val; base_url = Some "http://localhost:11434/v1"; organization = None } in
+    let cfg = Openai { api_key = api_key_val; base_url = Some "http://localhost:11434/v1"; organization = None; embedding_model = None } in
     (match Openai_provider.create cfg with
      | Error e ->
        Printf.eprintf "Error creating Ollama embedding provider: %s\n" (error_category_to_string e);

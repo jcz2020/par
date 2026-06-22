@@ -1,18 +1,19 @@
 open Types
 
-(* — LLM Client *)
+let default_embedding_model = "text-embedding-3-small"
 
 type t = {
   api_key : string;
   base_url : string;
   organization : string option;
+  embedding_model : string;
   mutable net : [ `Generic] Eio.Net.ty Eio.Net.t option;
 }
 
 let set_network t net = t.net <- Some net
 
 let create = function
-  | Openai { api_key; base_url; organization } ->
+  | Openai { api_key; base_url; organization; embedding_model } ->
     if String.length api_key = 0 then
       Result.Error (Invalid_input "api_key must not be empty")
     else
@@ -20,6 +21,7 @@ let create = function
         api_key;
         base_url = Option.value base_url ~default:"https://api.openai.com/v1";
         organization;
+        embedding_model = Option.value embedding_model ~default:default_embedding_model;
         net = None;
       }
   | _ -> Result.Error (Invalid_input "OpenAI provider requires Openai configuration")
@@ -544,10 +546,6 @@ let stream t model_config tools conversation _stream_config callback =
 (* Embedding parsing                                                       *)
 (* -------------------------------------------------------------------------- *)
 
-(* v1: model hard-coded to text-embedding-3-small (1536 dims).
-   Per-call override deferred until callers need it. See commit message. *)
-let default_embedding_model = "Qwen/Qwen3-Embedding-8B"
-
  let parse_embeddings_response (json : Yojson.Safe.t) :
      (float array list, error_category) result =
    let open Yojson.Safe.Util in
@@ -597,7 +595,7 @@ let embed t messages =
     let body =
       let input_json = `List (List.map (fun s -> `String s) messages) in
       let fields = [
-        ("model", `String default_embedding_model);
+        ("model", `String t.embedding_model);
         ("input", input_json);
       ] in
       Yojson.Safe.to_string (`Assoc fields)

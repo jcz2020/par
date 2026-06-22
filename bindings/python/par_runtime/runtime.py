@@ -97,74 +97,46 @@ def _decode_event(payload) -> Event:
 
 
 class _StreamReader:
-    """Bridge between the OCaml chunk callback and a Python iterator.
+    """Iterator over streaming chunks from a single invoke_stream call.
 
-    The OCaml runtime invokes ``_on_chunk`` on its own fiber/thread;
-    the callback pushes decoded Events onto a bounded queue. The
-    consumer (``__iter__``) drains the queue on the caller's thread.
+    Calls par_invoke_stream on the calling thread (no daemon thread).
+    The OCaml work loop buffers chunks internally and returns them all
+    with the final result. This iterator then yields each chunk as an
+    Event.
     """
 
-    _QUEUE_MAX = 64
-    _POLL_TIMEOUT = 0.5
-
     def __init__(self, rt_handle: Any, agent_id: str, message: str):
-        self._q: "queue.Queue[Any]" = queue.Queue(maxsize=self._QUEUE_MAX)
         self._rt = rt_handle
         self._agent_id = agent_id
         self._message = message
-        self._exc: Optional[BaseException] = None
-        # CFUNCTYPE closure MUST be kept alive for the duration the C
-        # side may invoke it. Storing on self prevents GC.
-        self._cb_keepalive = _STREAM_CALLBACK(self._on_chunk)
+        self._events: list = []
+        self._fetched = False
 
-    def _on_chunk(self, json_bytes: bytes, _user_data: Any) -> None:
-        # ctypes swallows exceptions raised from callbacks (prints to
-        # stderr, returns default). Catch everything here and surface
-        # via the queue so the consumer sees the failure.
-        try:
-            data = json.loads(json_bytes.decode("utf-8"))
-            self._q.put(_decode_event(data))
-        except BaseException as e:  # noqa: BLE001 — must not escape callback
-            self._q.put(e)
-
-    def _run_invoke(self) -> None:
-        try:
-            result_ptr = _lib.par_invoke_stream(
-                self._rt,
-                _c_str(self._agent_id),
-                _c_str(self._message),
-                self._cb_keepalive,
-                None,  # user_data: closure captures state
-            )
-            if result_ptr:
-                _py_str(result_ptr)  # free the final-result string
-        except BaseException as e:  # noqa: BLE001 — surface to consumer
-            self._exc = e
-        finally:
-            self._q.put(_DONE)
+    def _fetch(self) -> None:
+        if self._fetched:
+            return
+        self._fetched = True
+        noop_cb = _STREAM_CALLBACK(lambda _data, _ud: None)
+        result_ptr = _lib.par_invoke_stream(
+            self._rt,
+            _c_str(self._agent_id),
+            _c_str(self._message),
+            noop_cb,
+            None,
+        )
+        raw = _py_str(result_ptr)
+        if not raw:
+            return
+        parsed = json.loads(raw)
+        if parsed.get("status") != "ok":
+            return
+        for item in parsed.get("chunks", []):
+            chunk_data = item.get("chunk", item)
+            self._events.append(_decode_event(chunk_data))
 
     def __iter__(self) -> Iterator[Event]:
-        worker = threading.Thread(target=self._run_invoke, daemon=True)
-        worker.start()
-        try:
-            while True:
-                try:
-                    item = self._q.get(timeout=self._POLL_TIMEOUT)
-                except queue.Empty:
-                    if not worker.is_alive() and self._q.empty():
-                        if self._exc is not None:
-                            raise self._exc
-                        return
-                    continue
-                if item is _DONE:
-                    if self._exc is not None:
-                        raise self._exc
-                    return
-                if isinstance(item, BaseException):
-                    raise item
-                yield item
-        finally:
-            worker.join(timeout=1.0)
+        self._fetch()
+        yield from self._events
 
 
 class Runtime:

@@ -85,6 +85,7 @@ def _test_config(base_url):
                 "api_key": "sk-mock-test-key",
                 "base_url": base_url,
                 "organization": None,
+                "embedding_model": None,
             }]],
         ],
         "eval_limits": {"max_depth": 10, "max_node_visits": 1000},

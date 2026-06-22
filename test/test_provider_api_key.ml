@@ -3,7 +3,7 @@ open Types
 
 let test_openai_create_rejects_empty_api_key () =
   match Openai_provider.create
-    (Openai { api_key = ""; base_url = None; organization = None }) with
+    (Openai { api_key = ""; base_url = None; organization = None; embedding_model = None }) with
   | Ok _ -> Alcotest.fail "expected Error for empty api_key"
   | Error e ->
     (match e with
@@ -22,7 +22,7 @@ let test_openai_create_rejects_empty_api_key () =
 
 let test_openai_create_accepts_valid_api_key () =
   match Openai_provider.create
-    (Openai { api_key = "sk-valid"; base_url = None; organization = None }) with
+    (Openai { api_key = "sk-valid"; base_url = None; organization = None; embedding_model = None }) with
   | Ok _ -> ()
   | Error _ -> Alcotest.fail "expected Ok for valid api_key"
 
@@ -52,7 +52,7 @@ let test_openai_create_wrong_config_variant () =
 
 let test_anthropic_create_wrong_config_variant () =
   match Anthropic_provider.create
-    (Openai { api_key = "sk-valid"; base_url = None; organization = None }) with
+    (Openai { api_key = "sk-valid"; base_url = None; organization = None; embedding_model = None }) with
   | Ok _ -> Alcotest.fail "expected Error for wrong config variant"
   | Error e ->
     (match e with Invalid_input _ -> () | _ -> Alcotest.fail "expected Invalid_input")

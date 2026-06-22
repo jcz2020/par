@@ -39,11 +39,11 @@ def _test_config(llm_providers=None):
 
 
 def _openai_provider_config(api_key="sk-test-dummy-key"):
-    """Build an OpenAI provider config tuple: [name, [Variant, payload]]."""
     return ["my_agent", ["Openai", {
         "api_key": api_key,
         "base_url": None,
         "organization": None,
+        "embedding_model": None,
     }]]
 
 
