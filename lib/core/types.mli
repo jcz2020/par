@@ -451,6 +451,9 @@ type event =
       schema_valid : bool;
       task_id : Task_id.t;
     }
+  | Embedding_request_sent of { model : string; input_count : int }
+  | Embedding_response_received of { model : string; output_count : int; duration_ms : float }
+  | Retrieval_completed of { query_count : int; retrieved_count : int; top_k : int }
 [@@deriving yojson]
 
 type event_envelope = {

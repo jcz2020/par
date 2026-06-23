@@ -34,6 +34,9 @@ let extract_task_id : event -> string = function
   | Mcp_prompt_rendered _ -> ""
   | Agent_handoff { task_id; _ } -> Task_id.to_string task_id
   | Structured_output_completed { task_id; _ } -> Task_id.to_string task_id
+  | Embedding_request_sent _ -> ""
+  | Embedding_response_received _ -> ""
+  | Retrieval_completed _ -> ""
 
 let extract_session_id (envelope : event_envelope) : string =
   envelope.metadata.session_id

@@ -26,6 +26,7 @@ module Vector_store = Vector_store
 module Tool_registry = Tool_registry
 module Skill_registry = Skill_registry
 module Skill_loader = Skill_loader
+module Builtin_skills = Builtin_skills
 
 module Openai_provider = Openai_provider
 module Anthropic_provider = Anthropic_provider

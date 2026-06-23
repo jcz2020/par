@@ -417,6 +417,13 @@ let setup_runtime cfg ~interactive:_ ~f =
         Printf.eprintf "  [%s]\n" ctx.Hook.tool_name;
         flush stderr;
         Hook.Allow);
+    let discovered_skills = Par.Skill_loader.discover () in
+    let all_skills = Par.Builtin_skills.builtin_skills @ discovered_skills in
+    List.iter (fun (desc : Types.skill_descriptor) ->
+      match Runtime.register_skill rt desc with
+      | Ok _ -> ()
+      | Error _ -> ())
+      all_skills;
     f rt;
     ignore (Runtime.close rt)
 
@@ -494,6 +501,8 @@ let print_help () =
   Printf.printf "  /reset      重置对话（清除历史）\n";
   Printf.printf "  /agents     列出已注册的 agent\n";
   Printf.printf "  /switch <id> 切换到指定 agent\n";
+  Printf.printf "  /skills     列出已注册的 skill\n";
+  Printf.printf "  /skill <id> 查看指定 skill 详情\n";
   Printf.printf "  /quit       退出\n"
 
 (* -------------------------------------------------------------------------- *)
@@ -550,14 +559,37 @@ let repl rt ~agent_ids =
                  let status = if a.Types.id = !active_agent then "(active)" else "(idle)" in
                  Printf.printf "  %-20s %s\n" a.Types.id status
                ) agents
-             | "/switch" ->
-               if rest = "" then Printf.eprintf "Usage: /switch <agent_id>\n"
-               else if not (List.mem rest agent_ids) then
-                 Printf.eprintf "Unknown agent: %s. Use /agents to list.\n" rest
-               else begin
-                 active_agent := rest;
-                 Printf.printf "%s\n" (Cli_style.dim (Printf.sprintf "[switched to %s]" rest))
-               end
+               | "/switch" ->
+                 if rest = "" then Printf.eprintf "Usage: /switch <agent_id>\n"
+                 else if not (List.mem rest agent_ids) then
+                   Printf.eprintf "Unknown agent: %s. Use /agents to list.\n" rest
+                 else begin
+                   active_agent := rest;
+                   Printf.printf "%s\n" (Cli_style.dim (Printf.sprintf "[switched to %s]" rest))
+                 end
+              | "/skills" ->
+                let skills = Runtime.list_skills rt in
+                if skills = [] then
+                  Printf.printf "  (no skills registered)\n"
+                else
+                  List.iter (fun (s : Types.skill_descriptor) ->
+                    let dp = if String.length s.Types.description > 55 then
+                      String.sub s.Types.description 0 55 ^ "..." else s.Types.description in
+                    Printf.printf "  %-20s %s\n" s.Types.id dp) skills
+              | "/skill" ->
+                if rest = "" then Printf.eprintf "Usage: /skill <id>\n"
+                else begin
+                  let skills = Runtime.list_skills rt in
+                  match Par.Skill_registry.find_descriptor skills rest with
+                  | Some s ->
+                    Printf.printf "ID:          %s\n" s.Types.id;
+                    Printf.printf "Name:        %s\n" s.Types.name;
+                    Printf.printf "Description: %s\n" s.Types.description;
+                    Printf.printf "Trigger:     %s\n" (match s.Types.trigger with
+                      | Types.Auto -> "auto" | Types.Manual -> "manual"
+                      | Types.Keyword _ -> "keyword")
+                  | None -> Printf.eprintf "Skill not found: %s. Use /skills to list.\n" rest
+                end
              | _ -> Printf.eprintf "未知命令: %s。输入 /help 查看命令列表。\n" cmd);
             flush stdout;
             loop ()
@@ -1050,6 +1082,12 @@ let format_event_for_history (evt : Types.event) =
     Printf.sprintf "Mcp_prompt_rendered: %s prompt=%s" server_id prompt_name
   | Types.Structured_output_completed { attempts; schema_valid; _ } ->
     Printf.sprintf "Structured_output_completed: attempts=%d valid=%s" attempts (status schema_valid)
+  | Types.Embedding_request_sent { model; input_count } ->
+    Printf.sprintf "Embedding_request_sent: model=%s count=%d" model input_count
+  | Types.Embedding_response_received { model; output_count; _ } ->
+    Printf.sprintf "Embedding_response_received: model=%s count=%d" model output_count
+  | Types.Retrieval_completed { query_count; retrieved_count; top_k } ->
+    Printf.sprintf "Retrieval_completed: queries=%d retrieved=%d k=%d" query_count retrieved_count top_k
 
 let session_id_arg =
   let open Cmdliner in
