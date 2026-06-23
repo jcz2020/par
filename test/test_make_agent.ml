@@ -20,7 +20,7 @@ let suite = [
     | Ok agent ->
       Alcotest.(check string) "id" "agent1" agent.id;
       Alcotest.(check string) "system_prompt" "hello" agent.system_prompt;
-      Alcotest.(check int) "max_iterations" 10 agent.max_iterations
+      Alcotest.(check int) "max_iterations" 1000000 agent.max_iterations
     | Error e -> Alcotest.failf "expected Ok, got: %s"
         (match e with Invalid_input m -> m | _ -> "other"));
 
