@@ -175,7 +175,7 @@ except PARError as e:
 
 **PARError: Runtime has been shut down** — `close()` 或 `with` 退出后不可再调用方法。
 
-**register_agent 报 NotImplementedError** — 当前版本未实现，需通过 OCaml SDK 注册 agent。
+**register_agent** — 通过 JSON 配置注册 agent。参考 [API 文档](api.md) 获取支持的配置字段。
 
 **invoke 失败** — 常见原因: 未注册 agent、未配置 LLM provider、API 密钥无效。
 

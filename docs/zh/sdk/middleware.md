@@ -371,7 +371,7 @@ let fallback_middleware ~fallback_text () =
 ### 注意事项
 
 - 中间件实例在同一 Agent 配置中共享，注意并发状态隔离
-- `on_error` 目前是 Engine 层的死代码（Engine 未调用 `apply_on_error`），
+- `on_error` 在 Engine 层被调用（`engine.ml` 中 `apply_on_error`），用于错误发生时的回调处理，
   未来版本将接入
 - 返回 `Some` 表示修改/替换值，`None` 表示透传原始值
 

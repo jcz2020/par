@@ -92,7 +92,7 @@ with Runtime(config) as rt:
 register_agent(config_json: str) -> None
 ```
 
-> 当前版本始终抛出 `NotImplementedError`。Agent 注册需通过 OCaml SDK。
+> 通过 JSON 配置注册 agent，支持 `id`、`system_prompt`、`model` 等字段。
 
 ### invoke
 

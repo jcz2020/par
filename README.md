@@ -103,7 +103,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - **Dual persistence** — SQLite (dev), PostgreSQL (prod, separate `par_postgres` package), Noop (tests)
 - **Structured concurrency** — OCaml 5.4 effects with Eio, no orphan fibers, no callback hell
 - **Python ctypes binding** — `par_runtime` package, thread-safe, no GIL contention with OCaml runtime. Persistent Eio domain per Runtime for full concurrency support.
-- **998 OCaml tests + 57 Python tests** (1 skipped) passing
+- **1000+ OCaml tests + 58 Python tests** passing
 
 ## Language tracks
 
@@ -120,7 +120,7 @@ config = json.dumps({
 with Runtime(config) as rt:
     rt.register_tool("echo", "Echo tool", '{"type": "object"}')
 ```
-See [`bindings/python/examples/basic_agent.py`](bindings/python/examples/basic_agent.py) and [`bindings/python/tests/`](bindings/python/tests/) (57 pytest tests, 1 skipped).
+See [`bindings/python/examples/basic_agent.py`](bindings/python/examples/basic_agent.py) and [`bindings/python/tests/`](bindings/python/tests/) (58 pytest tests).
 
 ### OCaml SDK
 ```ocaml
