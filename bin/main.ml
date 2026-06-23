@@ -150,12 +150,47 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
      | Error e ->
        Printf.eprintf "Error creating Anthropic provider: %s\n" (error_category_to_string e);
        exit 1
-     | Ok t ->
-       Anthropic_provider.set_network t net_gen;
-       { complete_fn = (fun mc tools conv -> Anthropic_provider.complete t mc tools conv);
+      | Ok t ->
+        Anthropic_provider.set_network t net_gen;
+        { complete_fn = (fun mc tools conv -> Anthropic_provider.complete t mc tools conv);
          stream_fn = (fun mc tools conv sc cb -> Anthropic_provider.stream t mc tools conv sc cb);
-         close_fn = (fun () -> Anthropic_provider.close t);
+          close_fn = (fun () -> Anthropic_provider.close t);
          complete_structured_fn = Some (fun mc tools conv schema -> Anthropic_provider.complete_structured t mc tools conv schema) })
+  | `Ollama ->
+    (* Ollama exposes an OpenAI-compatible /v1 endpoint. Build the OpenAI
+       provider with a localhost base_url and a placeholder api_key that
+       Ollama ignores. Mirrors make_embedding_service's Ollama branch
+       (PAR-z23 / B.1). *)
+    let cfg = Openai { api_key = api_key_val; base_url = Some "http://localhost:11434/v1"; organization = None; embedding_model = None } in
+    (match Openai_provider.create cfg with
+     | Error e ->
+       Printf.eprintf "Error creating Ollama LLM provider: %s\n" (error_category_to_string e);
+       exit 1
+     | Ok t ->
+       Openai_provider.set_network t net_gen;
+       { complete_fn = (fun mc tools conv -> Openai_provider.complete t mc tools conv);
+         stream_fn = (fun mc tools conv sc cb -> Openai_provider.stream t mc tools conv sc cb);
+         close_fn = (fun () -> Openai_provider.close t);
+         complete_structured_fn = Some (fun mc tools conv schema -> Openai_provider.complete_structured t mc tools conv schema) })
+  | `Custom _ ->
+    (* OpenAI-compatible custom endpoint. The user must supply base_url via
+       --api-base; refuse to start otherwise (PAR-z23 / B.1). *)
+    (match api_base_val with
+     | None ->
+       Printf.eprintf "Error: custom LLM provider requires --api-base\n";
+       exit 1
+     | Some base ->
+       let cfg = Openai { api_key = api_key_val; base_url = Some base; organization = None; embedding_model = None } in
+       (match Openai_provider.create cfg with
+        | Error e ->
+          Printf.eprintf "Error creating custom LLM provider: %s\n" (error_category_to_string e);
+          exit 1
+        | Ok t ->
+          Openai_provider.set_network t net_gen;
+          { complete_fn = (fun mc tools conv -> Openai_provider.complete t mc tools conv);
+            stream_fn = (fun mc tools conv sc cb -> Openai_provider.stream t mc tools conv sc cb);
+            close_fn = (fun () -> Openai_provider.close t);
+            complete_structured_fn = Some (fun mc tools conv schema -> Openai_provider.complete_structured t mc tools conv schema) }))
 
 let make_embedding_service provider_tag api_key_val api_base_val (net : [< `Generic | `Unix > `Generic ] Eio.Net.ty Eio.Resource.t) =
   let open Types in

@@ -295,3 +295,8 @@
  (name test_rag)
  (libraries par eio_main alcotest sqlite3)
  (modules test_rag))
+
+(test
+ (name test_cli_dispatch)
+ (libraries par alcotest)
+ (modules test_cli_dispatch))
