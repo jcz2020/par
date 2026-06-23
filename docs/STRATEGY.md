@@ -108,7 +108,7 @@
 | Compaction（LLM 摘要压缩） | PAR 走显式 `context_strategy`，不依赖隐式摘要 |
 | Thinking levels | Provider-specific 概念，PAR 走 provider-agnostic |
 | Custom message types | TS declaration merging 是 TS-only 特性 |
-| Skills system (SKILL.md) | 产品决策，不是 SDK 决策 |
+| ~~Skills system (SKILL.md)~~ | **Removed 2026-06-24** — see §8 changelog. Skill system shipped in v0.5.2 with typed design differentiation. |
 | Docker 官方镜像 | v0.x 不做，让用户自打包 |
 | 学术 paper 投稿 | 战略转向工程价值（2026-06-02 决议：删 v1.0 论文） |
 
@@ -143,7 +143,7 @@
 
 ---
 
-**最后更新**: 2026-06-21
+**最后更新**: 2026-06-24
 
 ---
 
@@ -177,3 +177,4 @@
 | 2026-06-21 | **v0.5.0 scope 修订 (实际交付)**: macOS arm64-only; ARM64 Linux 推到 v0.5.1+ | 用户决策："跳过 ARM64 Linux, 只发 x86_64 + macOS-arm64"。**根因**: GitHub Actions 免费 tier ARM64 runner 完全不可用 — `ubuntu-22.04-arm64` / `ubuntu-24.04-arm64` 都 queue 45min+ 从未派发；qemu-binfmt 在 `ubuntu-22.04` host 上跑 `quay.io/pypa/manylinux_2_28_aarch64:latest` 容器, 容器启动即崩溃 (`Error response from daemon: container is not running`)。**v0.5.0 实际交付**: 2 wheels — `par_runtime-0.5.0-py3-none-manylinux_2_28_x86_64.whl` (11.3 MB) + `par_runtime-0.5.0-py3-none-macosx_11_0_arm64.whl` (6.5 MB)。**v0.5.1+ 待办**: ARM64 Linux wheel — 等 (a) GH Actions ARM quota 改善, (b) 用户自建 self-hosted ARM runner, 或 (c) 切到 cross-compile toolchain。**技术细节**: macOS wheel 平台 tag 通过 `wheel tags --platform-tag macosx_11_0_arm64` 设置 — 单纯 mv 改文件名会导致 PyPI 400 (内部 WHEEL Tag field 必须匹配)。 |
 
 | 2026-06-21 | **【待恢复】ARM64 Linux 轮子临时移除** | **范围级变更**: v0.5.0 原计划发布 3 个轮子 (x86_64 Linux + ARM64 Linux + ARM64 macOS)，实际只发布了 2 个 (x86_64 Linux + ARM64 macOS)。**根因**: GitHub Actions 免费 tier ARM64 runner (`ubuntu-22.04-arm64` / `ubuntu-24.04-arm64`) 饱和 queue 45min+ 从未派发; qemu-binfmt 在 x86_64 host 上跑 `quay.io/pypa/manylinux_2_28_aarch64:latest` 容器启动即崩溃 (`Error response from daemon: container is not running`)。**用户决策 2026-06-21**: 跳过 ARM64 Linux, 推到 v0.5.1+。**【强制恢复条件】**: 项目功能相对完善后 (预计 v0.6-v0.8 区间)，必须恢复 ARM64 Linux 轮子支持。恢复路径优先级: (1) 等待 GH Actions ARM 配额改善 (2) 用户自建 self-hosted ARM runner (3) 切换到 OCaml cross-compile toolchain + aarch64 sysroot。**恢复信号**: 出现以下任一情况时立即排期 — (a) ARM Linux 用户在 issue 报告 `pip install` 失败 (b) PyPI 下载统计显示 ARM Linux 需求 >5% (c) 项目发布 v1.0 前的 feature freeze 阶段。**技术债务记录**: `par_runtime-0.5.0-py3-none-manylinux_2_28_aarch64.whl` 的 wheel tag 格式、auditwheel 修复流程、manylinux_2_28_aarch64 容器路径已在 v0.5.0-beta.post1-post5 中验证过 (除 runner 可用性问题外其他都 ready)。恢复时参考 commit 6a12c01 (初始 3-job matrix) 和 90aae3b (qemu 尝试)。 |
+| 2026-06-24 | **v0.5.2 战略反转: skill 系统移出 §7 防呆清单** | **项目成熟度** (runtime / agents / tools / middleware / persistence / RAG / streaming 全部 stable) + 下游项目需求。Skill 系统按 §3 差异化主张做了类型化设计 (typed `tool_filter` ADT, `skill_trigger` ADT, `expected_output` — 比 Claude Code 更类型化, 比 OpenAI 更 filesystem-native, 比 LangChain 更 success-criteria-aware)。**Scope locked in**: `docs/v0.5.2-ROADMAP.md` Track A. **可逆性**: 若下游需求证明为假, 重新加回 §7 该行 + revert Track A 代码即可。代价: 1 个 PR revert。 |
