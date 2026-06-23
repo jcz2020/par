@@ -1,6 +1,7 @@
 import json
 import socket
 import threading
+import time
 import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from par_runtime import Runtime, PARError
@@ -13,6 +14,14 @@ def _free_port():
         return s.getsockname()[1]
 
 
+def _start_server(handler_cls):
+    port = _free_port()
+    server = HTTPServer(("127.0.0.1", port), handler_cls)
+    server.timeout = 300
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server, port
+
+
 class _HangingHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         length = int(self.headers.get("Content-Length", "0"))
@@ -20,7 +29,29 @@ class _HangingHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
-        import time; time.sleep(300)
+        time.sleep(300)
+    def log_message(self, *a): pass
+
+
+class _SlowStreamHandler(BaseHTTPRequestHandler):
+    """Send SSE chunks 0.5s apart for 3s total — should NOT trigger idle timeout."""
+    protocol_version = "HTTP/1.1"
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", "0"))
+        self.rfile.read(length)
+        parts = []
+        for i in range(6):
+            parts.append('data: {"choices":[{"delta":{"content":"%s"}}]}\n\n' % chr(65 + i))
+        parts.append('data: [DONE]\n\n')
+        full = ''.join(parts).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Content-Length", str(len(full)))
+        self.end_headers()
+        for part in parts:
+            self.wfile.write(part.encode())
+            self.wfile.flush()
+            time.sleep(0.5)
     def log_message(self, *a): pass
 
 
@@ -88,3 +119,28 @@ class TestHTTPTimeout(unittest.TestCase):
             self.assertIn("timeout", str(ctx.exception).lower())
         finally:
             rt.close()
+
+
+class TestStreamIdleTimeout(unittest.TestCase):
+    """Verify streaming uses idle timeout (between chunks), not total timeout.
+    With 2s timeout: a stream sending chunks 0.5s apart for 3s total must
+    survive (idle resets on each chunk), proving it's not a hard total cap."""
+
+    def test_slow_stream_does_not_timeout(self):
+        _lib.par_set_request_timeout(2.0)
+        server, port = _start_server(_SlowStreamHandler)
+        try:
+            rt = Runtime(_config(f"http://127.0.0.1:{port}/v1"))
+            try:
+                rt.register_agent(json.dumps({
+                    "id": "a", "system_prompt": "test",
+                    "model": {"provider": "openai", "model_name": "gpt-4"},
+                    "max_iterations": 1, "tools": []
+                }))
+                events = list(rt.invoke_stream("a", "hello"))
+                self.assertGreater(len(events), 0)
+            finally:
+                rt.close()
+        finally:
+            _lib.par_set_request_timeout(60.0)
+            server.shutdown()

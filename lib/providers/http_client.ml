@@ -167,6 +167,7 @@ let request_timeout = ref 60.0
 
 let set_request_timeout s = request_timeout := s
 
+(* Total timeout: one-shot countdown. Used by non-streaming do_request. *)
 let with_timeout sw f =
   match !clock_ref with
   | None -> f ()
@@ -177,6 +178,32 @@ let with_timeout sw f =
       Eio.Switch.fail sw (Failure (Printf.sprintf "HTTP request timed out after %.0fs" !request_timeout));
       `Stop_daemon);
     f ()
+
+(* Idle timeout for streaming: daemon sleeps for [idle] seconds, then checks
+   if any read activity occurred during that period. If yes, sleeps again.
+   If no, fires Switch.fail. No Eio.Time.now calls — same cancellation
+   path as with_timeout. *)
+let with_idle_timeout sw f =
+  match !clock_ref with
+  | None -> f None
+  | Some clock_obj ->
+    let clock = (Obj.obj clock_obj : _ Eio.Time.clock_ty Eio.Resource.t) in
+    let idle = !request_timeout in
+    let activity = ref false in
+    let reset () = activity := true in
+    Eio.Fiber.fork_daemon ~sw (fun () ->
+      let rec loop () =
+        Eio.Time.sleep clock idle;
+        if !activity then begin
+          activity := false;
+          loop ()
+        end else begin
+          Eio.Switch.fail sw (Failure (Printf.sprintf "HTTP stream timed out after %.0fs of inactivity" idle));
+          `Stop_daemon
+        end
+      in
+      loop ());
+    f (Some reset)
 
 let tls_host_of_string host =
   match Domain_name.of_string host with
@@ -407,7 +434,7 @@ let do_request_streaming net url request k =
   let uri_str = Printf.sprintf "%s://%s:%d%s" scheme url.host url.port req_path in
   let uri = Uri.of_string uri_str in
   Eio.Switch.run (fun sw ->
-    with_timeout sw (fun () ->
+    with_idle_timeout sw (fun reset_opt ->
       let client = cohttp_client_of_net net in
       let cohttp_headers = Cohttp.Header.of_list req_headers in
       let body = Cohttp_eio.Body.of_string req_body in
@@ -419,10 +446,14 @@ let do_request_streaming net url request k =
       ) in
       let r = Eio.Buf_read.of_flow ~max_size:(100 * 1024 * 1024) resp_body in
       k ~status ~headers:headers_str ~read_line:(fun () ->
-        try Some (Eio.Buf_read.line r)
-        with Failure msg when (try Str.search_forward (Str.regexp "timed out") msg 0 >= 0 with _ -> false) ->
-          raise (Failure msg)
-        | _ -> None)))
+        let result =
+          try Some (Eio.Buf_read.line r)
+          with Failure msg when (try Str.search_forward (Str.regexp "timed out") msg 0 >= 0 with _ -> false) ->
+            raise (Failure msg)
+          | _ -> None
+        in
+        (match reset_opt with Some reset -> reset () | None -> ());
+        result)))
 
 type _exec_result = {
   status : int;
