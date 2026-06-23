@@ -347,6 +347,142 @@ system_prompt = {|
 |}
 ```
 
+## System prompt templates
+
+When the system prompt needs to vary per invocation (injecting the agent id, the runtime id, the available tool list, or user-supplied variables), reach for `system_prompt_template` instead of a plain `system_prompt`. Added as the `agent_config.system_prompt_template` field, it ships mustache-style `{{variable}}` substitution without pulling in a templating dependency.
+
+### The template type
+
+```ocaml
+type system_prompt_template = {
+  template : string;        (* Body text with {{var}} placeholders *)
+  variables : string list;  (* Every placeholder the template may use *)
+  required : string list;   (* Subset of `variables` that must be supplied *)
+}
+```
+
+`variables` is the complete set of names the renderer recognizes. `required` is the subset that must be present at render time; omitting a required variable returns `Error` rather than silently substituting an empty string. Keeping the two lists separate lets a template declare optional niceties (a user's locale, a session tag) alongside hard requirements (the agent id).
+
+### render_context
+
+The renderer pulls values from a `render_context` record. The runtime builds one internally; if you call `Template.render` by hand you construct it yourself.
+
+```ocaml
+type render_context = {
+  agent_id : string;
+  runtime_id : string;
+  user_variables : (string * Yojson.Safe.t) list;
+  available_tools : string list;
+}
+```
+
+`agent_id` and `runtime_id` are always available. `available_tools` is the list of tool names registered on the agent. `user_variables` is where caller-supplied values land. The renderer consults all four when resolving a `{{name}}`.
+
+### Rendering
+
+```ocaml
+val Template.render :
+  template:string ->
+  variables:(string * Yojson.Safe.t) list ->
+  required:string list ->
+  context:render_context ->
+  (string, Types.error_category) result
+
+val Template.effective_system_prompt :
+  Types.agent_config ->
+  runtime_id:string ->
+  (string, Types.error_category) result
+```
+
+`Template.render` is the low-level entrypoint. `effective_system_prompt` is the convenience wrapper: pass an `agent_config` and a `runtime_id`, and it returns the final string the Engine will send to the LLM. If `system_prompt_template` is `None`, it falls back to the plain `system_prompt` field, so existing agents keep working unchanged.
+
+### When to use a template
+
+Use a template when any of these apply:
+
+- The prompt must reference the agent id or runtime id, and you do not want to interpolate by hand.
+- The prompt needs per-call variables (user locale, session metadata, dynamic examples) that the caller supplies.
+- You want the renderer to enforce required variables at startup rather than discovering a missing value mid-conversation.
+
+Stick with a plain `system_prompt` when the text is static. A template with an empty `variables` list buys nothing and adds a render step.
+
+### Example
+
+```ocaml
+let agent = {
+  Types.id = "support";
+  system_prompt = "You are a helpful assistant.";   (* fallback *)
+  system_prompt_template = Some {
+    template = {|
+      You are {{role}}, assisting agent {{agent_id}} on runtime {{runtime_id}}.
+      Available tools: {{available_tools}}.
+      User context: {{user_locale}}.
+    |};
+    variables = ["role"; "agent_id"; "runtime_id";
+                 "available_tools"; "user_locale"];
+    required = ["role"; "user_locale"];
+  };
+  model = (* ... *);
+  tools = [];
+  max_iterations = 5;
+  middleware = [];
+  retry_policy = None;
+  context_strategy = None;
+  resource_quota = None;
+  max_execution_time = None;
+  early_stopping_method = Types.Force;
+}
+```
+
+At invoke time, the renderer substitutes `agent_id`, `runtime_id`, and `available_tools` from the runtime, and pulls `role` and `user_locale` from the per-call `user_variables`. Because both are `required`, a caller that forgets `user_locale` gets an `Error` before the first LLM round trip, not a garbled prompt.
+
+## Context strategy
+
+Long conversations outgrow the model's context window. The `agent_config.context_strategy` field decides how PAR trims a conversation before each LLM call. Leave it as `None` and the runtime applies its default; set it explicitly to override.
+
+### The strategy variant
+
+```ocaml
+type context_strategy =
+  | Truncate_oldest of { keepSystem : bool; min_messages : int }
+  | Summarize of { max_tokens : int; summary_model : model_config option }
+  | Sliding_window of { max_messages : int; max_tokens : int }
+```
+
+`Truncate_oldest` drops the oldest non-system messages until the conversation fits. `keepSystem` (default true) pins system messages at the front; `min_messages` is the floor below which nothing else is dropped even if the token estimate is over budget. Reach for this strategy when the recent turns carry the signal and old turns are noise.
+
+`Summarize` compresses earlier turns into a summary message using a second LLM call. `max_tokens` bounds the summary length. `summary_model` optionally routes the summarization call to a cheaper or faster model than the agent's primary model; `None` reuses the agent's own `model_config`. This is the right choice when early context genuinely matters but token budget is tight, at the cost of an extra LLM round trip per summarization.
+
+`Sliding_window` keeps the most recent `max_messages` messages and drops everything older, subject to a `max_tokens` ceiling. It is the cheapest strategy because it never calls another model, and it preserves the tail of the conversation verbatim. This is the default.
+
+### How the Engine applies a strategy
+
+Before each LLM round trip, the Engine calls `Context_manager.apply_strategy` on the current conversation. The function either returns the (possibly reduced) conversation or an `Error` if the strategy could not satisfy its constraints (for example, `Truncate_oldest` hitting `min_messages` while still over `max_tokens`).
+
+```ocaml
+val Context_manager.apply_strategy :
+  Types.context_strategy -> Types.conversation ->
+  Types.llm_service option ->
+  on_event:(Types.event -> unit) option ->
+  (Types.conversation, Types.error_category) result
+
+val Context_manager.estimate_tokens : Types.conversation -> int
+```
+
+`estimate_tokens` is a rough character-divided-by-four heuristic. It is not a tokenizer. Treat the number as advisory when reasoning about budgets.
+
+### The v0.5.1 default
+
+As of v0.5.1, a runtime with no explicit `context_strategy` gets:
+
+```ocaml
+Some (Sliding_window { max_messages = 100; max_tokens = 200000 })
+```
+
+This is a deliberate change from earlier betas, which left the strategy unset and let conversations grow unbounded until the provider rejected them. The 200K token ceiling matches the largest current production models, and the 100 message ceiling keeps the conversation from sprawling even when individual messages are short. If you previously relied on unbounded growth (for example, summarizing yourself outside the runtime), set `context_strategy = None` explicitly to restore the old behavior.
+
+For agents that talk to models with smaller windows, lower both numbers. A 4K-token model paired with `max_messages = 100` will still trip provider limits, because `max_messages` is checked before token estimation.
+
 ## Cancellation tokens
 
 ```ocaml

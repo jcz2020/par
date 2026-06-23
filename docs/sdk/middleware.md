@@ -327,6 +327,75 @@ let agent = {
 Execution flow: request -> Logging -> Pii_mask -> Rate_limit -> Validation -> LLM
 Response -> Validation -> Sanitize -> Retry -> Rate_limit -> Pii_mask -> Logging
 
+## Cancellation
+
+The `Timeout` middleware above normalizes timeout errors after the fact. The actual deadline enforcement happens through cancellation tokens, which are the runtime-wide primitive for "stop this work, now." Middleware hooks do not see cancellation tokens directly, but every tool handler receives one, and any code that drives the Engine can request cancellation on a token it created.
+
+### The cancellation surface
+
+```ocaml
+type cancellation_token
+
+val Cancellation.create_token : Eio.Switch.t -> cancellation_token
+val Cancellation.is_cancelled : cancellation_token -> bool
+val Cancellation.check_cancel  : cancellation_token -> unit
+val Cancellation.request_cancel : cancellation_token -> unit
+
+val Cancellation.with_timeout :
+  float ->
+  cancellation_token ->
+  (cancellation_token -> 'a) ->
+  ('a, [> `Timeout | `Cancelled ]) result
+
+val Cancellation.cancellable_handler :
+  cancellation_token ->
+  float ->
+  (Yojson.Safe.t -> Types.handler_result) ->
+  (Yojson.Safe.t -> Types.handler_result)
+```
+
+A token is created on an `Eio.Switch.t`. That switch owns the token's lifetime: when the switch exits, the token is cancelled along with every fiber running on it. You do not need to call `request_cancel` to clean up at scope exit.
+
+`is_cancelled` is the non-throwing probe. Use it when you want to check the flag without committing to raising. `check_cancel` is the throwing probe: it raises `Eio.Cancel.Cancelled` immediately if the token is already cancelled. Long-running code should call `check_cancel` at natural boundaries (between loop iterations, between batch items) so a cancel request propagates promptly instead of waiting for the next blocking call.
+
+`request_cancel` is how another fiber asks the work to stop. It sets the flag; the cancelled fiber observes it the next time it hits `check_cancel`, a cancel-aware Eio operation, or the `with_timeout` boundary.
+
+### Timeout vs cancellation
+
+`with_timeout` composes a deadline with an existing token. It returns either the function's value, `` `Timeout `` if the deadline elapsed first, or `` `Cancelled `` if someone called `request_cancel` on the underlying token before the deadline. The two cases are separate because they call for different responses: a timeout usually means "retry with a longer budget or a smaller task," while a cancellation usually means "the caller gave up, stop entirely."
+
+```ocaml
+match Cancellation.with_timeout 30.0 token (fun token ->
+  Engine.run_agent token agent message llm registry)
+with
+| Ok result -> (* proceed *)
+| Error `Timeout -> (* retry or surface *)
+| Error `Cancelled -> (* propagate, do not retry *)
+```
+
+The deadline only triggers if the inner function observes cancellation at some point. Pure CPU work that never yields will run past the deadline. PAR's Engine and tool handlers are written to check cancellation between LLM round trips and before tool dispatch, so agent invocations are deadline-aware.
+
+### How middleware interacts with cancellation
+
+Middleware hooks receive the conversation, response, tool call, or error, but not the token. The token flows underneath: the Engine threads it through `run_agent`, and every tool handler gets it as its second argument. A middleware that wants to abort based on a signal it observes has two options:
+
+1. Return `None` from the relevant hook and let the Engine continue. The middleware cannot force the Engine to stop, but it can short-circuit its own contribution.
+2. Mutate shared state that the next `check_cancel` boundary will observe. This couples the middleware to the handler's cancellation discipline, so prefer the first option when it fits.
+
+The `cancellable_handler` wrapper is the standard way to make a tool handler cancellation-aware without rewriting its body. Pass the token and a per-call timeout, and the wrapper ensures `check_cancel` fires between the handler's steps.
+
+```ocaml
+let handler input token =
+  let wrapped = Cancellation.cancellable_handler token 10.0 real_handler in
+  wrapped input
+```
+
+Here `real_handler` does not take a token. The wrapper gives it a 10-second budget per invocation and aborts with `Error` if the token is cancelled or the budget elapses. Use this when wrapping a third-party function you cannot easily thread a token through.
+
+### Composition with Eio
+
+Cancellation rides on Eio's structured concurrency. A token created on a switch is cancelled when the switch exits, so the common cleanup pattern is "run the agent inside `Eio.Switch.run`; if anything goes wrong, exit the switch and the agent's fibers are torn down." You rarely need to call `request_cancel` explicitly for cleanup; you need it for user-initiated cancellation (a "stop" button, a SIGINT handler) where the switch is not otherwise exiting.
+
 ## Custom middleware
 
 Writing a custom middleware only requires constructing a `middleware_hook` record. The example below counts LLM calls:

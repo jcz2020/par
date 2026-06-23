@@ -104,6 +104,7 @@ nav:
       - MCP Client: sdk/mcp.md
       - Streaming API: sdk/streaming.md
       - RAG API: sdk/rag.md
+      - Observability: sdk/observability.md
   - Explanation:
       - Architecture: explanation/architecture.md
       - Concurrency Model: explanation/concurrency-model.md
