@@ -93,6 +93,7 @@ nav:
       - Concurrency: howto/concurrency.md
       - Custom LLM Provider: howto/custom-llm-provider.md
       - Error Handling: howto/error-handling.md
+      - Build a RAG Pipeline: howto/rag-pipeline.md
   - Reference:
       - CLI: cli.md
       - SDK Overview: sdk/overview.md
@@ -108,6 +109,7 @@ nav:
       - Concurrency Model: explanation/concurrency-model.md
       - Persistence and Durability: explanation/persistence-and-durability.md
       - RAG Architecture: explanation/rag-architecture.md
+      - FAQ: explanation/faq.md
 
 not_in_nav: |
   rules/*
