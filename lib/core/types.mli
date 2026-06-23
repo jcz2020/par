@@ -249,6 +249,8 @@ type system_prompt_template = {
 }
 [@@deriving yojson]
 
+type early_stopping_method = Force | Generate
+
 type agent_config = {
   id : string;
   system_prompt : string;
@@ -260,6 +262,8 @@ type agent_config = {
   retry_policy : retry_policy option;
   context_strategy : context_strategy option;
   resource_quota : resource_quota option;
+  max_execution_time : float option;
+  early_stopping_method : early_stopping_method;
 }
 
 (* -------------------------------------------------------------------------- *)

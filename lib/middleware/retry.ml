@@ -81,9 +81,7 @@ let retry ?(config = default_retry_config) ?(policy : retry_policy option) () : 
   {
     name = "retry";
 
-    on_before_llm = Some (fun _conv ->
-      attempt := 0;
-      None);
+    on_before_llm = None;
 
     on_after_llm = None;
 

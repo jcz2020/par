@@ -174,4 +174,25 @@ let () =
         `Quick test_multiple_blocks_returns_first;
       Alcotest.test_case "fenced with prose around" `Quick test_fenced_with_prose_around;
     ]);
+    ("think tag stripping", [
+      Alcotest.test_case "think block before json" `Quick (fun () ->
+        check_ok_json "strips <think>"
+          (Yojson.Safe.from_string "{\"x\":1}")
+          (Json_extract.extract_json_from_text
+            "<think>Let me reason about this.</think>{\"x\":1}"));
+      Alcotest.test_case "reasoning block before json" `Quick (fun () ->
+        check_ok_json "strips <reasoning>"
+          (Yojson.Safe.from_string "{\"y\":2}")
+          (Json_extract.extract_json_from_text
+            "<reasoning>Some thoughts here.</reasoning>{\"y\":2}"));
+      Alcotest.test_case "multiline think block" `Quick (fun () ->
+        check_ok_json "strips multiline <think>"
+          (Yojson.Safe.from_string "{\"z\":3}")
+          (Json_extract.extract_json_from_text
+            "<think>Line 1\nLine 2\nLine 3</think>\n{\"z\":3}"));
+      Alcotest.test_case "no think tags passthrough" `Quick (fun () ->
+        check_ok_json "no tags = passthrough"
+          (Yojson.Safe.from_string "{\"w\":4}")
+          (Json_extract.extract_json_from_text "{\"w\":4}"));
+    ]);
   ]

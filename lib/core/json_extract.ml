@@ -99,8 +99,14 @@ let find_balanced_block s =
   in
   scan 0
 
+let strip_think_tags s =
+  let re_think = Str.regexp "<think>\\([\000-\255]*\\)</think>" in
+  let re_reasoning = Str.regexp "<reasoning>\\([\000-\255]*\\)</reasoning>" in
+  Str.global_replace re_reasoning "" (Str.global_replace re_think "" s)
+
 let extract_json_from_text s =
   let s = String.trim s in
+  let s = strip_think_tags s in
   let s = strip_markdown_fences s in
   let s = String.trim s in
   match try_parse s with

@@ -481,8 +481,15 @@ let parse_agent_config (json : Yojson.Safe.t) : Par.Types.agent_config =
     | `Assoc _ as v -> Some (parse_resource_quota v)
     | _ -> None
   in
+  let max_execution_time = json |> member "max_execution_time" |> to_float_option in
+  let early_stopping_method =
+    match json |> member "early_stopping_method" |> to_string_option with
+    | Some "generate" | Some "Generate" -> Par.Types.Generate
+    | _ -> Par.Types.Force
+  in
   { id; system_prompt; system_prompt_template; model; tools; max_iterations;
-    middleware; retry_policy; context_strategy; resource_quota }
+    middleware; retry_policy; context_strategy; resource_quota;
+    max_execution_time; early_stopping_method }
 
 let do_register_agent (state_id : int) (config_json : string) =
   match get_state state_id with

@@ -72,7 +72,8 @@ let default_bash_confirm = Types.default_bash_confirm_config
 let make_agent ~id ?(system_prompt = "") ?(system_prompt_template = None)
     ~model ?(tools = []) ?(max_iterations = 10)
     ?(middleware = []) ?(retry_policy = None)
-    ?(context_strategy = None) ?(resource_quota = None) () =
+    ?(context_strategy = None) ?(resource_quota = None)
+    ?(max_execution_time = None) ?(early_stopping_method = Force) () =
   let errors = ref [] in
   if String.length id = 0 then
     errors := "id must not be empty" :: !errors;
@@ -93,6 +94,7 @@ let make_agent ~id ?(system_prompt = "") ?(system_prompt_template = None)
   | [] -> Ok {
       id; system_prompt; system_prompt_template; model; tools;
       max_iterations; middleware; retry_policy; context_strategy; resource_quota;
+      max_execution_time; early_stopping_method;
     }
   | errs -> Result.Error (Types.Invalid_input (String.concat "; " errs))
 
@@ -108,6 +110,8 @@ let register_agent rt (agent : agent_config) =
     ?retry_policy:(Some agent.retry_policy)
     ?context_strategy:(Some agent.context_strategy)
     ?resource_quota:(Some agent.resource_quota)
+    ?max_execution_time:(Some agent.max_execution_time)
+    ?early_stopping_method:(Some agent.early_stopping_method)
     () in
   match validated with
   | Ok valid_agent ->

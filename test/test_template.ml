@@ -25,7 +25,7 @@ let dummy_agent ?(id = "test") ?(system_prompt = "hello") ?system_prompt_templat
   middleware = [];
   retry_policy = None;
   context_strategy = None;
-  resource_quota = None;
+  resource_quota = None; max_execution_time = None; early_stopping_method = Force;
 }
 
 let ctx ~agent_id ~runtime_id =

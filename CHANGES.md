@@ -2,7 +2,23 @@
 
 ## v0.5.1-beta.20260623 (IN DEVELOPMENT)
 
-> **Theme**: RAG foundation + Python streaming (buffered) + FFI work-loop architecture + configurable embedding model + HTTP timeout fix.
+> **Theme**: RAG foundation + Python streaming (buffered) + FFI work-loop architecture + configurable embedding model + HTTP timeout fix + ReAct loop hardening.
+
+### Changed — ReAct loop retry/timeout hardening (7 fixes)
+
+**Problem**: Engine ReAct loop had multiple retry/timeout bugs: retries didn't consume iteration budget (max_iter=1 could make 4+ LLM calls), Timeout middleware caused infinite retries, no wall-clock timeout, Retry middleware reset per iteration, no `<think>` tag handling.
+
+**Fixes** (based on competitive analysis of LangChain, OpenAI Agents SDK, CrewAI, AutoGen):
+1. **Wall-clock timeout**: `agent_config.max_execution_time : float option` — loop checks elapsed time, returns `Timeout` error if exceeded
+2. **Retries consume iterations**: retry path now passes `iterations + 1` (was unchanged) — industry consensus from all competitors
+3. **Timeout middleware on_error removed**: eliminates infinite-retry causal chain (Timeout mw → retryable=true → Retry mw → repeat)
+4. **Retry budget per-invocation**: removed per-iteration reset of retry counter — 3 retries is the total, not per-iteration
+5. **Graceful degradation**: `agent_config.early_stopping_method` (`Force` | `Generate`) — when iterations exhausted and `Generate`, makes one final LLM call for best-effort answer
+6. **`<think>`/`<reasoning>` tag stripping**: `json_extract.ml` now strips reasoning blocks before JSON parsing — prevents spurious repair loops with DeepSeek-R1, QwQ, MiniMax-M3
+7. **Context-length error classification**: engine detects context-length-exceeded errors from provider messages, applies context strategy, retries
+
+**New types**: `Types.early_stopping_method = Force | Generate`
+**New agent_config fields**: `max_execution_time : float option`, `early_stopping_method : early_stopping_method`
 
 ### Changed — HTTP request timeout (fixes engine hang on long prompts)
 

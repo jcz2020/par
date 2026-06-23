@@ -197,6 +197,24 @@ let add_tool_result_message conv (call : tool_call) result =
   } in
   { conv with messages = conv.messages @ [ msg ] }
 
+(* Fix 7: Structured error classification — classify LLM errors before retry decision. *)
+let classify_engine_error (err : error_category) =
+  let msg = match err with
+    | External_failure m | Invalid_input m | Internal m -> m
+    | _ -> ""
+  in
+  let lower = String.lowercase_ascii msg in
+  let has_sub s =
+    try let _ = Str.search_forward (Str.regexp_string s) lower 0 in true
+    with Not_found -> false
+  in
+  if has_sub "context length" || has_sub "context window" 
+     || has_sub "maximum context" || has_sub "too many tokens"
+     || has_sub "token limit" || has_sub "context_length_exceeded" then
+    `Context_length_exceeded
+  else
+    `Other err
+
 (* -------------------------------------------------------------------------- *)
 (* Schema-driven structured output with repair-on-failure loop.               *)
 (* See docs/v0.4.8-ROADMAP.md §Feedback Retry Loop.                           *)
@@ -396,10 +414,25 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
       i role_str
       (match msg.content with Some c -> c | None -> "<none>"))
   in
+  let start_time = Unix.gettimeofday () in
   let rec loop ~agent ~global_max conv iterations =
     let global_max = max global_max agent.max_iterations in
-    if iterations >= global_max then
-      Result.Error (Internal "Max iterations exceeded", conv)
+    let elapsed = Unix.gettimeofday () -. start_time in
+    let max_time = Option.value agent.max_execution_time ~default:infinity in
+    if elapsed > max_time then
+      Result.Error ((Timeout : error_category), conv)
+    else if iterations >= global_max then (
+      match (agent.early_stopping_method : Types.early_stopping_method) with
+      | Types.Force -> Result.Error ((Internal "Max iterations exceeded" : error_category), conv)
+      | Types.Generate ->
+        let conv' = add_user_feedback conv
+          "Based on the work done so far, provide your best final answer." in
+        (match run_llm_with_optional_streaming llm agent.model agent.tools conv' on_chunk with
+         | Ok resp ->
+           let conv'' = add_assistant_message conv' resp in
+           Ok (resp, conv'')
+         | Error _ -> Result.Error ((Internal "Max iterations exceeded" : error_category), conv))
+    )
     else begin
       Cancellation.check_cancel token;
       let conv = match agent.context_strategy with
@@ -421,13 +454,26 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
       fire_llm (Llm_request_sent { task_id = llm_task_id; model = agent.model.model_name });
       match run_llm_with_optional_streaming llm agent.model agent.tools conv on_chunk with
       | Result.Error err ->
-        let action = apply_on_error agent.middleware conv err
-          (fun e -> Error { category = e; message = "LLM error"; retryable = false; metadata = [] })
-        in
-        (match action with
-         | Error { retryable = true; _ } -> loop ~agent ~global_max conv iterations
-         | Handoff _ -> Result.Error (Internal "Handoff reached retry path", conv)
-         | _ -> Result.Error (err, conv))
+        (match classify_engine_error err with
+         | `Context_length_exceeded ->
+           Logs.warn (fun m -> m "[engine] Context length exceeded, applying context strategy");
+           let conv = match agent.context_strategy with
+             | Some strategy ->
+               (match Context_manager.apply_strategy strategy conv (Some llm) ~on_event:on_tool_event with
+                | Ok conv' -> conv'
+                | Error _ -> conv)
+             | None -> conv
+           in
+           loop ~agent ~global_max conv (iterations + 1)
+          | `Other err_classified ->
+           let err_classified : error_category = err_classified in
+           let action = apply_on_error agent.middleware conv err_classified
+             (fun e -> Error { category = e; message = "LLM error"; retryable = false; metadata = [] })
+           in
+           (match action with
+            | Error { retryable = true; _ } -> loop ~agent ~global_max conv (iterations + 1)
+            | Handoff _ -> Result.Error ((Internal "Handoff reached retry path" : error_category), conv)
+            | _ -> Result.Error (err_classified, conv)))
        | Ok resp ->
         fire_llm (Llm_response_received { task_id = llm_task_id; usage = resp.usage });
         let resp = apply_after_llm agent.middleware resp (fun r -> r) in

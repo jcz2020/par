@@ -46,7 +46,7 @@ let () =
           middleware = [];
           retry_policy = None;
           context_strategy = None;
-          resource_quota = None;
+          resource_quota = None; max_execution_time = None; early_stopping_method = Force;
         } in
         ignore (Runtime.register_agent rt agent);
         Printf.printf "Agent registered: %s\n" agent.id;

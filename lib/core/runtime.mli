@@ -51,6 +51,8 @@ val make_agent :
   ?retry_policy:retry_policy option ->
   ?context_strategy:context_strategy option ->
   ?resource_quota:resource_quota option ->
+  ?max_execution_time:float option ->
+  ?early_stopping_method:early_stopping_method ->
   unit ->
   (agent_config, error_category) result
 

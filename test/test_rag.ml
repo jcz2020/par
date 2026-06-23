@@ -42,7 +42,7 @@ let mock_agent =
     middleware = [];
     retry_policy = None;
     context_strategy = None;
-    resource_quota = None }
+    resource_quota = None; max_execution_time = None; early_stopping_method = Force }
 
 let test_embed_returns_vectors () =
   Eio_main.run (fun _env ->

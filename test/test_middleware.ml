@@ -79,19 +79,13 @@ let test_retry_default_config () =
   Alcotest.(check (float 0.01)) "default base_delay" 2.0 cfg.base_delay;
   Alcotest.(check (float 0.01)) "default max_delay" 30.0 cfg.max_delay
 
-let test_retry_on_before_llm_resets_attempt () =
+let test_retry_on_before_llm_is_none () =
   let hook = make_retry (exp_policy ()) in
-  match hook.on_before_llm with
-  | None -> Alcotest.fail "expected Some hook"
-  | Some f ->
-    let _ = f empty_conv in
-    Alcotest.(check bool) "hook field exists" true true
+  assert_none "on_before_llm is None (per-invocation budget)" hook.on_before_llm
 
-let test_retry_on_before_llm_returns_none () =
-  let hook = make_retry (exp_policy ()) in
-  match hook.on_before_llm with
-  | None -> Alcotest.fail "expected Some hook"
-  | Some f -> assert_none "on_before_llm returns None" (f empty_conv)
+let test_retry_on_before_llm_is_none_robust () =
+  let hook = make_retry (exp_policy ~max_attempts:5 ()) in
+  assert_none "on_before_llm is None for any config" hook.on_before_llm
 
 let test_retry_on_error_first_attempt_retryable () =
   let hook = make_retry (exp_policy ~max_attempts:3 ()) in
@@ -298,10 +292,10 @@ let test_retry_name_field () =
 
 let retry_suite = ("retry", [
   Alcotest.test_case "default_retry_config fields" `Quick test_retry_default_config;
-  Alcotest.test_case "on_before_llm exists" `Quick
-    test_retry_on_before_llm_resets_attempt;
-  Alcotest.test_case "on_before_llm returns None" `Quick
-    test_retry_on_before_llm_returns_none;
+  Alcotest.test_case "on_before_llm is None (per-invocation budget)" `Quick
+    test_retry_on_before_llm_is_none;
+  Alcotest.test_case "on_before_llm is None regardless of config" `Quick
+    test_retry_on_before_llm_is_none_robust;
   Alcotest.test_case "first retryable failure returns Error attempt=1" `Quick
     test_retry_on_error_first_attempt_retryable;
   Alcotest.test_case "second retryable failure returns Error attempt=2" `Quick
@@ -459,55 +453,17 @@ let test_timeout_on_before_tool_returns_none () =
   let f = Option.get hook.on_before_tool in
   assert_none "on_before_tool always None" (f (dummy_call ()))
 
-let test_timeout_on_error_timeout () =
+let test_timeout_on_error_is_none () =
   let hook = Timeout.timeout_middleware ~default_timeout:30.0 in
-  let f = Option.get hook.on_error in
-  match f Timeout with
-  | Some (Error e) ->
-    Alcotest.(check error_category_testable) "category is Timeout"
-      Timeout e.category;
-    Alcotest.(check bool) "retryable=true" true e.retryable;
-    let has_message =
-      try
-        ignore (Str.search_forward (Str.regexp_string "timed out") e.message 0);
-        true
-      with Not_found -> false
-    in
-    Alcotest.(check bool) "message mentions 'timed out'" true has_message
-  | _ -> Alcotest.fail "expected Error Timeout on Timeout error"
+  assert_none "on_error is None" hook.on_error
 
-let test_timeout_on_error_other_passes () =
+let test_timeout_on_error_is_none_for_timeout () =
   let hook = Timeout.timeout_middleware ~default_timeout:30.0 in
-  let f = Option.get hook.on_error in
-  (match f Rate_limited with
-   | Some _ -> Alcotest.fail "expected None for non-Timeout"
-   | None -> Alcotest.(check bool) "passes through" true true);
-  (match f (Invalid_input "x") with
-   | Some _ -> Alcotest.fail "expected None for Invalid_input"
-   | None -> Alcotest.(check bool) "passes through" true true)
+  assert_none "on_error is None (no retry on Timeout)" hook.on_error
 
-let test_timeout_on_error_all_error_types () =
+let test_timeout_on_error_is_none_for_all_error_types () =
   let hook = Timeout.timeout_middleware ~default_timeout:30.0 in
-  let f = Option.get hook.on_error in
-  let test_one (ec : error_category) =
-    match ec with
-    | Timeout ->
-      (match f ec with
-       | Some (Error _) -> ()
-       | _ -> Alcotest.fail "Timeout should produce Error")
-    | _ ->
-      (match f ec with
-       | None -> ()
-       | Some _ -> Alcotest.failf "non-Timeout %s should pass through"
-           (string_of_error_category ec))
-  in
-  test_one Timeout;
-  test_one Rate_limited;
-  test_one (Invalid_input "x");
-  test_one (External_failure "y");
-  test_one (Permission_denied "z");
-  test_one (Internal "w");
-  Alcotest.(check bool) "all error types handled" true true
+  assert_none "on_error is None for all error types" hook.on_error
 
 let test_timeout_no_other_hooks () =
   let hook = Timeout.timeout_middleware ~default_timeout:30.0 in
@@ -522,12 +478,12 @@ let test_timeout_name_field () =
 let timeout_suite = ("timeout", [
   Alcotest.test_case "on_before_tool returns None" `Quick
     test_timeout_on_before_tool_returns_none;
-  Alcotest.test_case "on_error with Timeout returns Error" `Quick
-    test_timeout_on_error_timeout;
-  Alcotest.test_case "on_error with non-Timeout returns None" `Quick
-    test_timeout_on_error_other_passes;
-  Alcotest.test_case "all error_category variants handled correctly" `Quick
-    test_timeout_on_error_all_error_types;
+  Alcotest.test_case "on_error is None" `Quick
+    test_timeout_on_error_is_none;
+  Alcotest.test_case "on_error is None for Timeout (no retry)" `Quick
+    test_timeout_on_error_is_none_for_timeout;
+  Alcotest.test_case "on_error is None for all error_category variants" `Quick
+    test_timeout_on_error_is_none_for_all_error_types;
   Alcotest.test_case "LLM and after_tool hooks are None" `Quick
     test_timeout_no_other_hooks;
   Alcotest.test_case "name field is 'timeout'" `Quick test_timeout_name_field;
