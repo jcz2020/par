@@ -307,6 +307,23 @@ class Runtime:
         if result != 0:
             raise PARError("Failed to register agent")
 
+    def register_skill(self, descriptor_json: str) -> None:
+        self._check_handle()
+        result = _lib.par_register_skill(self._handle, _c_str(descriptor_json))
+        if result != 0:
+            raise PARError(f"Failed to register skill (code {result})")
+
+    def list_skills(self) -> list:
+        self._check_handle()
+        ptr = _lib.par_list_skills(self._handle)
+        if not ptr:
+            return []
+        try:
+            raw = ctypes.cast(ptr, ctypes.c_char_p).value.decode("utf-8")
+            return json.loads(raw) if raw else []
+        finally:
+            _free(ptr)
+
     def invoke(self, agent_id: str, message: str) -> str:
         """Invoke an agent synchronously.
 

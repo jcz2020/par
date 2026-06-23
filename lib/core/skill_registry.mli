@@ -19,3 +19,6 @@ val find_descriptor :
 val remove : t -> string -> (unit, [ `Not_found of string ]) result
 
 val list : t -> string list
+
+val list_descriptors : t -> Types.skill_descriptor list
+(** Return all skill descriptors sorted by id. *)

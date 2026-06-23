@@ -87,6 +87,14 @@ _lib.par_invoke_stream.restype = ctypes.c_void_p
 _lib.par_register_agent.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_register_agent.restype = ctypes.c_int
 
+# int par_register_skill(par_runtime_t* rt, const char* json);
+_lib.par_register_skill.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_register_skill.restype = ctypes.c_int
+
+# char* par_list_skills(par_runtime_t* rt);
+_lib.par_list_skills.argtypes = [ctypes.c_void_p]
+_lib.par_list_skills.restype = ctypes.c_void_p
+
 # char* par_invoke(par_runtime_t* rt, const char* agent_id, const char* message);
 # Caller MUST free() the returned string — returns c_void_p, not c_char_p
 _lib.par_invoke.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]

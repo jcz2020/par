@@ -503,9 +503,94 @@ let do_register_agent (state_id : int) (config_json : string) =
          | Ok () -> Obj.repr 0
          | Error _ -> Obj.repr (-1)
        with
+        | exc ->
+          fd_log ("[do_register_agent] EXCEPTION: " ^ Printexc.to_string exc);
+          Obj.repr (-1)))
+
+let parse_skill_descriptor (json : Yojson.Safe.t) : Par.Types.skill_descriptor option =
+  let open Yojson.Safe.Util in
+  try
+    let schema_version = json |> member "schema_version" |> to_int in
+    let id = json |> member "id" |> to_string in
+    let name =
+      try json |> member "name" |> to_string
+      with Type_error _ -> id
+    in
+    let description = json |> member "description" |> to_string in
+    let system_prompt_override =
+      match json |> member "system_prompt_override" with
+      | `Null -> None
+      | v -> Some (to_string v)
+    in
+    let tool_filter =
+      match json |> member "tool_filter" with
+      | `String "All" | `Null -> Par.Types.All_tools
+      | `String s when String.length s >= 5 && String.sub s 0 5 = "Only " ->
+        Par.Types.Only (String.split_on_char ',' (String.sub s 5 (String.length s - 5))
+                        |> List.map String.trim)
+      | `String s when String.length s >= 7 && String.sub s 0 7 = "Except " ->
+        Par.Types.Except (String.split_on_char ',' (String.sub s 7 (String.length s - 7))
+                          |> List.map String.trim)
+      | _ -> Par.Types.All_tools
+    in
+    let trigger =
+      match json |> member "trigger" with
+      | `String "Manual" -> Par.Types.Manual
+      | `String s when String.length s >= 7 && String.sub s 0 7 = "Keyword" ->
+        Par.Types.Keyword { keywords = []; llm_confirm = true }
+      | _ -> Par.Types.Auto
+    in
+    let expected_output =
+      match json |> member "expected_output" with
+      | `Null -> None
+      | v -> Some v
+    in
+    Some {
+      Par.Types.schema_version;
+      id; name; description;
+      system_prompt_override;
+      tool_filter;
+      trigger;
+      expected_output;
+      body_path = "";
+    }
+  with
+  | Type_error _ -> None
+  | _ -> None
+
+let do_register_skill (state_id : int) (json_str : string) =
+  match get_state state_id with
+  | None -> Obj.repr (-1)
+  | Some _ ->
+    dispatch state_id (fun rt _env ->
+      (try
+         let json = Yojson.Safe.from_string json_str in
+         match parse_skill_descriptor json with
+         | None -> Obj.repr (-2)
+         | Some descriptor ->
+           (match Par.Runtime.register_skill rt descriptor with
+            | Ok _ -> Obj.repr 0
+            | Error _ -> Obj.repr (-4))
+       with
        | exc ->
-         fd_log ("[do_register_agent] EXCEPTION: " ^ Printexc.to_string exc);
+         fd_log ("[do_register_skill] EXCEPTION: " ^ Printexc.to_string exc);
          Obj.repr (-1)))
+
+let do_list_skills (state_id : int) : string =
+  match get_state state_id with
+  | None -> "[]"
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      let descriptors = Par.Runtime.list_skills rt in
+      let json_items = List.map (fun (d : Par.Types.skill_descriptor) ->
+        `Assoc [
+          ("id", `String d.Par.Types.id);
+          ("name", `String d.Par.Types.name);
+          ("description", `String d.Par.Types.description);
+        ]
+      ) descriptors in
+      Obj.repr (Yojson.Safe.to_string (`List json_items))) in
+    Obj.obj result
 
 let do_invoke (state_id : int) (agent_id : string) (message : string) =
   match get_state state_id with
@@ -922,6 +1007,18 @@ let () =
     (fun (state_id_obj : Obj.t) (config_json : string) ->
       let state_id : int = Obj.magic state_id_obj in
       do_register_agent state_id config_json)
+
+let () =
+  Callback.register "par_register_skill"
+    (fun (state_id_obj : Obj.t) (json : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_register_skill state_id json)
+
+let () =
+  Callback.register "par_list_skills"
+    (fun (state_id_obj : Obj.t) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_list_skills state_id)
 
 let () =
   Callback.register "par_invoke"

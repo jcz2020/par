@@ -70,6 +70,22 @@ val register_tool :
   unit ->
   (tool_binding, error_category) result
 
+val register_skill :
+  runtime -> Types.skill_descriptor ->
+  (Types.skill_binding, error_category) result
+
+val list_skills : runtime -> Types.skill_descriptor list
+
+val make_skill :
+  id:string ->
+  description:string ->
+  ?system_prompt_override:string ->
+  ?tool_filter:Types.tool_filter ->
+  ?trigger:Types.skill_trigger ->
+  ?expected_output:Yojson.Safe.t ->
+  unit ->
+  (Types.skill_descriptor, error_category) result
+
 val invoke :
   runtime ->
   agent_id:string ->

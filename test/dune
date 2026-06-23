@@ -316,3 +316,8 @@
  (name test_skill_loader)
  (libraries par alcotest)
  (modules test_skill_loader))
+
+(test
+ (name test_skill_runtime)
+ (libraries par eio_main alcotest)
+ (modules test_skill_runtime))

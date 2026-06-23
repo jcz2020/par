@@ -25,6 +25,7 @@ type runtime = {
   workflows : (Workflow_run_id.t, workflow_status) protected_hashtbl;
   workflow_defs : (string, workflow) protected_hashtbl;
   tool_registry : Tool_registry.t;
+  skills : Skill_registry.t;
   steering_queue : Steering_queue.t;
   followup_queue : Steering_queue.t;
   runtime_id : string;
@@ -132,6 +133,40 @@ let register_tool rt ~name ~description ~input_schema ~handler
     Result.Error (Types.Invalid_input (Printf.sprintf "Tool already registered: %s" n))
   | Ok () ->
     Ok { descriptor; handler }
+
+
+let register_skill rt (descriptor : Types.skill_descriptor) =
+  let activate : Skill_registry.activate_fn =
+    fun _rt ->
+      { Types.system_prompt_override = descriptor.Types.system_prompt_override;
+        tool_filter_overlay = descriptor.Types.tool_filter }
+  in
+  let binding = { Types.descriptor; activate } in
+  match Skill_registry.register rt.skills binding with
+  | Error (`Duplicate_skill id) ->
+    Result.Error (Types.Invalid_input (Printf.sprintf "Skill already registered: %s" id))
+  | Ok () -> Ok binding
+
+let list_skills rt = Skill_registry.list_descriptors rt.skills
+
+let make_skill ~id ~description ?system_prompt_override ?(tool_filter = Types.All_tools)
+    ?(trigger = Types.Auto) ?expected_output () =
+  if id = "" then Result.Error (Types.Invalid_input "skill id cannot be empty")
+  else if String.length description > 1024 then
+    Result.Error (Types.Invalid_input
+      (Printf.sprintf "description exceeds 1024 chars (%d)" (String.length description)))
+  else
+    Result.Ok {
+      Types.schema_version = 1;
+      id;
+      name = id;
+      description;
+      system_prompt_override;
+      tool_filter;
+      trigger;
+      expected_output;
+      body_path = "";
+    }
 
 
 let record_llm_success rt =
@@ -770,6 +805,7 @@ let create ?(persistence = noop_persistence)
       workflows = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
       workflow_defs = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
       tool_registry = Tool_registry.create ();
+      skills = Skill_registry.create ();
       steering_queue = Steering_queue.create ();
       followup_queue = Steering_queue.create ();
       last_llm_call_at = None;
