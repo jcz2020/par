@@ -70,7 +70,7 @@ let default_quota = {
 let default_bash_confirm = Types.default_bash_confirm_config
 
 let make_agent ~id ?(system_prompt = "") ?(system_prompt_template = None)
-    ~model ?(tools = []) ?(max_iterations = 10)
+    ~model ?(tools = []) ?(max_iterations = 1_000_000)
     ?(middleware = []) ?(retry_policy = None)
     ?(context_strategy = None) ?(resource_quota = None)
     ?(max_execution_time = None) ?(early_stopping_method = Force) () =

@@ -473,7 +473,7 @@ let parse_agent_config (json : Yojson.Safe.t) : Par.Types.agent_config =
   in
   let model = json |> member "model" |> parse_model_config in
   let tools = json |> member "tools" |> to_list |> List.map parse_tool_descriptor in
-  let max_iterations = json |> member "max_iterations" |> to_int_option |> Option.value ~default:10 in
+  let max_iterations = json |> member "max_iterations" |> to_int_option |> Option.value ~default:1000000 in
   let middleware = [] in
   let retry_policy = None in
   let context_strategy = None in
