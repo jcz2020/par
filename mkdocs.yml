@@ -101,6 +101,8 @@ nav:
       - Middleware: sdk/middleware.md
       - Tools: sdk/tools.md
       - MCP Client: sdk/mcp.md
+      - Streaming API: sdk/streaming.md
+      - RAG API: sdk/rag.md
   - Explanation:
       - Architecture: explanation/architecture.md
 
