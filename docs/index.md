@@ -42,7 +42,7 @@ If you are looking for a one-paragraph answer to a setup or runtime question, th
 
 ### Common questions
 
-FAQ: 5 common questions (coming in a future release).
+[FAQ](explanation/faq.md): 6 common questions answered (PAR vs LangChain, picking a surface, streaming behavior, persistence, provider support, the skill system).
 
 ## Reference
 
@@ -78,6 +78,10 @@ Explanation docs discuss the why behind PAR's design. Read these when you want t
 ### Architecture
 
 [Architecture deep dive](explanation/architecture.md): core abstractions, module structure, data flow, type system, Eio concurrency, event stream.
+
+### Common questions
+
+[FAQ](explanation/faq.md): 6 common questions answered (PAR vs LangChain, picking a surface, streaming behavior, persistence, provider support, the skill system).
 
 ### Doc internals
 
