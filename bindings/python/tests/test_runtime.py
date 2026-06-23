@@ -157,7 +157,6 @@ class TestMcpMethods(unittest.TestCase):
 
 
 class TestWorkflowMethods(unittest.TestCase):
-    @unittest.skip("workflow_status callback fails — same handle issue as health/metrics")
     def test_workflow_status_not_found(self):
         with Runtime(_test_config()) as rt:
             result = rt.workflow_status("nonexistent")
@@ -168,6 +167,23 @@ class TestWorkflowMethods(unittest.TestCase):
         with self.assertRaises(PARWorkflowError):
             rt.workflow_cancel("nonexistent")
         rt.close()
+
+
+class TestCallbackHandleSurvival(unittest.TestCase):
+    def test_repeated_health_metrics_workflow_status(self):
+        with Runtime(_test_config()) as rt:
+            for i in range(5):
+                h = rt.health()
+                self.assertIsInstance(h, dict, f"iter {i} health")
+                self.assertEqual(h.get("status"), "ok", f"iter {i} health status")
+
+                m = rt.metrics()
+                self.assertIsInstance(m, dict, f"iter {i} metrics")
+                self.assertIn("llm_requests_total", m, f"iter {i} metrics keys")
+
+                s = rt.workflow_status("nonexistent")
+                self.assertIsInstance(s, dict, f"iter {i} workflow_status")
+                self.assertEqual(s["run_id"], "nonexistent", f"iter {i} workflow_status run_id")
 
 
 class TestToolRegistrationWithHandler(unittest.TestCase):
