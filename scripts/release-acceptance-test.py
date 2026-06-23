@@ -129,8 +129,14 @@ def main() -> int:
         f"config = {TEST_CONFIG!r}\n"
         "rt = Runtime(config)\n"
         "rt.register_tool('echo', 'Echo tool', '{\"type\": \"object\"}')\n"
+        "rt.register_skill(json.dumps({"
+        "'schema_version': 1, 'id': 'test-skill', 'name': 'Test', "
+        "'description': 'Acceptance test skill'}))\n"
+        "skills = rt.list_skills()\n"
+        "assert len(skills) >= 1, f'Expected >=1 skill, got {len(skills)}'\n"
+        "assert skills[0]['id'] == 'test-skill', f\"Expected test-skill, got {skills[0]['id']}\"\n"
         "rt.close()\n"
-        "print('Runtime lifecycle ok')\n"
+        "print('Runtime lifecycle + skill registration ok')\n"
     )
     rc, out, err = run_in_venv(venv_python, code)
     if rc != 0:

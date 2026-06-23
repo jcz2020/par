@@ -87,6 +87,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - [MCP Client](docs/sdk/mcp.md) — connect any Model Context Protocol server
 - [Streaming API](docs/sdk/streaming.md) — token streaming, tool call events
 - [RAG API](docs/sdk/rag.md) — embeddings, vector store, retrieval
+- [Skills API](docs/sdk/skills.md) — reusable prompt + tool bundles with triggers
 - [Architecture](docs/explanation/architecture.md) — how PAR works internally
 - [How-to guides](docs/howto/) — concurrency, custom providers, error handling
 - [Doc index](docs/index.md) — complete table of contents
