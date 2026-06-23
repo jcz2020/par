@@ -105,6 +105,9 @@ nav:
       - RAG API: sdk/rag.md
   - Explanation:
       - Architecture: explanation/architecture.md
+      - Concurrency Model: explanation/concurrency-model.md
+      - Persistence and Durability: explanation/persistence-and-durability.md
+      - RAG Architecture: explanation/rag-architecture.md
 
 not_in_nav: |
   rules/*
