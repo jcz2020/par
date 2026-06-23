@@ -195,6 +195,64 @@ type tool_binding = {
 }
 (* Note: handler is a function type, not derivable *)
 
+(* Forward declaration: the concrete `runtime` record is defined in
+   lib/core/runtime.ml (which depends on this module). For A.1 we
+   declare it as an abstract type so skill_binding.activate can be
+   typed without modifying runtime.ml. A.3a (Wave 2) will properly
+   link this with runtime.ml's `type runtime`. *)
+type runtime
+
+(** Skill system — typed abstraction over reusable instruction bundles.
+    Mirrors [tool_descriptor] pattern. Revised 2026-06-24 after Oracle
+    architectural review (see docs/v0.5.2-ROADMAP.md A.0 revision log). *)
+type tool_filter =
+  | All_tools
+  | Only of string list       (** allowlist *)
+  | Except of string list     (** denylist *)
+
+type skill_trigger =
+  | Auto                                                (** always load desc; LLM judges *)
+  | Manual                                              (** never auto-load; explicit invoke only *)
+  | Keyword of { keywords : string list;
+                 llm_confirm : bool }                   (** [false] = deterministic activate-on-match;
+                                                           [true] = filter then LLM judges (2-stage) *)
+
+(** Effect returned by skill activation. Runtime applies per-invoke, discards after.
+    Pure: reads runtime state, returns overlay. Does NOT mutate runtime directly.
+
+    Composition rule (INTERSECTION): when multiple skills activate simultaneously,
+    effective filter = intersection of all [Only] filters
+                      ∪ (universe − union of all [Except] filters).
+    [All_tools] is identity element. Fails safe (most restrictive wins). *)
+type skill_effect = {
+  system_prompt_override : string option;
+  tool_filter_overlay    : tool_filter;
+}
+
+type skill_descriptor = {
+  schema_version : int;                              (** required frontmatter field: 1 for v0.5.2.
+                                                        Loader rejects unknown versions with clear
+                                                        error pointing to MIGRATION.md. *)
+  id : string;                                       (** lowercase-hyphen, matches dir name *)
+  name : string;                                     (** display name *)
+  description : string;                              (** ≤1024 chars; L1 metadata always resident *)
+  system_prompt_override : string option;            (** OpenAI instructions pattern *)
+  tool_filter : tool_filter;                         (** typed — better than all 5 competitors *)
+  trigger : skill_trigger;                           (** ADT, not bool flags *)
+  expected_output : Yojson.Safe.t option;            (** STOLEN FROM CREWAI — typed success criteria.
+                                                        Forward-looking: informational-only in v0.5.2
+                                                        (no LLM judge consumer yet); v0.5.3+ will add
+                                                        judge that reads this field. STRATEGY §3
+                                                        differentiation: only framework with typed
+                                                        success criteria. *)
+  body_path : string;                                (** L2 lazy-loaded content (markdown body) *)
+}
+
+type skill_binding = {
+  descriptor : skill_descriptor;
+  activate   : runtime -> skill_effect               (** pure: reads runtime, returns overlay *)
+}
+
 type middleware_hook = {
   name : string;
   on_before_llm : (conversation -> conversation option) option;

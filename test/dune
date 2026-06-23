@@ -300,3 +300,14 @@
  (name test_cli_dispatch)
  (libraries par alcotest)
  (modules test_cli_dispatch))
+
+(test
+ (name test_http_timeout)
+ (libraries par eio eio_main alcotest)
+ (modules test_http_timeout)
+ (action (run %{test})))
+
+(test
+ (name test_skill_registry)
+ (libraries par alcotest)
+ (modules test_skill_registry))
