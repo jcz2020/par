@@ -53,3 +53,6 @@ val do_request_streaming_with_flow :
 
 val set_clock : 'a -> unit
 val set_request_timeout : float -> unit
+
+val with_timeout_for :
+  timeout:float -> Eio.Switch.t -> (unit -> 'a) -> 'a

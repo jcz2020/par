@@ -1,8 +1,8 @@
 open Par
 open Types
 
-let find_tool name tools =
-  let rec go = function
+let find_tool name (tools : tool_binding list) =
+  let rec go (lst : tool_binding list) = match lst with
     | [] -> failwith (Printf.sprintf "tool '%s' not found" name)
     | tb :: rest ->
         if tb.descriptor.name = name then tb.handler else go rest

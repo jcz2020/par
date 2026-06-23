@@ -6,7 +6,7 @@
    captured from the [Mcp-Session-Id] response header and echoed back on later
    requests. *)
 
-[@@@warning "-32-34-37"]
+[@@@warning "-32-34-37-69"]
 
 let max_body_size = 10 * 1024 * 1024
 let session_id_header = "mcp-session-id"
@@ -93,9 +93,11 @@ let post_sampling_response t request_id result_json =
   let body = Cohttp_eio.Body.of_string body_str in
   let headers = build_headers t [] in
   (try
-     let resp, resp_body = Cohttp_eio.Client.post t.client ~sw:t.sw ~headers ~body t.uri in
-     capture_session_id t resp;
-     drain_body resp_body
+     Eio.Switch.run (fun sw ->
+       Http_client.with_timeout_for ~timeout:30.0 sw (fun () ->
+         let resp, resp_body = Cohttp_eio.Client.post t.client ~sw ~headers ~body t.uri in
+         capture_session_id t resp;
+         drain_body resp_body))
    with _ -> ())
 
 let read_body_string body : (string, Types.error_category) result =
@@ -186,32 +188,38 @@ let request_response t req =
     let body = Cohttp_eio.Body.of_string body_str in
     let headers = build_headers t [] in
     try
-      let resp, resp_body =
-        Cohttp_eio.Client.post t.client ~sw:t.sw ~headers ~body t.uri
-      in
-      capture_session_id t resp;
-      let status = http_status resp in
-      if Cohttp.Code.is_error status then
-        Error (Types.Internal (Printf.sprintf "MCP HTTP error status %d" status))
-      else if status = 202 then
-        Error (Types.Internal "MCP HTTP request received 202 (expected response)")
-      else if content_type_is resp "application/json" then
-        match read_body_string resp_body with
-        | Error _ as e -> e
-        | Ok s ->
-          (match parse_response_json s with
-           | Error _ as e -> e
-           | Ok r ->
-             if Mcp_types.request_id_matches r.Mcp_types.id req.Mcp_types.id then Ok r
-             else Error (Types.Internal "MCP HTTP response id mismatch"))
-      else if content_type_is resp "text/event-stream" then
-        (match req.Mcp_types.id with
-         | Mcp_types.Int_id target_id -> parse_sse_response t ~target_id resp_body
-         | Mcp_types.String_id _ ->
-           Error (Types.Invalid_input "MCP HTTP SSE response matching requires int id"))
-      else
-        Error (Types.Internal "MCP HTTP unexpected response content-type")
-    with ex ->
+      Eio.Switch.run (fun sw ->
+        Http_client.with_timeout_for ~timeout:30.0 sw (fun () ->
+          let resp, resp_body =
+            Cohttp_eio.Client.post t.client ~sw ~headers ~body t.uri
+          in
+          capture_session_id t resp;
+          let status = http_status resp in
+          if Cohttp.Code.is_error status then
+            Error (Types.Internal (Printf.sprintf "MCP HTTP error status %d" status))
+          else if status = 202 then
+            Error (Types.Internal "MCP HTTP request received 202 (expected response)")
+          else if content_type_is resp "application/json" then
+            match read_body_string resp_body with
+            | Error _ as e -> e
+            | Ok s ->
+              (match parse_response_json s with
+               | Error _ as e -> e
+               | Ok r ->
+                 if Mcp_types.request_id_matches r.Mcp_types.id req.Mcp_types.id then Ok r
+                 else Error (Types.Internal "MCP HTTP response id mismatch"))
+          else if content_type_is resp "text/event-stream" then
+            (match req.Mcp_types.id with
+             | Mcp_types.Int_id target_id -> parse_sse_response t ~target_id resp_body
+             | Mcp_types.String_id _ ->
+               Error (Types.Invalid_input "MCP HTTP SSE response matching requires int id"))
+          else
+            Error (Types.Internal "MCP HTTP unexpected response content-type")))
+    with
+    | Failure msg when
+        (try Str.search_forward (Str.regexp "timed out") msg 0 >= 0 with _ -> false) ->
+      Error Types.Timeout
+    | ex ->
       Error
         (Types.Internal
            (Printf.sprintf "MCP HTTP POST failed: %s" (Printexc.to_string ex)))
@@ -223,17 +231,23 @@ let notify t notif =
     let body = Cohttp_eio.Body.of_string body_str in
     let headers = build_headers t [] in
     try
-      let resp, resp_body =
-        Cohttp_eio.Client.post t.client ~sw:t.sw ~headers ~body t.uri
-      in
-      capture_session_id t resp;
-      let status = http_status resp in
-      drain_body resp_body;
-      if Cohttp.Code.is_error status then
-        Error (Types.Internal (Printf.sprintf "MCP HTTP notification error status %d" status))
-      else
-        Ok ()
-    with ex ->
+      Eio.Switch.run (fun sw ->
+        Http_client.with_timeout_for ~timeout:30.0 sw (fun () ->
+          let resp, resp_body =
+            Cohttp_eio.Client.post t.client ~sw ~headers ~body t.uri
+          in
+          capture_session_id t resp;
+          let status = http_status resp in
+          drain_body resp_body;
+          if Cohttp.Code.is_error status then
+            Error (Types.Internal (Printf.sprintf "MCP HTTP notification error status %d" status))
+          else
+            Ok ()))
+    with
+    | Failure msg when
+        (try Str.search_forward (Str.regexp "timed out") msg 0 >= 0 with _ -> false) ->
+      Error Types.Timeout
+    | ex ->
       Error
         (Types.Internal
            (Printf.sprintf "MCP HTTP POST failed: %s" (Printexc.to_string ex)))

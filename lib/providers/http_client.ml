@@ -179,6 +179,24 @@ let with_timeout sw f =
       `Stop_daemon);
     f ()
 
+(* Per-call total timeout. Same cancellation mechanism as [with_timeout], but
+   the timeout is supplied by the caller instead of the global
+   [request_timeout]. This lets modules that don't own the global setting
+   (MCP transport, fetch_url builtin) apply their own per-call budget.
+   If [clock_ref] is [None], the timeout is a no-op (request proceeds without
+   a deadline), matching the existing [with_timeout] behavior. *)
+let with_timeout_for ~timeout sw f =
+  match !clock_ref with
+  | None -> f ()
+  | Some clock_obj ->
+    let clock = (Obj.obj clock_obj : _ Eio.Time.clock_ty Eio.Resource.t) in
+    Eio.Fiber.fork_daemon ~sw (fun () ->
+      Eio.Time.sleep clock timeout;
+      Eio.Switch.fail sw
+        (Failure (Printf.sprintf "HTTP request timed out after %.0fs" timeout));
+      `Stop_daemon);
+    f ()
+
 (* Idle timeout for streaming: daemon sleeps for [idle] seconds, then checks
    if any read activity occurred during that period. If yes, sleeps again.
    If no, fires Switch.fail. No Eio.Time.now calls — same cancellation

@@ -451,12 +451,13 @@ let builtin_tools ~switch ~net =
     | Error msg -> Error msg
     | Ok uri ->
       (try
-         let resp, body = Cohttp_eio.Client.get http_client ~sw ~headers:default_headers uri in
-         let status = (resp.Http.Response.status :> Cohttp.Code.status_code) |> Cohttp.Code.code_of_status in
-         let body_str =
-           Eio.Buf_read.parse_exn ~max_size:max_download_size Eio.Buf_read.take_all body
-         in
-         Ok (status, body_str)
+         Http_client.with_timeout_for ~timeout:15.0 sw (fun () ->
+           let resp, body = Cohttp_eio.Client.get http_client ~sw ~headers:default_headers uri in
+           let status = (resp.Http.Response.status :> Cohttp.Code.status_code) |> Cohttp.Code.code_of_status in
+           let body_str =
+             Eio.Buf_read.parse_exn ~max_size:max_download_size Eio.Buf_read.take_all body
+           in
+           Ok (status, body_str))
        with exn ->
          Error ("HTTP request failed: " ^ Printexc.to_string exn))
   in
