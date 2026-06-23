@@ -8,6 +8,7 @@ from par_runtime._ffi import (
     _lib,
     _c_str,
     _py_str,
+    _free,
     _PYTHON_TOOL_CALLBACK,
     _STREAM_CALLBACK,
 )

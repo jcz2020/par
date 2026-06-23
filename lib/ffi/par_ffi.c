@@ -209,6 +209,25 @@ int par_register_agent(par_runtime_t* rt, const char* config_json) {
     return rc;
 }
 
+int par_register_skill(par_runtime_t* rt, const char* json) {
+    value c_json = caml_copy_string(json);
+
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call2_exn("par_register_skill", rt->_ocaml_value, c_json);
+    int is_exc = Is_exception_result(result);
+    int rc = is_exc ? -1 : Int_val(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return rc;
+}
+
+char* par_list_skills(par_runtime_t* rt) {
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call1_exn("par_list_skills", rt->_ocaml_value);
+    char* ret = extract_string(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return ret;
+}
+
 char* par_invoke(par_runtime_t* rt, const char* agent_id,
                  const char* message) {
     value c_aid = caml_copy_string(agent_id);
