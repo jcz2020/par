@@ -39,7 +39,7 @@
 
 **Backward compatibility**: The buffered JSON envelope (`"chunks": [...]` in the response) is still returned by `par_invoke_stream` for callers reading `parsed["chunks"]` directly. The queue-based path is additive.
 
-**Test infrastructure note**: ctypes `CFUNCTYPE` closures only fire their Python callback when called from C, not from Python. Existing tests that used `mock.patch` to stub `_lib.par_invoke_stream` couldn't trigger the callback path. The test infrastructure was rewritten to inject chunks directly into a `queue.Queue` via the `_inject_queue` constructor parameter. New test `test_stream_reader_chunks_arrive_incrementally_v0_5_3` verifies the queue delivers chunks in arrival order with 60ms inter-chunk gaps.
+**Test infrastructure note**: ctypes `CFUNCTYPE` closures only fire their Python callback when called from C, not from Python. Tests that need to exercise the real incremental path mock `_lib.par_invoke_stream` with a `side_effect` that fires the ctypes callback with realistic delays — the mock runs synchronously inside `_StreamReader`'s own background daemon thread, so `__iter__` on the main thread consumes the queue concurrently. The `test_stream_reader_chunks_arrive_incrementally_v0_5_3` test uses this pattern with 100ms inter-chunk delays and asserts `min_gap > 50ms` + `iter_total > 250ms`. Oracle verified the test is discriminating: reverting the threading fix collapses `min_gap` to 0.02ms → assertion fails.
 
 ### Changed — Build infrastructure
 
@@ -52,7 +52,7 @@
 
 - **OCaml**: 63 test suites, 1041 assertions pass (`dune runtest --force`)
 - **Python**: 64 tests pass from `/tmp/rag_verify/` (cwd != project root) — RAG e2e test that previously returned -5 now passes
-- **Streaming**: 13 streaming tests pass, including new `test_stream_reader_chunks_arrive_incrementally_v0_5_3` that proves chunks arrive incrementally (60ms inter-chunk gaps)
+- **Streaming**: 13 streaming tests pass, including new `test_stream_reader_chunks_arrive_incrementally_v0_5_3` that proves chunks arrive incrementally (100ms inter-chunk delays, asserts `min_gap > 50ms`; Oracle verified the test is discriminating by reverting the fix and confirming `min_gap` collapses to 0.02ms → assertion fails)
 - **RAG**: 3/3 RAG e2e tests pass from arbitrary cwd
 - **Symbols exported**: `nm -D par_capi.so` confirms `caml_dispatch_chunk_to_c` and `par_set_vec_extension_path` are both in the dynamic symbol table
 
@@ -61,12 +61,23 @@
 - 1041 OCaml assertions (was 1043 in v0.5.2 — minor test restructuring, no test removed)
 - 64 Python tests passing (was 36 — added new streaming tests + kept RAG e2e)
 
+### Known Limitation: early break from `invoke_stream` blocks subsequent calls
+
+`invoke_stream` runs `par_invoke_stream` in a background daemon thread that holds the process-global C `ocaml_lock` (`par_ffi.c:27`) for the entire duration of the LLM stream. If the caller `break`s early from the iterator (or a `queue_timeout` fires), the daemon thread continues running until the LLM stream completes naturally — and during that window, **every subsequent `par_*` call on any Runtime instance blocks** on `pthread_mutex_lock(&ocaml_lock)`.
+
+This is a behavior regression vs the buffered v0.5.1 streaming (where breaking early just stopped draining an already-complete queue, and `ocaml_lock` was already released). It is bounded (the stream completes naturally) and consistent with the documented single-stream-at-a-time design (`par_ffi.c:32-37`), but callers should be aware.
+
+**Workaround**: consume the iterator fully (don't `break` early) if you intend to make further `par_*` calls. If you must break early, expect a delay equal to the remaining LLM generation time before the next call unblocks.
+
+**Planned fix (v0.5.4)**: a `par_cancel_stream` FFI entry + Eio cancellation wiring that lets the caller interrupt an in-flight stream and release `ocaml_lock` immediately.
+
 ### Upgrade Notes
 
 - **No breaking changes**. Both fixes are transparent.
 - RAG `add_documents` now works from any cwd without any code change.
 - `invoke_stream` now yields events incrementally — existing iterators work unchanged but feel dramatically more responsive.
 - If you have existing code that reads `parsed["chunks"]` from the final response, it still works (the buffered envelope is preserved for back-comat).
+- **Caveat**: see "Known Limitation" above — breaking early from `invoke_stream` will block subsequent `par_*` calls until the LLM stream finishes. Consume fully or wait.
 
 ### Contributors
 

@@ -218,19 +218,23 @@ def test_stream_reader_chunks_arrive_incrementally_v0_5_3():
     """v0.5.3 B.3: verify the reader delivers chunks incrementally through
     the real background-thread + queue path.
 
-    The mock simulates the OCaml work loop: it spawns a thread that
+    The mock replaces ``_lib.par_invoke_stream`` with a ``side_effect`` that
     fires the ctypes callback once per chunk with a 100ms delay between
-    chunks (mimicking SSE production rate). The reader's __iter__ runs
-    on the main thread and consumes the queue concurrently.
+    chunks (mimicking SSE production rate). The mock runs synchronously,
+    but it runs inside ``_StreamReader``'s own background daemon thread
+    (started by ``_start_fetch``), so ``__iter__`` on the main thread
+    consumes the queue concurrently.
 
     We assert:
     - All 4 events are delivered
     - The inter-arrival time between consecutive events is at least 50ms
       (proving they were NOT all buffered then dumped at once)
-    - The total iteration time is at least 300ms (4 chunks * ~100ms each)
+    - The total iteration time is at least 250ms (3 gaps * ~100ms each)
 
-    This is the canonical test that the streaming fix actually works for
-    Python callers — not just the queue mechanism in isolation.
+    Oracle verified this test is discriminating: reverting the threading
+    fix (making ``_do_fetch`` synchronous) collapses ``min_gap`` to 0.02ms,
+    which fails the ``> 0.05`` assertion. This is the canonical test that
+    the streaming fix actually works for Python callers.
     """
     import time as _t
 
@@ -243,9 +247,11 @@ def test_stream_reader_chunks_arrive_incrementally_v0_5_3():
     inter_chunk_delay = 0.1  # 100ms between chunks, like a real LLM
 
     def fake_invoke_stream(rt_handle, agent_id_b, message_b, cb, user_data):
-        """Simulate OCaml work loop: spawn a thread that fires cb with delays.
-        The C par_invoke_stream blocks until the LLM completes; we mimic that
-        by sleeping for the full duration before returning the final envelope.
+        """Simulate OCaml work loop: fire cb with delays, then return.
+
+        Runs synchronously, but is invoked from _StreamReader._do_fetch
+        which itself runs in a background daemon thread — so __iter__
+        on the main thread consumes the queue concurrently.
         """
         def produce():
             for chunk in chunks:

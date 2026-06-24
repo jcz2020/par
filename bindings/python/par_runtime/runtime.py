@@ -525,6 +525,16 @@ class Runtime:
         within milliseconds of the LLM producing it, not after the full
         response completes.
 
+        .. note::
+
+            Breaking early from this iterator (via ``break`` or by
+            stopping consumption) leaves the background thread running
+            until the LLM stream completes naturally. During that window
+            the thread holds the process-global ``ocaml_lock``, so any
+            subsequent ``par_*`` call will block. Consume the iterator
+            fully if you need to make further calls. (Planned fix in
+            v0.5.4: ``par_cancel_stream`` FFI for immediate cancellation.)
+
         Raises:
             PARInvokeError: if OCaml returns an error or the queue times out.
             PARError: if the runtime has been shut down.
