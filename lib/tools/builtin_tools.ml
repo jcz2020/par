@@ -446,18 +446,19 @@ let builtin_tools ~switch ~net =
     | None -> Error "URL must include a scheme (http:// or https://)"
   in
 
-  let http_get url sw : ((int * string), string) result =
+  let http_get url : ((int * string), string) result =
     match validate_url url with
     | Error msg -> Error msg
     | Ok uri ->
       (try
-         Http_client.with_timeout_for ~timeout:15.0 sw (fun () ->
-           let resp, body = Cohttp_eio.Client.get http_client ~sw ~headers:default_headers uri in
-           let status = (resp.Http.Response.status :> Cohttp.Code.status_code) |> Cohttp.Code.code_of_status in
-           let body_str =
-             Eio.Buf_read.parse_exn ~max_size:max_download_size Eio.Buf_read.take_all body
-           in
-           Ok (status, body_str))
+         Eio.Switch.run (fun sw_inner ->
+           Http_client.with_timeout_for ~timeout:15.0 sw_inner (fun () ->
+             let resp, body = Cohttp_eio.Client.get http_client ~sw:sw_inner ~headers:default_headers uri in
+             let status = (resp.Http.Response.status :> Cohttp.Code.status_code) |> Cohttp.Code.code_of_status in
+             let body_str =
+               Eio.Buf_read.parse_exn ~max_size:max_download_size Eio.Buf_read.take_all body
+             in
+             Ok (status, body_str)))
        with exn ->
          Error ("HTTP request failed: " ^ Printexc.to_string exn))
   in
@@ -492,17 +493,17 @@ let builtin_tools ~switch ~net =
         if url = "" then
           Error { category = Invalid_input "Missing url parameter"; message = "Missing url"; retryable = false; metadata = [] }
         else
-          Eio.Switch.run @@ fun sw ->
-          (match http_get url sw with
+          Eio.Switch.run @@ fun _sw ->
+          (match http_get url with
            | Error msg ->
              Error { category = External_failure msg; message = msg; retryable = true; metadata = [] }
            | Ok (status, body) ->
-             let truncated = String.length body > max_len in
-             let result = if truncated then String.sub body 0 max_len else body in
-             Success (`Assoc [
-               ("url", `String url);
-               ("status", `Int status);
-               ("content", `String result);
+              let truncated = String.length body > max_len in
+              let result = if truncated then String.sub body 0 max_len else body in
+              Success (`Assoc [
+                ("url", `String url);
+                ("status", `Int status);
+                ("content", `String result);
                 ("content_length", `Int (String.length result));
                  ("truncated", `Bool truncated);
                 ]))
@@ -541,8 +542,8 @@ let builtin_tools ~switch ~net =
         if url = "" then
           Error { category = Invalid_input "Missing url parameter"; message = "Missing url"; retryable = false; metadata = [] }
         else
-          Eio.Switch.run @@ fun sw ->
-          (match http_get url sw with
+          Eio.Switch.run @@ fun _sw ->
+          (match http_get url with
            | Error msg ->
              Error { category = External_failure msg; message = msg; retryable = true; metadata = [] }
            | Ok (status, html) ->
@@ -606,10 +607,10 @@ let builtin_tools ~switch ~net =
         if query = "" then
           Error { category = Invalid_input "Missing query parameter"; message = "Missing query"; retryable = false; metadata = [] }
         else
-          Eio.Switch.run @@ fun sw ->
+          Eio.Switch.run @@ fun _sw ->
           let encoded_query = Uri.pct_encode query in
           let search_url = "https://lite.duckduckgo.com/lite?q=" ^ encoded_query in
-          (match http_get search_url sw with
+          (match http_get search_url with
            | Error msg ->
              Error { category = External_failure msg; message = msg; retryable = true; metadata = [] }
            | Ok (_status, html) ->

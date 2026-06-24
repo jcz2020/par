@@ -59,10 +59,21 @@ jobs:
       - name: Build C FFI shared library
         run: opam exec -- dune build lib/ffi/par_capi.so
 
-      - name: Copy shared library for wheel
+      - name: Copy shared library + sqlite-vec extension for wheel
         run: |
           mkdir -p bindings/python/par_runtime/lib
           cp -f _build/default/lib/ffi/par_capi.so bindings/python/par_runtime/lib/
+          # Copy the platform-matched sqlite-vec extension next to par_capi.so
+          # so the OCaml runtime can load_extension from the wheel directory.
+          if [ -f _build/default/lib/ffi/vec0.so ]; then
+            cp -f _build/default/lib/ffi/vec0.so bindings/python/par_runtime/lib/
+          elif [ -f _build/default/lib/ffi/vec0.dylib ]; then
+            cp -f _build/default/lib/ffi/vec0.dylib bindings/python/par_runtime/lib/
+          else
+            echo "ERROR: sqlite-vec extension not built (vec0.so / vec0.dylib missing)"
+            exit 1
+          fi
+          ls -la bindings/python/par_runtime/lib/
 
       - name: Setup Python venv + build tools
         run: |

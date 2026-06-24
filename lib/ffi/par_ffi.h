@@ -90,6 +90,10 @@ int par_event_subscribe(par_runtime_t* rt, par_event_callback cb);
 char* par_version(void);
 int   par_set_request_timeout(double seconds);
 
+/* Override the sqlite-vec extension path. Must be called BEFORE par_init
+   (or before the first add_documents). Returns 0 on success, -1 on failure. */
+int   par_set_vec_extension_path(const char* path);
+
 /* Cleanup */
 void par_result_free(par_result_t* result);
 

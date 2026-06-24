@@ -32,6 +32,7 @@ depends: [
   "mirage-crypto-rng"
   "base64"
   "digestif"
+  "yaml"
   "alcotest"
   "odoc" {with-doc}
 ]

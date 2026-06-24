@@ -636,6 +636,15 @@ let do_invoke_structured (state_id : int) (agent_id : string) (message : string)
        with e -> Obj.repr (Some (error_json (Printexc.to_string e))))) in
     (Obj.obj result : string option)
 
+(* Wire the C chunk-callback defined in par_ffi.c. The runtime stores
+   g_chunk_callback / g_chunk_user_data globally before par_invoke_stream
+   is called; we fire the closure for each chunk produced by
+   Runtime.invoke. Each call happens while holding ocaml_lock, so the
+   Python closure must be non-blocking and must not call back into
+   par_*. The closure typically pushes the JSON chunk onto a Python
+   queue.Queue for the iterator's __next__() to consume. *)
+external caml_dispatch_chunk_to_c : string -> unit = "caml_dispatch_chunk_to_c"
+
 let do_invoke_stream (state_id : int) (agent_id : string) (message : string) =
   match get_state state_id with
   | None -> error_json "Invalid runtime handle"
@@ -648,6 +657,11 @@ let do_invoke_stream (state_id : int) (agent_id : string) (message : string) =
              Par.Types.llm_response_chunk_to_yojson chunk
              |> Yojson.Safe.to_string
            in
+           (* Fire the C callback FIRST so Python sees the chunk as soon
+              as the SSE parser produced it. caml_dispatch_chunk_to_c is
+              a no-op when no callback is registered (g_chunk_callback
+              is NULL on the C side). *)
+           (try caml_dispatch_chunk_to_c json with _ -> ());
            chunk_buf := json :: !chunk_buf
          in
          let result = Par.Runtime.invoke rt
@@ -863,10 +877,56 @@ let do_follow_up (state_id : int) (message : string) : int =
 (* Vector store lifecycle (lazy per-runtime)                                  *)
 (* -------------------------------------------------------------------------- *)
 
-let vec_extension_path =
-  if Sys.os_type = "Unix"
-  then "vendor/sqlite-vec/linux-x86_64/vec0.so"
-  else "vendor/sqlite-vec/macos-aarch64/vec0.dylib"
+(* sqlite-vec extension path resolution.
+   Must work in three contexts:
+   1. Source build: binary at _build/default/lib/ffi/par_capi.so,
+      vec0.so copied next to it by the dune rule below.
+   2. pip install par-runtime: par_capi.so + vec0.{so,dylib} both
+      bundled in bindings/python/par_runtime/lib/. The Python binding
+      calls par_set_vec_extension_path() to set the absolute path
+      before par_init() (because Sys.executable_name in OCaml points
+      at python3, not at par_capi.so).
+   3. `par` CLI: binary at /usr/local/bin/par, vec0.{so,dylib} at
+      /usr/local/lib/par/vec0.{so,dylib} (Makefile install-dev target).
+   Resolution order: explicit override (set by par_set_vec_extension_path)
+   -> /usr/local/lib/par/ (CLI) -> vendor/ relative (legacy dev). *)
+let vec_extension_override : string option ref = ref None
+
+let set_vec_extension_path_override (path : string) : int =
+  if Sys.file_exists path then begin
+    vec_extension_override := Some path;
+    0
+  end else -1
+
+let vec_extension_path : string =
+  match !vec_extension_override with
+  | Some p -> p
+  | None ->
+    let so_name =
+      if Sys.os_type = "Unix"
+      then (match Sys.getenv_opt "PAR_OS" with
+            | Some "macos" | Some "darwin" -> "vec0.dylib"
+            | _ -> "vec0.so")
+      else failwith "vec_extension_path: unsupported Sys.os_type (Windows not yet supported)"
+    in
+    let exe_dir = Filename.dirname Sys.executable_name in
+    let cwd = Sys.getcwd () in
+    let candidates = [
+      Filename.concat exe_dir so_name;
+      Filename.concat exe_dir "vec0.so";
+      Filename.concat exe_dir "vec0.dylib";
+      Filename.concat "/usr/local/lib/par" so_name;
+      Filename.concat "/usr/local/share/par" so_name;
+      Filename.concat cwd ("vendor/sqlite-vec/linux-x86_64/" ^ so_name);
+      Filename.concat cwd ("vendor/sqlite-vec/macos-aarch64/" ^ so_name);
+    ] in
+    match List.find_opt Sys.file_exists candidates with
+    | Some p -> p
+    | None ->
+      failwith ("vec_extension_path: cannot find " ^ so_name ^ " in any known location. \
+                Tried: par_capi.so's directory, /usr/local/lib/par/, /usr/local/share/par/, \
+                and ./vendor/sqlite-vec/<platform>/. \
+                Call par_set_vec_extension_path() to set an absolute path.")
 
 let runtime_vector_stores : (int, Par.Vector_store.t) Hashtbl.t = Hashtbl.create 8
 
@@ -1127,6 +1187,11 @@ let () =
     (fun (seconds : float) ->
       Http_client.set_request_timeout seconds;
       Obj.repr 0)
+
+let () =
+  Callback.register "par_set_vec_extension_path"
+    (fun (path : string) ->
+      Obj.repr (set_vec_extension_path_override path))
 
 let () =
   Callback.register "par_add_documents"

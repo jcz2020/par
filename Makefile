@@ -40,8 +40,13 @@ docs-check: ## Run all documentation quality checks
 
 install-dev: build ## Build + install to both locations + sync + verify
 	install -d $(DESTDIR)$(PREFIX)/bin
+	install -d $(DESTDIR)$(PREFIX)/lib/par
 	install -m 755 _build/default/bin/main.exe $(DESTDIR)$(PREFIX)/bin/par
-	-cp -f _build/default/bin/main.exe _opam/bin/par 2>/dev/null || true
+	# Install sqlite-vec extension next to the par binary directory
+	# so the OCaml runtime can find it at runtime via path resolution.
+	-cp -f _build/default/lib/ffi/vec0.so $(DESTDIR)$(PREFIX)/lib/par/ 2>/dev/null || true
+	-cp -f _build/default/lib/ffi/vec0.dylib $(DESTDIR)$(PREFIX)/lib/par/ 2>/dev/null || true
+	-cp -f _build/default/lib/main.exe _opam/bin/par 2>/dev/null || true
 	$(MAKE) --no-print-directory sync-version
 	$(MAKE) --no-print-directory verify
 

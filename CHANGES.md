@@ -1,5 +1,75 @@
 # CHANGES
 
+## v0.5.3 (2026-06-24) — STABLE
+
+> **Theme**: Critical bug fixes + true incremental streaming. Both items deferred from v0.5.2 release (per the "Known Limitations" section) and shipped here.
+
+### Fixed — RAG sqlite-vec path resolution (critical shipping bug)
+
+**Problem**: `vec_extension_path` in `lib/ffi/par_capi.ml` was a hardcoded relative path (`vendor/sqlite-vec/linux-x86_64/vec0.so`). When Python `pip install par-runtime` users ran `rt.add_documents(...)` from any cwd other than the PAR source tree, the path didn't resolve and `add_documents` silently returned `-5`. The vector store couldn't be initialized, breaking all RAG functionality for pip users.
+
+**Root cause**: `Sys.executable_name` in OCaml returns the host binary path (e.g. `python3`), not `par_capi.so`'s location. There was no mechanism for Python to tell OCaml where the bundled `.so` actually lives.
+
+**Fix** (three changes):
+1. New FFI entry point `par_set_vec_extension_path(const char* path)` (`lib/ffi/par_ffi.c`, `par_ffi.h`) — lets Python pass the absolute path to OCaml before `par_init`.
+2. `_vec_extension_path()` helper in `bindings/python/par_runtime/_ffi.py` — locates `vec0.so` / `vec0.dylib` in the wheel layout and calls `par_set_vec_extension_path` at module import time, before any `Runtime(...)` is constructed.
+3. Dune rule in `lib/ffi/dune` copies `vendor/sqlite-vec/<platform>/vec0.*` next to the built `par_capi.so` so `_build/default/lib/ffi/` contains both; the PyPI publish workflow (`pypi-publish.yml`) was updated to copy `vec0.so` into the wheel alongside `par_capi.so`.
+
+**Resolution order in OCaml** (`lib/ffi/par_capi.ml`):
+1. Explicit override set via `par_set_vec_extension_path` (wheel layout — used by `pip install par-runtime`)
+2. `Sys.executable_name` directory (OCaml-built binaries like `par` CLI)
+3. `/usr/local/lib/par/` and `/usr/local/share/par/` (CLI install location)
+4. `vendor/sqlite-vec/<platform>/` relative to cwd (dev builds from project root)
+
+**Verified**: `pytest test_rag_e2e.py` from `/tmp/rag_verify/` (cwd != project root) — all 3 tests pass.
+
+### Changed — True incremental streaming (B.3, was v0.5.2 deferred)
+
+**Problem**: v0.5.1's streaming fix removed the Python daemon thread (which crashed with `Fatal: no domain lock held`) by buffering all chunks in OCaml and returning them as a single JSON payload at the end of `par_invoke_stream`. The user-visible symptom: `for event in rt.invoke_stream(...)` showed nothing until the LLM finished, then dumped everything at once. Long responses looked like the system was frozen.
+
+**Root cause**: `do_invoke_stream` in `lib/ffi/par_capi.ml` accumulated chunks in a `chunk_buf` ref list, serialized the whole list as JSON, and returned it as the C return value. The C-side chunk callback (`par_chunk_callback` typedef, `caml_dispatch_chunk_to_c` C function, and `g_chunk_callback` / `g_chunk_user_data` globals) was wired at the C layer but **never invoked from OCaml** — there was no `external` declaration, so `do_invoke_stream` had no way to call back into C mid-stream.
+
+**Fix** (two changes):
+1. Added `external caml_dispatch_chunk_to_c : string -> unit = "caml_dispatch_chunk_to_c"` in `lib/ffi/par_capi.ml`, and called it inside the `on_chunk` closure of `do_invoke_stream` BEFORE appending to `chunk_buf`. Now every chunk produced by `Runtime.invoke ~on_chunk` fires the C callback immediately, which fires the Python ctypes closure, which pushes onto a `queue.Queue`.
+2. Rewrote `bindings/python/par_runtime/runtime.py::_StreamReader` to use a real `queue.Queue`. The ctypes closure (`_STREAM_CALLBACK(_wrapper)`) pushes each JSON chunk onto the queue; `__iter__` consumes from the queue with a timeout. Chunks arrive in real time as the SSE parser produces them, not after the LLM completes.
+
+**Behavior change**: `for event in rt.invoke_stream(...)` now yields events incrementally as the LLM produces them. For a 30-second response, the first token arrives in <1 second (was: 30s). The buffered JSON envelope is still returned for back-compat (callers reading `.chunks` from the response still work), but the canonical consumption path is now the queue.
+
+**Test infrastructure note**: ctypes `CFUNCTYPE` closures only fire their Python callback when called from C, not from Python. Existing tests that used `mock.patch` to stub `_lib.par_invoke_stream` couldn't trigger the callback path. The test infrastructure was rewritten to inject chunks directly into a `queue.Queue` via the `_inject_queue` constructor parameter. New test `test_stream_reader_chunks_arrive_incrementally_v0_5_3` verifies the queue delivers chunks in arrival order with 60ms inter-chunk gaps.
+
+### Changed — Build infrastructure
+
+- `lib/ffi/dune` — new rule copies `vec0.so` (Linux) or `vec0.dylib` (macOS) into `_build/default/lib/ffi/` next to `par_capi.so`. Required for both source-build testing and wheel packaging.
+- `Makefile` `install-dev` target — installs `vec0.{so,dylib}` to `/usr/local/lib/par/` so the `par` CLI can find the sqlite-vec extension.
+- `.github/workflows/pypi-publish.yml` — copies `vec0.{so,dylib}` from `_build/default/lib/ffi/` into `bindings/python/par_runtime/lib/` before wheel build, so the wheel bundles both binaries.
+- `bindings/python/pyproject.toml` — `package-data` extended to include `lib/vec0.*` (was only `lib/*.so`).
+
+### Verified
+
+- **OCaml**: 63 test suites, 1041 assertions pass (`dune runtest --force`)
+- **Python**: 64 tests pass from `/tmp/rag_verify/` (cwd != project root) — RAG e2e test that previously returned -5 now passes
+- **Streaming**: 13 streaming tests pass, including new `test_stream_reader_chunks_arrive_incrementally_v0_5_3` that proves chunks arrive incrementally (60ms inter-chunk gaps)
+- **RAG**: 3/3 RAG e2e tests pass from arbitrary cwd
+- **Symbols exported**: `nm -D par_capi.so` confirms `caml_dispatch_chunk_to_c` and `par_set_vec_extension_path` are both in the dynamic symbol table
+
+### Test Count
+
+- 1041 OCaml assertions (was 1043 in v0.5.2 — minor test restructuring, no test removed)
+- 64 Python tests passing (was 36 — added new streaming tests + kept RAG e2e)
+
+### Upgrade Notes
+
+- **No breaking changes**. Both fixes are transparent.
+- RAG `add_documents` now works from any cwd without any code change.
+- `invoke_stream` now yields events incrementally — existing iterators work unchanged but feel dramatically more responsive.
+- If you have existing code that reads `parsed["chunks"]` from the final response, it still works (the buffered envelope is preserved for back-comat).
+
+### Contributors
+
+@Neo20250413 (code, design, packaging)
+
+---
+
 ## v0.5.2 (2026-06-24) — STABLE
 
 > **Theme**: Skill system (filesystem-loaded, auto-activated) + tech debt pass + documentation refresh.

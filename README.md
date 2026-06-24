@@ -9,7 +9,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.5.2 — Skill system (auto-activating, filesystem-loaded, composable) + RAG foundation (embeddings, vector store, chunking, invoke_with_rag) + Python streaming output. API may change before v1.0.
+> **Status**: v0.5.3 — Critical bug fixes (RAG sqlite-vec path resolution for pip users) + true incremental streaming. Plus v0.5.2's skill system + RAG foundation. API may change before v1.0.
 
 ---
 
@@ -146,9 +146,9 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.5.2 — Skill system (filesystem-loaded, auto-activating, composable) + RAG foundation (embeddings, vector store, chunking, invoke_with_rag) + Python streaming output + full FFI work-loop architecture. See [CHANGES.md](CHANGES.md) for the full release notes.
+**Current**: v0.5.3 — Critical bug fixes (RAG sqlite-vec path, true incremental streaming) on top of v0.5.2's skill system + RAG foundation. See [CHANGES.md](CHANGES.md) for the full release notes.
 
-**Coming in v0.5.3+**: Incremental streaming (true token-by-token output), interactive tutorials, external vector stores (Qdrant/Milvus), ARM64 Linux wheel.
+**Coming in v0.5.4+**: External vector stores (Qdrant/Milvus), ARM64 Linux wheel, interactive tutorials.
 
 ## Getting help
 

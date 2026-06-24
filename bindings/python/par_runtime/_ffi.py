@@ -30,6 +30,31 @@ def _find_library() -> str:
     return "par_capi.so"
 
 
+def _vec_extension_path() -> str | None:
+    """Locate the sqlite-vec extension bundled with par-runtime.
+
+    Returns the absolute path of vec0.so / vec0.dylib next to par_capi.so
+    in the wheel, or None if not found. The Python binding passes this to
+    par_set_vec_extension_path() before par_init() so the OCaml runtime
+    can sqlite3_load_extension() from the correct location regardless of
+    the user's current working directory.
+    """
+    env = os.environ.get("PAR_VEC_PATH")
+    if env and Path(env).exists():
+        return env
+    pkg_dir = Path(__file__).resolve().parent
+    for name in ("vec0.so", "vec0.dylib"):
+        candidate = pkg_dir / "lib" / name
+        if candidate.exists():
+            return str(candidate)
+    project_root = pkg_dir.parent.parent.parent
+    for sub in ("linux-x86_64/vec0.so", "macos-aarch64/vec0.dylib"):
+        candidate = project_root / "vendor" / "sqlite-vec" / sub
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
 _lib = ctypes.CDLL(_find_library())
 
 # --- Declare function signatures ---
@@ -176,6 +201,10 @@ _lib.par_version.restype = ctypes.c_void_p
 _lib.par_set_request_timeout.argtypes = [ctypes.c_double]
 _lib.par_set_request_timeout.restype = ctypes.c_int
 
+# int par_set_vec_extension_path(const char* path);
+_lib.par_set_vec_extension_path.argtypes = [ctypes.c_char_p]
+_lib.par_set_vec_extension_path.restype = ctypes.c_int
+
 # --- Helper: libc free() for strings returned by C ---
 if sys.platform == "darwin":
     _libc = ctypes.CDLL("libc.dylib")
@@ -204,3 +233,13 @@ def _py_str(ptr: ctypes.c_void_p) -> str:
         return result.decode("utf-8")
     finally:
         _free(ptr)
+
+
+# Set the vec0.{so,dylib} absolute path before the first par_init.
+# This is required because Sys.executable_name inside OCaml points at
+# the host binary (python3), not at par_capi.so, so the runtime cannot
+# locate the extension on its own when the wheel is installed in
+# site-packages/ or anywhere outside the project tree.
+_vec_path = _vec_extension_path()
+if _vec_path is not None:
+    _lib.par_set_vec_extension_path(_c_str(_vec_path))

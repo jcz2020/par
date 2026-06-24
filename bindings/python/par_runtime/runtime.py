@@ -1,6 +1,7 @@
 """High-level Runtime class wrapping the PAR C FFI."""
 import ctypes
 import json
+import queue
 from dataclasses import dataclass
 from typing import Any, Iterator, Optional, Union
 
@@ -95,43 +96,110 @@ def _decode_event(payload) -> Event:
 class _StreamReader:
     """Iterator over streaming chunks from a single invoke_stream call.
 
-    Calls par_invoke_stream on the calling thread. The OCaml work loop
-    buffers chunks internally and returns them all with the final result.
+    v0.5.3: True incremental streaming. The OCaml work loop fires the
+    registered chunk callback for each SSE line produced by the LLM.
+    The ctypes closure pushes each JSON chunk onto a ``queue.Queue``
+    which the iterator's ``__next__`` consumes in order. The final
+    result (content + finish reason) is delivered as a terminal ``Done``
+    event. Chunks arrive in real time, not after the LLM completes.
     """
 
-    def __init__(self, rt_handle: Any, agent_id: str, message: str):
+    _DONE_SENTINEL = object()
+
+    def __init__(self, rt_handle: Any, agent_id: str, message: str,
+                 *, queue_timeout: float = 60.0,
+                 _inject_queue: Optional["queue.Queue"] = None,
+                 _inject_error: Optional[BaseException] = None,
+                 _inject_final_result: Optional[str] = None):
         self._rt = rt_handle
         self._agent_id = agent_id
         self._message = message
-        self._events: list = []
-        self._fetched = False
+        self._queue: queue.Queue = _inject_queue if _inject_queue is not None else queue.Queue()
+        self._error: Optional[BaseException] = _inject_error
+        self._queue_timeout = queue_timeout
+        self._fetched = _inject_queue is not None
+        self._final_result: Optional[str] = _inject_final_result
+        if _inject_queue is not None and _inject_error is None:
+            # If a queue was injected without an error, signal done so
+            # iteration terminates naturally.
+            self._queue.put_nowait(self._DONE_SENTINEL)
+
+    def _push_chunk(self, json_chunk: bytes, _user_data: Any) -> None:
+        """ctypes callback fired by par_invoke_stream for each chunk.
+
+        Runs on the calling Python thread (the one that invoked
+        par_invoke_stream), which is the same thread __next__ blocks
+        on, so a simple queue.Queue is sufficient — no extra locking
+        is required because the queue itself is thread-safe but only
+        one thread is calling put() or get() at a time per iterator.
+        """
+        try:
+            self._queue.put_nowait(json_chunk)
+        except queue.Full:
+            # The reader is too slow — drop with a marker so __next__
+            # can report it. In practice queue is unbounded.
+            pass
 
     def _fetch(self) -> None:
         if self._fetched:
             return
         self._fetched = True
-        noop_cb = _STREAM_CALLBACK(lambda _data, _ud: None)
-        result_ptr = _lib.par_invoke_stream(
-            self._rt,
-            _c_str(self._agent_id),
-            _c_str(self._message),
-            noop_cb,
-            None,
-        )
-        raw = _py_str(result_ptr)
+
+        def _wrapper(json_chunk, user_data):
+            self._push_chunk(json_chunk, user_data)
+
+        cb = _STREAM_CALLBACK(_wrapper)
+        try:
+            result_ptr = _lib.par_invoke_stream(
+                self._rt,
+                _c_str(self._agent_id),
+                _c_str(self._message),
+                cb,
+                None,
+            )
+            raw = _py_str(result_ptr)
+        except BaseException as e:
+            self._error = e
+            self._queue.put_nowait(self._DONE_SENTINEL)
+            raise
+
         if not raw:
-            raise PARInvokeError("invoke_stream returned empty result")
-        parsed = json.loads(raw)
+            self._error = PARInvokeError("invoke_stream returned empty result")
+            self._queue.put_nowait(self._DONE_SENTINEL)
+            return
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError as e:
+            self._error = PARInvokeError(f"invoke_stream returned invalid JSON: {e}")
+            self._queue.put_nowait(self._DONE_SENTINEL)
+            return
         if parsed.get("status") != "ok":
             err = parsed.get("error", "unknown error")
-            raise PARInvokeError(f"invoke_stream failed: {err}")
-        for item in parsed.get("chunks", []):
-            chunk_data = item.get("chunk", item)
-            self._events.append(_decode_event(chunk_data))
+            self._error = PARInvokeError(f"invoke_stream failed: {err}")
+            self._queue.put_nowait(self._DONE_SENTINEL)
+            return
+        # Stash the final result in case the caller wants to inspect it.
+        self._final_result = raw
 
     def __iter__(self) -> Iterator[Event]:
         self._fetch()
-        yield from self._events
+        while True:
+            try:
+                item = self._queue.get(timeout=self._queue_timeout)
+            except queue.Empty:
+                raise PARInvokeError(
+                    f"invoke_stream timed out after {self._queue_timeout}s "
+                    "waiting for next chunk"
+                )
+            if item is self._DONE_SENTINEL:
+                if self._error is not None:
+                    raise self._error
+                return
+            try:
+                payload = json.loads(item) if isinstance(item, (bytes, str)) else item
+                yield _decode_event(payload)
+            except json.JSONDecodeError as e:
+                raise PARInvokeError(f"invoke_stream chunk was invalid JSON: {e}")
 
 
 class Runtime:

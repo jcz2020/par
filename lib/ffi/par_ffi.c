@@ -490,3 +490,15 @@ int par_set_request_timeout(double seconds) {
     pthread_mutex_unlock(&ocaml_lock);
     return rc;
 }
+
+/* Override the sqlite-vec extension path. Must be called BEFORE par_init
+   (or before the first add_documents). Returns 0 on success, -1 on failure. */
+int par_set_vec_extension_path(const char* path) {
+    if (!path) return -1;
+    pthread_mutex_lock(&ocaml_lock);
+    ensure_initialized();
+    value result = call1_exn("par_set_vec_extension_path", caml_copy_string(path));
+    int rc = Is_exception_result(result) ? -1 : Int_val(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return rc;
+}

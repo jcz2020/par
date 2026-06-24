@@ -16,3 +16,19 @@
  (package par)
  (section lib)
  (files (par_ffi.h as include/par_ffi.h)))
+
+; Copy the platform-matched sqlite-vec extension next to the built .so
+; so the path resolution in par_capi.ml finds it next to Sys.executable_name.
+; This is what makes `pip install par-runtime` work: the wheel bundles
+; both par_capi.so and vec0.so into the same directory.
+(rule
+ (target vec0.so)
+ (enabled_if (= %{system} "linux"))
+ (action
+  (copy ../../vendor/sqlite-vec/linux-x86_64/vec0.so vec0.so)))
+
+(rule
+ (target vec0.dylib)
+ (enabled_if (= %{system} "macosx"))
+ (action
+  (copy ../../vendor/sqlite-vec/macos-aarch64/vec0.dylib vec0.dylib)))
