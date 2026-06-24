@@ -319,7 +319,12 @@
 (test
  (name test_skill_loader)
  (libraries par alcotest)
- (modules test_skill_loader))
+  (modules test_skill_loader))
+
+(test
+ (name test_skill_activation)
+ (libraries par alcotest)
+ (modules test_skill_activation))
 
 (test
  (name test_skill_runtime)
