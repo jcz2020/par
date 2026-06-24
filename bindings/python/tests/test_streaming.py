@@ -67,17 +67,6 @@ def _test_config():
     })
 
 
-def _stub_invoke_stream(chunks):
-    """v0.5.3: not used directly. Tests should construct a _StreamReader
-    with an injected queue (or use the ctypes-style callback via
-    _realistic_par_invoke_stream for incremental behavior). Kept for
-    back-compat with any third-party test imports."""
-    raise NotImplementedError(
-        "v0.5.3: ctypes CFUNCTYPE cannot be invoked from a Python mock; "
-        "use _realistic_par_invoke_stream or _StreamReader(_inject_queue=...)"
-    )
-
-
 def _inject_queue_with_chunks(chunks_json_strings):
     """Build a queue.Queue pre-populated with JSON-encoded chunks followed
     by the _DONE_SENTINEL. Pass to _StreamReader(_inject_queue=q)."""
@@ -86,20 +75,6 @@ def _inject_queue_with_chunks(chunks_json_strings):
         q.put_nowait(c.encode("utf-8") if isinstance(c, str) else c)
     q.put_nowait(_StreamReader._DONE_SENTINEL)
     return q
-
-
-def _mock_par_invoke_stream(resp_json):
-    """v0.5.3: the ctypes CFUNCTYPE only fires its Python callback when
-    called from C, not from Python. For unit tests we bypass the FFI
-    entirely by constructing _StreamReader with _inject_queue. This
-    helper is kept as a no-op for source-compat — the real OCaml path
-    is exercised by test/test_ffi_streaming.ml."""
-    from contextlib import contextmanager
-
-    @contextmanager
-    def ctx():
-        yield None
-    return ctx()
 
 
 def test_decode_event_handles_all_variants():
