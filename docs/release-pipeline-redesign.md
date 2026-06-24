@@ -160,7 +160,7 @@ These are the contract. v0.5.0 release pipeline phase is not done until all pass
 ### Backward compatibility
 
 - [ ] `install.sh` continues to work (not affected by wheel changes)
-- [ ] opam-repo PR path unchanged (opam is source-based)
+- [ ] opam-repository PR path unchanged (opam is source-based)
 - [ ] GH Release binaries continue to ship (with ubuntu-22.04 baseline as v0.4.10 fixed)
 
 ---

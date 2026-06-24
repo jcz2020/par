@@ -124,8 +124,8 @@
 | 2026-06-09 | 放弃"不做多 agent 协作"限制 | 主流框架研究完成：OpenAI Agents/LangGraph/AutoGen/CrewAI/Google ADK/PydanticAI 均支持 handoff。PAR 窄化为 typed ADT handoff（单链 A→B），不做树状分支 |
 | 2026-06-09 | 新增 7 个借鉴来源 | LangGraph（3 表持久化）、OpenAI Agents（handoff + DI）、AutoGen（序列化）、Google ADK（EventActions）、PydanticAI（结构化输出）、Anthropic（content blocks）、CrewAI（任务上下文） |
 | 2026-06-09 | 发布策略：beta-first | 开发阶段版本号带 `-beta` 后缀，只有用户明确说"发布正式版"时才执行 release 操作并去掉后缀 |
-| 2026-06-21 | v0.4.8 stable 发布 | 首个 stable release（Runtime.invoke_structured）。GH Release + opam-repo PR #30086 已提交；PyPI 待上传。**关键里程碑：项目首次进入"用户可安装"状态** |
-| 2026-06-21 | 分发渠道首次落地 | opam-repo PR 提交（ocaml/opam-repository#30086，含 `par` + `par_cli`），GH Release binaries (linux-x64, macos-arm64) 首次提供，install.sh 验证可装。PyPI `par-runtime` 待用户配置 token 后上传 |
+| 2026-06-21 | v0.4.8 stable 发布 | 首个 stable release（Runtime.invoke_structured）。GH Release + opam-repository PR #30086 已提交；PyPI 待上传。**关键里程碑：项目首次进入"用户可安装"状态** |
+| 2026-06-21 | 分发渠道首次落地 | opam-repository PR 提交（ocaml/opam-repository#30086，含 `par` + `par_cli`），GH Release binaries (linux-x64, macos-arm64) 首次提供，install.sh 验证可装。PyPI `par-runtime` 待用户配置 token 后上传 |
 | 2026-06-21 | PyPI 三次 P0 失败 → 转向 v0.5.0 重设计 | v0.4.8 缺 .so（PAR-0qf）、v0.4.9 glibc 2.38 太新（PAR-8cs）、v0.4.10 setuptools<61 UNKNOWN 文件名（PAR-cog）。根因：release pipeline 缺端到端验收测试 + build 环境不固定。**用户决定 B 路径：不再发 v0.4.x hotfix，作为 v0.5.0 Track A 重设（manylinux + auditwheel + 验收门）**。详见 docs/release-pipeline-redesign.md |
 | 2026-06-21 | **决定反转：v0.4.11 在 v0.4.x 系列彻底修，不推 v0.5.\*** | 用户改主意：希望在 v0.4.11 彻底解决（不是 v0.5.\*）。**v0.4.11 scope**: setuptools upgrade + ubuntu-22.04 pinning（已 v0.4.10 完成 binary 部分）+ 3 平台 acceptance test workflow（Debian 12/Ubuntu 22.04/Ubuntu 24.04）+ 本地 dry-run script + release.md E2E 程序文档。**v0.5+ stretch**：manylinux glibc 2.17、ARM64、macOS wheel、OIDC auto-upload。准备工作（roadmap + 脚本骨架 + bd 重定向）已完成，下个 session 执行。 |
 | 2026-06-21 | 战略教训 | "本地编译产物 QA ≠ CI 产物 QA" — install-dev 覆盖本地 binary 掩盖了 GH Release binary 的 glibc 问题。**今后所有 release 验证必须在隔离环境（容器/沙箱 venv）下载实际产物测试** |

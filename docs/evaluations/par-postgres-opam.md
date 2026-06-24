@@ -11,10 +11,10 @@ PAR ships a PostgreSQL persistence backend as a separate `par_postgres` opam pac
 
 | Option | Pro | Con |
 |--------|-----|-----|
-| **A. Source-only (current)** | No opam-repo dependency issues | Users must build from source |
-| **B. Publish to opam-repo** | One-command install | `postgresql` dependency may fail on some platforms |
+| **A. Source-only (current)** | No opam-repository dependency issues | Users must build from source |
+| **B. Publish to opam-repository** | One-command install | `postgresql` dependency may fail on some platforms |
 | **C. Migrate to pgx** | pgx is pure-OCaml, no C bindings, easier to publish | Rewrite of persistence layer (~2 days) |
-| **D. Self-host opam repo** | Full control, no opam-repo review delay | Users need extra remote |
+| **D. Self-host opam repo** | Full control, no opam-repository review delay | Users need extra remote |
 
 ## Decision
 
@@ -38,4 +38,4 @@ PAR ships a PostgreSQL persistence backend as a separate `par_postgres` opam pac
 2. Rewrite `postgres_persistence.ml` using `Pgx_io` (if eio adapter exists) or wrap in `Lwt_eio`
 3. Remove `postgresql` and `caqti-eio` from `par_postgres` deps
 4. Test against PostgreSQL 14+ in CI
-5. Publish to opam-repo
+5. Publish to opam-repository
