@@ -34,19 +34,15 @@ The CLI is a convenience layer. It is the right tool for answering a single ques
 
 A reasonable progression looks like this. Start with the CLI to verify the install and feel out the provider config. Move to the Python binding when you have a real service to build and your stack is Python. Move to the OCaml SDK when you want full type coverage, custom tool handlers in OCaml, or features the binding does not surface yet. The runtime behavior is identical across all three, so swapping surfaces later is a refactor, not a rewrite.
 
-## Q3. Why is my streaming arriving all at once?
+## Q3. Does streaming deliver tokens incrementally?
 
-This is the most common v0.5.1-beta support question, and the answer is documented in the [Streaming API reference](../sdk/streaming.md). Short version: v0.5.1 ships *buffered* streaming, not *incremental* streaming. The fix is on the v0.5.2 roadmap.
+**Yes, as of v0.5.3.** `invoke_stream` runs `par_invoke_stream` in a background daemon thread; the OCaml SSE parser fires a ctypes callback for each chunk as the LLM produces it, pushing onto a `queue.Queue`. The Python iterator consumes the queue concurrently, so the first token reaches the caller within milliseconds — not after the full response completes. For a 30-second generation, perceived latency drops from "30 s black screen then everything" to "first token < 1 s, then steady drip."
 
-**What buffered means.** When you call `invoke_stream(agent_id, message)`, the OCaml work loop runs the full `Runtime.invoke` from start to finish. Every chunk the LLM emits is collected into a ref list. After the invoke completes, the chunk list is serialized as a JSON array and returned alongside the final result. Python parses the JSON and yields `Event` objects from the iterator. From the caller's perspective, all chunks arrive at once after the LLM finishes, even though the events are typed and ordered exactly as they would be for incremental delivery.
+**History.** v0.5.1–v0.5.2 shipped *buffered* streaming: the OCaml work loop collected all chunks in a ref list, serialized them as JSON at the end, and Python parsed the array on first `__iter__`. The buffer eliminated a domain-lock crash that affected the initial ctypes-callback design, but it meant all chunks arrived at once after the LLM finished. v0.5.3 rewired the FFI (`caml_dispatch_chunk_to_c` external + background thread + `queue.Queue`) to deliver chunks in real time without the domain-lock issue.
 
-**Why it works that way.** The earlier implementation tried to push chunks across the FFI boundary through a ctypes callback on the OCaml domain. That triggered a domain-lock crash when the callback landed on a Python thread the runtime did not own. The buffered design eliminates the cross-thread handoff entirely. There is no daemon thread, no queue, no ctypes callback, no race. Stability won over latency for the beta.
+**Known limitation (v0.5.3).** Breaking early from the iterator leaves the background thread holding the process-global `ocaml_lock` until the LLM stream completes naturally. During that window, subsequent `par_*` calls block. Consume the iterator fully if you need to make further calls. A `par_cancel_stream` FFI for immediate cancellation is planned for v0.5.4. See the [Streaming API reference](../sdk/streaming.md) and CHANGES.md for details.
 
-**What you still get.** Even buffered, the streaming surface is real and useful. The `Event` tagged union (`TextDelta`, `ToolCallStart`, `ToolCallDelta`, `UsageUpdate`, `Done`) matches the OCaml `llm_response_chunk` ADT field-for-field. The provider support table in the streaming reference shows which providers emit which event types. OpenAI streams text and tool calls. Anthropic adds `UsageUpdate`. Mock emits all five. Your code that consumes the iterator today will keep working without changes when incremental delivery lands, because the API shape does not change, only the delivery cadence.
-
-**When incremental arrives.** v0.5.2 Track B.3 plans a non-blocking start, poll, wait API. The Python iterator signature stays the same. The change is on the OCaml side: chunks cross the FFI boundary one at a time through a thread-safe queue, and `next()` on the Python side blocks on the queue instead of reading a prebuilt JSON array. First-token latency drops from "wait for the whole response" to "wait for the first chunk", typically 200 ms versus 8 seconds for a 500-word answer.
-
-If perceived latency is the blocker for your use case today, fall back to non-streaming `Runtime.invoke` and render the response when it arrives. The UX hit is the same as buffered streaming, since buffered streaming does not deliver tokens incrementally anyway. Once v0.5.2 ships, switching back to `invoke_stream` is a one-line change with no semantic difference.
+**What stays the same.** The `Event` tagged union (`TextDelta`, `ToolCallStart`, `ToolCallDelta`, `UsageUpdate`, `Done`) matches the OCaml `llm_response_chunk` ADT field-for-field. The API shape did not change between buffered and incremental — only the delivery cadence improved.
 
 ## Q4. How do I configure persistence for production?
 
@@ -108,5 +104,5 @@ The v0.5.2 release ships the data model, the filesystem discovery, the YAML fron
 - [Architecture](architecture.md) for the module map and how skills fit into the larger Runtime structure
 - [Concurrency Model](concurrency-model.md) for the fiber story that skills compose into
 - [Persistence and Durability](persistence-and-durability.md) for the persistence backend decision matrix
-- [Streaming API](../sdk/streaming.md) for the buffered chunk delivery path and v0.5.2 incremental plan
+- [Streaming API](../sdk/streaming.md) for the incremental chunk delivery path (v0.5.3)
 - [Agent API](../sdk/agent.md) for `Runtime.invoke`, `agent_config`, and tool registration

@@ -171,7 +171,10 @@ The `Vector_store` module is the persistence layer. It is embedding-agnostic: it
 ```ocaml
 open Par.Vector_store
 
-(* Create an in-memory store. For persistence, use a file path. *)
+(* Create an in-memory store. For persistence, use a file path.
+   The vec_extension_path is resolved automatically by the FFI layer
+   (par_set_vec_extension_path) for pip-installed users; OCaml SDK
+   callers pass it explicitly. *)
 let store =
   match create
     ~db_path:":memory:"

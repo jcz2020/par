@@ -95,5 +95,5 @@ For the contributor, the rules are: every fiber you fork goes inside the runtime
 
 - [Architecture](architecture.md) for the module map and how concurrency fits into the larger Runtime structure
 - [Persistence and Durability](persistence-and-durability.md) for how the persistence writer's drain fiber cooperates with cancellation
-- [Streaming API](../sdk/streaming.md) for the buffered-chunk delivery path and why it avoids a daemon thread
+- [Streaming API](../sdk/streaming.md) for the incremental chunk delivery path (v0.5.3 background-thread + queue model)
 - [Concurrency how-to](../howto/concurrency.md) for practical patterns: timeouts, parallel tools, cancellation

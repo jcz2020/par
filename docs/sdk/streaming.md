@@ -166,20 +166,19 @@ def invoke_stream(
 Notes:
 
 - The method name carries the streaming semantic. There is no `stream=True` flag on `invoke`; callers who want non-streaming behavior use `invoke`, callers who want streaming use `invoke_stream`. Two methods, two intents, no boolean trap.
-- The return type is `Iterator[Event]`, not `List[Event]`. The iterator is lazy: the OCaml side does not produce chunk N+1 until the caller asks for it via `next()`.
-- The first `next()` call fetches all chunks from the OCaml work loop. If the invoke fails, `PARInvokeError` is raised on first access.
-- All chunks arrive at once after the LLM completes (buffered, not incremental). This is a v0.5.1-beta limitation; true incremental streaming is deferred to v0.5.2.
-- Keyword-only extensions (cancellation tokens, conversation IDs, RAG options) will be added in later versions under their own keyword arguments. The v0.5.1 signature is intentionally minimal.
+- The return type is `Iterator[Event]`, not `List[Event]`. The iterator yields events as the LLM produces them.
+- The first `next()` call starts a background daemon thread that runs `par_invoke_stream`. If the invoke fails, `PARInvokeError` is raised on iteration.
+- v0.5.3: chunks arrive incrementally in real time — the first token reaches the caller within milliseconds of the LLM producing it, not after the full response completes. (v0.5.1–v0.5.2 used buffered delivery; v0.5.3 rewired the FFI to a background-thread + queue model.)
+- Keyword-only extensions (cancellation tokens, conversation IDs, RAG options) will be added in later versions under their own keyword arguments. The v0.5.3 signature is intentionally minimal.
 
-## Buffered chunk delivery
+## Incremental chunk delivery (v0.5.3)
 
-The OCaml work loop executes the full `Runtime.invoke` (including streaming) and buffers all chunks in a ref list. After the invoke completes, chunks are serialized as a JSON array and returned with the final result. Python parses the JSON and yields Events.
+`par_invoke_stream` runs in a background daemon thread. The OCaml SSE parser fires a ctypes callback (`caml_dispatch_chunk_to_c`) for each chunk as the LLM produces it. The callback pushes the JSON-encoded chunk onto a `queue.Queue`. The Python iterator's `__next__` consumes the queue concurrently, so events are delivered in real time.
 
 This means:
-- No daemon thread, no queue, no ctypes callback — eliminating the domain lock crash that affected v0.5.1-beta's initial streaming implementation.
-- All chunks are available immediately after the first `__iter__` call.
-- Memory usage scales with response length (all chunks in memory simultaneously).
-- True incremental streaming (chunk-by-chunk delivery) is planned for v0.5.2 via a non-blocking start/poll/wait API.
+- The first token arrives within milliseconds of the LLM producing it, not after the full response completes. For a 30-second generation, perceived latency drops from "30 s black screen" to "first token < 1 s".
+- The background thread holds the process-global C `ocaml_lock` for the duration of the stream. If the caller breaks early from the iterator, the thread continues until the LLM stream completes naturally, and subsequent `par_*` calls block during that window. See the `invoke_stream` docstring for the full caveat.
+- The buffered JSON envelope (`"chunks": [...]` in the final response) is still returned for backward compatibility — callers reading `parsed["chunks"]` directly are unaffected.
 
 ## Provider support
 
@@ -280,11 +279,12 @@ The `PARError` covers every error path that crosses the FFI boundary: malformed 
 
 ## Limitations
 
-- **No async/await support in v0.5.1.** The iterator is synchronous. An `async for` wrapper is a v0.5.2 candidate; it will likely be a thin `asyncio` adapter around the sync iterator rather than a separate code path.
+- **No async/await support.** The iterator is synchronous. An `async for` wrapper is a future candidate; it will likely be a thin `asyncio` adapter around the sync iterator rather than a separate code path.
 - **No nested event hierarchy.** PAR does not emit LangChain-style `parent_run_id` or `run_id` metadata on streaming events. If you need to correlate streams with tool calls or sub-agent invocations, use the event bus (`par_event_subscribe`, wired up in C.2) for structured events.
-- **No `invoke_with_rag_streaming`.** The RAG entrypoint (`Runtime.invoke_with_rag`, deferred to v0.5.2 per roadmap) will get its own streaming variant once the base streaming surface ships.
+- **No `invoke_with_rag_streaming`.** The RAG entrypoint (`Runtime.invoke_with_rag`) will get its own streaming variant in a future release.
 - **Backpressure is blocking.** If the consumer is much slower than the producer, the OCaml fiber blocks on `queue.put`. This is an acceptable tradeoff versus unbounded memory growth, but it does mean a hung consumer ties up an OCaml fiber until the stream completes or is cancelled.
 - **Single consumer only.** The iterator is not broadcast. If multiple subscribers need the same stream, fan out at the application level (wrap the iterator in your own pub-sub).
+- **Early break blocks subsequent calls (v0.5.3 known limitation).** Breaking from the iterator before `Done` leaves the background daemon thread holding `ocaml_lock` until the LLM stream completes. See the `invoke_stream` docstring and CHANGES.md "Known Limitation" for details. A `par_cancel_stream` FFI is planned for v0.5.4.
 
 ## Implementation notes (for C.2 and C.3 maintainers)
 
