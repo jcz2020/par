@@ -86,6 +86,15 @@ val make_skill :
   unit ->
   (Types.skill_descriptor, error_category) result
 
+(** {1 Skill activation (internal)} *)
+
+val compute_active_skill_effects : runtime -> string -> Types.skill_effect list
+
+val compose_skill_effects : Types.skill_effect list -> Types.skill_effect
+
+val apply_skill_effect_to_config :
+  Types.skill_effect -> Types.agent_config -> Types.agent_config
+
 val invoke :
   runtime ->
   agent_id:string ->

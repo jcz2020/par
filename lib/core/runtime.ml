@@ -168,6 +168,83 @@ let make_skill ~id ~description ?system_prompt_override ?(tool_filter = Types.Al
       body_path = "";
     }
 
+type skill_effect_alias = skill_effect = {
+  system_prompt_override : string option;
+  tool_filter_overlay : tool_filter;
+}
+
+let contains_substring (s : string) (needle : string) : bool =
+  let s_len = String.length s in
+  let n_len = String.length needle in
+  if n_len = 0 then true
+  else if n_len > s_len then false
+  else
+    let rec search i =
+      if i + n_len > s_len then false
+      else if String.sub s i n_len = needle then true
+      else search (i + 1)
+    in search 0
+
+let compute_active_skill_effects (rt : runtime) (message : string) : skill_effect list =
+  let descriptors = Skill_registry.list_descriptors rt.skills in
+  List.filter_map (fun (desc : skill_descriptor) ->
+    let eligible = match desc.trigger with
+      | Auto -> true
+      | Manual -> false
+      | Keyword { keywords; _ } ->
+        List.exists (fun kw -> contains_substring message kw) keywords
+    in
+    if eligible then
+      match Skill_registry.resolve rt.skills desc.id with
+      | Some activate -> Some (activate (Obj.magic rt))
+      | None -> None
+    else None)
+    descriptors
+
+let compose_skill_effects (effects : skill_effect list) : skill_effect =
+  match effects with
+  | [] -> { system_prompt_override = None; tool_filter_overlay = All_tools }
+  | [single] -> single
+  | _ ->
+    let spo =
+      List.fold_left (fun _ e ->
+        let (se : skill_effect_alias) = e in
+        se.system_prompt_override)
+        None effects
+    in
+    let tfo =
+      List.fold_left (fun acc e ->
+        match acc, e.tool_filter_overlay with
+        | All_tools, x -> x
+        | x, All_tools -> x
+        | Only a, Only b ->
+          Only (List.filter (fun x -> List.mem x b) a)
+        | Only a, Except b ->
+          Only (List.filter (fun x -> not (List.mem x b)) a)
+        | Except a, Only b ->
+          Only (List.filter (fun x -> not (List.mem x a)) b)
+        | Except a, Except b ->
+          Except (a @ b))
+        All_tools effects
+    in
+    { system_prompt_override = spo; tool_filter_overlay = tfo }
+
+let apply_skill_effect_to_config (eff : skill_effect) config =
+  let config = match eff.system_prompt_override with
+  | Some prompt -> { config with system_prompt = prompt }
+  | None -> config
+  in
+  match eff.tool_filter_overlay with
+  | All_tools -> config
+  | Only allowed ->
+    { config with tools = List.filter
+        (fun (t : tool_descriptor) -> List.mem t.name allowed)
+        config.tools }
+  | Except blocked ->
+    { config with tools = List.filter
+        (fun (t : tool_descriptor) -> not (List.mem t.name blocked))
+        config.tools }
+
 
 let record_llm_success rt =
   rt.last_llm_call_at <- Some (Unix.gettimeofday ());
@@ -401,6 +478,9 @@ let invoke rt ~agent_id ~message ?cancellation_token ?conversation
        | Some cb -> cb evt
        | None -> ())
     in
+    let active_effects = compute_active_skill_effects rt message in
+    let composed_effect = compose_skill_effects active_effects in
+    let config = apply_skill_effect_to_config composed_effect config in
     let result = Engine.run_agent ~steering:(Some rt.steering_queue)
       ~followup:(Some rt.followup_queue)
       ~runtime_id:rt.runtime_id
