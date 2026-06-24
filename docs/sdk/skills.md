@@ -86,7 +86,7 @@ Each skill lives in its own directory: `~/.par/skills/<id>/skill.md`.
 | `system_prompt_override` | string \| null | no | `null` | Replaces the agent's system prompt when skill activates. |
 | `tool_filter` | `All` \| `Only [...]` \| `Except [...]` | no | `All` | Restricts which tools the LLM can use. |
 | `trigger` | `Auto` \| `Manual` \| `Keyword [...]` | no | `Auto` | When the skill gets activated. |
-| `expected_output` | JSON \| null | no | `null` | Forward-looking: typed success criteria (informational in v0.5.2, LLM judge planned for v0.5.3+). |
+| `expected_output` | JSON \| null | no | `null` | Forward-looking: typed success criteria (informational in v0.5.2, LLM judge planned for a future version). |
 
 ### Markdown body
 

@@ -115,7 +115,7 @@ The upgrade trigger from SQLite to PostgreSQL is almost always one of two things
 
 ## What is coming
 
-The current model is single-layer: events go to one backend, full stop. PAR-4dt (deferred to v0.5.3) plans a dual-layer model: a fast local tier (SQLite, low latency, short retention) plus a remote tier (Postgres or object storage, durable, long retention). The local tier would absorb burst traffic and forward to the remote tier asynchronously. This is the standard hot/cold log architecture. Until it lands, pick your backend based on the matrix above and accept that one tier is what you have.
+The current model is single-layer: events go to one backend, full stop. A future version plans a dual-layer model: a fast local tier (SQLite, low latency, short retention) plus a remote tier (Postgres or object storage, durable, long retention). The local tier would absorb burst traffic and forward to the remote tier asynchronously. This is the standard hot/cold log architecture. Until it lands, pick your backend based on the matrix above and accept that one tier is what you have.
 
 The dual-layer design exists on the roadmap because the single-tier model forces a choice between latency (SQLite) and durability across instances (Postgres). A service that wants both today has to run Postgres everywhere and eat the network round trip on every batch flush. The dual-layer path would let a service keep SQLite locally for sub-millisecond audit writes and replicate to Postgres for cross-instance queries. That is the theory. The implementation is not here yet.
 

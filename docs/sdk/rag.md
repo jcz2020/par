@@ -366,9 +366,9 @@ The retrieved documents come back with their scores so you can show provenance i
 
 ## Limitations
 
-- **Python vector store is in-memory in v0.5.1.** The Python binding's `add_documents` creates an ephemeral store. Persistence across process restarts requires the OCaml SDK with a file path, or reindexing on startup. File-backed persistence from Python is a v0.5.2 candidate.
-- **No metadata filtering from Python.** Metadata is stored and returned on search results, but v0.5.1 does not expose a filter parameter on `invoke_with_rag` or `add_documents`. Filtering lands with the external vector store support in v0.5.2.
-- **No external vector stores yet.** The store is sqlite-vec only. Qdrant and Milvus support is on the v0.5.2+ roadmap for workloads that outgrow a single-process SQLite index.
+- **Python vector store is in-memory.** The Python binding's `add_documents` creates an ephemeral store. Persistence across process restarts requires the OCaml SDK with a file path, or reindexing on startup. File-backed persistence from Python is a future candidate.
+- **No metadata filtering from Python.** Metadata is stored and returned on search results, but the Python binding does not expose a filter parameter on `invoke_with_rag` or `add_documents`. Filtering lands with the external vector store support in a future version.
+- **No external vector stores yet.** The store is sqlite-vec only. Qdrant and Milvus support is on the roadmap for workloads that outgrow a single-process SQLite index.
 - **No streaming RAG.** `invoke_with_rag` returns the full answer. A streaming variant (`invoke_with_rag_streaming`) is deferred until the base streaming surface stabilizes; see the Streaming API page.
 - **Chunking has no real tokenizer.** `chunk_by_tokens` treats one whitespace-separated word as one token. For accurate token-based chunking, pre-tokenize with the provider's tokenizer and pass the result to `chunk_by_chars`.
 - **Dimension is fixed at store creation.** Changing embedding models almost always changes the dimension. You must recreate the store and reindex; see Persistence and Reindexing.
