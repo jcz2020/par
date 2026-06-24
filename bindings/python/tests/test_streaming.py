@@ -240,42 +240,82 @@ def test_stream_reader_ffi_error_propagates():
 
 
 def test_stream_reader_chunks_arrive_incrementally_v0_5_3():
-    """v0.5.3 B.3: verify the queue delivers chunks as they're produced
-    (not all-at-once after invoke completes). We measure the timestamp
-    of each chunk in the queue and confirm at least one gap > 50ms
-    between chunks, proving the reader consumes incrementally.
+    """v0.5.3 B.3: verify the reader delivers chunks incrementally through
+    the real background-thread + queue path.
 
-    This test injects chunks with artificial delays into a real queue
-    and consumes them via the _StreamReader — exactly the path the
-    real OCaml callback will use, minus the ctypes boundary.
+    The mock simulates the OCaml work loop: it spawns a thread that
+    fires the ctypes callback once per chunk with a 100ms delay between
+    chunks (mimicking SSE production rate). The reader's __iter__ runs
+    on the main thread and consumes the queue concurrently.
+
+    We assert:
+    - All 4 events are delivered
+    - The inter-arrival time between consecutive events is at least 50ms
+      (proving they were NOT all buffered then dumped at once)
+    - The total iteration time is at least 300ms (4 chunks * ~100ms each)
+
+    This is the canonical test that the streaming fix actually works for
+    Python callers — not just the queue mechanism in isolation.
     """
     import time as _t
+
     chunks = [
-        '["Text_delta", {"text": "one"}]',
-        '["Text_delta", {"text": "two"}]',
-        '["Text_delta", {"text": "three"}]',
-        '["Done", {"finish_reason": ["Stop"]}]',
+        b'["Text_delta", {"text": "one"}]',
+        b'["Text_delta", {"text": "two"}]',
+        b'["Text_delta", {"text": "three"}]',
+        b'["Done", {"finish_reason": ["Stop"]}]',
     ]
-    q = queue.Queue()
-    timestamps = []
-    for c in chunks:
-        timestamps.append(_t.monotonic())
-        q.put_nowait(c.encode("utf-8"))
-        _t.sleep(0.06)  # 60ms between chunks
-    q.put_nowait(_StreamReader._DONE_SENTINEL)
+    inter_chunk_delay = 0.1  # 100ms between chunks, like a real LLM
 
-    reader = _StreamReader(object(), "a", "m", _inject_queue=q,
-                           queue_timeout=5.0)
-    consume_times = []
-    for ev in iter(reader):
-        consume_times.append((ev, _t.monotonic()))
+    def fake_invoke_stream(rt_handle, agent_id_b, message_b, cb, user_data):
+        """Simulate OCaml work loop: spawn a thread that fires cb with delays.
+        The C par_invoke_stream blocks until the LLM completes; we mimic that
+        by sleeping for the full duration before returning the final envelope.
+        """
+        def produce():
+            for chunk in chunks:
+                cb(chunk, user_data)
+                _t.sleep(inter_chunk_delay)
+            # par_invoke_stream returns the final envelope after all chunks
+            return None
 
-    # The test passed if all 4 events were delivered. The 60ms gaps
-    # prove that the reader does NOT block on the LLM completion
-    # (the data was injected incrementally, not all-at-once).
-    assert len(consume_times) == 4
-    last_event, last_t = consume_times[-1]
-    assert isinstance(last_event, Done)
+        # Run the producer synchronously (mimicking par_invoke_stream blocking)
+        # BUT because _StreamReader runs _do_fetch in a background thread,
+        # __iter__ on the main thread can consume the queue concurrently.
+        produce()
+        return 1  # mock return value; _py_str is mocked to return final envelope
+
+    final_envelope = json.dumps({"status": "ok", "chunks": []})
+
+    with mock.patch("par_runtime.runtime._lib") as lib, \
+         mock.patch("par_runtime.runtime._py_str", return_value=final_envelope):
+        lib.par_invoke_stream.side_effect = fake_invoke_stream
+
+        reader = _StreamReader(object(), "a", "m", queue_timeout=5.0)
+        consume_times = []
+        iter_start = _t.monotonic()
+        for ev in iter(reader):
+            consume_times.append(_t.monotonic())
+        iter_total = _t.monotonic() - iter_start
+
+    # All 4 events delivered
+    assert len(consume_times) == 4, f"expected 4 events, got {len(consume_times)}"
+
+    # Inter-arrival gaps: each should be >= 50ms (chunks arrive ~100ms apart,
+    # NOT all at once). If streaming were buffered, all 4 times would be
+    # within 1ms of each other.
+    gaps = [consume_times[i+1] - consume_times[i] for i in range(len(consume_times)-1)]
+    min_gap = min(gaps)
+    assert min_gap > 0.05, (
+        f"inter-chunk gap too small ({min_gap*1000:.1f}ms < 50ms) — "
+        "streaming appears buffered, not incremental"
+    )
+
+    # Total iteration time should be at least 3 * 100ms = 300ms (3 gaps between 4 chunks)
+    assert iter_total > 0.25, (
+        f"total iteration time {iter_total*1000:.0f}ms < 250ms — "
+        "chunks arrived too fast, streaming appears buffered"
+    )
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 import ctypes
 import json
 import queue
+import threading
 from dataclasses import dataclass
 from typing import Any, Iterator, Optional, Union
 
@@ -96,12 +97,19 @@ def _decode_event(payload) -> Event:
 class _StreamReader:
     """Iterator over streaming chunks from a single invoke_stream call.
 
-    v0.5.3: True incremental streaming. The OCaml work loop fires the
-    registered chunk callback for each SSE line produced by the LLM.
-    The ctypes closure pushes each JSON chunk onto a ``queue.Queue``
-    which the iterator's ``__next__`` consumes in order. The final
-    result (content + finish reason) is delivered as a terminal ``Done``
-    event. Chunks arrive in real time, not after the LLM completes.
+    v0.5.3: True incremental streaming. ``par_invoke_stream`` runs in a
+    background daemon thread; the ctypes closure pushes each JSON chunk
+    onto a ``queue.Queue`` as the OCaml SSE parser produces it. The
+    iterator's ``__next__`` consumes the queue concurrently, so chunks
+    are delivered to the caller in real time — not buffered until the
+    LLM completes. The terminal ``Done`` event signals iteration end.
+
+    Threading model: the background thread holds the C ``ocaml_lock``
+    for the duration of ``par_invoke_stream``. The ctypes closure is
+    fired from the OCaml Eio domain (a separate OCaml Domain) which
+    acquires the GIL to run the Python callback. The callback only
+    does ``queue.put_nowait`` (non-blocking, unbounded) and never
+    re-enters ``par_*``, so no deadlock is possible.
     """
 
     _DONE_SENTINEL = object()
@@ -119,32 +127,32 @@ class _StreamReader:
         self._queue_timeout = queue_timeout
         self._fetched = _inject_queue is not None
         self._final_result: Optional[str] = _inject_final_result
+        self._fetch_thread: Optional[threading.Thread] = None
         if _inject_queue is not None and _inject_error is None:
-            # If a queue was injected without an error, signal done so
-            # iteration terminates naturally.
+            # Injected-queue mode (used by tests): signal done immediately
+            # so iteration terminates naturally without spawning a thread.
             self._queue.put_nowait(self._DONE_SENTINEL)
 
     def _push_chunk(self, json_chunk: bytes, _user_data: Any) -> None:
         """ctypes callback fired by par_invoke_stream for each chunk.
 
-        Runs on the calling Python thread (the one that invoked
-        par_invoke_stream), which is the same thread __next__ blocks
-        on, so a simple queue.Queue is sufficient — no extra locking
-        is required because the queue itself is thread-safe but only
-        one thread is calling put() or get() at a time per iterator.
+        Runs on the OCaml Eio domain thread (which acquired the GIL via
+        ctypes CFUNCTYPE dispatch). The callback must be non-blocking
+        and must not call back into par_* (would deadlock on ocaml_lock
+        held by the fetch thread).
         """
         try:
             self._queue.put_nowait(json_chunk)
         except queue.Full:
-            # The reader is too slow — drop with a marker so __next__
-            # can report it. In practice queue is unbounded.
             pass
 
-    def _fetch(self) -> None:
-        if self._fetched:
-            return
-        self._fetched = True
+    def _do_fetch(self) -> None:
+        """Run par_invoke_stream and push terminal sentinel on completion.
 
+        Runs in a background daemon thread so __iter__ can consume the
+        queue concurrently. Any exception is stashed in self._error and
+        the sentinel is always pushed so __iter__ unblocks.
+        """
         def _wrapper(json_chunk, user_data):
             self._push_chunk(json_chunk, user_data)
 
@@ -161,28 +169,32 @@ class _StreamReader:
         except BaseException as e:
             self._error = e
             self._queue.put_nowait(self._DONE_SENTINEL)
-            raise
+            return
 
         if not raw:
             self._error = PARInvokeError("invoke_stream returned empty result")
-            self._queue.put_nowait(self._DONE_SENTINEL)
+        else:
+            try:
+                parsed = json.loads(raw)
+            except json.JSONDecodeError as e:
+                self._error = PARInvokeError(f"invoke_stream returned invalid JSON: {e}")
+            else:
+                if parsed.get("status") != "ok":
+                    err = parsed.get("error", "unknown error")
+                    self._error = PARInvokeError(f"invoke_stream failed: {err}")
+                else:
+                    self._final_result = raw
+        self._queue.put_nowait(self._DONE_SENTINEL)
+
+    def _start_fetch(self) -> None:
+        if self._fetched:
             return
-        try:
-            parsed = json.loads(raw)
-        except json.JSONDecodeError as e:
-            self._error = PARInvokeError(f"invoke_stream returned invalid JSON: {e}")
-            self._queue.put_nowait(self._DONE_SENTINEL)
-            return
-        if parsed.get("status") != "ok":
-            err = parsed.get("error", "unknown error")
-            self._error = PARInvokeError(f"invoke_stream failed: {err}")
-            self._queue.put_nowait(self._DONE_SENTINEL)
-            return
-        # Stash the final result in case the caller wants to inspect it.
-        self._final_result = raw
+        self._fetched = True
+        self._fetch_thread = threading.Thread(target=self._do_fetch, daemon=True)
+        self._fetch_thread.start()
 
     def __iter__(self) -> Iterator[Event]:
-        self._fetch()
+        self._start_fetch()
         while True:
             try:
                 item = self._queue.get(timeout=self._queue_timeout)
@@ -192,6 +204,8 @@ class _StreamReader:
                     "waiting for next chunk"
                 )
             if item is self._DONE_SENTINEL:
+                if self._fetch_thread is not None:
+                    self._fetch_thread.join(timeout=5.0)
                 if self._error is not None:
                     raise self._error
                 return
@@ -503,13 +517,16 @@ class Runtime:
     def invoke_stream(self, agent_id: str, message: str) -> Iterator[Event]:
         """Invoke an agent and yield each LLM response chunk as an Event.
 
-        The OCaml work loop executes the full invoke (including streaming)
-        and buffers all chunks. This iterator fetches them on first access
-        and yields each chunk as an Event. The fetch is eager — all chunks
-        arrive at once after the LLM completes, not incrementally.
+        v0.5.3: True incremental streaming. ``par_invoke_stream`` runs in
+        a background daemon thread; the OCaml SSE parser fires a ctypes
+        callback for each chunk as the LLM produces it, which pushes onto
+        a ``queue.Queue``. This generator consumes the queue concurrently,
+        so chunks are delivered in real time — the first token arrives
+        within milliseconds of the LLM producing it, not after the full
+        response completes.
 
         Raises:
-            PARInvokeError: if OCaml returns an error.
+            PARInvokeError: if OCaml returns an error or the queue times out.
             PARError: if the runtime has been shut down.
 
         Example:
