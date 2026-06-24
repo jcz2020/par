@@ -16,7 +16,7 @@ from par_runtime.runtime import (
     UsageUpdate,
 )
 
-__version__ = "0.5.1"
+__version__ = "0.5.2-beta.20260624"
 
 __all__ = [
     "Runtime",

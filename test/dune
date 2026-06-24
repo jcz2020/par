@@ -301,11 +301,15 @@
  (libraries par alcotest)
  (modules test_cli_dispatch))
 
-(test
+(executable
  (name test_http_timeout)
  (libraries par eio eio_main alcotest)
- (modules test_http_timeout)
- (action (run %{test})))
+ (modules test_http_timeout))
+
+(test
+ (name test_event_bus_rag)
+ (libraries par alcotest)
+ (modules test_event_bus_rag))
 
 (test
  (name test_skill_registry)
