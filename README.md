@@ -9,7 +9,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.5.1-beta. RAG foundation (embeddings, vector store, chunking, invoke_with_rag) + Python streaming output. API may change before v1.0.
+> **Status**: v0.5.2 — Skill system (auto-activating, filesystem-loaded, composable) + RAG foundation (embeddings, vector store, chunking, invoke_with_rag) + Python streaming output. API may change before v1.0.
 
 ---
 
@@ -103,7 +103,8 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - **Dual persistence** — SQLite (dev), PostgreSQL (prod, separate `par_postgres` package), Noop (tests)
 - **Structured concurrency** — OCaml 5.4 effects with Eio, no orphan fibers, no callback hell
 - **Python ctypes binding** — `par_runtime` package, thread-safe, no GIL contention with OCaml runtime. Persistent Eio domain per Runtime for full concurrency support.
-- **1000+ OCaml tests + 58 Python tests** passing
+- **1000+ OCaml tests + 36 Python tests** passing (1 pre-existing RAG e2e failure, tracked separately)
+- **Skill system** — drop a `skill.md` in `~/.par/skills/<id>/` and it auto-activates during `Runtime.invoke` based on trigger conditions (Auto / Manual / Keyword). See [Skills API](docs/sdk/skills.md).
 
 ## Language tracks
 
@@ -145,9 +146,9 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.5.1-beta — RAG foundation (embeddings, vector store, chunking, invoke_with_rag) + Python streaming output + Python RAG FFI (embed, add_documents, invoke_with_rag, real end-to-end with mock HTTP server) + full FFI work-loop architecture (persistent Eio domain per Runtime). ARM64 Linux wheel deferred.
+**Current**: v0.5.2 — Skill system (filesystem-loaded, auto-activating, composable) + RAG foundation (embeddings, vector store, chunking, invoke_with_rag) + Python streaming output + full FFI work-loop architecture. See [CHANGES.md](CHANGES.md) for the full release notes.
 
-**Coming in v0.5.2+**: ARM64 Linux wheel, dual-tier persistence improvements, external vector stores (Qdrant/Milvus).
+**Coming in v0.5.3+**: Incremental streaming (true token-by-token output), interactive tutorials, external vector stores (Qdrant/Milvus), ARM64 Linux wheel.
 
 ## Getting help
 
