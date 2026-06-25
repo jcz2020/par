@@ -21,6 +21,10 @@ Tutorials walk you through a complete task from scratch. Start here if you're ne
 | Document | Time | What you'll build |
 |----------|------|-------------------|
 | [Quickstart](quickstart.md) | 30 min | An agent with one tool, run end-to-end |
+| [01: RAG Q&A Bot](tutorials/01-rag-qa-bot.md) | 30 min | A PDF-style Q&A bot: embed, index, retrieve, answer |
+| [02: Streaming UI](tutorials/02-streaming-ui.md) | 25 min | Consume `invoke_stream` into a live-updating TTY UI |
+| [04: Multi-Provider Fallback](tutorials/04-multi-provider-fallback.md) | — | *stub, ships after v0.5.4 Track A Phase A.3* |
+| [05: Session Resume](tutorials/05-session-resume.md) | — | *stub, ships after v0.5.4 Track B Phase B.2* |
 
 ## How-to guides
 

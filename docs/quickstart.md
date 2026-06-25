@@ -389,6 +389,8 @@ Note: the PostgreSQL backend requires installing the `par_postgres` opam package
 
 ## Next steps
 
+- [Tutorial 01: RAG Q&A Bot](tutorials/01-rag-qa-bot.md) — add a knowledge base to your agent
+- [Tutorial 02: Streaming UI](tutorials/02-streaming-ui.md) — see tokens stream live into a TTY UI
 - [agent.md](sdk/agent.md) — Agent configuration deep dive: `model_config` fields, `context_strategy`, `retry_policy`
 - [workflow.md](sdk/workflow.md) — Workflow orchestration: sequential, parallel, conditional branching, map-reduce
 - [middleware.md](sdk/middleware.md) — Middleware: logging, timeout, retry, rate limiting, PII masking, data validation
