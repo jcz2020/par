@@ -202,6 +202,16 @@ val health : runtime -> Types.health_status
 
 val metrics_snapshot : runtime -> (string * int) list
 
+val cancel_stream_requested : runtime -> bool ref
+
+val set_session_id : runtime -> string -> unit
+
+val get_session_id : runtime -> string option
+
+val get_default_provider_id : runtime -> string option
+
+val set_default_provider : runtime -> string -> (unit, error_category) result
+
 val record_llm_success : runtime -> unit
 
 val record_llm_error : runtime -> error_category -> unit

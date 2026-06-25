@@ -40,6 +40,9 @@ type runtime = {
   mcp_servers : (Mcp_types.server_id, Mcp_server.t) Types.protected_hashtbl;
   event_bus_instance : Event_bus.t option;
   persistence_writer : Persistence_writer.t option;
+  mutable default_provider_id : string option;
+  cancel_stream_requested : bool ref;
+  session_id : string option ref;
 } [@@warning "-69"]
 
 let default_event_bus_config = {
@@ -900,6 +903,9 @@ let create ?(persistence = noop_persistence)
       mcp_servers = { data = Hashtbl.create 4; mutex = Eio.Mutex.create () };
       event_bus_instance;
       persistence_writer;
+      default_provider_id = None;
+      cancel_stream_requested = ref false;
+      session_id = ref None;
     } in
     let mcp_errors = ref [] in
     if mcp_servers <> [] then begin
@@ -1021,4 +1027,15 @@ let health rt = {
 }
 
 let metrics_snapshot rt = Metrics.snapshot rt.metrics
+
+let cancel_stream_requested rt = rt.cancel_stream_requested
+
+let set_session_id rt sid = rt.session_id := Some sid
+
+let get_session_id rt = !(rt.session_id)
+
+let get_default_provider_id rt = rt.default_provider_id
+
+let set_default_provider _rt _provider_id =
+  Result.Error (Internal "T0.5 stub — T6a A.1 will implement")
 

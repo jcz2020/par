@@ -570,6 +570,35 @@ type llm_provider_config =
 [@@deriving yojson]
 
 (* -------------------------------------------------------------------------- *)
+(* Provider registry + fallback policy (T0.5 stubs)                         *)
+(*                                                                          *)
+(* These are DECLARATIONS ONLY. Semantics filled in by:                     *)
+(*   - provider_config -> Wave 3 / T6a A.1 (provider registry)              *)
+(*   - fallback_policy -> Wave 4 / T6c A.3 (provider fallback)              *)
+(* T0.5 just pre-populates so T6a/T6c do not need to edit this file.        *)
+(* -------------------------------------------------------------------------- *)
+
+(* Named entry in the provider registry. [is_default] is optional in JSON
+   (option type so [@@deriving yojson] decodes a missing field as None);
+   T6a A.1 will enforce the "exactly one default" invariant at registration
+   time, not at the type level. *)
+type provider_config = {
+  id : string;
+  provider : llm_provider_config;
+  is_default : bool option;
+  extras : (string * Yojson.Safe.t) list;
+}
+[@@deriving yojson]
+
+(* Fallback ordering across providers. T6c A.3 will wire this into the LLM
+   call path; T0.5 only declares the shape so later tasks do not touch types.ml. *)
+type fallback_policy =
+  | No_fallback
+  | Ordered of string list
+  | Tagged of { primary : string; backup : string }
+[@@deriving yojson]
+
+(* -------------------------------------------------------------------------- *)
 (* Streaming types                                                       *)
 (* -------------------------------------------------------------------------- *)
 

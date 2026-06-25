@@ -510,6 +510,22 @@ type llm_provider_config =
     }
 [@@deriving yojson]
 
+(* Provider registry + fallback policy (T0.5 stubs — semantics filled in by
+   Wave 3/T6a and Wave 4/T6c). Declared now to avoid later patch conflicts. *)
+type provider_config = {
+  id : string;
+  provider : llm_provider_config;
+  is_default : bool option;
+  extras : (string * Yojson.Safe.t) list;
+}
+[@@deriving yojson]
+
+type fallback_policy =
+  | No_fallback
+  | Ordered of string list
+  | Tagged of { primary : string; backup : string }
+[@@deriving yojson]
+
 (* -------------------------------------------------------------------------- *)
 (* Streaming types                                                       *)
 (* -------------------------------------------------------------------------- *)
