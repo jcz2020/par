@@ -330,4 +330,8 @@
  (name test_skill_runtime)
  (libraries par eio_main alcotest)
  (modules test_skill_runtime))
+(test
+ (name test_skill_user_activation)
+ (libraries par eio_main alcotest)
+ (modules test_skill_user_activation))
 (executable (name test_skill_e2e) (libraries par eio_main alcotest) (modules test_skill_e2e))

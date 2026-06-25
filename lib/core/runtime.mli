@@ -212,6 +212,18 @@ val get_default_provider_id : runtime -> string option
 
 val set_default_provider : runtime -> string -> (unit, error_category) result
 
+val set_user_activated_skills : runtime -> string list -> unit
+(** Manually activate skills by id, regardless of their trigger type.
+    Adds the given ids to the active set; effects compose with auto-triggered
+    skills (last-override-wins for system_prompt, intersection for tool_filter).
+    Ids not present in the registry are silently ignored at activation time. *)
+
+val clear_user_activated_skills : runtime -> unit
+(** Clear the manual activation set. *)
+
+val get_user_activated_skills : runtime -> string list
+(** Current manually-activated skill ids. *)
+
 val record_llm_success : runtime -> unit
 
 val record_llm_error : runtime -> error_category -> unit

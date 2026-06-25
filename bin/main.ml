@@ -490,6 +490,158 @@ let format_health_human (h : Types.health_status) =
 let format_metrics (snap : (string * int) list) =
   `Assoc (List.map (fun (k, v) -> (k, `Int v)) snap)
 
+(* -------------------------------------------------------------------------- *)
+(* Skill create wizard                                                        *)
+(* -------------------------------------------------------------------------- *)
+
+let skill_prompt_line label default =
+  Printf.printf "%s" label;
+  flush stdout;
+  match input_line stdin with
+  | line when String.trim line <> "" -> Some (String.trim line)
+  | exception End_of_file -> default
+  | _ -> default
+
+let skill_id_valid id =
+  String.length id > 0
+  && (let s = String.lowercase_ascii id in
+      try
+        String.iter (fun c ->
+          if not (c = '-' || c = '_'
+                  || (c >= 'a' && c <= 'z')
+                  || (c >= '0' && c <= '9')) then raise Exit) s;
+        true
+      with Exit -> false)
+
+let format_tool_filter_yaml = function
+  | Types.All_tools -> "All"
+  | Types.Only xs -> "Only [" ^ String.concat ", " xs ^ "]"
+  | Types.Except xs -> "Except [" ^ String.concat ", " xs ^ "]"
+
+let format_trigger_yaml = function
+  | Types.Auto -> "Auto"
+  | Types.Manual -> "Manual"
+  | Keyword { keywords; llm_confirm } ->
+    let mode = if llm_confirm then "confirm" else "deterministic" in
+    Printf.sprintf "Keyword [%s] %s" (String.concat ", " keywords) mode
+
+let render_skill_md ~id ~name ~description
+    ~(system_prompt_override : string option) ~(tool_filter : Types.tool_filter)
+    ~(trigger : Types.skill_trigger) ~(expected_output : Yojson.Safe.t option) () =
+  let buf = Buffer.create 512 in
+  Buffer.add_string buf "---\n";
+  Buffer.add_string buf (Printf.sprintf "schema_version: 1\n");
+  Buffer.add_string buf (Printf.sprintf "id: %s\n" id);
+  Buffer.add_string buf (Printf.sprintf "name: %s\n" name);
+  Buffer.add_string buf (Printf.sprintf "description: %s\n" description);
+  (match system_prompt_override with
+   | Some s ->
+     let escaped = String.concat "\\n" (String.split_on_char '\n' s) in
+     Buffer.add_string buf (Printf.sprintf "system_prompt_override: \"%s\"\n" escaped)
+   | None -> Buffer.add_string buf "system_prompt_override: null\n");
+  Buffer.add_string buf (Printf.sprintf "tool_filter: %s\n" (format_tool_filter_yaml tool_filter));
+  Buffer.add_string buf (Printf.sprintf "trigger: %s\n" (format_trigger_yaml trigger));
+  (match expected_output with
+   | Some j -> Buffer.add_string buf (Printf.sprintf "expected_output: %s\n" (Yojson.Safe.to_string j))
+   | None -> Buffer.add_string buf "expected_output: null\n");
+  Buffer.add_string buf "---\n\n";
+  Buffer.add_string buf "## Instructions\n\nReplace this with the skill's instructions.\n\n";
+  Buffer.add_string buf "## Examples\n\nAdd examples of when the skill should activate.\n";
+  Buffer.contents buf
+
+(* Interactive wizard: prompts for all skill.md frontmatter fields.
+   Returns Ok path on success (file written, cache invalidated),
+   Error message on validation failure or EOF. *)
+let run_skill_create_wizard id_opt =
+  let id = match id_opt with
+    | Some i -> i
+    | None ->
+      Printf.printf "Skill wizard — creates ~/.par/skills/<id>/skill.md\n";
+      Printf.printf "(Ctrl+D to cancel)\n\n";
+      (match skill_prompt_line "Skill id (lowercase/hyphen/underscore): " None with
+       | Some i -> i
+       | None -> "")
+  in
+  if not (skill_id_valid id) then
+    Printf.eprintf "Invalid id: %S (use lowercase, hyphens, underscores only)\n" id
+  else begin
+    let name = Option.value (skill_prompt_line (Printf.sprintf "Name [%s]: " id) (Some id)) ~default:id in
+    let description =
+      match skill_prompt_line "Description (≤1024 chars): " None with
+      | Some d -> d
+      | None -> ""
+    in
+    if String.length description > 1024 then
+      Printf.eprintf "Description too long (%d > 1024 chars); aborting.\n"
+        (String.length description)
+    else begin
+      let spo = skill_prompt_line "System prompt override (blank = none, \\n for newlines): " None in
+      let tf_choice = Option.value
+        (skill_prompt_line "Tool filter [All|Only|Except] (default: All): " (Some "All"))
+        ~default:"All" in
+      let tool_filter = match (String.lowercase_ascii (String.sub tf_choice 0 (min 2 (String.length tf_choice)))) with
+        | "on" ->
+          let xs = Option.value (skill_prompt_line "Only tools (comma-separated): " None) ~default:"" in
+          Types.Only (List.filter (fun s -> s <> "")
+                  (List.map String.trim (String.split_on_char ',' xs)))
+        | "ex" ->
+          let xs = Option.value (skill_prompt_line "Except tools (comma-separated): " None) ~default:"" in
+          Types.Except (List.filter (fun s -> s <> "")
+                    (List.map String.trim (String.split_on_char ',' xs)))
+        | _ -> Types.All_tools
+      in
+      let tr_choice = Option.value
+        (skill_prompt_line "Trigger [Auto|Manual|Keyword] (default: Auto): " (Some "Auto"))
+        ~default:"Auto" in
+      let trigger =
+        match String.lowercase_ascii (String.sub tr_choice 0 (min 2 (String.length tr_choice))) with
+        | "ma" -> Types.Manual
+        | "ke" ->
+          let kws = Option.value (skill_prompt_line "Keywords (comma-separated): " None) ~default:"" in
+          let keywords = List.filter (fun s -> s <> "")
+              (List.map String.trim (String.split_on_char ',' kws)) in
+          Types.Keyword { keywords; llm_confirm = true }
+        | _ -> Types.Auto
+      in
+      let expected_output =
+        match skill_prompt_line "Expected output JSON schema (blank = none): " None with
+        | Some s when s <> "" ->
+          (try Some (Yojson.Safe.from_string s) with _ -> None)
+        | _ -> None
+      in
+      let system_prompt_override = spo in
+      let rec mkdir_p d =
+        if not (Sys.file_exists d) then begin
+          let parent = Filename.dirname d in
+          if parent <> d then mkdir_p parent;
+          (try Unix.mkdir d 0o755 with Unix.Unix_error (Unix.EEXIST, _, _) -> ())
+        end
+      in
+      let dir = Filename.concat (Skill_loader.default_user_skills_dir ()) id in
+      (match
+         (try Ok (mkdir_p dir) with Sys_error e -> Error e)
+       with
+       | Error e -> Printf.eprintf "Failed to create %s: %s\n" dir e
+       | Ok () ->
+         let path = Filename.concat dir "skill.md" in
+         let content = render_skill_md ~id ~name ~description
+           ~system_prompt_override ~tool_filter ~trigger ~expected_output () in
+         (match
+            (try
+               let oc = open_out path in
+               output_string oc content;
+               close_out oc;
+               Ok ()
+             with Sys_error e -> Error e)
+          with
+         | Error e -> Printf.eprintf "Failed to write %s: %s\n" path e
+         | Ok () ->
+           Skill_loader.force_reload ();
+           Printf.printf "Created: %s\n" path;
+           Printf.printf "Use /skill use %s to activate it in this session.\n" id))
+    end
+  end
+
 let print_help () =
   Printf.printf "可用命令:\n";
   Printf.printf "  /help       显示此帮助\n";
@@ -502,7 +654,10 @@ let print_help () =
   Printf.printf "  /agents     列出已注册的 agent\n";
   Printf.printf "  /switch <id> 切换到指定 agent\n";
   Printf.printf "  /skills     列出已注册的 skill\n";
-  Printf.printf "  /skill <id> 查看指定 skill 详情\n";
+  Printf.printf "  /skill <id>                          查看指定 skill 详情\n";
+  Printf.printf "  /skill use <id>                      手动激活 skill（覆盖其 trigger）\n";
+  Printf.printf "  /skill unuse                         清除手动激活的 skill\n";
+  Printf.printf "  /skill create <id>                   交互式创建新 skill\n";
   Printf.printf "  /quit       退出\n"
 
 (* -------------------------------------------------------------------------- *)
@@ -577,19 +732,42 @@ let repl rt ~agent_ids =
                       String.sub s.Types.description 0 55 ^ "..." else s.Types.description in
                     Printf.printf "  %-20s %s\n" s.Types.id dp) skills
               | "/skill" ->
-                if rest = "" then Printf.eprintf "Usage: /skill <id>\n"
-                else begin
-                  let skills = Runtime.list_skills rt in
-                  match Par.Skill_registry.find_descriptor skills rest with
-                  | Some s ->
-                    Printf.printf "ID:          %s\n" s.Types.id;
-                    Printf.printf "Name:        %s\n" s.Types.name;
-                    Printf.printf "Description: %s\n" s.Types.description;
-                    Printf.printf "Trigger:     %s\n" (match s.Types.trigger with
-                      | Types.Auto -> "auto" | Types.Manual -> "manual"
-                      | Types.Keyword _ -> "keyword")
-                  | None -> Printf.eprintf "Skill not found: %s. Use /skills to list.\n" rest
-                end
+                (* rest is "use <id>" | "unuse" | "create <id>" | "<id>" (show) | "" (usage) *)
+                let tokens = String.split_on_char ' ' rest
+                             |> List.filter (fun s -> s <> "") in
+                (match tokens with
+                 | [] ->
+                   Printf.eprintf "Usage: /skill <use <id>|unuse|create <id>|<id>>\n"
+                 | "use" :: [] ->
+                   Printf.eprintf "Usage: /skill use <id>\n"
+                 | "use" :: id :: _ ->
+                   let skills = Runtime.list_skills rt in
+                   (match Par.Skill_registry.find_descriptor skills id with
+                    | Some _ ->
+                      Runtime.set_user_activated_skills rt [id];
+                      Printf.printf "Skill activated: %s\n" id
+                    | None ->
+                      Printf.eprintf "Skill not found: %s. Use /skills to list.\n" id)
+                 | "unuse" :: _ ->
+                   let prev_count = List.length (Runtime.get_user_activated_skills rt) in
+                   Runtime.clear_user_activated_skills rt;
+                   Printf.printf "Manual skill activation cleared (%d were active).\n"
+                     prev_count
+                 | "create" :: [] ->
+                   Printf.eprintf "Usage: /skill create <id>\n"
+                 | "create" :: id :: _ -> run_skill_create_wizard (Some id)
+                 | id :: _ ->
+                   (* default: show-details behavior (backward compat) *)
+                   let skills = Runtime.list_skills rt in
+                   (match Par.Skill_registry.find_descriptor skills id with
+                    | Some s ->
+                      Printf.printf "ID:          %s\n" s.Types.id;
+                      Printf.printf "Name:        %s\n" s.Types.name;
+                      Printf.printf "Description: %s\n" s.Types.description;
+                      Printf.printf "Trigger:     %s\n" (match s.Types.trigger with
+                        | Types.Auto -> "auto" | Types.Manual -> "manual"
+                        | Types.Keyword _ -> "keyword")
+                    | None -> Printf.eprintf "Skill not found: %s. Use /skills to list.\n" id))
              | _ -> Printf.eprintf "未知命令: %s。输入 /help 查看命令列表。\n" cmd);
             flush stdout;
             loop ()
@@ -1251,8 +1429,117 @@ let info_stats = Cmdliner.Cmd.info "stats"
   ~doc:"Show usage statistics and recent sessions"
 
 (* -------------------------------------------------------------------------- *)
-(* Custom help renderer                                                       *)
+(* par skill subcommand group                                                  *)
 (* -------------------------------------------------------------------------- *)
+
+let discover_skills_for_cli () =
+  Par.Skill_loader.discover () @ Par.Builtin_skills.builtin_skills
+  |> List.sort (fun (a : Types.skill_descriptor) (b : Types.skill_descriptor) ->
+       String.compare a.Types.id b.Types.id)
+
+let cmd_skill_list () =
+  let skills = discover_skills_for_cli () in
+  if skills = [] then Printf.printf "(no skills discovered)\n"
+  else
+    List.iter (fun (s : Types.skill_descriptor) ->
+      let dp = if String.length s.Types.description > 55 then
+        String.sub s.Types.description 0 55 ^ "..." else s.Types.description in
+      Printf.printf "  %-20s %s\n" s.Types.id dp) skills
+
+let cmd_skill_show id =
+  let skills = discover_skills_for_cli () in
+  match Par.Skill_registry.find_descriptor skills id with
+  | Some s ->
+    Printf.printf "ID:          %s\n" s.Types.id;
+    Printf.printf "Name:        %s\n" s.Types.name;
+    Printf.printf "Description: %s\n" s.Types.description;
+    Printf.printf "Trigger:     %s\n" (match s.Types.trigger with
+      | Types.Auto -> "auto" | Types.Manual -> "manual"
+      | Types.Keyword { keywords; _ } ->
+        Printf.sprintf "keyword [%s]" (String.concat ", " keywords));
+    Printf.printf "Tool filter: %s\n"
+      (match s.Types.tool_filter with
+       | Types.All_tools -> "All"
+       | Types.Only xs -> "Only [" ^ String.concat ", " xs ^ "]"
+       | Types.Except xs -> "Except [" ^ String.concat ", " xs ^ "]");
+    (match s.Types.system_prompt_override with
+     | Some p -> Printf.printf "Override:    %s\n"
+                   (if String.length p > 60 then String.sub p 0 60 ^ "..." else p)
+     | None -> ())
+  | None ->
+    Printf.eprintf "Skill not found: %s\n" id;
+    exit 1
+
+let cmd_skill_use id =
+  let skills = discover_skills_for_cli () in
+  match Par.Skill_registry.find_descriptor skills id with
+  | Some _ ->
+    (* Standalone activation is session-scoped: a CLI process exits before
+       any invoke can consume it. Validate + inform; the REPL /skill use
+       is the path that actually applies the activation. *)
+    Printf.printf "Skill '%s' is available.\n" id;
+    Printf.printf "Note: manual activation applies to a running session.\n";
+    Printf.printf "Run `par` then `/skill use %s` to activate it in the REPL.\n" id
+  | None ->
+    Printf.eprintf "Skill not found: %s\n" id;
+    exit 1
+
+let cmd_skill_create id_opt =
+  run_skill_create_wizard id_opt
+
+let cmd_skill_reload () =
+  Par.Skill_loader.force_reload ();
+  Printf.printf "Skill filesystem cache invalidated. Next discovery will rescan.\n"
+
+let term_skill_list =
+  let open Cmdliner.Term in const cmd_skill_list $ const ()
+
+let term_skill_show =
+  let open Cmdliner.Term in
+  const cmd_skill_show $
+    (let open Cmdliner in
+     Arg.(required & pos 0 (some string) None &
+       info [] ~docv:"ID" ~doc:"Skill id to show"))
+
+let term_skill_use =
+  let open Cmdliner.Term in
+  const cmd_skill_use $
+    (let open Cmdliner in
+     Arg.(required & pos 0 (some string) None &
+       info [] ~docv:"ID" ~doc:"Skill id to activate"))
+
+let term_skill_create =
+  let open Cmdliner.Term in
+  const cmd_skill_create $
+    (let open Cmdliner in
+     Arg.(value & pos 0 (some string) None &
+       info [] ~docv:"ID" ~doc:"Optional skill id (will be prompted if omitted)"))
+
+let term_skill_reload =
+  let open Cmdliner.Term in const cmd_skill_reload $ const ()
+
+let info_skill_list = Cmdliner.Cmd.info "list"
+  ~doc:"List all discovered skills"
+let info_skill_show = Cmdliner.Cmd.info "show"
+  ~doc:"Show details of a specific skill"
+let info_skill_use = Cmdliner.Cmd.info "use"
+  ~doc:"Validate a skill is available for /skill use in the REPL"
+let info_skill_create = Cmdliner.Cmd.info "create"
+  ~doc:"Interactive wizard: create a new skill in ~/.par/skills/<id>/skill.md"
+let info_skill_reload = Cmdliner.Cmd.info "reload"
+  ~doc:"Force filesystem skill rescan (invalidates mtime cache)"
+
+let cmd_skill =
+  let open Cmdliner.Cmd in
+  group
+    (info "skill" ~doc:"Manage skills: list, show, create, reload")
+    [
+      v info_skill_list term_skill_list;
+      v info_skill_show term_skill_show;
+      v info_skill_use term_skill_use;
+      v info_skill_create term_skill_create;
+      v info_skill_reload term_skill_reload;
+    ]
 
 let print_custom_help () =
   let open Cli_style in
@@ -1268,6 +1555,7 @@ let print_custom_help () =
   opt "par sessions"             "List recent sessions";
   opt "par history SESSION_ID"   "Show event history for a session";
   opt "par stats"                "Show usage statistics and recent sessions";
+  opt "par skill"                "Manage skills (list/show/create/use/reload)";
   section "OPTIONS";
   opt "--provider PROVIDER"      "LLM provider: openai|anthropic (default: openai)";
   opt "--api-key KEY"            "API key (overrides config file)";
@@ -1305,6 +1593,7 @@ let cmd =
       v info_sessions term_sessions;
       v info_history term_history;
       v info_stats term_stats;
+      cmd_skill;
     ]
 
 let () =

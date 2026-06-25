@@ -110,10 +110,25 @@ Best for: skills that should be "always available" to the LLM (summarizer, RAG a
 
 ### Manual
 
-The skill is never auto-activated. Users must explicitly invoke it:
+The skill is never auto-activated. Users must explicitly invoke it.
+
+**REPL** (activates for the current session, applies to all subsequent invokes):
+
+```
+> /skill use my-skill
+Skill activated: my-skill
+> hello
+[response with my-skill's system_prompt_override applied]
+> /skill unuse
+Manual skill activation cleared (1 were active).
+```
+
+Activation is **persistent** across invokes within the session until cleared with `/skill unuse`. It composes with auto-triggered skills (keyword/auto) — `system_prompt_override` uses last-wins, `tool_filter` intersects. Use this for specialized workflows that should remain on for a stretch of a conversation.
+
+**Standalone CLI** (validation only — a CLI process exits before any invoke, so it can't actually apply activation):
 
 ```bash
-par skill use my-skill
+par skill use my-skill    # validates the skill exists, prints how to activate in REPL
 ```
 
 Best for: skills that should only fire on explicit request (dangerous operations, specialized workflows).
@@ -179,15 +194,42 @@ par skill reload
 | Command | Description |
 |---------|-------------|
 | `/skills` | List all registered skills with description preview |
-| `/skill <id>` | Show full detail of a specific skill |
+| `/skill <id>` | Show full detail of a specific skill (default subcommand) |
+| `/skill use <id>` | Manually activate a skill (overrides its trigger; persistent until `/skill unuse`) |
+| `/skill unuse` | Clear manual activation; subsequent invokes use only auto-triggered skills |
+| `/skill create <id>` | Interactive wizard: create a new skill in `~/.par/skills/<id>/skill.md` |
+
+**Activation semantics**: `/skill use <id>` adds `<id>` to the runtime's `user_activated_skills` set. On every `invoke`, skills in this set are resolved regardless of their `trigger` (Auto/Manual/Keyword) and composed with any auto-triggered skills. `system_prompt_override` uses last-wins (order is: auto-triggered first, then user-activated); `tool_filter` intersects (most restrictive wins). Manual-trigger skills are **only** activatable via `/skill use` — they are dead weight otherwise.
 
 ### Standalone commands
 
 ```bash
-par skill list                    # list skills (non-interactive)
-par skill show <id>               # show skill detail
-par skill reload                  # force filesystem rescan
+par skill list                    # list all discovered skills (non-interactive)
+par skill show <id>               # show skill detail (id, name, trigger, tool_filter, override)
+par skill use <id>                # validate a skill is available; print activation hint
+par skill create [id]             # interactive wizard (see below); id optional, prompted if omitted
+par skill reload                  # force filesystem rescan (invalidates mtime cache)
 ```
+
+### `/skill create` wizard
+
+The wizard prompts for all 8 frontmatter fields and writes a valid `skill.md` to `~/.par/skills/<id>/skill.md`:
+
+```
+$ par skill create my-analyst
+Name [my-analyst]:
+Description (≤1024 chars): Analyze data and report insights
+System prompt override (blank = none, \n for newlines): You are a data analyst.
+Tool filter [All|Only|Except] (default: All): Only
+Only tools (comma-separated): read_file, grep, bash
+Trigger [Auto|Manual|Keyword] (default: Auto): Keyword
+Keywords (comma-separated): data, analyze, report
+Expected output JSON schema (blank = none):
+Created: /home/user/.par/skills/my-analyst/skill.md
+Use /skill use my-analyst to activate it in this session.
+```
+
+The file is immediately discoverable by `/skills` and `par skill list` (the wizard calls `Skill_loader.force_reload` to invalidate the mtime cache). Edit the `## Instructions` and `## Examples` sections in the generated file to customize the L2 body.
 
 ---
 

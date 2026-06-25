@@ -26,6 +26,12 @@ type runtime = {
   workflow_defs : (string, workflow) protected_hashtbl;
   tool_registry : Tool_registry.t;
   skills : Skill_registry.t;
+  (* User-manually-activated skill ids. Composed with auto-triggered skills
+     (last-override-wins for system_prompt, intersection for tool_filter).
+     Only consulted for skills that exist in [skills]; missing ids are
+     silently ignored. Manual-trigger skills are ONLY activatable via this
+     list — they bypass the trigger filter in compute_active_skill_effects. *)
+  mutable user_activated_skills : string list;
   steering_queue : Steering_queue.t;
   followup_queue : Steering_queue.t;
   runtime_id : string;
@@ -190,19 +196,32 @@ let contains_substring (s : string) (needle : string) : bool =
 
 let compute_active_skill_effects (rt : runtime) (message : string) : skill_effect list =
   let descriptors = Skill_registry.list_descriptors rt.skills in
-  List.filter_map (fun (desc : skill_descriptor) ->
-    let eligible = match desc.trigger with
-      | Auto -> true
-      | Manual -> false
-      | Keyword { keywords; _ } ->
+  let auto_effects =
+    List.filter_map (fun (desc : skill_descriptor) ->
+      let eligible = match desc.trigger with
+        | Auto -> true
+        | Manual -> false
+        | Keyword { keywords; _ } ->
         List.exists (fun kw -> contains_substring message kw) keywords
-    in
-    if eligible then
-      match Skill_registry.resolve rt.skills desc.id with
-      | Some activate -> Some (activate (Obj.magic rt))
-      | None -> None
-    else None)
-    descriptors
+      in
+      if eligible then
+        match Skill_registry.resolve rt.skills desc.id with
+        | Some activate -> Some (activate (Obj.magic rt))
+        | None -> None
+      else None)
+      descriptors
+  in
+  let user_set = rt.user_activated_skills in
+  let user_effects =
+    List.filter_map (fun id ->
+      if List.mem id user_set then
+        match Skill_registry.resolve rt.skills id with
+        | Some activate -> Some (activate (Obj.magic rt))
+        | None -> None
+      else None)
+      (List.map (fun (d : skill_descriptor) -> d.id) descriptors)
+  in
+  auto_effects @ user_effects
 
 let compose_skill_effects (effects : skill_effect list) : skill_effect =
   match effects with
@@ -889,6 +908,7 @@ let create ?(persistence = noop_persistence)
       workflow_defs = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
       tool_registry = Tool_registry.create ();
       skills = Skill_registry.create ();
+      user_activated_skills = [];
       steering_queue = Steering_queue.create ();
       followup_queue = Steering_queue.create ();
       last_llm_call_at = None;
@@ -1038,4 +1058,13 @@ let get_default_provider_id rt = rt.default_provider_id
 
 let set_default_provider _rt _provider_id =
   Result.Error (Internal "T0.5 stub — T6a A.1 will implement")
+
+let set_user_activated_skills rt ids =
+  rt.user_activated_skills <- ids
+
+let clear_user_activated_skills rt =
+  rt.user_activated_skills <- []
+
+let get_user_activated_skills rt =
+  rt.user_activated_skills
 

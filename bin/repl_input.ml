@@ -30,14 +30,21 @@ let utf8_display_width leading_byte =
 let read_line_utf8 prompt =
   Printf.printf "%s" prompt;
   flush stdout;
-  let orig = set_raw_mode Unix.stdin in
-  Fun.protect
-    ~finally:(fun () -> restore_mode Unix.stdin orig)
-    (fun () ->
-      let buf = Buffer.create 256 in
-      let char_sizes : (int * int) list ref = ref [] in
-      let pending = Buffer.create 4 in
-      let pending_needed = ref 0 in
+  if not (Unix.isatty Unix.stdin) then
+    (* Non-interactive stdin (pipe/redirect): skip raw-mode line editing
+       and read a plain line. Keeps the REPL drivable for scripting/tests. *)
+    (match input_line stdin with
+     | line -> Some (String.trim line)
+     | exception End_of_file -> None)
+  else begin
+    let orig = set_raw_mode Unix.stdin in
+    Fun.protect
+      ~finally:(fun () -> restore_mode Unix.stdin orig)
+      (fun () ->
+        let buf = Buffer.create 256 in
+        let char_sizes : (int * int) list ref = ref [] in
+        let pending = Buffer.create 4 in
+        let pending_needed = ref 0 in
       let erase_last_char () =
         match !char_sizes with
         | [] -> ()
@@ -97,6 +104,7 @@ let read_line_utf8 prompt =
         end
       in
       loop ())
+  end
 
 let read_line prompt =
   match read_line_utf8 prompt with
