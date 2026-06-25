@@ -36,6 +36,15 @@ static par_tool_callback python_handler_table[MAX_PYTHON_HANDLERS];
 static par_chunk_callback g_chunk_callback = NULL;
 static void* g_chunk_user_data = NULL;
 
+/* Cancel flag for par_cancel_stream / par_invoke_stream. Written by
+   par_cancel_stream from ANY pthread (including signal handlers and
+   Python __del__ on a non-FFI thread) and read by the streaming
+   on_chunk callback (on the OCaml work_loop Domain). Uses GCC/Clang
+   __atomic builtins so no C11 <stdatomic.h> header is required and
+   the store is signal-safe. The flag is process-global single-slot:
+   only one stream is in flight at a time, so one flag suffices. */
+static volatile int g_stream_cancel_requested = 0;
+
 void par_store_python_handler(int handler_id, par_tool_callback fn) {
     if (handler_id >= 0 && handler_id < MAX_PYTHON_HANDLERS) {
         python_handler_table[handler_id] = fn;
@@ -67,6 +76,15 @@ value caml_dispatch_chunk_to_c(value v_json_chunk) {
         g_chunk_callback(json, g_chunk_user_data);
     }
     return Val_unit;
+}
+
+/* Read the stream-cancel flag from OCaml (on_chunk closure). Called on
+   the OCaml work_loop Domain, which already holds the OCaml domain
+   runtime lock, so a plain atomic read here is safe. */
+value caml_stream_cancel_requested(value v_unit) {
+    (void)v_unit;
+    int v = __atomic_load_n(&g_stream_cancel_requested, __ATOMIC_ACQUIRE);
+    return Val_int(v);
 }
 
 static void ensure_initialized(void) {
@@ -303,6 +321,12 @@ char* par_invoke_stream(par_runtime_t* rt, const char* agent_id,
                         par_chunk_callback cb, void* user_data) {
     if (!rt || !agent_id || !message) return NULL;
 
+    /* Clear any stale cancel request so this stream starts clean. A
+       prior par_cancel_stream that arrived after the previous stream
+       had already finished would leave the flag set; without this
+       reset the new stream would abort on its first chunk. */
+    __atomic_store_n(&g_stream_cancel_requested, 0, __ATOMIC_RELEASE);
+
     /* Store the callback + user_data BEFORE entering the OCaml lock
        so the dispatch function (called from inside the lock) can
        see them. */
@@ -323,6 +347,18 @@ char* par_invoke_stream(par_runtime_t* rt, const char* agent_id,
     g_chunk_user_data = NULL;
 
     return ret;
+}
+
+void par_cancel_stream(par_runtime_t* rt) {
+    /* Deliberately does NOT acquire ocaml_lock: during an in-flight
+       par_invoke_stream that mutex is held by the streaming thread for
+       the entire stream duration, so acquiring it here would block
+       until the LLM stream completes naturally — the exact behavior we
+       are trying to eliminate. A single atomic store is signal-safe,
+       visible to the on_chunk callback at the next chunk boundary, and
+       sufficient given the single-stream-at-a-time design. */
+    (void)rt;
+    __atomic_store_n(&g_stream_cancel_requested, 1, __ATOMIC_RELEASE);
 }
 
 char* par_invoke_structured(par_runtime_t* rt, const char* agent_id,

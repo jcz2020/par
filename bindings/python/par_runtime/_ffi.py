@@ -108,6 +108,14 @@ _lib.par_invoke_stream.argtypes = [
 ]
 _lib.par_invoke_stream.restype = ctypes.c_void_p
 
+# void par_cancel_stream(par_runtime_t* rt);
+# Cancel an in-flight par_invoke_stream. Safe to call from any thread
+# (no ocaml_lock acquired — the in-flight stream holds it). Sets a
+# process-global atomic flag checked by the on_chunk callback at the
+# next chunk boundary; cancel takes effect at the next chunk (50-300ms).
+_lib.par_cancel_stream.argtypes = [ctypes.c_void_p]
+_lib.par_cancel_stream.restype = None
+
 # int par_register_agent(par_runtime_t* rt, const char* config_json);
 _lib.par_register_agent.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_register_agent.restype = ctypes.c_int

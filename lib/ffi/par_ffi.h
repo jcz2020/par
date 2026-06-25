@@ -82,6 +82,18 @@ char* par_mcp_list_tools(par_runtime_t* rt, const char* server_id);
 char* par_workflow_status(par_runtime_t* rt, const char* run_id);
 int   par_workflow_cancel(par_runtime_t* rt, const char* run_id);
 
+/* Cancel an in-flight par_invoke_stream. Safe to call from any thread
+   (including signal handlers and Python GC-triggered __del__ on a
+   different pthread). Sets a process-global atomic flag that the
+   streaming on_chunk callback checks at each chunk boundary; cancel
+   takes effect at the next chunk (typically 50-300ms for streaming
+   providers, ~1s worst case). Does NOT acquire ocaml_lock — that lock
+   is held by the in-flight stream itself, so acquiring it here would
+   deadlock until the stream completes naturally. The flag is reset to
+   0 at the start of the next par_invoke_stream. Single-stream-at-a-time
+   design (see par_ffi.c) makes a process-global flag sufficient. */
+void par_cancel_stream(par_runtime_t* rt);
+
 /* Event subscription */
 typedef void (*par_event_callback)(const char* event_type, const char* event_json);
 int par_event_subscribe(par_runtime_t* rt, par_event_callback cb);

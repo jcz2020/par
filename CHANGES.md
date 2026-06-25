@@ -1,5 +1,32 @@
 # CHANGES
 
+## v0.5.4 (unreleased) — BETA
+
+### Fixed — `par_cancel_stream` FFI entry (closes v0.5.3 Known Limitation)
+
+v0.5.3's incremental streaming held the process-global C `ocaml_lock` for the entire stream duration, so if the Python caller `break`ed early from the iterator (or a `queue_timeout` fired) the background daemon thread kept running until the LLM stream completed naturally — and during that window **every subsequent `par_*` call on any Runtime instance blocked**. v0.5.4 adds `par_cancel_stream` so the caller can interrupt an in-flight stream and release `ocaml_lock` promptly.
+
+**Design — flag-check pattern (NOT `Eio.Cancel.cancel`):**
+
+The original v0.5.4 ROADMAP proposed propagating `Eio.Cancel.cancel` across the C/OCaml boundary. Oracle review (2026-06-25) flagged that as research-grade: `Eio.Cancel` must be called from a thread holding the OCaml runtime lock and does not interrupt C-blocked fibers. The shipped design uses a deterministic flag-check pattern instead.
+
+The flag lives in C as a process-global atomic (`g_stream_cancel_requested` in `lib/ffi/par_ffi.c`), written by `par_cancel_stream` with a single `__atomic_store_n` and read by the OCaml `on_chunk` callback (via the `caml_stream_cancel_requested` external) at each chunk boundary. When the flag is observed, `on_chunk` raises `Stream_cancelled`, which propagates up through `llm.stream_fn` → `run_llm_with_optional_streaming` → `Runtime.invoke` (none of which wrap the call in `try/with`) and is caught by `do_invoke_stream`, which returns a `{"status": "cancelled", "chunks": [...]}` envelope.
+
+**Why `par_cancel_stream` does NOT acquire `ocaml_lock`:** during an in-flight `par_invoke_stream` that mutex is held by the streaming thread for the whole stream duration (it blocks in `slot_take` while still holding the lock). Acquiring it in `par_cancel_stream` would therefore block until the LLM stream completes naturally — the exact behavior this feature eliminates. The lock-free atomic store is signal-safe, visible to `on_chunk` at the next chunk boundary, and sufficient given the single-stream-at-a-time design.
+
+The pre-declared `Runtime.cancel_stream_requested : bool ref` field (T0.5) is consumed: `do_invoke_stream` resets it to `false` at stream start and mirrors the C atomic flag into it (`:= true`) when cancel is detected, so OCaml-side consumers see consistent state.
+
+**Latency:** cancel takes effect at the **next chunk boundary** (typically 50-300ms for streaming providers, ~1s worst case for slow providers) — NOT immediate, because the LLM stream must reach a chunk boundary for the flag to be observed.
+
+**Python surface:**
+- `Runtime.cancel_stream()` — public method; safe from any thread (incl. GC-triggered `__del__`); idempotent; no-op when idle.
+- `_StreamReader.cancel()` — calls `Runtime.cancel_stream()`; the reader's generator `__iter__` `finally` clause calls it on `break`/scope-exit (`GeneratorExit`), so the canonical `for ev in rt.invoke_stream(...): ...; break` pattern now releases `ocaml_lock` instead of stranding the daemon thread. (`__del__` alone is insufficient — the background fetch thread keeps the reader alive past the caller's `del`.)
+- A `{"status": "cancelled"}` envelope is treated as clean termination (not an error), so a cancelled iterator ends with `StopIteration` rather than raising `PARInvokeError`.
+
+**Verified:** 5/5 `test_cancel_stream.py` cases pass — (1) cancel interrupts an in-flight stream within ~1 chunk interval (was 30s in v0.5.3), (2) follow-up `par_invoke` returns within 500ms post-cancel (no lock leak), (3) cancel from a non-FFI `threading.Thread` propagates with no crash/deadlock (Risk #3), (4) idle cancel is a prompt no-op, (5) `break`-early cancels via `GeneratorExit`.
+
+---
+
 ## v0.5.3 (2026-06-24) — STABLE
 
 > **Theme**: Critical bug fixes + true incremental streaming. Both items deferred from v0.5.2 release (per the "Known Limitations" section) and shipped here.

@@ -645,24 +645,43 @@ let do_invoke_structured (state_id : int) (agent_id : string) (message : string)
    queue.Queue for the iterator's __next__() to consume. *)
 external caml_dispatch_chunk_to_c : string -> unit = "caml_dispatch_chunk_to_c"
 
+(* Reads the C-side atomic cancel flag set by par_cancel_stream. The flag
+   is process-global and lock-free; see par_ffi.c::par_cancel_stream for
+   why it cannot route through ocaml_lock (held by the in-flight stream). *)
+external caml_stream_cancel_requested : unit -> int = "caml_stream_cancel_requested"
+
+(* Raised inside the on_chunk closure to abort an in-flight stream. It
+   propagates up through llm.stream_fn -> run_llm_with_optional_streaming
+   -> Runtime.invoke (which has no surrounding try/with) and is caught by
+   do_invoke_stream, which returns a "cancelled" envelope instead of an
+   error so callers can distinguish cancellation from a real failure. *)
+exception Stream_cancelled
+
 let do_invoke_stream (state_id : int) (agent_id : string) (message : string) =
   match get_state state_id with
   | None -> error_json "Invalid runtime handle"
   | Some _ ->
     let result = dispatch state_id (fun rt _env ->
+      let cancel_flag = Par.Runtime.cancel_stream_requested rt in
+      cancel_flag := false;
+      let chunk_buf = ref [] in
       (try
-         let chunk_buf = ref [] in
          let on_chunk chunk =
-           let json =
-             Par.Types.llm_response_chunk_to_yojson chunk
-             |> Yojson.Safe.to_string
-           in
-           (* Fire the C callback FIRST so Python sees the chunk as soon
-              as the SSE parser produced it. caml_dispatch_chunk_to_c is
-              a no-op when no callback is registered (g_chunk_callback
-              is NULL on the C side). *)
-           (try caml_dispatch_chunk_to_c json with _ -> ());
-           chunk_buf := json :: !chunk_buf
+           if !cancel_flag || caml_stream_cancel_requested () = 1 then begin
+             cancel_flag := true;
+             raise Stream_cancelled
+           end else begin
+             let json =
+               Par.Types.llm_response_chunk_to_yojson chunk
+               |> Yojson.Safe.to_string
+             in
+             (* Fire the C callback FIRST so Python sees the chunk as soon
+                as the SSE parser produced it. caml_dispatch_chunk_to_c is
+                a no-op when no callback is registered (g_chunk_callback
+                is NULL on the C side). *)
+             (try caml_dispatch_chunk_to_c json with _ -> ());
+             chunk_buf := json :: !chunk_buf
+           end
          in
          let result = Par.Runtime.invoke rt
            ~agent_id ~message
@@ -682,7 +701,15 @@ let do_invoke_stream (state_id : int) (agent_id : string) (message : string) =
                (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
          in
          Obj.repr json
-       with e -> Obj.repr (error_json (Printexc.to_string e)))) in
+       with
+       | Stream_cancelled ->
+         cancel_flag := false;
+         let chunks_json =
+           `List (List.rev_map (fun s -> `Assoc [("chunk", Yojson.Safe.from_string s)]) !chunk_buf)
+           |> Yojson.Safe.to_string
+         in
+         Obj.repr (Printf.sprintf "{\"status\": \"cancelled\", \"chunks\": %s}" chunks_json)
+       | e -> Obj.repr (error_json (Printexc.to_string e)))) in
     (Obj.obj result : string)
 
 let parse_workflow (json : Yojson.Safe.t) : Par.Types.workflow =
