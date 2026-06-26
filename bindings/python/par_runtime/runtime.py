@@ -476,6 +476,30 @@ class Runtime:
         finally:
             _free(ptr)
 
+    def list_llm_providers(self) -> list[str]:
+        """List registered LLM provider ids (v0.5.4 PAR-tiu)."""
+        self._check_handle()
+        ptr = _lib.par_list_llm_providers(self._handle)
+        if not ptr:
+            return []
+        try:
+            raw = ctypes.cast(ptr, ctypes.c_char_p).value.decode("utf-8")
+            return json.loads(raw) if raw else []
+        finally:
+            _free(ptr)
+
+    def set_default_llm_provider(self, provider_id: str) -> None:
+        """Switch the default LLM provider (v0.5.4 PAR-tiu).
+
+        Raises PARError if [provider_id] is not registered.
+        """
+        self._check_handle()
+        rc = _lib.par_set_default_llm_provider(
+            self._handle, _c_str(provider_id))
+        if rc != 0:
+            raise PARError(
+                f"set_default_llm_provider failed: {provider_id!r}")
+
     def invoke(self, agent_id: str, message: str) -> str:
         """Invoke an agent synchronously.
 

@@ -727,6 +727,9 @@ type persistence_service = {
   load_task_state_fn : Task_id.t -> (task_state option, error_category) result;
   save_workflow_state_fn : Workflow_run_id.t -> workflow_status -> workflow_checkpoint option -> (unit, error_category) result;
   load_workflow_state_fn : Workflow_run_id.t -> (workflow_checkpoint option, error_category) result;
+  save_conversation_fn : string -> conversation -> (unit, error_category) result;
+  load_conversation_fn : string -> (conversation option, error_category) result;
+  load_most_recent_conversation_fn : unit -> ((string * conversation) option, error_category) result;
   close_fn : unit -> unit;
 }
 

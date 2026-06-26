@@ -206,7 +206,7 @@ val cancel_stream_requested : runtime -> bool ref
 
 val set_session_id : runtime -> string -> unit
 
-val get_session_id : runtime -> string option
+val get_session_id : runtime -> string
 
 val get_default_provider_id : runtime -> string option
 
@@ -239,3 +239,21 @@ val register_tool_call_hook : runtime -> Hook.tool_call_hook -> unit
 val clear_tool_call_hooks : runtime -> unit
 
 val run_tool_call_hooks : runtime -> Hook.tool_call_context -> Hook.chain_result
+
+val save_conversation : runtime -> (unit, error_category) result
+
+val load_conversation : runtime -> string -> (Types.conversation option, error_category) result
+
+val load_most_recent_conversation : runtime -> ((string * Types.conversation) option, error_category) result
+
+val register_llm_provider : runtime -> string -> llm_service -> (unit, error_category) result
+(** Add a provider under [id] to the runtime's provider registry. If [id]
+    already exists, returns [`Duplicate_provider id] and the existing service
+    is unchanged. The first registered provider becomes the default. *)
+
+val list_llm_providers : runtime -> string list
+(** Registered provider ids, sorted. *)
+
+val get_llm_service : runtime -> ?id:string -> unit -> llm_service
+(** Look up an LLM service by id. Defaults to the current default
+    provider. Raises [Failure _] if [id] unknown or no default set. *)

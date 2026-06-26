@@ -39,6 +39,13 @@ let init_schema db =
          checkpoint  TEXT,
          updated_at  REAL NOT NULL
        )|};
+     {|CREATE TABLE IF NOT EXISTS conversations (
+         session_id     TEXT PRIMARY KEY,
+         messages_json  TEXT NOT NULL,
+         metadata_json  TEXT NOT NULL,
+         updated_at     REAL NOT NULL,
+         turn_count     INTEGER NOT NULL
+       )|};
   ] in
   (match List.find_map (fun sql ->
      match exec_sql db sql with
@@ -59,6 +66,7 @@ let init_schema db =
      let indexes = [
        {|CREATE INDEX IF NOT EXISTS idx_events_task_id ON events(task_id, timestamp)|};
        {|CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id, timestamp)|};
+       {|CREATE INDEX IF NOT EXISTS conv_updated ON conversations(updated_at DESC)|};
      ] in
      List.iter (fun sql -> ignore (exec_sql db sql)) indexes;
      Ok ())
@@ -411,4 +419,105 @@ let transaction t f =
            Logs.err (fun m -> m "sqlite_persistence: ROLLBACK failed: %s"
                (error_category_to_yojson e |> Yojson.Safe.to_string)));
         Result.Error (Internal (Printexc.to_string ex))
+  )
+
+let conversation_messages_to_json (msgs : Types.message list) : string =
+  Yojson.Safe.to_string
+    (`List (List.map Types.message_to_yojson msgs))
+
+let conversation_metadata_to_json (md : (string * Yojson.Safe.t) list) : string =
+  Yojson.Safe.to_string
+    (`Assoc (List.map (fun (k, v) -> (k, v)) md))
+
+let json_to_messages (s : string) : (Types.message list, string) result =
+  match Yojson.Safe.from_string s with
+  | `List xs ->
+    let rec loop = function
+      | [] -> Ok []
+      | x :: rest ->
+        (match Types.message_of_yojson x with
+         | Ok m ->
+           (match loop rest with
+            | Ok rest -> Ok (m :: rest)
+            | Error e -> Error e)
+         | Error e -> Error e)
+    in
+    loop xs
+  | _ -> Error "expected JSON array for messages"
+
+let json_to_metadata (s : string) : ((string * Yojson.Safe.t) list, string) result =
+  match Yojson.Safe.from_string s with
+  | `Assoc xs -> Ok (List.map (fun (k, v) -> (k, v)) xs)
+  | _ -> Error "expected JSON object for metadata"
+
+let save_conversation t session_id (conv : Types.conversation) =
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
+    let msgs_json = conversation_messages_to_json conv.Types.messages in
+    let md_json = conversation_metadata_to_json conv.Types.metadata in
+    let now = Unix.gettimeofday () in
+    let turn_count = List.length conv.Types.messages in
+    let stmt =
+      Sqlite3.prepare t.db
+        "INSERT OR REPLACE INTO conversations \
+         (session_id, messages_json, metadata_json, updated_at, turn_count) \
+         VALUES (?, ?, ?, ?, ?)"
+    in
+    let _ = Sqlite3.bind_text stmt 1 session_id in
+    let _ = Sqlite3.bind_text stmt 2 msgs_json in
+    let _ = Sqlite3.bind_text stmt 3 md_json in
+    let _ = Sqlite3.bind_double stmt 4 now in
+    let _ = Sqlite3.bind_int stmt 5 turn_count in
+    let step_result = Sqlite3.step stmt in
+    let _ = Sqlite3.finalize stmt in
+    match step_result with
+    | Sqlite3.Rc.DONE | Sqlite3.Rc.ROW -> Ok ()
+    | rc -> Result.Error (Internal (Printf.sprintf "Conversation save: %s" (Sqlite3.Rc.to_string rc)))
+  )
+
+let load_conversation t session_id =
+  Eio.Mutex.use_ro t.mutex (fun () ->
+    let stmt =
+      Sqlite3.prepare t.db
+        "SELECT messages_json, metadata_json FROM conversations WHERE session_id = ?"
+    in
+    let _ = Sqlite3.bind_text stmt 1 session_id in
+    let result =
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.ROW ->
+        let msgs_raw = Sqlite3.column_text stmt 0 in
+        let md_raw = Sqlite3.column_text stmt 1 in
+        (match json_to_messages msgs_raw, json_to_metadata md_raw with
+         | Ok msgs, Ok md -> Ok (Some { Types.messages = msgs; metadata = md })
+         | Error msg, _ | _, Error msg ->
+           Result.Error (Internal (Printf.sprintf "Conversation decode: %s" msg)))
+      | Sqlite3.Rc.DONE -> Ok None
+      | rc -> Result.Error (Internal (Printf.sprintf "Conversation load: %s" (Sqlite3.Rc.to_string rc)))
+    in
+    let _ = Sqlite3.finalize stmt in
+    result
+  )
+
+let load_most_recent_conversation t =
+  Eio.Mutex.use_ro t.mutex (fun () ->
+    let stmt =
+      Sqlite3.prepare t.db
+        "SELECT session_id, messages_json, metadata_json \
+         FROM conversations ORDER BY updated_at DESC LIMIT 1"
+    in
+    let result =
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.ROW ->
+        let session_id = Sqlite3.column_text stmt 0 in
+        let msgs_raw = Sqlite3.column_text stmt 1 in
+        let md_raw = Sqlite3.column_text stmt 2 in
+        (match json_to_messages msgs_raw, json_to_metadata md_raw with
+         | Ok msgs, Ok md ->
+           Ok (Some (session_id, { Types.messages = msgs; metadata = md }))
+         | Error msg, _ | _, Error msg ->
+           Result.Error (Internal (Printf.sprintf "Conversation decode (most-recent): %s" msg)))
+      | Sqlite3.Rc.DONE -> Ok None
+      | rc -> Result.Error (Internal (Printf.sprintf "Conversation load-most-recent: %s" (Sqlite3.Rc.to_string rc)))
+    in
+    let _ = Sqlite3.finalize stmt in
+    result
   )

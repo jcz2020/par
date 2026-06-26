@@ -31,6 +31,10 @@ int par_register_agent(par_runtime_t* rt, const char* config_json);
 int par_register_skill(par_runtime_t* rt, const char* json);
 char* par_list_skills(par_runtime_t* rt);
 
+/* LLM provider registry (v0.5.4 PAR-tiu) */
+char* par_list_llm_providers(par_runtime_t* rt);
+int par_set_default_llm_provider(par_runtime_t* rt, const char* provider_id);
+
 /* Synchronous invocation — returns JSON string, caller must free() */
 char* par_invoke(par_runtime_t* rt, const char* agent_id,
                  const char* message);

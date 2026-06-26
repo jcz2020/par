@@ -185,12 +185,30 @@ let build_llm_from_provider provider_cfg net =
          complete_structured_fn = None;
        }
      | Error _ -> None)
-  | Par.Types.Anthropic _ ->
-    fd_log "[llm] Anthropic provider not yet supported for LLM, skipping";
-    None
-  | Par.Types.Custom _ ->
-    fd_log "[llm] Custom provider not supported, skipping";
-    None
+  | Par.Types.Anthropic { api_key; base_url } ->
+    let cfg = Par.Types.Anthropic { api_key; base_url } in
+    (match Par.Anthropic_provider.create cfg with
+     | Ok t ->
+       Par.Anthropic_provider.set_network t net_gen;
+       Some {
+         Par.Types.complete_fn = (fun mc tools conv -> Par.Anthropic_provider.complete t mc tools conv);
+         stream_fn = (fun mc tools conv sc cb -> Par.Anthropic_provider.stream t mc tools conv sc cb);
+         close_fn = (fun () -> Par.Anthropic_provider.close t);
+         complete_structured_fn = None;
+       }
+     | Error _ -> None)
+  | Par.Types.Custom { base_url = base_url_for_custom; _ } ->
+       let cfg = Par.Types.Openai { api_key = "par-custom-no-auth"; base_url = Some base_url_for_custom; organization = None; embedding_model = None } in
+       (match Par.Openai_provider.create cfg with
+        | Ok t ->
+          Par.Openai_provider.set_network t net_gen;
+          Some {
+            Par.Types.complete_fn = (fun mc tools conv -> Par.Openai_provider.complete t mc tools conv);
+            stream_fn = (fun mc tools conv sc cb -> Par.Openai_provider.stream t mc tools conv sc cb);
+            close_fn = (fun () -> Par.Openai_provider.close t);
+            complete_structured_fn = None;
+          }
+        | Error _ -> None)
 
 let build_embed_from_provider provider_cfg net =
   let net_gen = (net :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
@@ -1104,8 +1122,43 @@ let () =
 let () =
   Callback.register "par_list_skills"
     (fun (state_id_obj : Obj.t) ->
-      let state_id : int = Obj.magic state_id_obj in
+       let state_id : int = Obj.magic state_id_obj in
       do_list_skills state_id)
+
+let do_list_llm_providers (state_id : int) : string =
+  match get_state state_id with
+  | None -> "[]"
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      let ids = Runtime.list_llm_providers rt in
+      Obj.repr (Yojson.Safe.to_string (`List (List.map (fun id -> `String id) ids)))
+    ) in
+    Obj.obj result
+
+let do_set_default_llm_provider (state_id : int) (provider_id : string) : int =
+  match get_state state_id with
+  | None -> -1
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      match Runtime.set_default_provider rt provider_id with
+      | Ok () -> Obj.repr 0
+      | Error _ -> Obj.repr (-1)
+    ) in
+    match Obj.obj result with
+    | rc when Obj.magic rc = 0 -> 0
+    | _ -> -1
+
+let () =
+  Callback.register "par_list_llm_providers"
+    (fun (state_id_obj : Obj.t) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_list_llm_providers state_id)
+
+let () =
+  Callback.register "par_set_default_llm_provider"
+    (fun (state_id_obj : Obj.t) (provider_id : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_set_default_llm_provider state_id provider_id)
 
 let () =
   Callback.register "par_invoke"

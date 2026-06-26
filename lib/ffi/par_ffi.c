@@ -246,6 +246,25 @@ char* par_list_skills(par_runtime_t* rt) {
     return ret;
 }
 
+char* par_list_llm_providers(par_runtime_t* rt) {
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call1_exn("par_list_llm_providers", rt->_ocaml_value);
+    char* ret = extract_string(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return ret;
+}
+
+int par_set_default_llm_provider(par_runtime_t* rt, const char* provider_id) {
+    value c_id = caml_copy_string(provider_id);
+
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call2_exn("par_set_default_llm_provider", rt->_ocaml_value, c_id);
+    int is_exc = Is_exception_result(result);
+    int rc = is_exc ? -1 : Int_val(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return rc;
+}
+
 char* par_invoke(par_runtime_t* rt, const char* agent_id,
                  const char* message) {
     value c_aid = caml_copy_string(agent_id);

@@ -128,6 +128,14 @@ _lib.par_register_skill.restype = ctypes.c_int
 _lib.par_list_skills.argtypes = [ctypes.c_void_p]
 _lib.par_list_skills.restype = ctypes.c_void_p
 
+# v0.5.4 PAR-tiu: LLM provider registry surface
+# char* par_list_llm_providers(par_runtime_t* rt);
+_lib.par_list_llm_providers.argtypes = [ctypes.c_void_p]
+_lib.par_list_llm_providers.restype = ctypes.c_void_p
+# int par_set_default_llm_provider(par_runtime_t* rt, const char* provider_id);
+_lib.par_set_default_llm_provider.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_set_default_llm_provider.restype = ctypes.c_int
+
 # char* par_invoke(par_runtime_t* rt, const char* agent_id, const char* message);
 # Caller MUST free() the returned string — returns c_void_p, not c_char_p
 _lib.par_invoke.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]

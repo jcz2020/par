@@ -1,9 +1,11 @@
 open Types
 
-type t = unit
+type t = {
+  conversations : (string, conversation) Hashtbl.t;
+}
 
 let create (_conninfo : string) =
-  Ok ()
+  Ok { conversations = Hashtbl.create 16 }
 
 let close (_ : t) = ()
 
@@ -20,5 +22,21 @@ let save_workflow_state (_ : t) (_run_id : Workflow_run_id.t)
 
 let load_workflow_state (_ : t) (_run_id : Workflow_run_id.t) = Ok None
 
-let transaction (_ : t) (f : t -> 'a) =
-  Ok (f ())
+let transaction (t : t) (f : t -> 'a) =
+  Ok (f t)
+
+let save_conversation t session_id conv =
+  Hashtbl.replace t.conversations session_id conv;
+  Ok ()
+
+let load_conversation t session_id =
+  Ok (Hashtbl.find_opt t.conversations session_id)
+
+let load_most_recent_conversation t =
+  let acc = ref None in
+  let _ : unit = Hashtbl.fold (fun k v () ->
+    match !acc with
+    | None -> acc := Some (k, v)
+    | Some _ -> ()
+  ) t.conversations () in
+  Ok !acc

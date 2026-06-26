@@ -1,5 +1,7 @@
 open Types
 
+module Provider_registry = Provider_registry
+
 let string_of_error_category (e : Types.error_category) =
   match e with
   | Types.Timeout -> "Timeout"
@@ -17,6 +19,7 @@ let string_of_error_category (e : Types.error_category) =
 type runtime = {
   agents : (string, agent_config) protected_hashtbl;
   services : service_registry;
+  llm_providers : Provider_registry.t;
   cancellation_root : Eio.Switch.t;
   task_semaphore : Eio.Semaphore.t;
   shutdown_requested : bool ref;
@@ -49,6 +52,7 @@ type runtime = {
   mutable default_provider_id : string option;
   cancel_stream_requested : bool ref;
   session_id : string option ref;
+  mutable current_conversation : Types.conversation option;
 } [@@warning "-69"]
 
 let default_event_bus_config = {
@@ -471,6 +475,31 @@ let install_bash_tool ?process_mgr ?clock rt =
       rt.bash_installed := true;
       Ok ()
 
+let save_conversation rt =
+  match !(rt.session_id), rt.current_conversation with
+  | Some sid, Some conv -> rt.services.persistence.save_conversation_fn sid conv
+  | _ -> Ok ()
+
+let load_conversation rt sid =
+  match rt.services.persistence.load_conversation_fn sid with
+  | Ok (Some conv) ->
+    rt.current_conversation <- Some conv;
+    Ok (Some conv)
+  | Ok None -> Ok None
+  | Error _ as e -> e
+
+let load_most_recent_conversation rt =
+  match rt.services.persistence.load_most_recent_conversation_fn () with
+  | Ok (Some (sid, conv)) ->
+    rt.session_id := Some sid;
+    rt.current_conversation <- Some conv;
+    (match rt.event_bus_instance with
+     | Some bus -> Event_bus.set_session_id bus sid
+     | None -> rt.services.event_bus.set_session_id_fn sid);
+    Ok (Some (sid, conv))
+  | Ok None -> Ok None
+  | Error _ as e -> e
+
 let invoke rt ~agent_id ~message ?cancellation_token ?conversation
     ?on_tool_event ?on_chunk ?enable_handoff () =
   let session_id = Session_id.to_string (Session_id.create ()) in
@@ -503,26 +532,33 @@ let invoke rt ~agent_id ~message ?cancellation_token ?conversation
     let active_effects = compute_active_skill_effects rt message in
     let composed_effect = compose_skill_effects active_effects in
     let config = apply_skill_effect_to_config composed_effect config in
-    let result = Engine.run_agent ~steering:(Some rt.steering_queue)
-      ~followup:(Some rt.followup_queue)
-      ~runtime_id:rt.runtime_id
-      ~tool_call_hooks:(Some rt.tool_call_hooks)
-      ~quota:(Some rt.task_semaphore)
-      ~parallel:rt.parallel_tool_execution
-      ~on_progress:(Some on_tool_progress)
-      ~on_tool_event:(Some combined_tool_event)
-      ?on_chunk
-      ?conversation
-      ~agent_resolver:(fun aid -> htbl_get rt.agents aid)
-      ~enable_handoff:(Option.value enable_handoff ~default:false)
-      token config message rt.services.llm rt.tool_registry in
-    match result with
-    | Ok (resp, conv) ->
-      record_llm_success rt;
-      Result.Ok { Types.response = resp; conversation = conv }
-    | Error (err, conv) ->
-      record_llm_error rt err;
-      Result.Error (err, conv)
+    (match Provider_registry.get_default rt.llm_providers with
+     | Error `No_default ->
+       let err = Invalid_input
+         "No default LLM provider configured. Register one via Runtime.register_llm_provider or configure llm_providers." in
+       record_llm_error rt err;
+       Result.Error (err, { Types.messages = []; metadata = [] })
+     | Ok llm_svc ->
+       let result = Engine.run_agent ~steering:(Some rt.steering_queue)
+         ~followup:(Some rt.followup_queue)
+         ~runtime_id:rt.runtime_id
+         ~tool_call_hooks:(Some rt.tool_call_hooks)
+         ~quota:(Some rt.task_semaphore)
+         ~parallel:rt.parallel_tool_execution
+         ~on_progress:(Some on_tool_progress)
+         ~on_tool_event:(Some combined_tool_event)
+         ?on_chunk
+         ?conversation
+         ~agent_resolver:(fun aid -> htbl_get rt.agents aid)
+         ~enable_handoff:(Option.value enable_handoff ~default:false)
+         token config message llm_svc rt.tool_registry in
+       match result with
+       | Ok (resp, conv) ->
+         record_llm_success rt;
+         Result.Ok { Types.response = resp; conversation = conv }
+       | Error (err, conv) ->
+         record_llm_error rt err;
+         Result.Error (err, conv))
 
 let invoke_structured rt ~agent_id ~message ~response_schema
     ?(max_repair_attempts = 3) ?cancellation_token ?conversation
@@ -547,14 +583,23 @@ let invoke_structured rt ~agent_id ~message ~response_schema
     let on_after_llm_hook resp =
       Some (Engine.apply_after_llm config.middleware resp (fun r -> r))
     in
-    let result = Engine.run_structured
-      ~max_repair_attempts
-      ~on_before_llm:(Some on_before_llm_hook)
-      ~on_after_llm:(Some on_after_llm_hook)
-      ~response_schema
-      ?conversation
-      ?on_repair_attempt
-      rt.services.llm token config message in
+    let result =
+      match Provider_registry.get_default rt.llm_providers with
+      | Error `No_default ->
+        let err = Invalid_input
+          "No default LLM provider configured. Register one via Runtime.register_llm_provider or configure llm_providers." in
+        record_llm_error rt err;
+        Result.Error (err, { Types.messages = []; metadata = [] })
+      | Ok llm_svc ->
+        Engine.run_structured
+          ~max_repair_attempts
+          ~on_before_llm:(Some on_before_llm_hook)
+          ~on_after_llm:(Some on_after_llm_hook)
+          ~response_schema
+          ?conversation
+          ?on_repair_attempt
+          llm_svc token config message
+    in
     (match result with
      | Ok struct_result ->
        record_llm_success rt;
@@ -835,6 +880,9 @@ let noop_persistence : Types.persistence_service = {
   load_task_state_fn = (fun _task_id -> Ok None);
   save_workflow_state_fn = (fun _id _status _checkpoint -> Ok ());
   load_workflow_state_fn = (fun _id -> Ok None);
+  save_conversation_fn = (fun _sid _conv -> Ok ());
+  load_conversation_fn = (fun _sid -> Ok None);
+  load_most_recent_conversation_fn = (fun () -> Ok None);
   close_fn = ignore;
 }
 
@@ -890,6 +938,8 @@ let create ?(persistence = noop_persistence)
         (event_bus, None, None)
     in
     let publish_event_fn = event_bus_service.publish_fn in
+    let llm_providers_registry = Provider_registry.create () in
+    let _ = Provider_registry.register llm_providers_registry ~id:"default" llm in
     let rt = {
       agents = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
       services = {
@@ -899,6 +949,7 @@ let create ?(persistence = noop_persistence)
         event_bus = event_bus_service;
         config;
       };
+      llm_providers = llm_providers_registry;
       cancellation_root = switch;
       task_semaphore = semaphore;
       shutdown_requested = ref false;
@@ -926,6 +977,7 @@ let create ?(persistence = noop_persistence)
       default_provider_id = None;
       cancel_stream_requested = ref false;
       session_id = ref None;
+      current_conversation = None;
     } in
     let mcp_errors = ref [] in
     if mcp_servers <> [] then begin
@@ -1050,14 +1102,48 @@ let metrics_snapshot rt = Metrics.snapshot rt.metrics
 
 let cancel_stream_requested rt = rt.cancel_stream_requested
 
-let set_session_id rt sid = rt.session_id := Some sid
+let set_session_id rt sid =
+  rt.session_id := Some sid;
+  (match rt.event_bus_instance with
+   | Some bus -> Event_bus.set_session_id bus sid
+   | None -> rt.services.event_bus.set_session_id_fn sid)
 
-let get_session_id rt = !(rt.session_id)
+let get_session_id rt =
+  match !(rt.session_id) with
+  | Some sid -> sid
+  | None ->
+    let sid = Session_id.to_string (Session_id.create ()) in
+    rt.session_id := Some sid;
+    (match rt.event_bus_instance with
+     | Some bus -> Event_bus.set_session_id bus sid
+     | None -> rt.services.event_bus.set_session_id_fn sid);
+    sid
 
 let get_default_provider_id rt = rt.default_provider_id
 
-let set_default_provider _rt _provider_id =
-  Result.Error (Internal "T0.5 stub — T6a A.1 will implement")
+let set_default_provider rt provider_id =
+  match Provider_registry.set_default rt.llm_providers ~id:provider_id with
+  | Ok () -> Result.Ok ()
+  | Error `Unknown _ -> Result.Error (Invalid_input (Printf.sprintf "Unknown LLM provider id: %s" provider_id))
+
+let register_llm_provider rt id svc =
+  match Provider_registry.register rt.llm_providers ~id svc with
+  | Ok () -> Result.Ok ()
+  | Error `Duplicate _ -> Result.Error (Internal (Printf.sprintf "Duplicate provider id: %s" id))
+  | Error `Unknown _ -> Result.Error (Internal (Printf.sprintf "Unknown provider id: %s" id))
+
+let list_llm_providers rt = Provider_registry.list_ids rt.llm_providers
+
+let get_llm_service rt ?id () =
+  match id with
+  | Some i -> (
+    match Provider_registry.get rt.llm_providers ~id:i with
+    | Ok svc -> svc
+    | Error `Unknown _ -> raise (Failure (Printf.sprintf "Unknown LLM provider id: %s" i)))
+  | None -> (
+    match Provider_registry.get_default rt.llm_providers with
+    | Ok svc -> svc
+    | Error `No_default -> raise (Failure "No default LLM provider configured"))
 
 let set_user_activated_skills rt ids =
   rt.user_activated_skills <- ids
