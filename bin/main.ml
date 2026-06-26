@@ -147,7 +147,8 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
          { complete_fn = (fun mc tools conv -> Openai_provider.complete t mc tools conv);
           stream_fn = (fun mc tools conv sc cb -> Openai_provider.stream t mc tools conv sc cb);
           close_fn = (fun () -> Openai_provider.close t);
-          complete_structured_fn = Some (fun mc tools conv schema -> Openai_provider.complete_structured t mc tools conv schema) })
+          complete_structured_fn = Some (fun mc tools conv schema -> Openai_provider.complete_structured t mc tools conv schema);
+          list_models_fn = None; })
   | `Anthropic ->
     let cfg = Anthropic { api_key = api_key_val; base_url = api_base_val } in
     (match Anthropic_provider.create cfg with
@@ -159,7 +160,8 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
         { complete_fn = (fun mc tools conv -> Anthropic_provider.complete t mc tools conv);
          stream_fn = (fun mc tools conv sc cb -> Anthropic_provider.stream t mc tools conv sc cb);
           close_fn = (fun () -> Anthropic_provider.close t);
-         complete_structured_fn = Some (fun mc tools conv schema -> Anthropic_provider.complete_structured t mc tools conv schema) })
+         complete_structured_fn = Some (fun mc tools conv schema -> Anthropic_provider.complete_structured t mc tools conv schema);
+         list_models_fn = None; })
   | `Ollama ->
     (* Ollama exposes an OpenAI-compatible /v1 endpoint. Build the OpenAI
        provider with a localhost base_url and a placeholder api_key that
@@ -175,7 +177,8 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
        { complete_fn = (fun mc tools conv -> Openai_provider.complete t mc tools conv);
          stream_fn = (fun mc tools conv sc cb -> Openai_provider.stream t mc tools conv sc cb);
          close_fn = (fun () -> Openai_provider.close t);
-         complete_structured_fn = Some (fun mc tools conv schema -> Openai_provider.complete_structured t mc tools conv schema) })
+         complete_structured_fn = Some (fun mc tools conv schema -> Openai_provider.complete_structured t mc tools conv schema);
+          list_models_fn = None; })
   | `Custom _ ->
     (* OpenAI-compatible custom endpoint. The user must supply base_url via
        --api-base; refuse to start otherwise (PAR-z23 / B.1). *)
@@ -194,7 +197,8 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
           { complete_fn = (fun mc tools conv -> Openai_provider.complete t mc tools conv);
             stream_fn = (fun mc tools conv sc cb -> Openai_provider.stream t mc tools conv sc cb);
             close_fn = (fun () -> Openai_provider.close t);
-            complete_structured_fn = Some (fun mc tools conv schema -> Openai_provider.complete_structured t mc tools conv schema) }))
+            complete_structured_fn = Some (fun mc tools conv schema -> Openai_provider.complete_structured t mc tools conv schema);
+            list_models_fn = None; }))
 
 let make_embedding_service provider_tag api_key_val api_base_val (net : [< `Generic | `Unix > `Generic ] Eio.Net.ty Eio.Resource.t) =
   let open Types in
@@ -1624,6 +1628,33 @@ let print_custom_help () =
 (* Root command                                                               *)
 (* -------------------------------------------------------------------------- *)
 
+let cmd_models provider_id_opt =
+  let cfg = require_config () in
+  let cfg = merge_config cfg None None None None
+              None None None None cfg.Par_config.max_iterations
+              None None false (Some 7.0) in
+  setup_runtime cfg ~interactive:false ~f:(fun rt ->
+    let result =
+      match provider_id_opt with
+      | Some pid -> Par.Runtime.list_models rt ~id:pid ()
+      | None -> Par.Runtime.list_models rt ()
+    in
+    match result with
+    | Ok models -> List.iter (fun m -> Printf.printf "%s\n" m) models
+    | Error e -> Printf.eprintf "Error listing models: %s\n" (error_category_to_string e))
+
+let provider_id_arg =
+  let open Cmdliner.Arg in
+  value & opt (some string) None & info ["provider"] ~docv:"ID"
+    ~doc:"List models from a specific provider id"
+
+let term_models =
+  let open Cmdliner.Term in
+  const cmd_models $ provider_id_arg
+
+let info_models = Cmdliner.Cmd.info "models"
+  ~doc:"List available LLM models"
+
 let cmd =
   let open Cmdliner.Cmd in
   group ~default:term_chat
@@ -1637,6 +1668,7 @@ let cmd =
       v info_history term_history;
       v info_stats term_stats;
       cmd_skill;
+      v info_models term_models;
     ]
 
 let () =

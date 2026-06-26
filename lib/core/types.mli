@@ -685,8 +685,9 @@ type llm_service = {
   close_fn : unit -> unit;
   complete_structured_fn :
     (model_config -> tool_descriptor list -> conversation ->
-     Yojson.Safe.t ->                             (* response_schema *)
-     (llm_response, error_category) result) option;  (* None = fallback path *)
+     Yojson.Safe.t ->
+     (llm_response, error_category) result) option;
+  list_models_fn : (unit -> (string list, error_category) result) option;
 }
 
 type embedding_service = {

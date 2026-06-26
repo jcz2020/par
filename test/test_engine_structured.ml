@@ -42,6 +42,7 @@ let mock_llm responses =
         final_usage = dummy_usage; finish_reason = Stop; chunks_received = 0 });
     close_fn = (fun () -> ());
     complete_structured_fn = None;
+    list_models_fn = None;
   }
 
 (* mock_llm_with_structured: native path. complete_structured_fn = Some _.
@@ -70,6 +71,7 @@ let mock_llm_with_error err =
     stream_fn = (fun _ _tools _ _ _ -> Error err);
     close_fn = (fun () -> ());
     complete_structured_fn = None;
+    list_models_fn = None;
   }
 
 let with_token f =
@@ -156,6 +158,7 @@ let structured_suite =
             final_usage = dummy_usage; finish_reason = Stop; chunks_received = 0 });
         close_fn = (fun () -> ());
         complete_structured_fn = None;
+        list_models_fn = None;
       } in
       let agent = basic_agent () in
       with_token (fun token ->

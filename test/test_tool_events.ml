@@ -31,6 +31,7 @@ let mock_llm responses =
        Ok { final_usage = dummy_usage; finish_reason = Stop; chunks_received = 0 });
     close_fn = (fun () -> ());
     complete_structured_fn = None;
+    list_models_fn = None;
   }
 
 let with_token f =

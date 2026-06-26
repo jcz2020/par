@@ -69,6 +69,7 @@ let mock_llm_dynamic f : llm_service =
         final_usage = dummy_usage; finish_reason = Stop; chunks_received = 0 });
     close_fn = (fun () -> ());
     complete_structured_fn = None;
+    list_models_fn = None;
   }
 
 let error_to_string = function

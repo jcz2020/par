@@ -257,3 +257,6 @@ val list_llm_providers : runtime -> string list
 val get_llm_service : runtime -> ?id:string -> unit -> llm_service
 (** Look up an LLM service by id. Defaults to the current default
     provider. Raises [Failure _] if [id] unknown or no default set. *)
+
+val list_models : runtime -> ?id:string -> unit -> (string list, error_category) result
+(** List available models from a provider. Defaults to the current default. *)

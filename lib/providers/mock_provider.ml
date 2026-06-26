@@ -256,6 +256,7 @@ let create ?(delay = None) ?(usage = default_usage) ?(model_name = default_model
            tool_calls = None; finish_reason = Stop;
            usage = state.config.usage; model = state.config.model_name }
     );
+    list_models_fn = None;
   } in
   (service, state.history)
 

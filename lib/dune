@@ -7,7 +7,6 @@
 (library
  (name par)
  (public_name par)
- (wrapped false)
  (libraries base yojson eio uuidm unix str sexplib0 ppx_sexp_conv.runtime-lib
              caqti-eio sqlite3 logs tls-eio cohttp-eio lambdasoup
              ca-certs x509 mirage-crypto-rng.unix base64 digestif)

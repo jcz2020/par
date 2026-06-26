@@ -28,6 +28,7 @@ let test_openai_stream () =
     stream_fn = (fun mc tools conv sc cb -> Openai_provider.stream t mc tools conv sc cb);
     close_fn = (fun _ -> ());
     complete_structured_fn = None;
+    list_models_fn = None;
   } in
   let model = {
     provider = `Openai; model_name = "glm-4-flash"; api_base = None;

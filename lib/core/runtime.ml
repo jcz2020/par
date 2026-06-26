@@ -899,7 +899,8 @@ let create ?(persistence = noop_persistence)
            ?(llm = { complete_fn = (fun _ _tools _ -> Result.Error (Internal "LLM not initialized"));
                      stream_fn = (fun _ _tools _ _ _ -> Result.Error (Internal "LLM not initialized"));
                      close_fn = ignore;
-                     complete_structured_fn = None })
+                     complete_structured_fn = None;
+                     list_models_fn = None })
            ?embeddings
            ?(bash_policy = (module Bash_policy.Coder : Bash_policy.POLICY))
            ?(mcp_servers = [])
@@ -1144,6 +1145,12 @@ let get_llm_service rt ?id () =
     match Provider_registry.get_default rt.llm_providers with
     | Ok svc -> svc
     | Error `No_default -> raise (Failure "No default LLM provider configured"))
+
+let list_models rt ?id () =
+  let svc = get_llm_service rt ?id () in
+  match svc.list_models_fn with
+  | Some fn -> fn ()
+  | None -> Result.Error (Internal "list_models not supported for this provider")
 
 let set_user_activated_skills rt ids =
   rt.user_activated_skills <- ids

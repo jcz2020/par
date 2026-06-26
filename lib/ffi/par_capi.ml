@@ -157,6 +157,7 @@ let default_llm_service : Par.Types.llm_service = {
   stream_fn = (fun _ _ _ _ _ -> Result.Error (Par.Types.Internal "LLM not initialized"));
   close_fn = ignore;
   complete_structured_fn = None;
+  list_models_fn = None;
 }
 
 let build_llm_from_provider provider_cfg net =
@@ -171,6 +172,7 @@ let build_llm_from_provider provider_cfg net =
          stream_fn = (fun mc tools conv sc cb -> Par.Openai_provider.stream t mc tools conv sc cb);
          close_fn = (fun () -> Par.Openai_provider.close t);
          complete_structured_fn = None;
+         list_models_fn = None;
        }
      | Error _ -> None)
   | Par.Types.Ollama { base_url } ->
@@ -183,6 +185,7 @@ let build_llm_from_provider provider_cfg net =
          stream_fn = (fun mc tools conv sc cb -> Par.Openai_provider.stream t mc tools conv sc cb);
          close_fn = (fun () -> Par.Openai_provider.close t);
          complete_structured_fn = None;
+         list_models_fn = None;
        }
      | Error _ -> None)
   | Par.Types.Anthropic { api_key; base_url } ->
@@ -195,6 +198,7 @@ let build_llm_from_provider provider_cfg net =
          stream_fn = (fun mc tools conv sc cb -> Par.Anthropic_provider.stream t mc tools conv sc cb);
          close_fn = (fun () -> Par.Anthropic_provider.close t);
          complete_structured_fn = None;
+         list_models_fn = None;
        }
      | Error _ -> None)
   | Par.Types.Custom { base_url = base_url_for_custom; _ } ->
@@ -207,6 +211,7 @@ let build_llm_from_provider provider_cfg net =
             stream_fn = (fun mc tools conv sc cb -> Par.Openai_provider.stream t mc tools conv sc cb);
             close_fn = (fun () -> Par.Openai_provider.close t);
             complete_structured_fn = None;
+            list_models_fn = None;
           }
         | Error _ -> None)
 
