@@ -12,7 +12,7 @@ let persistence_arg =
 let db_uri =
   let open Cmdliner in
   Arg.(value & opt (some string) None &
-    info [ "db-uri" ] ~docv:"URI" ~doc:"PostgreSQL connection URI")
+    info [ "db-uri" ] ~docv:"URI" ~doc:"SQLite database path (default: ~/.config/par/par.db)")
 
 let provider_arg =
   let open Cmdliner in
@@ -1599,7 +1599,7 @@ let print_custom_help () =
   opt "--max-iterations N"       "Max ReAct iterations (default: 10)";
   opt "--top-p FLOAT"            "Top-p sampling 0.0–1.0";
   opt "--persistence BACKEND"    "sqlite (default: sqlite)";
-  opt "--db-uri URI"             "PostgreSQL connection URI";
+  opt "--db-uri URI"             "SQLite database path (overrides default location)";
   opt "--no-parallel-tools"      "Disable parallel tool execution";
   opt "--retention-days DAYS"    "Event retention days, 0=never prune (default: 7)";
   opt "-c, --continue SESSION"  "Resume the conversation with the given session id";

@@ -12,7 +12,7 @@
 - Python FFI: Runtime.list_llm_providers / set_default_llm_provider.
 
 ### Added — Session resume (PAR-mkm)
-- conversations table (whole-blob per session: session_id PK, messages_json, metadata_json, updated_at, turn_count). SQLite + Noop ship. PostgreSQL parity deferred.
+- conversations table (whole-blob per session: session_id PK, messages_json, metadata_json, updated_at, turn_count). SQLite + Noop only.
 - CLI: par -c <session-id> / par -r (resume most recent).
 - Python FFI: Runtime.set_session_id / get_session_id / save_conversation / load_conversation.
 - Known limitation: no automatic pruning. TTL + par history --prune deferred.
@@ -28,9 +28,15 @@
 ### Added — Interactive tutorials (Diataxis)
 - docs/tutorials/01-rag-qa-bot.md, 02-streaming-ui.md + 2 stubs.
 
+### Removed — PostgreSQL persistence backend
+- Deleted lib/postgres/ (postgres_persistence.ml + .mli + dune), par_postgres.opam.
+- Removed [`Postgresql of string] variant from public persistence type (breaking change for SDK users who pattern-matched on it).
+- Dropped caqti-eio dependency from lib/dune and dune-project.
+- CLI --db-uri now means "SQLite database path" (was "PostgreSQL connection URI").
+- Recovery: if PostgreSQL support is needed in the future, restore from git commit cb5d795 (pre-removal).
+
 ### Known limitations
 - FFI registers only first provider as "default". Full multi-provider wire-up deferred.
-- PostgreSQL conversation persistence deferred (SQLite + Noop only).
 - par models returns models only for Mock. OpenAI/Anthropic list_models deferred.
 - No conversation pruning.
 
