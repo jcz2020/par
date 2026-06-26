@@ -500,6 +500,36 @@ class Runtime:
             raise PARError(
                 f"set_default_llm_provider failed: {provider_id!r}")
 
+    def set_session_id(self, session_id: str) -> None:
+        """Set the session id for this runtime (v0.5.4 PAR-mkm)."""
+        self._check_handle()
+        _lib.par_set_session_id(self._handle, _c_str(session_id))
+
+    def get_session_id(self) -> str:
+        """Return the current session id, lazy-initializing if needed."""
+        self._check_handle()
+        ptr = _lib.par_get_session_id(self._handle)
+        if not ptr:
+            return ""
+        try:
+            return ctypes.cast(ptr, ctypes.c_char_p).value.decode("utf-8")
+        finally:
+            _free(ptr)
+
+    def save_conversation(self) -> int:
+        """Persist the current conversation. Returns 0 on success."""
+        self._check_handle()
+        return _lib.par_save_conversation(self._handle)
+
+    def load_conversation(self, session_id: str):
+        """Load a conversation by session id. Returns None if not found."""
+        self._check_handle()
+        rc = _lib.par_load_conversation(
+            self._handle, _c_str(session_id))
+        if rc == 0:
+            return True
+        return None
+
     def invoke(self, agent_id: str, message: str) -> str:
         """Invoke an agent synchronously.
 

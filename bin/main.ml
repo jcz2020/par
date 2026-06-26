@@ -1609,11 +1609,15 @@ let print_custom_help () =
   opt "--db-uri URI"             "PostgreSQL connection URI";
   opt "--no-parallel-tools"      "Disable parallel tool execution";
   opt "--retention-days DAYS"    "Event retention days, 0=never prune (default: 7)";
+  opt "-c, --continue SESSION"  "Resume the conversation with the given session id";
+  opt "-r, --resume"             "Resume the most recent session";
   section "EXAMPLES";
   Printf.printf "  %s\n" (dim "par                                    # start REPL");
   Printf.printf "  %s\n" (dim "par ask \"what is OCaml?\"            # single shot");
   Printf.printf "  %s\n" (dim "par config                            # setup wizard");
   Printf.printf "  %s\n" (dim "par update                            # self-update");
+  Printf.printf "  %s\n" (dim "par -r                                # resume most recent session");
+  Printf.printf "  %s\n" (dim "par -c <session-id>                   # resume specific session");
   Printf.printf "\n%s\n" (dim "Read the docs: https://github.com/jcz2020/par")
 
 (* -------------------------------------------------------------------------- *)

@@ -136,6 +136,20 @@ _lib.par_list_llm_providers.restype = ctypes.c_void_p
 _lib.par_set_default_llm_provider.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_set_default_llm_provider.restype = ctypes.c_int
 
+# v0.5.4 PAR-mkm: Session resume surface
+# void par_set_session_id(par_runtime_t* rt, const char* session_id);
+_lib.par_set_session_id.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_set_session_id.restype = None
+# char* par_get_session_id(par_runtime_t* rt);
+_lib.par_get_session_id.argtypes = [ctypes.c_void_p]
+_lib.par_get_session_id.restype = ctypes.c_void_p
+# int par_save_conversation(par_runtime_t* rt);
+_lib.par_save_conversation.argtypes = [ctypes.c_void_p]
+_lib.par_save_conversation.restype = ctypes.c_int
+# int par_load_conversation(par_runtime_t* rt, const char* session_id);
+_lib.par_load_conversation.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_load_conversation.restype = ctypes.c_int
+
 # char* par_invoke(par_runtime_t* rt, const char* agent_id, const char* message);
 # Caller MUST free() the returned string — returns c_void_p, not c_char_p
 _lib.par_invoke.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]

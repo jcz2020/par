@@ -1125,6 +1125,49 @@ let () =
        let state_id : int = Obj.magic state_id_obj in
       do_list_skills state_id)
 
+let do_set_session_id (state_id : int) (sid : string) : unit =
+  match get_state state_id with
+  | None -> ()
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      Runtime.set_session_id rt sid;
+      Obj.repr 0) in
+    ignore result
+
+let do_get_session_id (state_id : int) : string =
+  match get_state state_id with
+  | None -> ""
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      Obj.repr (Runtime.get_session_id rt)) in
+    Obj.obj result
+
+let do_save_conversation (state_id : int) : int =
+  match get_state state_id with
+  | None -> -1
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      match Runtime.save_conversation rt with
+      | Ok () -> Obj.repr 0
+      | Error _ -> Obj.repr (-1)) in
+    match Obj.obj result with
+    | rc when Obj.magic rc = 0 -> 0
+    | _ -> -1
+
+let do_load_conversation (state_id : int) (sid : string) : int =
+  match get_state state_id with
+  | None -> -1
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      match Runtime.load_conversation rt sid with
+      | Ok (Some _) -> Obj.repr 0
+      | Ok None -> Obj.repr 1
+      | Error _ -> Obj.repr (-1)) in
+    match Obj.obj result with
+    | rc when Obj.magic rc = 0 -> 0
+    | rc when Obj.magic rc = 1 -> 1
+    | _ -> -1
+
 let do_list_llm_providers (state_id : int) : string =
   match get_state state_id with
   | None -> "[]"
@@ -1147,6 +1190,30 @@ let do_set_default_llm_provider (state_id : int) (provider_id : string) : int =
     match Obj.obj result with
     | rc when Obj.magic rc = 0 -> 0
     | _ -> -1
+
+let () =
+  Callback.register "par_set_session_id"
+    (fun (state_id_obj : Obj.t) (sid : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_set_session_id state_id sid)
+
+let () =
+  Callback.register "par_get_session_id"
+    (fun (state_id_obj : Obj.t) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_get_session_id state_id)
+
+let () =
+  Callback.register "par_save_conversation"
+    (fun (state_id_obj : Obj.t) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_save_conversation state_id)
+
+let () =
+  Callback.register "par_load_conversation"
+    (fun (state_id_obj : Obj.t) (sid : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_load_conversation state_id sid)
 
 let () =
   Callback.register "par_list_llm_providers"

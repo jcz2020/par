@@ -265,6 +265,38 @@ int par_set_default_llm_provider(par_runtime_t* rt, const char* provider_id) {
     return rc;
 }
 
+void par_set_session_id(par_runtime_t* rt, const char* session_id) {
+    value c_sid = caml_copy_string(session_id);
+    pthread_mutex_lock(&ocaml_lock);
+    call2_exn("par_set_session_id", rt->_ocaml_value, c_sid);
+    pthread_mutex_unlock(&ocaml_lock);
+}
+
+char* par_get_session_id(par_runtime_t* rt) {
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call1_exn("par_get_session_id", rt->_ocaml_value);
+    char* ret = extract_string(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return ret;
+}
+
+int par_save_conversation(par_runtime_t* rt) {
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call1_exn("par_save_conversation", rt->_ocaml_value);
+    int rc = Int_val(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return rc;
+}
+
+int par_load_conversation(par_runtime_t* rt, const char* session_id) {
+    value c_sid = caml_copy_string(session_id);
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call2_exn("par_load_conversation", rt->_ocaml_value, c_sid);
+    int rc = Int_val(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return rc;
+}
+
 char* par_invoke(par_runtime_t* rt, const char* agent_id,
                  const char* message) {
     value c_aid = caml_copy_string(agent_id);
