@@ -34,12 +34,20 @@ let init_schema (db : Postgresql.connection) =
           updated_at  DOUBLE PRECISION NOT NULL
         )|};
      {|CREATE TABLE IF NOT EXISTS workflow_states (
-          id          TEXT PRIMARY KEY,
-          workflow_id TEXT NOT NULL,
-          status      TEXT NOT NULL,
-          checkpoint  JSONB,
-          updated_at  DOUBLE PRECISION NOT NULL
+           id          TEXT PRIMARY KEY,
+           workflow_id TEXT NOT NULL,
+           status      TEXT NOT NULL,
+           checkpoint  JSONB,
+           updated_at  DOUBLE PRECISION NOT NULL
+         )|};
+     {|CREATE TABLE IF NOT EXISTS conversations (
+          session_id    TEXT PRIMARY KEY,
+          messages_json JSONB NOT NULL,
+          metadata_json JSONB NOT NULL,
+          updated_at    DOUBLE PRECISION NOT NULL,
+          turn_count    INTEGER NOT NULL
         )|};
+     {|CREATE INDEX IF NOT EXISTS conv_updated ON conversations(updated_at DESC)|};
    ] in
   List.find_map (fun sql ->
     match exec_sql db sql with

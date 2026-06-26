@@ -108,6 +108,10 @@ let make_sqlite_persistence ?(retention_days = 7.0) db_path =
         Sqlite_persistence.save_workflow_state t id status ckpt);
       load_workflow_state_fn = (fun id ->
         Sqlite_persistence.load_workflow_state t id);
+      save_conversation_fn = (fun sid conv -> Sqlite_persistence.save_conversation t sid conv);
+      load_conversation_fn = (fun sid -> Sqlite_persistence.load_conversation t sid);
+      load_most_recent_conversation_fn = (fun () ->
+        Sqlite_persistence.load_most_recent_conversation t);
       close_fn = (fun () -> Sqlite_persistence.close t);
     }
 
@@ -800,7 +804,8 @@ let repl rt ~agent_ids =
 let cmd_chat
     provider_opt api_key_opt api_base_opt model_opt
     persistence_opt db_uri_opt temp_opt prompt_opt max_iter
-    max_tokens_opt top_p_opt no_parallel_tools retention_days_opt =
+    max_tokens_opt top_p_opt no_parallel_tools retention_days_opt
+    continue_id_opt resume_opt =
   let cfg = require_config () in
   let cfg = merge_config cfg provider_opt api_key_opt api_base_opt model_opt
               persistence_opt db_uri_opt temp_opt prompt_opt max_iter
@@ -809,14 +814,48 @@ let cmd_chat
     if cfg.Par_config.agents = [] then ["default-agent"]
     else List.map (fun (a : Par_config.agent_entry) -> a.id) cfg.Par_config.agents
   in
-  setup_runtime cfg ~interactive:true ~f:(fun rt -> repl rt ~agent_ids)
+  let session_target : ([`Resume_most_recent | `Continue of string], [ `No_prior_session | `Session_not_found of string | `Load_error of string ]) Result.t =
+    match resume_opt, continue_id_opt with
+    | true, _ -> Ok `Resume_most_recent
+    | false, Some id -> Ok (`Continue id)
+    | _ -> Error `No_prior_session  (* no signal — fresh session *)
+  in
+  setup_runtime cfg ~interactive:true ~f:(fun rt ->
+    (match session_target with
+     | Ok `Resume_most_recent -> (
+         match Par.Runtime.load_most_recent_conversation rt with
+         | Ok (Some (sid, _conv)) ->
+           Printf.printf "Resumed most recent session: %s\n" sid
+         | Ok None -> Printf.eprintf "No prior session found.\n"
+         | Error e -> Printf.eprintf "Failed to load most recent session: %s\n"
+                        (error_category_to_string e))
+     | Ok (`Continue sid) -> (
+         match Par.Runtime.load_conversation rt sid with
+         | Ok (Some _) -> Printf.printf "Resumed session: %s\n" sid
+         | Ok None -> Printf.eprintf "Session not found: %s\n" sid
+         | Error e -> Printf.eprintf "Failed to load session %s: %s\n" sid
+                        (error_category_to_string e))
+     | Error _ -> ());
+    repl rt ~agent_ids)
 
 let term_chat =
+  let open Cmdliner.Arg in
+  let continue_id_opt =
+    value & opt (some string) None
+    & info ["c"; "continue"]
+        ~doc:"Resume the conversation with the given session id"
+  in
+  let resume_opt =
+    value & flag
+    & info ["r"; "resume"]
+        ~doc:"Resume the most recent session"
+  in
   let open Cmdliner.Term in
   const cmd_chat
   $ provider_arg $ api_key_arg $ api_base $ model_name
   $ persistence_arg $ db_uri $ temperature_arg $ system_prompt $ max_iterations
   $ max_tokens_arg $ top_p_arg $ no_parallel_tools $ retention_days
+  $ continue_id_opt $ resume_opt
 
 (* -------------------------------------------------------------------------- *)
 (* 'par config' command — interactive wizard                                  *)
