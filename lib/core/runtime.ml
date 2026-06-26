@@ -53,6 +53,7 @@ type runtime = {
   cancel_stream_requested : bool ref;
   session_id : string option ref;
   mutable current_conversation : Types.conversation option;
+  mutable fallback_policy : Types.fallback_policy;
 } [@@warning "-69"]
 
 let default_event_bus_config = {
@@ -532,33 +533,65 @@ let invoke rt ~agent_id ~message ?cancellation_token ?conversation
     let active_effects = compute_active_skill_effects rt message in
     let composed_effect = compose_skill_effects active_effects in
     let config = apply_skill_effect_to_config composed_effect config in
-    (match Provider_registry.get_default rt.llm_providers with
-     | Error `No_default ->
-       let err = Invalid_input
-         "No default LLM provider configured. Register one via Runtime.register_llm_provider or configure llm_providers." in
-       record_llm_error rt err;
-       Result.Error (err, { Types.messages = []; metadata = [] })
-     | Ok llm_svc ->
-       let result = Engine.run_agent ~steering:(Some rt.steering_queue)
-         ~followup:(Some rt.followup_queue)
-         ~runtime_id:rt.runtime_id
-         ~tool_call_hooks:(Some rt.tool_call_hooks)
-         ~quota:(Some rt.task_semaphore)
-         ~parallel:rt.parallel_tool_execution
-         ~on_progress:(Some on_tool_progress)
-         ~on_tool_event:(Some combined_tool_event)
-         ?on_chunk
-         ?conversation
-         ~agent_resolver:(fun aid -> htbl_get rt.agents aid)
-         ~enable_handoff:(Option.value enable_handoff ~default:false)
-         token config message llm_svc rt.tool_registry in
-       match result with
-       | Ok (resp, conv) ->
-         record_llm_success rt;
-         Result.Ok { Types.response = resp; conversation = conv }
-       | Error (err, conv) ->
-         record_llm_error rt err;
-         Result.Error (err, conv))
+    let try_with_provider llm_svc =
+      let result = Engine.run_agent ~steering:(Some rt.steering_queue)
+        ~followup:(Some rt.followup_queue)
+        ~runtime_id:rt.runtime_id
+        ~tool_call_hooks:(Some rt.tool_call_hooks)
+        ~quota:(Some rt.task_semaphore)
+        ~parallel:rt.parallel_tool_execution
+        ~on_progress:(Some on_tool_progress)
+        ~on_tool_event:(Some combined_tool_event)
+        ?on_chunk
+        ?conversation
+        ~agent_resolver:(fun aid -> htbl_get rt.agents aid)
+        ~enable_handoff:(Option.value enable_handoff ~default:false)
+        token config message llm_svc rt.tool_registry in
+      result
+    in
+    let should_fallback (err : Types.error_category) = match err with
+      | Types.Rate_limited | Types.External_failure _ | Types.Timeout -> true
+      | _ -> false
+    in
+    let chain = match rt.fallback_policy with
+      | No_fallback -> []
+      | Ordered ids -> ids
+      | Tagged { primary; backup } -> [primary; backup]
+    in
+    let default_id = Provider_registry.default_id rt.llm_providers in
+    let all_ids = match default_id with
+      | Some d -> d :: List.filter (fun id -> id <> d) chain
+      | None -> chain
+    in
+    let rec try_providers ids =
+      match ids with
+      | [] ->
+        let err = Invalid_input "No default LLM provider configured." in
+        record_llm_error rt err;
+        Result.Error (err, { Types.messages = []; metadata = [] })
+      | id :: rest ->
+        (match Provider_registry.get rt.llm_providers ~id with
+         | Error `Unknown _ -> try_providers rest
+         | Ok llm_svc ->
+           (match try_with_provider llm_svc with
+            | Ok (resp, conv) ->
+              record_llm_success rt;
+              Result.Ok { Types.response = resp; conversation = conv }
+            | Error (err, _conv) when should_fallback err && rest <> [] ->
+              record_llm_error rt err;
+              let evt = Types.Provider_fallback_attempted {
+                from_provider = id;
+                to_provider = List.hd rest;
+              } in
+              (match rt.event_bus_instance with
+               | Some bus -> Event_bus.publish bus evt
+               | None -> rt.services.event_bus.publish_fn evt);
+              try_providers rest
+            | Error (err, conv) ->
+              record_llm_error rt err;
+              Result.Error (err, conv)))
+    in
+    try_providers all_ids
 
 let invoke_structured rt ~agent_id ~message ~response_schema
     ?(max_repair_attempts = 3) ?cancellation_token ?conversation
@@ -979,6 +1012,7 @@ let create ?(persistence = noop_persistence)
       cancel_stream_requested = ref false;
       session_id = ref None;
       current_conversation = None;
+      fallback_policy = Types.No_fallback;
     } in
     let mcp_errors = ref [] in
     if mcp_servers <> [] then begin
@@ -1151,6 +1185,9 @@ let list_models rt ?id () =
   match svc.list_models_fn with
   | Some fn -> fn ()
   | None -> Result.Error (Internal "list_models not supported for this provider")
+
+let set_fallback_policy rt policy = rt.fallback_policy <- policy
+let get_fallback_policy rt = rt.fallback_policy
 
 let set_user_activated_skills rt ids =
   rt.user_activated_skills <- ids

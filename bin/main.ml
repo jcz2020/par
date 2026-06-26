@@ -1308,7 +1308,9 @@ let format_event_for_history (evt : Types.event) =
   | Types.Embedding_response_received { model; output_count; _ } ->
     Printf.sprintf "Embedding_response_received: model=%s count=%d" model output_count
   | Types.Retrieval_completed { query_count; retrieved_count; top_k } ->
-    Printf.sprintf "Retrieval_completed: queries=%d retrieved=%d k=%d" query_count retrieved_count top_k
+    Printf.sprintf "RetrievalCompleted: queries=%d retrieved=%d k=%d" query_count retrieved_count top_k
+  | Types.Provider_fallback_attempted { from_provider; to_provider } ->
+    Printf.sprintf "ProviderFallback: %s -> %s" from_provider to_provider
 
 let session_id_arg =
   let open Cmdliner in

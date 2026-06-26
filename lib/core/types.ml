@@ -513,6 +513,7 @@ type event =
   | Embedding_request_sent of { model : string; input_count : int }
   | Embedding_response_received of { model : string; output_count : int; duration_ms : float }
   | Retrieval_completed of { query_count : int; retrieved_count : int; top_k : int }
+  | Provider_fallback_attempted of { from_provider : string; to_provider : string }
 [@@deriving yojson]
 
 type event_envelope = {

@@ -37,6 +37,7 @@ let extract_task_id : event -> string = function
   | Embedding_request_sent _ -> ""
   | Embedding_response_received _ -> ""
   | Retrieval_completed _ -> ""
+  | Provider_fallback_attempted _ -> ""
 
 let extract_session_id (envelope : event_envelope) : string =
   envelope.metadata.session_id

@@ -260,3 +260,8 @@ val get_llm_service : runtime -> ?id:string -> unit -> llm_service
 
 val list_models : runtime -> ?id:string -> unit -> (string list, error_category) result
 (** List available models from a provider. Defaults to the current default. *)
+
+val set_fallback_policy : runtime -> Types.fallback_policy -> unit
+(** Set the cross-provider fallback policy for [invoke]. Default: [No_fallback]. *)
+
+val get_fallback_policy : runtime -> Types.fallback_policy
