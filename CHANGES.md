@@ -1,29 +1,38 @@
 # CHANGES
 
-## v0.5.4 (unreleased) — BETA
+## v0.5.4-beta (2026-06-26) — BETA
 
-### Fixed — `par_cancel_stream` FFI entry (closes v0.5.3 Known Limitation)
+> **Theme**: Production-Ready Multi-Provider.
 
-v0.5.3's incremental streaming held the process-global C `ocaml_lock` for the entire stream duration, so if the Python caller `break`ed early from the iterator (or a `queue_timeout` fired) the background daemon thread kept running until the LLM stream completed naturally — and during that window **every subsequent `par_*` call on any Runtime instance blocked**. v0.5.4 adds `par_cancel_stream` so the caller can interrupt an in-flight stream and release `ocaml_lock` promptly.
+### Added — Multi-provider support (PAR-tiu)
+- Provider_registry: thread-safe Hashtbl built on protected_hashtbl. Runtime.register_llm_provider / list_llm_providers / set_default_provider / get_llm_service.
+- Cross-provider fallback (A.3): Runtime.set_fallback_policy with No_fallback | Ordered of string list | Tagged. Emits Provider_fallback_attempted event. invoke only.
+- Model discovery (A.2): Runtime.list_models + par models CLI. Mock returns ["mock-model"].
+- FFI Anthropic gap fix: par_capi.ml:188-193 previously returned None for Anthropic/Custom. Now constructs real services.
+- Python FFI: Runtime.list_llm_providers / set_default_llm_provider.
 
-**Design — flag-check pattern (NOT `Eio.Cancel.cancel`):**
+### Added — Session resume (PAR-mkm)
+- conversations table (whole-blob per session: session_id PK, messages_json, metadata_json, updated_at, turn_count). SQLite + Noop ship. PostgreSQL parity deferred.
+- CLI: par -c <session-id> / par -r (resume most recent).
+- Python FFI: Runtime.set_session_id / get_session_id / save_conversation / load_conversation.
+- Known limitation: no automatic pruning. TTL + par history --prune deferred.
 
-The original v0.5.4 ROADMAP proposed propagating `Eio.Cancel.cancel` across the C/OCaml boundary. Oracle review (2026-06-25) flagged that as research-grade: `Eio.Cancel` must be called from a thread holding the OCaml runtime lock and does not interrupt C-blocked fibers. The shipped design uses a deterministic flag-check pattern instead.
+### Added — Skill CLI gap closure (PAR-bd8)
+- REPL: /skill use, /skill unuse, /skill create (interactive wizard, all 8 fields).
+- CLI: par skill list/show/use/create/reload subcommands.
+- repl_input.ml: isatty fallback for piped stdin.
 
-The flag lives in C as a process-global atomic (`g_stream_cancel_requested` in `lib/ffi/par_ffi.c`), written by `par_cancel_stream` with a single `__atomic_store_n` and read by the OCaml `on_chunk` callback (via the `caml_stream_cancel_requested` external) at each chunk boundary. When the flag is observed, `on_chunk` raises `Stream_cancelled`, which propagates up through `llm.stream_fn` → `run_llm_with_optional_streaming` → `Runtime.invoke` (none of which wrap the call in `try/with`) and is caught by `do_invoke_stream`, which returns a `{"status": "cancelled", "chunks": [...]}` envelope.
+### Added — par_cancel_stream FFI (closes v0.5.3 Known Limitation)
+- Flag-check pattern (rt.cancel_stream_requested checked by on_chunk). NOT Eio.Cancel. Cancel latency ~50-300ms.
 
-**Why `par_cancel_stream` does NOT acquire `ocaml_lock`:** during an in-flight `par_invoke_stream` that mutex is held by the streaming thread for the whole stream duration (it blocks in `slot_take` while still holding the lock). Acquiring it in `par_cancel_stream` would therefore block until the LLM stream completes naturally — the exact behavior this feature eliminates. The lock-free atomic store is signal-safe, visible to `on_chunk` at the next chunk boundary, and sufficient given the single-stream-at-a-time design.
+### Added — Interactive tutorials (Diataxis)
+- docs/tutorials/01-rag-qa-bot.md, 02-streaming-ui.md + 2 stubs.
 
-The pre-declared `Runtime.cancel_stream_requested : bool ref` field (T0.5) is consumed: `do_invoke_stream` resets it to `false` at stream start and mirrors the C atomic flag into it (`:= true`) when cancel is detected, so OCaml-side consumers see consistent state.
-
-**Latency:** cancel takes effect at the **next chunk boundary** (typically 50-300ms for streaming providers, ~1s worst case for slow providers) — NOT immediate, because the LLM stream must reach a chunk boundary for the flag to be observed.
-
-**Python surface:**
-- `Runtime.cancel_stream()` — public method; safe from any thread (incl. GC-triggered `__del__`); idempotent; no-op when idle.
-- `_StreamReader.cancel()` — calls `Runtime.cancel_stream()`; the reader's generator `__iter__` `finally` clause calls it on `break`/scope-exit (`GeneratorExit`), so the canonical `for ev in rt.invoke_stream(...): ...; break` pattern now releases `ocaml_lock` instead of stranding the daemon thread. (`__del__` alone is insufficient — the background fetch thread keeps the reader alive past the caller's `del`.)
-- A `{"status": "cancelled"}` envelope is treated as clean termination (not an error), so a cancelled iterator ends with `StopIteration` rather than raising `PARInvokeError`.
-
-**Verified:** 5/5 `test_cancel_stream.py` cases pass — (1) cancel interrupts an in-flight stream within ~1 chunk interval (was 30s in v0.5.3), (2) follow-up `par_invoke` returns within 500ms post-cancel (no lock leak), (3) cancel from a non-FFI `threading.Thread` propagates with no crash/deadlock (Risk #3), (4) idle cancel is a prompt no-op, (5) `break`-early cancels via `GeneratorExit`.
+### Known limitations
+- FFI registers only first provider as "default". Full multi-provider wire-up deferred.
+- PostgreSQL conversation persistence deferred (SQLite + Noop only).
+- par models returns models only for Mock. OpenAI/Anthropic list_models deferred.
+- No conversation pruning.
 
 ---
 

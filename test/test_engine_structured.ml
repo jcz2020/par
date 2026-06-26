@@ -64,6 +64,7 @@ let mock_llm_with_structured ?(on_call : unit -> unit = ignore) responses =
         final_usage = dummy_usage; finish_reason = Stop; chunks_received = 0 });
     close_fn = (fun () -> ());
     complete_structured_fn = Some structured_fn;
+    list_models_fn = None;
   }
 
 let mock_llm_with_error err =
