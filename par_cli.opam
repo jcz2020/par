@@ -16,9 +16,6 @@ depends: [
   "par"
   "eio"
   "eio_main"
-  "yojson"
-  "mirage-crypto-rng"
-  "alcotest"
   "odoc" {with-doc}
 ]
 build: [

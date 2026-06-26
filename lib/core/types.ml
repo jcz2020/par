@@ -675,7 +675,7 @@ let default_bash_confirm_config = {
 (* `_runtime_config_base` exists so we can reuse the auto-derived yojson
    codecs while still letting `bash_confirm` be optional on decode. *)
 type _runtime_config_base = {
-  persistence : [ `Sqlite of string | `Postgresql of string ];
+  persistence : [ `Sqlite of string ];
   event_bus : event_bus_config;
   default_quota : resource_quota;
   shutdown : shutdown_config;
@@ -686,7 +686,7 @@ type _runtime_config_base = {
 [@@deriving yojson { strict = false }]
 
 type runtime_config = {
-  persistence : [ `Sqlite of string | `Postgresql of string ];
+  persistence : [ `Sqlite of string ];
   event_bus : event_bus_config;
   default_quota : resource_quota;
   shutdown : shutdown_config;

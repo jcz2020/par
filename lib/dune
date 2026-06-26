@@ -8,7 +8,7 @@
  (name par)
  (public_name par)
  (libraries base yojson eio uuidm unix str sexplib0 ppx_sexp_conv.runtime-lib
-             caqti-eio sqlite3 logs tls-eio cohttp-eio lambdasoup
+             sqlite3 logs tls-eio cohttp-eio lambdasoup
              ca-certs x509 mirage-crypto-rng.unix base64 digestif)
  (preprocess
   (pps ppx_deriving_yojson ppx_sexp_conv ppx_compare)))

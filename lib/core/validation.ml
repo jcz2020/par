@@ -261,7 +261,7 @@ let validate_runtime_config (config : Types.runtime_config) =
   let r4 = validate_eval_limits config.Types.eval_limits in
   let r5 = match config.Types.persistence with
     | `Sqlite "" -> Error "persistence: sqlite path must not be empty"
-    | `Sqlite _ | `Postgresql _ -> Ok ()
+    | `Sqlite _ -> Ok ()
   in
   let r6 = match config.Types.llm_providers with
     | [] -> Ok ()

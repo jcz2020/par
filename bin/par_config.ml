@@ -277,21 +277,11 @@ let to_model_config (cfg : config) : Types.model_config =
     stop_sequences = None;
   }
 
-let to_persistence_config (cfg : config) : [ `Sqlite of string | `Postgresql of string ] =
-  match String.lowercase_ascii cfg.persistence with
-  | "postgres" ->
-    let uri = match cfg.db_uri with Some u -> u | None -> "postgresql://localhost/par" in
-    `Postgresql uri
-  | _ ->
-    `Sqlite (config_dir () ^ "/par.db")
+let to_persistence_config (_cfg : config) : [ `Sqlite of string ] =
+  `Sqlite (config_dir () ^ "/par.db")
 
-let resolve_persistence (cfg : config) =
-  match String.lowercase_ascii cfg.persistence with
-  | "postgres" ->
-    let conninfo = match cfg.db_uri with Some u -> u | None -> "postgresql://localhost/par" in
-    `Postgresql conninfo
-  | _ ->
-    `Sqlite (config_dir () ^ "/par.db")
+let resolve_persistence (_cfg : config) =
+  `Sqlite (config_dir () ^ "/par.db")
 
 (* -------------------------------------------------------------------------- *)
 (* Config wizard (interactive)                                                *)
@@ -375,14 +365,8 @@ let run_wizard () =
   let pers_default = match existing with
     | Some c -> Some c.persistence | None -> Some default.persistence
   in
-  let persistence = prompt_line "Persistence (sqlite/postgres)" pers_default in
-
-  let db_uri =
-    match String.lowercase_ascii persistence with
-    | "postgres" ->
-      prompt_opt_line "DB URI"
-    | _ -> None
-  in
+  let persistence = prompt_line "Persistence (sqlite)" pers_default in
+  let db_uri = None in
 
   let temp_default = match existing with
     | Some c -> Printf.sprintf "%.1f" c.temperature | None -> Printf.sprintf "%.1f" default.temperature

@@ -598,7 +598,7 @@ val default_bash_confirm_config : bash_confirm_config
 (* -------------------------------------------------------------------------- *)
 
 type runtime_config = {
-  persistence : [ `Sqlite of string | `Postgresql of string ];
+  persistence : [ `Sqlite of string ];
   event_bus : event_bus_config;
   default_quota : resource_quota;
   shutdown : shutdown_config;

@@ -7,7 +7,7 @@ open Par
 let persistence_arg =
   let open Cmdliner in
   Arg.(value & opt (some string) None &
-    info [ "persistence" ] ~docv:"BACKEND" ~doc:"Storage backend: sqlite|postgres (default: sqlite)")
+    info [ "persistence" ] ~docv:"BACKEND" ~doc:"Storage backend: sqlite (default: sqlite)")
 
 let db_uri =
   let open Cmdliner in
@@ -115,22 +115,9 @@ let make_sqlite_persistence ?(retention_days = 7.0) db_path =
       close_fn = (fun () -> Sqlite_persistence.close t);
     }
 
-let make_postgres_persistence _conninfo =
-  Result.Error (Types.Internal
-    "PostgreSQL backend requires 'opam install postgresql' then rebuild")
-
-let make_persistence_service persistence _backend db_uri_val =
-  match String.lowercase_ascii persistence with
-  | "postgres" ->
-    let conninfo = match db_uri_val with Some u -> u | None -> "postgresql://localhost/par" in
-    (match make_postgres_persistence conninfo with
-     | Ok t -> t
-     | Error e ->
-       Printf.eprintf "Error: %s\n" (error_category_to_string e);
-       exit 1)
-  | _ ->
-     let path = Par_config.config_dir () ^ "/par.db" in
-     make_sqlite_persistence path
+let make_persistence_service _persistence _backend _db_uri_val =
+  let path = Par_config.config_dir () ^ "/par.db" in
+  make_sqlite_persistence path
 
 let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | `Unix > `Generic ] Eio.Net.ty Eio.Resource.t) =
   let open Types in
@@ -1611,7 +1598,7 @@ let print_custom_help () =
   opt "--max-tokens N"           "Max tokens per LLM response";
   opt "--max-iterations N"       "Max ReAct iterations (default: 10)";
   opt "--top-p FLOAT"            "Top-p sampling 0.0–1.0";
-  opt "--persistence BACKEND"    "sqlite|postgres (default: sqlite)";
+  opt "--persistence BACKEND"    "sqlite (default: sqlite)";
   opt "--db-uri URI"             "PostgreSQL connection URI";
   opt "--no-parallel-tools"      "Disable parallel tool execution";
   opt "--retention-days DAYS"    "Event retention days, 0=never prune (default: 7)";
