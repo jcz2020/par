@@ -8,6 +8,7 @@ import ctypes.util
 import os
 import sys
 from pathlib import Path
+from typing import Optional
 
 
 def _find_library() -> str:
@@ -30,7 +31,7 @@ def _find_library() -> str:
     return "par_capi.so"
 
 
-def _vec_extension_path() -> str | None:
+def _vec_extension_path() -> Optional[str]:
     """Locate the sqlite-vec extension bundled with par-runtime.
 
     Returns the absolute path of vec0.so / vec0.dylib next to par_capi.so

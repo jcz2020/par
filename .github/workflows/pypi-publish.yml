@@ -129,19 +129,16 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: wheel-linux-x86_64
-          path: dist/
+          path: dist/linux-x86_64/
       - uses: actions/download-artifact@v4
         with:
           name: wheel-macos-arm64
-          path: dist/
+          path: dist/macos-arm64/
       - name: Merge checksums + show summary
         run: |
           cd dist
-          # Concatenate per-artifact sha512 lists into a single file
-          cat sha512-checksums.txt > ../sha512-checksums-merged.txt 2>/dev/null || true
-          for f in sha512-checksums.txt; do cat "$f" >> ../sha512-checksums-merged.txt; done
-          rm -f sha512-checksums.txt
-          mv -f ../sha512-checksums-merged.txt sha512-checksums.txt
+          cat linux-x86_64/sha512-checksums.txt > sha512-checksums.txt 2>/dev/null || true
+          cat macos-arm64/sha512-checksums.txt >> sha512-checksums.txt 2>/dev/null || true
           ls -la
       - name: Wait for release to exist, then upload
         env:

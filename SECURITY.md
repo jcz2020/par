@@ -6,8 +6,9 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.3.1   | :white_check_mark: |
-| < 0.3.0 | :x:                |
+| 0.6.x   | :white_check_mark: |
+| 0.5.x   | :white_check_mark: |
+| < 0.5.0 | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -24,7 +25,7 @@ We ask that you give us 90 days to address the issue before any public disclosur
 
 PAR includes several security-relevant mechanisms:
 
-### Bash tool (v0.3.1)
+### Bash tool (v0.6.0-beta)
 
 The bash tool is designed to make shell injection unrepresentable at the type level:
 
@@ -37,7 +38,7 @@ The bash tool is designed to make shell injection unrepresentable at the type le
 
 See [docs/sdk/tools.md](docs/sdk/tools.md) for the full bash tool reference.
 
-### MCP client (v0.3.1)
+### MCP client (v0.6.0-beta)
 
 Connecting to an MCP server is a trust decision:
 

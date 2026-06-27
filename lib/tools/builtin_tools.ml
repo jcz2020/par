@@ -707,6 +707,8 @@ let builtin_tools ~switch ~net =
         in
         if path = "" then
           Error { category = Invalid_input "Empty path"; message = "Path is required"; retryable = false; metadata = [] }
+        else if List.exists (fun part -> part = "..") (String.split_on_char '/' path) then
+          Error { category = Invalid_input "path contains .."; message = "Path traversal not allowed"; retryable = false; metadata = [] }
         else if String.starts_with ~prefix:"/" path || String.contains path ':' then
           Error { category = Permission_denied path; message = "Absolute paths not allowed"; retryable = false; metadata = [] }
         else
@@ -775,6 +777,8 @@ let builtin_tools ~switch ~net =
         in
         if path = "" then
           Error { category = Invalid_input "Empty path"; message = "Path is required"; retryable = false; metadata = [] }
+        else if List.exists (fun part -> part = "..") (String.split_on_char '/' path) then
+          Error { category = Invalid_input "path contains .."; message = "Path traversal not allowed"; retryable = false; metadata = [] }
         else if String.starts_with ~prefix:"/" path || String.contains path ':' then
           Error { category = Permission_denied path; message = "Absolute paths not allowed"; retryable = false; metadata = [] }
         else
@@ -896,6 +900,8 @@ let builtin_tools ~switch ~net =
         in
         if pattern = "" then
           Error { category = Invalid_input "Empty pattern"; message = "Pattern is required"; retryable = false; metadata = [] }
+        else if List.exists (fun part -> part = "..") (String.split_on_char '/' path) then
+          Error { category = Invalid_input "path contains .."; message = "Path traversal not allowed"; retryable = false; metadata = [] }
         else if String.starts_with ~prefix:"/" path || String.contains path ':' then
           Error { category = Permission_denied path; message = "Absolute paths not allowed"; retryable = false; metadata = [] }
         else
@@ -973,6 +979,8 @@ let builtin_tools ~switch ~net =
         in
         if pattern = "" then
           Error { category = Invalid_input "Empty pattern"; message = "Pattern is required"; retryable = false; metadata = [] }
+        else if List.exists (fun part -> part = "..") (String.split_on_char '/' path) then
+          Error { category = Invalid_input "path contains .."; message = "Path traversal not allowed"; retryable = false; metadata = [] }
         else if String.starts_with ~prefix:"/" path || String.contains path ':' then
           Error { category = Permission_denied path; message = "Absolute paths not allowed"; retryable = false; metadata = [] }
         else
@@ -1075,6 +1083,8 @@ let builtin_tools ~switch ~net =
         in
         if path = "" then
           Error { category = Invalid_input "Empty path"; message = "Path is required"; retryable = false; metadata = [] }
+        else if List.exists (fun part -> part = "..") (String.split_on_char '/' path) then
+          Error { category = Invalid_input "path contains .."; message = "Path traversal not allowed"; retryable = false; metadata = [] }
         else if String.starts_with ~prefix:"/" path || String.contains path ':' then
           Error { category = Permission_denied path; message = "Absolute paths not allowed"; retryable = false; metadata = [] }
         else
@@ -1155,6 +1165,8 @@ let builtin_tools ~switch ~net =
         in
         if path = "" then
           Error { category = Invalid_input "Empty path"; message = "Path is required"; retryable = false; metadata = [] }
+        else if List.exists (fun part -> part = "..") (String.split_on_char '/' path) then
+          Error { category = Invalid_input "path contains .."; message = "Path traversal not allowed"; retryable = false; metadata = [] }
         else if String.starts_with ~prefix:"/" path || String.contains path ':' then
           Error { category = Permission_denied path; message = "Absolute paths not allowed"; retryable = false; metadata = [] }
         else

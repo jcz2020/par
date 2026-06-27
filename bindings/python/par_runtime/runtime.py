@@ -1,5 +1,6 @@
 """High-level Runtime class wrapping the PAR C FFI."""
 import ctypes
+import itertools
 import json
 import queue
 import threading
@@ -295,9 +296,10 @@ class Runtime:
             result = rt.invoke("my-agent", "Hello!")
     """
 
-    __slots__ = ("_handle",)
+    __slots__ = ("_handle", "_callback_ids")
 
     _callbacks: dict = {}
+    _callback_counter = itertools.count()
 
     def __init__(self, config_json: str):
         """Initialize PAR runtime from JSON config string.
@@ -313,6 +315,7 @@ class Runtime:
         if not handle:
             raise PARInitError("Failed to initialize PAR runtime")
         self._handle: Any = handle
+        self._callback_ids: set = set()
 
     @staticmethod
     def _normalize_config(config_json: str) -> str:
@@ -378,6 +381,10 @@ class Runtime:
         if getattr(self, "_handle", None):
             _lib.par_shutdown(self._handle)
             self._handle = None
+        for cb_id in getattr(self, "_callback_ids", ()):
+            Runtime._callbacks.pop(cb_id, None)
+        if hasattr(self, "_callback_ids"):
+            self._callback_ids.clear()
 
     def _check_handle(self):
         if not self._handle:
@@ -429,7 +436,7 @@ class Runtime:
 
         c_callback = _PYTHON_TOOL_CALLBACK(_wrapper)
 
-        handler_id = len(Runtime._callbacks)
+        handler_id = next(Runtime._callback_counter)
         Runtime._callbacks[handler_id] = c_callback
 
         _lib.par_store_python_handler(handler_id, c_callback)
@@ -444,6 +451,7 @@ class Runtime:
         if result != 0:
             Runtime._callbacks.pop(handler_id, None)
             raise PARToolError(f"Failed to register tool with handler: {name}")
+        self._callback_ids.add(handler_id)
 
     def register_agent(self, config_json: str) -> None:
         """Register an agent from JSON config.
@@ -929,6 +937,7 @@ class Runtime:
         if rc != 0:
             raise PARWorkflowError(f"workflow_cancel({run_id}) failed")
 
+    @staticmethod
     def version() -> str:
         """Return the PAR runtime version string."""
         result_ptr = _lib.par_version()

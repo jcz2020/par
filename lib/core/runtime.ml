@@ -872,40 +872,7 @@ let resume_workflow rt wf_id =
   match htbl_get rt.workflows wf_id with
   | None -> Result.Error (Invalid_input "Workflow not found")
   | Some (Wf_suspended _) ->
-     (match rt.services.persistence.load_workflow_state_fn wf_id with
-      | Ok (Some loaded_cp) ->
-        let token = Cancellation.create_token rt.cancellation_root in
-        let vars = loaded_cp.variables in
-        let ctx = {
-          Workflow_engine.variables = vars;
-          token;
-          agent_resolver = (fun aid -> htbl_get rt.agents aid);
-          tool_resolver = find_tool_across_agents rt;
-          llm = rt.services.llm;
-          registry = rt.tool_registry;
-          parallel_limit = 10;
-          failure_policy = Fail_fast;
-          workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
-          on_step_complete = None;
-          workflow_run_id = Some wf_id;
-        } in
-        (match Workflow_engine.execute_workflow ctx
-          { id = "resumed"; name = "resumed"; version = 1;
-            steps = Tool_call { tool_name = "echo"; input = `Assoc [] };
-            variables = vars; failure_policy = Fail_fast;
-            parallel_limit = 10; timeout = 300.0; on_complete = None }
-        with
-         | Ok result ->
-           htbl_set rt.workflows wf_id (Wf_completed result);
-           Ok (Some result)
-         | exception Workflow_engine.Workflow_suspended { checkpoint = cp; _ } ->
-           htbl_set rt.workflows wf_id (Wf_suspended cp);
-           Ok None
-         | Error err ->
-           htbl_set rt.workflows wf_id (Wf_failed err);
-           Error err)
-      | Ok None -> Error (Internal "No checkpoint found for suspended workflow")
-      | Error e -> Error e)
+     Result.Error (Internal "Workflow resume is not yet implemented; the checkpoint is preserved. See GH#18 / PAR-uy3.")
   | Some _ -> Result.Error (Invalid_input "Workflow is not suspended")
 
 let noop_persistence : Types.persistence_service = {

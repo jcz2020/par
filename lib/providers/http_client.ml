@@ -153,11 +153,18 @@ let map_http_status status body =
 (* -------------------------------------------------------------------------- *)
 
 let tls_config =
-  let no_auth ?ip:_ ~host:_ _certs = Ok None in
   lazy
-    (match Tls.Config.client ~authenticator:no_auth () with
-    | Ok cfg -> cfg
-    | Result.Error (`Msg msg) -> failwith ("TLS configuration error: " ^ msg))
+    (match Ca_certs.authenticator () with
+    | Ok auth ->
+      (match Tls.Config.client ~authenticator:auth () with
+      | Ok cfg -> cfg
+      | Result.Error (`Msg msg) -> failwith ("TLS configuration error: " ^ msg))
+    | Result.Error (`Msg msg) ->
+      Logs.warn (fun m -> m "Ca_certs: %s — falling back to no_auth (INSECURE)" msg);
+      let no_auth ?ip:_ ~host:_ _certs = Ok None in
+      (match Tls.Config.client ~authenticator:no_auth () with
+      | Ok cfg -> cfg
+      | Result.Error (`Msg msg) -> failwith ("TLS configuration error: " ^ msg)))
 
 let clock_ref : Obj.t option ref = ref None
 
