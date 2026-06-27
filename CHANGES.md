@@ -1,8 +1,34 @@
 # CHANGES
 
-## v0.6.0-beta (2026-06-27) — BETA
+## v0.6.0-beta.20260628 — BETA
 
-> **Theme**: Configurable truncation behavior + Continue mode.
+> Configurable truncation behavior + GH issue audit sweep (14 bug fixes).
+
+### Fixed — GH issue audit sweep (14 fixes)
+
+**Security**:
+- **GH#1**: `http_client.ml` now uses `Ca_certs.authenticator()` for TLS verification. Previously all OpenAI/Anthropic API calls were MITM-vulnerable (hardcoded `no_auth`).
+- **GH#2**: All 6 file tools (read/write/edit/ls/find/grep) now reject paths with `..` components. Previously vulnerable to path traversal (e.g. `../../etc/passwd`).
+
+**Python binding**:
+- **GH#19**: Fixed `str | None` → `Optional[str]` in `_ffi.py` (Python 3.8 compat). Added `@staticmethod` to `Runtime.version()`. Package now imports on Python 3.8/3.9 as declared.
+- **GH#11**: `_callbacks` uses monotonic counter + per-instance tracking. `Runtime.close()` cleans up owned callbacks.
+
+**FFI**:
+- **GH#10**: `par_save/load_conversation` now check `Is_exception_result` before `Int_val`. Prevents silent error swallowing.
+- **GH#8**: Removed `Obj.magic` from skill activation path — the abstract `type runtime` forward declaration was dead code (activate function ignored the parameter).
+
+**Core**:
+- **GH#18**: `resume_workflow` returns `Error(Internal)` instead of running dummy echo workflow (silent data loss). Full implementation tracked as PAR-uy3.
+- **GH 漏报**: Conversation/session resume (`par -c` / `par -r`) now works — REPL seeds from loaded conversation, auto-saves after each turn, reuses session ID.
+- **GH#17**: Engine-level `tool_timeout` field on `agent_config`. Old `timeout_middleware` deprecated with warning.
+- **GH#16**: Retry counter isolated per-conversation (was shared across concurrent fibers).
+- **GH#6**: `Approval_deadline.table` migrated to `protected_hashtbl` for consistency.
+
+**Test/CI**:
+- **GH#12**: `test_skill_e2e` and `test_http_timeout` changed from `(executable)` to `(test)` — they now actually run.
+- **GH#14**: `pypi-publish.yml` checksum merge fixed — downloads to separate subdirs, correct glob.
+- **GH#15**: `SECURITY.md` version table updated from 0.3.1 to 0.6.x/0.5.x.
 
 ### Added — Configurable on_max_tokens_behavior policy (PAR-cx3)
 
