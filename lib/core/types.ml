@@ -211,15 +211,8 @@ type tool_descriptor = {
 
 type tool_binding = {
   descriptor : tool_descriptor;
-  handler : Yojson.Safe.t -> cancellation_token -> handler_result;
+   handler : Yojson.Safe.t -> cancellation_token -> handler_result;
 }
-
-(* Forward declaration: the concrete `runtime` record is defined in
-   lib/core/runtime.ml (which depends on this module). For A.1 we
-   declare it as an abstract type so skill_binding.activate can be
-   typed without modifying runtime.ml. A.3a (Wave 2) will properly
-   link this with runtime.ml's `type runtime`. *)
-type runtime
 
 (* Skill system — typed abstraction over reusable instruction bundles.
    Mirrors tool_descriptor pattern. NO [@@deriving yojson] on the binding
@@ -270,7 +263,7 @@ type skill_descriptor = {
 
 type skill_binding = {
   descriptor : skill_descriptor;
-  activate   : runtime -> skill_effect               (* pure: reads runtime, returns overlay *)
+  activate   : unit -> skill_effect
 }
 
 type middleware_hook = {

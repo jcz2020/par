@@ -162,7 +162,7 @@ let register_tool rt ~name ~description ~input_schema ~handler
 
 let register_skill rt (descriptor : Types.skill_descriptor) =
   let activate : Skill_registry.activate_fn =
-    fun _rt ->
+    fun () ->
       { Types.system_prompt_override = descriptor.Types.system_prompt_override;
         tool_filter_overlay = descriptor.Types.tool_filter }
   in
@@ -222,7 +222,7 @@ let compute_active_skill_effects (rt : runtime) (message : string) : skill_effec
       in
       if eligible then
         match Skill_registry.resolve rt.skills desc.id with
-        | Some activate -> Some (activate (Obj.magic rt))
+        | Some activate -> Some (activate ())
         | None -> None
       else None)
       descriptors
@@ -232,7 +232,7 @@ let compute_active_skill_effects (rt : runtime) (message : string) : skill_effec
     List.filter_map (fun id ->
       if List.mem id user_set then
         match Skill_registry.resolve rt.skills id with
-        | Some activate -> Some (activate (Obj.magic rt))
+        | Some activate -> Some (activate ())
         | None -> None
       else None)
       (List.map (fun (d : skill_descriptor) -> d.id) descriptors)

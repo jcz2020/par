@@ -195,13 +195,6 @@ type tool_binding = {
 }
 (* Note: handler is a function type, not derivable *)
 
-(* Forward declaration: the concrete `runtime` record is defined in
-   lib/core/runtime.ml (which depends on this module). For A.1 we
-   declare it as an abstract type so skill_binding.activate can be
-   typed without modifying runtime.ml. A.3a (Wave 2) will properly
-   link this with runtime.ml's `type runtime`. *)
-type runtime
-
 (** Skill system — typed abstraction over reusable instruction bundles.
     Mirrors [tool_descriptor] pattern. Revised 2026-06-24 after Oracle
     architectural review (see docs/v0.5.2-ROADMAP.md A.0 revision log). *)
@@ -250,7 +243,7 @@ type skill_descriptor = {
 
 type skill_binding = {
   descriptor : skill_descriptor;
-  activate   : runtime -> skill_effect               (** pure: reads runtime, returns overlay *)
+  activate   : unit -> skill_effect
 }
 
 type middleware_hook = {

@@ -1,6 +1,6 @@
 open Types
 
-type activate_fn = runtime -> skill_effect
+type activate_fn = unit -> skill_effect
 
 type t = (string, skill_binding) Hashtbl.t
 

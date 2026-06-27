@@ -1,4 +1,4 @@
-type activate_fn = Types.runtime -> Types.skill_effect
+type activate_fn = unit -> Types.skill_effect
 
 type t
 

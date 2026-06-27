@@ -26,7 +26,7 @@ let make_skill ?(schema_version = 1) ?(system_prompt_override = None)
 let make_binding desc : Types.skill_binding =
   {
     descriptor = desc;
-    activate = (fun (_rt : Types.runtime) : Types.skill_effect ->
+    activate = (fun () : Types.skill_effect ->
       { system_prompt_override = None; tool_filter_overlay = All_tools });
   }
 
@@ -104,7 +104,7 @@ let test_replace_existing () =
   let d1 = make_skill "x" "X v1" "first" in
   ignore (Skill_registry.register reg (make_binding d1));
   let new_activate : Skill_registry.activate_fn =
-    fun _rt -> { system_prompt_override = Some "replaced";
+    fun () -> { system_prompt_override = Some "replaced";
                  tool_filter_overlay = All_tools } in
   Skill_registry.replace reg "x" new_activate;
   Alcotest.(check bool) "still has x" true
