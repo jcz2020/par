@@ -87,6 +87,10 @@ type agent_config = {
   retry_policy : retry_policy option;     (* 可选重试策略 *)
   context_strategy : context_strategy option;  (* 上下文窗口管理策略 *)
   resource_quota : resource_quota option;  (* 可选资源配额覆盖 *)
+  max_execution_time : float option;      (* 可选最大执行时间（秒）*)
+  early_stopping_method : early_stopping_method;  (* 达到迭代上限时：Force 或 Generate *)
+  on_max_tokens : on_max_tokens_behavior; (* 截断时策略：Retry、Continue 或 Return_partial *)
+  max_continuation_chunks : int;          (* Continue 模式最大续写块数（默认 3）*)
 }
 ```
 
@@ -320,7 +324,15 @@ Agent 执行核心是 `Par.Engine.run_agent`：
 当迭代次数达到 `max_iterations` 时，`run_agent` 返回：
 `Result.Error (Internal "Max iterations exceeded")`
 
-对于 `Max_tokens` finish_reason，若尚未达到迭代上限，循环会自动重试。
+### on_max_tokens 行为
+
+当 LLM 返回 `finish_reason=Max_tokens`（截断响应）时，行为取决于 `agent.on_max_tokens`：
+
+- `Return_partial`（默认）：若截断响应包含非空文本，保留并返回 `Ok` 及部分结果。空截断保留错误/重试行为。
+- `Retry`：保留截断消息作为上下文，重新进入 ReAct 循环（受 `max_iterations` 约束）。
+- `Continue`：注入"从上次中断处继续"的跟进消息，拼接续写块直到 `finish_reason=Stop`。受 `max_continuation_chunks`（默认 3）限制。递减收益保护：若续写块新增少于 500 字符则停止。
+
+每次截断都会发出 `Llm_response_truncated` 事件用于可观测性。
 
 ## System Prompt 设计建议
 

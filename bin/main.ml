@@ -1298,6 +1298,10 @@ let format_event_for_history (evt : Types.event) =
     Printf.sprintf "RetrievalCompleted: queries=%d retrieved=%d k=%d" query_count retrieved_count top_k
   | Types.Provider_fallback_attempted { from_provider; to_provider } ->
     Printf.sprintf "ProviderFallback: %s -> %s" from_provider to_provider
+  | Types.Llm_response_truncated { model; finish_reason; _ } ->
+    Printf.sprintf "LlmTruncated: model=%s reason=%s" model
+      (match finish_reason with Stop -> "stop" | Tool_calls -> "tool_calls"
+       | Max_tokens -> "max_tokens" | Content_filter -> "content_filter")
 
 let session_id_arg =
   let open Cmdliner in

@@ -92,6 +92,10 @@ type agent_config = {
   retry_policy : retry_policy option;     (* Optional retry policy *)
   context_strategy : context_strategy option;  (* Context window management strategy *)
   resource_quota : resource_quota option;  (* Optional resource quota override *)
+  max_execution_time : float option;      (* Optional max execution time in seconds *)
+  early_stopping_method : early_stopping_method;  (* Force or Generate on iteration cap *)
+  on_max_tokens : on_max_tokens_behavior; (* Retry, Continue, or Return_partial on truncation *)
+  max_continuation_chunks : int;          (* Max continuation chunks for Continue mode (default 3) *)
 }
 ```
 
@@ -326,7 +330,15 @@ The agent execution core is `Par.Engine.run_agent`:
 
 When the iteration count reaches `max_iterations`, `run_agent` returns `Result.Error (Internal "Max iterations exceeded")`.
 
-For a `Max_tokens` `finish_reason`, if the iteration cap has not been reached, the loop retries automatically.
+### on_max_tokens behavior
+
+When the LLM returns `finish_reason=Max_tokens` (truncated response), the behavior depends on `agent.on_max_tokens`:
+
+- `Return_partial` (default): If the truncated response has non-empty text, preserve it and return `Ok` with the partial result. Empty truncations retain error/retry behavior.
+- `Retry`: Preserve the truncated message for context, then re-enter the ReAct loop (bounded by `max_iterations`).
+- `Continue`: Inject a "continue from where you stopped" follow-up, concatenate chunks until `finish_reason=Stop`. Capped by `max_continuation_chunks` (default 3). A diminishing-returns guard stops if a chunk adds fewer than 500 characters.
+
+A `Llm_response_truncated` event is emitted on every truncation for observability.
 
 ## System prompt design guidance
 

@@ -1,5 +1,34 @@
 # CHANGES
 
+## v0.6.0-beta (2026-06-27) — BETA
+
+> **Theme**: Configurable truncation behavior + Continue mode.
+
+### Added — Configurable on_max_tokens_behavior policy (PAR-cx3)
+
+Two new optional fields on `agent_config`:
+
+- `on_max_tokens : on_max_tokens_behavior` — controls what happens when the LLM returns `finish_reason=Max_tokens`. Type: `Retry | Continue | Return_partial`. Default: `Return_partial` (Phase 1 behavior).
+- `max_continuation_chunks : int` — caps the number of continuation chunks in `Continue` mode. Default: 3.
+
+**New event variant**: `Llm_response_truncated of { task_id; model; finish_reason }` — emitted on every Max_tokens truncation for observability. Surfaced via the existing `on_tool_event` callback and `par history`.
+
+**Policy behaviors**:
+
+| Policy | Behavior |
+|--------|----------|
+| `Return_partial` (default) | Preserve truncated text, return `Ok` with partial result. Matches v0.5.5 Phase 1 behavior. |
+| `Retry` | Preserve truncated message for context, re-enter the ReAct loop. Bounded by `max_iterations`. |
+| `Continue` | Inject "continue from where you stopped" follow-up, concatenate chunks. Capped by `max_continuation_chunks`. Diminishing-returns guard: stops if a continuation chunk adds <500 chars. Inspired by Claude Code's escalate+retry approach. |
+
+**Design context**: 3-way research compared Claude Code (Retry+escalate×3), OpenAI Codex CLI (blind retry — known bug openai/codex#14753), and a comparable coding agent (Return_partial). PAR's typed ADT approach is a strict improvement over Codex's string-based generic retry, and more configurable than Claude Code's hardcoded constants.
+
+**Python binding**: No code changes needed. Set via JSON: `{"on_max_tokens": "continue", "max_continuation_chunks": 3}`.
+
+**Verified**: `test/test_truncation_config.ml` — 5 test cases covering all three policies, max_chunks cap, diminishing-returns guard, and event emission. Full test suite: zero regressions.
+
+---
+
 ## v0.5.5-beta (2026-06-27) — BETA
 
 > **Theme**: Critical ReAct loop truncation bug fix.

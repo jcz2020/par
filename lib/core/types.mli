@@ -309,6 +309,8 @@ type system_prompt_template = {
 
 type early_stopping_method = Force | Generate
 
+type on_max_tokens_behavior = Retry | Continue | Return_partial
+
 type agent_config = {
   id : string;
   system_prompt : string;
@@ -322,6 +324,8 @@ type agent_config = {
   resource_quota : resource_quota option;
   max_execution_time : float option;
   early_stopping_method : early_stopping_method;
+  on_max_tokens : on_max_tokens_behavior;
+  max_continuation_chunks : int;
 }
 
 (* -------------------------------------------------------------------------- *)
@@ -455,6 +459,7 @@ type event =
   | Embedding_response_received of { model : string; output_count : int; duration_ms : float }
   | Retrieval_completed of { query_count : int; retrieved_count : int; top_k : int }
   | Provider_fallback_attempted of { from_provider : string; to_provider : string }
+  | Llm_response_truncated of { task_id : Task_id.t; model : string; finish_reason : finish_reason }
 [@@deriving yojson]
 
 type event_envelope = {

@@ -660,13 +660,55 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
               | Some t when String.length (String.trim t) > 0 -> true
               | _ -> false
             in
-            if has_content then begin
-              let conv = add_assistant_message conv resp in
-              let conv = drain_into_conv conv followup in
-              Ok (resp, conv)
-            end else
-              if iterations + 1 >= global_max then Result.Error (Internal "Max iterations exceeded", conv)
-              else loop ~agent ~global_max conv (iterations + 1)
+            fire_llm (Llm_response_truncated {
+              task_id = llm_task_id; model = agent.model.model_name;
+              finish_reason = Max_tokens });
+            (match (agent.on_max_tokens : Types.on_max_tokens_behavior) with
+             | Types.Return_partial ->
+               if has_content then begin
+                 let conv = add_assistant_message conv resp in
+                 let conv = drain_into_conv conv followup in
+                 Ok (resp, conv)
+               end else
+                 if iterations + 1 >= global_max then Result.Error (Internal "Max iterations exceeded", conv)
+                 else loop ~agent ~global_max conv (iterations + 1)
+             | Types.Retry ->
+               let conv = add_assistant_message conv resp in
+               let conv = drain_into_conv conv followup in
+               if iterations + 1 >= global_max then Result.Error (Internal "Max iterations exceeded", conv)
+               else loop ~agent ~global_max conv (iterations + 1)
+             | Types.Continue when not has_content ->
+               if iterations + 1 >= global_max then Result.Error (Internal "Max iterations exceeded", conv)
+               else loop ~agent ~global_max conv (iterations + 1)
+             | Types.Continue ->
+               let conv = add_assistant_message conv resp in
+               let initial_text = Option.value resp.text ~default:"" in
+               let rec continue_chunks conv accumulated chunks =
+                 if chunks >= agent.max_continuation_chunks then
+                   ({ resp with text = Some accumulated; finish_reason = Max_tokens }, conv)
+                 else
+                   let conv = add_user_feedback conv
+                     "Continue from where your previous response stopped. Do not repeat previous content." in
+                   (match run_llm_with_optional_streaming llm agent.model agent.tools conv on_chunk with
+                    | Error _ ->
+                      ({ resp with text = Some accumulated; finish_reason = Max_tokens }, conv)
+                    | Ok cont_resp ->
+                      let new_text = Option.value cont_resp.text ~default:"" in
+                      let conv = add_assistant_message conv cont_resp in
+                      let combined = accumulated ^ new_text in
+                      (match cont_resp.finish_reason with
+                       | Stop | Content_filter ->
+                         ({ cont_resp with text = Some combined; finish_reason = Stop }, conv)
+                       | _ ->
+                         if String.length (String.trim new_text) < 500 then
+                           ({ cont_resp with text = Some combined; finish_reason = Max_tokens }, conv)
+                         else
+                           continue_chunks conv combined (chunks + 1)))
+               in
+               let (final_resp, final_conv) = continue_chunks conv initial_text 1 in
+               let final_conv = drain_into_conv final_conv followup in
+               Ok (final_resp, final_conv)
+            )
           | _ ->
             let conv = drain_into_conv conv followup in
             if Steering_queue.has_items (Option.value followup ~default:(Steering_queue.create ())) then

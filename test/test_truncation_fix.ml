@@ -69,7 +69,7 @@ let basic_agent ?(tools = []) ?(middleware = []) ?(max_iterations = 10) () =
   { id = "test-agent"; system_prompt = "You are a test agent.";
     system_prompt_template = None;
     model = dummy_model; tools = descriptors; max_iterations; middleware;
-    retry_policy = None; context_strategy = None; resource_quota = None; max_execution_time = None; early_stopping_method = Force }
+    retry_policy = None; context_strategy = None; resource_quota = None; max_execution_time = None; early_stopping_method = Force; on_max_tokens = Return_partial; max_continuation_chunks = 3 }
 
 let make_registry tools =
   let reg = Tool_registry.create () in

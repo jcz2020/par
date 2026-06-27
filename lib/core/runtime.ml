@@ -88,7 +88,8 @@ let make_agent ~id ?(system_prompt = "") ?(system_prompt_template = None)
     ~model ?(tools = []) ?(max_iterations = 1_000_000)
     ?(middleware = []) ?(retry_policy = None)
     ?(context_strategy = Some (Types.Sliding_window { max_messages = 100; max_tokens = 200000 })) ?(resource_quota = None)
-    ?(max_execution_time = None) ?(early_stopping_method = Force) () =
+    ?(max_execution_time = None) ?(early_stopping_method = Force)
+    ?(on_max_tokens = Return_partial) ?(max_continuation_chunks = 3) () =
   let errors = ref [] in
   if String.length id = 0 then
     errors := "id must not be empty" :: !errors;
@@ -110,6 +111,7 @@ let make_agent ~id ?(system_prompt = "") ?(system_prompt_template = None)
       id; system_prompt; system_prompt_template; model; tools;
       max_iterations; middleware; retry_policy; context_strategy; resource_quota;
       max_execution_time; early_stopping_method;
+      on_max_tokens; max_continuation_chunks;
     }
   | errs -> Result.Error (Types.Invalid_input (String.concat "; " errs))
 
@@ -127,6 +129,8 @@ let register_agent rt (agent : agent_config) =
     ?resource_quota:(Some agent.resource_quota)
     ?max_execution_time:(Some agent.max_execution_time)
     ?early_stopping_method:(Some agent.early_stopping_method)
+    ?on_max_tokens:(Some agent.on_max_tokens)
+    ?max_continuation_chunks:(Some agent.max_continuation_chunks)
     () in
   match validated with
   | Ok valid_agent ->

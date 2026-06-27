@@ -510,9 +510,17 @@ let parse_agent_config (json : Yojson.Safe.t) : Par.Types.agent_config =
     | Some "generate" | Some "Generate" -> Par.Types.Generate
     | _ -> Par.Types.Force
   in
+  let on_max_tokens =
+    match json |> member "on_max_tokens" |> to_string_option with
+    | Some "retry" | Some "Retry" -> Par.Types.Retry
+    | Some "continue" | Some "Continue" -> Par.Types.Continue
+    | _ -> Par.Types.Return_partial
+  in
+  let max_continuation_chunks = json |> member "max_continuation_chunks" |> to_int_option |> Option.value ~default:3 in
   { id; system_prompt; system_prompt_template; model; tools; max_iterations;
     middleware; retry_policy; context_strategy; resource_quota;
-    max_execution_time; early_stopping_method }
+    max_execution_time; early_stopping_method;
+    on_max_tokens; max_continuation_chunks }
 
 let do_register_agent (state_id : int) (config_json : string) =
   match get_state state_id with

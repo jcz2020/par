@@ -53,6 +53,8 @@ val make_agent :
   ?resource_quota:resource_quota option ->
   ?max_execution_time:float option ->
   ?early_stopping_method:early_stopping_method ->
+  ?on_max_tokens:on_max_tokens_behavior ->
+  ?max_continuation_chunks:int ->
   unit ->
   (agent_config, error_category) result
 
