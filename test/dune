@@ -345,3 +345,8 @@
  (libraries par eio_main alcotest)
  (modules test_skill_user_activation))
 (test (name test_skill_e2e) (libraries par eio_main alcotest) (modules test_skill_e2e))
+
+(test
+ (name test_session_resume_cli)
+ (libraries par eio_main alcotest sqlite3)
+ (modules test_session_resume_cli))
