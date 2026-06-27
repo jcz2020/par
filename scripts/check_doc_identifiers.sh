@@ -5,7 +5,6 @@ read -r -d '' IDENTS <<'EOF' || true
 par;PK
 par_cli;PK
 par_runtime;PK
-par_postgres;PK
 Runtime.create;API
 Runtime.invoke;API
 Runtime.register_tool;API
@@ -16,7 +15,6 @@ Runtime.mcp_server;API
 `Mock;LLM
 `Ollama;LLM
 `Sqlite;PER
-`Postgresql;PER
 `Noop;PER
 par;CLI
 par config;CLI
@@ -43,7 +41,7 @@ default_quota.max_concurrent_tasks;JSN
 parallel_tool_execution;JSN
 EOF
 
-declare -A TOT=( [PK]=4 [API]=5 [LLM]=4 [PER]=3 [CLI]=4 [BSH]=5 [MCP]=7 [PTH]=3 [JSN]=4 )
+declare -A TOT=( [PK]=3 [API]=5 [LLM]=4 [PER]=2 [CLI]=4 [BSH]=5 [MCP]=7 [PTH]=3 [JSN]=4 )
 
 req_for() { case "$1" in
   */zh/README.md|*/docs/zh/README.md|docs/zh/README.md) echo "PK:1 CLI:1" ;;
@@ -64,7 +62,8 @@ check() {
   text=$(strip_code "$f")
   declare -A seen=([PK]=0 [API]=0 [LLM]=0 [PER]=0 [CLI]=0 [BSH]=0 [MCP]=0 [PTH]=0 [JSN]=0) miss=()
   while IFS=';' read -r id cat; do
-    [ -n "$id" ] && { printf '%s' "$text" | grep -qF -- "$id" \
+    # here-string, not a pipe: under `set -o pipefail`, `printf|grep -q` races on SIGPIPE (141) when grep matches early, falsely recording misses.
+    [ -n "$id" ] && { grep -qF -- "$id" <<< "$text" \
       && { seen[$cat]=$(( ${seen[$cat]} + 1 )); present=$((present+1)); } \
       || miss+=("$cat:$id"); }
   done <<< "$IDENTS"
@@ -84,9 +83,9 @@ check() {
     fi
   done
   if [ "$fail" -eq 1 ]; then
-    echo "  Total: $present/39 expected identifiers found (FAIL)"; return 1
+    echo "  Total: $present/37 expected identifiers found (FAIL)"; return 1
   fi
-  echo "  Total: $present/39 expected identifiers found"
+  echo "  Total: $present/37 expected identifiers found"
 }
 
 main() {

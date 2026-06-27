@@ -51,8 +51,7 @@ lib/
 │   └── bash_blacklist.ml     (v0.3.1 黑名单)
 │
 ├── persistence/    持久化
-│   ├── sqlite_persistence.ml
-│   └── postgres_persistence.ml  (独立 opam 包)
+│   └── sqlite_persistence.ml
 │
 ├── event_bus/      事件总线（带 DLQ）
 │
@@ -132,7 +131,7 @@ type event =
   [@@deriving yojson]
 ```
 
-事件由 Runtime 通过 `rt.publish_event_fn` emit，订阅者通过 `Event_bus.subscribe` 接收。v0.3.0 起，事件还会写到 SQLite / Postgres（用于审计 + debug）。
+事件由 Runtime 通过 `rt.publish_event_fn` emit，订阅者通过 `Event_bus.subscribe` 接收。v0.3.0 起，事件还会写到 SQLite（用于审计 + debug）。
 
 ## 下一步
 

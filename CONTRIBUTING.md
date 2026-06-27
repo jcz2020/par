@@ -39,7 +39,7 @@ This section is the most important one for new contributors. Read it before open
 
 **English-only public docs.** Public documentation is English-only. Do not introduce Chinese characters (Unicode U+4E00 through U+9FFF) or any other non-English content in any public doc. Every doc opens with an `<!-- language: en -->` marker on its first line to declare its language. Future translations branch from this anchor.
 
-**OCaml identifier preservation.** Code-level identifiers must never be translated, modified, or paraphrased. This includes literals like `Runtime.create`, `` `Sqlite ``, `par`, `par_cli`, `par_runtime`, `par_postgres`, `par config`, `par ask`, every MCP event name (such as `Mcp_server_started`), every bash module name (such as `Bash_safe_command`), and every JSON config field name (such as `event_bus.max_queue_size`). A doc update that breaks any of these fails the identifier check in CI. See [`docs/DOC-MAINTENANCE.md`](docs/DOC-MAINTENANCE.md) for the complete identifier list and the rationale.
+**OCaml identifier preservation.** Code-level identifiers must never be translated, modified, or paraphrased. This includes literals like `Runtime.create`, `` `Sqlite ``, `par`, `par_cli`, `par_runtime`, `par config`, `par ask`, every MCP event name (such as `Mcp_server_started`), every bash module name (such as `Bash_safe_command`), and every JSON config field name (such as `event_bus.max_queue_size`). A doc update that breaks any of these fails the identifier check in CI. See [`docs/DOC-MAINTENANCE.md`](docs/DOC-MAINTENANCE.md) for the complete identifier list and the rationale.
 
 **Pre-release checklist.** Before tagging a release, walk through these six checks. The full twelve-item checklist is maintained internally for release managers.
 

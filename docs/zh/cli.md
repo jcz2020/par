@@ -49,8 +49,8 @@ dune install --prefix /path/to/prefix
 | `--api-key KEY` | string | (配置文件值) | API 密钥，覆盖配置文件中的 `api_key` |
 | `--api-base URL` | string | (配置文件值或提供商默认值) | 自定义 API 基础 URL，覆盖配置文件 |
 | `--model NAME` | string | `gpt-4`（配置文件默认值） | 模型名称，覆盖配置文件中的 `model` |
-| `--persistence BACKEND` | string | `sqlite`（配置文件默认值） | 持久化后端：`sqlite` 或 `postgres` |
-| `--db-uri URI` | string | `postgresql://localhost/par`（postgres 时） | PostgreSQL 连接 URI，仅 postgres 后端生效 |
+| `--persistence BACKEND` | string | `sqlite`（配置文件默认值） | 持久化后端：`sqlite`（唯一的持久化后端） |
+| `--db-uri URI` | string | (默认位置) | SQLite 数据库路径（覆盖默认位置） |
 | `--temperature FLOAT` | float | `0.7`（配置文件默认值） | 采样温度，覆盖配置文件 |
 | `--system-prompt PROMPT` | string | `You are a helpful assistant.`（配置文件默认值） | Agent 系统提示词，覆盖配置文件 |
 | `--max-iterations N` | int | `10` | ReAct 循环最大迭代次数 |
@@ -154,8 +154,8 @@ par config
 | API Key | `API Key: ` | (无，必须输入) | 提供商对应的 API 密钥 |
 | API Base URL | `API Base URL (默认: https://api.openai.com/v1): ` | (无) | 可选自定义 URL。按回车跳过 |
 | Model name | `Model name [gpt-4]:` | `gpt-4` | 模型标识 |
-| Persistence | `Persistence (sqlite/postgres) [sqlite]:` | `sqlite` | 持久化后端类型 |
-| DB URI | `DB URI (留空跳过): ` | (无) | 仅当选择 `postgres` 时出现 |
+| Persistence | `Persistence [sqlite]:` | `sqlite` | 持久化后端类型 |
+| DB URI | `DB URI (留空跳过): ` | (无) | SQLite 数据库路径（留空使用默认位置） |
 | Temperature | `Temperature [0.7]:` | `0.7` | 采样温度（浮点数） |
 | System prompt | `System prompt [You are a helpful assistant.]:` | `You are a helpful assistant.` | Agent 系统提示词 |
 
@@ -287,11 +287,10 @@ par stats
   // ZhipuAI 示例: "glm-4", "glm-4-flash"
   "model": "gpt-4",
 
-  // 持久化后端。可选值："sqlite"（默认）或 "postgres"
+  // 持久化后端，目前只支持 "sqlite"（嵌入式审计日志）
   "persistence": "sqlite",
 
-  // PostgreSQL 连接 URI。仅 persistence 为 "postgres" 时有效
-  // 默认值: "postgresql://localhost/par"
+  // SQLite 数据库路径，覆盖默认位置（~/.par/par.db）
   "db_uri": null,
 
   // 采样温度。浮点数，范围通常 0.0 ~ 2.0
@@ -416,13 +415,7 @@ par ask "1+1等于几" --temperature 0.0
 par --system-prompt "你只回答中文，用古文风格" ask "什么是机器学习"
 ```
 
-**7. 使用 PostgreSQL 后端**
-
-```bash
-par --persistence postgres --db-uri "postgresql://user:pass@host/par_db"
-```
-
-**8. 脚本中的单次调用**
+**7. 脚本中的单次调用**
 
 ```bash
 result=$(par ask "将以下英文翻译为中文: Hello World" --temperature 0.1)
@@ -445,7 +438,6 @@ echo "$result"
 - 运行时（Runtime）创建失败
 - Agent 注册失败
 - LLM 调用失败（包括超时、速率限制、权限拒绝等）
-- PostgreSQL 后端未安装依赖（输出 `PostgreSQL backend requires 'opam install postgresql' then rebuild`）
 
 ## 故障排除
 
@@ -468,21 +460,6 @@ Error opening SQLite database: ...
 **原因**：当前工作目录下 `par.db` 文件权限不足或磁盘空间不足。
 
 **解决**：检查当前目录写权限，或删除旧的 `par.db` 文件后重试。
-
-### PostgreSQL 后端不可用
-
-```
-PostgreSQL backend requires 'opam install postgresql' then rebuild
-```
-
-**原因**：PostgreSQL 持久化后端需要额外的 OCaml 包。
-
-**解决**：
-
-```bash
-opam install postgresql
-dune clean && dune build
-```
 
 ### API 调用失败
 

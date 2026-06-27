@@ -143,7 +143,7 @@
 
 ---
 
-**最后更新**: 2026-06-24
+**最后更新**: 2026-06-26
 
 ---
 
@@ -178,3 +178,4 @@
 
 | 2026-06-21 | **【待恢复】ARM64 Linux 轮子临时移除** | **范围级变更**: v0.5.0 原计划发布 3 个轮子 (x86_64 Linux + ARM64 Linux + ARM64 macOS)，实际只发布了 2 个 (x86_64 Linux + ARM64 macOS)。**根因**: GitHub Actions 免费 tier ARM64 runner (`ubuntu-22.04-arm64` / `ubuntu-24.04-arm64`) 饱和 queue 45min+ 从未派发; qemu-binfmt 在 x86_64 host 上跑 `quay.io/pypa/manylinux_2_28_aarch64:latest` 容器启动即崩溃 (`Error response from daemon: container is not running`)。**用户决策 2026-06-21**: 跳过 ARM64 Linux, 推到 v0.5.1+。**【强制恢复条件】**: 项目功能相对完善后 (预计 v0.6-v0.8 区间)，必须恢复 ARM64 Linux 轮子支持。恢复路径优先级: (1) 等待 GH Actions ARM 配额改善 (2) 用户自建 self-hosted ARM runner (3) 切换到 OCaml cross-compile toolchain + aarch64 sysroot。**恢复信号**: 出现以下任一情况时立即排期 — (a) ARM Linux 用户在 issue 报告 `pip install` 失败 (b) PyPI 下载统计显示 ARM Linux 需求 >5% (c) 项目发布 v1.0 前的 feature freeze 阶段。**技术债务记录**: `par_runtime-0.5.0-py3-none-manylinux_2_28_aarch64.whl` 的 wheel tag 格式、auditwheel 修复流程、manylinux_2_28_aarch64 容器路径已在 v0.5.0-beta.post1-post5 中验证过 (除 runner 可用性问题外其他都 ready)。恢复时参考 commit 6a12c01 (初始 3-job matrix) 和 90aae3b (qemu 尝试)。 |
 | 2026-06-24 | **v0.5.2 战略反转: skill 系统移出 §7 防呆清单** | **项目成熟度** (runtime / agents / tools / middleware / persistence / RAG / streaming 全部 stable) + 下游项目需求。Skill 系统按 §3 差异化主张做了类型化设计 (typed `tool_filter` ADT, `skill_trigger` ADT, `expected_output` — 比 Claude Code 更类型化, 比 OpenAI 更 filesystem-native, 比 LangChain 更 success-criteria-aware)。**Scope locked in**: `docs/v0.5.2-ROADMAP.md` Track A. **可逆性**: 若下游需求证明为假, 重新加回 §7 该行 + revert Track A 代码即可。代价: 1 个 PR revert。 |
+| 2026-06-26 | **【范围级变更】PostgreSQL 持久化后端移除 — SQLite only** | **变更前**: 三层持久化 (`Sqlite` 开发 / `Postgresql` 生产 / `Noop` 测试)，独立 `par_postgres` opam 包，`caqti-eio` 依赖，公开类型含 `` `Postgresql of string `` 变体，CLI `--db-uri` 指 PostgreSQL 连接串。**变更后**: 两层持久化 (`Sqlite` 唯一持久化后端 / `Noop` 测试)，删除 `par_postgres` opam 包，移除 `caqti-eio` 依赖，公开类型 `persistence : [ `Sqlite of string ]`（`` `Postgresql `` 变体移除，破坏性变更），CLI `--db-uri` 改指 SQLite 数据库路径。**原因**: (1) SQLite 对当前用户群 (LLM 后端工程师做单进程 agent) 已足够; (2) PG 后端长期受 FFI/CI 可用性困扰 (`postgresql` opam 包不在标准 repo, CI 需特殊排除); (3) 收窄维护面，集中精力到 §4 轴 #1/#2 (类型严谨 + 并发)。**影响范围**: 公开 `persistence` 类型 (对 pattern-match `` `Postgresql `` 的 SDK 用户是破坏性变更)、CLI `--db-uri` 语义、全部持久化相关文档 (EN + ZH)、opam 包面 (`par_postgres` 删除)、构建脚本 (不再需要 pg 客户端库)、`docs/rules/docs.md` + `docs/DOC-MAINTENANCE.md` 标识符保留清单 (移除 `par_postgres` + `` `Postgresql ``)。**对多实例水平扩展的影响**: SQLite 文件锁不支持跨容器多进程写同一文件——这是当前已知限制。双层持久化模型 (本地 SQLite + 远程 tier) 在路线图上 (v0.6+, bd issue `PAR-4dt`)，远程 tier 不再特指 Postgres (可能是对象存储或未来后端)。**回退方式**: 从 commit `cb5d795` (移除前) 恢复 `lib/postgres/` + `par_postgres.opam` + caqti-eio 依赖。详见 `CHANGES.md` v0.5.4-beta "Removed — PostgreSQL persistence backend"。 |

@@ -56,7 +56,7 @@ The event bus emits typed events for every security-relevant transition:
 - `Mcp_server_started` / `Mcp_server_failed` / `Mcp_server_stopped` — MCP server lifecycle.
 - `Mcp_tool_invoked` / `Mcp_tool_completed` — MCP tool call audit with duration tracking.
 
-Events are persisted to SQLite or Postgres and can be queried for post-incident analysis.
+Events are persisted to SQLite and can be queried for post-incident analysis.
 
 ## Threat Model
 

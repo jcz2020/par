@@ -16,7 +16,7 @@ A runtime is created through `Par.Runtime.create` and needs the following config
 
 ```ocaml
 type runtime_config = {
-  persistence : [ `Sqlite of string | `Postgresql of string ];
+  persistence : [ `Sqlite of string ];
   event_bus : event_bus_config;
   default_quota : resource_quota;
   shutdown : shutdown_config;
@@ -137,7 +137,7 @@ Provider examples:
 
 ### LLM provider configuration
 
-Provider instances are created through `llm_provider_config` and passed to the `llm` parameter of `Runtime.create`. The `` `Mock `` provider from `lib/providers` is the deterministic choice for tests; production code reaches for `` `Openai `` or `` `Anthropic ``. The PostgreSQL backend, when needed, is registered through `` `Postgresql `` in `persistence`, with the full `par_postgres` opam package providing the implementation.
+Provider instances are created through `llm_provider_config` and passed to the `llm` parameter of `Runtime.create`. The `` `Mock `` provider from `lib/providers` is the deterministic choice for tests; production code reaches for `` `Openai `` or `` `Anthropic ``.
 
 ```ocaml
 type llm_provider_config =

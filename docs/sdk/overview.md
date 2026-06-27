@@ -25,7 +25,6 @@ graph TD
   P --> CORE["lib/core"]
   P --> PROV["lib/providers"]
   P --> PERS["lib/persistence"]
-  P --> POST["lib/postgres (par_postgres)"]
   P --> EVB["lib/event_bus"]
   P --> MID["lib/middleware"]
   P --> TOOL["lib/tools"]
@@ -34,7 +33,6 @@ graph TD
   CORE --> RT["Runtime / Engine / Workflow_engine / Expression / State_machine / Context_manager / Cancellation / Tool_registry / Template / Steering_queue / Hook / Metrics"]
   PROV --> PROV_API["Openai_provider / Anthropic_provider / Mock_provider"]
   PERS --> PERS_API["Sqlite_persistence / Noop_persistence"]
-  POST --> POST_API["Postgres_persistence (optional opam)"]
   EVB --> EVB_API["Event_bus with DLQ + Eio.Stream"]
   MID --> MID_API["Logging / Retry / Rate_limit / Timeout / Arg_validation / Validation / Pii_mask / Sanitize_tool_output"]
   TOOL --> TOOL_API["Builtin_tools (20 incl. bash) + Bash_safe_command + Bash_policy + Bash_blacklist"]
@@ -207,7 +205,6 @@ Every public module lives under one of the 9 sub-libraries below, plus the facad
 | `lib/core` | `Par.Types`, `Par.Runtime`, `Par.Engine`, `Par.Workflow_engine`, `Par.Expression`, `Par.State_machine`, `Par.Context_manager`, `Par.Cancellation`, `Par.Tool_registry`, `Par.Template`, `Par.Steering_queue`, `Par.Hook`, `Par.Metrics` | Core types, runtime, ReAct loop, workflow, expression evaluator, state machine, context manager, cancellation tokens, tool registry |
 | `lib/providers` | `Par.Openai_provider`, `Par.Anthropic_provider`, `Par.Mock_provider` | LLM provider implementations |
 | `lib/persistence` | `Par.Sqlite_persistence`, `Par.Noop_persistence` | Sqlite backend (dev), no-op (tests) |
-| `lib/postgres` | (separate `par_postgres` opam package) | PostgreSQL backend (prod) |
 | `lib/event_bus` | `Par.Event_bus` | Eio-based event bus with DLQ |
 | `lib/middleware` | `Par.Logging`, `Par.Retry`, `Par.Rate_limit`, `Par.Timeout`, `Par.Arg_validation`, `Par.Validation`, `Par.Pii_mask`, `Par.Sanitize_tool_output` | 7 built-in middlewares |
 | `lib/tools` | `Par.Builtin_tools`, `Par.Bash_safe_command`, `Par.Bash_policy`, `Par.Bash_blacklist` | 20 built-in tools + the type-safe bash tool |

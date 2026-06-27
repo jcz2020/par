@@ -109,7 +109,7 @@ documents = [
     },
     {
         "id": "docs/arch-002",
-        "content": "Persistence defaults to SQLite. PostgreSQL is available via the separate par_postgres package.",
+        "content": "Persistence defaults to SQLite, the only persistent backend.",
         "metadata": {"source": "architecture.md", "section": "persistence", "version": "0.5"},
     },
     {

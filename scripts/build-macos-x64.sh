@@ -58,7 +58,7 @@ if ! ocaml --version 2>/dev/null | grep -qE '^OCaml 5\.[4-9]'; then
 fi
 
 # --- Build (must match release.yml steps exactly) ---
-info "Pinning packages (skip par_postgres)..."
+info "Pinning packages..."
 opam pin add par . --no-action -y
 opam pin add par_cli . --no-action -y
 

@@ -13,7 +13,7 @@ P-A-R (Programmable Agent Runtime) 是一个基于 OCaml 5.4+ 的模块化 Agent
 | 多 Provider 支持 | OpenAI 兼容接口、Anthropic Messages API、Ollama、自定义端点 |
 | MCP 客户端 | 连接任意 MCP server（stdio / HTTP/SSE），自动发现工具/资源/提示词 |
 | 中间件管道 | 日志、重试、限速、超时、输入校验、PII 掩码、输出清洗 (7 个内置) |
-| 持久化 | SQLite (开发) / PostgreSQL (生产)，事件溯源 + 任务状态持久化 |
+| 持久化 | SQLite（唯一的持久化后端），事件溯源 + 任务状态持久化；Noop 用于测试 |
 | FFI / Python 绑定 | C ABI (`par_capi.so`) + ctypes Python 包 (`par_runtime`) |
 
 ## 架构
@@ -27,7 +27,7 @@ P-A-R (Programmable Agent Runtime) 是一个基于 OCaml 5.4+ 的模块化 Agent
 +----------+----------+----------+----------+--------------+
 |  Core    |Providers |Persist   |Event_bus |  Middleware  |
 | Types    |OpenAI    |SQLite    |Eio+DLQ   |  Logging     |
-| Runtime  |Anthropic |PostgreSQL|          |  Retry       |
+| Runtime  |Anthropic |SQLite    |          |  Retry       |
 | Engine   |          |          |          |  Rate_limit  |
 | Workflow |          |          |          |  Timeout     |
 | Expr     |          |          |          |  Validation  |

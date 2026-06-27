@@ -54,8 +54,8 @@ The following options apply to both `par` (REPL) and `par ask`. They override th
 | `--api-key KEY` | string | (from config) | API key, overrides `api_key` in config |
 | `--api-base URL` | string | (from config or provider default) | Custom API base URL, overrides config |
 | `--model NAME` | string | `gpt-4` (from config) | Model name, overrides `model` in config |
-| `--persistence BACKEND` | string | `sqlite` (from config) | Persistence backend: `sqlite` or `postgres` |
-| `--db-uri URI` | string | `postgresql://localhost/par` (when postgres) | PostgreSQL connection URI, only effective with postgres backend |
+| `--persistence BACKEND` | string | `sqlite` (from config) | Persistence backend: `sqlite` (the only persistent backend) |
+| `--db-uri URI` | string | (default location) | SQLite database path (overrides default location) |
 | `--temperature FLOAT` | float | `0.7` (from config) | Sampling temperature, overrides config |
 | `--system-prompt PROMPT` | string | `You are a helpful assistant.` (from config) | Agent system prompt, overrides config |
 | `--max-iterations N` | int | `10` | Maximum ReAct loop iterations |
@@ -159,8 +159,8 @@ This command takes no additional options.
 | API Key | `API Key: ` | (none, must enter) | API key for the chosen provider |
 | API Base URL | `API Base URL (default: https://api.openai.com/v1): ` | (none) | Optional custom URL. Press Enter to skip |
 | Model name | `Model name [gpt-4]:` | `gpt-4` | Model identifier |
-| Persistence | `Persistence (sqlite/postgres) [sqlite]:` | `sqlite` | Persistence backend type |
-| DB URI | `DB URI (leave blank to skip): ` | (none) | Only shown when `postgres` is selected |
+| Persistence | `Persistence (sqlite) [sqlite]:` | `sqlite` | Persistence backend type |
+| DB URI | `DB URI (leave blank to skip): ` | (none) | SQLite database path; optional, overrides the default location |
 | Temperature | `Temperature [0.7]:` | `0.7` | Sampling temperature (float) |
 | System prompt | `System prompt [You are a helpful assistant.]:` | `You are a helpful assistant.` | Agent system prompt |
 
@@ -291,11 +291,10 @@ The configuration file is standard JSON at `~/.par/config.json`. Here is a compl
   // Anthropic examples: "claude-3-sonnet-20240229", "claude-3-opus-20240229"
   "model": "gpt-4",
 
-  // Persistence backend. Options: "sqlite" (default) or "postgres"
+  // Persistence backend. Currently only "sqlite" is supported (the embedded audit log).
   "persistence": "sqlite",
 
-  // PostgreSQL connection URI. Only effective when persistence is "postgres"
-  // Default: "postgresql://localhost/par"
+  // SQLite database path. Overrides the default location (~/.par/par.db).
   "db_uri": null,
 
   // Sampling temperature. Float, typically 0.0–2.0
@@ -369,7 +368,7 @@ If you use an OpenAI-compatible provider that requires environment variable auth
 
 ## Examples
 
-Here are 8 practical usage scenarios:
+Here are 7 practical usage scenarios:
 
 **1. First-time setup**
 
@@ -422,12 +421,6 @@ par ask "What is 1+1?" --temperature 0.0
 par --system-prompt "You only answer in OCaml code" ask "What is machine learning?"
 ```
 
-**7. PostgreSQL backend**
-
-```bash
-par --persistence postgres --db-uri "postgresql://user:pass@host/par_db"
-```
-
 **8. Single-shot in a script**
 
 ```bash
@@ -451,7 +444,6 @@ echo "$result"
 - Runtime creation failure
 - Agent registration failure
 - LLM call failure (including timeout, rate limit, permission denied)
-- PostgreSQL backend dependencies not installed (outputs: `PostgreSQL backend requires 'opam install postgresql' then rebuild`)
 
 ## Troubleshooting
 
@@ -474,21 +466,6 @@ Error opening SQLite database: ...
 **Cause**: Insufficient permissions on the `par.db` file in the current directory, or disk is full.
 
 **Fix**: Check write permissions in the current directory, or delete the old `par.db` and retry.
-
-### PostgreSQL backend unavailable
-
-```
-PostgreSQL backend requires 'opam install postgresql' then rebuild
-```
-
-**Cause**: The PostgreSQL persistence backend requires an additional OCaml package.
-
-**Fix**:
-
-```bash
-opam install postgresql
-dune clean && dune build
-```
 
 ### API call failures
 

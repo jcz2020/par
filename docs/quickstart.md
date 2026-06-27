@@ -12,7 +12,7 @@
 
 PAR (Programmable Agent Runtime) is a modular, type-safe agent runtime for OCaml 5.4+.
 It includes a ReAct reasoning engine, OpenAI and Anthropic LLM providers (plus any OpenAI-compatible endpoint),
-20 built-in tools (including a type-safe bash tool), an MCP client (stdio + HTTP/SSE), workflow orchestration, and SQLite/PostgreSQL persistence.
+20 built-in tools (including a type-safe bash tool), an MCP client (stdio + HTTP/SSE), workflow orchestration, and SQLite persistence.
 
 ## Prerequisites
 
@@ -362,18 +362,7 @@ let config = {
 } in
 ```
 
-The database file is created automatically at runtime if it doesn't exist. It stores task state, event logs, and workflow checkpoints.
-
-Switch to PostgreSQL (recommended for production):
-
-```ocaml
-let config = {
-  Types.persistence = `Postgresql "postgresql://localhost/par";
-  (* ... other fields ... *)
-} in
-```
-
-Note: the PostgreSQL backend requires installing the `par_postgres` opam package separately and recompiling.
+The database file is created automatically at runtime if it doesn't exist. It stores task state, event logs, and workflow checkpoints. SQLite is the only persistence backend; no separate configuration is needed.
 
 ## Troubleshooting
 

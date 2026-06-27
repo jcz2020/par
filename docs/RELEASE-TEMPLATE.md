@@ -43,9 +43,9 @@ opam install par par_cli
 ```
 
 Both packages resolve against the public opam repository; no extra
-configuration is required. The `par_postgres` opam package is published
-separately and is only needed if you want the PostgreSQL persistence
-backend.
+configuration is required. The published packages are `par` and
+`par_cli`. SQLite is the only persistence backend; no separate database
+package is needed.
 
 ### PyPI (Python binding)
 
@@ -70,7 +70,7 @@ bash scripts/build-from-source.sh
 ```
 
 The script installs the system C libraries (`libgmp`, `libsqlite3`,
-`libpq`, `libssl`), bootstraps opam and OCaml 5.4 if needed, builds the
+`libssl`), bootstraps opam and OCaml 5.4 if needed, builds the
 runtime, and installs the `par` binary to `/usr/local/bin/par`.
 
 ## Verify

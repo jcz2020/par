@@ -26,7 +26,6 @@ The first vector backend PAR ships is [sqlite-vec](https://github.com/asg017/sql
 | Qdrant | Purpose-built vector DB, fast, filterable. | Requires a separate server process. Adds an operational dependency. Better fit for v0.5.4+ when external stores land. |
 | Milvus | Distributed, scales to billions of vectors. | Heavy. Overkill for the single-process, single-machine use case PAR targets first. |
 | Pinecone | Managed, zero ops. | Cloud-only, external dependency, vendor lock-in. Conflicts with PAR's local-first ethos. |
-| pgvector | Reuses Postgres if you already run it. | Tied to the `par_postgres` package. Sensible as a future backend, but not the default. |
 
 sqlite-vec won for three reasons. First, it is embedded. A PAR user running locally with `par ask` or a Python quickstart gets RAG without standing up a second service. The extension loads via SQLite's `enable_load_extension`, which `Vector_store.create` invokes. Second, it covers the dominant use case: thousands to low-millions of vectors per node, KNN over cosine similarity, single-process. That is roughly 80 percent of real RAG workloads. Third, it keeps the dependency surface small. The `vec0.so` binary ships in the repo under `vendor/sqlite-vec/`, version-pinned (v0.1.9), and the OCaml side talks to it through the standard SQLite3 bindings PAR already uses for event persistence.
 
@@ -95,7 +94,7 @@ The runtime does not silently fall back. If you configure Anthropic as your only
 
 PAR's RAG foundation is deliberately scoped. Three things are on the roadmap but not in v0.5.1.
 
-**External vector stores.** Qdrant and Milvus support is planned for v0.5.4 and later. The embedding-agnostic `Vector_store` interface is designed so that adding them means swapping the `type t` implementation; the search and add signatures stay the same. A future `module type VECTOR_STORE`, mirroring the existing `LLM_SERVICE` module type, will abstract the backend when there is a second implementation to motivate the abstraction. Until then, one interface and one backend is the right amount of generality.
+**External vector stores.** Qdrant and Milvus support is planned for v0.5.5 and later. The embedding-agnostic `Vector_store` interface is designed so that adding them means swapping the `type t` implementation; the search and add signatures stay the same. A future `module type VECTOR_STORE`, mirroring the existing `LLM_SERVICE` module type, will abstract the backend when there is a second implementation to motivate the abstraction. Until then, one interface and one backend is the right amount of generality.
 
 **Document loaders.** PAR chunking takes raw text. It does not parse PDFs, HTML, Markdown frontmatter, or any structured document format. A future version plans a document-loader layer that converts common formats into the text strings the chunker expects. Today, the caller converts. This keeps the chunker pure and testable, and it avoids pulling in a forest of format-specific dependencies for users who only have plain text.
 

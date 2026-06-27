@@ -7,7 +7,7 @@
 
 PAR（Programmable Agent Runtime）是一个模块化、类型安全的 Agent 运行时，面向 OCaml 5.4+。
 它内置 ReAct 推理引擎，支持 OpenAI 和 Anthropic 两个 LLM 供应商（以及任何 OpenAI 兼容接口，如智谱 GLM-4），
-提供 20 个内置工具（含类型安全 bash）、MCP 客户端（stdio + HTTP/SSE）、工作流编排和 SQLite/PostgreSQL 持久化。
+提供 20 个内置工具（含类型安全 bash）、MCP 客户端（stdio + HTTP/SSE）、工作流编排和 SQLite 持久化。
 
 ## 前置条件
 
@@ -364,16 +364,7 @@ let config = {
 
 数据库文件会在运行时自动创建（如果不存在），存储任务状态、事件日志和工作流检查点。
 
-切换到 PostgreSQL（生产环境推荐）：
-
-```ocaml
-let config = {
-  Types.persistence = `Postgresql "postgresql://localhost/par";
-  (* ... 其他字段 ... *)
-} in
-```
-
-注意：PostgreSQL 后端需要额外安装 `opam install postgresql` 并重新编译。
+SQLite 是唯一的持久化后端，无需额外配置。
 
 ## 故障排查
 

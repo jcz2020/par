@@ -32,25 +32,25 @@ install_system_deps() {
       info "Installing system libraries (deb)..."
       sudo apt-get update -qq
       sudo apt-get install -y -qq build-essential git curl \
-        libgmp-dev libsqlite3-dev libpq-dev libssl-dev pkg-config
+        libgmp-dev libsqlite3-dev libssl-dev pkg-config
       ;;
     fedora)
       info "Installing system libraries (rpm)..."
       sudo dnf install -y gcc make git curl \
-        gmp-devel sqlite-devel libpq-devel openssl-devel pkg-config
+        gmp-devel sqlite-devel openssl-devel pkg-config
       ;;
     arch)
       info "Installing system libraries (pacman)..."
       sudo pacman -S --noconfirm --needed base-devel git curl \
-        gmp sqlite postgresql-libs openssl pkg-config
+        gmp sqlite openssl pkg-config
       ;;
     alpine)
       info "Installing system libraries (apk)..."
       sudo apk add build-base git curl \
-        gmp-dev sqlite-dev postgresql-dev openssl-dev linux-headers
+        gmp-dev sqlite-dev openssl-dev linux-headers
       ;;
     *)
-      warn "Unknown distro. Please install manually: gcc, make, libgmp-dev, libsqlite3-dev, libpq-dev, libssl-dev"
+      warn "Unknown distro. Please install manually: gcc, make, libgmp-dev, libsqlite3-dev, libssl-dev"
       ;;
   esac
 }

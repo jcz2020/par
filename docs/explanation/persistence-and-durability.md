@@ -2,29 +2,28 @@
 
 # Persistence and Durability
 
-PAR can run with no persistence at all, with an embedded SQLite database, or with PostgreSQL. This document explains *why* three backends exist, *how* they differ in practice, and what happens to your events between the moment the runtime publishes them and the moment they land on disk. It is an explanation article, not a config reference. For the config field names, read `lib/core/types.ml` and the SDK reference under `docs/sdk/`. Here we trace the write path, unpack the schema, and lay out the decision matrix for picking a backend.
+PAR can run with no persistence at all, or with an embedded SQLite database. This document explains *why* two tiers exist, *how* they differ in practice, and what happens to your events between the moment the runtime publishes them and the moment they land on disk. It is an explanation article, not a config reference. For the config field names, read `lib/core/types.ml` and the SDK reference under `docs/sdk/`. Here we trace the write path, unpack the schema, and lay out when to reach for each tier.
 
 ## What persistence is for in PAR
 
 An agent runtime generates events. Every tool invocation, every task state change, every workflow checkpoint, every bash command and its risk classification is emitted as a `Par.Types.event`. These events serve three purposes: audit (what did the agent do and when), debug (why did it take that path), and recovery (can we resume this workflow after a crash). Without persistence, all three are gone the instant the process exits.
 
-PAR treats persistence as an *eventually-consistent audit log*, not as a transactional state store. The agent loop itself does not block on persistence. When `Runtime.invoke` emits a `Tool_invoked` event, that event goes to the event bus, and from there to a batched writer, and from there to SQLite or PostgreSQL, all asynchronously. If the write fails, the runtime logs it and keeps running. The agent's correctness does not depend on the audit log being durable, only on the LLM responses and tool results being correct in memory. This separation is what lets PAR stay fast under load while still giving you an audit trail after the fact.
+PAR treats persistence as an *eventually-consistent audit log*, not as a transactional state store. The agent loop itself does not block on persistence. When `Runtime.invoke` emits a `Tool_invoked` event, that event goes to the event bus, and from there to a batched writer, and from there to SQLite, all asynchronously. If the write fails, the runtime logs it and keeps running. The agent's correctness does not depend on the audit log being durable, only on the LLM responses and tool results being correct in memory. This separation is what lets PAR stay fast under load while still giving you an audit trail after the fact.
 
 The exception is workflow checkpoints. Workflow state, stored in the `workflow_states` table, is written when a workflow step completes so a crashed run can be resumed. That path is more latency-sensitive, but it still goes through the same batched writer. If you need strict durability for workflow resume, you accept the batch latency.
 
-## Three backends, three audiences
+## Two persistence tiers
 
-PAR ships three persistence backends, selected by the `persistence` field in `runtime_config`:
+PAR ships two persistence tiers, controlled by the `persistence` field in `runtime_config`:
 
-- `` `Sqlite `` is the default. A single file (or `:memory:` for tests). Zero external dependencies. The `sqlite3` library is a hard dependency of the `par` package. You get WAL mode, the full schema, retention pruning, the works. This is what `par ask` and the Python quickstart use.
-- `` `Postgresql `` is the production backend. It lives in a separate opam package, `par_postgres`, because it pulls in `pgwire` and TLS libraries that not every user wants. You point it at a Postgres instance and you get the same schema, but multi-process safe: several PAR runtimes can share one database. This matters for horizontally-scaled services.
-- `` `Noop `` is the test backend. It discards everything. There is no event bus, no writer fiber, no I/O. Tests that only care about agent behavior run faster and do not leave files behind.
+- `` `Sqlite `` is the only persistent backend and the default. A single file (or `:memory:` for tests). Zero external dependencies: the `sqlite3` library is a hard dependency of the `par` package. You get WAL mode, the full schema, retention pruning, the works. This is what `par ask` and the Python quickstart use. The public config type is `[ `Sqlite of string ]`, where the string is the database path. There is no other config variant.
+- `` `Noop `` is the in-memory backend for tests. It discards everything. There is no event bus, no writer fiber, no I/O. Tests that only care about agent behavior run faster and do not leave files behind. Noop is available programmatically as a variant of the internal persistence type, but it is not exposed as a config option: the public config only carries the SQLite path. If you want the in-memory behavior from the config surface, point SQLite at `:memory:`.
 
-The `` `Noop `` backend is also a subtle architectural statement. When persistence is noop, the runtime skips wiring up the event bus entirely. There is no dead event bus feeding a dead writer. The `Persistence_writer` and `Event_bus` instances are `None` on the runtime record. This keeps the test path lean and makes it impossible to accidentally leave a background drain fiber running in a unit test.
+The `` `Noop `` tier is also a subtle architectural statement. When persistence is noop, the runtime skips wiring up the event bus entirely. There is no dead event bus feeding a dead writer. The `Persistence_writer` and `Event_bus` instances are `None` on the runtime record. This keeps the test path lean and makes it impossible to accidentally leave a background drain fiber running in a unit test.
 
 ## The schema: three tables
 
-All real backends use the same schema, defined in `lib/persistence/sqlite_persistence.ml`. Three tables:
+SQLite uses the schema defined in `lib/persistence/sqlite_persistence.ml`. Three tables:
 
 ```sql
 CREATE TABLE events (
@@ -77,7 +76,7 @@ Persistence_writer.buffer  (capacity 1000, Mutex-protected list)
 grab_pending  ◄── takes whole buffer, resets to []
    │
    ▼
-save_fn(batch)  ◄── persistence.save_events_fn  ─►  SQLite / Postgres
+save_fn(batch)  ◄── persistence.save_events_fn  ─►  SQLite
 ```
 
 First hop: `publish_event_fn` is the event bus's publish function. The bus is an in-memory fan-out with a dead-letter queue. Every subscriber gets every event. One of those subscribers is a closure that calls `Persistence_writer.push`.
@@ -94,30 +93,30 @@ SQLite in WAL (Write-Ahead Logging) mode lets readers and a single writer procee
 
 WAL has one operational consequence: the database directory must be writable, because SQLite creates `-wal` and `-shm` sidecar files next to the main `.db` file. If you point PAR at a read-only directory, WAL setup fails and you get an error at `Runtime.create`. For ephemeral or test runs, `:memory:` sidesteps this entirely.
 
+One constraint follows from WAL plus SQLite's file locking: only one process should be writing the file at a time. A single PAR runtime owning the file is the supported model. Two runtimes pointed at the same `.db` file from separate processes will contend on the lock and you will see `SQLITE_BUSY` errors under load.
+
 ## Retention: the 7-day default
 
 Left unchecked, the events table grows forever. PAR prunes it. The default retention TTL is 7 days (`default_retention_ttl = 7. *. 24. *. 60. *. 60.` in `lib/persistence/sqlite_persistence.ml`). When a SQLite backend is opened, it runs a prune that deletes every event older than the TTL. You can override the TTL per-backend at create time.
 
 Pruning is timestamp-based, on the `events` table only. `task_states` and `workflow_states` are not pruned automatically, because their rows represent resumable state rather than historical noise. If you want to clean those up, you do it yourself with a DELETE. The assumption is that a long-running service cares about audit history aging out but not about losing a workflow checkpoint it might still resume.
 
-## When to pick which backend
+## When to pick which tier
 
-| Scenario | Backend | Why |
-|----------|---------|-----|
-| Local development, single process | `` `Sqlite `` | Zero setup, file on disk, WAL handles the read/write mix. |
-| Tests, CI | `` `Noop `` | No I/O, no leftover files, fastest. |
-| Single-instance production | `` `Sqlite `` | Still fine. WAL plus the batched writer handles moderate load. Back up the `.db` file. |
-| Multi-instance production, HA | `` `Postgresql `` | SQLite's file locking does not survive multiple processes writing to the same file across containers. Postgres does. |
-| Heavy audit query workload | `` `Postgresql `` | You want a real query planner, indexes you control, and concurrent readers that do not contend with the writer. |
-| Regulated environment needing long retention | `` `Postgresql `` | Tune retention server-side, integrate with your existing backup pipeline. |
+| Scenario | Tier | Why |
+|----------|------|-----|
+| Local development, single-instance production | `` `Sqlite `` | Zero setup, file on disk, WAL handles the read/write mix. A single PAR runtime with SQLite handles hundreds of events per second through the batched writer; the bottleneck is usually the LLM provider, not the database. Back up the `.db` file. |
+| Tests, CI, anything that does not need an audit trail on disk | `` `Noop `` | No I/O, no leftover files, fastest. |
 
-The upgrade trigger from SQLite to PostgreSQL is almost always one of two things: you need more than one PAR process hitting the same data, or your audit query patterns have outgrown what SQLite indexes give you. Until you hit one of those, SQLite is enough. A single PAR runtime with SQLite can handle hundreds of events per second through the batched writer; the bottleneck is usually the LLM provider, not the database.
+The honest limitation worth stating plainly: SQLite is a single-file, single-writer database. Its file locking does not survive multiple processes writing to the same file across containers. If you need more than one PAR process hitting the same data at once, the options today are to shard at the application level (one runtime, one database file, partitioned by tenant or session) or to run one writer and let other instances read replicas of the file. The cross-instance, shared-state story is on the roadmap as a future remote tier rather than something SQLite gives you now. See "What is coming".
+
+A single PAR runtime with SQLite is enough for a great deal of real load. The reason to look past it is horizontal scaling with shared state, and that is exactly the gap the dual-layer work is meant to close.
 
 ## What is coming
 
-The current model is single-layer: events go to one backend, full stop. A future version plans a dual-layer model: a fast local tier (SQLite, low latency, short retention) plus a remote tier (Postgres or object storage, durable, long retention). The local tier would absorb burst traffic and forward to the remote tier asynchronously. This is the standard hot/cold log architecture. Until it lands, pick your backend based on the matrix above and accept that one tier is what you have.
+The current model is single-layer: events go to one backend, full stop. A future version plans a dual-layer model: a fast local tier (SQLite, low latency, short retention) plus a remote tier (a future persistence backend or object storage, durable, long retention). The local tier would absorb burst traffic and forward to the remote tier asynchronously. This is the standard hot/cold log architecture. Until it lands, pick your tier based on the matrix above and accept that one tier is what you have.
 
-The dual-layer design exists on the roadmap because the single-tier model forces a choice between latency (SQLite) and durability across instances (Postgres). A service that wants both today has to run Postgres everywhere and eat the network round trip on every batch flush. The dual-layer path would let a service keep SQLite locally for sub-millisecond audit writes and replicate to Postgres for cross-instance queries. That is the theory. The implementation is not here yet.
+The dual-layer design is on the roadmap (tracked as bd issue `PAR-4dt`, targeted at v0.6+) because the single-tier model forces a choice between latency (SQLite, local, fast) and durability across instances (a remote tier that survives multiple writers). A service that wants both today has to run SQLite locally per instance and forgo shared cross-instance queries, or shard its workload. The dual-layer path would let a service keep SQLite locally for sub-millisecond audit writes and replicate to a remote tier for cross-instance queries. That is the theory. The implementation is not here yet.
 
 ## See also
 

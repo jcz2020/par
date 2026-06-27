@@ -119,11 +119,10 @@ with Runtime(config) as rt:
 | 调用 agent | 支持 (需 OCaml 注册) | 支持 |
 | 工作流提交/审批/恢复 | 部分/支持/支持 | 全部支持 |
 | 中间件 | 不支持 | 7 个内置 |
-| PostgreSQL | 不支持 | 支持 (可选) |
 | CLI REPL | 不适用 | `par` 命令 |
 
 选择 Python: 已有 Python 技术栈、快速集成、原型验证、简单工作流。
-选择 OCaml: 需完整 agent 定义、自定义 handler、中间件、PG 持久化、性能敏感。
+选择 OCaml: 需完整 agent 定义、自定义 handler、中间件、性能敏感。
 
 ## 从原始 ctypes 迁移
 

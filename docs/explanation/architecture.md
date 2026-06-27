@@ -57,7 +57,6 @@ lib/
 │
 ├── persistence/    Persistence backends
 │   ├── sqlite_persistence.ml
-│   ├── postgres_persistence.ml  (separate opam package)
 │   └── persistence_writer.ml    (v0.4.1 event persistence writer)
 │
 ├── event_bus/      Event bus (with DLQ)
@@ -138,7 +137,7 @@ type event =
   [@@deriving yojson]
 ```
 
-Events are emitted by the Runtime via `rt.publish_event_fn`, and subscribers receive them through `Event_bus.subscribe`. Since v0.3.0, events are also written to SQLite / Postgres (for audit and debug). As of v0.4.1, the `Persistence_writer` module handles event persistence with configurable retention (`event_retention_seconds` in `runtime_config`).
+Events are emitted by the Runtime via `rt.publish_event_fn`, and subscribers receive them through `Event_bus.subscribe`. Since v0.3.0, events are also written to SQLite (for audit and debug). As of v0.4.1, the `Persistence_writer` module handles event persistence with configurable retention (`event_retention_seconds` in `runtime_config`).
 
 ## Next steps
 

@@ -284,7 +284,7 @@ The `PARError` covers every error path that crosses the FFI boundary: malformed 
 - **No `invoke_with_rag_streaming`.** The RAG entrypoint (`Runtime.invoke_with_rag`) will get its own streaming variant in a future release.
 - **Backpressure is blocking.** If the consumer is much slower than the producer, the OCaml fiber blocks on `queue.put`. This is an acceptable tradeoff versus unbounded memory growth, but it does mean a hung consumer ties up an OCaml fiber until the stream completes or is cancelled.
 - **Single consumer only.** The iterator is not broadcast. If multiple subscribers need the same stream, fan out at the application level (wrap the iterator in your own pub-sub).
-- **Early break blocks subsequent calls (v0.5.3 known limitation).** Breaking from the iterator before `Done` leaves the background daemon thread holding `ocaml_lock` until the LLM stream completes. See the `invoke_stream` docstring and CHANGES.md "Known Limitation" for details. A `par_cancel_stream` FFI is planned for v0.5.4.
+- **Early break blocks subsequent calls (v0.5.3 known limitation).** Breaking from the iterator before `Done` leaves the background daemon thread holding `ocaml_lock` until the LLM stream completes. See the `invoke_stream` docstring and CHANGES.md "Known Limitation" for details. The `par_cancel_stream` FFI (shipped in v0.5.4-beta) mitigates this with a flag-check pattern — cancel takes effect at the next chunk boundary (~50–300 ms typical), after which `ocaml_lock` releases and subsequent `par_*` calls proceed.
 
 ## Implementation notes (for C.2 and C.3 maintainers)
 

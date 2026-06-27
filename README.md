@@ -9,7 +9,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.5.3 — Critical bug fixes (RAG sqlite-vec path resolution for pip users) + true incremental streaming. Plus v0.5.2's skill system + RAG foundation. API may change before v1.0.
+> **Status**: v0.5.4-beta — Multi-provider support (OpenAI + Anthropic + Ollama + custom with cross-provider fallback), session resume, skill CLI. API may change before v1.0.
 
 ---
 
@@ -100,7 +100,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - **MCP client** (stdio + HTTP/SSE) — connect any Model Context Protocol server for tools, resources, prompts
 - **20 built-in tools** including type-safe bash (`Bash_safe_command` ADT, shell injection unrepresentable)
 - **7 middleware** — Logging, Retry, Rate_limit, Timeout, Validation, PII_mask, Sanitize_tool_output
-- **Dual persistence** — SQLite (dev), PostgreSQL (prod, separate `par_postgres` package), Noop (tests)
+- **SQLite persistence** — embedded audit log (events, task state, workflow checkpoints, conversation history); Noop backend for tests
 - **Structured concurrency** — OCaml 5.4 effects with Eio, no orphan fibers, no callback hell
 - **Python ctypes binding** — `par_runtime` package, thread-safe, no GIL contention with OCaml runtime. Persistent Eio domain per Runtime for full concurrency support.
 - **1000+ OCaml tests + 64 Python tests** passing (all green, including RAG e2e from any cwd)
@@ -146,9 +146,9 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.5.3 — Critical bug fixes (RAG sqlite-vec path, true incremental streaming) on top of v0.5.2's skill system + RAG foundation. See [CHANGES.md](CHANGES.md) for the full release notes.
+**Current**: v0.5.4-beta — Multi-provider support (register OpenAI + Anthropic + Ollama + custom providers in one Runtime, with cross-provider fallback), session resume (`par -c <id>` / `par -r`), skill CLI gap closure, `par_cancel_stream` FFI. See [CHANGES.md](CHANGES.md) for the full release notes.
 
-**Coming in v0.5.4+**: External vector stores (Qdrant/Milvus), ARM64 Linux wheel, interactive tutorials.
+**Coming in v0.5.5+**: External vector stores (Qdrant/Milvus), document loaders, prompt caching, context compression refinements.
 
 ## Getting help
 

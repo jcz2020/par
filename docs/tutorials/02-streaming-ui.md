@@ -281,10 +281,11 @@ The takeaways: keep the `try/except KeyboardInterrupt` tight around the loop, do
 the cleanup in the generator's `finally`, and never let an exception escape
 without closing the iterator. PAR's `invoke_stream` docstring spells out the
 v0.5.3 limitation that breaking early leaves the background daemon thread
-holding the runtime lock until the LLM stream completes naturally. A
-`par_cancel_stream` FFI that interrupts in-flight streams within a chunk interval
-is planned for v0.5.4 and later; until it ships, prefer letting a stream finish
-or timing out at the provider level over a hard break.
+holding the runtime lock until the LLM stream completes naturally. The
+`par_cancel_stream` FFI (shipped in v0.5.4-beta) interrupts in-flight streams
+within a chunk interval (~50–300 ms typical); call `reader.cancel()` (or let the
+reader fall out of scope) to signal cancellation and release the runtime lock,
+rather than relying on a hard break.
 
 ## Step 6: Plug in a live stream
 
