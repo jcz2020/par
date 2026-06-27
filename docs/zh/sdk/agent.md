@@ -80,6 +80,7 @@ let () = Eio_main.run (fun _env ->
 type agent_config = {
   id : string;                            (* Agent 唯一标识 *)
   system_prompt : string;                 (* 系统提示词 *)
+  system_prompt_template : system_prompt_template option;  (* 可选模板化提示词（带变量）*)
   model : model_config;                   (* LLM 模型配置 *)
   tools : tool_descriptor list;           (* 可用工具列表 *)
   max_iterations : int;                   (* ReAct 循环最大迭代次数 *)
@@ -91,6 +92,7 @@ type agent_config = {
   early_stopping_method : early_stopping_method;  (* 达到迭代上限时：Force 或 Generate *)
   on_max_tokens : on_max_tokens_behavior; (* 截断时策略：Retry、Continue 或 Return_partial *)
   max_continuation_chunks : int;          (* Continue 模式最大续写块数（默认 3）*)
+  tool_timeout : float option;            (* 可选单次工具调用超时（秒）*)
 }
 ```
 
@@ -169,6 +171,11 @@ let agent = {
   retry_policy = None;
   context_strategy = None;
   resource_quota = None;
+  max_execution_time = None;
+  early_stopping_method = Types.Force;
+  on_max_tokens = Types.Return_partial;
+  max_continuation_chunks = 3;
+  tool_timeout = None;
 } in
 ignore (Runtime.register_agent rt agent)
 ```

@@ -85,6 +85,7 @@ let () = Eio_main.run (fun _env ->
 type agent_config = {
   id : string;                            (* Unique Agent identifier *)
   system_prompt : string;                 (* System prompt *)
+  system_prompt_template : system_prompt_template option;  (* Optional templated prompt with variables *)
   model : model_config;                   (* LLM model configuration *)
   tools : tool_descriptor list;           (* Available tool list *)
   max_iterations : int;                   (* ReAct loop max iterations *)
@@ -96,6 +97,7 @@ type agent_config = {
   early_stopping_method : early_stopping_method;  (* Force or Generate on iteration cap *)
   on_max_tokens : on_max_tokens_behavior; (* Retry, Continue, or Return_partial on truncation *)
   max_continuation_chunks : int;          (* Max continuation chunks for Continue mode (default 3) *)
+  tool_timeout : float option;            (* Optional per-tool-call timeout in seconds *)
 }
 ```
 
@@ -174,6 +176,11 @@ let agent = {
   retry_policy = None;
   context_strategy = None;
   resource_quota = None;
+  max_execution_time = None;
+  early_stopping_method = Types.Force;
+  on_max_tokens = Types.Return_partial;
+  max_continuation_chunks = 3;
+  tool_timeout = None;
 } in
 ignore (Runtime.register_agent rt agent)
 ```
@@ -443,6 +450,9 @@ let agent = {
   resource_quota = None;
   max_execution_time = None;
   early_stopping_method = Types.Force;
+  on_max_tokens = Types.Return_partial;
+  max_continuation_chunks = 3;
+  tool_timeout = None;
 }
 ```
 
