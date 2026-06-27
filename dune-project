@@ -1,6 +1,6 @@
 (lang dune 3.16)
 (name par)
-(version "0.5.4-beta.20260626")
+(version "0.5.5-beta.20260627")
 (generate_opam_files true)
 (source (github jcz2020/par))
 (license MIT)

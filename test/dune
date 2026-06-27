@@ -287,6 +287,11 @@
  (modules test_engine_structured))
 
 (test
+ (name test_truncation_fix)
+ (libraries par eio_main alcotest)
+ (modules test_truncation_fix))
+
+(test
  (name test_embedding_api)
  (libraries par eio_main alcotest yojson)
  (modules test_embedding_api))

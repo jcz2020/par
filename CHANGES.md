@@ -1,5 +1,30 @@
 # CHANGES
 
+## v0.5.5-beta (2026-06-27) — BETA
+
+> **Theme**: Critical ReAct loop truncation bug fix.
+
+### Fixed — Max_tokens truncation discards partial output (critical)
+
+**Problem**: When an LLM returned `finish_reason=Max_tokens` (truncated response), the engine discarded the partial output, left the conversation unchanged, and re-issued the identical prompt. This burned all iterations and failed with "Max iterations exceeded" — even though valid partial content existed on every call. Pure-generation agents (HTML mockups, long code, document drafting) were effectively unusable when the model's `max_tokens` was below the natural output length.
+
+**Root cause**: `engine.ml` Max_tokens branch never called `add_assistant_message` (unlike the tool-call branch and the normal-stop branch). The truncated `resp` was silently dropped, the conversation stayed byte-identical, and the next loop iteration sent the same prompt → identical truncation → loop until `global_max`.
+
+**Fix** (one change to `lib/core/engine.ml:657-660`):
+- Content detection: if the truncated response has non-empty text (`String.trim` non-empty), preserve it via `add_assistant_message`, drain queued steering via `drain_into_conv`, and return `Ok (resp, conv)` — the partial result is a valid final answer.
+- Empty/think-only truncations retain the previous error-or-retry behavior (no silent success on empty output).
+
+**Verified**: `test/test_truncation_fix.ml` — 3 new test cases:
+1. `Max_tokens with content returns partial result` — asserts `Ok` with truncated text + assistant message preserved in conversation.
+2. `Max_tokens with empty text keeps error behavior` — regression guard; asserts `Error (Internal "Max iterations exceeded")`.
+3. `Max_tokens with content does not burn iterations` — asserts only 1 LLM call is made (counter-tracked mock), proving the loop terminates immediately instead of re-entering.
+
+Full test suite: zero regressions (all existing tests pass).
+
+**Design note**: This mirrors a comparable coding agent's `classify.ts` approach (content-present truncation = valid `final`), avoiding the anti-pattern seen in OpenAI Codex CLI (openai/codex#14753, closed without fix) where truncation is bundled into the generic stream-error retry path. A configurable `on_max_tokens_behavior` policy (Retry | Continue | Return_partial) is planned for v0.6.0.
+
+---
+
 ## v0.5.4-beta (2026-06-26) — BETA
 
 > **Theme**: Production-Ready Multi-Provider.

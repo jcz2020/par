@@ -656,8 +656,17 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
         | _ ->
           match resp.finish_reason with
           | Max_tokens ->
-            if iterations + 1 >= global_max then Result.Error (Internal "Max iterations exceeded", conv)
-            else loop ~agent ~global_max conv (iterations + 1)
+            let has_content = match resp.text with
+              | Some t when String.length (String.trim t) > 0 -> true
+              | _ -> false
+            in
+            if has_content then begin
+              let conv = add_assistant_message conv resp in
+              let conv = drain_into_conv conv followup in
+              Ok (resp, conv)
+            end else
+              if iterations + 1 >= global_max then Result.Error (Internal "Max iterations exceeded", conv)
+              else loop ~agent ~global_max conv (iterations + 1)
           | _ ->
             let conv = drain_into_conv conv followup in
             if Steering_queue.has_items (Option.value followup ~default:(Steering_queue.create ())) then
