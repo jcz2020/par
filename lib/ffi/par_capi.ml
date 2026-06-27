@@ -138,6 +138,10 @@ let rec work_loop rt env state =
   if item.work == shutdown_sentinel then begin
     fd_log "[work_loop] shutdown sentinel received, exiting"
   end else begin
+    if Obj.is_int item.work then begin
+      fd_log "[work_loop] work item is not a closure (is_int), skipping";
+      slot_put item.result (Obj.repr None)
+    end else
     (try
        let fn : Par.Runtime.runtime -> _ -> Obj.t = Obj.obj item.work in
        let result = fn rt env in
