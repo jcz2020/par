@@ -34,11 +34,12 @@ make release-beta             # bump + add beta suffix (BUMP_TYPE=minor for mino
 
 **Source of truth:** `dune-project` line 3. Synced to:
 - `bindings/python/pyproject.toml` line 7
-- `bindings/python/par_runtime/__init__.py` line 11
+- `bindings/python/par_runtime/__init__.py` line 19
 
 SemVer enforced by CI. Pre-release format: `X.Y.Z-beta.YYYYMMDD` (dot separator).
 **Load `semver` skill before any version change.**
 **Iron rule: tooling/infra/docs-only changes = NO bump. Refresh beta date suffix only. Must check ROADMAP before any bump.** See `docs/rules/release.md` Pre-Bump Gate.
+**【强制】版本号变动（bump MAJOR/MINOR/PATCH、刷新 beta 日期）一律请求用户明确指示。不可自作主张执行 `make release-*` 或手动编辑版本号文件。代码变更可以自主完成，版本号变更不可以。**
 
 ## Release Strategy
 
