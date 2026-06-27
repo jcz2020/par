@@ -9,20 +9,23 @@ module Approval_deadline = struct
     deadline : float;
     switch : Eio.Switch.t;
   }
-  let table : (Workflow_run_id.t, t) Hashtbl.t = Hashtbl.create 16
+  let table : (Workflow_run_id.t, t) protected_hashtbl = {
+    data = Hashtbl.create 16;
+    mutex = Eio.Mutex.create ();
+  }
 
   let record run_id ~deadline ~switch =
-    Hashtbl.replace table run_id { deadline; switch }
+    htbl_set table run_id { deadline; switch }
 
   let lookup run_id =
-    Hashtbl.find_opt table run_id
+    htbl_get table run_id
 
   let deadline_of t = t.deadline
 
   let switch_of t = t.switch
 
   let remove run_id =
-    Hashtbl.remove table run_id
+    htbl_remove table run_id
 end
 
 (* -------------------------------------------------------------------------- *)
