@@ -906,7 +906,8 @@ let cmd_ask
       Printf.printf "\n";
       (match resp.Types.text with
        | Some _ -> flush stdout
-       | None -> print_json (Types.llm_response_to_yojson resp)))
+       | None -> print_json (Types.llm_response_to_yojson resp));
+      let _ = Runtime.save_conversation rt in ())
 
 let term_ask =
   let open Cmdliner.Term in

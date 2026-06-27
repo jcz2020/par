@@ -495,7 +495,13 @@ let save_conversation rt =
 let load_conversation rt sid =
   match rt.services.persistence.load_conversation_fn sid with
   | Ok (Some conv) ->
+    rt.session_id := Some sid;
     rt.current_conversation <- Some conv;
+    (match rt.event_bus_instance with
+     | Some bus -> Event_bus.set_session_id bus sid
+     | None -> rt.services.event_bus.set_session_id_fn sid);
+    Logs.debug (fun m -> m "Session resumed: sid=%s (%d messages)"
+                   sid (List.length conv.Types.messages));
     Ok (Some conv)
   | Ok None -> Ok None
   | Error _ as e -> e
