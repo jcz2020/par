@@ -24,7 +24,7 @@ let logging = {
      | Handoff _ -> Logs.info (fun m -> m "Tool handoff signaled"));
     None
   );
-  on_error = Some (fun _err ->
+  on_error = Some (fun _conv _err ->
     Logs.err (fun m -> m "Error: %s" (Printexc.to_string (Failure "error")));
     None
   );

@@ -39,6 +39,7 @@ val execute_tool :
   middleware_hook list ->
   (string -> unit) option ->
   tool_call_id:string ->
+  tool_timeout:float option ->
   handler_result
 
 val add_user_feedback :

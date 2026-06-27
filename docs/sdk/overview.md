@@ -87,7 +87,7 @@ let () = Eio_main.run (fun _env ->
                   stop_sequences = None };
         tools = [tool.descriptor]; max_iterations = 5;
         middleware = []; retry_policy = None; context_strategy = None;
-        resource_quota = None }))
+        resource_quota = None; tool_timeout = None }))
 ```
 
 ### 2. LLM invoke

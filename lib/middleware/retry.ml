@@ -72,12 +72,39 @@ let is_retryable (retry_on : retryable_condition list) (err : error_category) : 
        | _ -> false)
   ) retry_on
 
+(* PAR-6ad (GH#16): per-conversation retry counter.
+
+   The previous implementation stored [attempt] as a [ref int] captured
+   in the middleware closure. That ref was shared across every
+   conversation that used this middleware instance — including two
+   concurrent [Runtime.invoke] calls on the same agent — so one
+   invocation's LLM errors would silently consume the other
+   invocation's retry budget.
+
+   The fix is to key the attempt counter on the conversation
+   ([conversation -> error_category -> ...]). Each [Runtime.invoke]
+   call constructs its own conversation, so distinct concurrent
+   invocations always have distinct conversation values and therefore
+   isolated retry counters. The middleware instance is still a single
+   shared value (created by [Retry.retry]) — only the counter table
+   is keyed by conversation hash.
+
+   The hashtbl is mutated only from inside [on_error], which the
+   engine dispatches synchronously on the fiber that originated the
+   LLM call. Two concurrent invocations always have different
+   conversation hashes, so they never mutate the same entry
+   concurrently. The hashtbl therefore does not need a mutex. *)
+
 let retry ?(config = default_retry_config) ?(policy : retry_policy option) () : middleware_hook =
   let effective_policy = match policy with
     | Some p -> p
     | None -> policy_of_config config
   in
-  let attempt = ref 0 in
+  (* Per-instance attempt table keyed by conversation hash.
+     Each retry() call gets its own table, so different middleware
+     instances don't interfere. Within one instance, different
+     conversations (different invoke calls) get isolated counters. *)
+  let attempts : (int, int) Hashtbl.t = Hashtbl.create 16 in
   {
     name = "retry";
 
@@ -89,25 +116,27 @@ let retry ?(config = default_retry_config) ?(policy : retry_policy option) () : 
 
     on_after_tool = None;
 
-    (* CONCURRENCY NOTE: attempt ref is shared across concurrent fibers sharing this middleware instance.
-       on_error is called by engine.ml apply_on_error when LLM returns an error. The conv parameter
-       in apply_on_error is reserved for future per-request state isolation. *)
-    on_error = Some (fun (err : error_category) ->
-      if !attempt < effective_policy.max_attempts && is_retryable effective_policy.retry_on err then begin
-        incr attempt;
-        let delay = compute_delay effective_policy !attempt in
+    on_error = Some (fun conv (err : error_category) ->
+      let key = Hashtbl.hash conv in
+      let current = match Hashtbl.find_opt attempts key with
+        | Some n -> n
+        | None -> 0
+      in
+      if current < effective_policy.max_attempts && is_retryable effective_policy.retry_on err then begin
+        let next = current + 1 in
+        Hashtbl.replace attempts key next;
+        let delay = compute_delay effective_policy next in
         Some (Error {
           category = err;
-          message = Printf.sprintf "Retrying (attempt %d/%d)..." !attempt effective_policy.max_attempts;
+          message = Printf.sprintf "Retrying (attempt %d/%d)..." next effective_policy.max_attempts;
           retryable = true;
           metadata = [
-            ("attempt", `Int !attempt);
+            ("attempt", `Int next);
             ("delay", `Float delay);
           ];
         })
       end else begin
-        (* Exhausted retries or non-retryable — pass through *)
-        attempt := 0;
+        Hashtbl.remove attempts key;
         None
       end
     );

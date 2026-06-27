@@ -48,7 +48,7 @@ let rate_limit ?(config = default_rate_limit_config) () : middleware_hook =
 
     on_after_tool = None;
 
-    on_error = Some (fun err ->
+    on_error = Some (fun _conv err ->
       match err with
       | Rate_limited ->
         let now = Unix.gettimeofday () in

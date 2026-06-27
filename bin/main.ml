@@ -661,11 +661,11 @@ let print_help () =
 
 let strip_ansi_escapes = Par.Cli_util.strip_ansi_escapes
 
-let repl rt ~agent_ids =
+let repl rt ~agent_ids ~initial_conv =
   Printf.printf "%s\n"
     (Cli_style.dim "输入消息开始对话（输入 /help 查看命令，Ctrl+D 退出）");
   flush stdout;
-  let conv : Types.conversation option ref = ref None in
+  let conv : Types.conversation option ref = ref initial_conv in
   let on_tool_event = make_tool_event_callback () in
   let active_agent = ref (List.hd agent_ids) in
   let rec loop () =
@@ -676,6 +676,7 @@ let repl rt ~agent_ids =
     flush stdout;
     (match Repl_input.read_line "" with
      | None ->
+       let _ = Runtime.save_conversation rt in
        Printf.printf "\n再见！\n";
        flush stdout
      | Some line ->
@@ -694,7 +695,7 @@ let repl rt ~agent_ids =
                    (match !conv with
                     | None -> "none"
                     | Some c -> Printf.sprintf "%d messages" (List.length c.Types.messages))
-               | "/quit" | "/exit" -> Printf.printf "再见！\n"; exit 0
+               | "/quit" | "/exit" -> let _ = Runtime.save_conversation rt in Printf.printf "再见！\n"; exit 0
               | "/reset" -> conv := None;
                 Printf.printf "%s\n" (Cli_style.dim "[对话已重置]")
              | "/steer" -> Runtime.steer rt rest;
@@ -775,11 +776,13 @@ let repl rt ~agent_ids =
                    ~enable_handoff:true () with
                  | Error (e, recovered_conv) ->
                    conv := Some recovered_conv;
-                   print_error e
+                   print_error e;
+                   let _ = Runtime.save_conversation rt in ()
                  | Ok { Types.response = _; conversation = returned_conv } ->
                    conv := Some returned_conv;
                    Printf.printf "\n";
-                   flush stdout)
+                   flush stdout;
+                   let _ = Runtime.save_conversation rt in ())
               with ex ->
                 Printf.eprintf "\n[error] %s\n" (Printexc.to_string ex);
                 flush stderr);
@@ -812,22 +815,33 @@ let cmd_chat
     | _ -> Error `No_prior_session  (* no signal — fresh session *)
   in
   setup_runtime cfg ~interactive:true ~f:(fun rt ->
-    (match session_target with
-     | Ok `Resume_most_recent -> (
-         match Par.Runtime.load_most_recent_conversation rt with
-         | Ok (Some (sid, _conv)) ->
-           Printf.printf "Resumed most recent session: %s\n" sid
-         | Ok None -> Printf.eprintf "No prior session found.\n"
-         | Error e -> Printf.eprintf "Failed to load most recent session: %s\n"
-                        (error_category_to_string e))
-     | Ok (`Continue sid) -> (
-         match Par.Runtime.load_conversation rt sid with
-         | Ok (Some _) -> Printf.printf "Resumed session: %s\n" sid
-         | Ok None -> Printf.eprintf "Session not found: %s\n" sid
-         | Error e -> Printf.eprintf "Failed to load session %s: %s\n" sid
-                        (error_category_to_string e))
-     | Error _ -> ());
-    repl rt ~agent_ids)
+    let initial_conv : Types.conversation option =
+      match session_target with
+      | Ok `Resume_most_recent -> (
+          match Par.Runtime.load_most_recent_conversation rt with
+          | Ok (Some (sid, conv)) ->
+            (Printf.printf "Resumed most recent session: %s\n" sid;
+             Some conv)
+          | Ok None ->
+            (Printf.eprintf "No prior session found.\n"; None)
+          | Error e ->
+            (Printf.eprintf "Failed to load most recent session: %s\n"
+               (error_category_to_string e);
+             None))
+      | Ok (`Continue sid) -> (
+          match Par.Runtime.load_conversation rt sid with
+          | Ok (Some conv) ->
+            (Printf.printf "Resumed session: %s\n" sid;
+             Some conv)
+          | Ok None ->
+            (Printf.eprintf "Session not found: %s\n" sid; None)
+          | Error e ->
+            (Printf.eprintf "Failed to load session %s: %s\n" sid
+               (error_category_to_string e);
+             None))
+      | Error _ -> None
+    in
+    repl rt ~agent_ids ~initial_conv)
 
 let term_chat =
   let open Cmdliner.Arg in

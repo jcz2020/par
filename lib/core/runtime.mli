@@ -55,6 +55,7 @@ val make_agent :
   ?early_stopping_method:early_stopping_method ->
   ?on_max_tokens:on_max_tokens_behavior ->
   ?max_continuation_chunks:int ->
+  ?tool_timeout:float option ->
   unit ->
   (agent_config, error_category) result
 

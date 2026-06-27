@@ -25,7 +25,7 @@ let dummy_agent ?(id = "test") ?(system_prompt = "hello") ?system_prompt_templat
   middleware = [];
   retry_policy = None;
   context_strategy = None;
-  resource_quota = None; max_execution_time = None; early_stopping_method = Force;
+  resource_quota = None; max_execution_time = None; tool_timeout = None; early_stopping_method = Force;
   on_max_tokens = Return_partial; max_continuation_chunks = 3;
 }
 

@@ -90,7 +90,7 @@ let test_retry_on_before_llm_is_none_robust () =
 let test_retry_on_error_first_attempt_retryable () =
   let hook = make_retry (exp_policy ~max_attempts:3 ()) in
   let f = Option.get hook.on_error in
-  match f Timeout with
+  match f empty_conv Timeout with
   | Some (Error e) ->
     Alcotest.(check int) "attempt metadata = 1"
       1 (Option.get (find_int_metadata "attempt" e.metadata));
@@ -104,8 +104,8 @@ let test_retry_on_error_first_attempt_retryable () =
 let test_retry_on_error_second_attempt () =
   let hook = make_retry (exp_policy ~max_attempts:3 ()) in
   let f = Option.get hook.on_error in
-  ignore (f Timeout);
-  match f Timeout with
+  ignore (f empty_conv Timeout);
+  match f empty_conv Timeout with
   | Some (Error e) ->
     Alcotest.(check int) "attempt metadata = 2"
       2 (Option.get (find_int_metadata "attempt" e.metadata));
@@ -116,34 +116,34 @@ let test_retry_on_error_second_attempt () =
 let test_retry_exceeds_max_attempts () =
   let hook = make_retry (exp_policy ~max_attempts:3 ()) in
   let f = Option.get hook.on_error in
-  ignore (f Timeout);
-  ignore (f Timeout);
-  ignore (f Timeout);
-  match f Timeout with
+  ignore (f empty_conv Timeout);
+  ignore (f empty_conv Timeout);
+  ignore (f empty_conv Timeout);
+  match f empty_conv Timeout with
   | Some _ -> Alcotest.fail "expected None when max_attempts exhausted"
   | None -> Alcotest.(check bool) "passes through" true true
 
 let test_retry_non_retryable_error () =
   let hook = make_retry (exp_policy ~max_attempts:3 ()) in
   let f = Option.get hook.on_error in
-  match f (Permission_denied "no") with
+  match f empty_conv (Permission_denied "no") with
   | Some _ -> Alcotest.fail "expected None for non-retryable error"
   | None -> Alcotest.(check bool) "passes through" true true
 
 let test_retry_non_retryable_invalid_input () =
   let hook = make_retry (exp_policy ~max_attempts:3 ()) in
   let f = Option.get hook.on_error in
-  match f (Invalid_input "bad") with
+  match f empty_conv (Invalid_input "bad") with
   | Some _ -> Alcotest.fail "expected None for Invalid_input"
   | None -> Alcotest.(check bool) "passes through" true true
 
 let test_retry_non_retryable_resets_counter () =
   let hook = make_retry (exp_policy ~max_attempts:3 ()) in
   let f = Option.get hook.on_error in
-  ignore (f Timeout);
-  ignore (f Timeout);
-  ignore (f (Invalid_input "x"));
-  match f Timeout with
+  ignore (f empty_conv Timeout);
+  ignore (f empty_conv Timeout);
+  ignore (f empty_conv (Invalid_input "x"));
+  match f empty_conv Timeout with
   | Some (Error e) ->
     Alcotest.(check int) "counter reset, attempt=1"
       1 (Option.get (find_int_metadata "attempt" e.metadata))
@@ -153,7 +153,7 @@ let test_retry_exponential_backoff_delay () =
   let hook = make_retry (exp_policy ~max_attempts:4 ~base:2.0 ~max_delay:30.0 ()) in
   let f = Option.get hook.on_error in
   let delays = List.init 4 (fun _ ->
-    match f Timeout with
+    match f empty_conv Timeout with
     | Some (Error e) -> Option.get (find_float_metadata "delay" e.metadata)
     | _ -> Alcotest.fail "expected Error result")
   in
@@ -164,7 +164,7 @@ let test_retry_exponential_capped_at_max_delay () =
   let hook = make_retry (exp_policy ~max_attempts:5 ~base:2.0 ~max_delay:5.0 ()) in
   let f = Option.get hook.on_error in
   let delays = List.init 5 (fun _ ->
-    match f Timeout with
+    match f empty_conv Timeout with
     | Some (Error e) -> Option.get (find_float_metadata "delay" e.metadata)
     | _ -> Alcotest.fail "expected Error result")
   in
@@ -179,7 +179,7 @@ let test_retry_fixed_backoff () =
   let hook = make_retry policy in
   let f = Option.get hook.on_error in
   let delays = List.init 3 (fun _ ->
-    match f Timeout with
+    match f empty_conv Timeout with
     | Some (Error e) -> Option.get (find_float_metadata "delay" e.metadata)
     | _ -> Alcotest.fail "expected Error result")
   in
@@ -194,7 +194,7 @@ let test_retry_linear_backoff () =
   let hook = make_retry policy in
   let f = Option.get hook.on_error in
   let delays = List.init 3 (fun _ ->
-    match f Timeout with
+    match f empty_conv Timeout with
     | Some (Error e) -> Option.get (find_float_metadata "delay" e.metadata)
     | _ -> Alcotest.fail "expected Error result")
   in
@@ -209,7 +209,7 @@ let test_retry_linear_capped_at_max_delay () =
   let hook = make_retry policy in
   let f = Option.get hook.on_error in
   let delays = List.init 4 (fun _ ->
-    match f Timeout with
+    match f empty_conv Timeout with
     | Some (Error e) -> Option.get (find_float_metadata "delay" e.metadata)
     | _ -> Alcotest.fail "expected Error result")
   in
@@ -224,7 +224,7 @@ let test_retry_jitter_variation () =
   let hook = make_retry policy in
   let f = Option.get hook.on_error in
   let delays = List.init 50 (fun _ ->
-    match f Timeout with
+    match f empty_conv Timeout with
     | Some (Error e) -> Option.get (find_float_metadata "delay" e.metadata)
     | _ -> Alcotest.fail "expected Error result")
   in
@@ -243,7 +243,7 @@ let test_retry_jitter_preserves_retryability () =
       retry_on = [ Timeout ]; jitter = Some 0.1 } in
   let hook = make_retry policy in
   let f = Option.get hook.on_error in
-  match f Timeout with
+  match f empty_conv Timeout with
   | Some (Error e) ->
     Alcotest.(check bool) "retryable flag remains true" true e.retryable;
     Alcotest.(check error_category_testable) "category unchanged" Timeout e.category;
@@ -257,10 +257,10 @@ let test_retry_any_retryable_condition () =
       backoff = Fixed 1.0;
       retry_on = [ Any_retryable ];
       jitter = None } in
-  let check_one err label =
+  let check_one (err : error_category) label =
     let hook = make_retry policy in
     let f = Option.get hook.on_error in
-    match f err with
+    match f empty_conv err with
     | Some (Error _) -> Alcotest.(check bool) label true true
     | _ -> Alcotest.failf "expected Error for %s under Any_retryable" label
   in
@@ -275,7 +275,7 @@ let test_retry_message_includes_attempt () =
       retry_on = [ Timeout ]; jitter = None } in
   let hook = make_retry policy in
   let f = Option.get hook.on_error in
-  match f Timeout with
+  match f empty_conv Timeout with
   | Some (Error e) ->
     let has_attempt =
       try
@@ -395,7 +395,7 @@ let test_rate_limit_window_slide () =
 let test_rate_limit_on_error_rate_limited () =
   let hook = rl_hook 2 60.0 in
   let f = Option.get hook.on_error in
-  match f Rate_limited with
+  match f empty_conv Rate_limited with
   | Some (Error e) ->
     Alcotest.(check error_category_testable) "category preserved"
       Rate_limited e.category;
@@ -415,10 +415,10 @@ let test_rate_limit_on_error_rate_limited () =
 let test_rate_limit_on_error_non_rate_limited () =
   let hook = rl_hook 2 60.0 in
   let f = Option.get hook.on_error in
-  (match f Timeout with
+  (match f empty_conv Timeout with
    | Some _ -> Alcotest.fail "expected None for non-Rate_limited on_error"
    | None -> Alcotest.(check bool) "passes through" true true);
-  (match f (Invalid_input "x") with
+  (match f empty_conv (Invalid_input "x") with
    | Some _ -> Alcotest.fail "expected None for Invalid_input on_error"
    | None -> Alcotest.(check bool) "passes through" true true)
 
@@ -523,7 +523,7 @@ let test_logging_on_after_tool_error_passes () =
 let test_logging_on_error_passes () =
   let hook = Logging.logging in
   let f = Option.get hook.on_error in
-  assert_none "passes through" (f (External_failure "x"))
+  assert_none "passes through" (f empty_conv (External_failure "x"))
 
 let test_logging_all_hooks_present () =
   let hook = Logging.logging in

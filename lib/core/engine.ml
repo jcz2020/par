@@ -40,12 +40,12 @@ let apply_after_tool hooks (call, result) next =
       | None -> acc (c, r)
   ) hooks next (call, result)
 
-let apply_on_error hooks _conv err next =
+let apply_on_error hooks conv err next =
   List.fold_right (fun hook acc ->
     fun e ->
       match hook.on_error with
       | Some f ->
-        (match f e with Some r -> r | None -> acc e)
+        (match f conv e with Some r -> r | None -> acc e)
       | None -> acc e
   ) hooks next err
 
@@ -57,7 +57,7 @@ let find_tool (agent : agent_config) tool_name =
   List.find_opt (fun (td : tool_descriptor) -> td.name = tool_name) agent.tools
 
 let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
-    handler input middleware on_progress ~tool_call_id =
+    handler input middleware on_progress ~tool_call_id ~tool_timeout =
   match Validation.validate_tool_input_result descriptor.input_schema input with
   | Error category ->
     let message = match category with
@@ -87,7 +87,34 @@ let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
     progress (Printf.sprintf "Starting tool %s" descriptor.name);
      apply_before_tool middleware call (fun (call' : tool_call) ->
       let result =
-        try handler input token
+        try
+          match tool_timeout with
+          | Some seconds ->
+            (match Cancellation.with_timeout seconds token (fun tok -> handler input tok) with
+             | Ok r -> r
+             | Error `Timeout ->
+               Logs.warn (fun m -> m
+                 "[engine] tool %s timed out after %gs"
+                 descriptor.name seconds);
+               Error {
+                 category = Timeout;
+                 message = Printf.sprintf
+                   "Tool '%s' exceeded tool_timeout of %gs" descriptor.name seconds;
+                 retryable = true;
+                 metadata = [
+                   ("tool_timeout_seconds", `Float seconds);
+                   ("tool", `String descriptor.name);
+                 ];
+               }
+             | Error `Cancelled ->
+               Error {
+                 category = Timeout;
+                 message = Printf.sprintf "Tool '%s' cancelled" descriptor.name;
+                 retryable = false;
+                 metadata = [];
+               })
+          | None ->
+            handler input token
         with ex ->
           Logs.err (fun m -> m "[engine] tool %s raised: %s"
                        descriptor.name (Printexc.to_string ex));
@@ -525,7 +552,7 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
                       message = "Handler not registered";
                       retryable = false;
                       metadata = []; })
-                  | Some handler -> (call, execute_tool token descriptor handler original_input agent.middleware on_progress ~tool_call_id:call.id))
+                  | Some handler -> (call, execute_tool token descriptor handler original_input agent.middleware on_progress ~tool_call_id:call.id ~tool_timeout:agent.tool_timeout))
             in
             let invoke_with_quota body =
               match quota with

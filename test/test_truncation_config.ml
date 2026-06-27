@@ -48,7 +48,7 @@ let configurable_agent ?(on_max_tokens = Return_partial) ?(max_continuation_chun
     system_prompt_template = None;
     model = dummy_model; tools = []; max_iterations; middleware = [];
     retry_policy = None; context_strategy = None; resource_quota = None;
-    max_execution_time = None; early_stopping_method = Force;
+    max_execution_time = None; tool_timeout = None; early_stopping_method = Force;
     on_max_tokens; max_continuation_chunks }
 
 let make_registry () = Tool_registry.create ()

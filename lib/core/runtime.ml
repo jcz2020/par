@@ -89,7 +89,8 @@ let make_agent ~id ?(system_prompt = "") ?(system_prompt_template = None)
     ?(middleware = []) ?(retry_policy = None)
     ?(context_strategy = Some (Types.Sliding_window { max_messages = 100; max_tokens = 200000 })) ?(resource_quota = None)
     ?(max_execution_time = None) ?(early_stopping_method = Force)
-    ?(on_max_tokens = Return_partial) ?(max_continuation_chunks = 3) () =
+    ?(on_max_tokens = Return_partial) ?(max_continuation_chunks = 3)
+    ?(tool_timeout = None) () =
   let errors = ref [] in
   if String.length id = 0 then
     errors := "id must not be empty" :: !errors;
@@ -97,6 +98,10 @@ let make_agent ~id ?(system_prompt = "") ?(system_prompt_template = None)
     errors := "system_prompt must be non-empty or system_prompt_template must be provided" :: !errors;
   if max_iterations <= 0 then
     errors := (Printf.sprintf "max_iterations must be > 0 (got %d)" max_iterations) :: !errors;
+  (match tool_timeout with
+   | Some t when t <= 0.0 ->
+     errors := (Printf.sprintf "tool_timeout must be > 0 (got %g)" t) :: !errors
+   | _ -> ());
   let tool_names = Hashtbl.create (List.length tools) in
   List.iter (fun (td : Types.tool_descriptor) ->
     if String.length td.Types.name = 0 then
@@ -112,6 +117,7 @@ let make_agent ~id ?(system_prompt = "") ?(system_prompt_template = None)
       max_iterations; middleware; retry_policy; context_strategy; resource_quota;
       max_execution_time; early_stopping_method;
       on_max_tokens; max_continuation_chunks;
+      tool_timeout;
     }
   | errs -> Result.Error (Types.Invalid_input (String.concat "; " errs))
 
@@ -131,6 +137,7 @@ let register_agent rt (agent : agent_config) =
     ?early_stopping_method:(Some agent.early_stopping_method)
     ?on_max_tokens:(Some agent.on_max_tokens)
     ?max_continuation_chunks:(Some agent.max_continuation_chunks)
+    ?tool_timeout:(Some agent.tool_timeout)
     () in
   match validated with
   | Ok valid_agent ->
@@ -507,7 +514,13 @@ let load_most_recent_conversation rt =
 
 let invoke rt ~agent_id ~message ?cancellation_token ?conversation
     ?on_tool_event ?on_chunk ?enable_handoff () =
-  let session_id = Session_id.to_string (Session_id.create ()) in
+  let session_id = match !(rt.session_id) with
+    | Some sid -> sid
+    | None ->
+      let new_sid = Session_id.to_string (Session_id.create ()) in
+      rt.session_id := Some new_sid;
+      new_sid
+  in
   (match rt.event_bus_instance with
    | Some bus -> Event_bus.set_session_id bus session_id
    | None -> rt.services.event_bus.set_session_id_fn session_id);
@@ -577,23 +590,25 @@ let invoke rt ~agent_id ~message ?cancellation_token ?conversation
         (match Provider_registry.get rt.llm_providers ~id with
          | Error `Unknown _ -> try_providers rest
          | Ok llm_svc ->
-           (match try_with_provider llm_svc with
-            | Ok (resp, conv) ->
-              record_llm_success rt;
-              Result.Ok { Types.response = resp; conversation = conv }
-            | Error (err, _conv) when should_fallback err && rest <> [] ->
-              record_llm_error rt err;
-              let evt = Types.Provider_fallback_attempted {
-                from_provider = id;
-                to_provider = List.hd rest;
-              } in
-              (match rt.event_bus_instance with
-               | Some bus -> Event_bus.publish bus evt
-               | None -> rt.services.event_bus.publish_fn evt);
-              try_providers rest
-            | Error (err, conv) ->
-              record_llm_error rt err;
-              Result.Error (err, conv)))
+(match try_with_provider llm_svc with
+             | Ok (resp, conv) ->
+               record_llm_success rt;
+               rt.current_conversation <- Some conv;
+               Result.Ok { Types.response = resp; conversation = conv }
+             | Error (err, _conv) when should_fallback err && rest <> [] ->
+               record_llm_error rt err;
+               let evt = Types.Provider_fallback_attempted {
+                 from_provider = id;
+                 to_provider = List.hd rest;
+               } in
+               (match rt.event_bus_instance with
+                | Some bus -> Event_bus.publish bus evt
+                | None -> rt.services.event_bus.publish_fn evt);
+               try_providers rest
+             | Error (err, conv) ->
+               record_llm_error rt err;
+               rt.current_conversation <- Some conv;
+               Result.Error (err, conv)))
     in
     try_providers all_ids
 

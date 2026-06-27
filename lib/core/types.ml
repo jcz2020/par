@@ -279,7 +279,10 @@ type middleware_hook = {
   on_after_llm : (llm_response -> llm_response option) option;
   on_before_tool : (tool_call -> tool_call option) option;
   on_after_tool : (tool_call * handler_result -> handler_result option) option;
-  on_error : (error_category -> handler_result option) option;
+  (* PAR-6ad (GH#16): [on_error] now receives the conversation so per-call
+     state (e.g. retry attempt count) can be isolated across concurrent
+     [Runtime.invoke] calls on the same agent. *)
+  on_error : (conversation -> error_category -> handler_result option) option;
 }
 
 type context_strategy =
@@ -345,6 +348,14 @@ type agent_config = {
   early_stopping_method : early_stopping_method;
   on_max_tokens : on_max_tokens_behavior;
   max_continuation_chunks : int;
+  (* PAR-19b: per-tool timeout enforced at the engine layer.
+     When [Some seconds], each tool handler call is wrapped in
+     Cancellation.with_timeout, so the timeout cannot be silently bypassed
+     by middleware composition (GH#17 fix). The legacy
+     [tool_descriptor.timeout] field is still respected by individual tool
+     implementations that consult it; this field is the engine-level
+     authoritative cutoff. *)
+  tool_timeout : float option;
 }
 
 (* -------------------------------------------------------------------------- *)

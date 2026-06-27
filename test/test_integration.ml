@@ -50,7 +50,7 @@ let basic_agent ?(tools = []) ?(middleware = []) ?(max_iterations = 10) () =
   { id = "test-agent"; system_prompt = "You are a test agent.";
     system_prompt_template = None;
     model = dummy_model; tools = descriptors; max_iterations; middleware;
-    retry_policy = None; context_strategy = None; resource_quota = None; max_execution_time = None; early_stopping_method = Force; on_max_tokens = Return_partial; max_continuation_chunks = 3 }
+    retry_policy = None; context_strategy = None; resource_quota = None; max_execution_time = None; tool_timeout = None; early_stopping_method = Force; on_max_tokens = Return_partial; max_continuation_chunks = 3 }
 
 let make_registry tools =
   let reg = Tool_registry.create () in
@@ -600,7 +600,7 @@ let middleware_suite =
       let mw = Retry.retry () in
       (match mw.on_error with
        | Some on_error_fn ->
-           (match on_error_fn Timeout with
+           (match on_error_fn { messages = []; metadata = [] } Timeout with
             | Some (Error { metadata; _ }) ->
                 (match List.assoc_opt "attempt" metadata with
                  | Some (`Int n) -> Alcotest.(check int) "attempt" 1 n
