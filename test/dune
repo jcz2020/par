@@ -297,6 +297,18 @@
  (modules test_truncation_config))
 
 (test
+ (name test_tool_prompt)
+ (libraries par alcotest)
+ (modules test_tool_prompt))
+
+(test
+ (name test_jsonschema)
+ (libraries par alcotest)
+ (modules test_jsonschema)
+ (preprocess
+  (pps ppx_deriving_yojson ppx_deriving_jsonschema)))
+
+(test
  (name test_embedding_api)
  (libraries par eio_main alcotest yojson)
  (modules test_embedding_api))

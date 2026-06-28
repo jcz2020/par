@@ -159,6 +159,17 @@ let register_tool rt ~name ~description ~input_schema ~handler
   | Ok () ->
     Ok { descriptor; handler }
 
+let register_tool_typed rt ~name ~description ~input_schema ~handler
+    ?output_schema ?(permission = Allow) ?timeout ?concurrency_limit ?(on_update = None) () =
+  match input_schema with
+  | `Assoc _ ->
+    let wrapped = Jsonschema.to_strict_object_schema input_schema in
+    register_tool rt ~name ~description ~input_schema:wrapped ~handler
+      ?output_schema ~permission ?timeout ?concurrency_limit ~on_update ()
+  | _ ->
+    Result.Error
+      (Types.Internal "schema must be a JSON object")
+
 
 let register_skill rt (descriptor : Types.skill_descriptor) =
   let activate : Skill_registry.activate_fn =

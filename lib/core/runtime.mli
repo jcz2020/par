@@ -73,6 +73,36 @@ val register_tool :
   unit ->
   (tool_binding, error_category) result
 
+val register_tool_typed :
+  runtime ->
+  name:string ->
+  description:string ->
+  input_schema:Yojson.Safe.t ->
+  handler:Tool_registry.handler_fn ->
+  ?output_schema:Yojson.Safe.t ->
+  ?permission:tool_permission ->
+  ?timeout:float ->
+  ?concurrency_limit:int ->
+  ?on_update:(string -> unit) option ->
+  unit ->
+  (tool_binding, error_category) result
+(** Typed-input convenience wrapper around [register_tool].
+
+    [register_tool_typed] is intended for tools whose input schema is
+    produced by a derivation (e.g. [ppx_deriving_jsonschema] and the
+    [Jsonschema] strict-mode wrapper). It:
+
+    - rejects any [input_schema] that is not a top-level JSON object
+      (`` `Assoc _ ``), returning [Error (Internal "schema must be a
+      JSON object")] — this satisfies the FFI guard the agent runtime
+      applies to every tool input;
+    - applies {!Jsonschema.to_strict_object_schema} to make the
+      schema OpenAI-strict-compatible before passing it to
+      [register_tool].
+
+    The remaining arguments and return type are identical to
+    [register_tool]. *)
+
 val register_skill :
   runtime -> Types.skill_descriptor ->
   (Types.skill_binding, error_category) result

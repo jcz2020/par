@@ -209,6 +209,28 @@ type tool_descriptor = {
    representation; JSON is not used for tool_descriptor transport. *)
 
 
+(* Tool-calling protocol mode (PAR-k38, T0.5 stub).
+   - `Native:     the provider's wire protocol carries structured tool calls
+                   (OpenAI functions / Anthropic tool_use). Preferred when
+                   available — no parsing risk.
+   - `Synthesized:the provider does not natively support tool calls, so the
+                   runtime injects tool descriptors into the prompt and
+                   parses synthesised JSON tool calls back out of the
+                   model's text response (see lib/core/tool_prompt.ml).
+                   Slower and slightly less reliable than `Native.
+   - `Json_mode:  a forced structured-output mode — model returns raw JSON
+                   only; runtime handles tool-call synthesis downstream.
+                   Reserved for providers that emit JSON but no tool metadata.
+
+   T3.1 wires this into model_config / llm_service. T0.5 only declares the
+   shape so later tasks do not touch types.ml. *)
+type tool_mode = [
+  | `Native
+  | `Synthesized
+  | `Json_mode
+]
+[@@deriving yojson]
+
 type tool_binding = {
   descriptor : tool_descriptor;
    handler : Yojson.Safe.t -> cancellation_token -> handler_result;

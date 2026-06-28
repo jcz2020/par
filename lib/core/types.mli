@@ -195,6 +195,30 @@ type tool_binding = {
 }
 (* Note: handler is a function type, not derivable *)
 
+(** Tool-calling protocol mode (PAR-k38, T0.5 stub).
+
+    - [`Native]      the provider's wire protocol carries structured tool
+                     calls (OpenAI functions / Anthropic tool_use). Preferred
+                     when available — no parsing risk.
+    - [`Synthesized] the provider does not natively support tool calls, so
+                     the runtime injects tool descriptors into the prompt
+                     and parses synthesised JSON tool calls back out of the
+                     model's text response
+                     (see [Par_core.Tool_prompt]).
+                     Slower and slightly less reliable than [`Native].
+    - [`Json_mode]   a forced structured-output mode — model returns raw
+                     JSON only; runtime handles tool-call synthesis
+                     downstream. Reserved for providers that emit JSON but
+                     no tool metadata.
+
+    T3.1 wires this into [model_config] / [llm_service]. *)
+type tool_mode = [
+  | `Native
+  | `Synthesized
+  | `Json_mode
+]
+[@@deriving yojson]
+
 (** Skill system — typed abstraction over reusable instruction bundles.
     Mirrors [tool_descriptor] pattern. Revised 2026-06-24 after Oracle
     architectural review (see docs/v0.5.2-ROADMAP.md A.0 revision log). *)

@@ -5,4 +5,4 @@
   (modules main par_config cli_style repl_input)
   (libraries cmdliner par eio eio_main mirage-crypto-rng.unix yojson)
   (preprocess
-   (pps ppx_deriving_yojson)))
+   (pps ppx_deriving_yojson ppx_deriving_jsonschema)))
