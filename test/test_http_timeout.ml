@@ -7,15 +7,22 @@
    (or "timed out" in the error message for fetch_url) within the timeout
    window plus a small grace period.
 
-   KNOWN LIMITATION (tracked separately): these tests are currently SKIPPED
-   because the timeout mechanism uses [Eio.Switch.fail], which cannot
-   unblock [cohttp-eio]'s [Buf_read.line] after a partial read. The fix
-   requires restructuring [Http_client.with_timeout_for] to race the HTTP
-   read against the timeout via [Eio.Fiber.first] (or an equivalent
-   cancellation-aware primitive). See bd memory
-   [checklist-eio-switch-fail-cohttp-eio-buf-read] for the verified
-   analysis. Skipping here lets the rest of the test suite run cleanly;
-   unskip when the underlying primitive is rewritten. *)
+   ROOT CAUSE ANALYSIS (PAR-acj investigation, 2026-06-28):
+   These tests are SKIPPED because the timeout mechanism cannot cleanly
+   cancel a blocked cohttp-eio read. Investigation via debug build proved:
+   1. Fiber.first correctly races Promise.await vs Eio.Time.sleep and
+      returns the timeout result in the expected time (~3s in debug).
+   2. BUT: the forked HTTP fiber (under the parent switch) is blocked in
+      Eio.Flow.read_exact which does NOT respond to Eio cancellation.
+   3. Eio.Switch.run's cleanup phase ALWAYS waits for all fibers to finish
+      cancelling — and since the HTTP fiber can't be cancelled, cleanup
+      hangs forever.
+   This is NOT a PAR bug — it's a fundamental Eio limitation: switch
+   cleanup is synchronous and waits for all fibers. An uncancellable read
+   (cohttp-eio's wrapped TCP socket) causes indefinite hang.
+   FIX DIRECTION (needs separate effort): rewrite HTTP calls using raw
+   Eio.Net sockets with explicit Eio.Flow.close on timeout (bypassing
+   cohttp-eio's connection management), OR use process-level isolation. *)
 
 open Par
 open Types
