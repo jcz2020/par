@@ -138,7 +138,7 @@ let maybe_delay = function
 
 (* --- Count chunks for stream_complete --- *)
 
-let count_chunks resp =
+let count_chunks (resp : llm_response) =
   let text_chunks = match resp.text with Some _ -> 1 | None -> 0 in
   let tool_chunks = match resp.tool_calls with
     | Some calls -> List.length calls * 2  (* start + delta per call *)

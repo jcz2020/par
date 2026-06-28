@@ -1321,6 +1321,8 @@ let format_event_for_history (evt : Types.event) =
     Printf.sprintf "LlmTruncated: model=%s reason=%s" model
       (match finish_reason with Stop -> "stop" | Tool_calls -> "tool_calls"
        | Max_tokens -> "max_tokens" | Content_filter -> "content_filter")
+  | Types.Generate_continuation { chunk_index; chars_added; _ } ->
+    Printf.sprintf "GenerateContinuation: chunk=%d added=%d" chunk_index chars_added
 
 let session_id_arg =
   let open Cmdliner in

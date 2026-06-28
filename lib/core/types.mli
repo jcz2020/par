@@ -133,6 +133,17 @@ type structured_invoke_result = {
   attempts     : int;             (* 1 = happy path; >1 = repairs happened *)
 }
 
+(* Long-output generation result (plan §3.1.1). *)
+type generate_result = {
+  text          : string;
+  finish_reason : finish_reason;
+  continuations : int;
+  total_tokens  : int option;
+  session_id    : string;
+  elapsed       : float;
+}
+[@@deriving yojson]
+
 (* -------------------------------------------------------------------------- *)
 (* Agent configuration types                                            *)
 (* -------------------------------------------------------------------------- *)
@@ -345,8 +356,8 @@ type agent_config = {
   resource_quota : resource_quota option;
   max_execution_time : float option;
   early_stopping_method : early_stopping_method;
-  on_max_tokens : on_max_tokens_behavior;
-  max_continuation_chunks : int;
+  on_max_tokens : on_max_tokens_behavior option;
+  max_continuation_chunks : int option;
   (** PAR-19b (GH#17): engine-level tool timeout. When [Some seconds],
       each tool handler call is wrapped in [Cancellation.with_timeout] so
       the handler is cancelled and a [Timeout] [handler_result] is
@@ -488,6 +499,7 @@ type event =
   | Retrieval_completed of { query_count : int; retrieved_count : int; top_k : int }
   | Provider_fallback_attempted of { from_provider : string; to_provider : string }
   | Llm_response_truncated of { task_id : Task_id.t; model : string; finish_reason : finish_reason }
+  | Generate_continuation of { task_id : Task_id.t; chunk_index : int; chars_added : int }
 [@@deriving yojson]
 
 type event_envelope = {

@@ -150,6 +150,20 @@ type structured_invoke_result = {
   attempts     : int;             (* 1 = happy path; >1 = repairs happened *)
 }
 
+(* Long-output generation result (plan §3.1.1). Returned by
+   [Runtime.invoke_generate]. Distinct from [invoke_result] because the
+   generate path does not run the ReAct loop, so the shape exposes
+   continuation/token accounting instead of an iteration count. *)
+type generate_result = {
+  text          : string;
+  finish_reason : finish_reason;
+  continuations : int;
+  total_tokens  : int option;
+  session_id    : string;
+  elapsed       : float;
+}
+[@@deriving yojson]
+
 (* -------------------------------------------------------------------------- *)
 (* Agent configuration types                                            *)
 (* -------------------------------------------------------------------------- *)
@@ -349,6 +363,15 @@ type early_stopping_method = Force | Generate
 
 type on_max_tokens_behavior = Retry | Continue | Return_partial
 
+(* Long-output generation mode (plan §2.1.1).
+   - [on_max_tokens = None] means Auto: the engine resolves the policy
+     from effective tool set (tool-less -> Continue, otherwise Return_partial).
+   - [on_max_tokens = Some p] is an explicit override.
+   - [max_continuation_chunks = None] means Auto: unbounded for tool-less
+     agents, 3 for tool-bearing. [Some n] is an explicit cap.
+   This typed option approach replaces the previous non-option fields
+   (breaking change in 0.x per SemVer §4). Sentinel values are forbidden
+   by the type-safety red line. *)
 type agent_config = {
   id : string;
   system_prompt : string;
@@ -362,8 +385,8 @@ type agent_config = {
   resource_quota : resource_quota option;
   max_execution_time : float option;
   early_stopping_method : early_stopping_method;
-  on_max_tokens : on_max_tokens_behavior;
-  max_continuation_chunks : int;
+  on_max_tokens : on_max_tokens_behavior option;
+  max_continuation_chunks : int option;
   (* PAR-19b: per-tool timeout enforced at the engine layer.
      When [Some seconds], each tool handler call is wrapped in
      Cancellation.with_timeout, so the timeout cannot be silently bypassed
@@ -546,7 +569,12 @@ type event =
   | Retrieval_completed of { query_count : int; retrieved_count : int; top_k : int }
   | Provider_fallback_attempted of { from_provider : string; to_provider : string }
   | Llm_response_truncated of { task_id : Task_id.t; model : string; finish_reason : finish_reason }
-[@@deriving yojson]
+  | Generate_continuation of { task_id : Task_id.t; chunk_index : int; chars_added : int }
+  (* Fired by the long-output generate path ([Runtime.invoke_generate])
+     after each successful Continue chunk so callers can track progress
+     on long artifacts (PRDs / mockups / plans). [chunk_index] is 0-based
+     for the continuation chunks (the initial response is not a continuation). *)
+  [@@deriving yojson]
 
 type event_envelope = {
   id : string;
