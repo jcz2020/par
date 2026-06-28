@@ -45,6 +45,25 @@ val execute_tool :
 val add_user_feedback :
   conversation -> string -> conversation
 
+(** [resolve_on_max_tokens ~effective_tools agent] returns the effective
+    truncation policy. If [agent.on_max_tokens = None] (Auto), resolves to
+    [Continue] for tool-less agents (per [effective_tools]) and
+    [Return_partial] otherwise. An explicit [Some p] always wins. *)
+val resolve_on_max_tokens :
+  effective_tools:tool_descriptor list ->
+  agent_config ->
+  on_max_tokens_behavior
+
+(** [resolve_max_continuation_chunks ~effective_tools agent] returns the
+    effective Continue sub-loop chunk cap. If
+    [agent.max_continuation_chunks = None] (Auto), resolves to [max_int]
+    (effectively unbounded) for tool-less agents and [3] otherwise.
+    An explicit [Some n] always wins. *)
+val resolve_max_continuation_chunks :
+  effective_tools:tool_descriptor list ->
+  agent_config ->
+  int
+
 (** [run_structured ~response_schema llm token agent user_message] drives a
     schema-constrained LLM call with a repair-on-failure loop.
 

@@ -199,7 +199,7 @@ let make_conversation system_prompt user_message =
   let usr = { role = User; content = Some user_message; tool_calls = None; tool_call_id = None; name = None } in
   { messages = [ sys; usr ]; metadata = [] }
 
-let add_assistant_message conv resp =
+let add_assistant_message conv (resp : llm_response) =
   let msg = {
     role = Assistant;
     content = resp.text;
@@ -405,6 +405,23 @@ let run_structured
   in
   loop 1 conv0
 
+(* Long-output generation mode (plan §2.1.2, §2.1.5).
+   Resolve the on_max_tokens policy and continuation cap from the agent
+   config, accounting for the EFFECTIVE tool set after skill overlay and
+   provider-mode adjustment. [None] in the config means Auto:
+   - tool-less agents get Continue with effectively unbounded chunks
+     (suitable for long-output generation: PRDs, mockups, plans, docs)
+   - tool-bearing agents get Return_partial with cap 3 (backwards compat) *)
+let resolve_on_max_tokens ~effective_tools (agent : Types.agent_config) : Types.on_max_tokens_behavior =
+  match agent.Types.on_max_tokens with
+  | Some policy -> policy
+  | None -> if effective_tools = [] then Types.Continue else Types.Return_partial
+
+let resolve_max_continuation_chunks ~effective_tools (agent : Types.agent_config) : int =
+  match agent.Types.max_continuation_chunks with
+  | Some n -> n
+  | None -> if effective_tools = [] then max_int else 3
+
 let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
     ?(tool_call_hooks = None) ?(quota = None) ?(parallel = false)
@@ -433,6 +450,12 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     if effective_mode = `Synthesized then []
     else agent.tools
   in
+  (* Long-output mode (plan §2.1.5): compute resolved policy/cap ONCE from
+     effective_tools so skill overlay and provider-mode adjustments are
+     accounted for. The Max_tokens branch below reads these locals instead
+     of the raw agent fields. *)
+  let resolved_on_max_tokens = resolve_on_max_tokens ~effective_tools:tools_for_provider agent in
+  let resolved_max_continuation_chunks = resolve_max_continuation_chunks ~effective_tools:tools_for_provider agent in
   let synthesized_prompt_suffix =
     if effective_mode = `Synthesized && agent.tools <> [] then
       "\n\n" ^ Tool_prompt.descriptors_to_prompt_text agent.tools
@@ -735,7 +758,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
             fire_llm (Llm_response_truncated {
               task_id = llm_task_id; model = agent.model.model_name;
               finish_reason = Max_tokens });
-            (match (agent.on_max_tokens : Types.on_max_tokens_behavior) with
+            (match (resolved_on_max_tokens : Types.on_max_tokens_behavior) with
              | Types.Return_partial ->
                if has_content then begin
                  let conv = add_assistant_message conv resp in
@@ -747,7 +770,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
              | Types.Retry ->
                let conv = add_assistant_message conv resp in
                let conv = drain_into_conv conv followup in
-               if iterations + 1 >= global_max then Result.Error (Internal "Max iterations exceeded", conv)
+               if iterations + 1 >= global_max then Result.Error (Internal "Max iterations exceeded with truncated output", conv)
                else loop ~agent ~global_max conv (iterations + 1)
              | Types.Continue when not has_content ->
                if iterations + 1 >= global_max then Result.Error (Internal "Max iterations exceeded", conv)
@@ -755,8 +778,16 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
              | Types.Continue ->
                let conv = add_assistant_message conv resp in
                let initial_text = Option.value resp.text ~default:"" in
-               let rec continue_chunks conv accumulated chunks =
-                 if chunks >= agent.max_continuation_chunks then
+               (* R1 mitigation (plan §2.5): wall-clock sub-cap on the Continue
+                  sub-loop, set to 50% of max_execution_time. Guards against
+                  runaway models that always emit >500 chars per chunk and
+                  would otherwise slip past the diminishing-returns guard. *)
+               let continue_start = Unix.gettimeofday () in
+               let sub_cap = (Option.value agent.max_execution_time ~default:infinity) *. 0.5 in
+               let rec continue_chunks ~start ~cap conv accumulated chunks =
+                 if chunks >= resolved_max_continuation_chunks then
+                   ({ resp with text = Some accumulated; finish_reason = Max_tokens }, conv)
+                 else if Unix.gettimeofday () -. start > cap then
                    ({ resp with text = Some accumulated; finish_reason = Max_tokens }, conv)
                  else
                    let conv = add_user_feedback conv
@@ -775,9 +806,9 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                          if String.length (String.trim new_text) < 500 then
                            ({ cont_resp with text = Some combined; finish_reason = Max_tokens }, conv)
                          else
-                           continue_chunks conv combined (chunks + 1)))
+                           continue_chunks ~start ~cap conv combined (chunks + 1)))
                in
-               let (final_resp, final_conv) = continue_chunks conv initial_text 1 in
+               let (final_resp, final_conv) = continue_chunks ~start:continue_start ~cap:sub_cap conv initial_text 1 in
                let final_conv = drain_into_conv final_conv followup in
                Ok (final_resp, final_conv)
             )
