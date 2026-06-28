@@ -297,6 +297,11 @@
  (modules test_truncation_config))
 
 (test
+ (name test_generate)
+ (libraries par eio_main alcotest)
+ (modules test_generate))
+
+(test
  (name test_tool_prompt)
  (libraries par alcotest)
  (modules test_tool_prompt))

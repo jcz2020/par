@@ -68,7 +68,7 @@ let basic_agent ?(tools = []) () =
     system_prompt_template = None;
     model = dummy_model; tools = descriptors; max_iterations = 10;
     middleware = []; retry_policy = None;
-    context_strategy = None; resource_quota = None; max_execution_time = None; tool_timeout = None; early_stopping_method = Force; on_max_tokens = Return_partial; max_continuation_chunks = 3 }
+    context_strategy = None; resource_quota = None; max_execution_time = None; tool_timeout = None; early_stopping_method = Force; on_max_tokens = Some Return_partial; max_continuation_chunks = Some 3 }
 
 let make_registry tools =
   let reg = Tool_registry.create () in
