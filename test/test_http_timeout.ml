@@ -183,7 +183,53 @@ let test_mcp_transport_notify_times_out () =
       Alcotest.fail "MCP notify succeeded against a hanging server")
 
 let () =
-  Printf.eprintf "DBG: direct runner\n%!";
-  test_fetch_url_times_out ();
-  Printf.eprintf "DBG: test1 passed\n%!";
-  Unix._exit 0
+  Printf.eprintf "DBG: running all 3 timeout tests\n%!";
+  Eio_main.run @@ fun env ->
+  Http_client.set_clock (Eio.Stdenv.clock env);
+  Eio.Switch.run @@ fun _sw ->
+  with_hanging_server env (fun url ->
+    (* TEST 1: fetch_url *)
+    Printf.eprintf "TEST 1: fetch_url timeout\n%!";
+    let tools = Builtin_tools.builtin_tools ~switch:_sw ~net:(Eio.Stdenv.net env) in
+    let token = Cancellation.create_token _sw in
+    let t0 = Unix.gettimeofday () in
+    let tool = List.find (fun (tb:Types.tool_binding) -> tb.descriptor.name = "fetch_url") tools in
+    let result = tool.handler (`Assoc [("url", `String url)]) token in
+    let elapsed = Unix.gettimeofday () -. t0 in
+    (match result with
+     | Error { message; _ } ->
+       let has = String.contains message 'd' in
+       if not has then (Printf.eprintf "FAIL: no 'd' in: %s\n%!" message; Unix._exit 1);
+       Printf.eprintf "PASS: fetch_url timed out in %.2fs\n%!" elapsed
+     | _ -> Printf.eprintf "FAIL: fetch_url unexpected result\n%!"; Unix._exit 1);
+
+    (* TEST 2: MCP request_response *)
+    Printf.eprintf "TEST 2: MCP request_response timeout\n%!";
+    let net = (Eio.Stdenv.net env :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
+    let transport = Mcp_transport_http.create ~url ~net ~sw:_sw in
+    let req : Mcp_types.jsonrpc_request =
+      { id = Mcp_types.Int_id 1; method_ = "tools/list"; params = Some (`Assoc []) }
+    in
+    let t0 = Unix.gettimeofday () in
+    let result = Mcp_transport_http.request_response transport req in
+    let elapsed = Unix.gettimeofday () -. t0 in
+    (match result with
+     | Error Types.Timeout -> Printf.eprintf "PASS: MCP req_response timed out in %.2fs\n%!" elapsed
+     | Error other -> Printf.eprintf "FAIL: expected Timeout, got: %s\n%!" (show_ec other); Unix._exit 1
+     | Ok _ -> Printf.eprintf "FAIL: expected Timeout\n%!"; Unix._exit 1);
+
+    (* TEST 3: MCP notify *)
+    Printf.eprintf "TEST 3: MCP notify timeout\n%!";
+    let notif : Mcp_types.jsonrpc_notification =
+      { method_ = "notifications/initialized"; params = Some (`Assoc []) }
+    in
+    let t0 = Unix.gettimeofday () in
+    let result = Mcp_transport_http.notify transport notif in
+    let elapsed = Unix.gettimeofday () -. t0 in
+    (match result with
+     | Error Types.Timeout -> Printf.eprintf "PASS: MCP notify timed out in %.2fs\n%!" elapsed
+     | Error other -> Printf.eprintf "FAIL: expected Timeout, got: %s\n%!" (show_ec other); Unix._exit 1
+     | Ok _ -> Printf.eprintf "FAIL: expected Timeout\n%!"; Unix._exit 1);
+
+    Printf.eprintf "ALL 3 TESTS PASSED\n%!";
+    Unix._exit 0)

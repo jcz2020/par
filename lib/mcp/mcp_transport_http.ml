@@ -15,6 +15,7 @@ type t = {
   uri : Uri.t;
   session_id : string option ref;
   client : Cohttp_eio.Client.t;
+  net_obj : Obj.t;
   sw : Eio.Switch.t;
   mutable closed : bool;
   sampling_handler : (Yojson.Safe.t -> (Yojson.Safe.t, Types.error_category) result) option ref;
@@ -34,7 +35,7 @@ let tls_config_lazy : Tls.Config.client Lazy.t =
      | Ok cfg -> cfg
      | Result.Error (`Msg msg) -> failwith ("TLS configuration error: " ^ msg))
 
-let tls_host_of_string host =
+let tls_hosts_of_string host =
   match Domain_name.of_string host with
   | Error _ -> None
   | Ok dn -> (match Domain_name.host dn with Ok h -> Some h | Error _ -> None)
@@ -43,7 +44,7 @@ let upgrade_https uri flow =
   let cfg = Lazy.force tls_config_lazy in
   match Uri.host uri with
   | Some h ->
-    (match tls_host_of_string h with
+    (match tls_hosts_of_string h with
      | Some dh -> Tls_eio.client_of_flow cfg ~host:dh flow
      | None -> failwith ("Cannot parse hostname for TLS SNI: " ^ h))
   | None -> failwith "No host in URL for TLS connection"
@@ -51,7 +52,7 @@ let upgrade_https uri flow =
 let create ~url ~net ~sw =
   let uri = Uri.of_string url in
   let client = Cohttp_eio.Client.make ~https:(Some upgrade_https) net in
-  { uri; session_id = ref None; client; sw; closed = false; sampling_handler = ref None }
+  { uri; session_id = ref None; client; net_obj = Obj.repr net; sw; closed = false; sampling_handler = ref None }
 
 let base_headers () =
   Http.Header.of_list [
@@ -69,6 +70,28 @@ let capture_session_id t resp =
   match Http.Header.get resp.Http.Response.headers session_id_header with
   | Some sid -> t.session_id := Some sid
   | None -> ()
+
+let capture_session_id_from_str t hdr_str =
+  String.split_on_char '\n' hdr_str
+  |> List.map String.lowercase_ascii
+  |> List.iter (fun line ->
+    if String.length line > String.length session_id_header + 1
+       && String.sub line 0 (String.length session_id_header) = session_id_header
+    then begin
+      let sid_pos = String.length session_id_header + 1 in
+      t.session_id := Some (String.trim (String.sub line sid_pos (String.length line - sid_pos)))
+    end)
+
+let raw_post t body_str =
+  let host = match Uri.host t.uri with Some h -> h | None -> "localhost" in
+  let port = match Uri.port t.uri with
+    | Some p -> p
+    | None -> if Uri.scheme t.uri = Some "https" then 443 else 80 in
+  let use_tls = Uri.scheme t.uri = Some "https" in
+  let path = let p = Uri.path t.uri in if p = "" then "/" else p in
+  let headers = Cohttp.Header.to_list (build_headers t []) in
+  Http_timeout.request_with_timeout ~timeout:30.0 ~net:(Obj.obj t.net_obj) ~host ~port ~use_tls
+    ~method_:"POST" ~path ~request_headers:headers ~request_body:body_str ()
 
 let http_status resp = Cohttp.Code.code_of_status resp.Http.Response.status
 
@@ -90,14 +113,11 @@ let post_sampling_response t request_id result_json =
     "result", result_json;
   ] in
   let body_str = Yojson.Safe.to_string resp_body in
-  let body = Cohttp_eio.Body.of_string body_str in
   let headers = build_headers t [] in
+  let _ = (headers, body_str) in
   (try
-     Eio.Switch.run (fun sw ->
-       Http_client.with_timeout_for ~timeout:30.0 sw (fun () ->
-         let resp, resp_body = Cohttp_eio.Client.post t.client ~sw ~headers ~body t.uri in
-         capture_session_id t resp;
-         drain_body resp_body))
+     let (_status, resp_hdrs, _resp_body) = raw_post t body_str in
+     capture_session_id_from_str t resp_hdrs
    with _ -> ())
 
 let read_body_string body : (string, Types.error_category) result =
@@ -185,36 +205,19 @@ let request_response t req =
   if t.closed then Error (Types.Internal "transport closed")
   else
     let body_str = Yojson.Safe.to_string (Mcp_types.request_to_yojson req) in
-    let body = Cohttp_eio.Body.of_string body_str in
-    let headers = build_headers t [] in
     try
-      Eio.Switch.run (fun sw ->
-        Http_client.with_timeout_for ~timeout:30.0 sw (fun () ->
-          let resp, resp_body =
-            Cohttp_eio.Client.post t.client ~sw ~headers ~body t.uri
-          in
-          capture_session_id t resp;
-          let status = http_status resp in
-          if Cohttp.Code.is_error status then
-            Error (Types.Internal (Printf.sprintf "MCP HTTP error status %d" status))
-          else if status = 202 then
-            Error (Types.Internal "MCP HTTP request received 202 (expected response)")
-          else if content_type_is resp "application/json" then
-            match read_body_string resp_body with
-            | Error _ as e -> e
-            | Ok s ->
-              (match parse_response_json s with
-               | Error _ as e -> e
-               | Ok r ->
-                 if Mcp_types.request_id_matches r.Mcp_types.id req.Mcp_types.id then Ok r
-                 else Error (Types.Internal "MCP HTTP response id mismatch"))
-          else if content_type_is resp "text/event-stream" then
-            (match req.Mcp_types.id with
-             | Mcp_types.Int_id target_id -> parse_sse_response t ~target_id resp_body
-             | Mcp_types.String_id _ ->
-               Error (Types.Invalid_input "MCP HTTP SSE response matching requires int id"))
-          else
-            Error (Types.Internal "MCP HTTP unexpected response content-type")))
+      let (status, resp_hdrs, resp_body_str) = raw_post t body_str in
+      capture_session_id_from_str t resp_hdrs;
+      if status >= 400 then
+        Error (Types.Internal (Printf.sprintf "MCP HTTP error status %d" status))
+      else if status = 202 then
+        Error (Types.Internal "MCP HTTP request received 202 (expected response)")
+      else
+        match parse_response_json resp_body_str with
+        | Error _ as e -> e
+        | Ok r ->
+          if Mcp_types.request_id_matches r.Mcp_types.id req.Mcp_types.id then Ok r
+          else Error (Types.Internal "MCP HTTP response id mismatch")
     with
     | Failure msg when
         (try Str.search_forward (Str.regexp "timed out") msg 0 >= 0 with _ -> false) ->
@@ -228,21 +231,13 @@ let notify t notif =
   if t.closed then Error (Types.Internal "transport closed")
   else
     let body_str = Yojson.Safe.to_string (Mcp_types.notification_to_yojson notif) in
-    let body = Cohttp_eio.Body.of_string body_str in
-    let headers = build_headers t [] in
     try
-      Eio.Switch.run (fun sw ->
-        Http_client.with_timeout_for ~timeout:30.0 sw (fun () ->
-          let resp, resp_body =
-            Cohttp_eio.Client.post t.client ~sw ~headers ~body t.uri
-          in
-          capture_session_id t resp;
-          let status = http_status resp in
-          drain_body resp_body;
-          if Cohttp.Code.is_error status then
-            Error (Types.Internal (Printf.sprintf "MCP HTTP notification error status %d" status))
-          else
-            Ok ()))
+      let (status, resp_hdrs, _body) = raw_post t body_str in
+      capture_session_id_from_str t resp_hdrs;
+      if status >= 400 then
+        Error (Types.Internal (Printf.sprintf "MCP HTTP notification error status %d" status))
+      else
+        Ok ()
     with
     | Failure msg when
         (try Str.search_forward (Str.regexp "timed out") msg 0 >= 0 with _ -> false) ->
