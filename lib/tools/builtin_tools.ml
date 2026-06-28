@@ -8,6 +8,83 @@ type calculator_input = {
   expression : string;
 } [@@deriving yojson { strict = false }, jsonschema]
 
+type echo_input = {
+  text : string;
+} [@@deriving yojson { strict = false }, jsonschema]
+
+type string_stats_input = {
+  text : string;
+} [@@deriving yojson { strict = false }, jsonschema]
+
+type json_format_input = {
+  json : string;
+} [@@deriving yojson { strict = false }, jsonschema]
+
+type hash_text_input = {
+  text : string;
+  algorithm : string [@default "sha256"];
+} [@@deriving yojson { strict = false }, jsonschema]
+
+type generate_password_input = {
+  length : int [@default 16];
+  include_symbols : bool [@default true];
+} [@@deriving yojson { strict = false }, jsonschema]
+
+type fetch_url_input = {
+  url : string;
+  max_length : int [@default 50000];
+} [@@deriving yojson { strict = false }, jsonschema]
+
+type read_webpage_input = {
+  url : string;
+  max_length : int [@default 10000];
+} [@@deriving yojson { strict = false }, jsonschema]
+
+type web_search_input = {
+  query : string;
+  max_results : int [@default 5];
+} [@@deriving yojson { strict = false }, jsonschema]
+
+type read_input = {
+  path : string;
+  offset : int [@default 0];
+  limit : int [@default 100];
+} [@@deriving yojson { strict = false }, jsonschema]
+
+type write_input = {
+  path : string;
+  content : string;
+  create_dirs : bool [@default false];
+} [@@deriving yojson { strict = false }, jsonschema]
+
+type ls_input = {
+  path : string;
+  pattern : string [@default ""];
+} [@@deriving yojson { strict = false }, jsonschema]
+
+type find_input = {
+  path : string;
+  pattern : string;
+  max_depth : int [@default 0];
+} [@@deriving yojson { strict = false }, jsonschema]
+
+type grep_input = {
+  pattern : string;
+  path : string;
+  glob : string [@default ""];
+} [@@deriving yojson { strict = false }, jsonschema]
+
+type convert_temperature_input = {
+  value : float;
+  from_ : string [@key "from"] [@default "C"];
+  to_ : string [@key "to"] [@default "F"];
+} [@@deriving yojson { strict = false }, jsonschema]
+
+type url_encode_input = {
+  text : string;
+  decode : bool [@default false];
+} [@@deriving yojson { strict = false }, jsonschema]
+
 let builtin_tools ~switch ~net =
   let open Types in
   let token = Cancellation.create_token switch in 
@@ -116,11 +193,7 @@ let builtin_tools ~switch ~net =
     let descriptor =
       { name = "echo"
       ; description = "Echo back the input text. Input: {\"text\": \"...\"}"
-      ; input_schema = `Assoc
-          [ ("type", `String "object")
-          ; ("properties", `Assoc [("text", `Assoc [("type", `String "string")])])
-          ; ("required", `List [`String "text"])
-          ]
+      ; input_schema = Jsonschema.to_strict_object_schema echo_input_jsonschema
       ; output_schema = None
  ; permission = Allow
       ; timeout = Some 2.0
@@ -161,14 +234,7 @@ let builtin_tools ~switch ~net =
       { name = "hash_text"
       ; description = "Compute a hash of text. Input: {\"text\": \"...\", \"algorithm\": \"sha256\"}. \
                        Supported: md5, sha1, sha256 (default)."
-      ; input_schema = `Assoc
-          [ ("type", `String "object")
-          ; ("properties", `Assoc
-              [ ("text", `Assoc [("type", `String "string"); ("description", `String "Text to hash")])
-              ; ("algorithm", `Assoc [("type", `String "string"); ("description", `String "md5, sha1, or sha256 (default)")])
-              ])
-          ; ("required", `List [`String "text"])
-          ]
+      ; input_schema = Jsonschema.to_strict_object_schema hash_text_input_jsonschema
       ; output_schema = None
  ; permission = Allow
       ; timeout = Some 2.0
@@ -197,13 +263,7 @@ let builtin_tools ~switch ~net =
     let descriptor =
       { name = "generate_password"
       ; description = "Generate a random password. Input: {\"length\": 16, \"include_symbols\": true}"
-      ; input_schema = `Assoc
-          [ ("type", `String "object")
-          ; ("properties", `Assoc
-              [ ("length", `Assoc [("type", `String "integer"); ("description", `String "Password length (default 16)")])
-              ; ("include_symbols", `Assoc [("type", `String "boolean"); ("description", `String "Include !@#$%^&* symbols (default true)")])
-              ])
-          ]
+      ; input_schema = Jsonschema.to_strict_object_schema generate_password_input_jsonschema
       ; output_schema = None
  ; permission = Allow
       ; timeout = Some 1.0
@@ -237,11 +297,7 @@ let builtin_tools ~switch ~net =
     let descriptor =
       { name = "string_stats"
       ; description = "Count characters, words, and lines in text. Input: {\"text\": \"...\"}"
-      ; input_schema = `Assoc
-          [ ("type", `String "object")
-          ; ("properties", `Assoc [("text", `Assoc [("type", `String "string"); ("description", `String "Text to analyze")])])
-          ; ("required", `List [`String "text"])
-          ]
+      ; input_schema = Jsonschema.to_strict_object_schema string_stats_input_jsonschema
       ; output_schema = None
  ; permission = Allow
       ; timeout = Some 1.0
@@ -270,11 +326,7 @@ let builtin_tools ~switch ~net =
     let descriptor =
       { name = "json_format"
       ; description = "Format and validate a JSON string. Input: {\"json\": \"{\\\"key\\\": \\\"value\\\"}\"}"
-      ; input_schema = `Assoc
-          [ ("type", `String "object")
-          ; ("properties", `Assoc [("json", `Assoc [("type", `String "string"); ("description", `String "JSON string to format")])])
-          ; ("required", `List [`String "json"])
-          ]
+      ; input_schema = Jsonschema.to_strict_object_schema json_format_input_jsonschema
       ; output_schema = None
  ; permission = Allow
       ; timeout = Some 2.0
@@ -300,15 +352,7 @@ let builtin_tools ~switch ~net =
       { name = "convert_temperature"
       ; description = "Convert temperature between Celsius, Fahrenheit, and Kelvin. \
                        Input: {\"value\": 100, \"from\": \"C\", \"to\": \"F\"}"
-      ; input_schema = `Assoc
-          [ ("type", `String "object")
-          ; ("properties", `Assoc
-              [ ("value", `Assoc [("type", `String "number"); ("description", `String "Temperature value")])
-              ; ("from", `Assoc [("type", `String "string"); ("description", `String "Unit: C, F, or K")])
-              ; ("to", `Assoc [("type", `String "string"); ("description", `String "Unit: C, F, or K")])
-              ])
-          ; ("required", `List [`String "value"; `String "from"; `String "to"])
-          ]
+      ; input_schema = Jsonschema.to_strict_object_schema convert_temperature_input_jsonschema
       ; output_schema = None
  ; permission = Allow
       ; timeout = Some 1.0
@@ -351,14 +395,7 @@ let builtin_tools ~switch ~net =
     let descriptor =
       { name = "url_encode"
       ; description = "URL-encode or URL-decode a string. Input: {\"text\": \"hello world\", \"decode\": false}"
-      ; input_schema = `Assoc
-          [ ("type", `String "object")
-          ; ("properties", `Assoc
-              [ ("text", `Assoc [("type", `String "string"); ("description", `String "Text to encode/decode")])
-              ; ("decode", `Assoc [("type", `String "boolean"); ("description", `String "true to decode, false to encode (default)")])
-              ])
-          ; ("required", `List [`String "text"])
-          ]
+      ; input_schema = Jsonschema.to_strict_object_schema url_encode_input_jsonschema
       ; output_schema = None
  ; permission = Allow
       ; timeout = Some 1.0
@@ -473,14 +510,7 @@ let builtin_tools ~switch ~net =
       { name = "fetch_url"
       ; description = "Fetch the content of a URL and return the raw text. \
                        Input: {\"url\": \"https://example.com\", \"max_length\": 10000}"
-      ; input_schema = `Assoc
-          [ ("type", `String "object")
-          ; ("properties", `Assoc
-              [ ("url", `Assoc [("type", `String "string"); ("description", `String "URL to fetch")])
-              ; ("max_length", `Assoc [("type", `String "integer"); ("description", `String "Max response length (default 50000)")])
-              ])
-          ; ("required", `List [`String "url"])
-          ]
+      ; input_schema = Jsonschema.to_strict_object_schema fetch_url_input_jsonschema
       ; output_schema = None
  ; permission = Allow
       ; timeout = Some 15.0
@@ -522,14 +552,7 @@ let builtin_tools ~switch ~net =
       { name = "read_webpage"
       ; description = "Fetch a URL, parse the HTML, and extract readable text content. \
                        Input: {\"url\": \"https://example.com\", \"max_length\": 10000}"
-      ; input_schema = `Assoc
-          [ ("type", `String "object")
-          ; ("properties", `Assoc
-              [ ("url", `Assoc [("type", `String "string"); ("description", `String "URL to fetch")])
-              ; ("max_length", `Assoc [("type", `String "integer"); ("description", `String "Max text length (default 10000)")])
-              ])
-          ; ("required", `List [`String "url"])
-          ]
+      ; input_schema = Jsonschema.to_strict_object_schema read_webpage_input_jsonschema
       ; output_schema = None
  ; permission = Allow
       ; timeout = Some 15.0
@@ -587,14 +610,7 @@ let builtin_tools ~switch ~net =
       { name = "web_search"
       ; description = "Search the web using DuckDuckGo and return results. \
                        Input: {\"query\": \"search terms\", \"max_results\": 5}"
-      ; input_schema = `Assoc
-          [ ("type", `String "object")
-          ; ("properties", `Assoc
-              [ ("query", `Assoc [("type", `String "string"); ("description", `String "Search query")])
-              ; ("max_results", `Assoc [("type", `String "integer"); ("description", `String "Max number of results (default 5)")])
-              ])
-          ; ("required", `List [`String "query"])
-          ]
+      ; input_schema = Jsonschema.to_strict_object_schema web_search_input_jsonschema
       ; output_schema = None
  ; permission = Allow
       ; timeout = Some 15.0
@@ -669,26 +685,7 @@ let builtin_tools ~switch ~net =
                        Input: {\"path\": \"relative/path.txt\", \"offset\": 0, \"limit\": 100}. \
                        Returns file content with line numbers. Binary files are detected \
                        and returned as base64. Maximum 10MB."
-      ; input_schema = `Assoc
-          [ ("type", `String "object")
-          ; ("properties", `Assoc
-              [ ("path", `Assoc
-                  [ ("type", `String "string")
-                  ; ("description", `String "File path relative to CWD")
-                  ])
-              ; ("offset", `Assoc
-                  [ ("type", `String "integer")
-                  ; ("description", `String "Line offset to start reading from")
-                  ; ("minimum", `Float 0.0)
-                  ])
-              ; ("limit", `Assoc
-                  [ ("type", `String "integer")
-                  ; ("description", `String "Maximum number of lines to read")
-                  ; ("minimum", `Float 1.0)
-                  ])
-              ])
-          ; ("required", `List [`String "path"])
-          ]
+      ; input_schema = Jsonschema.to_strict_object_schema read_input_jsonschema
       ; output_schema = None
  ; permission = Allow
       ; timeout = Some 30.0
@@ -757,16 +754,7 @@ let builtin_tools ~switch ~net =
       { name = "ls"
       ; description = "List directory contents. Input: {\"path\": \".\"} (relative to CWD). \
                        Returns list of {name, type, size, modified} entries."
-      ; input_schema = `Assoc
-          [ ("type", `String "object")
-          ; ("properties", `Assoc
-              [ ("path", `Assoc
-                  [ ("type", `String "string")
-                  ; ("description", `String "Directory path relative to CWD")
-                  ])
-              ])
-          ; ("required", `List [`String "path"])
-          ]
+      ; input_schema = Jsonschema.to_strict_object_schema ls_input_jsonschema
       ; output_schema = None
  ; permission = Allow
       ; timeout = Some 10.0
@@ -848,20 +836,7 @@ let builtin_tools ~switch ~net =
       ; description = "Find files matching a glob pattern. \
                        Input: {\"pattern\": \"**/*.ml\", \"path\": \".\"}. \
                        Skips .git, node_modules, _build, _opam directories."
-      ; input_schema = `Assoc
-          [ ("type", `String "object")
-          ; ("properties", `Assoc
-              [ ("pattern", `Assoc
-                  [ ("type", `String "string")
-                  ; ("description", `String "Glob pattern like **/*.ml")
-                  ])
-              ; ("path", `Assoc
-                  [ ("type", `String "string")
-                  ; ("description", `String "Base directory to search from")
-                  ])
-              ])
-          ; ("required", `List [`String "pattern"])
-          ]
+      ; input_schema = Jsonschema.to_strict_object_schema find_input_jsonschema
       ; output_schema = None
  ; permission = Allow
       ; timeout = Some 30.0
@@ -934,29 +909,7 @@ let builtin_tools ~switch ~net =
       ; description = "Search for regex pattern in files. \
                        Input: {\"pattern\": \"TODO\", \"path\": \".\", \"glob\": \"*.ml\"}. \
                        Returns matching lines with file:line prefix. Timeout 30s."
-      ; input_schema = `Assoc
-          [ ("type", `String "object")
-          ; ("properties", `Assoc
-              [ ("pattern", `Assoc
-                  [ ("type", `String "string")
-                  ; ("description", `String "Regex or literal pattern to search for")
-                  ])
-              ; ("path", `Assoc
-                  [ ("type", `String "string")
-                  ; ("description", `String "Directory to search in")
-                  ])
-              ; ("glob", `Assoc
-                  [ ("type", `String "string")
-                  ; ("description", `String "File glob pattern to filter (e.g. *.ml)")
-                  ])
-              ; ("context_lines", `Assoc
-                  [ ("type", `String "integer")
-                  ; ("description", `String "Number of context lines before/after match")
-                  ; ("minimum", `Float 0.0)
-                  ])
-              ])
-          ; ("required", `List [`String "pattern"])
-          ]
+      ; input_schema = Jsonschema.to_strict_object_schema grep_input_jsonschema
       ; output_schema = None
  ; permission = Allow
       ; timeout = Some 30.0
@@ -1047,24 +1000,7 @@ let builtin_tools ~switch ~net =
     let descriptor =
       { name = "write"
       ; description = "Write content to a file. Input: {\"path\": \"relative/file.txt\", \"content\": \"...\", \"create_dirs\": true}."
-      ; input_schema = `Assoc
-          [ ("type", `String "object")
-          ; ("properties", `Assoc
-              [ ("path", `Assoc
-                  [ ("type", `String "string")
-                  ; ("description", `String "File path relative to CWD")
-                  ])
-              ; ("content", `Assoc
-                  [ ("type", `String "string")
-                  ; ("description", `String "File content")
-                  ])
-              ; ("create_dirs", `Assoc
-                  [ ("type", `String "boolean")
-                  ; ("description", `String "Create parent dirs if missing")
-                  ])
-              ])
-          ; ("required", `List [`String "path"; `String "content"])
-          ]
+      ; input_schema = Jsonschema.to_strict_object_schema write_input_jsonschema
       ; output_schema = None
  ; permission = Allow
       ; timeout = Some 30.0
