@@ -95,8 +95,8 @@ type agent_config = {
   resource_quota : resource_quota option;  (* Optional resource quota override *)
   max_execution_time : float option;      (* Optional max execution time in seconds *)
   early_stopping_method : early_stopping_method;  (* Force or Generate on iteration cap *)
-  on_max_tokens : on_max_tokens_behavior; (* Retry, Continue, or Return_partial on truncation *)
-  max_continuation_chunks : int;          (* Max continuation chunks for Continue mode (default 3) *)
+  on_max_tokens : on_max_tokens_behavior option;  (* None=Auto (default), or explicit Retry/Continue/Return_partial *)
+  max_continuation_chunks : int option;           (* None=Auto (default), or explicit cap *)
   tool_timeout : float option;            (* Optional per-tool-call timeout in seconds *)
 }
 ```
@@ -178,8 +178,8 @@ let agent = {
   resource_quota = None;
   max_execution_time = None;
   early_stopping_method = Types.Force;
-  on_max_tokens = Types.Return_partial;
-  max_continuation_chunks = 3;
+  on_max_tokens = None;              (* Auto: Return_partial (this agent has tools) *)
+  max_continuation_chunks = None;    (* Auto: 3 (tool-bearing agent default) *)
   tool_timeout = None;
 } in
 ignore (Runtime.register_agent rt agent)
@@ -339,6 +339,8 @@ When the iteration count reaches `max_iterations`, `run_agent` returns `Result.E
 
 ### on_max_tokens behavior
 
+**v0.6.x behavior change**: As of v0.6.x, `on_max_tokens` is an option type. `None` (the new default) means Auto — the engine resolves the policy at runtime based on the effective tool set: `Continue` for tool-less agents (long-output generation mode), `Return_partial` for tool-bearing agents (backwards-compatible default). An explicit `Some Return_partial` / `Some Retry` / `Some Continue` always overrides Auto. The same Auto logic applies to `max_continuation_chunks`: `None` means unbounded for tool-less agents and 3 for tool-bearing.
+
 When the LLM returns `finish_reason=Max_tokens` (truncated response), the behavior depends on `agent.on_max_tokens`:
 
 - `Return_partial` (default): If the truncated response has non-empty text, preserve it and return `Ok` with the partial result. Empty truncations retain error/retry behavior.
@@ -450,8 +452,8 @@ let agent = {
   resource_quota = None;
   max_execution_time = None;
   early_stopping_method = Types.Force;
-  on_max_tokens = Types.Return_partial;
-  max_continuation_chunks = 3;
+  on_max_tokens = None;              (* Auto: Continue (this agent has no tools) *)
+  max_continuation_chunks = None;    (* Auto: unbounded (tool-less long-output mode) *)
   tool_timeout = None;
 }
 ```

@@ -90,8 +90,8 @@ type agent_config = {
   resource_quota : resource_quota option;  (* 可选资源配额覆盖 *)
   max_execution_time : float option;      (* 可选最大执行时间（秒）*)
   early_stopping_method : early_stopping_method;  (* 达到迭代上限时：Force 或 Generate *)
-  on_max_tokens : on_max_tokens_behavior; (* 截断时策略：Retry、Continue 或 Return_partial *)
-  max_continuation_chunks : int;          (* Continue 模式最大续写块数（默认 3）*)
+  on_max_tokens : on_max_tokens_behavior option;  (* None=Auto（默认），或显式 Retry/Continue/Return_partial *)
+  max_continuation_chunks : int option;           (* None=Auto（默认），或显式上限 *)
   tool_timeout : float option;            (* 可选单次工具调用超时（秒）*)
 }
 ```
@@ -173,8 +173,8 @@ let agent = {
   resource_quota = None;
   max_execution_time = None;
   early_stopping_method = Types.Force;
-  on_max_tokens = Types.Return_partial;
-  max_continuation_chunks = 3;
+  on_max_tokens = None;              (* Auto：Return_partial（此 agent 有工具）*)
+  max_continuation_chunks = None;    (* Auto：3（有工具 agent 的默认值）*)
   tool_timeout = None;
 } in
 ignore (Runtime.register_agent rt agent)
@@ -332,6 +332,8 @@ Agent 执行核心是 `Par.Engine.run_agent`：
 `Result.Error (Internal "Max iterations exceeded")`
 
 ### on_max_tokens 行为
+
+**v0.6.x 行为变更**:自 v0.6.x 起,`on_max_tokens` 改为 option 类型。`None`(新默认值)表示 Auto —— 运行时根据 effective tool 集解析策略:无工具 agent 自动选 `Continue`(长输出生成模式),有工具 agent 选 `Return_partial`(向后兼容默认值)。显式 `Some Return_partial` / `Some Retry` / `Some Continue` 总是覆盖 Auto。`max_continuation_chunks` 同样遵循 Auto 逻辑:`None` 表示无工具 agent 无上限,有工具 agent 上限为 3。
 
 当 LLM 返回 `finish_reason=Max_tokens`（截断响应）时，行为取决于 `agent.on_max_tokens`：
 

@@ -64,6 +64,7 @@ The SDK is the canonical surface. Every page below is marked **PRIMARY** because
 | [Middleware API](sdk/middleware.md) | **PRIMARY**: 7 built-in middlewares and how to write your own |
 | [Tools API](sdk/tools.md) | **PRIMARY**: all 20 built-in tools including type-safe bash |
 | [Streaming API](sdk/streaming.md) | **PRIMARY**: `invoke_stream`, 5-event tagged union, backpressure, 3 runnable examples |
+| [Generate API](sdk/generate.md) | **PRIMARY**: `invoke_generate`, long-output generation mode, auto-continue on truncation |
 | [RAG API](sdk/rag.md) | Embeddings, vector store, chunking, `invoke_with_rag` |
 | [MCP Client API](sdk/mcp.md) | **PRIMARY**: MCP client (stdio + HTTP/SSE), 7 event types, server lifecycle |
 

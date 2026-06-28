@@ -102,8 +102,9 @@ nav:
       - Middleware: sdk/middleware.md
       - Tools: sdk/tools.md
       - MCP Client: sdk/mcp.md
-      - Streaming API: sdk/streaming.md
-      - RAG API: sdk/rag.md
+- Streaming API: sdk/streaming.md
+- Generate API: sdk/generate.md
+- RAG API: sdk/rag.md
       - Skills API: sdk/skills.md
       - Observability: sdk/observability.md
   - Explanation:
