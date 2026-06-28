@@ -45,6 +45,7 @@ let mock_llm : llm_service =
     close_fn = ignore;
     complete_structured_fn = None;
     list_models_fn = None;
+  supports_native_tools_fn = None;
   }
 
 let err_str (e : error_category) =

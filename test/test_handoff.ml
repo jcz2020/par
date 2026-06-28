@@ -70,6 +70,7 @@ let mock_llm_dynamic f : llm_service =
     close_fn = (fun () -> ());
     complete_structured_fn = None;
     list_models_fn = None;
+  supports_native_tools_fn = None;
   }
 
 let error_to_string = function

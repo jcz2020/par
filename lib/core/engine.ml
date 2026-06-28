@@ -405,23 +405,36 @@ let run_structured
   in
   loop 1 conv0
 
-let run_agent ?(tool_mode : Types.tool_mode = `Native)
+let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
     ?(tool_call_hooks = None) ?(quota = None) ?(parallel = false)
     ?(on_progress = None) ?(on_tool_event = None) ?(on_chunk = None)
     ?conversation ?agent_resolver ?(enable_handoff = false)
     token agent user_message llm registry =
-  (* PAR-k38 T3.1: when tool_mode = `Synthesized, the engine injects tool
-     descriptors into the system prompt and parses synthesised JSON tool
-     calls out of the model's text response. The provider receives an
-     EMPTY tools list so it doesn't double-send native tools metadata
-     that the upstream endpoint may not understand. *)
+  (* PAR-k38 T3.1: resolve effective tool mode.
+     - `Auto (default): consult [llm.supports_native_tools_fn].
+       [Some true] or [None] → `Native (backwards compat: every provider
+       PAR ships with today sends native tools, so None assumes native).
+       [Some false] → `Synthesized.
+     - `Native / `Synthesized / `Json_mode: used as-is (caller's explicit choice). *)
+  let effective_mode : Types.tool_mode =
+    match tool_mode with
+    | `Auto ->
+      (match llm.Types.supports_native_tools_fn with
+       | Some f when not (f ()) -> `Synthesized
+       | _ -> `Native)
+    | explicit -> explicit
+  in
+  (* When effective_mode = `Synthesized, inject tool descriptors into the
+     system prompt and parse synthesised JSON tool calls out of the model's
+     text response. The provider receives an EMPTY tools list so it doesn't
+     double-send native tools metadata the upstream endpoint may reject. *)
   let tools_for_provider =
-    if tool_mode = `Synthesized then []
+    if effective_mode = `Synthesized then []
     else agent.tools
   in
   let synthesized_prompt_suffix =
-    if tool_mode = `Synthesized && agent.tools <> [] then
+    if effective_mode = `Synthesized && agent.tools <> [] then
       "\n\n" ^ Tool_prompt.descriptors_to_prompt_text agent.tools
     else ""
   in
@@ -523,7 +536,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Native)
         (* PAR-k38 T3.1: in Synthesized mode, extract tool calls from the
            model's text response when the provider didn't return native ones. *)
         let resp =
-          if tool_mode = `Synthesized then
+          if effective_mode = `Synthesized then
             match resp.tool_calls with
             | Some calls when calls <> [] -> resp
             | _ ->

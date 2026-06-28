@@ -228,6 +228,7 @@ type tool_mode = [
   | `Native
   | `Synthesized
   | `Json_mode
+  | `Auto  (* PAR-k38 capability detection: consult supports_native_tools_fn *)
 ]
 [@@deriving yojson]
 
@@ -843,6 +844,17 @@ type llm_service = {
      Yojson.Safe.t ->
      (llm_response, error_category) result) option;
   list_models_fn : (unit -> (string list, error_category) result) option;
+  (* PAR-k38: provider capability declaration.
+     When [Some true], the provider transports tool calls natively (OpenAI
+     functions / Anthropic tool_use). When [Some false], the provider does
+     NOT accept the [tools] request parameter — the engine must inject tool
+     descriptors into the system prompt and parse synthesised tool calls
+     out of the model's text response (see [Tool_prompt]). [None] is
+     equivalent to [Some true] for backwards compatibility — every provider
+     PAR ships with today sends native tools, so the safe default is
+     "native". Future providers that don't support [tools] should set this
+     to [Some false] at construction time. *)
+  supports_native_tools_fn : (unit -> bool) option;
 }
 
 type embedding_service = {

@@ -135,7 +135,8 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
           stream_fn = (fun mc tools conv sc cb -> Openai_provider.stream t mc tools conv sc cb);
           close_fn = (fun () -> Openai_provider.close t);
           complete_structured_fn = Some (fun mc tools conv schema -> Openai_provider.complete_structured t mc tools conv schema);
-          list_models_fn = None; })
+          list_models_fn = None;
+  supports_native_tools_fn = None; })
   | `Anthropic ->
     let cfg = Anthropic { api_key = api_key_val; base_url = api_base_val } in
     (match Anthropic_provider.create cfg with
@@ -148,7 +149,8 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
          stream_fn = (fun mc tools conv sc cb -> Anthropic_provider.stream t mc tools conv sc cb);
           close_fn = (fun () -> Anthropic_provider.close t);
          complete_structured_fn = Some (fun mc tools conv schema -> Anthropic_provider.complete_structured t mc tools conv schema);
-         list_models_fn = None; })
+         list_models_fn = None;
+  supports_native_tools_fn = None; })
   | `Ollama ->
     (* Ollama exposes an OpenAI-compatible /v1 endpoint. Build the OpenAI
        provider with a localhost base_url and a placeholder api_key that
@@ -165,7 +167,8 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
          stream_fn = (fun mc tools conv sc cb -> Openai_provider.stream t mc tools conv sc cb);
          close_fn = (fun () -> Openai_provider.close t);
          complete_structured_fn = Some (fun mc tools conv schema -> Openai_provider.complete_structured t mc tools conv schema);
-          list_models_fn = None; })
+          list_models_fn = None;
+  supports_native_tools_fn = None; })
   | `Custom _ ->
     (* OpenAI-compatible custom endpoint. The user must supply base_url via
        --api-base; refuse to start otherwise (PAR-z23 / B.1). *)
@@ -185,7 +188,8 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
             stream_fn = (fun mc tools conv sc cb -> Openai_provider.stream t mc tools conv sc cb);
             close_fn = (fun () -> Openai_provider.close t);
             complete_structured_fn = Some (fun mc tools conv schema -> Openai_provider.complete_structured t mc tools conv schema);
-            list_models_fn = None; }))
+            list_models_fn = None;
+  supports_native_tools_fn = None; }))
 
 let make_embedding_service provider_tag api_key_val api_base_val (net : [< `Generic | `Unix > `Generic ] Eio.Net.ty Eio.Resource.t) =
   let open Types in

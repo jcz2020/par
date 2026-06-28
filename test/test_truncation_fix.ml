@@ -39,6 +39,7 @@ let mock_llm responses =
     close_fn = (fun () -> ());
     complete_structured_fn = None;
     list_models_fn = None;
+  supports_native_tools_fn = None;
   }
 
 (* Variant that exposes its call counter for iteration-burn assertions. *)
@@ -56,6 +57,7 @@ let mock_llm_tracked counter responses =
     close_fn = (fun () -> ());
     complete_structured_fn = None;
     list_models_fn = None;
+  supports_native_tools_fn = None;
   }
 
 let with_token f =

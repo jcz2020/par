@@ -936,7 +936,8 @@ let create ?(persistence = noop_persistence)
                      stream_fn = (fun _ _tools _ _ _ -> Result.Error (Internal "LLM not initialized"));
                      close_fn = ignore;
                      complete_structured_fn = None;
-                     list_models_fn = None })
+                     list_models_fn = None;
+                     supports_native_tools_fn = None })
            ?embeddings
            ?(bash_policy = (module Bash_policy.Coder : Bash_policy.POLICY))
            ?(mcp_servers = [])

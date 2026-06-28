@@ -43,6 +43,7 @@ let mock_llm responses =
     close_fn = (fun () -> ());
     complete_structured_fn = None;
     list_models_fn = None;
+  supports_native_tools_fn = None;
   }
 
 (* mock_llm_with_structured: native path. complete_structured_fn = Some _.
@@ -65,6 +66,7 @@ let mock_llm_with_structured ?(on_call : unit -> unit = ignore) responses =
     close_fn = (fun () -> ());
     complete_structured_fn = Some structured_fn;
     list_models_fn = None;
+  supports_native_tools_fn = None;
   }
 
 let mock_llm_with_error err =
@@ -73,6 +75,7 @@ let mock_llm_with_error err =
     close_fn = (fun () -> ());
     complete_structured_fn = None;
     list_models_fn = None;
+  supports_native_tools_fn = None;
   }
 
 let with_token f =
@@ -160,6 +163,7 @@ let structured_suite =
         close_fn = (fun () -> ());
         complete_structured_fn = None;
         list_models_fn = None;
+  supports_native_tools_fn = None;
       } in
       let agent = basic_agent () in
       with_token (fun token ->

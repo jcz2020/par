@@ -32,6 +32,7 @@ let mock_llm responses =
     close_fn = (fun () -> ());
     complete_structured_fn = None;
     list_models_fn = None;
+  supports_native_tools_fn = None;
   }
 
 let with_token f =
@@ -621,6 +622,7 @@ let middleware_suite =
         close_fn = (fun () -> ());
         complete_structured_fn = None;
         list_models_fn = None;
+  supports_native_tools_fn = None;
       } in
       let retry_mw = Retry.retry ~config:{ max_attempts = 3; base_delay = 0.01; max_delay = 0.01 } () in
       let agent = basic_agent ~middleware:[ retry_mw ] () in

@@ -216,6 +216,7 @@ type tool_mode = [
   | `Native
   | `Synthesized
   | `Json_mode
+  | `Auto
 ]
 [@@deriving yojson]
 
@@ -721,6 +722,12 @@ type llm_service = {
      Yojson.Safe.t ->
      (llm_response, error_category) result) option;
   list_models_fn : (unit -> (string list, error_category) result) option;
+  (** See [Types.llm_service] in the [.ml] for the semantics of
+      [supports_native_tools_fn]. [None] (default) means "assume native
+      tool-calling support" — backwards compatible with every provider
+      PAR ships today. Set to [Some (fun () -> false)] for providers that
+      do not accept the [tools] request parameter. *)
+  supports_native_tools_fn : (unit -> bool) option;
 }
 
 type embedding_service = {

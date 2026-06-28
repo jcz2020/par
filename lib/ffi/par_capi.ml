@@ -162,6 +162,7 @@ let default_llm_service : Par.Types.llm_service = {
   close_fn = ignore;
   complete_structured_fn = None;
   list_models_fn = None;
+  supports_native_tools_fn = None;
 }
 
 let build_llm_from_provider provider_cfg net =
@@ -177,6 +178,7 @@ let build_llm_from_provider provider_cfg net =
          close_fn = (fun () -> Par.Openai_provider.close t);
          complete_structured_fn = None;
          list_models_fn = None;
+  supports_native_tools_fn = None;
        }
      | Error _ -> None)
   | Par.Types.Ollama { base_url } ->
@@ -190,6 +192,7 @@ let build_llm_from_provider provider_cfg net =
          close_fn = (fun () -> Par.Openai_provider.close t);
          complete_structured_fn = None;
          list_models_fn = None;
+  supports_native_tools_fn = None;
        }
      | Error _ -> None)
   | Par.Types.Anthropic { api_key; base_url } ->
@@ -203,6 +206,7 @@ let build_llm_from_provider provider_cfg net =
          close_fn = (fun () -> Par.Anthropic_provider.close t);
          complete_structured_fn = None;
          list_models_fn = None;
+  supports_native_tools_fn = None;
        }
      | Error _ -> None)
   | Par.Types.Custom { base_url = base_url_for_custom; _ } ->
@@ -216,6 +220,7 @@ let build_llm_from_provider provider_cfg net =
             close_fn = (fun () -> Par.Openai_provider.close t);
             complete_structured_fn = None;
             list_models_fn = None;
+  supports_native_tools_fn = None;
           }
         | Error _ -> None)
 
