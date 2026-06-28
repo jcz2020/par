@@ -566,6 +566,45 @@ class Runtime:
             pass
         return result
 
+    def invoke_generate(
+        self,
+        agent_id: str,
+        message: str,
+    ) -> dict:
+        """Pure generation mode for long-output artifacts.
+
+        Skips the ReAct loop. Auto-continues on Max_tokens truncation.
+        Use for PRDs, HTML mockups, plans, documentation, etc. where no
+        tool calls are needed.
+
+        Args:
+            agent_id: ID of a registered agent (must have tools = []).
+            message: The prompt / user message.
+
+        Returns:
+            Parsed generate_result dict with keys: text, finish_reason,
+            continuations, total_tokens, session_id, elapsed.
+
+        Raises:
+            PARInvokeError: If the agent is unknown or generation fails.
+        """
+        self._check_handle()
+        result_ptr = _lib.par_generate(
+            self._handle, _c_str(agent_id), _c_str(message)
+        )
+        result = _py_str(result_ptr)
+        if not result:
+            raise PARInvokeError(f"Generate failed for agent: {agent_id}")
+        try:
+            parsed = json.loads(result)
+        except json.JSONDecodeError as e:
+            raise PARInvokeError(f"Generate returned invalid JSON: {e}") from e
+        if isinstance(parsed, dict) and "error" in parsed:
+            raise PARInvokeError(parsed["error"])
+        if isinstance(parsed, dict) and parsed.get("status") == "ok":
+            return parsed["result"]
+        raise PARInvokeError(f"Unexpected generate response: {result[:200]}")
+
     def embed(self, messages: list[str]) -> list[list[float]]:
         """Embed a batch of texts.
 

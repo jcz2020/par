@@ -156,6 +156,11 @@ _lib.par_load_conversation.restype = ctypes.c_int
 _lib.par_invoke.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
 _lib.par_invoke.restype = ctypes.c_void_p
 
+# char* par_generate(par_runtime_t* rt, const char* agent_id, const char* message);
+# Caller MUST free() the returned string — same memory model as par_invoke.
+_lib.par_generate.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
+_lib.par_generate.restype = ctypes.c_void_p
+
 # char* par_embed(par_runtime_t* rt, const char* messages_json);
 _lib.par_embed.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_embed.restype = ctypes.c_void_p
