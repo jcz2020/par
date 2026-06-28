@@ -1,18 +1,23 @@
+(* PAR-g4c proof-of-concept: the calculator tool's input_schema is now
+   derived from an OCaml record via [@@deriving jsonschema] and wrapped
+   with Jsonschema.to_strict_object_schema for OpenAI strict-mode /
+   FFI top-level Assoc guard compatibility. The remaining 19 builtin
+   tools retain hand-written schemas for now — full migration is T3.2
+   follow-up. *)
+type calculator_input = {
+  expression : string;
+} [@@deriving yojson { strict = false }, jsonschema]
+
 let builtin_tools ~switch ~net =
   let open Types in
-  let token = Cancellation.create_token switch in
+  let token = Cancellation.create_token switch in 
 
   let calculator =
     let descriptor =
       { name = "calculator"
       ; description = "Evaluate a mathematical expression and return the numeric result. \
                        Input: {\"expression\": \"2 + 3 * 4\"}. Supports +, -, *, /, parentheses."
-      ; input_schema = `Assoc
-          [ ("type", `String "object")
-          ; ("properties", `Assoc
-              [("expression", `Assoc [("type", `String "string"); ("description", `String "Math expression to evaluate")])])
-          ; ("required", `List [`String "expression"])
-          ]
+      ; input_schema = Jsonschema.to_strict_object_schema calculator_input_jsonschema
       ; output_schema = None
  ; permission = Allow
       ; timeout = Some 5.0
