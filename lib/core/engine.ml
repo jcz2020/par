@@ -405,11 +405,26 @@ let run_structured
   in
   loop 1 conv0
 
-let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
+let run_agent ?(tool_mode : Types.tool_mode = `Native)
+    ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
     ?(tool_call_hooks = None) ?(quota = None) ?(parallel = false)
     ?(on_progress = None) ?(on_tool_event = None) ?(on_chunk = None)
     ?conversation ?agent_resolver ?(enable_handoff = false)
     token agent user_message llm registry =
+  (* PAR-k38 T3.1: when tool_mode = `Synthesized, the engine injects tool
+     descriptors into the system prompt and parses synthesised JSON tool
+     calls out of the model's text response. The provider receives an
+     EMPTY tools list so it doesn't double-send native tools metadata
+     that the upstream endpoint may not understand. *)
+  let tools_for_provider =
+    if tool_mode = `Synthesized then []
+    else agent.tools
+  in
+  let synthesized_prompt_suffix =
+    if tool_mode = `Synthesized && agent.tools <> [] then
+      "\n\n" ^ Tool_prompt.descriptors_to_prompt_text agent.tools
+    else ""
+  in
   let sys_prompt = match Template.effective_system_prompt agent ~runtime_id with
     | Ok s -> s
     | Error e ->
@@ -422,6 +437,7 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
         m "Template render failed, falling back to plain system_prompt: %s" msg);
       agent.system_prompt
   in
+  let sys_prompt = sys_prompt ^ synthesized_prompt_suffix in
   let drain_into_conv conv queue =
     match queue with
     | None -> conv
@@ -454,7 +470,7 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
       | Types.Generate ->
         let conv' = add_user_feedback conv
           "Based on the work done so far, provide your best final answer." in
-        (match run_llm_with_optional_streaming llm agent.model agent.tools conv' on_chunk with
+        (match run_llm_with_optional_streaming llm agent.model tools_for_provider conv' on_chunk with
          | Ok resp ->
            let conv'' = add_assistant_message conv' resp in
            Ok (resp, conv'')
@@ -479,7 +495,7 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
         | None -> ()
       in
       fire_llm (Llm_request_sent { task_id = llm_task_id; model = agent.model.model_name });
-      match run_llm_with_optional_streaming llm agent.model agent.tools conv on_chunk with
+      match run_llm_with_optional_streaming llm agent.model tools_for_provider conv on_chunk with
       | Result.Error err ->
         (match classify_engine_error err with
          | `Context_length_exceeded ->
@@ -501,9 +517,25 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
             | Error { retryable = true; _ } -> loop ~agent ~global_max conv (iterations + 1)
             | Handoff _ -> Result.Error ((Internal "Handoff reached retry path" : error_category), conv)
             | _ -> Result.Error (err_classified, conv)))
-       | Ok resp ->
+        | Ok resp ->
         fire_llm (Llm_response_received { task_id = llm_task_id; usage = resp.usage });
         let resp = apply_after_llm agent.middleware resp (fun r -> r) in
+        (* PAR-k38 T3.1: in Synthesized mode, extract tool calls from the
+           model's text response when the provider didn't return native ones. *)
+        let resp =
+          if tool_mode = `Synthesized then
+            match resp.tool_calls with
+            | Some calls when calls <> [] -> resp
+            | _ ->
+              let text = match resp.text with Some t -> t | None -> "" in
+              let parsed = Tool_prompt.parse_tool_calls_from_text text in
+              if parsed <> [] then
+                { resp with tool_calls = Some parsed;
+                            finish_reason = (match resp.finish_reason with
+                                             | Stop -> Tool_calls | fr -> fr) }
+              else resp
+          else resp
+        in
         Logs.info (fun m -> m "[engine] LLM response iter=%d: finish=%s text_len=%d tool_calls=%s"
           iterations
           (match resp.finish_reason with Stop -> "stop" | Tool_calls -> "tool_calls"
@@ -716,7 +748,7 @@ let run_agent ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
                  else
                    let conv = add_user_feedback conv
                      "Continue from where your previous response stopped. Do not repeat previous content." in
-                   (match run_llm_with_optional_streaming llm agent.model agent.tools conv on_chunk with
+                   (match run_llm_with_optional_streaming llm agent.model tools_for_provider conv on_chunk with
                     | Error _ ->
                       ({ resp with text = Some accumulated; finish_reason = Max_tokens }, conv)
                     | Ok cont_resp ->

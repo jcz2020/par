@@ -86,6 +86,7 @@ val run_structured :
   (structured_invoke_result, error_category * conversation) result
 
 val run_agent :
+  ?tool_mode:Types.tool_mode ->
   ?runtime_id:string ->
   ?steering:Steering_queue.t option ->
   ?followup:Steering_queue.t option ->
@@ -104,3 +105,10 @@ val run_agent :
   llm_service ->
   Tool_registry.t ->
   (llm_response * conversation, error_category * conversation) result
+(** Drive a single ReAct loop. The optional [?tool_mode] parameter
+    (default [[ `Native]]) selects between the provider's native
+    function-calling protocol and the synthesized fallback
+    (PAR-k38 T3.1). When [` Synthesized], the engine injects tool
+    descriptors into the system prompt via [Tool_prompt] and parses
+    synthesised JSON tool calls out of the model's text response —
+    the provider itself receives an empty tools list. *)
