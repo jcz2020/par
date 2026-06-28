@@ -1,5 +1,56 @@
 # CHANGES
 
+## v0.6.1 — STABLE
+
+> Long-output generation mode: typed `on_max_tokens` option + first-class `invoke_generate` API. Closes the gap surfaced by a downstream project downstream (long-output agents were bypassing PAR's ReAct loop to call LLM directly).
+
+### Added — Long-output generation mode (plan §3)
+
+- **NEW** `Runtime.invoke_generate` — pure generation path that skips the ReAct loop and auto-continues on `Max_tokens` truncation. Use for long text artifacts (PRDs, HTML mockups, plans, documentation) where no tool calls are needed.
+- **NEW** `Generate.run` module (`lib/core/generate.ml`) — decoupled Continue sub-loop implementation per plan §3.1.3.
+- **NEW** `generate_result` type — first-class return: `text`, `finish_reason`, `continuations`, `total_tokens`, `session_id`, `elapsed`.
+- **NEW** `Generate_continuation` event variant — fired per continuation chunk with `chunk_index` and `chars_added` for observability.
+- **NEW** `Engine.resolve_on_max_tokens` / `Engine.resolve_max_continuation_chunks` — public helpers exposing the Auto resolution logic.
+- **NEW** `par_generate` FFI + `Runtime.invoke_generate` Python method.
+
+### Changed — Typed on_max_tokens option (plan §2, BREAKING in 0.x per SemVer §4)
+
+- `agent_config.on_max_tokens` field type changed from `on_max_tokens_behavior` to `on_max_tokens_behavior option`. `None` (new default) means Auto.
+- `agent_config.max_continuation_chunks` field type changed from `int` to `int option`. `None` (new default) means Auto.
+- **Auto resolution**: tool-less agents (effective_tools=[]) get `Continue` with `max_int` chunks (effectively unbounded, suitable for long-output generation). Tool-bearing agents get `Return_partial` with cap 3 (backwards-compatible default).
+- Explicit `Some X` always overrides Auto.
+- `Runtime.make_agent` defaults updated: `?(on_max_tokens = None)`, `?(max_continuation_chunks = None)`.
+- FFI `parse_agent_config` now treats omitted fields as `None` (Auto). Unknown `on_max_tokens` string values fail-fast (was silent fallback to `Return_partial`).
+- Python binding: JSON-transparent — no Python code changes needed.
+
+### Fixed — Option C: distinguish Max_tokens-induced iter exhaustion (plan §2.2)
+
+- Retry path + iter exhaustion now reports `"Max iterations exceeded with truncated output"` (was generic `"Max iterations exceeded"`).
+- Empty-content Continue path and early_stopping `Force` path retain `"Max iterations exceeded"` (backwards-compatible with existing test assertions).
+
+### Mitigated — R1 wall-clock sub-cap (plan §2.5)
+
+- Continue sub-loop now bounded by 50% of `max_execution_time`. Guards against runaway models that emit >500 chars per chunk and would otherwise slip past the diminishing-returns guard. Returns partial `Max_tokens` result on sub-cap hit.
+
+### Strategic motivation (plan §1)
+
+a downstream project (a downstream integrator, an integrator) reported that long-output agents bypass PAR's ReAct loop and call LLM directly. Survey of 4 mainstream coding agents (Claude Code, Codex CLI, OpenCode, a comparable coding agent) confirmed none treat `Max_tokens` as iteration-consuming failure. PAR v0.6.0 was the only one still treating it as a loop-budget event. This change closes that gap and re-aligns with the strategic positioning in `docs/STRATEGY.md`.
+
+### Tests
+
+- 8 new tests in `test/test_truncation_config.ml` covering Auto resolution, explicit overrides, tool-less unbounded, skill overlay.
+- 6 new OCaml tests in `test/test_generate.ml` covering basic, auto-continue, timeout, events, session persistence, skill overlay.
+- 6 new Python e2e tests in `bindings/python/tests/test_generate.py`.
+- All existing tests updated for the option type change (5 test files).
+- Full suite (1000+ existing tests) — zero regressions.
+
+### Docs
+
+- Updated `docs/sdk/agent.md` (+ ZH mirror) for the option type semantics.
+- New `docs/sdk/generate.md` (+ ZH mirror) — complete `invoke_generate` documentation.
+
+---
+
 ## v0.6.0-beta.20260628 — BETA
 
 > Configurable truncation behavior + GH issue audit sweep (14 bug fixes).
