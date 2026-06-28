@@ -311,6 +311,18 @@ char* par_invoke(par_runtime_t* rt, const char* agent_id,
     return ret;
 }
 
+char* par_generate(par_runtime_t* rt, const char* agent_id,
+                   const char* message) {
+    value c_aid = caml_copy_string(agent_id);
+    value c_msg = caml_copy_string(message);
+
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call3_exn("par_generate", rt->_ocaml_value, c_aid, c_msg);
+    char* ret = extract_string(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return ret;
+}
+
 char* par_embed(par_runtime_t* rt, const char* messages_json) {
     pthread_mutex_lock(&ocaml_lock);
 

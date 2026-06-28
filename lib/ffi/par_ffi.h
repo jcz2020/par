@@ -45,6 +45,12 @@ int par_load_conversation(par_runtime_t* rt, const char* session_id);
 char* par_invoke(par_runtime_t* rt, const char* agent_id,
                  const char* message);
 
+/* Long-output pure generation — returns JSON envelope with the
+   generate_result fields. Skips the ReAct loop; auto-continues on
+   Max_tokens. Caller must free() the returned string. */
+char* par_generate(par_runtime_t* rt, const char* agent_id,
+                   const char* message);
+
 char* par_embed(par_runtime_t* rt, const char* messages_json);
 
 int par_add_documents(par_runtime_t* rt, const char* docs_json);

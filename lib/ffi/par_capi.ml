@@ -521,11 +521,16 @@ let parse_agent_config (json : Yojson.Safe.t) : Par.Types.agent_config =
   in
   let on_max_tokens =
     match json |> member "on_max_tokens" |> to_string_option with
-    | Some "retry" | Some "Retry" -> Par.Types.Retry
-    | Some "continue" | Some "Continue" -> Par.Types.Continue
-    | _ -> Par.Types.Return_partial
+    | Some "retry" | Some "Retry" -> Some Par.Types.Retry
+    | Some "continue" | Some "Continue" -> Some Par.Types.Continue
+    | Some "return_partial" | Some "Return_partial" -> Some Par.Types.Return_partial
+    | None -> None  (* omitted = Auto *)
+    | Some other ->
+      (* fail-fast on unknown string — typed rigor, no silent fallback *)
+      failwith (Printf.sprintf "Unknown on_max_tokens value: %s (expected retry|continue|return_partial)" other)
   in
-  let max_continuation_chunks = json |> member "max_continuation_chunks" |> to_int_option |> Option.value ~default:3 in
+  let max_continuation_chunks = json |> member "max_continuation_chunks" |> to_int_option in
+  (* omitted -> None = Auto *)
   { id; system_prompt; system_prompt_template; model; tools; max_iterations;
     middleware; retry_policy; context_strategy; resource_quota;
     max_execution_time; tool_timeout = None; early_stopping_method;
@@ -646,6 +651,28 @@ let do_invoke (state_id : int) (agent_id : string) (message : string) =
                (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp))
            | Error (err, _) ->
              error_json (Printf.sprintf "Invoke failed: %s"
+               (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
+         in
+         Obj.repr (Some json)
+       with e -> Obj.repr (Some (error_json (Printexc.to_string e))))) in
+    (Obj.obj result : string option)
+
+let do_invoke_generate (state_id : int) (agent_id : string) (message : string) =
+  match get_state state_id with
+  | None -> None
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      (try
+         let result = Par.Runtime.invoke_generate rt ~agent_id ~message () in
+         (* Envelope uses "result" key because the response is a structured
+            generate_result, not a raw llm_response. Python agent unwraps with
+            json.loads(...)["result"]. See long-output-generation-mode-plan §3.1.4. *)
+         let json = match result with
+           | Ok gen_result ->
+             Printf.sprintf "{\"status\": \"ok\", \"result\": %s}"
+               (Yojson.Safe.to_string (Par.Types.generate_result_to_yojson gen_result))
+           | Error (err, _) ->
+             error_json (Printf.sprintf "Generate failed: %s"
                (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
          in
          Obj.repr (Some json)
@@ -1252,11 +1279,19 @@ let () =
 let () =
   Callback.register "par_invoke"
     (fun (state_id_obj : Obj.t) (agent_id : string) (message : string) ->
-      let state_id : int = Obj.magic state_id_obj in
-      unwrap (do_invoke state_id agent_id message))
+       let state_id : int = Obj.magic state_id_obj in
+       unwrap (do_invoke state_id agent_id message))
+
+(* Long-output generation mode (plan §3.1.4) *)
+let () =
+  Callback.register "par_generate"
+    (fun (state_id_obj : Obj.t) (agent_id : string) (message : string) ->
+       let state_id : int = Obj.magic state_id_obj in
+       unwrap (do_invoke_generate state_id agent_id message))
 
 let () =
   Callback.register "par_embed"
+
     (fun (state_id_obj : Obj.t) (messages_json : string) ->
       let state_id : int = Obj.magic state_id_obj in
       do_embed state_id messages_json)
