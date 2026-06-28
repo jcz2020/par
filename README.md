@@ -9,7 +9,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.5.4-beta — Multi-provider support (OpenAI + Anthropic + Ollama + custom with cross-provider fallback), session resume, skill CLI. API may change before v1.0.
+> **Status**: v0.6.0-beta — Configurable truncation policy (`on_max_tokens_behavior` ADT), synthesized tool-calling fallback for non-native providers (PAR-k38), auto JSON-Schema derivation via `ppx_deriving_jsonschema` (PAR-g4c), CLI session resume fixed, 14 GH audit fixes. API may change before v1.0.
 
 ---
 
@@ -146,9 +146,9 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.5.4-beta — Multi-provider support (register OpenAI + Anthropic + Ollama + custom providers in one Runtime, with cross-provider fallback), session resume (`par -c <id>` / `par -r`), skill CLI gap closure, `par_cancel_stream` FFI. See [CHANGES.md](CHANGES.md) for the full release notes.
+**Current**: v0.6.0-beta — Configurable truncation policy (`on_max_tokens_behavior` Retry/Continue/Return_partial ADT), synthesized tool-calling fallback for non-native providers (PAR-k38 foundation), auto JSON-Schema derivation via `ppx_deriving_jsonschema` (PAR-g4c foundation), CLI session resume fixed (`par -c <id>` / `par -r` now actually round-trip), 14 GH issue audit sweep fixes. See [CHANGES.md](CHANGES.md) for the full release notes.
 
-**Coming in v0.5.5+**: External vector stores (Qdrant/Milvus), document loaders, prompt caching, context compression refinements.
+**Coming next**: Full PAR-k38 integration (per-provider capability detection), complete PAR-g4c builtin-tool migration, external vector stores (Qdrant/Milvus), document loaders, prompt caching, context compression refinements.
 
 ## Getting help
 
