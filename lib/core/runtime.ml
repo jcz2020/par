@@ -89,7 +89,7 @@ let make_agent ~id ?(system_prompt = "") ?(system_prompt_template = None)
     ?(middleware = []) ?(retry_policy = None)
     ?(context_strategy = Some (Types.Sliding_window { max_messages = 100; max_tokens = 200000 })) ?(resource_quota = None)
     ?(max_execution_time = None) ?(early_stopping_method = Force)
-    ?(on_max_tokens = Return_partial) ?(max_continuation_chunks = 3)
+    ?(on_max_tokens = None) ?(max_continuation_chunks = None)
     ?(tool_timeout = None) () =
   let errors = ref [] in
   if String.length id = 0 then
@@ -628,6 +628,64 @@ let invoke rt ~agent_id ~message ?cancellation_token ?conversation
                Result.Error (err, conv)))
     in
     try_providers all_ids
+
+let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
+    ?on_tool_event ?on_chunk () =
+  let session_id = match !(rt.session_id) with
+    | Some sid -> sid
+    | None ->
+      let new_sid = Session_id.to_string (Session_id.create ()) in
+      rt.session_id := Some new_sid;
+      new_sid
+  in
+  (match rt.event_bus_instance with
+   | Some bus -> Event_bus.set_session_id bus session_id
+   | None -> rt.services.event_bus.set_session_id_fn session_id);
+  match htbl_get rt.agents agent_id with
+  | None -> Result.Error (Invalid_input (Printf.sprintf "Unknown agent: %s" agent_id),
+                           { Types.messages = []; metadata = [] })
+  | Some config when config.tools <> [] ->
+    Result.Error (Invalid_input (Printf.sprintf
+      "Agent '%s' has tools but generate mode requires tools=[]" agent_id),
+      { Types.messages = []; metadata = [] })
+  | Some config ->
+    let token = Cancellation.create_token rt.cancellation_root in
+    let combined_tool_event evt =
+      publish_event rt evt;
+      (match on_tool_event with
+       | Some cb -> cb evt
+       | None -> ())
+    in
+    let active_effects = compute_active_skill_effects rt message in
+    let composed_effect = compose_skill_effects active_effects in
+    let config = apply_skill_effect_to_config composed_effect config in
+    match Provider_registry.get_default rt.llm_providers with
+    | Error `No_default ->
+      let err = Invalid_input "No default LLM provider configured." in
+      record_llm_error rt err;
+      Result.Error (err, { Types.messages = []; metadata = [] })
+    | Ok llm_svc ->
+      let result = Generate.run
+        ~session_id:(Option.value !(rt.session_id) ~default:"unknown")
+        ~agent:config
+        ~message
+        ?max_output_tokens
+        ?total_timeout
+        ?on_tool_event:(Some combined_tool_event)
+        ?on_chunk
+        ~cancellation_token:token
+        ~llm:llm_svc
+        () in
+      (match result with
+       | Ok (gen_result, conv) ->
+         record_llm_success rt;
+         rt.current_conversation <- Some conv;
+         ignore (save_conversation rt : (unit, error_category) result);
+         Result.Ok gen_result
+       | Error (err, conv) ->
+         record_llm_error rt err;
+         rt.current_conversation <- Some conv;
+         Result.Error (err, conv))
 
 let invoke_structured rt ~agent_id ~message ~response_schema
     ?(max_repair_attempts = 3) ?cancellation_token ?conversation

@@ -53,8 +53,8 @@ val make_agent :
   ?resource_quota:resource_quota option ->
   ?max_execution_time:float option ->
   ?early_stopping_method:early_stopping_method ->
-  ?on_max_tokens:on_max_tokens_behavior ->
-  ?max_continuation_chunks:int ->
+  ?on_max_tokens:on_max_tokens_behavior option ->
+  ?max_continuation_chunks:int option ->
   ?tool_timeout:float option ->
   unit ->
   (agent_config, error_category) result
@@ -139,6 +139,33 @@ val invoke :
   ?enable_handoff:bool ->
   unit ->
   (invoke_result, error_category * conversation) result
+
+(** Long-output pure generation API (plan §3.1.2).
+
+    Use for: long text artifacts (PRDs, HTML mockups, plans, docs) where no
+    tool calls are needed. Skips the ReAct loop entirely.
+
+    Reuses: session store, event bus, LLM-service abstraction, skill/prompt
+    management. Skips: ReAct iteration budget, per-iteration max_execution_time.
+
+    @param agent_id resolves a registered agent (must have tools = [])
+    @param message the prompt / user message
+    @param max_output_tokens optional per-call cap; continuations accumulate beyond this
+    @param total_timeout optional wall-clock cap on entire generation
+    @param on_tool_event observation callback for events (Llm_request_sent,
+           Llm_response_received, Llm_response_truncated, Generate_continuation)
+    @param on_chunk optional streaming callback
+*)
+val invoke_generate :
+  runtime ->
+  agent_id:string ->
+  message:string ->
+  ?max_output_tokens:int ->
+  ?total_timeout:float ->
+  ?on_tool_event:(event -> unit) ->
+  ?on_chunk:(llm_response_chunk -> unit) ->
+  unit ->
+  (generate_result, error_category * conversation) result
 
 val invoke_structured :
   runtime ->
