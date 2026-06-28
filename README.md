@@ -146,9 +146,9 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.6.0-beta — Configurable truncation policy (`on_max_tokens_behavior` Retry/Continue/Return_partial ADT), synthesized tool-calling fallback for non-native providers (PAR-k38 foundation), auto JSON-Schema derivation via `ppx_deriving_jsonschema` (PAR-g4c foundation), CLI session resume fixed (`par -c <id>` / `par -r` now actually round-trip), 14 GH issue audit sweep fixes. See [CHANGES.md](CHANGES.md) for the full release notes.
+**Current**: v0.6.0-beta — Configurable truncation policy (`on_max_tokens_behavior` Retry/Continue/Return_partial ADT), per-provider capability detection with synthesized tool-calling fallback (PAR-k38), auto JSON-Schema derivation via `ppx_deriving_jsonschema` with 13/20 builtin tools migrated (PAR-g4c), CLI session resume fixed (`par -c <id>` / `par -r` now actually round-trip), 14 GH issue audit sweep fixes. See [CHANGES.md](CHANGES.md) for the full release notes.
 
-**Coming next**: Full PAR-k38 integration (per-provider capability detection), complete PAR-g4c builtin-tool migration, external vector stores (Qdrant/Milvus), document loaders, prompt caching, context compression refinements.
+**Coming next**: Complete PAR-g4c builtin-tool migration (edit tool + bash), external vector stores (Qdrant/Milvus), document loaders, prompt caching, context compression refinements.
 
 ## Getting help
 
