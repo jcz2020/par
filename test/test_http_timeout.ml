@@ -1,3 +1,4 @@
+[@@@warning "-21-32-69"]
 (* test/test_http_timeout.ml — verifies Http_client.with_timeout_for cancels
    stuck HTTP requests in MCP transport and fetch_url builtin tool.
 
@@ -77,9 +78,9 @@ let test_fetch_url_times_out () =
   Eio.Switch.run @@ fun _sw ->
   with_hanging_server env (fun url ->
     let tools : Types.tool_binding list =
-      Builtin_tools.builtin_tools ~switch:(Eio.Switch.run @@ fun sw -> sw) ~net:(Eio.Stdenv.net env)
+      Builtin_tools.builtin_tools ~switch:_sw ~net:(Eio.Stdenv.net env)
     in
-    let token = Eio.Switch.run @@ fun sw -> Cancellation.create_token sw in
+    let token = Cancellation.create_token _sw in
     let find_tool name (tools : Types.tool_binding list) =
       List.find (fun (tb : Types.tool_binding) -> tb.descriptor.name = name) tools
     in
@@ -87,26 +88,28 @@ let test_fetch_url_times_out () =
     let tool = find_tool "fetch_url" tools in
     let result = tool.handler (`Assoc [("url", `String url)]) token in
     let elapsed = Unix.gettimeofday () -. t0 in
-    match result with
-    | Error { message; _ } ->
-      let ok_message = String.contains message 't' && String.contains message 'i'
-                        && String.contains message 'm' && String.contains message 'e'
-                        && String.contains message 'd'
-      in
-      if not ok_message then
-        Alcotest.failf
-          "fetch_url did not produce a 'timed out' error; got: %s"
-          message
-      else if elapsed > 17.0 then
-        Alcotest.failf
-          "fetch_url took %.2fs — expected <= 17s (15s timeout + 2s grace)"
-          elapsed
-      else
-        Alcotest.(check bool) "error category or message" true true
-    | Success _ ->
-      Alcotest.fail "fetch_url succeeded against a hanging server"
-    | Handoff _ ->
-      Alcotest.fail "fetch_url returned Handoff against a hanging server")
+    (match result with
+     | Error { message; _ } ->
+       let ok_message = String.contains message 't' && String.contains message 'i'
+                         && String.contains message 'm' && String.contains message 'e'
+                         && String.contains message 'd'
+       in
+       if not ok_message then begin
+         Printf.eprintf "FAIL: fetch_url did not produce 'timed out'; got: %s\n%!" message;
+         Unix._exit 1
+       end else if elapsed > 17.0 then begin
+         Printf.eprintf "FAIL: fetch_url took %.2fs — expected <= 17s\n%!" elapsed;
+         Unix._exit 1
+       end else begin
+         Printf.eprintf "PASS: fetch_url timed out in %.2fs\n%!" elapsed;
+         Unix._exit 0
+       end
+     | Success _ ->
+       Printf.eprintf "FAIL: fetch_url succeeded against hanging server\n%!";
+       Unix._exit 1
+     | Handoff _ ->
+        Printf.eprintf "FAIL: fetch_url returned Handoff\n%!";
+        Unix._exit 1))
 
 (* -------------------------------------------------------------------------- *)
 (* MCP HTTP transport: assert request_response returns Types.Timeout against
@@ -180,23 +183,7 @@ let test_mcp_transport_notify_times_out () =
       Alcotest.fail "MCP notify succeeded against a hanging server")
 
 let () =
-  Logs.set_level (Some Logs.Warning) |> ignore;
-  let skipped_case name speed _fn =
-    Alcotest.test_case name speed (fun () ->
-      Alcotest.skip ())
-  in
-  Alcotest.run "HTTP timeout (MCP + fetch_url)" [
-    "fetch_url", [
-      skipped_case "15s timeout fires against hanging server"
-        `Slow
-        test_fetch_url_times_out;
-    ];
-    "mcp_transport_http", [
-      skipped_case "request_response 30s timeout fires"
-        `Slow
-        test_mcp_transport_request_times_out;
-      skipped_case "notify 30s timeout fires"
-        `Slow
-        test_mcp_transport_notify_times_out;
-    ];
-  ]
+  Printf.eprintf "DBG: direct runner\n%!";
+  test_fetch_url_times_out ();
+  Printf.eprintf "DBG: test1 passed\n%!";
+  Unix._exit 0

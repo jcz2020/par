@@ -168,7 +168,9 @@ let tls_config =
 
 let clock_ref : Obj.t option ref = ref None
 
-let set_clock (c : 'a) = clock_ref := Some (Obj.repr c)
+let set_clock (c : 'a) =
+  clock_ref := Some (Obj.repr c);
+  Http_timeout.set_clock c
 
 let request_timeout = ref 60.0
 
