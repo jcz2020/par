@@ -216,7 +216,33 @@ val submit_workflow :
     [?inputs] are merged into (and override) [wf.def.variables] for this
     run only — the workflow definition itself is not mutated. Lets the
     same workflow definition be parameterized differently per run without
-    callers having to copy-and-modify the record. *)
+    callers having to copy-and-modify the record.
+
+    SYNCHRONOUS: blocks the caller fiber until the workflow reaches a
+    terminal state (Completed/Failed) or suspends at Human_approval.
+    For long-running workflows prefer [submit_workflow_async]. *)
+
+val submit_workflow_async :
+  runtime ->
+  ?inputs:(string * Yojson.Safe.t) list ->
+  workflow ->
+  (Workflow_run_id.t, error_category) result
+(** Fire-and-forget variant of [submit_workflow]. Forks execution in a
+    background fiber and returns the run id immediately. Track progress
+    via [get_workflow_status] or subscribe to events on the runtime's
+    event bus (Workflow_started/step_completed/completed/failed,
+    Approval_requested). Suitable for long-running workflows where the
+    caller cannot afford to block. *)
+
+val invoke_workflow_sync :
+  runtime ->
+  ?inputs:(string * Yojson.Safe.t) list ->
+  workflow ->
+  (workflow_result option, error_category) result
+(** Convenience wrapper: calls [submit_workflow_async] then blocks until
+    the workflow reaches a terminal state. Returns [Some result] on
+    completion, [None] on suspension (Human_approval awaiting approve),
+    [Error] on failure. Useful for tests and short workflows. *)
 
 val get_workflow_status :
   runtime ->

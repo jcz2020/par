@@ -947,8 +947,120 @@ let submit_workflow rt ?(inputs = []) wf =
       (match rt.services.persistence.save_workflow_state_fn id (Wf_failed err) None with
        | Ok () -> ()
        | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
-     publish_event rt (Workflow_failed { workflow_run_id = id; error = err });
-     Ok id)
+      publish_event rt (Workflow_failed { workflow_run_id = id; error = err });
+      Ok id)
+
+(* §2.2: Async submit — fork execution in background fiber, return run_id
+   immediately. Caller tracks progress via get_workflow_status or event bus.
+   The sync [submit_workflow] above remains for backwards compat and tests. *)
+let submit_workflow_async rt ?(inputs = []) wf =
+  let effective_vars = wf.def.variables @ inputs in
+  let id = Workflow_run_id.create () in
+  htbl_set rt.workflows id Wf_running;
+  publish_event rt (Workflow_started { workflow_run_id = id });
+  let token = Cancellation.create_token rt.cancellation_root in
+  let checkpoint_cb step_path result =
+    let step_id = String.concat "." (List.map string_of_int step_path) in
+    publish_event rt (Workflow_step_completed { step_id });
+    let cp = Workflow_engine.make_checkpoint ~step_path
+               ~step_results:[result]
+               { Workflow_engine.variables = effective_vars;
+                 token;
+                 agent_resolver = (fun aid -> htbl_get rt.agents aid);
+                 tool_resolver = find_tool_across_agents rt;
+                 llm = rt.services.llm;
+                 registry = rt.tool_registry;
+                 parallel_limit = wf.def.parallel_limit;
+                 failure_policy = wf.def.failure_policy;
+                 workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
+                 on_step_complete = None;
+                 workflow_run_id = Some id;
+                 workflow_id_resolver = (fun () -> Some wf.def.id); }
+    in
+    (match rt.services.persistence.save_workflow_state_fn id Wf_running (Some cp) with
+     | Ok () -> ()
+     | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)))
+  in
+  let ctx = {
+    Workflow_engine.variables = effective_vars;
+    token;
+    agent_resolver = (fun aid -> htbl_get rt.agents aid);
+    tool_resolver = find_tool_across_agents rt;
+    llm = rt.services.llm;
+    registry = rt.tool_registry;
+    parallel_limit = wf.def.parallel_limit;
+    failure_policy = wf.def.failure_policy;
+    workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
+    on_step_complete = Some checkpoint_cb;
+    workflow_run_id = Some id;
+    workflow_id_resolver = (fun () -> Some wf.def.id);
+  } in
+  ignore (Eio.Fiber.fork ~sw:rt.cancellation_root (fun () ->
+    (try
+       (match Workflow_engine.execute_workflow ctx wf with
+        | Ok result ->
+          htbl_set rt.workflows id (Wf_completed result);
+          (match rt.services.persistence.save_workflow_state_fn id (Wf_completed result) None with
+           | Ok () -> ()
+           | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+          publish_event rt (Workflow_completed { workflow_run_id = id })
+        | Error err ->
+          htbl_set rt.workflows id (Wf_failed err);
+          (match rt.services.persistence.save_workflow_state_fn id (Wf_failed err) None with
+           | Ok () -> ()
+           | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+          publish_event rt (Workflow_failed { workflow_run_id = id; error = err }))
+     with
+     | Workflow_engine.Workflow_suspended { checkpoint = cp; prompt; allowed_roles } ->
+       htbl_set rt.workflows id (Wf_suspended cp);
+       (match rt.services.persistence.save_workflow_state_fn id (Wf_suspended cp) (Some cp) with
+        | Ok () -> ()
+        | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+       publish_event rt (Approval_requested { prompt; allowed_roles });
+       (match Workflow_engine.Approval_deadline.lookup id with
+        | Some deadline_entry ->
+          let remaining = Workflow_engine.Approval_deadline.deadline_of deadline_entry -. Unix.gettimeofday () in
+          if remaining > 0.0 then
+            ignore (Eio.Fiber.fork ~sw:(Workflow_engine.Approval_deadline.switch_of deadline_entry) (fun () ->
+              let deadline = Unix.gettimeofday () +. remaining in
+              while Unix.gettimeofday () < deadline do
+                Eio.Fiber.yield ()
+              done;
+              Workflow_engine.Approval_deadline.remove id;
+              (match htbl_get rt.workflows id with
+               | Some (Wf_suspended _) ->
+                 publish_event rt Approval_timeout;
+                 htbl_set rt.workflows id (Wf_failed (Timeout));
+                 (match rt.services.persistence.save_workflow_state_fn id (Wf_failed Timeout) None with
+                  | Ok () -> ()
+                  | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+                 publish_event rt (Workflow_failed { workflow_run_id = id; error = Timeout })
+               | _ -> ())))
+        | None -> ())
+     | exn ->
+       let err = Internal (Printexc.to_string exn) in
+       htbl_set rt.workflows id (Wf_failed err);
+       (match rt.services.persistence.save_workflow_state_fn id (Wf_failed err) None with
+        | Ok () -> ()
+        | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+       publish_event rt (Workflow_failed { workflow_run_id = id; error = err }))));
+  Ok id
+
+(* §2.2: Sync convenience wrapper — calls submit_workflow (which is sync
+   and blocks until terminal/suspend) then maps the run id to the
+   terminal result. Returns [Some result] on completion, [None] on
+   suspension, [Error] on failure. *)
+let invoke_workflow_sync rt ?inputs wf : (workflow_result option, error_category) result =
+  match submit_workflow rt ?inputs wf with
+  | Error e -> (Error e : (workflow_result option, error_category) result)
+  | Ok id ->
+    (match htbl_get rt.workflows id with
+     | Some (Wf_completed r) -> Ok (Some r)
+     | Some (Wf_suspended _) -> Ok None
+     | Some (Wf_failed e) -> Error e
+     | Some Wf_pending -> Error (Internal "workflow state non-terminal")
+     | Some Wf_running -> Error (Internal "workflow state non-terminal")
+     | None -> Error (Internal "workflow state missing"))
 
 let get_workflow_status rt wf_id =
   match htbl_get rt.workflows wf_id with
