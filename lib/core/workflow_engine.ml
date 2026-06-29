@@ -78,6 +78,13 @@ let substitute template vars =
       (json_value_to_string value) acc
   ) template vars
 
+let rec json_substitute (vars : (string * Yojson.Safe.t) list) (json : Yojson.Safe.t) : Yojson.Safe.t =
+  match json with
+  | `String s -> `String (substitute s vars)
+  | `Assoc fields -> `Assoc (List.map (fun (k, v) -> (k, json_substitute vars v)) fields)
+  | `List xs -> `List (List.map (json_substitute vars) xs)
+  | other -> other
+
 (* -------------------------------------------------------------------------- *)
 (* Step execution — recursive dispatcher                                      *)
 (* -------------------------------------------------------------------------- *)
@@ -101,7 +108,8 @@ let rec execute_step ?(path=[]) ctx step =
        (match Tool_registry.resolve ctx.registry tool_name with
         | None -> Result.Error (Internal (Printf.sprintf "Tool handler not registered: %s" tool_name))
         | Some handler ->
-           (match handler input ctx.token with
+           let substituted_input = json_substitute ctx.variables input in
+           (match handler substituted_input ctx.token with
             | Success json -> Ok json
             | Types.Error { category; _ } -> Result.Error category
             | Types.Handoff _ -> Result.Error (Invalid_input "Handoff not supported in workflow step"))))

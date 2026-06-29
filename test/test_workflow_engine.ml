@@ -858,8 +858,6 @@ let test_edge_workflow_with_no_variables () =
     | Error e -> Alcotest.failf "expected Ok: %s" (error_to_string e))
 
 let test_edge_workflow_with_variable_substitution () =
-  (* Verify that {{name}} in a tool's input gets substituted from ctx.variables.
-     The tool sees the substituted string and echoes it back. *)
   let t = dummy_tool (fun input _ ->
         match input with
         | `Assoc [("greet", `String s)] -> Success (`String ("hello " ^ s))
@@ -875,11 +873,32 @@ let test_edge_workflow_with_variable_substitution () =
       tool_name = "test_tool";
       input = `Assoc [("greet", `String "Hello {{name}}")];
     } in
-    (* Substitution is applied to agent prompts and human-approval templates,
-       not to tool input. The tool should see the raw "{{name}}" string. *)
     match Workflow_engine.execute_step ctx step with
     | Ok json ->
-      Alcotest.(check string) "tool input raw" "\"hello Hello {{name}}\""
+      Alcotest.(check string) "tool input substituted" "\"hello Hello world\""
+        (Yojson.Safe.to_string json)
+    | Error e -> Alcotest.failf "expected Ok: %s" (error_to_string e))
+
+let test_tool_input_deep_nested_substitution () =
+  let t = dummy_tool (fun input _ -> Success input) in
+  with_token (fun token ->
+    let llm = mock_llm [text_response "x"] in
+    let reg = make_registry [t] in
+    let ctx = make_ctx
+      ~variables:[("x", `String "42"); ("y", `String "hello")]
+      ~tool_resolver:(fun _ -> Some t.descriptor)
+      ~token ~llm ~registry:reg () in
+    let step = Tool_call {
+      tool_name = "test_tool";
+      input = `Assoc [
+        ("a", `Assoc [("b", `String "{{x}}")]);
+        ("c", `List [`String "{{y}}"; `Int 7]);
+      ];
+    } in
+    match Workflow_engine.execute_step ctx step with
+    | Ok json ->
+      Alcotest.(check string) "deep nested subst"
+        "{\"a\":{\"b\":\"42\"},\"c\":[\"hello\",7]}"
         (Yojson.Safe.to_string json)
     | Error e -> Alcotest.failf "expected Ok: %s" (error_to_string e))
 
@@ -987,6 +1006,8 @@ let () =
         test_edge_workflow_with_no_variables;
       Alcotest.test_case "workflow with template input" `Quick
         test_edge_workflow_with_variable_substitution;
+      Alcotest.test_case "tool input deep nested substitution" `Quick
+        test_tool_input_deep_nested_substitution;
     ]);
     ("Serialization", [
       Alcotest.test_case "workflow_def yojson round-trips" `Quick
