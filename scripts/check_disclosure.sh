@@ -54,7 +54,7 @@ EXT_REGEX='\.(md|mli?|py|c|h|ya?ml|sh|toml|json|txt|opam|dune-project)$'
 SPECIAL_FILES='(^|/)(dune-project|Makefile|AGENTS.md|CHANGES.md|README.md)$'
 
 # Paths to skip (build artifacts, vendored, internal-only).
-SKIP_REGEX='(^|/)(_build|_opam|\.git|node_modules|__pycache__|\.beads|\.dolt|site|bindings/python/(build|dist)|\.opam|\.cache)/'
+SKIP_REGEX='(^|/)(_build|_opam|\.git|node_modules|__pycache__|\.beads|\.dolt|site|bindings/python/(build|dist)|\.opam|\.cache)/|^scripts/check_disclosure\.sh$'
 
 # ─── Arg parsing ───────────────────────────────────────────────────────
 MODE="working"          # default: working-tree diff vs HEAD

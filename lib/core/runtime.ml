@@ -170,6 +170,69 @@ let register_tool_typed rt ~name ~description ~input_schema ~handler
     Result.Error
       (Types.Internal "schema must be a JSON object")
 
+(* ─── Dynamic toolset API ──────────────────────────────────────────────
+   These three functions enable runtime mutation of agent toolsets
+   without re-registering the whole agent_config. Backed by the same
+   protected_hashtbl + tool_registry the register_* APIs use, so changes
+   propagate to in-flight invoke calls on their next hashtbl lookup. *)
+
+let register_or_replace_tool_handler rt (descriptor : Types.tool_descriptor) handler =
+  if Tool_registry.resolve rt.tool_registry descriptor.name |> Option.is_some then
+    Tool_registry.replace rt.tool_registry descriptor.name handler
+  else
+    (match Tool_registry.register rt.tool_registry descriptor handler with
+     | Ok () -> ()
+     | Error _ -> ())
+
+let update_agent_tools rt ~agent_id ~add:(additions : Types.tool_binding list) ~remove =
+  match htbl_get rt.agents agent_id with
+  | None ->
+    Result.Error (Types.Invalid_input (Printf.sprintf "Agent not found: %s" agent_id))
+  | Some agent ->
+    let kept =
+      List.filter (fun (d : Types.tool_descriptor) ->
+        not (List.mem d.name remove)) agent.tools
+    in
+    let new_descriptors = List.map (fun (b : Types.tool_binding) -> b.descriptor) additions in
+    let final_tools = kept @ new_descriptors in
+    List.iter (fun (b : Types.tool_binding) ->
+      register_or_replace_tool_handler rt b.descriptor b.handler) additions;
+    htbl_set rt.agents agent_id { agent with tools = final_tools };
+    Ok ()
+
+let unregister_tool rt ~name =
+  match Tool_registry.unregister rt.tool_registry name with
+  | Ok () -> Ok ()
+  | Error (`Tool_not_found n) ->
+    Result.Error (Types.Invalid_input (Printf.sprintf "Tool not registered: %s" n))
+
+let replace_tool rt ~name ~(descriptor : Types.tool_descriptor) ~handler =
+  (* name and descriptor.name must match — disallow implicit rename
+     (registry stays keyed by `name`; agent.walk depends on descriptor.name
+     matching). Caller must use unregister_tool + register_tool to rename. *)
+  if name <> descriptor.name then
+    Result.Error (Types.Invalid_input
+      (Printf.sprintf "name (%s) and descriptor.name (%s) must match" name descriptor.name))
+  else if Tool_registry.resolve rt.tool_registry name |> Option.is_none then
+    Result.Error (Types.Invalid_input
+      (Printf.sprintf "Tool not registered: %s (call register_tool first)" name))
+  else begin
+    Tool_registry.replace rt.tool_registry name handler;
+    (* Walk all agents; collect those needing descriptor update, apply
+       outside the iter to avoid holding the read lock while taking
+       the write lock (would deadlock on Eio.Mutex.use_ro/use_rw). *)
+    let to_update = ref [] in
+    htbl_iter rt.agents (fun id agent ->
+      if List.exists (fun (d : Types.tool_descriptor) -> d.name = name) agent.tools then
+        to_update := (id, agent) :: !to_update);
+    List.iter (fun (id, agent) ->
+      let new_tools = List.map (fun (d : Types.tool_descriptor) ->
+        if d.name = name then descriptor else d) agent.tools in
+      htbl_set rt.agents id { agent with tools = new_tools })
+      !to_update;
+    Ok ()
+  end
+
 
 let register_skill rt (descriptor : Types.skill_descriptor) =
   let activate : Skill_registry.activate_fn =

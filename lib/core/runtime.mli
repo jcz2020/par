@@ -103,6 +103,67 @@ val register_tool_typed :
     The remaining arguments and return type are identical to
     [register_tool]. *)
 
+(** {1 Dynamic Toolset API} *)
+
+(** These three functions enable runtime mutation of agent toolsets
+    without re-registering the whole [agent_config]. Changes propagate
+    to in-flight [invoke] calls on their next hashtbl lookup. *)
+
+val update_agent_tools :
+  runtime ->
+  agent_id:string ->
+  add:Types.tool_binding list ->
+  remove:string list ->
+  (unit, error_category) result
+(** Atomically add and/or remove tools on a registered agent.
+
+    - [add] tools have their handlers upserted into the global tool
+      registry (existing handlers are replaced, new ones registered)
+      and their descriptors appended to the agent's [tools] list.
+    - [remove] names are filtered out of the agent's [tools] list.
+      The handlers stay in the global registry (other agents may
+      reference them); call [unregister_tool] to remove a handler
+      globally.
+    - [remove] is applied before [add] within the same call, so
+      passing the same name in both lets you replace a tool on a
+      specific agent.
+
+    Returns [Error (Invalid_input "Agent not found: ...")] if [agent_id]
+    is not registered. *)
+
+val unregister_tool :
+  runtime ->
+  name:string ->
+  (unit, error_category) result
+(** Remove a tool handler from the global registry.
+
+    Agents that reference this tool keep their descriptor (now stale);
+    the engine returns [Internal "Tool handler not registered: ..."]
+    at invoke time. To clean up agents, call
+    [update_agent_tools ~remove:[name]] per agent.
+
+    Returns [Error (Invalid_input "Tool not registered: ...")] if no
+    handler exists under [name]. *)
+
+val replace_tool :
+  runtime ->
+  name:string ->
+  descriptor:Types.tool_descriptor ->
+  handler:Tool_registry.handler_fn ->
+  (unit, error_category) result
+(** Replace an existing tool's handler AND update its descriptor in
+    every agent that references it.
+
+    [name] and [descriptor.name] must match (no implicit rename).
+    Every agent whose [tools] list contains a descriptor named [name]
+    gets that descriptor replaced with the new one — so LLM-visible
+    schema/description updates propagate alongside handler changes.
+
+    Returns [Error] if [name <> descriptor.name], or if no handler
+    exists under [name] (use [register_tool] for new tools). *)
+
+(** {1 Skills} *)
+
 val register_skill :
   runtime -> Types.skill_descriptor ->
   (Types.skill_binding, error_category) result

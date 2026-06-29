@@ -17,6 +17,13 @@ let register (tbl : t) (desc : Types.tool_descriptor) h =
 let replace (tbl : t) name h =
   Hashtbl.replace tbl name h
 
+let unregister (tbl : t) name =
+  if Hashtbl.mem tbl name then begin
+    Hashtbl.remove tbl name;
+    Ok ()
+  end else
+    Error (`Tool_not_found name)
+
 let resolve tbl tool_name =
   Hashtbl.find_opt tbl tool_name
 
