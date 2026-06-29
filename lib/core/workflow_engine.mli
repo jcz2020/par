@@ -58,3 +58,15 @@ val execute_step :
     May raise [Workflow_suspended] for Human_approval steps. *)
 val execute_workflow :
   exec_context -> workflow -> (workflow_result, error_category) result
+
+(** Resume a workflow from a checkpoint. Re-enters execution at the
+    suspended step (which must be Human_approval), treats it as approved,
+    and continues executing remaining siblings.
+
+    Returns [Ok json] with the final step result, or [Error] for
+    unsupported step types (Parallel, Map_reduce) at the step_path.
+    May raise [Workflow_suspended] if a subsequent Human_approval is
+    encountered. *)
+val resume_from_checkpoint :
+  exec_context -> workflow_step -> workflow_checkpoint ->
+    (Yojson.Safe.t, error_category) result

@@ -963,8 +963,69 @@ let approve_workflow rt wf_id ~approver:_ =
 let resume_workflow rt wf_id =
   match htbl_get rt.workflows wf_id with
   | None -> Result.Error (Invalid_input "Workflow not found")
-  | Some (Wf_suspended _) ->
-     Result.Error (Internal "Workflow resume is not yet implemented; the checkpoint is preserved. See GH#18 / PAR-uy3.")
+  | Some (Wf_suspended checkpoint) ->
+    (match htbl_get rt.workflow_defs checkpoint.workflow_id with
+     | None ->
+       Result.Error (Invalid_input
+         (Printf.sprintf "Workflow definition '%s' not found (needed for resume)"
+            checkpoint.workflow_id))
+     | Some wf ->
+       let token = Cancellation.create_token rt.cancellation_root in
+       let ctx = {
+         Workflow_engine.variables = checkpoint.variables;
+         token;
+         agent_resolver = (fun aid -> htbl_get rt.agents aid);
+         tool_resolver = find_tool_across_agents rt;
+         llm = rt.services.llm;
+         registry = rt.tool_registry;
+         parallel_limit = wf.def.parallel_limit;
+         failure_policy = wf.def.failure_policy;
+         workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
+         on_step_complete = None;
+         workflow_run_id = Some wf_id;
+         workflow_id_resolver = (fun () -> Some wf.def.id);
+       } in
+       htbl_set rt.workflows wf_id Wf_running;
+       (match rt.services.persistence.save_workflow_state_fn wf_id Wf_running None with
+        | Ok () -> ()
+        | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+       let start_time = Unix.gettimeofday () in
+       (try
+          (match Workflow_engine.resume_from_checkpoint ctx wf.def.steps checkpoint with
+           | Ok value ->
+             let elapsed = Unix.gettimeofday () -. start_time in
+             let wf_result = {
+               outputs = [("result", value)];
+               status = `Success;
+               elapsed;
+               metadata = [("workflow_id", wf.def.id); ("workflow_name", wf.def.name)];
+             } in
+             htbl_set rt.workflows wf_id (Wf_completed wf_result);
+             (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_completed wf_result) None with
+              | Ok () -> ()
+              | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+             (match wf.on_complete with Some cb -> cb wf_result | None -> ());
+             Ok (Some wf_result)
+           | Error err ->
+             htbl_set rt.workflows wf_id (Wf_failed err);
+             (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_failed err) None with
+              | Ok () -> ()
+              | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+             Error err)
+        with
+         | Workflow_engine.Workflow_suspended { checkpoint = new_cp; _ } ->
+           htbl_set rt.workflows wf_id (Wf_suspended new_cp);
+           (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_suspended new_cp) (Some new_cp) with
+            | Ok () -> ()
+            | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+           Ok None
+         | exn ->
+           let err = Internal (Printexc.to_string exn) in
+           htbl_set rt.workflows wf_id (Wf_failed err);
+           (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_failed err) None with
+            | Ok () -> ()
+            | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+           Error err))
   | Some _ -> Result.Error (Invalid_input "Workflow is not suspended")
 
 let noop_persistence : Types.persistence_service = {
