@@ -1233,6 +1233,148 @@ let test_lifecycle_cancel_sets_failed () =
          (workflow_status_to_string other)
      | Error e -> Alcotest.failf "get_workflow_status: %s" (error_to_string e)))
 
+(* -------------------------------------------------------------------------- *)
+(* Workflow lifecycle events (§1.4) — capture via custom event_bus_service    *)
+(* -------------------------------------------------------------------------- *)
+
+let capture_event_bus () :
+    (event list ref * event_bus_service) =
+  let events = ref [] in
+  let service : event_bus_service = {
+    publish_fn = (fun evt -> events := evt :: !events);
+    subscribe_fn = (fun _ -> "");
+    unsubscribe_fn = (fun _ -> ());
+    set_session_id_fn = (fun _ -> ());
+    start_dispatcher_fn = (fun _ -> ());
+  } in
+  (events, service)
+
+let has_workflow_event (events : event list) predicate =
+  List.exists predicate events
+
+let test_submit_emits_workflow_started_and_completed () =
+  with_switch (fun sw ->
+    let events, bus = capture_event_bus () in
+    let rt = match Runtime.create ~event_bus:bus
+                              ~config:(runtime_config ()) sw with
+      | Ok r -> r
+      | Error e -> Alcotest.failf "create: %s" (error_to_string e) in
+    let tool_desc = match Runtime.register_tool rt ~name:"echo"
+                       ~description:"echo" ~input_schema:(`Assoc [])
+                       ~handler:(fun input _ -> Success input) () with
+      | Ok tb -> tb.descriptor
+      | Error e -> Alcotest.failf "register_tool: %s" (error_to_string e) in
+    let agent = basic_agent ~tools:[{ descriptor = tool_desc;
+                                       handler = (fun i _ -> Success i) }] () in
+    let _ = Runtime.register_agent rt agent in
+    let wf = dummy_workflow ~id:"wf-events-ok"
+      ~name:"Events OK"
+      ~steps:(Sequential [
+        Tool_call { tool_name = "echo"; input = `String "hi" };
+      ]) () in
+    let _ = Runtime.register_workflow rt wf in
+    let _id = match Runtime.submit_workflow rt wf with
+      | Ok id -> id
+      | Error e -> Alcotest.failf "submit: %s" (error_to_string e) in
+    Alcotest.(check bool) "Workflow_started emitted" true
+      (has_workflow_event !events (function
+        | Workflow_started _ -> true | _ -> false));
+    Alcotest.(check bool) "Workflow_completed emitted" true
+      (has_workflow_event !events (function
+        | Workflow_completed _ -> true | _ -> false));
+    Alcotest.(check bool) "Workflow_step_completed emitted" true
+      (has_workflow_event !events (function
+        | Workflow_step_completed _ -> true | _ -> false));
+    let _ = Runtime.close rt in
+    ())
+
+let test_submit_failure_emits_workflow_failed () =
+  with_switch (fun sw ->
+    let events, bus = capture_event_bus () in
+    let rt = match Runtime.create ~event_bus:bus
+                              ~config:(runtime_config ()) sw with
+      | Ok r -> r
+      | Error e -> Alcotest.failf "create: %s" (error_to_string e) in
+    let tool_desc = match Runtime.register_tool rt ~name:"failing"
+                       ~description:"fails" ~input_schema:(`Assoc [])
+                       ~handler:(fun _ _ ->
+                         Error { category = Internal "boom"; message = "boom";
+                                 retryable = false; metadata = [] }) () with
+      | Ok tb -> tb.descriptor
+      | Error e -> Alcotest.failf "register: %s" (error_to_string e) in
+    let agent = basic_agent ~tools:[{ descriptor = tool_desc;
+                                       handler = (fun _ _ ->
+                                         Error { category = Internal "boom";
+                                                 message = "boom";
+                                                 retryable = false;
+                                                 metadata = [] }) }] () in
+    let _ = Runtime.register_agent rt agent in
+    let wf = dummy_workflow ~id:"wf-events-fail"
+      ~name:"Events Fail"
+      ~steps:(Tool_call { tool_name = "failing"; input = `Assoc [] }) () in
+    let _ = Runtime.register_workflow rt wf in
+    let _id = match Runtime.submit_workflow rt wf with
+      | Ok id -> id
+      | Error e -> Alcotest.failf "submit: %s" (error_to_string e) in
+    Alcotest.(check bool) "Workflow_failed emitted" true
+      (has_workflow_event !events (function
+        | Workflow_failed _ -> true | _ -> false));
+    let _ = Runtime.close rt in
+    ())
+
+let test_suspended_submit_emits_approval_requested () =
+  with_switch (fun sw ->
+    let events, bus = capture_event_bus () in
+    let rt = match Runtime.create ~event_bus:bus
+                              ~config:(runtime_config ()) sw with
+      | Ok r -> r
+      | Error e -> Alcotest.failf "create: %s" (error_to_string e) in
+    let wf = dummy_workflow ~id:"wf-events-approval"
+      ~name:"Events Approval"
+      ~steps:(Human_approval {
+        prompt_template = "Approve?";
+        timeout = 60.0;
+        allowed_roles = ["admin"];
+      }) () in
+    let _ = Runtime.register_workflow rt wf in
+    let _id = match Runtime.submit_workflow rt wf with
+      | Ok id -> id
+      | Error e -> Alcotest.failf "submit: %s" (error_to_string e) in
+    Alcotest.(check bool) "Approval_requested emitted" true
+      (has_workflow_event !events (function
+        | Approval_requested _ -> true | _ -> false));
+    let _ = Runtime.close rt in
+    ())
+
+let test_approve_emits_approval_granted () =
+  with_switch (fun sw ->
+    let events, bus = capture_event_bus () in
+    let rt = match Runtime.create ~event_bus:bus
+                              ~config:(runtime_config ()) sw with
+      | Ok r -> r
+      | Error e -> Alcotest.failf "create: %s" (error_to_string e) in
+    let wf = dummy_workflow ~id:"wf-events-granted"
+      ~name:"Events Granted"
+      ~steps:(Human_approval {
+        prompt_template = "Approve?";
+        timeout = 60.0;
+        allowed_roles = ["admin"];
+      }) () in
+    let _ = Runtime.register_workflow rt wf in
+    let id = match Runtime.submit_workflow rt wf with
+      | Ok id -> id
+      | Error e -> Alcotest.failf "submit: %s" (error_to_string e) in
+    (* Reset the events list so we capture only the approve call. *)
+    events := [];
+    (match Runtime.approve_workflow rt id ~approver:"admin" with
+     | Ok () -> ()
+     | Error e -> Alcotest.failf "approve: %s" (error_to_string e));
+    Alcotest.(check bool) "Approval_granted emitted" true
+      (has_workflow_event !events (function
+        | Approval_granted _ -> true | _ -> false));
+    let _ = Runtime.close rt in
+    ())
+
 let test_resume_runtime_runs_remaining_tool_calls () =
   (* End-to-end: register workflow with Sequential[a, approval, b, c],
      suspend at approval, call resume_workflow via Runtime API, assert
@@ -1609,6 +1751,16 @@ let () =
         test_rehydration_restores_suspended_workflows;
       Alcotest.test_case "empty db hydrates zero runs" `Quick
         test_rehydration_empty_db_returns_no_runs;
+    ]);
+    ("Workflow lifecycle events", [
+      Alcotest.test_case "submit emits started/completed/step" `Quick
+        test_submit_emits_workflow_started_and_completed;
+      Alcotest.test_case "submit failure emits Workflow_failed" `Quick
+        test_submit_failure_emits_workflow_failed;
+      Alcotest.test_case "suspend emits Approval_requested" `Quick
+        test_suspended_submit_emits_approval_requested;
+      Alcotest.test_case "approve emits Approval_granted" `Quick
+        test_approve_emits_approval_granted;
     ]);
     ("Edge cases", [
       Alcotest.test_case "single-step workflow" `Quick
