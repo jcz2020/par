@@ -98,7 +98,14 @@ let rec execute_step ?(path=[]) ctx step =
      | Some agent ->
        let prompt = substitute prompt_template ctx.variables in
         match Engine.run_agent ctx.token agent prompt ctx.llm ctx.registry with
-        | Ok (resp, _) -> Ok (match resp.text with Some t -> `String t | None -> `Null)
+        | Ok (resp, _) ->
+          let text_field = match resp.text with
+            | Some t -> ("text", `String t)
+            | None -> ("text", `Null) in
+          let tool_calls_field = match resp.tool_calls with
+            | Some tcs -> ("tool_calls", `List (List.map Types.tool_call_to_yojson tcs))
+            | None -> ("tool_calls", `Null) in
+          Ok (`Assoc [text_field; tool_calls_field])
         | Result.Error (err, _) -> Result.Error err)
 
   | Tool_call { tool_name; input } ->

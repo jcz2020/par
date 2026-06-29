@@ -20,6 +20,10 @@ let text_response text : llm_response =
   { text = Some text; tool_calls = None; finish_reason = Stop;
     usage = dummy_usage; model = "mock" }
 
+let response_with_tool_calls tool_calls : llm_response =
+  { text = None; tool_calls = Some tool_calls; finish_reason = Tool_calls;
+    usage = dummy_usage; model = "mock" }
+
 let mock_llm responses =
   let counter = ref 0 in
   let next () =
@@ -902,6 +906,29 @@ let test_tool_input_deep_nested_substitution () =
         (Yojson.Safe.to_string json)
     | Error e -> Alcotest.failf "expected Ok: %s" (error_to_string e))
 
+let test_agent_call_preserves_tool_calls () =
+  let mock_tc : Types.tool_call = {
+    id = "tc-1";
+    name = "calc";
+    arguments = `Assoc [("x", `Int 2)];
+  } in
+  let llm = mock_llm [response_with_tool_calls [mock_tc]] in
+  let agent = basic_agent () in
+  with_token (fun token ->
+    let reg = make_registry [] in
+    let ctx = make_ctx
+      ~agent_resolver:(fun _ -> Some agent)
+      ~token ~llm ~registry:reg () in
+    let step = Agent_call { agent_id = "test-agent"; prompt_template = "x" } in
+    match Workflow_engine.execute_step ctx step with
+    | Ok (`Assoc fields) ->
+      (match List.assoc_opt "tool_calls" fields with
+       | Some (`List (_ :: _)) -> Alcotest.(check bool) "tool_calls preserved" true true
+       | _ -> Alcotest.failf "tool_calls should be a non-empty list, got: %s"
+                (Yojson.Safe.to_string (`Assoc fields)))
+    | Ok other -> Alcotest.failf "expected Assoc, got %s" (Yojson.Safe.to_string other)
+    | Error e -> Alcotest.failf "expected Ok: %s" (error_to_string e))
+
 (* -------------------------------------------------------------------------- *)
 (* Suite wiring                                                             *)
 (* -------------------------------------------------------------------------- *)
@@ -1008,6 +1035,8 @@ let () =
         test_edge_workflow_with_variable_substitution;
       Alcotest.test_case "tool input deep nested substitution" `Quick
         test_tool_input_deep_nested_substitution;
+      Alcotest.test_case "agent call preserves tool_calls" `Quick
+        test_agent_call_preserves_tool_calls;
     ]);
     ("Serialization", [
       Alcotest.test_case "workflow_def yojson round-trips" `Quick

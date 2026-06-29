@@ -243,8 +243,8 @@ let workflow_engine_suite =
          | Ok (`List [ a; b ]) ->
              Alcotest.(check string) "tool result" "\"tool-returned\""
                (Yojson.Safe.to_string a);
-             Alcotest.(check string) "agent result" "\"agent-returned\""
-               (Yojson.Safe.to_string b)
+              Alcotest.(check string) "agent result" "{\"text\":\"agent-returned\",\"tool_calls\":null}"
+                (Yojson.Safe.to_string b)
          | Ok _ -> Alcotest.fail "expected list of 2"
          | Error e ->
              Alcotest.fail ("expected Ok: " ^ (match e with
