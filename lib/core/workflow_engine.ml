@@ -44,6 +44,7 @@ type exec_context = {
   workflow_resolver : string -> workflow option;
   on_step_complete : (int list -> Yojson.Safe.t -> unit) option;
   workflow_run_id : Workflow_run_id.t option;
+  workflow_id_resolver : unit -> string option;
 }
 
 exception Workflow_suspended of {
@@ -52,11 +53,18 @@ exception Workflow_suspended of {
   checkpoint : workflow_checkpoint;
 }
 
-let make_checkpoint ~step_path ?(step_results = []) ctx =
+let make_checkpoint ~step_path ?(step_results = []) ?(allowed_roles = None) ctx =
+  let workflow_id =
+    match ctx.workflow_id_resolver () with
+    | Some id -> id
+    | None -> ""
+  in
   {
+    workflow_id;
     step_path;
     variables = ctx.variables;
     step_results;
+    allowed_roles;
   }
 
 (* -------------------------------------------------------------------------- *)
@@ -168,7 +176,8 @@ let rec execute_step ?(path=[]) ctx step =
         let suspension_ref : (string * string list * workflow_checkpoint) option ref = ref None in
         Eio.Fiber.first
           (fun () ->
-            let checkpoint = make_checkpoint ~step_path:path ctx in
+            let checkpoint = make_checkpoint ~step_path:path
+                               ~allowed_roles:(Some allowed_roles) ctx in
             suspension_ref := Some (prompt, allowed_roles, checkpoint))
           (fun () ->
             let deadline = Unix.gettimeofday () +. timeout_secs in

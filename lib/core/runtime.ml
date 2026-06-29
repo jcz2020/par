@@ -882,6 +882,7 @@ let submit_workflow rt wf =
                  workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
                  on_step_complete = None;
                  workflow_run_id = Some id;
+                 workflow_id_resolver = (fun () -> Some wf.def.id);
                }
     in
     (match rt.services.persistence.save_workflow_state_fn id Wf_running (Some cp) with
@@ -900,6 +901,7 @@ let submit_workflow rt wf =
     workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
     on_step_complete = Some checkpoint_cb;
     workflow_run_id = Some id;
+    workflow_id_resolver = (fun () -> Some wf.def.id);
   } in
   (match Workflow_engine.execute_workflow ctx wf with
    | Ok result ->

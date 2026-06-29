@@ -86,6 +86,7 @@ let make_ctx ?(variables = []) ?(failure_policy = Fail_fast)
              ?(workflow_run_id = None) ?(workflow_resolver = (fun _ -> None))
              ?(agent_resolver = (fun _ -> None))
              ?(tool_resolver = (fun _ -> None))
+             ?(workflow_id_resolver = (fun () -> None))
              ~token ~llm ~registry () =
   { Workflow_engine.variables = variables;
     token;
@@ -97,7 +98,8 @@ let make_ctx ?(variables = []) ?(failure_policy = Fail_fast)
     failure_policy;
     workflow_resolver;
     on_step_complete;
-    workflow_run_id }
+    workflow_run_id;
+    workflow_id_resolver }
 
 let ok_or_fail msg = function
   | Ok v -> v
@@ -548,7 +550,56 @@ let test_checkpoint_make_checkpoint_preserves_state () =
       ctx in
     Alcotest.(check (list int)) "step_path" [0; 1] cp.step_path;
     Alcotest.(check int) "vars preserved" 2 (List.length cp.variables);
-    Alcotest.(check int) "results preserved" 2 (List.length cp.step_results))
+    Alcotest.(check int) "results preserved" 2 (List.length cp.step_results);
+    Alcotest.(check (option (list string))) "allowed_roles default None" None cp.allowed_roles;
+    Alcotest.(check string) "workflow_id default empty" "" cp.workflow_id)
+
+let test_checkpoint_with_allowed_roles_round_trips () =
+  let t = dummy_tool (fun _ _ -> Success (`String "ok")) in
+  with_token (fun token ->
+    let llm = mock_llm [text_response "unused"] in
+    let reg = make_registry [t] in
+    let ctx = make_ctx
+      ~variables:[("k", `String "v")]
+      ~workflow_id_resolver:(fun () -> Some "wf-roundtrip")
+      ~tool_resolver:(fun _ -> Some t.descriptor)
+      ~token ~llm ~registry:reg () in
+    let cp = Workflow_engine.make_checkpoint
+      ~step_path:[2; 3]
+      ~step_results:[`String "r1"]
+      ~allowed_roles:(Some ["admin"; "reviewer"])
+      ctx in
+    Alcotest.(check string) "workflow_id from resolver" "wf-roundtrip" cp.workflow_id;
+    Alcotest.(check (option (list string))) "allowed_roles preserved"
+      (Some ["admin"; "reviewer"]) cp.allowed_roles;
+    let json = workflow_checkpoint_to_yojson cp in
+    match workflow_checkpoint_of_yojson json with
+    | Ok cp' ->
+      Alcotest.(check string) "round-trip workflow_id" "wf-roundtrip" cp'.workflow_id;
+      Alcotest.(check (option (list string))) "round-trip allowed_roles"
+        (Some ["admin"; "reviewer"]) cp'.allowed_roles;
+      Alcotest.(check (list int)) "round-trip step_path" [2; 3] cp'.step_path
+    | Error e -> Alcotest.failf "checkpoint decode: %s" e)
+
+let test_checkpoint_none_allowed_roles_round_trips () =
+  let t = dummy_tool (fun _ _ -> Success (`String "ok")) in
+  with_token (fun token ->
+    let llm = mock_llm [text_response "unused"] in
+    let reg = make_registry [t] in
+    let ctx = make_ctx
+      ~tool_resolver:(fun _ -> Some t.descriptor)
+      ~token ~llm ~registry:reg () in
+    let cp = Workflow_engine.make_checkpoint
+      ~step_path:[]
+      ctx in
+    Alcotest.(check (option (list string))) "default allowed_roles is None"
+      None cp.allowed_roles;
+    let json = workflow_checkpoint_to_yojson cp in
+    match workflow_checkpoint_of_yojson json with
+    | Ok cp' ->
+      Alcotest.(check (option (list string))) "round-trip None allowed_roles"
+        None cp'.allowed_roles
+    | Error e -> Alcotest.failf "checkpoint decode: %s" e)
 
 let test_checkpoint_resume_uses_loaded_checkpoint () =
   let storage : workflow_checkpoint option ref = ref None in
@@ -1064,6 +1115,10 @@ let () =
         test_checkpoint_records_partial_state_on_failure;
       Alcotest.test_case "make_checkpoint preserves state" `Quick
         test_checkpoint_make_checkpoint_preserves_state;
+      Alcotest.test_case "with allowed_roles round-trips" `Quick
+        test_checkpoint_with_allowed_roles_round_trips;
+      Alcotest.test_case "none allowed_roles round-trips" `Quick
+        test_checkpoint_none_allowed_roles_round_trips;
       Alcotest.test_case "resume uses loaded checkpoint variables" `Quick
         test_checkpoint_resume_uses_loaded_checkpoint;
       Alcotest.test_case "step_path tracks nested position" `Quick

@@ -234,6 +234,7 @@ let workflow_engine_suite =
           workflow_resolver = (fun _ -> None);
           on_step_complete = None;
           workflow_run_id = None;
+          workflow_id_resolver = (fun () -> None);
         } in
         let steps : workflow_step = Sequential [
           Tool_call { tool_name = "my_tool"; input = `Assoc [] };
@@ -263,6 +264,7 @@ let workflow_engine_suite =
           workflow_resolver = (fun _ -> None);
           on_step_complete = None;
           workflow_run_id = None;
+        workflow_id_resolver = (fun () -> None);
         } in
         let step : workflow_step = Conditional {
           condition = Greater_than (Variable "x", Literal (`Int 5));
@@ -294,6 +296,7 @@ let workflow_engine_suite =
           workflow_resolver = (fun _ -> None);
           on_step_complete = None;
           workflow_run_id = None;
+        workflow_id_resolver = (fun () -> None);
         } in
         let step : workflow_step = Conditional {
           condition = Greater_than (Variable "x", Literal (`Int 5));
@@ -330,6 +333,7 @@ let workflow_engine_suite =
           workflow_resolver = (fun _ -> None);
           on_step_complete = None;
           workflow_run_id = None;
+        workflow_id_resolver = (fun () -> None);
         } in
         let step : workflow_step = Map_reduce {
           over = "items";
@@ -356,6 +360,7 @@ let workflow_engine_suite =
           workflow_resolver = (fun _ -> None);
           on_step_complete = None;
           workflow_run_id = None;
+        workflow_id_resolver = (fun () -> None);
         } in
         let step : workflow_step =
           Agent_call { agent_id = "nonexistent"; prompt_template = "hi" }
@@ -389,6 +394,7 @@ let workflow_persistence_suite =
           workflow_resolver = (fun _ -> None);
           on_step_complete = None;
           workflow_run_id = Some (Workflow_run_id.create ());
+        workflow_id_resolver = (fun () -> None);
         } in
         let step = Human_approval {
           prompt_template = "Approve this action?";
@@ -427,6 +433,7 @@ let workflow_persistence_suite =
           workflow_resolver = (fun _ -> None);
           on_step_complete = None;
           workflow_run_id = None;
+        workflow_id_resolver = (fun () -> None);
         } in
         let step = Human_approval {
           prompt_template = "Approve?";
@@ -472,6 +479,7 @@ let workflow_persistence_suite =
             if wid = "child-wf" then Some child_wf else None);
           on_step_complete = None;
           workflow_run_id = None;
+        workflow_id_resolver = (fun () -> None);
         } in
         let step = Sub_workflow {
           workflow_id = "child-wf";
@@ -506,6 +514,7 @@ let workflow_persistence_suite =
           workflow_resolver = (fun _ -> None);
           on_step_complete = None;
           workflow_run_id = None;
+        workflow_id_resolver = (fun () -> None);
         } in
         let step = Sub_workflow {
           workflow_id = "nonexistent";
@@ -541,6 +550,7 @@ let workflow_persistence_suite =
           on_step_complete = Some (fun _path result ->
             checkpoints := (_path, result) :: !checkpoints);
           workflow_run_id = None;
+        workflow_id_resolver = (fun () -> None);
         } in
         let step : Types.workflow_step = Sequential [
           Tool_call { tool_name = "test_tool"; input = `Assoc [] };

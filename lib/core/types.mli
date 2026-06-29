@@ -757,9 +757,11 @@ type workflow_result = {
 [@@deriving yojson]
 
 type workflow_checkpoint = {
+  workflow_id : string;
   step_path : int list;
   variables : (string * Yojson.Safe.t) list;
   step_results : Yojson.Safe.t list;
+  allowed_roles : string list option;
 }
 [@@deriving yojson]
 
