@@ -1,7 +1,7 @@
 # Long-Output Generation Mode — 实施计划
 
 > **状态**: 待执行(2026-06-28 创建)
-> **来源**: a downstream project downstream proposal(附录 §9.1)
+> **来源**: downstream proposal(附录 §9.1)
 > **决策**: 接受 Option A + B + C,合并实施
 > **版本号**: 由维护者决定。**本文档不预设版本号,实施 agent 不得自行 bump**
 > **范围级影响**: 公开 `agent_config` 类型(on_max_tokens 字段语义变更)、新增公开 API(`Runtime.invoke_generate`)、FFI 暴露、文档同步
@@ -10,9 +10,9 @@
 
 ## 1. 背景与决策依据
 
-### 1.1 a downstream project 下游反馈摘要
+### 1.1 downstream feedback summary
 
-a downstream project(a downstream integrator,桌面产品经理工作台)是 PAR 的 an integrator 下游,嵌入了 3 个长输出 agent:`one downstream agent`(PRD 生成,~3000-6000 token Markdown)、`another downstream agent`(HTML mockup)、`another downstream agent`。
+a an integrator是 PAR 的 an integrator 下游,嵌入了 3 个长输出 agent:a long-output agent(PRD 生成,~3000-6000 token Markdown)、a long-output agent(HTML mockup)、a long-output agent。
 
 **关键事实**:
 - 3 个 agent 当前**全部绕过** `Runtime.invoke`,自己手写了 `llm_chat_raw` 直接调 LLM
@@ -24,7 +24,7 @@ a downstream project(a downstream integrator,桌面产品经理工作台)是 PAR
 
 ### 1.2 4-agent 主流做法调研
 
-a downstream project 提案调研了 4 家主流 coding agent,结论:**没有一个把 `max_tokens` 当 iteration-consuming 失败**。
+downstream proposal调研了 4 家主流 coding agent,结论:**没有一个把 `max_tokens` 当 iteration-consuming 失败**。
 
 | Agent | max_tokens 行为 | 来源 |
 |---|---|---|
@@ -54,7 +54,7 @@ a downstream project 提案调研了 4 家主流 coding agent,结论:**没有一
 
 ### 1.4 决策
 
-接受 a downstream project 提案的 A + B + C,**单次会话内全部实施**。三者可并行推进:
+接受 downstream proposal的 A + B + C,**单次会话内全部实施**。三者可并行推进:
 - A 与 C 紧耦合(C 折进 A 的错误消息修正)
 - B 独立新建入口,可同步开工,Continue 逻辑可与 A 共享或独立实现
 
@@ -360,7 +360,7 @@ A 与 B 在 Wave 1 之后完全并行,只在最终验证(Wave 5)合并。
 | §3 #3 多 provider | ✅ 完全 provider-agnostic |
 | §4 优先级 | ✅ 不与任何轴冲突 |
 | §7 防呆清单 | ⚠️ "Compaction(LLM 摘要压缩)"在清单上——本计划不要求摘要,只 continue,**不冲突** |
-| 目标用户 | ✅ a downstream project 就是 LLM 后端工程师画像 |
+| 目标用户 | ✅ the downstream project represents the LLM backend engineer profile |
 
 **战略收益**:修复"下游在最关键场景绕开 runtime"的偏离。
 
@@ -384,7 +384,7 @@ A 与 B 在 Wave 1 之后完全并行,只在最终验证(Wave 5)合并。
 
 ## 7. 不做的事(明确边界)
 
-- ❌ **不实施 MiMo 的 cycle/checkpoint/writer subagent**——a downstream project 的痛点不是 context 满,是 Max_tokens 处理未完成
+- ❌ **不实施 MiMo 的 cycle/checkpoint/writer subagent**——the downstream project's pain point不是 context 满,是 Max_tokens 处理未完成
 - ❌ **不实施 MiMo 的 JS 沙箱 Dynamic Workflow**——与 PAR typed ADT 哲学相反
 - ❌ **不实施 Max Mode(N 选优 + judge)**——本计划不涉及
 - ❌ **不实施 Dream/Distill**——本计划不涉及
@@ -415,14 +415,14 @@ A 与 B 在 Wave 1 之后完全并行,只在最终验证(Wave 5)合并。
 
 ## 9. 附录
 
-### 9.1 a downstream project 原始提案全文
+### 9.1 downstream original proposal (full text)
 
 ```markdown
 # Enhancement: Treat `Max_tokens` truncation as a first-class finish, not a ReAct iteration — a proposal from a downstream runtime
  
 > Follow-up to the v0.6.0 fix in `par-issue-max-tokens-react-loop.md`.
 > Target audience: PAR (Pocket Agent Runtime) maintainers.
-> Context: a downstream project, a desktop product-an integrator workbench that embeds PAR as an integrator.
+> Context: the downstream project, a desktop product-an integrator workbench that embeds PAR as an integrator.
  
 ## TL;DR
  
@@ -441,7 +441,7 @@ output*.
  
 ## 1. Background: the v0.6.0 fix and what it left behind
  
-[完整提案内容见 a downstream project upstream;本附录存档关键部分]
+[完整提案内容见 upstream proposal;本附录存档关键部分]
 
 ## 2. How mainstream coding agents handle this
 
@@ -452,7 +452,7 @@ output*.
 | OpenCode | maxSteps 数 step;纯生成截断是正常 finish | [cefboud blog](https://cefboud.com/posts/coding-agents-internals-opencode-deepdive/) |
 | a comparable coding agent | writer subagent + cycle/checkpoint;主 agent 永不总结自己 in-flight 长输出 | [MiMo blog](https://mimo.xiaomi.com/zh/blog/mimo-code-long-horizon) |
 
-[完整 4-agent 表格 + 共同不变量论证,见 a downstream project 原文]
+[完整 4-agent 表格 + 共同不变量论证,见 original proposal]
 
 ## 3. Proposal
 
@@ -460,7 +460,7 @@ output*.
 ### (B) First-class "generation mode" that bypasses the ReAct loop
 ### (C) Distinguish finish reasons in the result and the loop
 
-[完整描述见 a downstream project 原文]
+[完整描述见 original proposal]
 
 ## 4. Why this matters for PAR's positioning
 
@@ -469,12 +469,12 @@ long text output, the path of least resistance is to bypass all of that and
 call the LLM directly. That pushes integrators *off* PAR exactly for the tasks
 where output quality matters most.
 
-## 5. Reproduction (a downstream project, PAR v0.6.0)
+## 5. Reproduction (downstream project, PAR v0.6.0)
 
 - Environment: PAR 0.6.0, OCaml 5.4.1, macOS, OpenAI-compatible (MiniMax-M3)
 - Symptom: PRD generation (~3000-6000 tokens) frequently times out
 - Config: max_iter=10, max_execution_time=120s, on_max_tokens=Return_partial
-- Workaround: a downstream project calls LLM directly (llm_chat_raw), keeps PAR for sessions only
+- Workaround: the downstream project calls LLM directly (llm_chat_raw), keeps PAR for sessions only
 
 ## 6. What we're asking for
 

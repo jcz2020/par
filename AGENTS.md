@@ -53,6 +53,31 @@ See `docs/rules/docs.md` for full doc maintenance rules. Key points:
 - OCaml identifiers must never be translated
 - `make docs-check` validates CJK, links, identifiers
 
+### No Downstream Identifiable Information (MANDATORY)
+
+**Never record specific upstream/downstream project names, company names, customer names, or feedback-source identifiers in any committed artifact.** This repo is public. Naming specific partners misleads other developers (suggests endorsement / availability / API stability commitments that were never made) and breaches confidentiality expectations.
+
+**Forbidden in commits, docs, code comments, CHANGES.md, plans, ROADMAP files, ADRs, bd issue text pushed via `bd dolt push`, release notes, README, and any other tracked content:**
+- Specific product or project names from downstream/upstream integrators (e.g. ❌ "Project X reported...", ❌ "Customer Y uses PAR for...")
+- Identifiable company or team names
+- Identifiable agent / module / component names from other projects
+- Direct quotes or paraphrases of feedback that could be traced back to a specific partner
+- Counts or lists that fingerprint a specific deployment ("3 agents named A/B/C")
+
+**Allowed:**
+- Generic terms: "a downstream project", "an integrator", "integration feedback", "downstream integration report", "production user"
+- Counts in aggregate that cannot fingerprint: "downstream feedback triggered this change"
+- Architecture patterns and domain observations not tied to a named party
+
+**When fixing or closing work that originated from downstream feedback:**
+- Describe the technical defect and its fix in generic terms
+- Do NOT credit or mention the partner by name anywhere persisted
+- Internal channel comms (chat, session transcripts) are not under this rule, but anything committed is
+
+**Enforcement:** `docs/rules/disclosure.md` has the full spec and migration playbook for cleaning up pre-existing violations. Run `make docs-check` after every doc edit; a future scanner will flag violators automatically.
+
+**Migration policy:** When this rule is tightened, pre-existing violations are cleaned in a dedicated sweep commit (`docs: sanitize downstream identifiers per new disclosure rule`). Do not silently rewrite historical content during unrelated work — keep the cleanup auditable.
+
 ## Non-Interactive Shell Commands
 
 **Always use `-f` flags:** `cp -f`, `mv -f`, `rm -f`, `rm -rf`. Use `-o BatchMode=yes` for ssh/scp. Use `-y` for apt-get. Use `HOMEBREW_NO_AUTO_UPDATE=1` for brew.

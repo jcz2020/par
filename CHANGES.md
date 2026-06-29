@@ -2,7 +2,7 @@
 
 ## v0.6.2-beta.20260629 — BETA
 
-> Workflow engine fix cycle: closed the suspend → gate → resume loop and aligned API/docs with integration feedback (PAR-uy3 + 10 related issues). All 11 reported defects addressed.
+> Workflow engine fix cycle: closed the suspend → gate → resume loop and aligned API/docs with integration feedback. All 11 reported defects addressed.
 
 ### Added — Closed loop: suspend → gate → resume (§1.1, §1.2)
 
@@ -57,13 +57,13 @@
 
 ### Strategic motivation
 
-Downstream project (a downstream project / a downstream integrator) reported that the suspend → gate → resume closed loop was broken in three of four places: resume was a stub, approve was a no-op, and step results didn't propagate. Combined with §2.1 durability gap, the workflow engine was unfit for production Human-in-the-Loop scenarios. This cycle closes all 11 reported defects and brings the engine to functional parity with the documented API.
+Downstream integration feedback reported that the suspend → gate → resume closed loop was broken in three of four places: resume was a stub, approve was a no-op, and step results didn't propagate. Combined with §2.1 durability gap, the workflow engine was unfit for production Human-in-the-Loop scenarios. This cycle closes all 11 reported defects and brings the engine to functional parity with the documented API.
 
 ---
 
 ## v0.6.1 — STABLE
 
-> Long-output generation mode: typed `on_max_tokens` option + first-class `invoke_generate` API. Closes the gap surfaced by a downstream project downstream (long-output agents were bypassing PAR's ReAct loop to call LLM directly).
+> Long-output generation mode: typed `on_max_tokens` option + first-class `invoke_generate` API. Closes the gap surfaced by integration feedback (long-output agents were bypassing PAR's ReAct loop to call LLM directly).
 
 ### Added — Long-output generation mode (plan §3)
 
@@ -95,7 +95,7 @@ Downstream project (a downstream project / a downstream integrator) reported tha
 
 ### Strategic motivation (plan §1)
 
-a downstream project (a downstream integrator, an integrator) reported that long-output agents bypass PAR's ReAct loop and call LLM directly. Survey of 4 mainstream coding agents (Claude Code, Codex CLI, OpenCode, a comparable coding agent) confirmed none treat `Max_tokens` as iteration-consuming failure. PAR v0.6.0 was the only one still treating it as a loop-budget event. This change closes that gap and re-aligns with the strategic positioning in `docs/STRATEGY.md`.
+A an integrator reported that long-output agents bypass PAR's ReAct loop and call LLM directly. Survey of 4 mainstream coding agents (Claude Code, Codex CLI, OpenCode, a comparable coding agent) confirmed none treat `Max_tokens` as iteration-consuming failure. PAR v0.6.0 was the only one still treating it as a loop-budget event. This change closes that gap and re-aligns with the strategic positioning in `docs/STRATEGY.md`.
 
 ### Tests
 

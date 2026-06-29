@@ -10,7 +10,7 @@
 
 长输出生成和 ReAct 推理是两种不同的负载。一个 PRD 写手一次性产出 3,000 到 6,000 token 的 Markdown。一个 HTML mockup agent 产出单个大体积 artifact。这些都不涉及工具调用，也都不能从迭代预算中获益。把 `Max_tokens` 截断当成消耗循环的失败（ReAct 的默认行为）在这类工作上是错的。截断是 transport 细节。模型完成了它能完成的部分；runtime 的工作是交付完整输出，而不是因为模型碰到上限就惩罚它。
 
-来自 a downstream project（a downstream integrator，一个嵌入了三个长输出 agent 的 an integrator）的下游反馈确认了这个缺口。三个 agent（`one downstream agent`、`another downstream agent`、`another downstream agent`）全部绕开 `Runtime.invoke`，手工调用 `llm_chat_raw`，只把 PAR 当作 session 和 event 管理用。长输出生成模式计划 §1 记录了对四家主流 coding agent（Claude Code、Codex CLI、OpenCode、a comparable coding agent）的调研：没有一家把 `Max_tokens` 当作消耗迭代的事件。PAR 是异类。`Runtime.invoke_generate` 通过为纯生成暴露一等入口来收尾这个转型。它完全跳过 ReAct 循环，遇到 `Max_tokens` 截断时自动续写，并复用 `invoke` 已经在用的 session 存储、事件总线、LLM 服务抽象和 skill 叠加机制。
+来自下游 an integrator 项目的反馈确认了这个缺口：长输出 agent 全部绕开 `Runtime.invoke`，手工调用 `llm_chat_raw`，只把 PAR 当作 session 和 event 管理用。长输出生成模式计划 §1 记录了对四家主流 coding agent（Claude Code、Codex CLI、OpenCode、a comparable coding agent）的调研：没有一家把 `Max_tokens` 当作消耗迭代的事件。PAR 是异类。`Runtime.invoke_generate` 通过为纯生成暴露一等入口来收尾这个转型。它完全跳过 ReAct 循环，遇到 `Max_tokens` 截断时自动续写，并复用 `invoke` 已经在用的 session 存储、事件总线、LLM 服务抽象和 skill 叠加机制。
 
 生成路径是刻意收窄的。它不在 ReAct 边界跑中间件，不查 `max_iterations`，也不每次迭代查 `max_execution_time`（由一个可选的 `total_timeout` 替代）。它和 `invoke` 共享的是所有应该共享的部分：provider 抽象、session 持久化、事件发布、skill 组合、流式回调形态。
 
