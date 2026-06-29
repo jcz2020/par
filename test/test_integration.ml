@@ -538,8 +538,8 @@ let workflow_persistence_suite =
           parallel_limit = 4;
           failure_policy = Fail_fast;
           workflow_resolver = (fun _ -> None);
-          on_step_complete = Some (fun step_id result ->
-            checkpoints := (step_id, result) :: !checkpoints);
+          on_step_complete = Some (fun _path result ->
+            checkpoints := (_path, result) :: !checkpoints);
           workflow_run_id = None;
         } in
         let step : Types.workflow_step = Sequential [

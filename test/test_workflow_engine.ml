@@ -484,8 +484,8 @@ let test_checkpoint_callback_fires_per_step () =
     let ctx = make_ctx
       ~agent_resolver:(fun _ -> Some agent)
       ~tool_resolver:(fun _ -> Some t.descriptor)
-      ~on_step_complete:(Some (fun step_id result ->
-        captured := (step_id, result) :: !captured))
+      ~on_step_complete:(Some (fun path result ->
+        captured := (path, result) :: !captured))
       ~token ~llm ~registry:reg () in
     let step : workflow_step = Sequential [
       Tool_call { tool_name = "test_tool"; input = `Assoc [] };
@@ -495,7 +495,8 @@ let test_checkpoint_callback_fires_per_step () =
     let _ = ok_or_fail "execute_step"
             (Workflow_engine.execute_step ctx step) in
     let ids = List.map fst (List.rev !captured) in
-    Alcotest.(check (list string)) "step ids" ["0"; "1"; "2"] ids)
+    Alcotest.(check (list string)) "step ids" ["0"; "1"; "2"]
+      (List.map (fun p -> String.concat "." (List.map string_of_int p)) ids))
 
 let test_checkpoint_records_partial_state_on_failure () =
   let bad = dummy_tool ~name:"bad"
@@ -511,8 +512,8 @@ let test_checkpoint_records_partial_state_on_failure () =
       ~agent_resolver:(fun _ -> Some agent)
       ~tool_resolver:(fun n -> if n = "bad" then Some bad.descriptor
                                else Some ok.descriptor)
-      ~on_step_complete:(Some (fun step_id result ->
-        captured := (step_id, result) :: !captured))
+      ~on_step_complete:(Some (fun path result ->
+        captured := (path, result) :: !captured))
       ~token ~llm ~registry:reg () in
     let step : workflow_step = Sequential [
       Tool_call { tool_name = "ok"; input = `Assoc [] };
@@ -524,7 +525,8 @@ let test_checkpoint_records_partial_state_on_failure () =
     Alcotest.(check int) "first step recorded" 1 (List.length !captured);
     match !captured with
     | [(id, _)] ->
-      Alcotest.(check string) "first step id" "0" id
+      Alcotest.(check string) "first step id" "0"
+        (String.concat "." (List.map string_of_int id))
     | _ -> Alcotest.fail "expected exactly one checkpoint before failure")
 
 let test_checkpoint_make_checkpoint_preserves_state () =
@@ -579,6 +581,33 @@ let test_checkpoint_resume_uses_loaded_checkpoint () =
           (Yojson.Safe.to_string json)
       | Error e -> Alcotest.failf "resumed execution failed: %s"
                      (error_to_string e))
+
+let test_step_path_tracks_nested_position () =
+  let paths_seen = ref [] in
+  let t = dummy_tool (fun _ _ -> Success (`String "ok")) in
+  let agent = basic_agent ~tools:[t] () in
+  with_token (fun token ->
+    let llm = mock_llm [text_response "x"] in
+    let reg = make_registry [t] in
+    let ctx = make_ctx
+      ~agent_resolver:(fun _ -> Some agent)
+      ~tool_resolver:(fun _ -> Some t.descriptor)
+      ~token ~llm ~registry:reg
+      ~on_step_complete:(Some (fun path _ -> paths_seen := path :: !paths_seen))
+      () in
+    let step = Sequential [
+      Tool_call { tool_name = "test_tool"; input = `Assoc [] };
+      Sequential [
+        Tool_call { tool_name = "test_tool"; input = `Assoc [] };
+        Tool_call { tool_name = "test_tool"; input = `Assoc [] };
+      ];
+      Tool_call { tool_name = "test_tool"; input = `Assoc [] };
+    ] in
+    ignore (Workflow_engine.execute_step ctx step);
+    List.sort compare (List.map (fun p -> String.concat "." (List.map string_of_int p)) !paths_seen)
+    |> fun ps ->
+    Alcotest.(check bool) "step_path nested seen"
+      (List.mem "0" ps && List.mem "1.0" ps && List.mem "1.1" ps && List.mem "2" ps) true)
 
 (* -------------------------------------------------------------------------- *)
 (* Workflow lifecycle — submit, status, approve, resume                     *)
@@ -934,6 +963,8 @@ let () =
         test_checkpoint_make_checkpoint_preserves_state;
       Alcotest.test_case "resume uses loaded checkpoint variables" `Quick
         test_checkpoint_resume_uses_loaded_checkpoint;
+      Alcotest.test_case "step_path tracks nested position" `Quick
+        test_step_path_tracks_nested_position;
     ]);
     ("Workflow lifecycle", [
       Alcotest.test_case "submit -> running -> completed" `Quick

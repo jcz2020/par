@@ -27,7 +27,7 @@ type exec_context = {
   parallel_limit : int;
   failure_policy : failure_policy;
   workflow_resolver : string -> workflow option;
-  on_step_complete : (string -> Yojson.Safe.t -> unit) option;
+  on_step_complete : (int list -> Yojson.Safe.t -> unit) option;
   workflow_run_id : Workflow_run_id.t option;
 }
 
@@ -39,7 +39,7 @@ exception Workflow_suspended of {
 
 (** Build a checkpoint from the current execution context. *)
 val make_checkpoint :
-  ?step_path:int list ->
+  step_path:int list ->
   ?step_results:Yojson.Safe.t list ->
   exec_context -> workflow_checkpoint
 
@@ -47,6 +47,7 @@ val make_checkpoint :
     Recursively dispatches to the appropriate handler based on step variant.
     May raise [Workflow_suspended] for Human_approval steps. *)
 val execute_step :
+  ?path:int list ->
   exec_context -> workflow_step -> (Yojson.Safe.t, error_category) result
 
 (** Execute a complete workflow, recording timing and invoking on_complete callback.

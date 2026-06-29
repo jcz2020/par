@@ -42,7 +42,7 @@ type exec_context = {
   parallel_limit : int;
   failure_policy : failure_policy;
   workflow_resolver : string -> workflow option;
-  on_step_complete : (string -> Yojson.Safe.t -> unit) option;
+  on_step_complete : (int list -> Yojson.Safe.t -> unit) option;
   workflow_run_id : Workflow_run_id.t option;
 }
 
@@ -52,7 +52,7 @@ exception Workflow_suspended of {
   checkpoint : workflow_checkpoint;
 }
 
-let make_checkpoint ?(step_path = []) ?(step_results = []) ctx =
+let make_checkpoint ~step_path ?(step_results = []) ctx =
   {
     step_path;
     variables = ctx.variables;
@@ -82,7 +82,7 @@ let substitute template vars =
 (* Step execution — recursive dispatcher                                      *)
 (* -------------------------------------------------------------------------- *)
 
-let rec execute_step ctx step =
+let rec execute_step ?(path=[]) ctx step =
   Cancellation.check_cancel ctx.token;
   match step with
   | Agent_call { agent_id; prompt_template } ->
@@ -107,22 +107,22 @@ let rec execute_step ctx step =
             | Types.Handoff _ -> Result.Error (Invalid_input "Handoff not supported in workflow step"))))
 
   | Sequential steps ->
-    execute_sequential ctx steps
+    execute_sequential ~path ctx steps
 
   | Parallel steps ->
-    execute_parallel ctx steps
+    execute_parallel ~path ctx steps
 
   | Conditional { condition; then_step; else_step } ->
     (match Expression.evaluate_to_bool ctx.variables condition with
      | Result.Error e -> Result.Error e
-     | Ok true -> execute_step ctx then_step
+     | Ok true -> execute_step ~path ctx then_step
      | Ok false ->
        match else_step with
-       | Some s -> execute_step ctx s
+       | Some s -> execute_step ~path ctx s
        | None -> Ok `Null)
 
   | Map_reduce { over; step = inner_step; reduce } ->
-    execute_map_reduce ctx over inner_step reduce
+    execute_map_reduce ~path ctx over inner_step reduce
 
   | Human_approval { prompt_template; timeout; allowed_roles } ->
     let prompt = substitute prompt_template ctx.variables in
@@ -136,7 +136,7 @@ let rec execute_step ctx step =
         let suspension_ref : (string * string list * workflow_checkpoint) option ref = ref None in
         Eio.Fiber.first
           (fun () ->
-            let checkpoint = make_checkpoint ctx in
+            let checkpoint = make_checkpoint ~step_path:path ctx in
             suspension_ref := Some (prompt, allowed_roles, checkpoint))
           (fun () ->
             let deadline = Unix.gettimeofday () +. timeout_secs in
@@ -172,14 +172,15 @@ let rec execute_step ctx step =
 (* Sequential execution — left-to-right, respects failure_policy              *)
 (* -------------------------------------------------------------------------- *)
 
-and execute_sequential ctx steps =
+and execute_sequential ?(path=[]) ctx steps =
   let rec loop acc idx = function
     | [] -> Ok (`List (List.rev acc))
     | step :: rest ->
-      match execute_step ctx step with
+      let step_path = path @ [idx] in
+      match execute_step ~path:step_path ctx step with
       | Ok result ->
         (match ctx.on_step_complete with
-         | Some cb -> cb (string_of_int idx) result
+         | Some cb -> cb step_path result
          | None -> ());
         loop (result :: acc) (idx + 1) rest
       | Result.Error err ->
@@ -187,11 +188,11 @@ and execute_sequential ctx steps =
         | Fail_fast -> Result.Error err
         | Continue_on_failure ->
           (match ctx.on_step_complete with
-           | Some cb -> cb (string_of_int idx) `Null
+           | Some cb -> cb step_path `Null
            | None -> ());
           loop acc (idx + 1) rest
         | Conditional { on_failure } ->
-          match execute_step ctx on_failure with
+          match execute_step ~path:step_path ctx on_failure with
           | Ok _ -> loop acc (idx + 1) rest
           | Result.Error e -> Result.Error e
   in
@@ -201,14 +202,14 @@ and execute_sequential ctx steps =
 (* Parallel execution — Eio fibers with semaphore-limited concurrency         *)
 (* -------------------------------------------------------------------------- *)
 
-and execute_parallel ctx steps =
+and execute_parallel ?(path=[]) ctx steps =
   let sem = Eio.Semaphore.make ctx.parallel_limit in
-  let promises = List.map (fun step ->
+  let promises = List.mapi (fun idx step ->
     Eio.Fiber.fork_promise ~sw:ctx.token.switch (fun () ->
       Eio.Semaphore.acquire sem;
       Fun.protect
         ~finally:(fun () -> Eio.Semaphore.release sem)
-        (fun () -> execute_step ctx step)
+        (fun () -> execute_step ~path:(path @ [idx]) ctx step)
     )
   ) steps in
   let results = List.map (fun p ->
@@ -237,20 +238,21 @@ and execute_parallel ctx steps =
 (* Map-reduce execution — iterate over JSON array, apply reduce strategy      *)
 (* -------------------------------------------------------------------------- *)
 
-and execute_map_reduce ctx over_var step reduce =
+and execute_map_reduce ?(path=[]) ctx over_var step reduce =
   match List.assoc_opt over_var ctx.variables with
   | None ->
     Result.Error (Invalid_input (Printf.sprintf "Map_reduce variable not found: %s" over_var))
   | Some (`List items) ->
-    let results = List.filter_map (fun item ->
+    let indexed = List.mapi (fun idx item -> (idx, item)) items in
+    let results = List.filter_map (fun (idx, item) ->
       let new_vars =
         (over_var, item) :: List.filter (fun (k, _) -> k <> over_var) ctx.variables
       in
       let inner_ctx = { ctx with variables = new_vars } in
-      match execute_step inner_ctx step with
+      match execute_step ~path:(path @ [idx]) inner_ctx step with
       | Ok v -> Some v
       | Result.Error _ -> None
-    ) items in
+    ) indexed in
     apply_reduce reduce results
   | Some _ ->
     Result.Error (Invalid_input (Printf.sprintf "Map_reduce variable is not an array: %s" over_var))
@@ -288,7 +290,7 @@ and apply_reduce reduce results =
 
 and execute_workflow ctx wf =
   let start_time = Unix.gettimeofday () in
-  match execute_step ctx wf.def.steps with
+  match execute_step ~path:[] ctx wf.def.steps with
   | Ok value ->
     let elapsed = Unix.gettimeofday () -. start_time in
     let wf_result = {

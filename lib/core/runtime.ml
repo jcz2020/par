@@ -867,8 +867,8 @@ let submit_workflow rt wf =
   let id = Workflow_run_id.create () in
   htbl_set rt.workflows id Wf_running;
   let token = Cancellation.create_token rt.cancellation_root in
-  let checkpoint_cb _step_id result =
-    let cp = Workflow_engine.make_checkpoint ~step_path:[]
+  let checkpoint_cb step_path result =
+    let cp = Workflow_engine.make_checkpoint ~step_path
                ~step_results:[result]
                {
                   Workflow_engine.variables = wf.def.variables;
