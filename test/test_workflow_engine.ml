@@ -637,6 +637,200 @@ let test_checkpoint_resume_uses_loaded_checkpoint () =
       | Error e -> Alcotest.failf "resumed execution failed: %s"
                      (error_to_string e))
 
+let test_resume_sequential_after_approval_runs_remaining_steps () =
+  (* 3-step Sequential with Human_approval at index 1. After approval,
+     resume_from_checkpoint must skip step 0 (already done), skip the
+     Human_approval (treated as approved), and run step 2. *)
+  let t = dummy_tool (fun _ _ -> Success (`String "step-after-approval")) in
+  with_token (fun token ->
+    let llm = mock_llm [text_response "unused"] in
+    let reg = make_registry [t] in
+    let ctx = make_ctx
+      ~variables:[("result_0", `String "first-step-result")]
+      ~tool_resolver:(fun _ -> Some t.descriptor)
+      ~token ~llm ~registry:reg () in
+    let top_step : workflow_step = Sequential [
+      Tool_call { tool_name = "test_tool"; input = `String "skipped" };
+      Human_approval { prompt_template = "approve?"; timeout = 60.0;
+                       allowed_roles = ["admin"] };
+      Tool_call { tool_name = "test_tool"; input = `String "after" };
+    ] in
+    let cp : workflow_checkpoint = {
+      workflow_id = "wf-resume";
+      step_path = [1];
+      variables = ctx.Workflow_engine.variables;
+      step_results = [`String "first-step-result"];
+      allowed_roles = Some ["admin"];
+    } in
+    match Workflow_engine.resume_from_checkpoint ctx top_step cp with
+    | Ok (`List results) ->
+      Alcotest.(check int) "post-resume ran one step" 1 (List.length results);
+      Alcotest.(check string) "post-resume step runs" "\"step-after-approval\""
+        (Yojson.Safe.to_string (List.hd results))
+    | Ok other -> Alcotest.failf "expected List [step-after-approval], got %s"
+                    (Yojson.Safe.to_string other)
+    | Error e -> Alcotest.failf "resume failed: %s" (error_to_string e))
+
+let test_resume_restores_variables_from_checkpoint () =
+  (* Verify that resume substitutes checkpoint.variables into remaining tool
+     inputs. The placeholder var on the input is what proves the ctx was
+     rebuilt with the checkpoint's variables. *)
+  let captured_input = ref `Null in
+  let t = dummy_tool (fun input _ ->
+    captured_input := input;
+    Success (`String "ok")) in
+  with_token (fun token ->
+    let llm = mock_llm [text_response "unused"] in
+    let reg = make_registry [t] in
+    let ctx = make_ctx
+      ~variables:[("placeholder", `Null)]
+      ~tool_resolver:(fun _ -> Some t.descriptor)
+      ~token ~llm ~registry:reg () in
+    let top_step : workflow_step = Sequential [
+      Human_approval { prompt_template = "ok?"; timeout = 60.0;
+                       allowed_roles = [] };
+      Tool_call { tool_name = "test_tool";
+                  input = `Assoc [("msg", `String "got-{{restored}}-ok")] };
+    ] in
+    let saved_vars = [("restored", `String "alpha-value");
+                      ("result_0", `String "first")] in
+    let cp : workflow_checkpoint = {
+      workflow_id = "wf-vars";
+      step_path = [0];
+      variables = saved_vars;
+      step_results = [`String "first"];
+      allowed_roles = Some [];
+    } in
+    ignore (Workflow_engine.resume_from_checkpoint ctx top_step cp);
+    Alcotest.(check string) "restored var substituted into tool input"
+      "{\"msg\":\"got-alpha-value-ok\"}"
+      (Yojson.Safe.to_string !captured_input))
+
+let test_resume_nested_sequential_drops_into_inner_branch () =
+  (* Outer Sequential [A, Inner(approval, B), C]; checkpoint at [1; 0]
+     means Inner is at outer index 1, Human_approval is at inner index 0. *)
+  let t = dummy_tool (fun _ _ -> Success (`String "B-out")) in
+  with_token (fun token ->
+    let llm = mock_llm [text_response "unused"] in
+    let reg = make_registry [t] in
+    let ctx = make_ctx
+      ~variables:[("A", `String "done")]
+      ~tool_resolver:(fun _ -> Some t.descriptor)
+      ~token ~llm ~registry:reg () in
+    let top_step : workflow_step = Sequential [
+      Tool_call { tool_name = "test_tool"; input = `String "A" };
+      Sequential [
+        Human_approval { prompt_template = "ok?"; timeout = 60.0;
+                         allowed_roles = [] };
+        Tool_call { tool_name = "test_tool"; input = `String "B" };
+      ];
+      Tool_call { tool_name = "test_tool"; input = `String "C" };
+    ] in
+    let cp : workflow_checkpoint = {
+      workflow_id = "wf-nested";
+      step_path = [1; 0];
+      variables = ctx.Workflow_engine.variables;
+      step_results = [`String "A"];
+      allowed_roles = Some [];
+    } in
+    match Workflow_engine.resume_from_checkpoint ctx top_step cp with
+    | Ok (`List results) ->
+      Alcotest.(check int) "one resumed step (B)" 1 (List.length results);
+      Alcotest.(check string) "B runs" "\"B-out\""
+        (Yojson.Safe.to_string (List.hd results))
+    | Ok other -> Alcotest.failf "expected List of 1, got %s"
+                    (Yojson.Safe.to_string other)
+    | Error e -> Alcotest.failf "nested resume failed: %s" (error_to_string e))
+
+let test_resume_conditional_true_branch_runs_after_approval () =
+  let t = dummy_tool (fun _ _ -> Success (`String "then-result")) in
+  with_token (fun token ->
+    let llm = mock_llm [text_response "unused"] in
+    let reg = make_registry [t] in
+    let ctx = make_ctx
+      ~variables:[("flag", `Bool true)]
+      ~tool_resolver:(fun _ -> Some t.descriptor)
+      ~token ~llm ~registry:reg () in
+    let top_step : workflow_step = Sequential [
+      Human_approval { prompt_template = "go?"; timeout = 60.0;
+                       allowed_roles = [] };
+      Conditional {
+        condition = Variable "flag";
+        then_step = Tool_call { tool_name = "test_tool"; input = `String "then" };
+        else_step = Some (Tool_call { tool_name = "test_tool"; input = `String "else" });
+      };
+    ] in
+    let cp : workflow_checkpoint = {
+      workflow_id = "wf-cond";
+      step_path = [0];
+      variables = ctx.Workflow_engine.variables;
+      step_results = [];
+      allowed_roles = Some [];
+    } in
+    match Workflow_engine.resume_from_checkpoint ctx top_step cp with
+    | Ok (`List results) ->
+      Alcotest.(check int) "one resumed step (conditional)" 1 (List.length results);
+      Alcotest.(check string) "then branch runs" "\"then-result\""
+        (Yojson.Safe.to_string (List.hd results))
+    | Ok other -> Alcotest.failf "expected List [then-result], got %s"
+                    (Yojson.Safe.to_string other)
+    | Error e -> Alcotest.failf "conditional resume failed: %s"
+                   (error_to_string e))
+
+let test_resume_rejects_parallel_at_step_path () =
+  let t = dummy_tool (fun _ _ -> Success (`String "x")) in
+  with_token (fun token ->
+    let llm = mock_llm [text_response "unused"] in
+    let reg = make_registry [t] in
+    let ctx = make_ctx
+      ~variables:[("done", `String "yes")]
+      ~tool_resolver:(fun _ -> Some t.descriptor)
+      ~token ~llm ~registry:reg () in
+    let top_step : workflow_step = Sequential [
+      Tool_call { tool_name = "test_tool"; input = `String "A" };
+      Parallel [
+        Tool_call { tool_name = "test_tool"; input = `String "B" };
+        Tool_call { tool_name = "test_tool"; input = `String "C" };
+      ];
+    ] in
+    let cp : workflow_checkpoint = {
+      workflow_id = "wf-parallel";
+      step_path = [1];
+      variables = ctx.Workflow_engine.variables;
+      step_results = [`String "A"];
+      allowed_roles = None;
+    } in
+    match Workflow_engine.resume_from_checkpoint ctx top_step cp with
+    | Ok _ -> Alcotest.fail "expected Error for Parallel mid-Sequential resume"
+    | Error (Internal msg) ->
+      Alcotest.(check bool) "mentions Parallel" true
+        (try ignore (Str.search_forward (Str.regexp "Parallel") msg 0); true
+         with Not_found -> false)
+    | Error e -> Alcotest.failf "expected Internal, got: %s" (error_to_string e))
+
+let test_resume_invalid_step_path_returns_error () =
+  let t = dummy_tool (fun _ _ -> Success (`String "x")) in
+  with_token (fun token ->
+    let llm = mock_llm [text_response "unused"] in
+    let reg = make_registry [t] in
+    let ctx = make_ctx
+      ~variables:[]
+      ~tool_resolver:(fun _ -> Some t.descriptor)
+      ~token ~llm ~registry:reg () in
+    let top_step : workflow_step = Sequential [
+      Tool_call { tool_name = "test_tool"; input = `String "A" };
+    ] in
+    let cp : workflow_checkpoint = {
+      workflow_id = "wf-bad-path";
+      step_path = [5];
+      variables = ctx.Workflow_engine.variables;
+      step_results = [];
+      allowed_roles = None;
+    } in
+    match Workflow_engine.resume_from_checkpoint ctx top_step cp with
+    | Ok _ -> Alcotest.fail "expected Error for out-of-bounds step_path"
+    | Error _ -> ())
+
 let test_step_path_tracks_nested_position () =
   let paths_seen = ref [] in
   let t = dummy_tool (fun _ _ -> Success (`String "ok")) in
@@ -982,6 +1176,64 @@ let test_lifecycle_cancel_sets_failed () =
          (workflow_status_to_string other)
      | Error e -> Alcotest.failf "get_workflow_status: %s" (error_to_string e)))
 
+let test_resume_runtime_runs_remaining_tool_calls () =
+  (* End-to-end: register workflow with Sequential[a, approval, b, c],
+     suspend at approval, call resume_workflow via Runtime API, assert
+     final tool call (c) executes and workflow completes. *)
+  with_switch (fun sw ->
+    let rt = match Runtime.create ~config:(runtime_config ()) sw with
+      | Ok r -> r
+      | Error e -> Alcotest.failf "create: %s" (error_to_string e) in
+    let tool_desc = match Runtime.register_tool rt ~name:"echo"
+                       ~description:"echo" ~input_schema:(`Assoc [])
+                       ~handler:(fun input _ -> Success input) () with
+      | Ok tb -> tb.descriptor
+      | Error e -> Alcotest.failf "register_tool: %s" (error_to_string e) in
+    let agent = basic_agent ~tools:[{ descriptor = tool_desc;
+                                       handler = (fun i _ -> Success i) }] () in
+    let _ = Runtime.register_agent rt agent in
+    let wf_id_str = "wf-runtime-resume" in
+    let wf = dummy_workflow ~id:wf_id_str
+      ~name:"Runtime Resume"
+      ~steps:(Sequential [
+        Tool_call { tool_name = "echo"; input = `String "step-a" };
+        Human_approval { prompt_template = "Approve step b?"; timeout = 60.0;
+                         allowed_roles = ["admin"] };
+        Tool_call { tool_name = "echo"; input = `String "step-c" };
+      ]) () in
+    let _ = Runtime.register_workflow rt wf in
+    let id = match Runtime.submit_workflow rt wf with
+      | Ok id -> id
+      | Error e -> Alcotest.failf "submit: %s" (error_to_string e) in
+    (match Runtime.get_workflow_status rt id with
+     | Ok (Wf_suspended cp) ->
+       Alcotest.(check (option (list string))) "allowed_roles captured"
+         (Some ["admin"]) cp.allowed_roles
+     | Ok other ->
+       Alcotest.failf "expected Wf_suspended, got %s"
+         (workflow_status_to_string other)
+     | Error e -> Alcotest.failf "status: %s" (error_to_string e));
+    (match Runtime.resume_workflow rt id with
+     | Ok (Some result) ->
+       Alcotest.(check bool) "result.Success" true (result.status = `Success);
+       (match List.assoc_opt "result" result.outputs with
+        | Some (`List (`String s :: _)) ->
+          Alcotest.(check string) "final output is step-c" "step-c" s
+        | other -> Alcotest.failf "expected final output to wrap [step-c], got: %s"
+                     (match other with
+                      | Some j -> Yojson.Safe.to_string j
+                      | None -> "<missing>"))
+     | Ok None -> Alcotest.fail "resume returned None (workflow still suspended?)"
+     | Error e -> Alcotest.failf "resume_workflow: %s" (error_to_string e));
+    (match Runtime.get_workflow_status rt id with
+     | Ok (Wf_completed _) -> ()
+     | Ok other ->
+       Alcotest.failf "expected Wf_completed after resume, got %s"
+         (workflow_status_to_string other)
+     | Error e -> Alcotest.failf "final status: %s" (error_to_string e));
+    let _ = Runtime.close rt in
+    ())
+
 (* -------------------------------------------------------------------------- *)
 (* Edge cases — single step, deeply nested, empty workflow                  *)
 (* -------------------------------------------------------------------------- *)
@@ -1260,6 +1512,22 @@ let () =
         test_checkpoint_resume_uses_loaded_checkpoint;
       Alcotest.test_case "step_path tracks nested position" `Quick
         test_step_path_tracks_nested_position;
+    ]);
+    ("Resume from checkpoint", [
+      Alcotest.test_case "sequential: runs step after approval" `Quick
+        test_resume_sequential_after_approval_runs_remaining_steps;
+      Alcotest.test_case "restores variables from checkpoint" `Quick
+        test_resume_restores_variables_from_checkpoint;
+      Alcotest.test_case "nested sequential drops into inner branch" `Quick
+        test_resume_nested_sequential_drops_into_inner_branch;
+      Alcotest.test_case "conditional true branch runs after approval" `Quick
+        test_resume_conditional_true_branch_runs_after_approval;
+      Alcotest.test_case "rejects Parallel at step_path" `Quick
+        test_resume_rejects_parallel_at_step_path;
+      Alcotest.test_case "invalid step_path returns error" `Quick
+        test_resume_invalid_step_path_returns_error;
+      Alcotest.test_case "runtime.resume_workflow end-to-end" `Quick
+        test_resume_runtime_runs_remaining_tool_calls;
     ]);
     ("Workflow lifecycle", [
       Alcotest.test_case "submit -> running -> completed" `Quick

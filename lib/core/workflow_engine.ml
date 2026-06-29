@@ -258,88 +258,6 @@ and execute_sequential ?(path=[]) ?(start_idx=0) ctx steps =
   in
   loop [] 0 [] steps
 
-(* -------------------------------------------------------------------------- *)
-(* Resume from checkpoint (§1.1) — re-enter execution at suspended step       *)
-(* -------------------------------------------------------------------------- *)
-
-let step_type_name = function
-  | Agent_call _ -> "Agent_call"
-  | Tool_call _ -> "Tool_call"
-  | Parallel _ -> "Parallel"
-  | Sequential _ -> "Sequential"
-  | Conditional _ -> "Conditional"
-  | Map_reduce _ -> "Map_reduce"
-  | Human_approval _ -> "Human_approval"
-  | Sub_workflow _ -> "Sub_workflow"
-
-let rec resume_from_checkpoint ctx wf_steps checkpoint =
-  (* Restore variables from checkpoint (they include propagated results
-     from steps that completed before the suspension). *)
-  let ctx' = { ctx with variables = checkpoint.variables } in
-  resume_step ~path:[] ctx' wf_steps checkpoint.step_path
-
-and resume_step ~path ctx step step_path =
-  match step_path with
-  | [] ->
-    (* At the suspended step itself. Must be Human_approval — treat as approved. *)
-    (match step with
-     | Human_approval _ -> Ok `Null
-     | _ ->
-       Result.Error (Internal
-         (Printf.sprintf "resume: leaf step at path [%s] is %s, not Human_approval"
-            (String.concat "." (List.map string_of_int path))
-            (step_type_name step))))
-  | idx :: rest ->
-    (match step with
-     | Sequential steps ->
-       let rest_to_run =
-         let rec skip n = function
-           | [] -> []
-           | _ :: tl when n > 0 -> skip (n - 1) tl
-           | _ :: tl -> tl
-         in
-         skip (idx + 1) steps
-       in
-       (match rest with
-        | [] ->
-          (* idx points AT the Human_approval (skip it); run rest from idx+1. *)
-          execute_sequential ~path ~start_idx:(idx + 1) ctx rest_to_run
-        | _ :: _ ->
-          (* idx points at a composite step; descend into it. *)
-          (match List.nth_opt steps idx with
-           | None ->
-             Result.Error (Internal
-               (Printf.sprintf "resume: index %d out of bounds for Sequential at [%s]"
-                  idx (String.concat "." (List.map string_of_int path))))
-           | Some target ->
-             (match resume_step ~path:(path @ [idx]) ctx target rest with
-              | Ok _ -> execute_sequential ~path ~start_idx:(idx + 1) ctx rest_to_run
-              | Error e -> Error e)))
-     | Conditional { condition; then_step; else_step } ->
-       (* Re-evaluate condition with restored variables *)
-       (match Expression.evaluate_to_bool ctx.variables condition with
-        | Ok true ->
-          (match resume_step ~path:(path @ [0]) ctx then_step rest with
-           | Ok _ -> Ok `Null
-           | Error e -> Error e)
-        | Ok false ->
-          (match else_step with
-           | Some s ->
-             (match resume_step ~path:(path @ [1]) ctx s rest with
-              | Ok _ -> Ok `Null
-              | Error e -> Error e)
-           | None -> Ok `Null)
-        | Error e -> Error e)
-     | Parallel _ | Map_reduce _ ->
-       Result.Error (Internal
-         (Printf.sprintf "Resume not supported for %s at step_path [%s] (only Sequential + Conditional)"
-            (step_type_name step)
-            (String.concat "." (List.map string_of_int (path @ step_path)))))
-     | Agent_call _ | Tool_call _ | Human_approval _ | Sub_workflow _ ->
-       Result.Error (Internal
-         (Printf.sprintf "resume: leaf step %s at non-empty step_path [%s]"
-            (step_type_name step)
-            (String.concat "." (List.map string_of_int (path @ step_path))))))
 
 (* -------------------------------------------------------------------------- *)
 (* Parallel execution — Eio fibers with semaphore-limited concurrency         *)
@@ -465,3 +383,96 @@ and execute_workflow ctx wf =
       } in
       (match wf.on_complete with Some cb -> cb wf_result | None -> ());
       Result.Error err
+
+(* -------------------------------------------------------------------------- *)
+(* Resume from checkpoint (§1.1) — re-enter execution at suspended step       *)
+(* -------------------------------------------------------------------------- *)
+
+let step_type_name = function
+  | Agent_call _ -> "Agent_call"
+  | Tool_call _ -> "Tool_call"
+  | Parallel _ -> "Parallel"
+  | Sequential _ -> "Sequential"
+  | Conditional _ -> "Conditional"
+  | Map_reduce _ -> "Map_reduce"
+  | Human_approval _ -> "Human_approval"
+  | Sub_workflow _ -> "Sub_workflow"
+
+(* Variable restore is required because checkpoint.variables carries the
+   accumulated result bindings from steps that completed before suspension. *)
+let rec resume_from_checkpoint (ctx : exec_context) (wf_steps : workflow_step)
+                                (checkpoint : workflow_checkpoint) =
+  let ctx' = { ctx with variables = checkpoint.variables } in
+  resume_step ~path:[] ctx' wf_steps checkpoint.step_path
+
+and resume_step ~path (ctx : exec_context) (step : workflow_step) (step_path : int list) =
+  match step_path with
+  | [] ->
+    (* At the suspended step itself. Must be Human_approval — treat as approved. *)
+    (match step with
+     | Human_approval _ -> Ok `Null
+     | _ ->
+       Result.Error (Internal
+         (Printf.sprintf "resume: leaf step at path [%s] is %s, not Human_approval"
+            (String.concat "." (List.map string_of_int path))
+            (step_type_name step))))
+  | idx :: rest ->
+    (match step with
+     | Sequential steps ->
+       let rest_to_run =
+         let rec skip n lst =
+           if n <= 0 then lst
+           else match lst with
+             | _ :: tl -> skip (n - 1) tl
+             | [] -> []
+         in
+         skip (idx + 1) steps
+       in
+       (match rest with
+         | [] ->
+           (match List.nth_opt steps idx with
+            | None ->
+              Result.Error (Internal
+                (Printf.sprintf "resume: index %d out of bounds for Sequential at [%s]"
+                   idx (String.concat "." (List.map string_of_int path))))
+            | Some (Human_approval _) ->
+              execute_sequential ~path ~start_idx:(idx + 1) ctx rest_to_run
+            | Some other ->
+              Result.Error (Internal
+                (Printf.sprintf "resume: step at Sequential index %d (path [%s]) is %s, not Human_approval (only Human_approval can suspend)"
+                   idx (String.concat "." (List.map string_of_int path))
+                   (step_type_name other))))
+         | _ :: _ ->
+          (match List.nth_opt steps idx with
+           | None ->
+             Result.Error (Internal
+               (Printf.sprintf "resume: index %d out of bounds for Sequential at [%s]"
+                  idx (String.concat "." (List.map string_of_int path))))
+           | Some target ->
+             (match resume_step ~path:(path @ [idx]) ctx target rest with
+              | Ok _ -> execute_sequential ~path ~start_idx:(idx + 1) ctx rest_to_run
+              | Error e -> Error e)))
+     | Conditional { condition; then_step; else_step } ->
+        (match Expression.evaluate_to_bool ctx.variables condition with
+         | Ok true ->
+           (match resume_step ~path:(path @ [0]) ctx then_step rest with
+            | Ok _ -> Ok `Null
+            | Error e -> Error e)
+         | Ok false ->
+           (match else_step with
+            | Some s ->
+              (match resume_step ~path:(path @ [1]) ctx s rest with
+               | Ok _ -> Ok `Null
+               | Error e -> Error e)
+            | None -> Ok `Null)
+         | Error e -> Error e)
+     | Parallel _ | Map_reduce _ ->
+       Result.Error (Internal
+         (Printf.sprintf "Resume not supported for %s at step_path [%s] (only Sequential + Conditional)"
+            (step_type_name step)
+            (String.concat "." (List.map string_of_int (path @ step_path)))))
+     | Agent_call _ | Tool_call _ | Human_approval _ | Sub_workflow _ ->
+       Result.Error (Internal
+         (Printf.sprintf "resume: leaf step %s at non-empty step_path [%s]"
+            (step_type_name step)
+            (String.concat "." (List.map string_of_int (path @ step_path))))))
