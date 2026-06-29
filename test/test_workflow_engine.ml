@@ -929,6 +929,59 @@ let test_agent_call_preserves_tool_calls () =
     | Ok other -> Alcotest.failf "expected Assoc, got %s" (Yojson.Safe.to_string other)
     | Error e -> Alcotest.failf "expected Ok: %s" (error_to_string e))
 
+let test_sequential_propagates_result_to_next_step () =
+  let t = dummy_tool (fun input _ ->
+    match input with
+    | `Assoc [("msg", `String s)] -> Success (`String ("echo:" ^ s))
+    | _ -> Success `Null) in
+  let agent = basic_agent ~tools:[t] () in
+  with_token (fun token ->
+    let llm = mock_llm [text_response "step1-output"] in
+    let reg = make_registry [t] in
+    let ctx = make_ctx
+      ~agent_resolver:(fun _ -> Some agent)
+      ~tool_resolver:(fun _ -> Some t.descriptor)
+      ~token ~llm ~registry:reg () in
+    let step = Sequential [
+      Agent_call { agent_id = "test-agent"; prompt_template = "anything" };
+      Tool_call { tool_name = "test_tool"; input = `Assoc [("msg", `String "got {{result.text}}")] };
+    ] in
+    match Workflow_engine.execute_step ctx step with
+    | Ok (`List [_; second]) ->
+      (match second with
+       | `String s -> Alcotest.(check string) "step 2 sees step 1 result" "echo:got step1-output" s
+       | _ -> Alcotest.fail "expected string from tool")
+    | Ok other -> Alcotest.failf "expected Ok (List [_; _]), got %s"
+                   (Yojson.Safe.to_string other)
+    | Error e -> Alcotest.failf "unexpected error: %s" (error_to_string e))
+
+let test_sequential_propagates_indexed_results () =
+  let t = dummy_tool (fun input _ ->
+    match input with
+    | `Assoc [("x", `String s)] -> Success (`String s)
+    | _ -> Success `Null) in
+  let agent = basic_agent ~tools:[t] () in
+  with_token (fun token ->
+    let llm = mock_llm [text_response "first"; text_response "second"] in
+    let reg = make_registry [t] in
+    let ctx = make_ctx
+      ~agent_resolver:(fun _ -> Some agent)
+      ~tool_resolver:(fun _ -> Some t.descriptor)
+      ~token ~llm ~registry:reg () in
+    let step = Sequential [
+      Agent_call { agent_id = "test-agent"; prompt_template = "1" };
+      Agent_call { agent_id = "test-agent"; prompt_template = "2" };
+      Tool_call { tool_name = "test_tool"; input = `Assoc [("x", `String "{{result_0.text}}-{{result_1.text}}")] };
+    ] in
+    match Workflow_engine.execute_step ctx step with
+    | Ok (`List [_; _; third]) ->
+      (match third with
+       | `String s -> Alcotest.(check string) "indexed results" "first-second" s
+       | _ -> Alcotest.fail "expected string")
+    | Ok other -> Alcotest.failf "unexpected: %s"
+                   (Yojson.Safe.to_string other)
+    | Error e -> Alcotest.failf "unexpected error: %s" (error_to_string e))
+
 (* -------------------------------------------------------------------------- *)
 (* Suite wiring                                                             *)
 (* -------------------------------------------------------------------------- *)
@@ -969,6 +1022,10 @@ let () =
         test_sequential_empty_workflow_immediate_success;
       Alcotest.test_case "Continue_on_failure keeps going with Null" `Quick
         test_sequential_continue_on_failure_keeps_going;
+      Alcotest.test_case "propagates result to next step" `Quick
+        test_sequential_propagates_result_to_next_step;
+      Alcotest.test_case "propagates indexed results" `Quick
+        test_sequential_propagates_indexed_results;
     ]);
     ("Parallel", [
       Alcotest.test_case "two parallel steps both complete" `Quick

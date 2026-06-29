@@ -85,6 +85,23 @@ let rec json_substitute (vars : (string * Yojson.Safe.t) list) (json : Yojson.Sa
   | `List xs -> `List (List.map (json_substitute vars) xs)
   | other -> other
 
+let rec flatten_json prefix (json : Yojson.Safe.t) : (string * Yojson.Safe.t) list =
+  match json with
+  | `Assoc fields ->
+    List.concat_map (fun (k, v) ->
+      let path = if prefix = "" then k else prefix ^ "." ^ k in
+      match v with
+      | `Assoc _ -> flatten_json path v
+      | `List _ -> flatten_json path v
+      | other -> [(path, other)]
+    ) fields
+  | `List items ->
+    List.concat_map (fun (idx, item) ->
+      let path = if prefix = "" then string_of_int idx else prefix ^ "." ^ string_of_int idx in
+      flatten_json path item
+    ) (List.mapi (fun i v -> (i, v)) items)
+  | other -> if prefix = "" then [] else [(prefix, other)]
+
 (* -------------------------------------------------------------------------- *)
 (* Step execution — recursive dispatcher                                      *)
 (* -------------------------------------------------------------------------- *)
@@ -188,16 +205,28 @@ let rec execute_step ?(path=[]) ctx step =
 (* -------------------------------------------------------------------------- *)
 
 and execute_sequential ?(path=[]) ctx steps =
-  let rec loop acc idx = function
+  let rec loop acc idx acc_results = function
     | [] -> Ok (`List (List.rev acc))
     | step :: rest ->
       let step_path = path @ [idx] in
-      match execute_step ~path:step_path ctx step with
+      let results_so_far = List.filter_map (fun (k, v) ->
+        if k = "result" then Some v else None) acc_results in
+      let effective_vars =
+        ctx.variables @ acc_results
+        @ [("results", `List (List.rev results_so_far))] in
+      let step_ctx = { ctx with variables = effective_vars } in
+      match execute_step ~path:step_path step_ctx step with
       | Ok result ->
         (match ctx.on_step_complete with
          | Some cb -> cb step_path result
          | None -> ());
-        loop (result :: acc) (idx + 1) rest
+        let flat = flatten_json "" result in
+        let flat_with_prefix = ("result", result) ::
+          List.map (fun (k, v) -> ("result." ^ k, v)) flat @
+          [Printf.sprintf "result_%d" idx, result] @
+          List.map (fun (k, v) ->
+            (Printf.sprintf "result_%d.%s" idx k, v)) flat in
+        loop (result :: acc) (idx + 1) (acc_results @ flat_with_prefix) rest
       | Result.Error err ->
         match ctx.failure_policy with
         | Fail_fast -> Result.Error err
@@ -205,13 +234,17 @@ and execute_sequential ?(path=[]) ctx steps =
           (match ctx.on_step_complete with
            | Some cb -> cb step_path `Null
            | None -> ());
-          loop acc (idx + 1) rest
+          let new_bindings = [
+            ("result", `Null);
+            (Printf.sprintf "result_%d" idx, `Null);
+          ] in
+          loop acc (idx + 1) (acc_results @ new_bindings) rest
         | Conditional { on_failure } ->
-          match execute_step ~path:step_path ctx on_failure with
-          | Ok _ -> loop acc (idx + 1) rest
+          match execute_step ~path:step_path step_ctx on_failure with
+          | Ok _ -> loop acc (idx + 1) acc_results rest
           | Result.Error e -> Result.Error e
   in
-  loop [] 0 steps
+  loop [] 0 [] steps
 
 (* -------------------------------------------------------------------------- *)
 (* Parallel execution — Eio fibers with semaphore-limited concurrency         *)
