@@ -1059,7 +1059,7 @@ let task_completion_of_yojson = function
      | Error e, _, _ | _, Error e, _ | _, _, Error e -> Result.Error e)
   | _ -> Result.Error "task_completion: expected object"
 
-type workflow = {
+type workflow_def = {
   id : string;
   name : string;
   version : int;
@@ -1068,6 +1068,11 @@ type workflow = {
   failure_policy : failure_policy;
   parallel_limit : int;
   timeout : float;
+}
+[@@deriving yojson]
+
+type workflow = {
+  def : workflow_def;
   on_complete : (workflow_result -> unit) option;
 }
 

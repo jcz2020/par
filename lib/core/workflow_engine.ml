@@ -288,14 +288,14 @@ and apply_reduce reduce results =
 
 and execute_workflow ctx wf =
   let start_time = Unix.gettimeofday () in
-  match execute_step ctx wf.steps with
+  match execute_step ctx wf.def.steps with
   | Ok value ->
     let elapsed = Unix.gettimeofday () -. start_time in
     let wf_result = {
       outputs = [ ("result", value) ];
       status = `Success;
       elapsed;
-      metadata = [ ("workflow_id", wf.id); ("workflow_name", wf.name) ];
+      metadata = [ ("workflow_id", wf.def.id); ("workflow_name", wf.def.name) ];
     } in
     (match wf.on_complete with Some cb -> cb wf_result | None -> ());
     Ok wf_result
@@ -307,7 +307,7 @@ and execute_workflow ctx wf =
         outputs = [];
         status = `Partial;
         elapsed;
-        metadata = [ ("workflow_id", wf.id); ("workflow_name", wf.name) ];
+        metadata = [ ("workflow_id", wf.def.id); ("workflow_name", wf.def.name) ];
       } in
       (match wf.on_complete with Some cb -> cb wf_result | None -> ());
       Ok wf_result
@@ -316,7 +316,7 @@ and execute_workflow ctx wf =
         outputs = [];
         status = `Failed;
         elapsed;
-        metadata = [ ("workflow_id", wf.id); ("workflow_name", wf.name) ];
+        metadata = [ ("workflow_id", wf.def.id); ("workflow_name", wf.def.name) ];
       } in
       (match wf.on_complete with Some cb -> cb wf_result | None -> ());
       Result.Error err

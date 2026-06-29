@@ -446,14 +446,16 @@ let workflow_persistence_suite =
       let llm = mock_llm [text_response "child done"] in
       let reg = make_registry [tool] in
       let child_wf : Types.workflow = {
-        id = "child-wf";
-        name = "Child Workflow";
-        version = 1;
-        steps = Tool_call { tool_name = "test_tool"; input = `Assoc [] };
-        variables = [("child_var", `String "child_value")];
-        failure_policy = Fail_fast;
-        parallel_limit = 4;
-        timeout = 60.0;
+        def = {
+          id = "child-wf";
+          name = "Child Workflow";
+          version = 1;
+          steps = Tool_call { tool_name = "test_tool"; input = `Assoc [] };
+          variables = [("child_var", `String "child_value")];
+          failure_policy = Fail_fast;
+          parallel_limit = 4;
+          timeout = 60.0;
+        };
         on_complete = None;
       } in
       with_token (fun token ->

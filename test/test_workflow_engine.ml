@@ -600,8 +600,9 @@ let dummy_workflow ?(id = "wf-test") ?(name = "Workflow Test")
                    ?(variables = []) ?(failure_policy = Fail_fast)
                    ?(parallel_limit = 4) ?(timeout = 300.0)
                    ?(on_complete = None) () : workflow =
-  { id; name; version = 1; steps; variables; failure_policy;
-    parallel_limit; timeout; on_complete }
+  { def = { id; name; version = 1; steps; variables; failure_policy;
+            parallel_limit; timeout };
+    on_complete }
 
 let workflow_status_to_string = function
   | Wf_pending -> "Wf_pending"
@@ -857,6 +858,31 @@ let test_edge_workflow_with_variable_substitution () =
 (* Suite wiring                                                             *)
 (* -------------------------------------------------------------------------- *)
 
+let test_workflow_def_round_trips_yojson () =
+  let def : workflow_def = {
+    id = "rt-test";
+    name = "Round Trip";
+    version = 1;
+    steps = Sequential [
+      Agent_call { agent_id = "a"; prompt_template = "x" };
+      Tool_call { tool_name = "t"; input = `Assoc [] };
+    ];
+    variables = [("k", `String "v"); ("n", `Int 42)];
+    failure_policy = Fail_fast;
+    parallel_limit = 2;
+    timeout = 60.0;
+  } in
+  let json = workflow_def_to_yojson def in
+  (match workflow_def_of_yojson json with
+   | Ok def' ->
+     Alcotest.(check string) "id round-trips" def.id def'.id;
+     Alcotest.(check string) "name round-trips" def.name def'.name;
+     Alcotest.(check int) "version round-trips" def.version def'.version;
+     Alcotest.(check int) "parallel_limit round-trips" def.parallel_limit def'.parallel_limit;
+     Alcotest.(check (float 0.0001)) "timeout round-trips" def.timeout def'.timeout
+   | Error e ->
+     Alcotest.failf "workflow_def_of_yojson failed: %s" e)
+
 let () =
   Alcotest.run "Workflow engine" [
     ("Sequential", [
@@ -930,5 +956,9 @@ let () =
         test_edge_workflow_with_no_variables;
       Alcotest.test_case "workflow with template input" `Quick
         test_edge_workflow_with_variable_substitution;
+    ]);
+    ("Serialization", [
+      Alcotest.test_case "workflow_def yojson round-trips" `Quick
+        test_workflow_def_round_trips_yojson;
     ]);
   ]

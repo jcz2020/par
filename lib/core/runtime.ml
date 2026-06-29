@@ -871,14 +871,14 @@ let submit_workflow rt wf =
     let cp = Workflow_engine.make_checkpoint ~step_path:[]
                ~step_results:[result]
                {
-                 Workflow_engine.variables = wf.variables;
+                  Workflow_engine.variables = wf.def.variables;
                  token;
                  agent_resolver = (fun aid -> htbl_get rt.agents aid);
                  tool_resolver = find_tool_across_agents rt;
                  llm = rt.services.llm;
                  registry = rt.tool_registry;
-                 parallel_limit = wf.parallel_limit;
-                 failure_policy = wf.failure_policy;
+                  parallel_limit = wf.def.parallel_limit;
+                  failure_policy = wf.def.failure_policy;
                  workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
                  on_step_complete = None;
                  workflow_run_id = Some id;
@@ -889,14 +889,14 @@ let submit_workflow rt wf =
      | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)))
   in
   let ctx = {
-    Workflow_engine.variables = wf.variables;
+    Workflow_engine.variables = wf.def.variables;
     token;
     agent_resolver = (fun aid -> htbl_get rt.agents aid);
     tool_resolver = find_tool_across_agents rt;
     llm = rt.services.llm;
     registry = rt.tool_registry;
-    parallel_limit = wf.parallel_limit;
-    failure_policy = wf.failure_policy;
+    parallel_limit = wf.def.parallel_limit;
+    failure_policy = wf.def.failure_policy;
     workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
     on_step_complete = Some checkpoint_cb;
     workflow_run_id = Some id;
@@ -949,7 +949,7 @@ let cancel_workflow rt wf_id =
   Ok ()
 
 let register_workflow rt (wf : workflow) =
-  htbl_set rt.workflow_defs wf.id wf;
+  htbl_set rt.workflow_defs wf.def.id wf;
   Ok ()
 
 let approve_workflow rt wf_id ~approver:_ =

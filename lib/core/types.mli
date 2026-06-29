@@ -871,7 +871,7 @@ type task_completion = {
 val task_completion_to_yojson : task_completion -> Yojson.Safe.t
 val task_completion_of_yojson : Yojson.Safe.t -> (task_completion, string) result
 
-type workflow = {
+type workflow_def = {
   id : string;
   name : string;
   version : int;
@@ -880,6 +880,11 @@ type workflow = {
   failure_policy : failure_policy;
   parallel_limit : int;
   timeout : float;
+}
+[@@deriving yojson]
+
+type workflow = {
+  def : workflow_def;
   on_complete : (workflow_result -> unit) option;
 }
 

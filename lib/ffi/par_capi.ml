@@ -794,8 +794,9 @@ let parse_workflow (json : Yojson.Safe.t) : Par.Types.workflow =
   let parallel_limit = json |> member "parallel_limit" |> to_int_option |> Option.value ~default:4 in
   let timeout = json |> member "timeout" |> to_float_option |> Option.value ~default:3600.0 in
   let on_complete = None in
-  { id; name; version; steps; variables = variables_json;
-    failure_policy; parallel_limit; timeout; on_complete }
+  { def = { id; name; version; steps; variables = variables_json;
+            failure_policy; parallel_limit; timeout };
+    on_complete }
 
 let do_submit_workflow (state_id : int) (workflow_json : string) =
   match get_state state_id with
