@@ -1151,6 +1151,63 @@ let test_lifecycle_approve_rejects_non_suspended () =
     | Error e -> Alcotest.failf "expected Invalid_input, got: %s"
                    (error_to_string e))
 
+(* -------------------------------------------------------------------------- *)
+(* Approve-workflow role validation (§1.2) — unit tests bypassing submit       *)
+(* -------------------------------------------------------------------------- *)
+
+let test_approve_validates_allowed_roles_allows_authorized () =
+  with_switch (fun sw ->
+    let rt = match Runtime.create ~config:(runtime_config ()) sw with
+      | Ok r -> r
+      | Error e -> Alcotest.failf "create: %s" (error_to_string e) in
+    let wf_id_str = "wf-role-ok" in
+    let wf = dummy_workflow ~id:wf_id_str
+      ~name:"Role OK"
+      ~steps:(Human_approval {
+        prompt_template = "ok?";
+        timeout = 60.0;
+        allowed_roles = ["admin"; "reviewer"];
+      }) () in
+    let _ = Runtime.register_workflow rt wf in
+    let id = match Runtime.submit_workflow rt wf with
+      | Ok id -> id
+      | Error e -> Alcotest.failf "submit: %s" (error_to_string e) in
+    match Runtime.approve_workflow rt id ~approver:"admin" with
+    | Ok () -> ()
+    | Error e -> Alcotest.failf "expected Ok for authorized approver, got: %s"
+                   (error_to_string e))
+
+let test_approve_validates_allowed_roles_rejects_unauthorized () =
+  with_switch (fun sw ->
+    let rt = match Runtime.create ~config:(runtime_config ()) sw with
+      | Ok r -> r
+      | Error e -> Alcotest.failf "create: %s" (error_to_string e) in
+    let wf_id_str = "wf-role-bad" in
+    let wf = dummy_workflow ~id:wf_id_str
+      ~name:"Role Bad"
+      ~steps:(Human_approval {
+        prompt_template = "ok?";
+        timeout = 60.0;
+        allowed_roles = ["admin"; "reviewer"];
+      }) () in
+    let _ = Runtime.register_workflow rt wf in
+    let id = match Runtime.submit_workflow rt wf with
+      | Ok id -> id
+      | Error e -> Alcotest.failf "submit: %s" (error_to_string e) in
+    match Runtime.approve_workflow rt id ~approver:"intern" with
+    | Ok () -> Alcotest.fail "expected reject for unauthorized approver"
+    | Error (Permission_denied msg) ->
+      Alcotest.(check bool) "mentions allowed_roles" true
+        (try ignore (Str.search_forward (Str.regexp "allowed_roles") msg 0); true
+         with Not_found -> false);
+      (match Runtime.get_workflow_status rt id with
+       | Ok (Wf_suspended _) -> ()
+       | Ok other -> Alcotest.failf "expected still suspended, got: %s"
+                       (workflow_status_to_string other)
+       | Error e -> Alcotest.failf "status: %s" (error_to_string e))
+    | Error e -> Alcotest.failf "expected Permission_denied, got: %s"
+                   (error_to_string e))
+
 let test_lifecycle_cancel_sets_failed () =
   with_switch (fun sw ->
     let rt = match Runtime.create ~config:(runtime_config ()) sw with
@@ -1540,6 +1597,12 @@ let () =
         test_lifecycle_approve_rejects_non_suspended;
       Alcotest.test_case "cancel transitions to failed" `Quick
         test_lifecycle_cancel_sets_failed;
+    ]);
+    ("Approve role validation", [
+      Alcotest.test_case "allowed_roles accepts authorized approver" `Quick
+        test_approve_validates_allowed_roles_allows_authorized;
+      Alcotest.test_case "allowed_roles rejects unauthorized approver" `Quick
+        test_approve_validates_allowed_roles_rejects_unauthorized;
     ]);
     ("Rehydration", [
       Alcotest.test_case "restores suspended runs after restart" `Quick
