@@ -74,7 +74,7 @@ See `docs/rules/docs.md` for full doc maintenance rules. Key points:
 - Do NOT credit or mention the partner by name anywhere persisted
 - Internal channel comms (chat, session transcripts) are not under this rule, but anything committed is
 
-**Enforcement:** `docs/rules/disclosure.md` has the full spec and migration playbook for cleaning up pre-existing violations. Run `make docs-check` after every doc edit; a future scanner will flag violators automatically.
+**Enforcement:** `docs/rules/disclosure.md` has the full spec and migration playbook for cleaning up pre-existing violations. Run `make docs-check` (which includes `make check-disclosure`) after every doc edit; the scanner (`scripts/check_disclosure.sh`) blocks PRs that add forbidden identifiers and runs in CI via `.github/workflows/disclosure.yml`.
 
 **Migration policy:** When this rule is tightened, pre-existing violations are cleaned in a dedicated sweep commit (`docs: sanitize downstream identifiers per new disclosure rule`). Do not silently rewrite historical content during unrelated work — keep the cleanup auditable.
 
