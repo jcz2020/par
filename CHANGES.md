@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.6.2-beta.20260629 — BETA
+## v0.6.2 — STABLE
 
 > Workflow engine fix cycle: closed the suspend → gate → resume loop and aligned API/docs with integration feedback. All 11 reported defects addressed.
 

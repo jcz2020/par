@@ -9,7 +9,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.6.0-beta — Configurable truncation policy (`on_max_tokens_behavior` ADT), synthesized tool-calling fallback for non-native providers (PAR-k38), auto JSON-Schema derivation via `ppx_deriving_jsonschema` (PAR-g4c), CLI session resume fixed, 14 GH audit fixes. API may change before v1.0.
+> **Status**: v0.6.2 — Workflow engine closed loop: suspend → gate → resume now fully functional (resume_workflow with checkpoint replay, approve_workflow with role validation, 7 lifecycle events, boot-time rehydration). Dynamic toolset API (update_agent_tools / unregister_tool / replace_tool). Disclosure enforcement scanner in CI. API may change before v1.0.
 
 ---
 
