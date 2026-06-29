@@ -209,8 +209,14 @@ val approve_task : runtime -> Task_id.t -> approver:string -> (unit, error_categ
 
 val submit_workflow :
   runtime ->
+  ?inputs:(string * Yojson.Safe.t) list ->
   workflow ->
   (Workflow_run_id.t, error_category) result
+(** Submit a workflow for execution, returning its run id immediately.
+    [?inputs] are merged into (and override) [wf.def.variables] for this
+    run only — the workflow definition itself is not mutated. Lets the
+    same workflow definition be parameterized differently per run without
+    callers having to copy-and-modify the record. *)
 
 val get_workflow_status :
   runtime ->

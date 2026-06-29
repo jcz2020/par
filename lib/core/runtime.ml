@@ -863,7 +863,8 @@ let find_tool_across_agents rt tool_name =
   );
   result.contents
 
-let submit_workflow rt wf =
+let submit_workflow rt ?(inputs = []) wf =
+  let effective_vars = wf.def.variables @ inputs in
   let id = Workflow_run_id.create () in
   htbl_set rt.workflows id Wf_running;
   publish_event rt (Workflow_started { workflow_run_id = id });
@@ -874,7 +875,7 @@ let submit_workflow rt wf =
     let cp = Workflow_engine.make_checkpoint ~step_path
                ~step_results:[result]
                {
-                  Workflow_engine.variables = wf.def.variables;
+                  Workflow_engine.variables = effective_vars;
                  token;
                  agent_resolver = (fun aid -> htbl_get rt.agents aid);
                  tool_resolver = find_tool_across_agents rt;
@@ -893,7 +894,7 @@ let submit_workflow rt wf =
      | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)))
   in
   let ctx = {
-    Workflow_engine.variables = wf.def.variables;
+    Workflow_engine.variables = effective_vars;
     token;
     agent_resolver = (fun aid -> htbl_get rt.agents aid);
     tool_resolver = find_tool_across_agents rt;
