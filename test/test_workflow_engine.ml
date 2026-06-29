@@ -1119,8 +1119,8 @@ let test_lifecycle_approve_then_resume () =
        Alcotest.failf "expected Wf_suspended, got %s"
          (workflow_status_to_string other)
      | Error e -> Alcotest.failf "get_workflow_status: %s" (error_to_string e));
-    (* Approve should succeed on a suspended workflow. *)
-    (match Runtime.approve_workflow rt id ~approver:"alice" with
+    (* Approve should succeed — approver "admin" matches allowed_roles. *)
+    (match Runtime.approve_workflow rt id ~approver:"admin" with
      | Ok () -> ()
      | Error e -> Alcotest.failf "approve_workflow: %s" (error_to_string e));
     let _ = Runtime.close rt in

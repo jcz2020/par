@@ -866,8 +866,11 @@ let find_tool_across_agents rt tool_name =
 let submit_workflow rt wf =
   let id = Workflow_run_id.create () in
   htbl_set rt.workflows id Wf_running;
+  publish_event rt (Workflow_started { workflow_run_id = id });
   let token = Cancellation.create_token rt.cancellation_root in
   let checkpoint_cb step_path result =
+    let step_id = String.concat "." (List.map string_of_int step_path) in
+    publish_event rt (Workflow_step_completed { step_id });
     let cp = Workflow_engine.make_checkpoint ~step_path
                ~step_results:[result]
                {
@@ -909,12 +912,14 @@ let submit_workflow rt wf =
       (match rt.services.persistence.save_workflow_state_fn id (Wf_completed result) None with
        | Ok () -> ()
        | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+     publish_event rt (Workflow_completed { workflow_run_id = id });
      Ok id
-    | exception Workflow_engine.Workflow_suspended { checkpoint; _ } ->
-      htbl_set rt.workflows id (Wf_suspended checkpoint);
-      (match rt.services.persistence.save_workflow_state_fn id (Wf_suspended checkpoint) (Some checkpoint) with
+    | exception Workflow_engine.Workflow_suspended { checkpoint = cp; prompt; allowed_roles } ->
+      htbl_set rt.workflows id (Wf_suspended cp);
+      (match rt.services.persistence.save_workflow_state_fn id (Wf_suspended cp) (Some cp) with
         | Ok () -> ()
         | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+      publish_event rt (Approval_requested { prompt; allowed_roles });
       (match Workflow_engine.Approval_deadline.lookup id with
        | Some deadline_entry ->
          let remaining = Workflow_engine.Approval_deadline.deadline_of deadline_entry -. Unix.gettimeofday () in
@@ -927,10 +932,12 @@ let submit_workflow rt wf =
              Workflow_engine.Approval_deadline.remove id;
              (match htbl_get rt.workflows id with
               | Some (Wf_suspended _) ->
+                publish_event rt Approval_timeout;
                 htbl_set rt.workflows id (Wf_failed (Timeout));
-                 (match rt.services.persistence.save_workflow_state_fn id (Wf_failed Timeout) None with
-                  | Ok () -> ()
-                  | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)))
+                (match rt.services.persistence.save_workflow_state_fn id (Wf_failed Timeout) None with
+                 | Ok () -> ()
+                 | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+                publish_event rt (Workflow_failed { workflow_run_id = id; error = Timeout })
               | _ -> ())))
        | None -> ());
       Ok id
@@ -939,6 +946,7 @@ let submit_workflow rt wf =
       (match rt.services.persistence.save_workflow_state_fn id (Wf_failed err) None with
        | Ok () -> ()
        | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+     publish_event rt (Workflow_failed { workflow_run_id = id; error = err });
      Ok id)
 
 let get_workflow_status rt wf_id =
@@ -953,12 +961,6 @@ let cancel_workflow rt wf_id =
 let register_workflow rt (wf : workflow) =
   htbl_set rt.workflow_defs wf.def.id wf;
   Ok ()
-
-let approve_workflow rt wf_id ~approver:_ =
-  match htbl_get rt.workflows wf_id with
-  | None -> Result.Error (Invalid_input "Workflow not found")
-  | Some (Wf_suspended _) -> Ok ()
-  | Some _ -> Result.Error (Invalid_input "Workflow is not suspended")
 
 let resume_workflow rt wf_id =
   match htbl_get rt.workflows wf_id with
@@ -1026,6 +1028,28 @@ let resume_workflow rt wf_id =
             | Ok () -> ()
             | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
            Error err))
+  | Some _ -> Result.Error (Invalid_input "Workflow is not suspended")
+
+let approve_workflow rt wf_id ~approver =
+  match htbl_get rt.workflows wf_id with
+  | None -> Result.Error (Invalid_input "Workflow not found")
+  | Some (Wf_suspended checkpoint) ->
+    (* §1.2: Validate approver against checkpoint.allowed_roles *)
+    (match checkpoint.allowed_roles with
+     | Some roles when not (List.mem approver roles) ->
+       Result.Error (Permission_denied
+         (Printf.sprintf "Approver '%s' not in allowed_roles: [%s]"
+            approver (String.concat "; " roles)))
+     | _ ->
+       (* Role check passed (or unrestricted). Publish event + cancel deadline. *)
+       publish_event rt (Approval_granted { approver });
+       (match Workflow_engine.Approval_deadline.lookup wf_id with
+        | Some _ -> Workflow_engine.Approval_deadline.remove wf_id
+        | None -> ());
+       (* Trigger resume_workflow to continue execution. *)
+       (match resume_workflow rt wf_id with
+        | Ok _ -> Ok ()
+        | Error e -> Error e))
   | Some _ -> Result.Error (Invalid_input "Workflow is not suspended")
 
 let noop_persistence : Types.persistence_service = {
