@@ -81,6 +81,10 @@ let make_persist (sqlt : Sqlite_persistence.t) : persistence_service =
       (fun id -> Sqlite_persistence.load_workflow_state sqlt id);
     load_all_suspended_workflows_fn =
       (fun () -> Sqlite_persistence.load_all_suspended_workflows sqlt);
+    save_workflow_def_fn =
+      (fun id def -> Sqlite_persistence.save_workflow_def sqlt id def);
+    load_all_workflow_defs_fn =
+      (fun () -> Sqlite_persistence.load_all_workflow_defs sqlt);
     save_conversation_fn =
       (fun sid conv -> Sqlite_persistence.save_conversation sqlt sid conv);
     load_conversation_fn =

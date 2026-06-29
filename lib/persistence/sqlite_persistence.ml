@@ -46,6 +46,11 @@ let init_schema db =
          updated_at     REAL NOT NULL,
          turn_count     INTEGER NOT NULL
        )|};
+    {|CREATE TABLE IF NOT EXISTS workflow_definitions (
+         workflow_id  TEXT PRIMARY KEY,
+         def_json     TEXT NOT NULL,
+         updated_at   REAL NOT NULL
+       )|};
   ] in
   (match List.find_map (fun sql ->
      match exec_sql db sql with
@@ -402,7 +407,7 @@ let load_workflow_state t run_id =
     load_workflow_state_from_db t.db run_id
   )
 
-let load_all_suspended_workflows t =
+ let load_all_suspended_workflows t =
   Eio.Mutex.use_ro t.mutex (fun () ->
     let stmt =
       Sqlite3.prepare t.db
@@ -420,11 +425,61 @@ let load_all_suspended_workflows t =
           let run_id = Workflow_run_id.of_string id_str in
           (match workflow_checkpoint_of_yojson (Yojson.Safe.from_string checkpoint_json) with
            | Ok cp -> acc := (run_id, Wf_suspended cp) :: !acc
-           | Error _ -> ())
+           | Error msg ->
+             Logs.err (fun m -> m "load_all_suspended: skipping run %s, decode error: %s"
+                          id_str msg))
         | Sqlite3.Rc.DONE -> stop := true
         | rc ->
           stop := true;
           error := Some (Result.Error (Internal (Printf.sprintf "Load suspended: %s" (Sqlite3.Rc.to_string rc))))
+      done;
+      match !error with
+      | Some e -> e
+      | None -> Ok (List.rev !acc)
+    in
+    let _ = Sqlite3.finalize stmt in
+    result
+  )
+
+let save_workflow_def t (workflow_id : string) (def_json : Yojson.Safe.t) =
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
+    let json = Yojson.Safe.to_string def_json in
+    let now = Unix.gettimeofday () in
+    let stmt =
+      Sqlite3.prepare t.db
+        "INSERT OR REPLACE INTO workflow_definitions (workflow_id, def_json, updated_at) \
+         VALUES (?, ?, ?)"
+    in
+    let _ = Sqlite3.bind_text stmt 1 workflow_id in
+    let _ = Sqlite3.bind_text stmt 2 json in
+    let _ = Sqlite3.bind_double stmt 3 now in
+    let step_result = Sqlite3.step stmt in
+    let _ = Sqlite3.finalize stmt in
+    match step_result with
+    | Sqlite3.Rc.DONE | Sqlite3.Rc.ROW -> Ok ()
+    | rc -> Result.Error (Internal (Printf.sprintf "workflow_def upsert: %s" (Sqlite3.Rc.to_string rc)))
+  )
+
+let load_all_workflow_defs t =
+  Eio.Mutex.use_ro t.mutex (fun () ->
+    let stmt =
+      Sqlite3.prepare t.db
+        "SELECT workflow_id, def_json FROM workflow_definitions"
+    in
+    let acc = ref [] in
+    let result =
+      let stop = ref false in
+      let error = ref None in
+      while not !stop do
+        match Sqlite3.step stmt with
+        | Sqlite3.Rc.ROW ->
+          let id_str = Sqlite3.column_text stmt 0 in
+          let def_json = Sqlite3.column_text stmt 1 in
+          acc := (id_str, Yojson.Safe.from_string def_json) :: !acc
+        | Sqlite3.Rc.DONE -> stop := true
+        | rc ->
+          stop := true;
+          error := Some (Result.Error (Internal (Printf.sprintf "Load workflow defs: %s" (Sqlite3.Rc.to_string rc))))
       done;
       match !error with
       | Some e -> e

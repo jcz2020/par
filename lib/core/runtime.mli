@@ -300,10 +300,13 @@ val invoke_workflow_sync :
   ?inputs:(string * Yojson.Safe.t) list ->
   workflow ->
   (workflow_result option, error_category) result
-(** Convenience wrapper: calls [submit_workflow_async] then blocks until
-    the workflow reaches a terminal state. Returns [Some result] on
-    completion, [None] on suspension (Human_approval awaiting approve),
-    [Error] on failure. Useful for tests and short workflows. *)
+(** Convenience wrapper: calls [submit_workflow] (sync, which blocks the
+    caller fiber until terminal state or suspension) then maps the run id
+    to the terminal result. Returns [Some result] on completion, [None]
+    on suspension (Human_approval awaiting approve), [Error] on failure.
+    Useful for tests and short workflows. For long-running workflows
+    where blocking the caller is undesirable, use [submit_workflow_async]
+    and track progress via events or [get_workflow_status]. *)
 
 val get_workflow_status :
   runtime ->

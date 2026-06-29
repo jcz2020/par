@@ -920,6 +920,10 @@ let make_rehydration_persist (sqlt : Sqlite_persistence.t) : persistence_service
       (fun id -> Sqlite_persistence.load_workflow_state sqlt id);
     load_all_suspended_workflows_fn =
       (fun () -> Sqlite_persistence.load_all_suspended_workflows sqlt);
+    save_workflow_def_fn =
+      (fun id def -> Sqlite_persistence.save_workflow_def sqlt id def);
+    load_all_workflow_defs_fn =
+      (fun () -> Sqlite_persistence.load_all_workflow_defs sqlt);
     save_conversation_fn =
       (fun sid conv -> Sqlite_persistence.save_conversation sqlt sid conv);
     load_conversation_fn =
@@ -999,8 +1003,103 @@ let test_rehydration_restores_suspended_workflows () =
       (try Sys.remove db_path with _ -> ());
       raise exn)
 
-let test_rehydration_empty_db_returns_no_runs () =
-  with_switch (fun sw ->
+let test_rehydration_resume_works_after_restart () =
+  (* The critical regression test for §2.1 + FIX 1: after process restart,
+     Runtime.create must restore BOTH suspended runs AND their workflow
+     definitions, so resume_workflow can actually replay the remaining
+     steps. Before the fix, workflow_defs was not restored and resume
+     would fail with "Workflow definition not found". *)
+  with_switch (fun sw1 ->
+    let db_path = Filename.temp_file "par_resume_restart_" ".db" in
+    try
+      (* Round 1: register workflow with Human_approval, submit, it suspends. *)
+      let _persist1, rt1 =
+        match Sqlite_persistence.create db_path with
+        | Error e -> Alcotest.failf "sqlite create: %s" (error_to_string e)
+        | Ok sqlt1 ->
+          let persist1 = make_rehydration_persist sqlt1 in
+          (match Runtime.create ~llm:rehydration_mock_llm
+                  ~persistence:persist1
+                  ~config:(rehydration_runtime_config db_path)
+                  sw1 with
+           | Ok r -> (persist1, r)
+           | Error e -> Alcotest.failf "rt1 create: %s" (error_to_string e))
+      in
+      let agent = ({ (basic_agent ()) with id = "post-approver" }) in
+      (match Runtime.register_agent rt1 agent with
+       | Ok () -> ()
+       | Error e -> Alcotest.failf "register_agent: %s" (error_to_string e));
+      let wf = dummy_workflow
+        ~id:"wf-restart-resume"
+        ~name:"Restart Resume"
+        ~steps:(Sequential [
+          Human_approval { prompt_template = "ok?"; timeout = 60.0;
+                           allowed_roles = ["admin"] };
+          Agent_call { agent_id = "post-approver";
+                       prompt_template = "You are approved. Say 'done'." };
+        ]) () in
+        (match Runtime.register_workflow rt1 wf with
+         | Ok () -> ()
+         | Error e -> Alcotest.failf "register_workflow: %s" (error_to_string e));
+        let run_id =
+          match Runtime.submit_workflow rt1 wf with
+          | Ok id -> id
+          | Error e -> Alcotest.failf "submit_workflow: %s" (error_to_string e)
+        in
+        (match Runtime.get_workflow_status rt1 run_id with
+         | Ok (Wf_suspended _) -> ()
+         | Ok other -> Alcotest.failf "expected Wf_suspended, got %s"
+                         (workflow_status_to_string other)
+         | Error e -> Alcotest.failf "status: %s" (error_to_string e));
+        let _ = Runtime.close rt1 in
+        (* Round 2: fresh runtime, NO register_workflow call.
+           The def should be auto-restored from workflow_definitions table. *)
+        with_switch (fun sw2 ->
+          let rt2 =
+            match Sqlite_persistence.create db_path with
+            | Error e -> Alcotest.failf "sqlite reopen: %s" (error_to_string e)
+            | Ok sqlt2 ->
+              let persist2 = make_rehydration_persist sqlt2 in
+              match Runtime.create ~llm:rehydration_mock_llm
+                      ~persistence:persist2
+                      ~config:(rehydration_runtime_config db_path)
+                      sw2 with
+              | Ok r -> r
+              | Error e -> Alcotest.failf "rt2 create: %s" (error_to_string e)
+          in
+          (* Tool handler also needs to be re-registered (persistence doesn't
+             cover tool handlers — only descriptors). *)
+          let agent2 = ({ (basic_agent ()) with id = "post-approver" }) in
+          (match Runtime.register_agent rt2 agent2 with
+           | Ok () -> ()
+           | Error e -> Alcotest.failf "register_agent rt2: %s" (error_to_string e));
+          (* Critical assertion: resume succeeds without manual register_workflow. *)
+          (match Runtime.resume_workflow rt2 run_id with
+           | Ok (Some result) ->
+             Alcotest.(check string) "result status Success"
+               "Success" (match result.status with
+                          | `Success -> "Success"
+                          | `Partial -> "Partial"
+                          | `Failed -> "Failed");
+             (match List.assoc_opt "result" result.outputs with
+              | Some (`List [_]) ->
+                Alcotest.(check bool) "post-approval step ran (got result list)"
+                  true true
+              | Some other ->
+                Alcotest.failf "expected List with one element, got %s"
+                  (Yojson.Safe.to_string other)
+              | None -> Alcotest.fail "expected result output")
+           | Ok None -> Alcotest.fail "expected Some result, got None (still suspended?)"
+           | Error e -> Alcotest.failf "resume after restart failed: %s"
+                          (error_to_string e));
+          let _ = Runtime.close rt2 in
+          ());
+      Sys.remove db_path
+    with exn ->
+      (try Sys.remove db_path with _ -> ());
+      raise exn)
+
+let test_rehydration_empty_db_returns_no_runs () =  with_switch (fun sw ->
     let db_path = Filename.temp_file "par_rehydration_empty_" ".db" in
     try
       let rt =
@@ -1749,6 +1848,8 @@ let () =
     ("Rehydration", [
       Alcotest.test_case "restores suspended runs after restart" `Quick
         test_rehydration_restores_suspended_workflows;
+      Alcotest.test_case "resume works after restart without re-register" `Quick
+        test_rehydration_resume_works_after_restart;
       Alcotest.test_case "empty db hydrates zero runs" `Quick
         test_rehydration_empty_db_returns_no_runs;
     ]);

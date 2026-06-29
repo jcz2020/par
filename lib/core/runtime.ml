@@ -1136,6 +1136,11 @@ let cancel_workflow rt wf_id =
 
 let register_workflow rt (wf : workflow) =
   htbl_set rt.workflow_defs wf.def.id wf;
+  let def_json = Types.workflow_def_to_yojson wf.def in
+  (match rt.services.persistence.save_workflow_def_fn wf.def.id def_json with
+   | Ok () -> ()
+   | Error e -> Logs.err (fun m -> m "save_workflow_def failed for %s: %s"
+                            wf.def.id (string_of_error_category e)));
   Ok ()
 
 let resume_workflow rt wf_id =
@@ -1169,41 +1174,45 @@ let resume_workflow rt wf_id =
         | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
        let start_time = Unix.gettimeofday () in
        (try
-          (match Workflow_engine.resume_from_checkpoint ctx wf.def.steps checkpoint with
-           | Ok value ->
-             let elapsed = Unix.gettimeofday () -. start_time in
-             let wf_result = {
-               outputs = [("result", value)];
-               status = `Success;
-               elapsed;
-               metadata = [("workflow_id", wf.def.id); ("workflow_name", wf.def.name)];
-             } in
-             htbl_set rt.workflows wf_id (Wf_completed wf_result);
-             (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_completed wf_result) None with
-              | Ok () -> ()
-              | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
-             (match wf.on_complete with Some cb -> cb wf_result | None -> ());
-             Ok (Some wf_result)
-           | Error err ->
-             htbl_set rt.workflows wf_id (Wf_failed err);
-             (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_failed err) None with
-              | Ok () -> ()
-              | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
-             Error err)
-        with
-         | Workflow_engine.Workflow_suspended { checkpoint = new_cp; _ } ->
-           htbl_set rt.workflows wf_id (Wf_suspended new_cp);
-           (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_suspended new_cp) (Some new_cp) with
-            | Ok () -> ()
-            | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
-           Ok None
-         | exn ->
-           let err = Internal (Printexc.to_string exn) in
-           htbl_set rt.workflows wf_id (Wf_failed err);
-           (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_failed err) None with
-            | Ok () -> ()
-            | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
-           Error err))
+           (match Workflow_engine.resume_from_checkpoint ctx wf.def.steps checkpoint with
+            | Ok value ->
+              let elapsed = Unix.gettimeofday () -. start_time in
+              let wf_result = {
+                outputs = [("result", value)];
+                status = `Success;
+                elapsed;
+                metadata = [("workflow_id", wf.def.id); ("workflow_name", wf.def.name)];
+              } in
+              htbl_set rt.workflows wf_id (Wf_completed wf_result);
+              (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_completed wf_result) None with
+               | Ok () -> ()
+               | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+              publish_event rt (Workflow_completed { workflow_run_id = wf_id });
+              (match wf.on_complete with Some cb -> cb wf_result | None -> ());
+              Ok (Some wf_result)
+            | Error err ->
+              htbl_set rt.workflows wf_id (Wf_failed err);
+              (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_failed err) None with
+               | Ok () -> ()
+               | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+              publish_event rt (Workflow_failed { workflow_run_id = wf_id; error = err });
+              Error err)
+         with
+          | Workflow_engine.Workflow_suspended { checkpoint = new_cp; prompt; allowed_roles } ->
+            htbl_set rt.workflows wf_id (Wf_suspended new_cp);
+            (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_suspended new_cp) (Some new_cp) with
+             | Ok () -> ()
+             | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+            publish_event rt (Approval_requested { prompt; allowed_roles });
+            Ok None
+          | exn ->
+            let err = Internal (Printexc.to_string exn) in
+            htbl_set rt.workflows wf_id (Wf_failed err);
+            (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_failed err) None with
+             | Ok () -> ()
+             | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+            publish_event rt (Workflow_failed { workflow_run_id = wf_id; error = err });
+            Error err))
   | Some _ -> Result.Error (Invalid_input "Workflow is not suspended")
 
 let approve_workflow rt wf_id ~approver =
@@ -1238,6 +1247,8 @@ let noop_persistence : Types.persistence_service = {
   save_workflow_state_fn = (fun _id _status _checkpoint -> Ok ());
   load_workflow_state_fn = (fun _id -> Ok None);
   load_all_suspended_workflows_fn = (fun _ -> Ok []);
+  save_workflow_def_fn = (fun _ _ -> Ok ());
+  load_all_workflow_defs_fn = (fun _ -> Ok []);
   save_conversation_fn = (fun _sid _conv -> Ok ());
   load_conversation_fn = (fun _sid -> Ok None);
   load_most_recent_conversation_fn = (fun () -> Ok None);
@@ -1340,7 +1351,22 @@ let create ?(persistence = noop_persistence)
       current_conversation = None;
       fallback_policy = Types.No_fallback;
     } in
-    (* §2.1: Rehydrate suspended workflows from persistence layer. *)
+     (* §2.1: Rehydrate suspended workflows AND workflow definitions from
+        persistence. Without restoring workflow_defs, resume_workflow would
+        fail with "Workflow definition not found" for any rehydrated run. *)
+    (match rt.services.persistence.load_all_workflow_defs_fn () with
+     | Ok defs ->
+       List.iter (fun (_id, def_json) ->
+         match Types.workflow_def_of_yojson def_json with
+         | Ok def ->
+           let wf : workflow = { def; on_complete = None } in
+           Types.htbl_set rt.workflow_defs def.id wf
+         | Error msg ->
+           Logs.err (fun m -> m "Runtime.create: workflow_def decode failed: %s" msg)
+       ) defs
+     | Error e ->
+       Logs.err (fun m -> m "Runtime.create: workflow_defs rehydration failed: %s"
+                    (string_of_error_category e)));
     (match rt.services.persistence.load_all_suspended_workflows_fn () with
      | Ok suspended_runs ->
        List.iter (fun (run_id, status) ->

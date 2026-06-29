@@ -783,6 +783,8 @@ type persistence_service = {
   save_workflow_state_fn : Workflow_run_id.t -> workflow_status -> workflow_checkpoint option -> (unit, error_category) result;
   load_workflow_state_fn : Workflow_run_id.t -> (workflow_checkpoint option, error_category) result;
   load_all_suspended_workflows_fn : unit -> ((Workflow_run_id.t * workflow_status) list, error_category) result;
+  save_workflow_def_fn : string -> Yojson.Safe.t -> (unit, error_category) result;
+  load_all_workflow_defs_fn : unit -> ((string * Yojson.Safe.t) list, error_category) result;
   save_conversation_fn : string -> conversation -> (unit, error_category) result;
   load_conversation_fn : string -> (conversation option, error_category) result;
   load_most_recent_conversation_fn : unit -> ((string * conversation) option, error_category) result;
