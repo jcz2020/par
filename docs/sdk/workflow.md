@@ -2,7 +2,7 @@
 
 **English** · [简体中文](../zh/sdk/workflow.md)
 
-> Translated to English for v0.3.2. Source-of-truth: the OCaml types in lib/core/workflow.ml.
+> Source-of-truth: the OCaml types in lib/core/types.ml and the engine in lib/core/workflow_engine.ml.
 
 # Workflow API Reference
 
@@ -12,19 +12,41 @@ This document describes the P-A-R SDK's workflow definition, execution, and stat
 
 A workflow is a multi-step orchestration engine. It composes agent calls, tool calls, and human approvals into a structured execution plan. Workflows support checkpointing and can suspend or resume at human approval points.
 
-## workflow type
+## workflow_def and workflow types
+
+The workflow model is split into two records: a serializable definition and a runtime value that may carry an optional completion callback.
 
 ```ocaml
-type workflow = {
+(* Serializable definition. Round-trips to JSON via [@@deriving yojson]. *)
+type workflow_def = {
   id : string;
   name : string;
   version : int;
-  steps : workflow_step;                         (* Entry step *)
-  variables : (string * Yojson.Safe.t) list;    (* Template variables *)
+  steps : workflow_step;                          (* Entry step *)
+  variables : (string * Yojson.Safe.t) list;      (* Template variables *)
   failure_policy : failure_policy;
   parallel_limit : int;
   timeout : float;
-  on_complete : (workflow_result -> unit) option;  (* Optional completion callback *)
+}
+[@@deriving yojson]
+
+(* Runtime value. Carries the definition plus an optional completion hook.
+   Not serializable: on_complete is a closure. *)
+type workflow = {
+  def : workflow_def;
+  on_complete : (workflow_result -> unit) option;  (* Invoked once with the final result *)
+}
+```
+
+Field access goes through `wf.def`: `wf.def.id`, `wf.def.variables`, `wf.def.steps`, and so on. Only `wf.on_complete` is read directly off the `workflow` record.
+
+To build a workflow, either construct the records directly or deserialize JSON into a `workflow_def` and wrap it:
+
+```ocaml
+let wf : workflow = {
+  def = { id; name; version = 1; steps; variables;
+          failure_policy = Fail_fast; parallel_limit = 4; timeout = 600.0 };
+  on_complete = None;
 }
 ```
 
@@ -32,9 +54,9 @@ type workflow = {
 
 ```ocaml
 type failure_policy =
-  | Fail_fast                              (* Stop on first error, default *)
-  | Continue_on_failure                    (* Skip failed steps and keep running *)
-  | Conditional of { on_failure : workflow_step }  (* Run a compensation step on failure *)
+  | Fail_fast                                     (* Stop on first error, default *)
+  | Continue_on_failure                           (* Skip failed steps and keep running *)
+  | Conditional of { on_failure : workflow_step } (* Run a compensation step on failure *)
 ```
 
 ### workflow_result
@@ -50,6 +72,8 @@ type workflow_result = {
 }
 ```
 
+If `wf.on_complete` is set, the engine invokes it with this record exactly once when the workflow reaches a terminal state.
+
 ## Step types
 
 ### workflow_step
@@ -62,7 +86,7 @@ type workflow_step =
     }
   | Tool_call of {
       tool_name : string;
-      input : Yojson.Safe.t;
+      input : Yojson.Safe.t;              (* {{var}} substitution applied to string leaves *)
     }
   | Parallel of workflow_step list
   | Sequential of workflow_step list
@@ -78,7 +102,7 @@ type workflow_step =
     }
   | Human_approval of {
       prompt_template : string;
-      timeout : float;                   (* Approval timeout in seconds *)
+      timeout : float;                    (* Approval timeout in seconds *)
       allowed_roles : string list;
     }
   | Sub_workflow of {
@@ -98,9 +122,20 @@ Agent_call {
 }
 ```
 
+The result of an `Agent_call` is a structured JSON value of shape `` `Assoc [("text", `String _); ("tool_calls", `List _)] ``. Downstream steps in a Sequential can reference the parts individually, for example `{{result.text}}` for the assistant text and `{{result.tool_calls}}` for the tool-call array. See [Variables and context propagation](#variables-and-context-propagation) for the full binding rules.
+
 ### Tool_call
 
-Calls a registered tool directly:
+Calls a registered tool directly. The `input` JSON has `{{variable}}` template substitution applied recursively to every string leaf, so any nested string can reference variables from the workflow context or from prior Sequential steps:
+
+```ocaml
+Tool_call {
+  tool_name = "calculator";
+  input = `Assoc [("expression", `String "{{result.text}}")];  (* substituted from previous step *)
+}
+```
+
+A literal value (no templates) works too:
 
 ```ocaml
 Tool_call {
@@ -111,14 +146,16 @@ Tool_call {
 
 ### Sequential
 
-Executes a list of steps in order:
+Executes a list of steps in order. Each completed step propagates its result to all subsequent siblings in the same Sequential (see [Variables and context propagation](#variables-and-context-propagation)):
 
 ```ocaml
 Sequential [
   Agent_call { agent_id = "agent-a"; prompt_template = "Describe X" };
-  Agent_call { agent_id = "agent-b"; prompt_template = "Critique: {{result}}" };
+  Agent_call { agent_id = "agent-b"; prompt_template = "Critique: {{result.text}}" };
 ]
 ```
+
+In the second step, `{{result.text}}` resolves to the `text` field of the structured result produced by `agent-a`. If the previous step returned a bare string (not an `Assoc`), `{{result}}` resolves to that string directly.
 
 ### Parallel
 
@@ -178,6 +215,8 @@ Human_approval {
 }
 ```
 
+The `allowed_roles` list is captured into the checkpoint at suspension time and enforced by `Runtime.approve_workflow`.
+
 ### Sub_workflow
 
 Nests another registered workflow. Variables are merged with the parent:
@@ -199,14 +238,41 @@ All functions in this section take a `runtime` value created by `Runtime.create`
 val Runtime.register_workflow : runtime -> workflow -> (unit, error_category) result
 ```
 
+Stores the workflow under `wf.def.id` so it can be referenced by `Sub_workflow` and reloaded on resume. The same record can be passed straight to `submit_workflow` without registering first.
+
 ### Submit a workflow execution
 
+Three entry points cover the common patterns. All three accept an optional `?inputs` list that is merged into (and overrides) `wf.def.variables` for this run only. The workflow definition itself is not mutated, so one definition can be parameterized differently per run.
+
 ```ocaml
-val Runtime.submit_workflow : runtime -> workflow ->
+(* Synchronous. Blocks the caller fiber until the workflow reaches a
+   terminal state (Completed / Failed) or suspends at Human_approval. *)
+val Runtime.submit_workflow :
+  runtime ->
+  ?inputs:(string * Yojson.Safe.t) list ->
+  workflow ->
   (Workflow_run_id.t, error_category) result
+
+(* Fire-and-forget. Forks execution in a background fiber and returns the
+   run id immediately. Track progress via get_workflow_status or by
+   subscribing to events on the runtime's event bus. *)
+val Runtime.submit_workflow_async :
+  runtime ->
+  ?inputs:(string * Yojson.Safe.t) list ->
+  workflow ->
+  (Workflow_run_id.t, error_category) result
+
+(* Convenience wrapper. Calls submit_workflow_async then blocks until the
+   workflow terminates. Returns [Some result] on completion, [None] on
+   suspension, [Error] on failure. Handy for tests and short workflows. *)
+val Runtime.invoke_workflow_sync :
+  runtime ->
+  ?inputs:(string * Yojson.Safe.t) list ->
+  workflow ->
+  (workflow_result option, error_category) result
 ```
 
-Returns the workflow run ID, which can be used for subsequent status queries.
+For long-running workflows prefer `submit_workflow_async` so the caller fiber is not pinned.
 
 ### Query workflow status
 
@@ -229,6 +295,8 @@ val Runtime.approve_workflow : runtime -> Workflow_run_id.t -> approver:string -
   (unit, error_category) result
 ```
 
+The `approver` string is validated against the checkpoint's `allowed_roles` (captured from the `Human_approval` step at suspension time). If `allowed_roles = Some roles` and `approver` is not on that list, the call returns `Permission_denied` without resuming. When `allowed_roles = None` the check is unrestricted. On a successful approve the engine publishes an `Approval_granted` event, removes the approval deadline, and resumes the workflow.
+
 ### Resume a suspended workflow
 
 ```ocaml
@@ -236,20 +304,47 @@ val Runtime.resume_workflow : runtime -> Workflow_run_id.t ->
   (workflow_result option, error_category) result
 ```
 
+Resume from checkpoint supports `Sequential` and `Conditional` step types. `Parallel` and `Map_reduce` at the suspension `step_path` return an `Error`, because mid-iteration concurrency state cannot be safely reconstructed from a checkpoint. The only step type that can produce a suspension is `Human_approval`, so in practice this limitation only matters when the approval sits inside a Parallel or Map_reduce branch.
+
+Returns `Ok (Some result)` if the workflow ran to completion, `Ok None` if it suspended again at a later approval, and `Error` otherwise.
+
 ## Variables and context propagation
 
 Workflows support the `{{variable_name}}` template syntax. Variables are available at the following places:
 
-- `Agent_call.prompt_template` -- substituted with the string representation of a JSON value
-- `Human_approval.prompt_template` -- same as above
+- `Agent_call.prompt_template`, substituted with the string representation of a JSON value (for nested fields, dotted keys like `{{result.text}}` resolve to the leaf)
+- `Human_approval.prompt_template`, same rules as above
+- `Tool_call.input`, applied recursively to every string leaf in the JSON tree
 
-Variable sources:
+Variable sources, in order of precedence (later sources override earlier ones for the same key):
 
-1. `workflow.variables` -- initial variables declared with the workflow definition
-2. `Sub_workflow.variables` -- a sub-workflow can pass extra variables (merged with the parent's)
-3. `Map_reduce` -- the current iteration element is injected as a variable of the same name
+1. `workflow_def.variables` (initial variables declared with the workflow definition)
+2. `Sub_workflow.variables` (a sub-workflow can pass extra variables, merged with the parent's)
+3. `Map_reduce` iteration binding (the current iteration element is injected as a variable of the same name as the `over` field)
+4. **Step results from preceding `Sequential` siblings.** Each completed step in a Sequential publishes its output under three families of keys:
+   - `result` is the most recent sibling's output
+   - `result_N` (zero-indexed: `result_0`, `result_1`, ...) is sibling N's output
+   - `results` is the accumulated array of every sibling output so far
+
+   When the step result is an `Assoc` (the shape `Agent_call` produces), flat dotted bindings are added too: `result.text`, `result.tool_calls`, `result_0.text`, `result_1.tool_calls`, and so on. This is what makes the `Critique: {{result.text}}` pattern in the Sequential example work.
 
 Expression evaluation (the `condition` of `Conditional`) uses `variables` as its context and supports `Variable "key"` to reference a value.
+
+## Workflow lifecycle events
+
+The engine emits an event on the runtime's event bus at every state transition. External systems subscribe via `Runtime.create ~event_bus: ...` and listen for these variants of the `event` type:
+
+| Event | Emitted when | Payload |
+|-------|------|---------|
+| `Workflow_started` | A workflow run begins | `{ workflow_run_id }` |
+| `Workflow_step_completed` | Any step finishes successfully | `{ step_id }` where `step_id` is a dot-separated path like `"0.1.2"` |
+| `Workflow_completed` | A run reaches a terminal success state | `{ workflow_run_id }` |
+| `Workflow_failed` | A run reaches a terminal failure state | `{ workflow_run_id; error }` |
+| `Approval_requested` | A `Human_approval` step suspends the run | `{ prompt; allowed_roles }` |
+| `Approval_granted` | `approve_workflow` succeeds and resumes the run | `{ approver }` |
+| `Approval_timeout` | An approval deadline elapses without a grant | (no payload) |
+
+For long-running or cross-process workflows, subscribe to the event bus rather than polling `get_workflow_status`.
 
 ## Checkpoint and resume
 
@@ -268,20 +363,27 @@ type workflow_status =
 
 ```ocaml
 type workflow_checkpoint = {
-  step_path : int list;                        (* Step path index *)
-  variables : (string * Yojson.Safe.t) list;   (* Current variable snapshot *)
-  step_results : Yojson.Safe.t list;           (* Results of completed steps *)
+  workflow_id : string;                          (* Identifies the workflow_def for resume *)
+  step_path : int list;                          (* Dot-separated path to the suspension point *)
+  variables : (string * Yojson.Safe.t) list;     (* Current variable snapshot *)
+  step_results : Yojson.Safe.t list;             (* Results of completed steps *)
+  allowed_roles : string list option;            (* None = unrestricted *)
 }
+[@@deriving yojson]
 ```
+
+`workflow_id` lets the engine look up the original `workflow_def` from `rt.workflow_defs` at resume time, so a fresh process can pick up a run that another process suspended. `allowed_roles` is `Some roles` when the suspending step was a `Human_approval` with a non-empty role list, and is what `Runtime.approve_workflow` checks against. `None` means the approval is unrestricted.
 
 A workflow automatically creates a checkpoint and suspends when it reaches a `Human_approval` step. The persistence layer saves the checkpoint to the database, which makes cross-process recovery possible.
 
 ### Resume flow
 
-1. The workflow reaches `Human_approval` and its status becomes `Wf_suspended`.
-2. An external system calls `Runtime.approve_workflow` or `Runtime.resume_workflow`.
-3. The workflow resumes from the checkpoint and runs the remaining steps.
-4. If the timeout elapses, the status becomes `Wf_failed Timeout` automatically.
+1. The workflow reaches `Human_approval` and its status becomes `Wf_suspended`. The checkpoint carries `workflow_id`, `step_path`, accumulated `variables`, `step_results`, and `allowed_roles`.
+2. An external system calls `Runtime.approve_workflow` (which performs the role check, publishes `Approval_granted`, then triggers resume internally) or `Runtime.resume_workflow` (skips the role check and resumes directly).
+3. The engine reloads the workflow definition by `checkpoint.workflow_id`, restores variables from the checkpoint, and runs the remaining steps.
+4. If the approval timeout elapses first, the status becomes `Wf_failed Timeout` automatically and an `Approval_timeout` event is published.
+
+Limitation: resume from checkpoint supports `Sequential` and `Conditional` step types. `Parallel` and `Map_reduce` at the suspension `step_path` return an `Error` because mid-iteration concurrency state cannot be safely reconstructed.
 
 ### workflow_run
 
@@ -296,13 +398,13 @@ type workflow_run = {
 }
 ```
 
-## Approval timeout (v0.2.0)
+## Approval timeout
 
-When a workflow reaches a `Human_approval` step, the engine automatically registers a timeout fiber. The fiber waits for approval until the timeout elapses. Once the deadline passes, the engine removes the deadline, marks the workflow as `Wf_failed Timeout`, and persists the state change to the database.
+When a workflow reaches a `Human_approval` step, the engine automatically registers a timeout fiber. The fiber waits for approval until the timeout elapses. Once the deadline passes, the engine removes the deadline, marks the workflow as `Wf_failed Timeout`, publishes an `Approval_timeout` event, and persists the state change to the database.
 
 The timeout mechanism is managed internally by the `Workflow_engine.Approval_deadline` module.
 
-## Persisting workflow state
+## Persistence and recovery
 
 Workflow state is persisted through the following functions on `persistence_service`:
 
@@ -311,9 +413,17 @@ save_workflow_state_fn : Workflow_run_id.t -> workflow_status ->
   workflow_checkpoint option -> (unit, error_category) result
 load_workflow_state_fn : Workflow_run_id.t ->
   (workflow_checkpoint option, error_category) result
+load_all_suspended_workflows_fn : unit ->
+  ((Workflow_run_id.t * workflow_status) list, error_category) result
 ```
 
 The SQLite backend automatically creates a `workflow_states` table that stores the status and checkpoint as JSON.
+
+### Rehydration at boot
+
+At `Runtime.create`, the runtime queries `load_all_suspended_workflows_fn` and populates its in-memory `rt.workflows` table with any suspended runs found in the persistence layer. Those runs are then resumable via `Runtime.resume_workflow` (or `Runtime.approve_workflow`) without further setup.
+
+Rehydration does **not** auto-resume anything. A suspended run sitting in the database stays suspended until something explicitly approves or resumes it. The runtime also does not re-arm the approval deadline fiber on boot; if you want the original timeout to keep ticking across a process restart, surface that through your own scheduler.
 
 ## Complete workflow example
 
@@ -322,42 +432,46 @@ The runtime `rt` below is created with `Runtime.create` (see [Agent API](agent.m
 ```ocaml
 open Par
 
-let wf = {
-  id = "research-workflow";
-  name = "Research and Summary";
-  version = 1;
-  steps = Sequential [
-    Agent_call {
-      agent_id = "researcher";
-      prompt_template = "Research the topic: {{topic}}";
-    };
-    Human_approval {
-      prompt_template = "Research complete. Continue to summarize?";
-      timeout = 60.0;
-      allowed_roles = ["admin"];
-    };
-    Agent_call {
-      agent_id = "summarizer";
-      prompt_template = "Summarize the research on: {{topic}}";
-    };
-  ];
-  variables = [("topic", `String "OCaml 5 concurrency")];
-  failure_policy = Fail_fast;
-  parallel_limit = 3;
-  timeout = 600.0;
+let wf : workflow = {
+  def = {
+    id = "research-workflow";
+    name = "Research and Summary";
+    version = 1;
+    steps = Sequential [
+      Agent_call {
+        agent_id = "researcher";
+        prompt_template = "Research the topic: {{topic}}";
+      };
+      Human_approval {
+        prompt_template = "Research complete. Continue to summarize?";
+        timeout = 60.0;
+        allowed_roles = ["admin"];
+      };
+      Agent_call {
+        agent_id = "summarizer";
+        prompt_template = "Summarize this: {{result.text}}";
+      };
+    ];
+    variables = [("topic", `String "OCaml 5 concurrency")];
+    failure_policy = Fail_fast;
+    parallel_limit = 3;
+    timeout = 600.0;
+  };
   on_complete = None;
 } in
 ignore (Runtime.register_workflow rt wf);
-match Runtime.submit_workflow rt wf with
+match Runtime.submit_workflow_async rt wf with
 | Ok run_id ->
   Printf.printf "Workflow started: %s\n" (Workflow_run_id.to_string run_id)
 | Error err ->
   Printf.eprintf "Workflow submission failed\n"
 ```
 
+The third step uses `{{result.text}}` to pull the assistant text from the previous `Agent_call` sibling. Because the approval step sits between the two agents, `result` at that point refers to the researcher's structured output.
+
 ## JSON workflow format
 
-A workflow can be loaded from JSON (you deserialize it into the `workflow` record yourself):
+A workflow definition can be loaded from JSON. Deserialize into a `workflow_def` (which carries `[@@deriving yojson]`) and wrap it in a `workflow` record with `on_complete = None`:
 
 ```json
 {
@@ -381,7 +495,7 @@ A workflow can be loaded from JSON (you deserialize it into the `workflow` recor
 }
 ```
 
-A step is serialized as `["StepType", arguments]`. The argument shape depends on the step type.
+A step is serialized as `["StepType", arguments]`. The argument shape depends on the step type. Only `workflow_def` is JSON-serializable; `workflow.on_complete` is a closure and is not part of the wire format.
 
 ## See also
 
