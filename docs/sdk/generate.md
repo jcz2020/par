@@ -215,7 +215,7 @@ def on_chunk_json(chunk_json: str) -> None:
 
 with Runtime(config) as rt:
     rt.register_agent(json.dumps({
-        "id": "another downstream agent",
+        "id": "mockup-agent",
         "system_prompt": "You produce self-contained HTML mockups.",
         "model": {"provider": "anthropic",
                   "model_name": "claude-sonnet-4-20250514",
@@ -225,7 +225,7 @@ with Runtime(config) as rt:
         "early_stopping_method": "Force",
     }))
     result = rt.invoke_generate(
-        "another downstream agent",
+        "mockup-agent",
         "Mock up a settings page with light and dark modes.",
         on_chunk=on_chunk_json,
         total_timeout=90.0,
