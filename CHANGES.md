@@ -1,5 +1,66 @@
 # CHANGES
 
+## v0.6.2-beta.20260629 — BETA
+
+> Workflow engine fix cycle: closed the suspend → gate → resume loop and aligned API/docs with integration feedback (PAR-uy3 + 10 related issues). All 11 reported defects addressed.
+
+### Added — Closed loop: suspend → gate → resume (§1.1, §1.2)
+
+- **NEW** `Runtime.resume_workflow` — real implementation (was stub returning "not yet implemented"). Replays checkpoint, walks step_path, re-enters execution at the suspended Human_approval, treats it as approved, runs remaining siblings. Supports Sequential + Conditional resume; Parallel/Map_reduce return explicit `Error` (documented limitation).
+- **NEW** `Runtime.approve_workflow` — was no-op (`approver:_` discarded). Now validates `approver` against `checkpoint.allowed_roles` (returns `Permission_denied` on mismatch), publishes `Approval_granted` event, cancels deadline watcher, triggers `resume_workflow`.
+- **NEW** `Workflow_engine.resume_from_checkpoint` — public algorithm: `exec_context -> workflow_step -> workflow_checkpoint -> (Yojson.t, error_category) result`.
+
+### Added — Lifecycle events (§1.4)
+
+- The engine defined 7 workflow event variants but emitted ZERO. Now publishes at every state transition:
+  - `Workflow_started { workflow_run_id }` on submit
+  - `Workflow_step_completed { step_id }` per step (stable dot-separated ID like `"0.1.2"`)
+  - `Workflow_completed { workflow_run_id }` on terminal success
+  - `Workflow_failed { workflow_run_id; error }` on terminal failure or timeout
+  - `Approval_requested { prompt; allowed_roles }` on Human_approval suspend
+  - `Approval_granted { approver }` on successful approve
+  - `Approval_timeout` on deadline watcher firing
+
+### Added — Durability (§2.1)
+
+- `Runtime.create` now rehydrates suspended workflow runs from SQLite at boot via new `load_all_suspended_workflows_fn`. Runs are RESUMABLE (call `resume_workflow`) but NOT auto-resumed.
+
+### Added — Async + parameterized submit (§2.2, §2.3)
+
+- **NEW** `Runtime.submit_workflow_async` — fire-and-forget variant. Forks execution in background fiber, returns run_id immediately. Caller tracks progress via `get_workflow_status` or event bus subscription.
+- **NEW** `Runtime.invoke_workflow_sync` — convenience wrapper. Returns `Some result | None (suspended) | Error`. Useful for tests and short workflows.
+- All three submit functions (`submit_workflow`, `submit_workflow_async`, `invoke_workflow_sync`) now accept `?inputs:(string * Yojson.Safe.t) list` for per-run parameterization without mutating the workflow definition.
+
+### Changed — Engine internals (§1.3, §4.2, §4.3)
+
+- **Sequential result propagation** (§1.3): each step's result is now bound to variables visible to subsequent steps as `result` (most recent), `result_N` (indexed by position), `results` (accumulated array), plus flat dotted bindings for `Assoc` results (`result.text`, `result.tool_calls`, `result_0.text`, etc.). The doc example `"Critique: {{result}}"` now actually works.
+- **Tool_call input substitution** (§4.2): `{{var}}` template substitution is applied recursively to all string leaves of `Tool_call.input` JSON (previously only `Agent_call.prompt_template` and `Human_approval.prompt_template` were substituted).
+- **Agent_call structured output** (§4.3): step result is now `` `Assoc [("text", ...); ("tool_calls", ...)] `` instead of just `` `String text ``. Downstream steps can reference `{{result.text}}` and `{{result.tool_calls}}`.
+- `execute_step` and all `execute_*` functions thread `?path:int list` for accurate `step_path` tracking in checkpoints. `on_step_complete` callback type changed from `(string -> ...)` to `(int list -> ...)` to receive the actual path.
+- `execute_sequential` gains `?start_idx:int` parameter so resumed steps continue indexing correctly.
+
+### Changed — Type split (§4.1, BREAKING in 0.x per SemVer §4)
+
+- `workflow` type split into `workflow_def` (serializable record with `[@@deriving yojson]`) + `workflow = { def : workflow_def; on_complete : (workflow_result -> unit) option }`. Enables JSON-driven workflow registration.
+- **Migration**: every `wf.id` / `wf.variables` / `wf.steps` etc. becomes `wf.def.id` / `wf.def.variables` / `wf.def.steps`. `wf.on_complete` unchanged.
+- `workflow_checkpoint` gains two fields: `workflow_id : string` (for resume to look up workflow def) and `allowed_roles : string list option` (None = unrestricted, backward compat with old checkpoints).
+- `exec_context` gains `workflow_id_resolver : unit -> string option` (wires workflow_id into checkpoints at suspend time).
+
+### Docs (§3.1)
+
+- `docs/sdk/workflow.md` rewritten (+172 / -58 lines): all examples updated to new `workflow_def + workflow` shape, new sections for "Workflow lifecycle events" and "Persistence and recovery", Sequential section explains result propagation, Tool_call section shows input substitution, approve/resume sections reflect actual behavior.
+
+### Tests
+
+- 22 new tests in `test/test_workflow_engine.ml` (was 30, now 52): 7 resume tests (sequential, nested, conditional, parallel rejection, invalid path, variable restoration, e2e runtime), 3 approve role-validation tests, 2 rehydration tests, 4 lifecycle event tests, 2 checkpoint round-trip tests, plus step_path tracking and tool/agent step-result tests.
+- All 195+ existing tests across the suite remain green (zero regressions).
+
+### Strategic motivation
+
+Downstream project (a downstream project / a downstream integrator) reported that the suspend → gate → resume closed loop was broken in three of four places: resume was a stub, approve was a no-op, and step results didn't propagate. Combined with §2.1 durability gap, the workflow engine was unfit for production Human-in-the-Loop scenarios. This cycle closes all 11 reported defects and brings the engine to functional parity with the documented API.
+
+---
+
 ## v0.6.1 — STABLE
 
 > Long-output generation mode: typed `on_max_tokens` option + first-class `invoke_generate` API. Closes the gap surfaced by a downstream project downstream (long-output agents were bypassing PAR's ReAct loop to call LLM directly).
