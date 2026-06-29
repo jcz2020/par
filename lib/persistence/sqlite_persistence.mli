@@ -17,6 +17,7 @@ val save_task_state : t -> task_state -> (unit, error_category) result
 val load_task_state : t -> Task_id.t -> (task_state option, error_category) result
 val save_workflow_state : t -> Workflow_run_id.t -> workflow_status -> workflow_checkpoint option -> (unit, error_category) result
 val load_workflow_state : t -> Workflow_run_id.t -> (workflow_checkpoint option, error_category) result
+val load_all_suspended_workflows : t -> ((Workflow_run_id.t * workflow_status) list, error_category) result
 val save_conversation : t -> string -> conversation -> (unit, error_category) result
 val load_conversation : t -> string -> (conversation option, error_category) result
 val load_most_recent_conversation : t -> ((string * conversation) option, error_category) result

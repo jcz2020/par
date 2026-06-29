@@ -108,6 +108,8 @@ let make_sqlite_persistence ?(retention_days = 7.0) db_path =
         Sqlite_persistence.save_workflow_state t id status ckpt);
       load_workflow_state_fn = (fun id ->
         Sqlite_persistence.load_workflow_state t id);
+      load_all_suspended_workflows_fn = (fun () ->
+        Sqlite_persistence.load_all_suspended_workflows t);
       save_conversation_fn = (fun sid conv -> Sqlite_persistence.save_conversation t sid conv);
       load_conversation_fn = (fun sid -> Sqlite_persistence.load_conversation t sid);
       load_most_recent_conversation_fn = (fun () ->

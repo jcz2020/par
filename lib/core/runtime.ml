@@ -976,6 +976,7 @@ let noop_persistence : Types.persistence_service = {
   load_task_state_fn = (fun _task_id -> Ok None);
   save_workflow_state_fn = (fun _id _status _checkpoint -> Ok ());
   load_workflow_state_fn = (fun _id -> Ok None);
+  load_all_suspended_workflows_fn = (fun _ -> Ok []);
   save_conversation_fn = (fun _sid _conv -> Ok ());
   load_conversation_fn = (fun _sid -> Ok None);
   load_most_recent_conversation_fn = (fun () -> Ok None);
@@ -1078,6 +1079,15 @@ let create ?(persistence = noop_persistence)
       current_conversation = None;
       fallback_policy = Types.No_fallback;
     } in
+    (* §2.1: Rehydrate suspended workflows from persistence layer. *)
+    (match rt.services.persistence.load_all_suspended_workflows_fn () with
+     | Ok suspended_runs ->
+       List.iter (fun (run_id, status) ->
+         Types.htbl_set rt.workflows run_id status
+       ) suspended_runs
+     | Error e ->
+       Logs.err (fun m -> m "Runtime.create: rehydration failed: %s"
+                    (string_of_error_category e)));
     let mcp_errors = ref [] in
     if mcp_servers <> [] then begin
       let has_stdio =

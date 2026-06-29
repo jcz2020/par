@@ -175,7 +175,7 @@
 
 (test
  (name test_workflow_engine)
- (libraries par eio_main alcotest)
+ (libraries par eio_main alcotest sqlite3)
  (modules test_workflow_engine))
 
 (test

@@ -59,6 +59,7 @@ let test_runtime_create_persists_published_events () =
           load_task_state_fn = (fun tid -> Sqlite_persistence.load_task_state sqlt tid);
           save_workflow_state_fn = (fun id st cp -> Sqlite_persistence.save_workflow_state sqlt id st cp);
           load_workflow_state_fn = (fun id -> Sqlite_persistence.load_workflow_state sqlt id);
+          load_all_suspended_workflows_fn = (fun () -> Sqlite_persistence.load_all_suspended_workflows sqlt);
           save_conversation_fn = (fun sid conv -> Sqlite_persistence.save_conversation sqlt sid conv);
           load_conversation_fn = (fun sid -> Sqlite_persistence.load_conversation sqlt sid);
           load_most_recent_conversation_fn = (fun () -> Sqlite_persistence.load_most_recent_conversation sqlt);

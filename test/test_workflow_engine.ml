@@ -695,6 +695,143 @@ let workflow_status_to_string = function
   | Wf_completed _ -> "Wf_completed"
   | Wf_failed _ -> "Wf_failed"
 
+(* -------------------------------------------------------------------------- *)
+(* Rehydration — boot-time population of rt.workflows from persistence       *)
+(* -------------------------------------------------------------------------- *)
+
+let rehydration_runtime_config db_path : runtime_config =
+  { persistence = `Sqlite db_path;
+    event_bus = Runtime.default_event_bus_config;
+    default_quota = Runtime.default_quota;
+    shutdown = Runtime.default_shutdown_config;
+    llm_providers = [];
+    eval_limits = { max_depth = 10; max_node_visits = 1000 };
+    parallel_tool_execution = true;
+    bash_confirm = Runtime.default_bash_confirm;
+    event_retention_seconds = 604800.0; }
+
+let make_rehydration_persist (sqlt : Sqlite_persistence.t) : persistence_service =
+  { save_events_fn = (fun envs -> Sqlite_persistence.save_events sqlt envs);
+    load_events_fn = (fun tid -> Sqlite_persistence.load_events sqlt tid);
+    load_events_by_session_fn =
+      (fun sid -> Sqlite_persistence.load_events_by_session sqlt sid);
+    load_sessions_fn = (fun lim -> Sqlite_persistence.load_sessions sqlt lim);
+    save_task_state_fn =
+      (fun ts -> Sqlite_persistence.save_task_state sqlt ts);
+    load_task_state_fn =
+      (fun tid -> Sqlite_persistence.load_task_state sqlt tid);
+    save_workflow_state_fn =
+      (fun id st cp -> Sqlite_persistence.save_workflow_state sqlt id st cp);
+    load_workflow_state_fn =
+      (fun id -> Sqlite_persistence.load_workflow_state sqlt id);
+    load_all_suspended_workflows_fn =
+      (fun () -> Sqlite_persistence.load_all_suspended_workflows sqlt);
+    save_conversation_fn =
+      (fun sid conv -> Sqlite_persistence.save_conversation sqlt sid conv);
+    load_conversation_fn =
+      (fun sid -> Sqlite_persistence.load_conversation sqlt sid);
+    load_most_recent_conversation_fn =
+      (fun () -> Sqlite_persistence.load_most_recent_conversation sqlt);
+    close_fn = (fun () -> Sqlite_persistence.close sqlt); }
+
+let rehydration_mock_llm =
+  { complete_fn = (fun _model _tools _conv -> Ok (text_response "unused"));
+    stream_fn = (fun _ _tools _ _ _ ->
+      Ok { final_usage = dummy_usage; finish_reason = Stop; chunks_received = 0 });
+    close_fn = ignore;
+    complete_structured_fn = None;
+    list_models_fn = None;
+    supports_native_tools_fn = None; }
+
+let test_rehydration_restores_suspended_workflows () =
+  with_switch (fun sw1 ->
+    let db_path = Filename.temp_file "par_rehydration_" ".db" in
+    try
+      let run_id = Workflow_run_id.create () in
+      let cp : workflow_checkpoint = {
+        workflow_id = "wf-suspended";
+        step_path = [0];
+        variables = [("k", `String "v")];
+        step_results = [`String "first-step"];
+        allowed_roles = Some ["admin"];
+      } in
+      (* Round 1: create runtime, save suspended state. *)
+      let persist1, rt1 =
+        match Sqlite_persistence.create db_path with
+        | Error e -> Alcotest.failf "sqlite create: %s" (error_to_string e)
+        | Ok sqlt1 ->
+          let persist1 = make_rehydration_persist sqlt1 in
+          (match Runtime.create ~llm:rehydration_mock_llm
+                  ~persistence:persist1
+                  ~config:(rehydration_runtime_config db_path)
+                  sw1 with
+           | Ok r -> (persist1, r)
+           | Error e -> Alcotest.failf "rt1 create: %s" (error_to_string e))
+      in
+      (match persist1.save_workflow_state_fn
+              run_id (Wf_suspended cp) (Some cp) with
+       | Ok () -> ()
+       | Error e -> Alcotest.failf "save: %s" (error_to_string e));
+      let _ = Runtime.close rt1 in
+      (* Round 2: re-open DB in a fresh runtime via a new switch. *)
+      with_switch (fun sw2 ->
+        let rt2 =
+          match Sqlite_persistence.create db_path with
+          | Error e -> Alcotest.failf "sqlite reopen: %s" (error_to_string e)
+          | Ok sqlt2 ->
+            let persist2 = make_rehydration_persist sqlt2 in
+            match Runtime.create ~llm:rehydration_mock_llm
+                    ~persistence:persist2
+                    ~config:(rehydration_runtime_config db_path)
+                    sw2 with
+            | Ok r -> r
+            | Error e -> Alcotest.failf "rt2 create: %s" (error_to_string e)
+        in
+        (match Runtime.get_workflow_status rt2 run_id with
+         | Ok (Wf_suspended cp') ->
+           Alcotest.(check string) "rehydrated workflow_id" "wf-suspended" cp'.workflow_id;
+           Alcotest.(check (list int)) "rehydrated step_path" [0] cp'.step_path;
+           (match cp'.allowed_roles with
+            | Some roles -> Alcotest.(check (list string)) "allowed_roles" ["admin"] roles
+            | None -> Alcotest.fail "expected Some allowed_roles")
+         | Ok other ->
+           Alcotest.failf "expected Wf_suspended, got %s"
+             (workflow_status_to_string other)
+         | Error e -> Alcotest.failf "get_workflow_status: %s" (error_to_string e));
+        let _ = Runtime.close rt2 in
+        ());
+      Sys.remove db_path
+    with exn ->
+      (try Sys.remove db_path with _ -> ());
+      raise exn)
+
+let test_rehydration_empty_db_returns_no_runs () =
+  with_switch (fun sw ->
+    let db_path = Filename.temp_file "par_rehydration_empty_" ".db" in
+    try
+      let rt =
+        match Sqlite_persistence.create db_path with
+        | Error e -> Alcotest.failf "sqlite create: %s" (error_to_string e)
+        | Ok sqlt ->
+          let persist = make_rehydration_persist sqlt in
+          match Runtime.create ~llm:rehydration_mock_llm
+                  ~persistence:persist
+                  ~config:(rehydration_runtime_config db_path)
+                  sw with
+          | Ok r -> r
+          | Error e -> Alcotest.failf "create: %s" (error_to_string e)
+      in
+      (* Rehydration on empty DB must NOT inject any phantom run. *)
+      let dummy_run_id = Workflow_run_id.create () in
+      (match Runtime.get_workflow_status rt dummy_run_id with
+       | Ok _ -> Alcotest.fail "expected not-found for unhydrated run"
+       | Error _ -> ());
+      let _ = Runtime.close rt in
+      Sys.remove db_path
+    with exn ->
+      (try Sys.remove db_path with _ -> ());
+      raise exn)
+
 let test_lifecycle_submit_running_completed () =
   with_switch (fun sw ->
     let rt = match Runtime.create ~config:(runtime_config ()) sw with
@@ -1135,6 +1272,12 @@ let () =
         test_lifecycle_approve_rejects_non_suspended;
       Alcotest.test_case "cancel transitions to failed" `Quick
         test_lifecycle_cancel_sets_failed;
+    ]);
+    ("Rehydration", [
+      Alcotest.test_case "restores suspended runs after restart" `Quick
+        test_rehydration_restores_suspended_workflows;
+      Alcotest.test_case "empty db hydrates zero runs" `Quick
+        test_rehydration_empty_db_returns_no_runs;
     ]);
     ("Edge cases", [
       Alcotest.test_case "single-step workflow" `Quick
