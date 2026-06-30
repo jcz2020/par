@@ -277,10 +277,10 @@ let () =
 
     ("apply_default_summarize", [
       Alcotest.test_case "small_conv_passthrough" `Quick (fun () ->
-        (* conv with no messages → should be Ok identity, no LLM call *)
         let llm = dummy_llm () in
+        let model = dummy_model ~name:"gpt-4o" in
         let result =
-          Context_manager.apply_default_summarize ~llm ~on_event:None (dummy_conv ())
+          Context_manager.apply_default_summarize ~llm ~model ~window:128000 ~on_event:None (dummy_conv ())
         in
         Alcotest.(check int) "0 messages unchanged"
           0
