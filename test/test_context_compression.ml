@@ -45,7 +45,7 @@ let agent_with ?(context_strategy = Some (Summarize { max_tokens = 8000; summary
     ?(compression_cooldown_messages = Some 6)
     ?(context_window_override = None)
     ?(max_iterations = 5) () =
-  { id = "compress-test"; system_prompt = "test";
+  { id = "compress-test"; system_prompt = stable_prompt "test";
     system_prompt_template = None;
     model = dummy_model; tools = []; max_iterations; middleware = [];
     retry_policy = None; context_strategy; resource_quota = None;

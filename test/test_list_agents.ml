@@ -55,7 +55,7 @@ let with_runtime f =
         result))
 
 let make_test_agent id =
-  match Runtime.make_agent ~id ~system_prompt:("You are " ^ id)
+  match Runtime.make_agent ~id ~system_prompt:(stable_prompt ("You are " ^ id))
           ~model:dummy_model ~max_iterations:5 () with
   | Ok a -> a
   | Error e -> Alcotest.fail ("make_agent failed: " ^ Yojson.Safe.to_string (error_category_to_yojson e))
@@ -94,7 +94,7 @@ let () =
           (match agents with
            | [ config ] ->
              Alcotest.(check string) "id matches" "checker" config.id;
-             Alcotest.(check string) "system_prompt" "You are checker" config.system_prompt;
+             Alcotest.(check string) "system_prompt" "You are checker" (Types.prompt_text config.system_prompt);
              Alcotest.(check int) "max_iterations" 5 config.max_iterations
            | _ -> Alcotest.fail "expected exactly 1 agent")));
     ]

@@ -15,11 +15,11 @@ let suite = [
   Alcotest.test_case "valid agent construction" `Quick (fun () ->
     match Runtime.make_agent
       ~id:"agent1"
-      ~system_prompt:"hello"
+      ~system_prompt:(stable_prompt "hello")
       ~model:valid_model () with
     | Ok agent ->
       Alcotest.(check string) "id" "agent1" agent.id;
-      Alcotest.(check string) "system_prompt" "hello" agent.system_prompt;
+      Alcotest.(check string) "system_prompt" "hello" (prompt_text agent.system_prompt);
       Alcotest.(check int) "max_iterations" 1000000 agent.max_iterations
     | Error e -> Alcotest.failf "expected Ok, got: %s"
         (match e with Invalid_input m -> m | _ -> "other"));
@@ -27,7 +27,7 @@ let suite = [
   Alcotest.test_case "empty id rejected" `Quick (fun () ->
     match Runtime.make_agent
       ~id:""
-      ~system_prompt:"hello"
+      ~system_prompt:(stable_prompt "hello")
       ~model:valid_model () with
     | Ok _ -> Alcotest.fail "expected Error for empty id"
     | Error (Invalid_input msg) ->
@@ -38,7 +38,7 @@ let suite = [
   Alcotest.test_case "empty system_prompt without template rejected" `Quick (fun () ->
     match Runtime.make_agent
       ~id:"a"
-      ~system_prompt:""
+      ~system_prompt:(stable_prompt "")
       ~model:valid_model () with
     | Ok _ -> Alcotest.fail "expected Error"
     | Error (Invalid_input msg) ->
@@ -49,7 +49,7 @@ let suite = [
   Alcotest.test_case "system_prompt_template can replace system_prompt" `Quick (fun () ->
     match Runtime.make_agent
       ~id:"a"
-      ~system_prompt:""
+      ~system_prompt:(stable_prompt "")
       ~system_prompt_template:(Some {
         template = "Hello {{name}}";
         variables = [];
@@ -63,7 +63,7 @@ let suite = [
   Alcotest.test_case "max_iterations=0 rejected" `Quick (fun () ->
     match Runtime.make_agent
       ~id:"a"
-      ~system_prompt:"hello"
+      ~system_prompt:(stable_prompt "hello")
       ~max_iterations:0
       ~model:valid_model () with
     | Ok _ -> Alcotest.fail "expected Error"
@@ -75,7 +75,7 @@ let suite = [
   Alcotest.test_case "max_iterations=-1 rejected" `Quick (fun () ->
     match Runtime.make_agent
       ~id:"a"
-      ~system_prompt:"hello"
+      ~system_prompt:(stable_prompt "hello")
       ~max_iterations:(-1)
       ~model:valid_model () with
     | Ok _ -> Alcotest.fail "expected Error"
@@ -88,7 +88,7 @@ let suite = [
                    permission = Allow; timeout = None; concurrency_limit = None; on_update = None } in
     match Runtime.make_agent
       ~id:"a"
-      ~system_prompt:"hello"
+      ~system_prompt:(stable_prompt "hello")
       ~model:valid_model
       ~tools:[tool_a; tool_b] () with
     | Ok _ -> Alcotest.fail "expected Error for duplicate tools"
@@ -102,7 +102,7 @@ let suite = [
                      permission = Allow; timeout = None; concurrency_limit = None; on_update = None } in
     match Runtime.make_agent
       ~id:"a"
-      ~system_prompt:"hello"
+      ~system_prompt:(stable_prompt "hello")
       ~model:valid_model
       ~tools:[bad_tool] () with
     | Ok _ -> Alcotest.fail "expected Error"
@@ -127,7 +127,7 @@ let suite = [
         | Ok rt ->
           let agent = match Runtime.make_agent
             ~id:"test"
-            ~system_prompt:"hi"
+            ~system_prompt:(stable_prompt "hi")
             ~model:valid_model () with
           | Ok a -> a
           | Error _ -> Alcotest.fail "make_agent failed" in

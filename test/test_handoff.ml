@@ -46,7 +46,7 @@ let make_tool ?(name = "tool") handler : tool_binding =
 
 let make_agent ?(max_iterations = 10) id system_prompt tools : agent_config =
   let descriptors = List.map (fun (tb : tool_binding) -> tb.descriptor) tools in
-  { id; system_prompt; system_prompt_template = None;
+  { id; system_prompt = stable_prompt system_prompt; system_prompt_template = None;
     model = dummy_model; tools = descriptors; max_iterations;
     middleware = []; retry_policy = None; context_strategy = None;
     resource_quota = None; max_execution_time = None; tool_timeout = None; early_stopping_method = Force; on_max_tokens = Some Return_partial; max_continuation_chunks = Some 3;

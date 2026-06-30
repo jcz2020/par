@@ -532,7 +532,7 @@ let parse_context_strategy (json : Yojson.Safe.t) : Par.Types.context_strategy o
 let parse_agent_config (json : Yojson.Safe.t) : Par.Types.agent_config =
   let open Yojson.Safe.Util in
   let id = json |> member "id" |> to_string in
-  let system_prompt = json |> member "system_prompt" |> to_string in
+  let system_prompt = Par.Types.stable_prompt (json |> member "system_prompt" |> to_string) in
   let system_prompt_template = match json |> member "system_prompt_template" with
     | `Assoc _ as v -> Some (parse_system_prompt_template v)
     | _ -> None

@@ -300,7 +300,7 @@ let run_structured
       in
       Logs.warn (fun m ->
         m "[engine] Template render failed (structured), falling back to plain system_prompt: %s" msg);
-      agent.system_prompt
+      (Types.prompt_text agent.system_prompt)
   in
   let conv0 = match conversation with
     | Some existing ->
@@ -473,7 +473,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
       in
       Logs.warn (fun m ->
         m "Template render failed, falling back to plain system_prompt: %s" msg);
-      agent.system_prompt
+      (Types.prompt_text agent.system_prompt)
   in
   let sys_prompt = sys_prompt ^ synthesized_prompt_suffix in
   let drain_into_conv conv queue =
@@ -793,7 +793,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
               let target_sys_prompt =
                 match Template.effective_system_prompt target_agent ~runtime_id with
                 | Ok s -> s
-                | Error _ -> target_agent.system_prompt
+                | Error _ -> (Types.prompt_text target_agent.system_prompt)
               in
               (match carry_context with
                | true ->

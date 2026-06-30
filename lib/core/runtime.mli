@@ -42,7 +42,7 @@ val list_agents : runtime -> agent_config list
 
 val make_agent :
   id:string ->
-  ?system_prompt:string ->
+  ?system_prompt:system_prompt ->
   ?system_prompt_template:system_prompt_template option ->
   model:model_config ->
   ?tools:tool_descriptor list ->

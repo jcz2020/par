@@ -30,7 +30,7 @@ let () =
         | Error _ -> failwith "Tool registration failed" in
         let agent = {
           Types.id = "echo-agent";
-          system_prompt = "You are an echo assistant.";
+          system_prompt = stable_prompt "You are an echo assistant.";
           system_prompt_template = None;
           model = {
             provider = `Openai;

@@ -15,7 +15,7 @@ let () =
       | Error _ -> prerr_endline "create failed"; exit 1
       | Ok rt ->
         let model = { provider = `Openai; model_name = "t"; api_base = None; temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None } in
-        let agent = match Runtime.make_agent ~id:"t" ~system_prompt:"ORIGINAL" ~model () with Ok a -> a | Error _ -> prerr_endline "make_agent"; exit 1 in
+        let agent = match Runtime.make_agent ~id:"t" ~system_prompt:(stable_prompt "ORIGINAL") ~model () with Ok a -> a | Error _ -> prerr_endline "make_agent"; exit 1 in
         ignore (Runtime.register_agent rt agent);
         let skill = match Runtime.make_skill ~id:"ov" ~description:"d" ~system_prompt_override:"OVERRIDDEN" ~trigger:Auto () with Ok s -> s | Error _ -> prerr_endline "make_skill"; exit 1 in
         ignore (Runtime.register_skill rt skill);

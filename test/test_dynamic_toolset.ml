@@ -28,7 +28,7 @@ let dummy_model : model_config =
     stop_sequences = None }
 
 let basic_agent ?(tools : tool_descriptor list = []) ?(id = "test-agent") () : agent_config =
-  { id; system_prompt = "You are a test agent.";
+  { id; system_prompt = stable_prompt "You are a test agent.";
     system_prompt_template = None;
     model = dummy_model; tools; max_iterations = 10; middleware = [];
     retry_policy = None; context_strategy = None; resource_quota = None;

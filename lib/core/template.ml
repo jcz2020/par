@@ -94,7 +94,7 @@ let render ~template ~variables ~required ~context =
 
 let effective_system_prompt agent ~runtime_id =
   match agent.system_prompt_template with
-  | None -> Ok agent.system_prompt
+  | None -> Ok (prompt_text agent.system_prompt)
   | Some tpl ->
     let context = {
       agent_id = agent.id;

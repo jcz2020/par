@@ -34,7 +34,7 @@ let mock_model : model_config = {
 
 let mock_agent =
   let id = "test_agent" in
-  { id; system_prompt = "You are a test agent";
+  { id; system_prompt = stable_prompt "You are a test agent";
     system_prompt_template = None;
     model = mock_model;
     tools = [];

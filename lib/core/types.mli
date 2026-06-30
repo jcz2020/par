@@ -411,9 +411,23 @@ type cache_strategy =
   | With_cache_of of cache_ttl
 [@@deriving yojson]
 
+type zone_tag = Zone_stable | Zone_volatile
+[@@deriving yojson]
+
+type system_prompt = {
+  sp_raw : string;
+  sp_zone : zone_tag;
+}
+[@@deriving yojson]
+
+val stable_prompt : string -> system_prompt
+val volatile_prompt : string -> system_prompt
+val prompt_text : system_prompt -> string
+val zone_of : system_prompt -> zone_tag
+
 type agent_config = {
   id : string;
-  system_prompt : string;
+  system_prompt : system_prompt;
   system_prompt_template : system_prompt_template option;
   model : model_config;
   tools : tool_descriptor list;

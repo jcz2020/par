@@ -15,7 +15,7 @@ let dummy_model : Types.model_config = {
   temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None;
 }
 
-let dummy_agent ?(id = "test") ?(system_prompt = "hello") ?system_prompt_template () = {
+let dummy_agent ?(id = "test") ?(system_prompt = stable_prompt "hello") ?system_prompt_template () = {
   Types.id;
   system_prompt;
   system_prompt_template = Option.value system_prompt_template ~default:None;
@@ -206,15 +206,15 @@ let () =
 
     ("effective_system_prompt", [
       Alcotest.test_case "no template returns system_prompt" `Quick (fun () ->
-        let agent = dummy_agent ~system_prompt:"plain prompt" () in
+        let agent = dummy_agent ~system_prompt:(stable_prompt "plain prompt") () in
         match Template.effective_system_prompt agent ~runtime_id:"r" with
         | Ok s -> Alcotest.(check string) "plain" "plain prompt" s
         | Error e -> Alcotest.failf "unexpected error: %s" (show_error e)
       );
 
       Alcotest.test_case "template renders" `Quick (fun () ->
-        let agent = { (dummy_agent ~system_prompt:"fallback" ()) with
-                     system_prompt = "fallback";
+        let agent = { (dummy_agent ~system_prompt:(stable_prompt "fallback") ()) with
+                     system_prompt = stable_prompt "fallback";
                      system_prompt_template = Some {
                        template = "You are {{agent_id}}.";
                        variables = [];

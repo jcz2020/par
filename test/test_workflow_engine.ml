@@ -69,7 +69,7 @@ let dummy_tool ?(name = "test_tool") handler =
 
 let basic_agent ?(tools = []) () =
   let descriptors = List.map (fun (tb : tool_binding) -> tb.descriptor) tools in
-  { id = "test-agent"; system_prompt = "You are a test agent.";
+  { id = "test-agent"; system_prompt = stable_prompt "You are a test agent.";
     system_prompt_template = None;
     model = dummy_model; tools = descriptors; max_iterations = 10;
     middleware = []; retry_policy = None;

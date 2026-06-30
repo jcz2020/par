@@ -82,7 +82,7 @@ let run ?session_id ~agent ~message ?max_output_tokens ?total_timeout
     ?on_tool_event ?on_chunk ~cancellation_token ~llm () =
   let start_time = Unix.gettimeofday () in
   let session_id = Option.value session_id ~default:"unknown" in
-  let conv0 = make_conversation agent.system_prompt message in
+  let conv0 = make_conversation (Types.prompt_text agent.system_prompt) message in
 
   let fire evt = match on_tool_event with
     | Some pub -> pub evt
@@ -203,6 +203,6 @@ let run ?session_id ~agent ~message ?max_output_tokens ?total_timeout
     "[generate] starting pure generation: session=%s model=%s \
      system_prompt=%d chars user_message=%d chars total_timeout=%s"
     session_id agent.model.model_name
-    (String.length agent.system_prompt) (String.length message)
+    (String.length (Types.prompt_text agent.system_prompt)) (String.length message)
     (match total_timeout with Some t -> Printf.sprintf "%.1fs" t | None -> "none"));
   loop conv0 ""

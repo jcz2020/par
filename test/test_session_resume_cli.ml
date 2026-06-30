@@ -96,7 +96,7 @@ let make_persist (sqlt : Sqlite_persistence.t) : persistence_service =
   }
 
 let make_test_agent id =
-  match Runtime.make_agent ~id ~system_prompt:("You are " ^ id)
+  match Runtime.make_agent ~id ~system_prompt:(stable_prompt ("You are " ^ id))
           ~model:dummy_model ~max_iterations:5 () with
   | Ok a -> a
   | Error e -> Alcotest.fail ("make_agent failed: " ^ err_str e)

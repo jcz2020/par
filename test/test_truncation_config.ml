@@ -47,7 +47,7 @@ let with_token f =
 let configurable_agent ?(on_max_tokens = (Some Return_partial))
     ?(max_continuation_chunks = (Some 3))
     ?(max_iterations = 10) ?(tools = []) () =
-  { id = "test-agent"; system_prompt = "You are a test agent.";
+  { id = "test-agent"; system_prompt = stable_prompt "You are a test agent.";
     system_prompt_template = None;
     model = dummy_model; tools; max_iterations; middleware = [];
     retry_policy = None; context_strategy = None; resource_quota = None;

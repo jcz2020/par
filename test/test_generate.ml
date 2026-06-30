@@ -74,7 +74,7 @@ let test_runtime_config : runtime_config = {
 }
 
 let make_agent id system_prompt =
-  match Runtime.make_agent ~id ~system_prompt ~model:dummy_model () with
+  match Runtime.make_agent ~id ~system_prompt:(stable_prompt system_prompt) ~model:dummy_model () with
   | Ok a -> a
   | Error e -> Alcotest.failf "make_agent failed: %s" (error_to_string e)
 

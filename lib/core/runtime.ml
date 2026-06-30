@@ -84,7 +84,7 @@ let default_quota = {
 
 let default_bash_confirm = Types.default_bash_confirm_config
 
-let make_agent ~id ?(system_prompt = "") ?(system_prompt_template = None)
+let make_agent ~id ?(system_prompt = stable_prompt "") ?(system_prompt_template = None)
     ~model ?(tools = []) ?(max_iterations = 1_000_000)
     ?(middleware = []) ?(retry_policy = None)
     ?(context_strategy = Some (Types.Summarize { max_tokens = 8000; summary_model = None }))
@@ -98,7 +98,7 @@ let make_agent ~id ?(system_prompt = "") ?(system_prompt_template = None)
   let errors = ref [] in
   if String.length id = 0 then
     errors := "id must not be empty" :: !errors;
-  if String.length system_prompt = 0 && system_prompt_template = None then
+  if prompt_text system_prompt = "" && system_prompt_template = None then
     errors := "system_prompt must be non-empty or system_prompt_template must be provided" :: !errors;
   if max_iterations <= 0 then
     errors := (Printf.sprintf "max_iterations must be > 0 (got %d)" max_iterations) :: !errors;
@@ -353,7 +353,7 @@ let compose_skill_effects (effects : skill_effect list) : skill_effect =
 
 let apply_skill_effect_to_config (eff : skill_effect) config =
   let config = match eff.system_prompt_override with
-  | Some prompt -> { config with system_prompt = prompt }
+  | Some prompt -> { config with system_prompt = stable_prompt prompt }
   | None -> config
   in
   match eff.tool_filter_overlay with

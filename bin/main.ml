@@ -405,7 +405,7 @@ let setup_runtime cfg ~interactive:_ ~f =
         | Some { Par_config.tools = Some names; _ } ->
           List.filter (fun (d : Types.tool_descriptor) -> List.mem d.Types.name names) descriptors
         | _ -> descriptors in
-      (match Runtime.make_agent ~id:agent_id ~system_prompt:agent_system_prompt
+      (match Runtime.make_agent ~id:agent_id ~system_prompt:(Types.stable_prompt agent_system_prompt)
          ~model:agent_model_cfg ~tools:agent_descriptors ~max_iterations:agent_max_iter () with
        | Error e -> Printf.eprintf "Agent %s validation failed: %s\n" agent_id (error_category_to_string e); exit 1
        | Ok agent ->
