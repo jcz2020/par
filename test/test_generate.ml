@@ -46,6 +46,7 @@ let mock_llm_tracked counter responses =
     complete_structured_fn = None;
     list_models_fn = None;
     supports_native_tools_fn = None;
+    context_window_fn = None;
   }
 
 let error_to_string = function
@@ -232,6 +233,7 @@ let test_invoke_generate_total_timeout () =
     complete_structured_fn = None;
     list_models_fn = None;
     supports_native_tools_fn = None;
+    context_window_fn = None;
   } in
   let agent = make_agent "timeout-agent" "You are a test agent." in
   with_invoke_runtime ~llm ~agent (fun rt ->
@@ -355,6 +357,7 @@ module Capturing_llm = struct
       complete_structured_fn = None;
       list_models_fn = None;
       supports_native_tools_fn = None;
+      context_window_fn = None;
     }
 end
 

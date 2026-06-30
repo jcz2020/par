@@ -46,6 +46,7 @@ let mock_llm : llm_service =
     complete_structured_fn = None;
     list_models_fn = None;
   supports_native_tools_fn = None;
+  context_window_fn = None;
   }
 
 let err_str (e : error_category) =

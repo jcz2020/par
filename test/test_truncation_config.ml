@@ -35,6 +35,7 @@ let mock_llm_tracked counter responses =
     complete_structured_fn = None;
     list_models_fn = None;
   supports_native_tools_fn = None;
+  context_window_fn = None;
   }
 
 let with_token f =
@@ -51,7 +52,8 @@ let configurable_agent ?(on_max_tokens = (Some Return_partial))
     model = dummy_model; tools; max_iterations; middleware = [];
     retry_policy = None; context_strategy = None; resource_quota = None;
     max_execution_time = None; tool_timeout = None; early_stopping_method = Force;
-    on_max_tokens; max_continuation_chunks }
+    on_max_tokens; max_continuation_chunks;
+    context_compression_threshold = None; compression_cooldown_messages = None; context_window_override = None }
 
 let make_registry () = Tool_registry.create ()
 

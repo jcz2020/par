@@ -302,6 +302,11 @@
  (modules test_truncation_config))
 
 (test
+ (name test_context_compression)
+ (libraries par eio_main alcotest)
+ (modules test_context_compression))
+
+(test
  (name test_generate)
  (libraries par eio_main alcotest)
  (modules test_generate))

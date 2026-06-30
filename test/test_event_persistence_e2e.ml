@@ -46,6 +46,7 @@ let test_runtime_create_persists_published_events () =
         complete_structured_fn = None;
         list_models_fn = None;
   supports_native_tools_fn = None;
+  context_window_fn = None;
       } in
       match Sqlite_persistence.create db with
       | Error e -> cleanup (); Alcotest.fail ("sqlite create: " ^ err_str e)

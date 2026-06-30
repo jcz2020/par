@@ -33,6 +33,7 @@ let mock_llm responses =
     complete_structured_fn = None;
     list_models_fn = None;
   supports_native_tools_fn = None;
+  context_window_fn = None;
   }
 
 let with_token f =
@@ -51,7 +52,8 @@ let basic_agent ?(tools = []) ?(middleware = []) ?(max_iterations = 10) () =
   { id = "test-agent"; system_prompt = "You are a test agent.";
     system_prompt_template = None;
     model = dummy_model; tools = descriptors; max_iterations; middleware;
-    retry_policy = None; context_strategy = None; resource_quota = None; max_execution_time = None; tool_timeout = None; early_stopping_method = Force; on_max_tokens = Some Return_partial; max_continuation_chunks = Some 3 }
+    retry_policy = None; context_strategy = None; resource_quota = None; max_execution_time = None; tool_timeout = None; early_stopping_method = Force; on_max_tokens = Some Return_partial; max_continuation_chunks = Some 3;
+    context_compression_threshold = None; compression_cooldown_messages = None; context_window_override = None }
 
 let make_registry tools =
   let reg = Tool_registry.create () in
@@ -635,6 +637,7 @@ let middleware_suite =
         complete_structured_fn = None;
         list_models_fn = None;
   supports_native_tools_fn = None;
+  context_window_fn = None;
       } in
       let retry_mw = Retry.retry ~config:{ max_attempts = 3; base_delay = 0.01; max_delay = 0.01 } () in
       let agent = basic_agent ~middleware:[ retry_mw ] () in

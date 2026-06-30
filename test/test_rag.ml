@@ -42,7 +42,8 @@ let mock_agent =
     middleware = [];
     retry_policy = None;
     context_strategy = None;
-    resource_quota = None; max_execution_time = None; tool_timeout = None; early_stopping_method = Force; on_max_tokens = Some Return_partial; max_continuation_chunks = Some 3 }
+    resource_quota = None; max_execution_time = None; tool_timeout = None; early_stopping_method = Force; on_max_tokens = Some Return_partial; max_continuation_chunks = Some 3;
+    context_compression_threshold = None; compression_cooldown_messages = None; context_window_override = None }
 
 let test_embed_returns_vectors () =
   Eio_main.run (fun _env ->

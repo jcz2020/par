@@ -30,6 +30,7 @@ let test_openai_stream () =
     complete_structured_fn = None;
     list_models_fn = None;
   supports_native_tools_fn = None;
+  context_window_fn = None;
   } in
   let model = {
     provider = `Openai; model_name = "glm-4-flash"; api_base = None;
