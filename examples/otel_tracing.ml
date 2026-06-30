@@ -79,7 +79,10 @@ let mock_llm rs =
   { Types.complete_fn = (fun _ _tools _ -> incr i; Ok (List.nth rs (!i - 1)));
     stream_fn = (fun _ _tools _ _ _ -> Ok { final_usage = { prompt_tokens = 10; completion_tokens = 5; total_tokens = 15 }; finish_reason = Types.Stop; chunks_received = 0 });
     close_fn = ignore;
-    complete_structured_fn = None; }
+    complete_structured_fn = None;
+    list_models_fn = None;
+    supports_native_tools_fn = None;
+    context_window_fn = None; }
 
 let () =
   let rs = [
@@ -92,7 +95,8 @@ let () =
                 system_prompt_template = None;
                 model = { provider = `Openai; model_name = "gpt-4"; api_base = None; temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None };
                 tools = [ echo_desc ]; max_iterations = 5; middleware = [ create_tracing_middleware () ];
-                retry_policy = None; context_strategy = None; resource_quota = None; max_execution_time = None; tool_timeout = None; early_stopping_method = Force; on_max_tokens = Return_partial; max_continuation_chunks = 3 } in
+                retry_policy = None; context_strategy = None; resource_quota = None; max_execution_time = None; tool_timeout = None; early_stopping_method = Force; on_max_tokens = Return_partial; max_continuation_chunks = 3;
+                context_compression_threshold = None; compression_cooldown_messages = None; context_window_override = None } in
   Eio_main.run (fun _ -> Eio.Switch.run (fun sw ->
     let tok = { Types.switch = sw; cancelled = false } in
     let reg = Tool_registry.create () in
