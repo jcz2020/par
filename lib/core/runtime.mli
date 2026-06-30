@@ -56,6 +56,9 @@ val make_agent :
   ?on_max_tokens:on_max_tokens_behavior option ->
   ?max_continuation_chunks:int option ->
   ?tool_timeout:float option ->
+  ?context_compression_threshold:float option ->
+  ?compression_cooldown_messages:int option ->
+  ?context_window_override:int option ->
   unit ->
   (agent_config, error_category) result
 

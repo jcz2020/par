@@ -301,6 +301,24 @@ type context_strategy =
   | Sliding_window of { max_messages : int; max_tokens : int }
 [@@deriving yojson]
 
+(** PAR-p70: Why the compression was skipped. Typed polymorphic variant so
+    downstream consumers pattern-match instead of grepping string logs.
+    - [`Below_threshold f]: ratio r did not reach the configured threshold.
+      [f] is the current ratio (for telemetry / dashboards).
+    - [`Cooldown_active n]: would compress but N more messages needed.
+      [n] is messages remaining before cooldown expires.
+    - [`No_window_size]: threshold set but no resolver could determine
+      the context window size (tier-1 table miss + tier-2 capability
+      unset + tier-3 override None).
+    - [`No_strategy]: threshold set but agent.context_strategy = None
+      AND no auto-default strategy available. *)
+type context_compression_skip_reason =
+  [ `Below_threshold of float
+  | `Cooldown_active of int
+  | `No_window_size
+  | `No_strategy ]
+[@@deriving yojson]
+
 type retryable_condition =
   | Timeout
   | Rate_limited
@@ -365,6 +383,17 @@ type agent_config = {
       [Timeout.timeout_middleware] (cannot enforce timeouts from inside
       the [middleware_hook] contract). *)
   tool_timeout : float option;
+  (** PAR-p70: Auto context compression by window ratio.
+      - [context_compression_threshold] When Some r (0.0–1.0), auto-fires
+        compression when estimate_tokens(conv) / context_window ≥ r.
+        Default Some 0.8 in make_agent. None = disabled (manual context_strategy only).
+      - [compression_cooldown_messages] Min iterations between auto-compressions.
+        Prevents LLM-summarize thrash. Default Some 6. None = no cooldown.
+      - [context_window_override] User-supplied context window size (tier-3 resolver).
+        None = fall through to llm.context_window_fn then static table. *)
+  context_compression_threshold : float option;
+  compression_cooldown_messages : int option;
+  context_window_override : int option;
 }
 
 (* -------------------------------------------------------------------------- *)
@@ -500,6 +529,18 @@ type event =
   | Provider_fallback_attempted of { from_provider : string; to_provider : string }
   | Llm_response_truncated of { task_id : Task_id.t; model : string; finish_reason : finish_reason }
   | Generate_continuation of { task_id : Task_id.t; chunk_index : int; chars_added : int }
+  | Context_compressed of {
+      trigger : float;              (** threshold that fired *)
+      tokens_before : int;
+      tokens_after : int;
+      messages_before : int;
+      messages_after : int;
+      strategy_used : context_strategy;
+      elapsed_ms : int;
+    }
+  | Context_compression_skipped of {
+      reason : context_compression_skip_reason;
+    }
 [@@deriving yojson]
 
 type event_envelope = {
@@ -740,6 +781,12 @@ type llm_service = {
       PAR ships today. Set to [Some (fun () -> false)] for providers that
       do not accept the [tools] request parameter. *)
   supports_native_tools_fn : (unit -> bool) option;
+  (** PAR-p70: Provider-declared context window size for the current model.
+      When Some f, called by Context_manager.resolve_context_window as tier-2
+      resolver (tier-1 = static table, tier-3 = user override). None = unknown,
+      fall through to static table. Mirrors the supports_native_tools_fn capability
+      pattern. *)
+  context_window_fn : (unit -> int) option;
 }
 
 type embedding_service = {

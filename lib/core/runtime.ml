@@ -87,10 +87,14 @@ let default_bash_confirm = Types.default_bash_confirm_config
 let make_agent ~id ?(system_prompt = "") ?(system_prompt_template = None)
     ~model ?(tools = []) ?(max_iterations = 1_000_000)
     ?(middleware = []) ?(retry_policy = None)
-    ?(context_strategy = Some (Types.Sliding_window { max_messages = 100; max_tokens = 200000 })) ?(resource_quota = None)
+    ?(context_strategy = Some (Types.Summarize { max_tokens = 8000; summary_model = None }))
+    ?(resource_quota = None)
     ?(max_execution_time = None) ?(early_stopping_method = Force)
     ?(on_max_tokens = None) ?(max_continuation_chunks = None)
-    ?(tool_timeout = None) () =
+    ?(tool_timeout = None)
+    ?(context_compression_threshold = Some 0.8)
+    ?(compression_cooldown_messages = Some 6)
+    ?(context_window_override = None) () =
   let errors = ref [] in
   if String.length id = 0 then
     errors := "id must not be empty" :: !errors;
@@ -118,6 +122,9 @@ let make_agent ~id ?(system_prompt = "") ?(system_prompt_template = None)
       max_execution_time; early_stopping_method;
       on_max_tokens; max_continuation_chunks;
       tool_timeout;
+      context_compression_threshold;
+      compression_cooldown_messages;
+      context_window_override;
     }
   | errs -> Result.Error (Types.Invalid_input (String.concat "; " errs))
 
@@ -138,6 +145,9 @@ let register_agent rt (agent : agent_config) =
     ?on_max_tokens:(Some agent.on_max_tokens)
     ?max_continuation_chunks:(Some agent.max_continuation_chunks)
     ?tool_timeout:(Some agent.tool_timeout)
+    ?context_compression_threshold:(Some agent.context_compression_threshold)
+    ?compression_cooldown_messages:(Some agent.compression_cooldown_messages)
+    ?context_window_override:(Some agent.context_window_override)
     () in
   match validated with
   | Ok valid_agent ->
@@ -1278,7 +1288,8 @@ let create ?(persistence = noop_persistence)
                      close_fn = ignore;
                      complete_structured_fn = None;
                      list_models_fn = None;
-                     supports_native_tools_fn = None })
+                     supports_native_tools_fn = None;
+                     context_window_fn = None })
            ?embeddings
            ?(bash_policy = (module Bash_policy.Coder : Bash_policy.POLICY))
            ?(mcp_servers = [])

@@ -494,6 +494,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
       (match msg.content with Some c -> c | None -> "<none>"))
   in
   let start_time = Unix.gettimeofday () in
+  let last_compress_iter = ref (-1_000_000) in
   let rec loop ~agent ~global_max conv iterations =
     let global_max = max global_max agent.max_iterations in
     let elapsed = Unix.gettimeofday () -. start_time in
@@ -514,11 +515,71 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     )
     else begin
       Cancellation.check_cancel token;
-      let conv = match agent.context_strategy with
-        | None -> conv
-        | Some strategy ->
+      (* PAR-p70: ratio-based auto-compression gate.
+         - threshold=None means manual mode: apply strategy unconditionally (current behavior).
+         - threshold=Some r means auto mode: apply strategy only when ratio crosses r AND cooldown elapsed.
+         - When strategy=None and threshold fires, fall back to default Summarize. *)
+      let conv =
+        let tokens_before = Context_manager.estimate_tokens conv in
+        let messages_before = List.length conv.messages in
+        let should_fire, skip_reason =
+          Context_manager.should_compress
+            ~threshold:agent.context_compression_threshold
+            ~cooldown:agent.compression_cooldown_messages
+            ~llm ~model:agent.model ~conv
+            ~iterations_since_last_compress:(iterations - !last_compress_iter)
+            ~window_override:agent.context_window_override
+        in
+        let fire_evt evt = match on_tool_event with Some pub -> pub evt | None -> () in
+        (match skip_reason with
+         | Some r -> fire_evt (Context_compression_skipped { reason = r })
+         | None -> ());
+        match agent.context_strategy, agent.context_compression_threshold, should_fire with
+        | None, None, _ -> conv
+        | None, Some _, false -> conv
+        | None, Some _, true ->
+          let compress_start = Unix.gettimeofday () in
+          (match Context_manager.apply_default_summarize ~llm ~on_event:on_tool_event conv with
+           | Ok conv' ->
+             let elapsed_ms =
+               int_of_float ((Unix.gettimeofday () -. compress_start) *. 1000.0)
+             in
+             fire_evt (Context_compressed {
+               trigger = Option.value agent.context_compression_threshold ~default:0.8;
+               tokens_before;
+               tokens_after = Context_manager.estimate_tokens conv';
+               messages_before;
+               messages_after = List.length conv'.messages;
+               strategy_used = Summarize { max_tokens = 8000; summary_model = None };
+               elapsed_ms;
+             });
+             last_compress_iter := iterations;
+             conv'
+           | Error _ -> conv)
+        | Some strategy, None, _ ->
+          (* manual mode: apply unconditionally (preserves pre-p70 behavior) *)
           (match Context_manager.apply_strategy strategy conv (Some llm) ~on_event:on_tool_event with
            | Ok conv' -> conv'
+           | Error _ -> conv)
+        | Some _strategy, Some _, false -> conv
+        | Some strategy, Some _, true ->
+          let compress_start = Unix.gettimeofday () in
+          (match Context_manager.apply_strategy strategy conv (Some llm) ~on_event:on_tool_event with
+           | Ok conv' ->
+             let elapsed_ms =
+               int_of_float ((Unix.gettimeofday () -. compress_start) *. 1000.0)
+             in
+             fire_evt (Context_compressed {
+               trigger = Option.value agent.context_compression_threshold ~default:0.8;
+               tokens_before;
+               tokens_after = Context_manager.estimate_tokens conv';
+               messages_before;
+               messages_after = List.length conv'.messages;
+               strategy_used = strategy;
+               elapsed_ms;
+             });
+             last_compress_iter := iterations;
+             conv'
            | Error _ -> conv)
       in
       let conv = apply_before_llm agent.middleware conv (fun c -> c) in

@@ -152,3 +152,69 @@ let apply_strategy strategy conv llm_opt ~on_event =
     apply_summarize max_tokens summary_model conv llm_opt ~on_event
   | Sliding_window { max_messages; max_tokens } ->
     Ok (apply_sliding_window max_messages max_tokens conv)
+
+(* PAR-p70: pure helpers for auto context compression *)
+
+let default_context_window (model : model_config) =
+  let name = String.lowercase_ascii model.model_name in
+  let has_sub needle =
+    if needle = "" then false
+    else
+      try
+        let _ = Str.search_forward (Str.regexp_string needle) name 0 in true
+      with Not_found -> false
+  in
+  (* Ordering invariant: most specific substrings first so e.g. "gpt-4o"
+     matches before bare "gpt-4". Reordering this chain WILL break the
+     gpt-4o/turbo precedence. *)
+  if has_sub "gpt-4o" then 128000
+  else if has_sub "gpt-4-turbo" then 128000
+  else if has_sub "gpt-3.5-turbo" then 16385
+  else if has_sub "gpt-4" then 8192
+  else if has_sub "claude-sonnet-4" then 200000
+  else if has_sub "claude-opus-4" then 200000
+  else if has_sub "claude-haiku-3.5" then 200000
+  else if has_sub "claude-3-5-sonnet" then 200000
+  else if has_sub "claude-3-5-haiku" then 200000
+  else if has_sub "claude-3-opus" then 200000
+  else if has_sub "claude-3-haiku" then 100000
+  else if has_sub "o4-mini" then 200000
+  else if has_sub "o1" then 200000
+  else if has_sub "o3" then 200000
+  else 8000
+
+let resolve_context_window ~llm ~model ~user_override =
+  match user_override with
+  | Some n -> n
+  | None ->
+    match llm.context_window_fn with
+    | Some fn ->
+      let n = fn () in
+      if n > 0 then n else default_context_window model
+    | None -> default_context_window model
+
+let estimated_tokens_with_margin conv =
+  let raw = estimate_tokens conv in
+  int_of_float (float_of_int raw *. 1.2)
+
+let should_compress ~threshold ~cooldown ~llm ~model ~conv
+    ~iterations_since_last_compress ~window_override =
+  match threshold with
+  | None -> (false, None)
+  | Some threshold_r ->
+    let window = resolve_context_window ~llm ~model ~user_override:window_override in
+    if window <= 0 then (false, Some `No_window_size)
+    else
+      let tokens = estimated_tokens_with_margin conv in
+      let ratio = float_of_int tokens /. float_of_int window in
+      if ratio < threshold_r then
+        (false, Some (`Below_threshold ratio))
+      else
+        match cooldown with
+        | Some cd when iterations_since_last_compress < cd ->
+          (false, Some (`Cooldown_active (cd - iterations_since_last_compress)))
+        | _ -> (true, None)
+
+let apply_default_summarize ~llm ~on_event conv =
+  let default_max_tokens = 8000 in
+  apply_summarize default_max_tokens None conv (Some llm) ~on_event
