@@ -81,11 +81,15 @@ val should_compress :
 (** Default compression action when [context_strategy] is [None] but
     the ratio threshold fires.
 
-    Wraps [apply_summarize] with [max_tokens=8000] (post-summary target
-    size) and [summary_model=None] (use the agent's own model). Users
-    who want a different behavior should set [context_strategy] explicitly. *)
+    [window] is the resolved context-window size (used to scale the
+    post-summary target — 12.5% of window, floored at 8000 tokens).
+    Wraps [apply_summarize] with [summary_model = Some model] so the
+    agent's own model produces the summary. Users who want a different
+    behavior should set [context_strategy] explicitly. *)
 val apply_default_summarize :
   llm:llm_service ->
+  model:model_config ->
+  window:int ->
   on_event:(event -> unit) option ->
   conversation ->
   (conversation, error_category) result

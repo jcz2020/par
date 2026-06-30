@@ -79,7 +79,15 @@ let apply_summarize max_tokens summary_model conv llm_opt ~on_event =
     let keep_recent = min 4 total in
     let recent_count = if keep_recent >= total then total else keep_recent in
     let to_summarize, to_keep =
-      let n = total - recent_count in
+      let initial_n = total - recent_count in
+      let rec balance_boundary n =
+        if n <= 0 then 0
+        else
+          match List.nth_opt conv.messages n with
+          | Some { role = Tool; _ } -> balance_boundary (n - 1)
+          | _ -> n
+      in
+      let n = balance_boundary initial_n in
       (List.filteri (fun i _ -> i < n) conv.messages,
        List.filteri (fun i _ -> i >= n) conv.messages)
     in
@@ -215,6 +223,6 @@ let should_compress ~threshold ~cooldown ~llm ~model ~conv
           (false, Some (`Cooldown_active (cd - iterations_since_last_compress)))
         | _ -> (true, None)
 
-let apply_default_summarize ~llm ~on_event conv =
-  let default_max_tokens = 8000 in
-  apply_summarize default_max_tokens None conv (Some llm) ~on_event
+let apply_default_summarize ~llm ~model ~window ~on_event conv =
+  let budget = max 8000 (window / 8) in
+  apply_summarize budget (Some model) conv (Some llm) ~on_event

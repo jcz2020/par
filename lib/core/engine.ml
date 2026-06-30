@@ -495,6 +495,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
   in
   let start_time = Unix.gettimeofday () in
   let last_compress_iter = ref (-1_000_000) in
+  let reactive_attempts = ref 0 in
   let rec loop ~agent ~global_max conv iterations =
     let global_max = max global_max agent.max_iterations in
     let elapsed = Unix.gettimeofday () -. start_time in
@@ -538,8 +539,14 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
         | None, None, _ -> conv
         | None, Some _, false -> conv
         | None, Some _, true ->
+          let resolved_window =
+            Context_manager.resolve_context_window
+              ~llm ~model:agent.model ~user_override:agent.context_window_override
+          in
+          let budget = max 8000 (resolved_window / 8) in
           let compress_start = Unix.gettimeofday () in
-          (match Context_manager.apply_default_summarize ~llm ~on_event:on_tool_event conv with
+          (match Context_manager.apply_default_summarize
+             ~llm ~model:agent.model ~window:resolved_window ~on_event:on_tool_event conv with
            | Ok conv' ->
              let elapsed_ms =
                int_of_float ((Unix.gettimeofday () -. compress_start) *. 1000.0)
@@ -550,7 +557,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                tokens_after = Context_manager.estimate_tokens conv';
                messages_before;
                messages_after = List.length conv'.messages;
-               strategy_used = Summarize { max_tokens = 8000; summary_model = None };
+               strategy_used = Summarize { max_tokens = budget; summary_model = Some agent.model };
                elapsed_ms;
              });
              last_compress_iter := iterations;
@@ -596,15 +603,32 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
       | Result.Error err ->
         (match classify_engine_error err with
          | `Context_length_exceeded ->
-           Logs.warn (fun m -> m "[engine] Context length exceeded, applying context strategy");
-           let conv = match agent.context_strategy with
-             | Some strategy ->
-               (match Context_manager.apply_strategy strategy conv (Some llm) ~on_event:on_tool_event with
-                | Ok conv' -> conv'
-                | Error _ -> conv)
-             | None -> conv
-           in
-           loop ~agent ~global_max conv (iterations + 1)
+            incr reactive_attempts;
+            if !reactive_attempts > 2 then
+              Result.Error ((Internal "Context length exceeded after compression attempts" : error_category), conv)
+            else begin
+              Logs.warn (fun m -> m "[engine] Context length exceeded (reactive attempt %d/2), applying context strategy" !reactive_attempts);
+              let conv = match agent.context_strategy with
+                | Some strategy ->
+                  (match Context_manager.apply_strategy strategy conv (Some llm) ~on_event:on_tool_event with
+                   | Ok conv' -> conv'
+                   | Error _ -> conv)
+                | None when agent.context_compression_threshold <> None ->
+                  let resolved_w =
+                    Context_manager.resolve_context_window
+                      ~llm ~model:agent.model ~user_override:agent.context_window_override
+                  in
+                  (match Context_manager.apply_default_summarize
+                     ~llm ~model:agent.model ~window:resolved_w ~on_event:on_tool_event conv with
+                   | Ok conv' -> conv'
+                   | Error _ -> conv)
+                | None ->
+                  Context_manager.truncate_conversation ~keep_system:true ~min_messages:2
+                    ~max_tokens:8000 conv
+              in
+              last_compress_iter := iterations;
+              loop ~agent ~global_max conv (iterations + 1)
+            end
           | `Other err_classified ->
            let err_classified : error_category = err_classified in
            let action = apply_on_error agent.middleware conv err_classified
@@ -615,6 +639,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
             | Handoff _ -> Result.Error ((Internal "Handoff reached retry path" : error_category), conv)
             | _ -> Result.Error (err_classified, conv)))
         | Ok resp ->
+        reactive_attempts := 0;
         fire_llm (Llm_response_received { task_id = llm_task_id; usage = resp.usage });
         let resp = apply_after_llm agent.middleware resp (fun r -> r) in
         (* PAR-k38 T3.1: in Synthesized mode, extract tool calls from the
