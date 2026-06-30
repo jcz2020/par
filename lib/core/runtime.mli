@@ -317,6 +317,10 @@ val cancel_workflow :
   runtime ->
   Workflow_run_id.t ->
   (unit, error_category) result
+(** Cancel a workflow run. Sets status to [Wf_failed (Internal "Cancelled")],
+    persists the state change, and emits [Workflow_failed] event.
+    Returns [Error (Invalid_input "Workflow not found")] if the run id
+    is not registered. *)
 
 val register_workflow : runtime -> workflow -> (unit, error_category) result
 

@@ -1131,8 +1131,16 @@ let get_workflow_status rt wf_id =
   | Some status -> Ok status
 
 let cancel_workflow rt wf_id =
-  htbl_set rt.workflows wf_id (Wf_failed (Internal "Cancelled"));
-  Ok ()
+  match htbl_get rt.workflows wf_id with
+  | None -> Result.Error (Invalid_input "Workflow not found")
+  | Some _ ->
+    let err = Internal "Cancelled" in
+    htbl_set rt.workflows wf_id (Wf_failed err);
+    (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_failed err) None with
+     | Ok () -> ()
+     | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+    publish_event rt (Workflow_failed { workflow_run_id = wf_id; error = err });
+    Ok ()
 
 let register_workflow rt (wf : workflow) =
   htbl_set rt.workflow_defs wf.def.id wf;

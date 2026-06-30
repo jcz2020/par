@@ -1474,6 +1474,36 @@ let test_approve_emits_approval_granted () =
     let _ = Runtime.close rt in
     ())
 
+let test_cancel_emits_workflow_failed_event () =
+  with_switch (fun sw ->
+    let events, bus = capture_event_bus () in
+    let rt = match Runtime.create ~event_bus:bus ~config:(runtime_config ()) sw with
+      | Ok r -> r
+      | Error e -> Alcotest.failf "create: %s" (error_to_string e) in
+    let wf = dummy_workflow ~id:"wf-cancel-evt"
+      ~name:"Cancel Events"
+      ~steps:(Human_approval {
+        prompt_template = "ok?"; timeout = 60.0;
+        allowed_roles = ["admin"] }) () in
+    let _ = Runtime.register_workflow rt wf in
+    let id = match Runtime.submit_workflow rt wf with
+      | Ok id -> id
+      | Error e -> Alcotest.failf "submit: %s" (error_to_string e) in
+    (match Runtime.cancel_workflow rt id with
+     | Ok () -> ()
+     | Error e -> Alcotest.failf "cancel: %s" (error_to_string e));
+    Alcotest.(check bool) "Workflow_failed event emitted on cancel"
+      true (has_workflow_event !events (function
+              | Workflow_failed { workflow_run_id; _ } ->
+                Workflow_run_id.to_string workflow_run_id =
+                Workflow_run_id.to_string id
+              | _ -> false));
+    (match Runtime.cancel_workflow rt (Workflow_run_id.create ()) with
+     | Ok () -> Alcotest.fail "should reject unknown workflow id"
+     | Error (Invalid_input _) -> ()
+     | Error e -> Alcotest.failf "expected Invalid_input, got: %s"
+                    (error_to_string e)))
+
 let test_resume_runtime_runs_remaining_tool_calls () =
   (* End-to-end: register workflow with Sequential[a, approval, b, c],
      suspend at approval, call resume_workflow via Runtime API, assert
@@ -1838,6 +1868,8 @@ let () =
         test_lifecycle_approve_rejects_non_suspended;
       Alcotest.test_case "cancel transitions to failed" `Quick
         test_lifecycle_cancel_sets_failed;
+      Alcotest.test_case "cancel emits Workflow_failed event + rejects unknown" `Quick
+        test_cancel_emits_workflow_failed_event;
     ]);
     ("Approve role validation", [
       Alcotest.test_case "allowed_roles accepts authorized approver" `Quick
