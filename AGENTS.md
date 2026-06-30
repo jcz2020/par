@@ -12,6 +12,22 @@
 
 **If your work conflicts with STRATEGY.md, raise it first.**
 
+## Development Principle: "一次做对" (Do It Right Once)
+
+**Before writing or finalizing any ROADMAP / scope decision**, read [`docs/STRATEGY.md` §11 开发原则](docs/STRATEGY.md).
+
+Core rule: when short-term engineering compromise conflicts with long-term architectural correctness, **choose long-term correctness**. Range can grow, schedule can slip, but **architecture must not be compromised for scope**.
+
+**Mandatory for every architectural / API / type-design decision:**
+
+- **R1**: Explicitly label each decision as **架构正确** (architecturally correct) vs **范围妥协** (scope compromise). Disguising the latter as the former is the most serious planning error in this project.
+- **R2**: Any scope compromise MUST come with a long-term replacement plan + trigger condition. No "deal with it later" without a retirement date.
+- **R3**: Default to **"一次做对"** (expand scope, do it right) over "分两步走" (split into two versions). Two-step is allowed ONLY when: (a) single step breaks SemVer major constraint, (b) requires unfinished upstream dependency, (c) requires unknown technical validation (use spike first), (d) user explicitly directs. Even when splitting, step 1 must pave the road for step 2 (API design compatible with final form).
+- **R4**: During planning, actively self-challenge: *"抛开开发周期和范围,只考虑长远规划和用户怎么用更爽,这个决策还成立吗?"* If the answer is NO, proactively propose a flip to the user — do not wait to be challenged. Discovering a compromise only after the user pushes back is planning failure.
+- **R5**: Applies to architecture / type design / API design / public type changes / ROADMAP scope. Does NOT apply to bugfixes (always minimal), docs, CI, deps.
+
+**ROADMAP cannot be finalized until every key decision passes the §11.3 verification checklist.** See `docs/STRATEGY.md` §11 for full rules, history (the 2026-06-30 v0.6.4 case that established this principle), and the verification checklist.
+
 ## Build & Install
 
 ```bash

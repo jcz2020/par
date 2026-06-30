@@ -149,7 +149,9 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 **Current**: v0.6.2 — Workflow engine closed loop: suspend → gate → resume now fully functional (resume_workflow with checkpoint replay, approve_workflow with role validation, 7 lifecycle events, boot-time rehydration). Dynamic toolset API (update_agent_tools / unregister_tool / replace_tool). Disclosure enforcement scanner in CI.
 
-**Coming next**: Auto context compression by window ratio (v0.6.3-beta — implemented, awaiting release), complete PAR-g4c builtin-tool migration (edit tool + bash), external vector stores (Qdrant/Milvus), document loaders, prompt caching.
+**Coming next**: Typed prompt caching with Stable/Volatile zones ([v0.6.4-beta — planned](docs/v0.6.4-ROADMAP.md); addresses Anthropic's "#1 mistake" cache-on-volatile-content at the type level), complete PAR-g4c builtin-tool migration (edit tool + bash), external vector stores (Qdrant/Milvus), document loaders.
+
+**Beta-only (no stable)**: v0.6.3-beta (auto context compression by window ratio) shipped on 2026-06-30; user opted to skip stable release and proceed directly to v0.6.4.
 
 ## Getting help
 
