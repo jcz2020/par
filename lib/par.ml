@@ -21,6 +21,7 @@ module Workflow_engine = Workflow_engine
 module State_machine = State_machine
 module Context_manager = Context_manager
 module Message = Message
+module Cache_breakpoint = Cache_breakpoint
 module Cancellation = Cancellation
 module Chunking = Chunking
 module Vector_store = Vector_store
