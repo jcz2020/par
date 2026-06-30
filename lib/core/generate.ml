@@ -6,16 +6,18 @@ open Types
 (* -------------------------------------------------------------------------- *)
 
 let make_conversation system_prompt user_message =
-  let sys = { role = System; content = Some system_prompt;
+  let sys = { role = System; content_blocks = Message.content_of_string system_prompt;
               tool_calls = None; tool_call_id = None; name = None } in
-  let usr = { role = User; content = Some user_message;
+  let usr = { role = User; content_blocks = Message.content_of_string user_message;
               tool_calls = None; tool_call_id = None; name = None } in
   { messages = [ sys; usr ]; metadata = [] }
 
 let add_assistant_message conv (resp : llm_response) =
   let msg = {
     role = Assistant;
-    content = resp.text;
+    content_blocks = (match resp.text with
+        | Some t -> [Text_block { text = t; cache_control = None }]
+        | None -> []);
     tool_calls = resp.tool_calls;
     tool_call_id = None;
     name = None;
@@ -25,7 +27,7 @@ let add_assistant_message conv (resp : llm_response) =
 let add_user_feedback conv feedback_message =
   let msg = {
     role = User;
-    content = Some feedback_message;
+    content_blocks = Message.content_of_string feedback_message;
     tool_calls = None;
     tool_call_id = None;
     name = None;

@@ -40,10 +40,11 @@ let http_error_to_error_category = function
 let build_tool_result_content msg =
   match msg.tool_call_id with
   | Some tool_use_id ->
+    let content_str = Message.string_of_content msg.content_blocks in
     [ `Assoc
         [ ("type", `String "tool_result")
         ; ("tool_use_id", `String tool_use_id)
-        ; ("content", `String (Option.value msg.content ~default:""))
+        ; ("content", `String content_str)
         ]
     ]
   | None -> []
@@ -59,17 +60,28 @@ let build_tool_calls_content tcs =
         ])
     tcs
 
+let cache_control_to_json (cc : cache_control) =
+  match cc.ttl with
+  | Some `Five_min -> `Assoc [ ("type", `String "ephemeral"); ("ttl", `String "5m") ]
+  | Some `One_hour -> `Assoc [ ("type", `String "ephemeral"); ("ttl", `String "1h") ]
+  | None -> `Assoc [ ("type", `String "ephemeral") ]
+
 let build_message_json msg =
+  let text_blocks_json blocks =
+    List.filter_map (function
+      | Text_block { text; cache_control = Some cc } ->
+        Some (`Assoc [ ("type", `String "text"); ("text", `String text)
+                     ; ("cache_control", cache_control_to_json cc) ])
+      | Text_block { text; cache_control = None } ->
+        Some (`Assoc [ ("type", `String "text"); ("text", `String text) ])
+      | _ -> None) blocks
+  in
   match msg.role with
   | Tool ->
     let content = build_tool_result_content msg in
     `Assoc [ ("role", `String "user"); ("content", `List content) ]
   | Assistant ->
-    let text_blocks =
-      match msg.content with
-      | Some c -> [ `Assoc [ ("type", `String "text"); ("text", `String c) ] ]
-      | None -> []
-    in
+    let text_blocks = text_blocks_json msg.content_blocks in
     let tool_blocks =
       match msg.tool_calls with
       | Some tcs -> build_tool_calls_content tcs
@@ -80,11 +92,7 @@ let build_message_json msg =
       ; ("content", `List (text_blocks @ tool_blocks))
       ]
   | User | System ->
-    let content =
-      match msg.content with
-      | Some c -> [ `Assoc [ ("type", `String "text"); ("text", `String c) ] ]
-      | None -> []
-    in
+    let content = text_blocks_json msg.content_blocks in
     `Assoc [ ("role", `String "user"); ("content", `List content) ]
 
 let extract_system_prompt conversation =
@@ -93,7 +101,7 @@ let extract_system_prompt conversation =
       conversation.messages
   in
   let system_text =
-    List.filter_map (fun (m : message) -> m.content) sys
+    List.map (fun (m : message) -> Message.text_of_message m) sys
     |> String.concat "\n"
   in
   let system_opt = if system_text = "" then None else Some system_text in
@@ -171,9 +179,14 @@ let parse_usage json =
   let open Yojson.Safe.Util in
   let input_t = try json |> member "input_tokens" |> to_int with _ -> 0 in
   let output_t = try json |> member "output_tokens" |> to_int with _ -> 0 in
+  let cache_creation = try json |> member "cache_creation_input_tokens" |> to_int with _ -> 0 in
+  let cache_read = try json |> member "cache_read_input_tokens" |> to_int with _ -> 0 in
   { prompt_tokens = input_t
   ; completion_tokens = output_t
   ; total_tokens = input_t + output_t
+  ; cached_tokens = 0
+  ; cache_creation_input_tokens = cache_creation
+  ; cache_read_input_tokens = cache_read
   }
 
 let parse_content_blocks json =
@@ -209,7 +222,7 @@ let parse_llm_response json : (llm_response, error_category) result =
   in
   let usage =
     try parse_usage (json |> member "usage")
-    with _ -> { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 }
+    with _ -> { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
   in
   let content = json |> member "content" in
   let text_parts, tool_parts = parse_content_blocks content in
@@ -281,7 +294,7 @@ let process_stream_event (evt_type, data_str) callback usage finish chunks curre
          usage :=
            { prompt_tokens = !usage.prompt_tokens + u.prompt_tokens
            ; completion_tokens = !usage.completion_tokens + u.completion_tokens
-           ; total_tokens = !usage.total_tokens + u.total_tokens
+           ; total_tokens = !usage.total_tokens + u.total_tokens; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0
            }
        with _ -> ())
     | "message_stop" ->
@@ -374,7 +387,7 @@ let stream t model_config tools conversation _stream_config callback =
           (fun ~status:_ ~headers:_ ~read_line ->
             let chunks = ref 0 in
             let usage =
-              ref { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 }
+              ref { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
             in
              let finish = ref Stop in
              let current_type = ref "" in

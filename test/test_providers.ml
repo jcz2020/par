@@ -47,7 +47,7 @@ let anthropic_model : model_config =
 let user_only_conv : conversation =
   { messages =
       [ { role = User
-        ; content = Some "hello"
+        ; content_blocks = [Text_block { text = "hello"; cache_control = None }]
         ; tool_calls = None
         ; tool_call_id = None
         ; name = None
@@ -237,7 +237,7 @@ let test_http_map_http_status_502_retryable () =
 let test_openai_create_valid () =
   match
     Openai_provider.create
-      (Openai { api_key = "sk-valid"; base_url = None; organization = None; embedding_model = None })
+      (Openai { api_key = "sk-valid"; base_url = None; organization = None; embedding_model = None; prompt_cache_key = None })
   with
   | Ok _ -> ()
   | Error e -> Alcotest.failf "expected Ok, got %s" (show_error e)
@@ -245,7 +245,7 @@ let test_openai_create_valid () =
 let test_openai_create_empty_api_key () =
   match
     Openai_provider.create
-      (Openai { api_key = ""; base_url = None; organization = None; embedding_model = None })
+      (Openai { api_key = ""; base_url = None; organization = None; embedding_model = None; prompt_cache_key = None })
   with
   | Ok _ -> Alcotest.fail "expected Error for empty api_key"
   | Error (Invalid_input msg) ->
@@ -269,7 +269,7 @@ let test_openai_create_custom_base_url () =
     Openai_provider.create
       (Openai { api_key = "sk-valid"
               ; base_url = Some "https://gateway.example.com/v1"
-              ; organization = Some "org-test"; embedding_model = None })
+              ; organization = Some "org-test"; embedding_model = None; prompt_cache_key = None })
   with
   | Ok _ -> ()
   | Error e -> Alcotest.failf "expected Ok, got %s" (show_error e)
@@ -277,7 +277,7 @@ let test_openai_create_custom_base_url () =
 let test_openai_complete_without_network () =
   match
     Openai_provider.create
-      (Openai { api_key = "sk-test"; base_url = None; organization = None; embedding_model = None })
+      (Openai { api_key = "sk-test"; base_url = None; organization = None; embedding_model = None; prompt_cache_key = None })
   with
   | Error e -> Alcotest.failf "create failed: %s" (show_error e)
   | Ok t ->
@@ -291,7 +291,7 @@ let test_openai_complete_without_network () =
 let test_openai_stream_without_network () =
   match
     Openai_provider.create
-      (Openai { api_key = "sk-test"; base_url = None; organization = None; embedding_model = None })
+      (Openai { api_key = "sk-test"; base_url = None; organization = None; embedding_model = None; prompt_cache_key = None })
   with
   | Error e -> Alcotest.failf "create failed: %s" (show_error e)
   | Ok t ->
@@ -368,7 +368,7 @@ let test_openai_request_body_with_tools () =
 let test_openai_close_is_safe () =
   match
     Openai_provider.create
-      (Openai { api_key = "sk-x"; base_url = None; organization = None; embedding_model = None })
+      (Openai { api_key = "sk-x"; base_url = None; organization = None; embedding_model = None; prompt_cache_key = None })
   with
   | Error e -> Alcotest.failf "create failed: %s" (show_error e)
   | Ok t ->
@@ -401,7 +401,7 @@ let test_anthropic_create_empty_api_key () =
 let test_anthropic_create_wrong_variant () =
   match
     Anthropic_provider.create
-      (Openai { api_key = "sk-valid"; base_url = None; organization = None; embedding_model = None })
+      (Openai { api_key = "sk-valid"; base_url = None; organization = None; embedding_model = None; prompt_cache_key = None })
   with
   | Ok _ -> Alcotest.fail "expected Error for wrong variant"
   | Error (Invalid_input msg) ->
@@ -495,13 +495,13 @@ let test_anthropic_request_body_extracts_system_prompt () =
   let conv : conversation =
     { messages =
         [ { role = System
-          ; content = Some "You are concise."
+          ; content_blocks = [Text_block { text = "You are concise."; cache_control = None }]
           ; tool_calls = None
           ; tool_call_id = None
           ; name = None
           }
         ; { role = User
-          ; content = Some "Hello"
+          ; content_blocks = [Text_block { text = "Hello"; cache_control = None }]
           ; tool_calls = None
           ; tool_call_id = None
           ; name = None
@@ -540,7 +540,7 @@ let test_openai_connection_refused_returns_external_failure () =
     Openai_provider.create
       (Openai { api_key = "sk-test"
               ; base_url = Some "https://127.0.0.1:1"
-              ; organization = None; embedding_model = None })
+              ; organization = None; embedding_model = None; prompt_cache_key = None })
   with
   | Error e -> Alcotest.failf "create failed: %s" (show_error e)
   | Ok t ->
@@ -578,7 +578,7 @@ let test_edge_openai_unicode_in_message () =
   let conv : conversation =
     { messages =
         [ { role = User
-          ; content = Some "こんにちは 🌍 — привет"
+          ; content_blocks = [Text_block { text = "こんにちは 🌍 — привет"; cache_control = None }]
           ; tool_calls = None
           ; tool_call_id = None
           ; name = None
@@ -590,7 +590,7 @@ let test_edge_openai_unicode_in_message () =
     `Assoc
       [ "role", `String "user"
       ; "content", `String (Option.value (match conv.messages with
-          | m :: _ -> m.content | [] -> None) ~default:"")
+          | m :: _ -> Message.content_opt m | [] -> None) ~default:"")
       ]
   in
   let s = Yojson.Safe.to_string msg_json in

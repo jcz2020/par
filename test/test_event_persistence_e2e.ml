@@ -39,14 +39,14 @@ let test_runtime_create_persists_published_events () =
       let mock_llm : Types.llm_service = {
         complete_fn = (fun _ _ _ ->
           Ok { Types.text = Some "mock"; tool_calls = None; finish_reason = Stop;
-               usage = { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 };
+               usage = { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 };
                model = "mock" });
         stream_fn = (fun _ _ _ _ _ -> Error (Timeout));
         close_fn = ignore;
         complete_structured_fn = None;
         list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None;
+  context_window_fn = None; cache_control_fn = None;
       } in
       match Sqlite_persistence.create db with
       | Error e -> cleanup (); Alcotest.fail ("sqlite create: " ^ err_str e)

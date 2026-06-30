@@ -5,10 +5,7 @@ let default_max_tokens = 4000
 
 let estimate_tokens conv =
   let char_count = List.fold_left (fun acc (msg : message) ->
-    let content_len = match msg.content with
-      | Some s -> String.length s
-      | None -> 0
-    in
+    let content_len = String.length (Message.string_of_content msg.content_blocks) in
     let tc_len = match msg.tool_calls with
       | Some tcs ->
         List.fold_left (fun acc (tc : tool_call) ->
@@ -64,7 +61,7 @@ let format_messages_for_summary msgs =
     | Tool -> "Tool"
   in
   List.map (fun (m : message) ->
-    let content = match m.content with Some s -> s | None -> "" in
+    let content = Message.text_of_message m in
     Printf.sprintf "[%s]: %s" (role_str m.role) content
   ) msgs |> String.concat "\n"
 
@@ -102,9 +99,9 @@ let apply_summarize max_tokens summary_model conv llm_opt ~on_event =
         in
         let summary_conv : conversation = {
           messages = [
-            { role = System; content = Some "You are a helpful assistant that summarizes conversations concisely.";
+            { role = System; content_blocks = [Text_block { text = "You are a helpful assistant that summarizes conversations concisely."; cache_control = None }];
               tool_calls = None; tool_call_id = None; name = None };
-            { role = User; content = Some prompt_text;
+            { role = User; content_blocks = [Text_block { text = prompt_text; cache_control = None }];
               tool_calls = None; tool_call_id = None; name = None };
           ];
           metadata = [];
@@ -122,7 +119,7 @@ let apply_summarize max_tokens summary_model conv llm_opt ~on_event =
             | Some summary_text ->
               let summary_msg : message = {
                 role = System;
-                content = Some (Printf.sprintf "[Conversation Summary]\n%s" summary_text);
+                content_blocks = Message.content_of_string (Printf.sprintf "[Conversation Summary]\n%s" summary_text);
                 tool_calls = None; tool_call_id = None; name = None;
               } in
               Ok { conv with messages = summary_msg :: to_keep }

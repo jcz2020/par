@@ -7,13 +7,14 @@ type t = {
   base_url : string;
   organization : string option;
   embedding_model : string;
+  prompt_cache_key : string option;
   mutable net : [ `Generic] Eio.Net.ty Eio.Net.t option;
 }
 
 let set_network t net = t.net <- Some net
 
 let create = function
-  | Openai { api_key; base_url; organization; embedding_model } ->
+  | Openai { api_key; base_url; organization; embedding_model; prompt_cache_key } ->
     if String.length api_key = 0 then
       Result.Error (Invalid_input "api_key must not be empty")
     else
@@ -22,6 +23,7 @@ let create = function
         base_url = Option.value base_url ~default:"https://api.openai.com/v1";
         organization;
         embedding_model = Option.value embedding_model ~default:default_embedding_model;
+        prompt_cache_key;
         net = None;
       }
   | _ -> Result.Error (Invalid_input "OpenAI provider requires Openai configuration")
@@ -192,7 +194,8 @@ let role_to_string = function
 let build_message_json msg =
   let fields = [ ("role", `String (role_to_string msg.role)) ] in
   let fields =
-    match msg.content with Some c -> ("content", `String c) :: fields | None -> fields
+    let content_str = Message.text_of_message msg in
+    if content_str <> "" then ("content", `String content_str) :: fields else fields
   in
   let fields =
     match msg.tool_calls with
@@ -230,12 +233,17 @@ let tool_descriptor_to_json (td : tool_descriptor) =
     ])
   ]
 
-let build_request_body ~model_config ~tools ~conversation ~stream ?response_schema () =
+let build_request_body ~model_config ~tools ~conversation ~stream ?response_schema ?prompt_cache_key () =
   let fields =
     [ ("model", `String model_config.model_name)
     ; ("messages", `List (List.map build_message_json conversation.messages))
     ; ("temperature", `Float model_config.temperature)
     ]
+  in
+  let fields =
+    match prompt_cache_key with
+    | Some k -> ("prompt_cache_key", `String k) :: fields
+    | None -> fields
   in
   let fields =
     match model_config.max_tokens with Some mt -> ("max_tokens", `Int mt) :: fields | None -> fields
@@ -305,6 +313,9 @@ let parse_usage json =
   { prompt_tokens = json |> member "prompt_tokens" |> to_int
   ; completion_tokens = json |> member "completion_tokens" |> to_int
   ; total_tokens = json |> member "total_tokens" |> to_int
+  ; cached_tokens = (try json |> member "prompt_tokens_details" |> member "cached_tokens" |> to_int with _ -> 0)
+  ; cache_creation_input_tokens = 0
+  ; cache_read_input_tokens = 0
   }
 
 let parse_tool_calls json =
@@ -325,7 +336,7 @@ let parse_llm_response json : (llm_response, error_category) result =
   let model = json |> member "model" |> to_string in
   let usage =
     try parse_usage (json |> member "usage")
-    with _ -> { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 }
+    with _ -> { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
   in
   match choices with
   | first :: _ ->
@@ -412,7 +423,7 @@ let complete t model_config tools conversation =
   | None -> Result.Error (Internal "Network not initialized; call set_network first")
   | Some net ->
     let url = Http_client.parse_url t.base_url in
-    let body = build_request_body ~model_config ~tools ~conversation ~stream:false () in
+    let body = build_request_body ~model_config ~tools ~conversation ~stream:false ?prompt_cache_key:t.prompt_cache_key () in
     let headers = build_auth_headers t in
     let request =
       Http_client.build_http_request
@@ -441,7 +452,7 @@ let complete_structured t model_config tools conversation response_schema =
   | Some net ->
     let url = Http_client.parse_url t.base_url in
     let body =
-      build_request_body ~model_config ~tools ~conversation ~stream:false
+      build_request_body ~model_config ~tools ~conversation ~stream:false ?prompt_cache_key:t.prompt_cache_key
         ~response_schema:response_schema ()
     in
     let headers = build_auth_headers t in
@@ -474,7 +485,7 @@ let stream t model_config tools conversation _stream_config callback =
   | None -> Result.Error (Internal "Network not initialized; call set_network first")
   | Some net ->
     let url = Http_client.parse_url t.base_url in
-    let body = build_request_body ~model_config ~tools ~conversation ~stream:true () in
+    let body = build_request_body ~model_config ~tools ~conversation ~stream:true ?prompt_cache_key:t.prompt_cache_key () in
     let headers = build_auth_headers t in
     let request =
       Http_client.build_http_request
@@ -487,7 +498,7 @@ let stream t model_config tools conversation _stream_config callback =
           (fun ~status:_ ~headers:_ ~read_line ->
             let chunks = ref 0 in
             let usage =
-              ref { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 }
+              ref { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
             in
             let finish = ref Stop in
              let stop = ref false in

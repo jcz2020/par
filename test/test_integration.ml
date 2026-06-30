@@ -7,7 +7,7 @@ let dummy_model : model_config =
     stop_sequences = None }
 
 let dummy_usage : usage_stats =
-  { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 }
+  { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
 
 let text_response text : llm_response =
   { text = Some text; tool_calls = None; finish_reason = Stop;
@@ -33,7 +33,7 @@ let mock_llm responses =
     complete_structured_fn = None;
     list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None;
+  context_window_fn = None; cache_control_fn = None;
   }
 
 let with_token f =
@@ -53,7 +53,7 @@ let basic_agent ?(tools = []) ?(middleware = []) ?(max_iterations = 10) () =
     system_prompt_template = None;
     model = dummy_model; tools = descriptors; max_iterations; middleware;
     retry_policy = None; context_strategy = None; resource_quota = None; max_execution_time = None; tool_timeout = None; early_stopping_method = Force; on_max_tokens = Some Return_partial; max_continuation_chunks = Some 3;
-    context_compression_threshold = None; compression_cooldown_messages = None; context_window_override = None }
+    context_compression_threshold = None; compression_cooldown_messages = None; context_window_override = None; cache_strategy = No_caching }
 
 let make_registry tools =
   let reg = Tool_registry.create () in
@@ -191,7 +191,7 @@ let agent_loop_suite =
           transformed := true;
           let sys_msg = {
             role = System;
-            content = Some "modified system prompt";
+            content_blocks = [Text_block { text = "modified system prompt"; cache_control = None }];
             tool_calls = None; tool_call_id = None; name = None
           } in
           Some { conv with messages = sys_msg :: conv.messages });
@@ -637,7 +637,7 @@ let middleware_suite =
         complete_structured_fn = None;
         list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None;
+  context_window_fn = None; cache_control_fn = None;
       } in
       let retry_mw = Retry.retry ~config:{ max_attempts = 3; base_delay = 0.01; max_delay = 0.01 } () in
       let agent = basic_agent ~middleware:[ retry_mw ] () in
@@ -650,7 +650,7 @@ let middleware_suite =
       let mw = Pii_mask.pii_mask () in
       let conv : conversation = {
         messages = [{ role = User;
-          content = Some "contact me at user@example.com please";
+          content_blocks = [Text_block { text = "contact me at user@example.com please"; cache_control = None }];
           tool_calls = None; tool_call_id = None; name = None }];
         metadata = [] } in
       (match mw.on_before_llm with
@@ -659,7 +659,7 @@ let middleware_suite =
             | Some masked ->
                 (match masked.messages with
                  | [ msg ] ->
-                     (match msg.content with
+                     (match Message.content_opt msg with
                       | Some text ->
                           Alcotest.(check bool) "email masked" true
                             (not (String.contains text '@'))

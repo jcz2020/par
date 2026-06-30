@@ -130,7 +130,7 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
   let net_gen = (net :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
   match provider_tag with
   | `Openai ->
-    let cfg = Openai { api_key = api_key_val; base_url = api_base_val; organization = None; embedding_model = None } in
+    let cfg = Openai { api_key = api_key_val; base_url = api_base_val; organization = None; embedding_model = None; prompt_cache_key = None } in
     (match Openai_provider.create cfg with
      | Error e ->
        Printf.eprintf "Error creating OpenAI provider: %s\n" (error_category_to_string e);
@@ -143,7 +143,7 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
           complete_structured_fn = Some (fun mc tools conv schema -> Openai_provider.complete_structured t mc tools conv schema);
           list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None; })
+  context_window_fn = None; cache_control_fn = None; })
   | `Anthropic ->
     let cfg = Anthropic { api_key = api_key_val; base_url = api_base_val } in
     (match Anthropic_provider.create cfg with
@@ -158,13 +158,13 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
          complete_structured_fn = Some (fun mc tools conv schema -> Anthropic_provider.complete_structured t mc tools conv schema);
          list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None; })
+  context_window_fn = None; cache_control_fn = None; })
   | `Ollama ->
     (* Ollama exposes an OpenAI-compatible /v1 endpoint. Build the OpenAI
        provider with a localhost base_url and a placeholder api_key that
        Ollama ignores. Mirrors make_embedding_service's Ollama branch
        (PAR-z23 / B.1). *)
-    let cfg = Openai { api_key = api_key_val; base_url = Some "http://localhost:11434/v1"; organization = None; embedding_model = None } in
+    let cfg = Openai { api_key = api_key_val; base_url = Some "http://localhost:11434/v1"; organization = None; embedding_model = None; prompt_cache_key = None } in
     (match Openai_provider.create cfg with
      | Error e ->
        Printf.eprintf "Error creating Ollama LLM provider: %s\n" (error_category_to_string e);
@@ -177,7 +177,7 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
          complete_structured_fn = Some (fun mc tools conv schema -> Openai_provider.complete_structured t mc tools conv schema);
           list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None; })
+  context_window_fn = None; cache_control_fn = None; })
   | `Custom _ ->
     (* OpenAI-compatible custom endpoint. The user must supply base_url via
        --api-base; refuse to start otherwise (PAR-z23 / B.1). *)
@@ -186,7 +186,7 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
        Printf.eprintf "Error: custom LLM provider requires --api-base\n";
        exit 1
      | Some base ->
-       let cfg = Openai { api_key = api_key_val; base_url = Some base; organization = None; embedding_model = None } in
+       let cfg = Openai { api_key = api_key_val; base_url = Some base; organization = None; embedding_model = None; prompt_cache_key = None } in
        (match Openai_provider.create cfg with
         | Error e ->
           Printf.eprintf "Error creating custom LLM provider: %s\n" (error_category_to_string e);
@@ -199,14 +199,14 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
             complete_structured_fn = Some (fun mc tools conv schema -> Openai_provider.complete_structured t mc tools conv schema);
             list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None; }))
+  context_window_fn = None; cache_control_fn = None; }))
 
 let make_embedding_service provider_tag api_key_val api_base_val (net : [< `Generic | `Unix > `Generic ] Eio.Net.ty Eio.Resource.t) =
   let open Types in
   let net_gen = (net :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
   match provider_tag with
   | `Openai ->
-    let cfg = Openai { api_key = api_key_val; base_url = api_base_val; organization = None; embedding_model = None } in
+    let cfg = Openai { api_key = api_key_val; base_url = api_base_val; organization = None; embedding_model = None; prompt_cache_key = None } in
     (match Openai_provider.create cfg with
      | Error e ->
        Printf.eprintf "Error creating OpenAI embedding provider: %s\n" (error_category_to_string e);
@@ -219,7 +219,7 @@ let make_embedding_service provider_tag api_key_val api_base_val (net : [< `Gene
     { embed_fn = (fun _msgs -> Result.Error Embedding_unsupported);
       close_fn = ignore }
   | `Ollama ->
-    let cfg = Openai { api_key = api_key_val; base_url = Some "http://localhost:11434/v1"; organization = None; embedding_model = None } in
+    let cfg = Openai { api_key = api_key_val; base_url = Some "http://localhost:11434/v1"; organization = None; embedding_model = None; prompt_cache_key = None } in
     (match Openai_provider.create cfg with
      | Error e ->
        Printf.eprintf "Error creating Ollama embedding provider: %s\n" (error_category_to_string e);
@@ -1342,6 +1342,26 @@ let format_event_for_history (evt : Types.event) =
        | `Cooldown_active n -> Printf.sprintf "cooldown_active(%d)" n
        | `No_window_size -> "no_window_size"
        | `No_strategy -> "no_strategy")
+  | Types.Cache_write { tokens_written; ttl } ->
+    Printf.sprintf "CacheWrite: %d tokens, ttl=%s" tokens_written
+      (match ttl with `Five_min -> "5m" | `One_hour -> "1h")
+  | Types.Cache_read { tokens_read; total_prompt_tokens } ->
+    Printf.sprintf "CacheRead: %d/%d tokens" tokens_read total_prompt_tokens
+  | Types.Cache_strategy_skipped { reason } ->
+    Printf.sprintf "CacheStrategySkipped: %s"
+      (match reason with
+       | `Volatile_system -> "volatile_system"
+       | `Volatile_builtins bs -> "volatile_builtins: " ^ String.concat ", " bs
+       | `Unsupported_provider -> "unsupported_provider"
+       | `No_strategy -> "no_strategy")
+  | Types.Cache_breakpoint_dropped { reason; _ } ->
+    Printf.sprintf "CacheBreakpointDropped: %s"
+      (match reason with
+       | Over_budget -> "over_budget"
+       | Unsupported_by_provider -> "unsupported_by_provider"
+       | Lower_priority_than_dropped -> "lower_priority")
+  | Types.Cache_invalidated_by_skill { skill_id; estimated_wasted_tokens; _ } ->
+    Printf.sprintf "CacheInvalidatedBySkill: %s (%d tokens wasted)" skill_id estimated_wasted_tokens
 
 let session_id_arg =
   let open Cmdliner in

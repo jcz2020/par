@@ -124,7 +124,7 @@ let make_agent ~id ?(system_prompt = "") ?(system_prompt_template = None)
       tool_timeout;
       context_compression_threshold;
       compression_cooldown_messages;
-      context_window_override;
+      context_window_override; cache_strategy = No_caching;
     }
   | errs -> Result.Error (Types.Invalid_input (String.concat "; " errs))
 
@@ -1289,7 +1289,7 @@ let create ?(persistence = noop_persistence)
                      complete_structured_fn = None;
                      list_models_fn = None;
                      supports_native_tools_fn = None;
-                     context_window_fn = None })
+                     context_window_fn = None; cache_control_fn = None })
            ?embeddings
            ?(bash_policy = (module Bash_policy.Coder : Bash_policy.POLICY))
            ?(mcp_servers = [])

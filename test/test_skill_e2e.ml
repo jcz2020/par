@@ -27,7 +27,7 @@ let () =
            | Some r ->
              match r.Mock_provider.conversation.messages with
              | f :: _ ->
-               let p = Option.value f.content ~default:"<none>" in
+                let p = Option.value (Message.content_opt f) ~default:"<none>" in
                Printf.printf "system_prompt_sent = %S\n" p;
                if p = "OVERRIDDEN" then print_endline "ALL 3 RISKS VERIFIED"
                else (Printf.eprintf "FAIL: expected OVERRIDDEN got %S\n" p; exit 1)

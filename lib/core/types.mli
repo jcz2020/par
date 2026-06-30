@@ -85,6 +85,9 @@ type usage_stats = {
   prompt_tokens : int;
   completion_tokens : int;
   total_tokens : int;
+  cached_tokens : int;
+  cache_creation_input_tokens : int;
+  cache_read_input_tokens : int;
 }
 [@@deriving yojson]
 
@@ -100,6 +103,48 @@ type llm_response = {
 val llm_response_validate : llm_response -> (unit, string) result
 
 (* -------------------------------------------------------------------------- *)
+(* Prompt caching + content block types (PAR-4lh, v0.6.4)                   *)
+(* -------------------------------------------------------------------------- *)
+
+type cache_ttl = [`Five_min | `One_hour]
+[@@deriving yojson]
+
+type cache_control = {
+  type_ : [`Ephemeral];
+  ttl : cache_ttl option;
+}
+[@@deriving yojson]
+
+type image_source =
+  | Url of string
+  | Base64 of string
+[@@deriving yojson]
+
+type content_block =
+  | Text_block of {
+      text : string;
+      cache_control : cache_control option;
+    }
+  | Tool_use_block of {
+      id : string;
+      name : string;
+      arguments : Yojson.Safe.t;
+      cache_control : cache_control option;
+    }
+  | Tool_result_block of {
+      tool_use_id : string;
+      content : string;
+      cache_control : cache_control option;
+    }
+  | Image_block of {
+      source : image_source;
+      media_type : string;
+      data : string;
+      cache_control : cache_control option;
+    }
+[@@deriving yojson]
+
+(* -------------------------------------------------------------------------- *)
 (* Conversation types (early — referenced by middleware_hook)            *)
 (* -------------------------------------------------------------------------- *)
 
@@ -108,7 +153,7 @@ type message_role = System | User | Assistant | Tool
 
 type message = {
   role : message_role;
-  content : string option;
+  content_blocks : content_block list;
   tool_calls : tool_call list option;
   tool_call_id : string option;
   name : string option;
@@ -361,6 +406,11 @@ type early_stopping_method = Force | Generate
 
 type on_max_tokens_behavior = Retry | Continue | Return_partial
 
+type cache_strategy =
+  | No_caching
+  | With_cache_of of cache_ttl
+[@@deriving yojson]
+
 type agent_config = {
   id : string;
   system_prompt : string;
@@ -394,6 +444,7 @@ type agent_config = {
   context_compression_threshold : float option;
   compression_cooldown_messages : int option;
   context_window_override : int option;
+  cache_strategy : cache_strategy;
 }
 
 (* -------------------------------------------------------------------------- *)
@@ -538,10 +589,45 @@ type event =
       strategy_used : context_strategy;
       elapsed_ms : int;
     }
-  | Context_compression_skipped of {
-      reason : context_compression_skip_reason;
-    }
-[@@deriving yojson]
+   | Context_compression_skipped of {
+       reason : context_compression_skip_reason;
+     }
+   | Cache_write of {
+       tokens_written : int;
+       ttl : cache_ttl;
+     }
+   | Cache_read of {
+       tokens_read : int;
+       total_prompt_tokens : int;
+     }
+   | Cache_strategy_skipped of {
+       reason : cache_skip_reason;
+     }
+   | Cache_breakpoint_dropped of {
+       location : breakpoint_location;
+       reason : drop_reason;
+     }
+   | Cache_invalidated_by_skill of {
+       skill_id : string;
+       before_tool_count : int;
+       after_tool_count : int;
+       estimated_wasted_tokens : int;
+     }
+   [@@deriving yojson]
+
+ and cache_skip_reason =
+   [ `Volatile_system
+   | `Volatile_builtins of string list
+   | `Unsupported_provider
+   | `No_strategy ]
+
+ and breakpoint_location =
+   [ `System | `Tool of int | `Message of int * int ]
+
+ and drop_reason =
+   | Over_budget
+   | Unsupported_by_provider
+   | Lower_priority_than_dropped
 
 type event_envelope = {
   id : string;
@@ -587,7 +673,7 @@ type event_bus_config = {
 (* -------------------------------------------------------------------------- *)
 
 type llm_provider_config =
-  | Openai of { api_key : string; base_url : string option; organization : string option; embedding_model : string option }
+  | Openai of { api_key : string; base_url : string option; organization : string option; embedding_model : string option; prompt_cache_key : string option }
   | Anthropic of { api_key : string; base_url : string option }
   | Ollama of { base_url : string }
   | Custom of {
@@ -787,6 +873,12 @@ type llm_service = {
       fall through to static table. Mirrors the supports_native_tools_fn capability
       pattern. *)
   context_window_fn : (unit -> int) option;
+  cache_control_fn : (unit -> cache_control_capability) option;
+}
+
+and cache_control_capability = {
+  supported_ttls : cache_ttl list;
+  max_breakpoints : int;
 }
 
 type embedding_service = {

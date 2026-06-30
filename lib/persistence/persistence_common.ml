@@ -42,6 +42,11 @@ let extract_task_id : event -> string = function
   | Generate_continuation { task_id; _ } -> Task_id.to_string task_id
   | Context_compressed _ -> ""
   | Context_compression_skipped _ -> ""
+  | Cache_write _ -> ""
+  | Cache_read _ -> ""
+  | Cache_strategy_skipped _ -> ""
+  | Cache_breakpoint_dropped _ -> ""
+  | Cache_invalidated_by_skill _ -> ""
 
 let extract_session_id (envelope : event_envelope) : string =
   envelope.metadata.session_id

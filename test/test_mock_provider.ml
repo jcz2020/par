@@ -101,7 +101,7 @@ let test_empty_response_list_returns_default () =
   | Error e -> Alcotest.failf "unexpected error: %s" (show_error e)
 
 let test_custom_usage_stats () =
-  let usage = { prompt_tokens = 100; completion_tokens = 200; total_tokens = 300 } in
+  let usage = { prompt_tokens = 100; completion_tokens = 200; total_tokens = 300; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 } in
   let (svc, _history) = create ~usage [Text "hi"] in
   match svc.complete_fn mock_model [] empty_conv with
   | Ok resp ->

@@ -1,7 +1,7 @@
 open Par
 
 let dummy_msg role content =
-  { Types.role = role; content = Some content;
+  { Types.role = role; content_blocks = [Text_block { text = content; cache_control = None }];
     tool_calls = None; tool_call_id = None; name = None }
 
 let dummy_model ~name =
@@ -21,7 +21,7 @@ let dummy_llm ?context_window_fn () : Types.llm_service =
     complete_structured_fn = None;
     list_models_fn = None;
     supports_native_tools_fn = None;
-    context_window_fn = context_window_fn }
+    context_window_fn = context_window_fn; cache_control_fn = None }
 
 let dummy_conv () =
   { Types.messages = []; metadata = [] }

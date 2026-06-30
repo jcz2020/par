@@ -163,14 +163,14 @@ let default_llm_service : Par.Types.llm_service = {
   complete_structured_fn = None;
   list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None;
+  context_window_fn = None; cache_control_fn = None;
 }
 
 let build_llm_from_provider provider_cfg net =
   let net_gen = (net :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
   match provider_cfg with
-  | Par.Types.Openai { api_key; base_url; organization; embedding_model = _ } ->
-    (match Par.Openai_provider.create (Par.Types.Openai { api_key; base_url; organization; embedding_model = None }) with
+  | Par.Types.Openai { api_key; base_url; organization; embedding_model = _; prompt_cache_key = _ } ->
+    (match Par.Openai_provider.create (Par.Types.Openai { api_key; base_url; organization; embedding_model = None; prompt_cache_key = None }) with
      | Ok t ->
        Par.Openai_provider.set_network t net_gen;
 Some {
@@ -180,11 +180,11 @@ Some {
           complete_structured_fn = None;
           list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None;
+  context_window_fn = None; cache_control_fn = None;
         }
       | Error _ -> None)
   | Par.Types.Ollama { base_url } ->
-    let cfg = Par.Types.Openai { api_key = "ollama-no-auth"; base_url = Some (base_url ^ "/v1"); organization = None; embedding_model = None } in
+    let cfg = Par.Types.Openai { api_key = "ollama-no-auth"; base_url = Some (base_url ^ "/v1"); organization = None; embedding_model = None; prompt_cache_key = None } in
     (match Par.Openai_provider.create cfg with
      | Ok t ->
        Par.Openai_provider.set_network t net_gen;
@@ -195,7 +195,7 @@ Some {
          complete_structured_fn = None;
          list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None;
+  context_window_fn = None; cache_control_fn = None;
        }
      | Error _ -> None)
   | Par.Types.Anthropic { api_key; base_url } ->
@@ -210,11 +210,11 @@ Some {
          complete_structured_fn = None;
          list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None;
+  context_window_fn = None; cache_control_fn = None;
        }
      | Error _ -> None)
   | Par.Types.Custom { base_url = base_url_for_custom; _ } ->
-       let cfg = Par.Types.Openai { api_key = "par-custom-no-auth"; base_url = Some base_url_for_custom; organization = None; embedding_model = None } in
+       let cfg = Par.Types.Openai { api_key = "par-custom-no-auth"; base_url = Some base_url_for_custom; organization = None; embedding_model = None; prompt_cache_key = None } in
        (match Par.Openai_provider.create cfg with
         | Ok t ->
           Par.Openai_provider.set_network t net_gen;
@@ -225,15 +225,15 @@ Some {
             complete_structured_fn = None;
             list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None;
+  context_window_fn = None; cache_control_fn = None;
           }
         | Error _ -> None)
 
 let build_embed_from_provider provider_cfg net =
   let net_gen = (net :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
   match provider_cfg with
-  | Par.Types.Openai { api_key; base_url; organization; embedding_model } ->
-    (match Par.Openai_provider.create (Par.Types.Openai { api_key; base_url; organization; embedding_model }) with
+  | Par.Types.Openai { api_key; base_url; organization; embedding_model; prompt_cache_key = _ } ->
+    (match Par.Openai_provider.create (Par.Types.Openai { api_key; base_url; organization; embedding_model; prompt_cache_key = None }) with
      | Ok t ->
        Par.Openai_provider.set_network t net_gen;
        Some { Par.Types.embed_fn = (fun msgs -> Par.Openai_provider.embed t msgs);
@@ -243,7 +243,7 @@ let build_embed_from_provider provider_cfg net =
     fd_log (Printf.sprintf "[embed] wiring Ollama (base_url=%s)" base_url);
     (* Ollama doesn't use API keys, but Openai_provider.create validates
        non-empty api_key. Pass a placeholder that Ollama will ignore. *)
-    let cfg = Par.Types.Openai { api_key = "ollama-no-auth"; base_url = Some (base_url ^ "/v1"); organization = None; embedding_model = None } in
+    let cfg = Par.Types.Openai { api_key = "ollama-no-auth"; base_url = Some (base_url ^ "/v1"); organization = None; embedding_model = None; prompt_cache_key = None } in
     (match Par.Openai_provider.create cfg with
      | Ok t ->
        Par.Openai_provider.set_network t net_gen;
@@ -573,7 +573,7 @@ let parse_agent_config (json : Yojson.Safe.t) : Par.Types.agent_config =
     middleware; retry_policy; context_strategy; resource_quota;
     max_execution_time; tool_timeout = None; early_stopping_method;
     on_max_tokens; max_continuation_chunks;
-    context_compression_threshold; compression_cooldown_messages; context_window_override }
+    context_compression_threshold; compression_cooldown_messages; context_window_override; cache_strategy = No_caching }
 
 let do_register_agent (state_id : int) (config_json : string) =
   match get_state state_id with

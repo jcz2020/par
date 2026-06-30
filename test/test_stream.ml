@@ -18,7 +18,7 @@ let test_openai_stream () =
   Eio_main.run @@ fun env ->
   let net = (Eio.Stdenv.net env :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
   let t = match Openai_provider.create (Openai {
-      api_key; base_url = Some "https://open.bigmodel.cn/api/paas/v4"; organization = None; embedding_model = None
+      api_key; base_url = Some "https://open.bigmodel.cn/api/paas/v4"; organization = None; embedding_model = None; prompt_cache_key = None
     }) with
     | Ok t -> Openai_provider.set_network t net; t
     | Error e -> Alcotest.fail ("create: " ^ show_error e)
@@ -30,14 +30,14 @@ let test_openai_stream () =
     complete_structured_fn = None;
     list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None;
+  context_window_fn = None; cache_control_fn = None;
   } in
   let model = {
     provider = `Openai; model_name = "glm-4-flash"; api_base = None;
     temperature = 0.7; max_tokens = Some 100; top_p = None; stop_sequences = None
   } in
   let conv : conversation = {
-    messages = [{ role = User; content = Some "Say hello."; tool_calls = None; tool_call_id = None; name = None }];
+    messages = [{ role = User; content_blocks = [Text_block { text = "Say hello."; cache_control = None }]; tool_calls = None; tool_call_id = None; name = None }];
     metadata = []
   } in
   let chunks = ref 0 in

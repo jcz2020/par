@@ -9,14 +9,14 @@ let dummy_model : model_config =
 let mock_llm : llm_service = {
   complete_fn = (fun _ _ _ ->
     Ok { text = Some "mock"; tool_calls = None; finish_reason = Stop;
-         usage = { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 };
+         usage = { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 };
          model = "mock" });
   stream_fn = (fun _ _ _ _ _ -> Error (Timeout));
   close_fn = ignore;
   complete_structured_fn = None;
   list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None;
+  context_window_fn = None; cache_control_fn = None;
 }
 
 let tmp_db () =

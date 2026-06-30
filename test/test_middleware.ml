@@ -26,7 +26,7 @@ let error_category_pp fmt ec = Format.pp_print_string fmt (string_of_error_categ
 let error_category_testable = Alcotest.testable error_category_pp (=)
 
 let empty_conv : conversation = { messages = []; metadata = [] }
-let dummy_usage : usage_stats = { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 }
+let dummy_usage : usage_stats = { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
 let dummy_response ?text ?tool_calls () : llm_response =
   { text; tool_calls; finish_reason = Stop;
     usage = dummy_usage; model = "mock" }
@@ -748,12 +748,12 @@ let test_pii_mask_on_before_llm_masks_email () =
   let hook = Pii_mask.pii_mask () in
   let f = Option.get hook.on_before_llm in
   let conv = { empty_conv with messages = [
-    { role = User; content = Some "Contact me at user@example.com";
+    { role = User; content_blocks = [Text_block { text = "Contact me at user@example.com"; cache_control = None }];
       tool_calls = None; tool_call_id = None; name = None };
   ] } in
   match f conv with
   | Some masked ->
-    let content = match (List.hd masked.messages).content with
+    let content = match (Message.content_opt (List.hd masked.messages)) with
       | Some s -> s | None -> Alcotest.fail "expected Some content"
     in
     let has_email =
@@ -776,12 +776,12 @@ let test_pii_mask_on_before_llm_masks_phone () =
   let hook = Pii_mask.pii_mask () in
   let f = Option.get hook.on_before_llm in
   let conv = { empty_conv with messages = [
-    { role = User; content = Some "Call 555-123-4567 now";
+    { role = User; content_blocks = [Text_block { text = "Call 555-123-4567 now"; cache_control = None }];
       tool_calls = None; tool_call_id = None; name = None };
   ] } in
   match f conv with
   | Some masked ->
-    let content = match (List.hd masked.messages).content with
+    let content = match (Message.content_opt (List.hd masked.messages)) with
       | Some s -> s | None -> Alcotest.fail "expected Some content"
     in
     let has_phone =
@@ -797,12 +797,12 @@ let test_pii_mask_on_before_llm_masks_ssn () =
   let hook = Pii_mask.pii_mask () in
   let f = Option.get hook.on_before_llm in
   let conv = { empty_conv with messages = [
-    { role = User; content = Some "SSN 123-45-6789";
+    { role = User; content_blocks = [Text_block { text = "SSN 123-45-6789"; cache_control = None }];
       tool_calls = None; tool_call_id = None; name = None };
   ] } in
   match f conv with
   | Some masked ->
-    let content = match (List.hd masked.messages).content with
+    let content = match (Message.content_opt (List.hd masked.messages)) with
       | Some s -> s | None -> Alcotest.fail "expected Some content"
     in
     let has_ssn =
@@ -819,12 +819,12 @@ let test_pii_mask_on_before_llm_multiple_pii () =
   let f = Option.get hook.on_before_llm in
   let conv = { empty_conv with messages = [
     { role = User;
-      content = Some "Email alice@x.com or bob@y.com, phone 555-111-2222, SSN 111-22-3333";
+      content_blocks = [Text_block { text = "Email alice@x.com or bob@y.com, phone 555-111-2222, SSN 111-22-3333"; cache_control = None }];
       tool_calls = None; tool_call_id = None; name = None };
   ] } in
   match f conv with
   | Some masked ->
-    let content = match (List.hd masked.messages).content with
+    let content = match (Message.content_opt (List.hd masked.messages)) with
       | Some s -> s | None -> Alcotest.fail "expected Some content"
     in
     let count_redacted =
@@ -847,13 +847,13 @@ let test_pii_mask_on_before_llm_no_pii_passes () =
   let hook = Pii_mask.pii_mask () in
   let f = Option.get hook.on_before_llm in
   let conv = { empty_conv with messages = [
-    { role = User; content = Some "Hello, world! No PII here.";
+    { role = User; content_blocks = [Text_block { text = "Hello, world! No PII here."; cache_control = None }];
       tool_calls = None; tool_call_id = None; name = None };
   ] } in
   match f conv with
   | Some masked_conv ->
     (match masked_conv.messages with
-     | { content = Some t; _ } :: _ ->
+     | { content_blocks = [Text_block { text = t; cache_control = None }]; _ } :: _ ->
        Alcotest.(check string) "no PII content unchanged" "Hello, world! No PII here." t
      | _ -> Alcotest.fail "expected message")
   | None -> Alcotest.fail "on_before_llm always returns Some"
@@ -972,12 +972,12 @@ let test_pii_mask_custom_replacement () =
   let hook = Pii_mask.pii_mask ~replacement:"XXX" () in
   let f = Option.get hook.on_before_llm in
   let conv = { empty_conv with messages = [
-    { role = User; content = Some "user@example.com";
+    { role = User; content_blocks = [Text_block { text = "user@example.com"; cache_control = None }];
       tool_calls = None; tool_call_id = None; name = None };
   ] } in
   match f conv with
   | Some masked ->
-    let content = match (List.hd masked.messages).content with
+    let content = match (Message.content_opt (List.hd masked.messages)) with
       | Some s -> s | None -> Alcotest.fail "expected Some content"
     in
     let has_xxx =
@@ -995,12 +995,12 @@ let test_pii_mask_custom_patterns () =
     ~replacement:"[HIDDEN]" () in
   let f = Option.get hook.on_before_llm in
   let conv = { empty_conv with messages = [
-    { role = User; content = Some "My code is SECRET-1234";
+    { role = User; content_blocks = [Text_block { text = "My code is SECRET-1234"; cache_control = None }];
       tool_calls = None; tool_call_id = None; name = None };
   ] } in
   match f conv with
   | Some masked ->
-    let content = match (List.hd masked.messages).content with
+    let content = match (Message.content_opt (List.hd masked.messages)) with
       | Some s -> s | None -> Alcotest.fail "expected Some content"
     in
     let has_secret =

@@ -105,7 +105,7 @@ let test_anthropic_streaming_tool_call_start_uses_real_id () =
   in
   let received : llm_response_chunk list ref = ref [] in
   let cb chunk = received := chunk :: !received in
-  let usage = ref { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 } in
+  let usage = ref { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 } in
   let finish : finish_reason ref = ref Stop in
   let chunks : int ref = ref 0 in
   let current_tc_id : string ref = ref "" in
@@ -134,7 +134,7 @@ let test_anthropic_streaming_input_delta_uses_real_id () =
   in
   let received : llm_response_chunk list ref = ref [] in
   let cb chunk = received := !received @ [chunk] in
-  let usage = ref { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 } in
+  let usage = ref { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 } in
   let finish : finish_reason ref = ref Stop in
   let chunks : int ref = ref 0 in
   let current_tc_id : string ref = ref "" in

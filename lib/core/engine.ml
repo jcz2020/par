@@ -195,14 +195,16 @@ let run_llm_with_optional_streaming llm agent_model agent_tools conv user_cb =
            usage = stream_complete.final_usage; model = agent_model.model_name }
 
 let make_conversation system_prompt user_message =
-  let sys = { role = System; content = Some system_prompt; tool_calls = None; tool_call_id = None; name = None } in
-  let usr = { role = User; content = Some user_message; tool_calls = None; tool_call_id = None; name = None } in
+  let sys = { role = System; content_blocks = Message.content_of_string system_prompt; tool_calls = None; tool_call_id = None; name = None } in
+  let usr = { role = User; content_blocks = Message.content_of_string user_message; tool_calls = None; tool_call_id = None; name = None } in
   { messages = [ sys; usr ]; metadata = [] }
 
 let add_assistant_message conv (resp : llm_response) =
   let msg = {
     role = Assistant;
-    content = resp.text;
+    content_blocks = (match resp.text with
+        | Some t -> [Text_block { text = t; cache_control = None }]
+        | None -> []);
     tool_calls = resp.tool_calls;
     tool_call_id = None;
     name = None;
@@ -217,7 +219,7 @@ let add_tool_result_message conv (call : tool_call) result =
   in
   let msg = {
     role = Tool;
-    content = Some content;
+    content_blocks = Message.content_of_string content;
     tool_calls = None;
     tool_call_id = Some call.id;
     name = Some call.name;
@@ -250,7 +252,7 @@ let classify_engine_error (err : error_category) =
 let add_user_feedback conv feedback_message =
   let msg = {
     role = User;
-    content = Some feedback_message;
+    content_blocks = Message.content_of_string feedback_message;
     tool_calls = None;
     tool_call_id = None;
     name = None;
@@ -302,7 +304,7 @@ let run_structured
   in
   let conv0 = match conversation with
     | Some existing ->
-      let usr = { role = User; content = Some user_message; tool_calls = None;
+      let usr = { role = User; content_blocks = Message.content_of_string user_message; tool_calls = None;
                   tool_call_id = None; name = None } in
       { existing with messages = existing.messages @ [ usr ] }
     | None -> make_conversation sys_prompt user_message
@@ -323,11 +325,11 @@ let run_structured
       let messages = match conv.messages with
         | [] -> conv.messages
         | first :: rest ->
-          let first_text = match first.content with
-            | Some t -> t ^ "\n\n" ^ directive
-            | None -> directive
+          let first_text =
+            let base = Message.text_of_message first in
+            base ^ "\n\n" ^ directive
           in
-          { first with content = Some first_text } :: rest
+          { first with content_blocks = Message.content_of_string first_text } :: rest
       in
       llm.complete_fn model tools { conv with messages }
   in
@@ -480,7 +482,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     | Some q ->
       let msgs = Steering_queue.drain_all q in
       List.fold_left (fun c msg ->
-        let usr = { role = User; content = Some msg; tool_calls = None;
+        let usr = { role = User; content_blocks = Message.content_of_string msg; tool_calls = None;
                     tool_call_id = None; name = None } in
         { c with messages = c.messages @ [usr] }
       ) conv msgs
@@ -491,7 +493,8 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     in
     Logs.debug (fun m -> m "[engine]   msg[%d]: role=%s content=%s"
       i role_str
-      (match msg.content with Some c -> c | None -> "<none>"))
+      (let c = Message.text_of_message msg in
+       if c = "" then "<none>" else c))
   in
   let start_time = Unix.gettimeofday () in
   let last_compress_iter = ref (-1_000_000) in
@@ -797,7 +800,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                  let non_sys = List.filter
                    (fun (m : message) -> m.role <> System) conv.messages in
                  let sys_msg = {
-                   role = System; content = Some target_sys_prompt;
+                   role = System; content_blocks = Message.content_of_string target_sys_prompt;
                    tool_calls = None; tool_call_id = None; name = None
                  } in
                  let new_conv = { conv with messages = sys_msg :: non_sys } in
@@ -806,11 +809,11 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                  (match task with
                   | Some t ->
                     let sys_msg = {
-                      role = System; content = Some target_sys_prompt;
+                      role = System; content_blocks = Message.content_of_string target_sys_prompt;
                       tool_calls = None; tool_call_id = None; name = None
                     } in
                     let user_msg = {
-                      role = User; content = Some t;
+                      role = User; content_blocks = Message.content_of_string t;
                       tool_calls = None; tool_call_id = None; name = None
                     } in
                     let new_conv = { messages = [sys_msg; user_msg]; metadata = [] } in
@@ -910,7 +913,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     | Some existing ->
       Logs.info (fun m -> m "[engine] Resuming conversation: %d existing messages, appending user message (%d chars)"
         (List.length existing.messages) (String.length user_message));
-      let usr = { role = User; content = Some user_message; tool_calls = None;
+      let usr = { role = User; content_blocks = Message.content_of_string user_message; tool_calls = None;
                   tool_call_id = None; name = None } in
       { existing with messages = existing.messages @ [ usr ] }
     | None ->

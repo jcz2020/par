@@ -41,11 +41,12 @@ let pii_mask ?(patterns = default_patterns) ?(replacement = "[REDACTED]") () : m
     (* Scan all message content for PII before sending to LLM *)
     on_before_llm = Some (fun conv ->
       let mask_message msg =
-        let content = match msg.content with
-          | Some text -> Some (mask_text text)
-          | None -> None
-        in
-        { msg with content }
+        let content_blocks = List.map (function
+          | Text_block { text; cache_control } ->
+            Text_block { text = mask_text text; cache_control }
+          | other -> other
+        ) msg.content_blocks in
+        { msg with content_blocks }
       in
       Some { conv with messages = List.map mask_message conv.messages }
     );

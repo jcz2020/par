@@ -85,7 +85,7 @@ type mock_config = {
   model_name : string;
 }
 
-let default_usage = { prompt_tokens = 10; completion_tokens = 20; total_tokens = 30 }
+let default_usage = { prompt_tokens = 10; completion_tokens = 20; total_tokens = 30 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
 
 let default_model = "mock-llm"
 
@@ -258,7 +258,7 @@ let create ?(delay = None) ?(usage = default_usage) ?(model_name = default_model
     );
     list_models_fn = Some (fun () -> Ok ["mock-model"]);
   supports_native_tools_fn = None;
-  context_window_fn = None;
+  context_window_fn = None; cache_control_fn = None;
   } in
   (service, state.history)
 

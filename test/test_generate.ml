@@ -21,7 +21,7 @@ let dummy_model : model_config =
     stop_sequences = None }
 
 let dummy_usage : usage_stats =
-  { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 }
+  { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
 
 let text_response text : llm_response =
   { text = Some text; tool_calls = None; finish_reason = Stop;
@@ -46,7 +46,7 @@ let mock_llm_tracked counter responses =
     complete_structured_fn = None;
     list_models_fn = None;
     supports_native_tools_fn = None;
-    context_window_fn = None;
+    context_window_fn = None; cache_control_fn = None;
   }
 
 let error_to_string = function
@@ -233,7 +233,7 @@ let test_invoke_generate_total_timeout () =
     complete_structured_fn = None;
     list_models_fn = None;
     supports_native_tools_fn = None;
-    context_window_fn = None;
+    context_window_fn = None; cache_control_fn = None;
   } in
   let agent = make_agent "timeout-agent" "You are a test agent." in
   with_invoke_runtime ~llm ~agent (fun rt ->
@@ -315,7 +315,7 @@ let test_invoke_generate_session_persisted () =
            Alcotest.(check (option string))
              "system prompt preserved"
              (Some "You are a persistable agent.")
-             sys_msg.content
+             (Message.content_opt sys_msg)
          | [] -> Alcotest.fail "empty conversation list")
       | Error e ->
         Alcotest.failf "load_most_recent_conversation errored: %s"
@@ -346,7 +346,7 @@ module Capturing_llm = struct
       (match conv.messages with
        | sys_msg :: _ ->
          if sys_msg.role = System then
-           capture.captured_system <- sys_msg.content
+           capture.captured_system <- (Message.content_opt sys_msg)
        | [] -> ());
       Ok (text_response "captured response")
     in
@@ -357,7 +357,7 @@ module Capturing_llm = struct
       complete_structured_fn = None;
       list_models_fn = None;
       supports_native_tools_fn = None;
-      context_window_fn = None;
+      context_window_fn = None; cache_control_fn = None;
     }
 end
 

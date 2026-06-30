@@ -13,7 +13,7 @@ let config_json = {|{"persistence": ["Sqlite", ":memory:"], "event_bus": {"buffe
 
 let first_message_content (conv : conversation) =
   match conv.messages with
-  | { content = Some p; _ } :: _ -> p
+  | { content_blocks = [Text_block { text = p; cache_control = None }]; _ } :: _ -> p
   | _ -> "<none>"
 
 let with_runtime f =

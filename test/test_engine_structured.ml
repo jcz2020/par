@@ -13,7 +13,7 @@ let dummy_model : model_config =
     stop_sequences = None }
 
 let dummy_usage : usage_stats =
-  { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 }
+  { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
 
 let text_response text : llm_response =
   { text = Some text; tool_calls = None; finish_reason = Stop;
@@ -44,7 +44,7 @@ let mock_llm responses =
     complete_structured_fn = None;
     list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None;
+  context_window_fn = None; cache_control_fn = None;
   }
 
 (* mock_llm_with_structured: native path. complete_structured_fn = Some _.
@@ -68,7 +68,7 @@ let mock_llm_with_structured ?(on_call : unit -> unit = ignore) responses =
     complete_structured_fn = Some structured_fn;
     list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None;
+  context_window_fn = None; cache_control_fn = None;
   }
 
 let mock_llm_with_error err =
@@ -78,7 +78,7 @@ let mock_llm_with_error err =
     complete_structured_fn = None;
     list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None;
+  context_window_fn = None; cache_control_fn = None;
   }
 
 let with_token f =
@@ -93,7 +93,7 @@ let basic_agent ?(tools = []) ?(middleware = []) ?(max_iterations = 10) () =
     system_prompt_template = None;
     model = dummy_model; tools = descriptors; max_iterations; middleware;
     retry_policy = None; context_strategy = None; resource_quota = None; max_execution_time = None; tool_timeout = None; early_stopping_method = Force; on_max_tokens = Some Return_partial; max_continuation_chunks = Some 3;
-    context_compression_threshold = None; compression_cooldown_messages = None; context_window_override = None }
+    context_compression_threshold = None; compression_cooldown_messages = None; context_window_override = None; cache_strategy = No_caching }
 
 (* Person schema: required name (string) + age (integer), no extras. *)
 let person_schema : Yojson.Safe.t =
@@ -168,7 +168,7 @@ let structured_suite =
         complete_structured_fn = None;
         list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None;
+  context_window_fn = None; cache_control_fn = None;
       } in
       let agent = basic_agent () in
       with_token (fun token ->
@@ -181,7 +181,7 @@ let structured_suite =
               | sys_msg :: _ ->
                 Alcotest.(check bool) "system message carries schema directive"
                   true
-                  (match sys_msg.content with
+                  (match (Message.content_opt sys_msg) with
                    | Some t -> str_contains t "MUST respond with a valid JSON object"
                    | None -> false)
               | [] -> Alcotest.fail "no messages in captured conversation")
@@ -279,7 +279,7 @@ let structured_suite =
           Alcotest.(check bool) "4th message is User feedback"
             true (feedback_msg.role = User);
           Alcotest.(check bool) "feedback mentions JSON"
-            true (match feedback_msg.content with
+            true (match (Message.content_opt feedback_msg) with
                   | Some s -> str_contains s "JSON"
                   | None -> false)
         | Error (e, _) ->
@@ -410,7 +410,7 @@ let structured_suite =
           Alcotest.(check int) "resumed conv appends user+assistant" 5 (List.length r.conversation.messages);
           (match List.nth_opt r.conversation.messages 3 with
            | Some m ->
-             (match m.content with
+             (match Message.content_opt m with
               | Some "Second" -> ()
               | _ -> Alcotest.fail "4th message should be user 'Second'")
            | None -> Alcotest.fail "4th message missing")

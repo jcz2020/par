@@ -7,7 +7,7 @@ let dummy_model : model_config =
     stop_sequences = None }
 
 let dummy_usage : usage_stats =
-  { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 }
+  { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
 
 let text_response text : llm_response =
   { text = Some text; tool_calls = None; finish_reason = Stop;
@@ -50,7 +50,7 @@ let make_agent ?(max_iterations = 10) id system_prompt tools : agent_config =
     model = dummy_model; tools = descriptors; max_iterations;
     middleware = []; retry_policy = None; context_strategy = None;
     resource_quota = None; max_execution_time = None; tool_timeout = None; early_stopping_method = Force; on_max_tokens = Some Return_partial; max_continuation_chunks = Some 3;
-    context_compression_threshold = None; compression_cooldown_messages = None; context_window_override = None }
+    context_compression_threshold = None; compression_cooldown_messages = None; context_window_override = None; cache_strategy = No_caching }
 
 let make_registry tools =
   let reg = Tool_registry.create () in
@@ -61,7 +61,7 @@ let make_registry tools =
 
 let system_prompt_of conv =
   match conv.messages with
-  | { role = System; content = Some s; _ } :: _ -> Some s
+  | { role = System; content_blocks = [Text_block { text = s; cache_control = None }]; _ } :: _ -> Some s
   | _ -> None
 
 let mock_llm_dynamic f : llm_service =
@@ -72,7 +72,7 @@ let mock_llm_dynamic f : llm_service =
     complete_structured_fn = None;
     list_models_fn = None;
   supports_native_tools_fn = None;
-  context_window_fn = None;
+  context_window_fn = None; cache_control_fn = None;
   }
 
 let error_to_string = function
@@ -126,7 +126,7 @@ let () =
           | None -> Alcotest.fail "agent B was never called"
           | Some conv ->
               let has_user = List.exists (fun (m : message) ->
-                m.role = User && m.content = Some "user question") conv.messages in
+                m.role = User && m.content_blocks = [Text_block { text = "user question"; cache_control = None }]) conv.messages in
               let has_assistant = List.exists (fun (m : message) ->
                 m.role = Assistant) conv.messages in
               Alcotest.check Alcotest.bool "B saw user history" true has_user;
@@ -161,7 +161,7 @@ let () =
               let non_system = List.filter (fun (m : message) -> m.role <> System) conv.messages in
               Alcotest.(check int) "B has exactly one user message" 1 (List.length non_system);
               match non_system with
-              | [ { role = User; content = Some "Summarize the discussion"; _ } ] -> ()
+              | [ { role = User; content_blocks = [Text_block { text = "Summarize the discussion"; cache_control = None }]; _ } ] -> ()
               | _ -> Alcotest.fail "B did not receive exactly the task as user message"));
 
       Alcotest.test_case "carry_context=false without task is rejected" `Quick (fun () ->
@@ -375,7 +375,7 @@ let () =
           | Some conv ->
               let has_x_result = List.exists (fun (m : message) ->
                 m.role = Tool &&
-                Option.fold ~none:false ~some:(fun c -> str_contains c "x-result") m.content
+                Option.fold ~none:false ~some:(fun c -> str_contains c "x-result") (Message.content_opt m)
               ) conv.messages in
               Alcotest.check Alcotest.bool "B saw tool_x result" true has_x_result));
 

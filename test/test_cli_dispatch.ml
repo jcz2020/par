@@ -34,7 +34,7 @@ let ollama_cfg api_key_val : llm_provider_config =
     api_key = api_key_val;
     base_url = Some "http://localhost:11434/v1";
     organization = None;
-    embedding_model = None;
+    embedding_model = None; prompt_cache_key = None;
   }
 
 (* Mirrors bin/main.ml make_llm_service `Custom _ branch: caller picks
@@ -44,7 +44,7 @@ let custom_cfg ~api_key ~base_url : llm_provider_config =
     api_key;
     base_url = Some base_url;
     organization = None;
-    embedding_model = None;
+    embedding_model = None; prompt_cache_key = None;
   }
 
 let test_ollama_dispatch_builds_provider () =

@@ -49,7 +49,7 @@ let () =
           resource_quota = None; max_execution_time = None; early_stopping_method = Force;
           on_max_tokens = Some Return_partial; max_continuation_chunks = Some 3;
           tool_timeout = None;
-          context_compression_threshold = None; compression_cooldown_messages = None; context_window_override = None;
+          context_compression_threshold = None; compression_cooldown_messages = None; context_window_override = None; cache_strategy = No_caching;
         } in
         ignore (Runtime.register_agent rt agent);
         Printf.printf "Agent registered: %s\n" agent.id;
