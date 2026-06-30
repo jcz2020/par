@@ -93,8 +93,31 @@ type agent_config = {
   on_max_tokens : on_max_tokens_behavior option;  (* None=Auto（默认），或显式 Retry/Continue/Return_partial *)
   max_continuation_chunks : int option;           (* None=Auto（默认），或显式上限 *)
   tool_timeout : float option;            (* 可选单次工具调用超时（秒）*)
+  context_compression_threshold : float option;   (* v0.6.3+：按比例自动压缩。None=手动模式，Some 0.8=默认 *)
+  compression_cooldown_messages : int option;     (* v0.6.3+：两次自动压缩间最小迭代数。Some 6=默认 *)
+  context_window_override : int option;           (* v0.6.3+：覆盖 context window 大小；None=用 provider capability 或静态表 *)
 }
 ```
+
+### 自动上下文压缩（v0.6.3+）
+
+当 `context_compression_threshold` 设置时（默认 `Some 0.8`），引擎在每次 LLM 调用前检查
+`估算 tokens / context window` 比例。如果超过阈值且冷却已过，应用配置的 `context_strategy`
+（或 `context_strategy = None` 时默认用 `Summarize`）。
+
+Context window 大小通过三层 resolver 解析：
+1. `context_window_override`（用户 supplied，优先级最高）
+2. `llm_service.context_window_fn`（provider capability 函数）
+3. 静态查表（`default_context_window`）：gpt-4o 系列=128K，claude-4 系列=200K，gpt-3.5-turbo=16385，未知=8000（保守默认）
+
+两个可观测事件：
+- `Context_compressed { trigger; tokens_before; tokens_after; messages_before; messages_after; strategy_used; elapsed_ms }` 压缩成功时
+- `Context_compression_skipped { reason }` 跳过时，带类型化 reason：`` `Below_threshold of float ``、`` `Cooldown_active of int ``、`` `No_window_size ``、`` `No_strategy ``
+
+**默认值变更（0.x 中的 BREAKING）**：`make_agent` 默认 `context_strategy` 从
+`Sliding_window { max_messages=100; max_tokens=200000 }` 改为 `Summarize { max_tokens=8000; summary_model=None }`。
+业界调研确认所有主流生产 agent 框架的默认值都是 LLM-summarize（Letta、Anthropic、LangChain、CrewAI），
+零个用 truncate-drop。要恢复 v0.6.3 前的行为，显式设置 `context_strategy = Some (Sliding_window {...})`。
 
 ### model_config
 

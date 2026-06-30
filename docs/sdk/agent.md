@@ -98,8 +98,33 @@ type agent_config = {
   on_max_tokens : on_max_tokens_behavior option;  (* None=Auto (default), or explicit Retry/Continue/Return_partial *)
   max_continuation_chunks : int option;           (* None=Auto (default), or explicit cap *)
   tool_timeout : float option;            (* Optional per-tool-call timeout in seconds *)
+  context_compression_threshold : float option;   (* v0.6.3+: auto-compress at ratio. None=manual mode, Some 0.8=default *)
+  compression_cooldown_messages : int option;     (* v0.6.3+: min iterations between auto-compressions. Some 6=default *)
+  context_window_override : int option;           (* v0.6.3+: override context window size; None=use provider capability or static table *)
 }
 ```
+
+### Auto context compression (v0.6.3+)
+
+When `context_compression_threshold` is set (default `Some 0.8`), the engine checks
+`estimated_tokens / context_window` before every LLM call. If the ratio crosses the
+threshold AND the cooldown has elapsed, the configured `context_strategy` is applied
+(or `Summarize` by default if `context_strategy = None`).
+
+The context window size is resolved via a 3-tier resolver:
+1. `context_window_override` (user-supplied, wins over everything)
+2. `llm_service.context_window_fn` (provider capability function)
+3. Static lookup table (`default_context_window`): gpt-4o family=128K, claude-4 family=200K, gpt-3.5-turbo=16385, unknown=8000 (safe default)
+
+Two observability events fire:
+- `Context_compressed { trigger; tokens_before; tokens_after; messages_before; messages_after; strategy_used; elapsed_ms }` on successful compression
+- `Context_compression_skipped { reason }` when skipped, with typed reason: `` `Below_threshold of float ``, `` `Cooldown_active of int ``, `` `No_window_size ``, or `` `No_strategy ``
+
+**Default change (BREAKING in 0.x)**: `make_agent` default `context_strategy` switched from
+`Sliding_window { max_messages=100; max_tokens=200000 }` to `Summarize { max_tokens=8000; summary_model=None }`.
+Industry research confirmed every mainstream production agent framework that ships a default
+uses LLM-summarize (Letta, Anthropic, LangChain, CrewAI) — zero default to truncate-drop.
+To restore pre-v0.6.3 behavior, set `context_strategy = Some (Sliding_window {...})` explicitly.
 
 ### model_config
 
@@ -477,7 +502,7 @@ type context_strategy =
 
 `Summarize` compresses earlier turns into a summary message using a second LLM call. `max_tokens` bounds the summary length. `summary_model` optionally routes the summarization call to a cheaper or faster model than the agent's primary model; `None` reuses the agent's own `model_config`. This is the right choice when early context genuinely matters but token budget is tight, at the cost of an extra LLM round trip per summarization.
 
-`Sliding_window` keeps the most recent `max_messages` messages and drops everything older, subject to a `max_tokens` ceiling. It is the cheapest strategy because it never calls another model, and it preserves the tail of the conversation verbatim. This is the default.
+`Sliding_window` keeps the most recent `max_messages` messages and drops everything older, subject to a `max_tokens` ceiling. It is the cheapest strategy because it never calls another model, and it preserves the tail of the conversation verbatim. Pre-v0.6.3 this was the default; from v0.6.3 onward the default is `Summarize` (see "Auto context compression" above).
 
 ### How the Engine applies a strategy
 

@@ -14,7 +14,7 @@
 ### Added — Configurable behavior (plan §2.2)
 
 - **NEW** `agent_config.context_compression_threshold : float option` — when `Some r` (0.0–1.0), auto-fires compression when `estimated_tokens / context_window ≥ r`. Default `Some 0.8`. `None` = disabled (preserves pre-v0.6.3 manual-mode behavior).
-- **NEW** `agent_config.compression_cooldown_messages : int option` — minimum iterations between auto-compressions. Prevents LLM-summarize thrash. Default `Some 6` (dtyq/magic's production value).
+- **NEW** `agent_config.compression_cooldown_messages : int option` — minimum iterations between auto-compressions. Prevents LLM-summarize thrash. Default `Some 6` (value drawn from a production practice; matches industry practice).
 - **NEW** `agent_config.context_window_override : int option` — user-supplied context window size. Overrides provider capability and static table. `None` = use tier-1/2 resolver.
 - **NEW** `llm_service.context_window_fn : (unit -> int) option` — provider capability function mirroring `supports_native_tools_fn`. Custom providers SHOULD set this for accurate ratio computation.
 - **NEW** `Runtime.make_agent` optional params for all three new fields.
