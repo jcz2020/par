@@ -1,5 +1,69 @@
 # CHANGES
 
+## v0.6.3-beta — Auto Context Compression by Window Ratio (BETA)
+
+> PAR-p70: ratio-based auto-compression fires when conversation approaches the model's context window limit. Default `Summarize` strategy aligns with industry consensus (Letta, Anthropic, LangChain-classic, CrewAI all default to LLM-summarize; none default to pure-truncate-drop). 36 new tests across OCaml + Python.
+
+### Added — Auto-compression infrastructure (plan §2.1, §2.3)
+
+- **NEW** `Context_manager.default_context_window : model_config -> int` — static lookup table mapping known model names to context window sizes (gpt-4o family=128K, claude-sonnet-4/opus-4/haiku-3.5=200K, o1/o3/o4-mini=200K, gpt-3.5-turbo=16385, unknown=8000 safe default).
+- **NEW** `Context_manager.resolve_context_window` — three-tier resolver: `context_window_override` (user-supplied) → `llm_service.context_window_fn` (provider capability) → `default_context_window` (static table).
+- **NEW** `Context_manager.estimated_tokens_with_margin` — wraps existing `estimate_tokens` with 1.2× safety margin (chars/4 underestimates real tokens by ~20%).
+- **NEW** `Context_manager.should_compress` — PURE decision function returning `(bool, context_compression_skip_reason option)`. No I/O, no side effects; same inputs → same output.
+
+### Added — Configurable behavior (plan §2.2)
+
+- **NEW** `agent_config.context_compression_threshold : float option` — when `Some r` (0.0–1.0), auto-fires compression when `estimated_tokens / context_window ≥ r`. Default `Some 0.8`. `None` = disabled (preserves pre-v0.6.3 manual-mode behavior).
+- **NEW** `agent_config.compression_cooldown_messages : int option` — minimum iterations between auto-compressions. Prevents LLM-summarize thrash. Default `Some 6` (dtyq/magic's production value).
+- **NEW** `agent_config.context_window_override : int option` — user-supplied context window size. Overrides provider capability and static table. `None` = use tier-1/2 resolver.
+- **NEW** `llm_service.context_window_fn : (unit -> int) option` — provider capability function mirroring `supports_native_tools_fn`. Custom providers SHOULD set this for accurate ratio computation.
+- **NEW** `Runtime.make_agent` optional params for all three new fields.
+
+### Added — Observability events (plan §2.6)
+
+- **NEW** event variant `Context_compressed of { trigger; tokens_before; tokens_after; messages_before; messages_after; strategy_used; elapsed_ms }` — fired on successful compression.
+- **NEW** event variant `Context_compression_skipped of { reason }` — fired when compression considered but skipped. `reason` is a typed polymorphic variant: `` `Below_threshold of float ``, `` `Cooldown_active of int ``, `` `No_window_size ``, `` `No_strategy ``.
+
+### Changed — Default strategy switched to Summarize (BREAKING in 0.x per SemVer §4)
+
+- `Runtime.make_agent` default `context_strategy` changed from `Sliding_window { max_messages=100; max_tokens=200000 }` to `Summarize { max_tokens=8000; summary_model=None }`.
+- **Rationale**: industry research (librarian bg_940617fc, 2026-06-30) confirmed every mainstream production agent framework that ships a default uses LLM-summarize — Letta (`sliding_window` mode), Anthropic `compact_20260112` (server-side), LangChain `ConversationSummaryBufferMemory` (`predict_new_summary`), CrewAI (`respect_context_window=True` default). Zero frameworks default to pure-truncate-drop. Truncate is universally treated as degradation, not baseline.
+- **Migration**: existing agents that relied on the implicit `Sliding_window` default will now get `Summarize` instead when the threshold fires. Users wanting the old behavior should set `context_strategy = Some (Sliding_window {...})` explicitly.
+- **Cost mitigation**: cooldown=6 prevents thrash (max 1 summarize call per 6 iterations). `summary_model = None` means "use agent's own model"; users can override with a cheap model (Claude Haiku, gpt-4o-mini) via the existing `Summarize.summary_model` field.
+
+### Changed — Engine integration (plan §2.4)
+
+- `Engine.run_agent` now consults `Context_manager.should_compress` at the top of each ReAct iteration before applying `context_strategy`. Trigger logic:
+  - `threshold=None` (manual mode) → apply `context_strategy` unconditionally (pre-v0.6.3 behavior preserved).
+  - `threshold=Some r, ratio<r` → emit `Context_compression_skipped(Below_threshold)`, pass through.
+  - `threshold=Some r, ratio≥r, cooldown not elapsed` → emit `Context_compression_skipped(Cooldown_active n)`, pass through.
+  - `threshold=Some r, ratio≥r, cooldown elapsed` → apply strategy (or default Summarize if `context_strategy=None`), emit `Context_compressed`.
+- `last_compress_iter` ref tracks cooldown state per agent run (not persisted; reset on restart — intentional for suspended workflow rehydration).
+
+### Added — FFI / Python config (plan §2.8)
+
+- `par_capi.ml` JSON parser now reads `context_compression_threshold`, `compression_cooldown_messages`, `context_window_override`, AND the previously-hardcoded `context_strategy` from JSON config. Existing Python/CLI configs without these fields continue to behave as before (backward compatible). Unknown `context_strategy` tags fail-fast (typed rigor — no silent fallback).
+
+### Tests
+
+- 17 new tests in `test/test_context_manager.ml` (was 4, now 21): covering `default_context_window` table lookups, `resolve_context_window` three-tier precedence, `estimated_tokens_with_margin` 1.2× factor, and `should_compress` purity (threshold hit/miss, cooldown active/elapsed, no-window-size, manual-mode).
+- 5 new tests in `test/test_context_compression.ml`: engine integration covering manual mode, auto-fire above threshold, skip below threshold, cooldown blocking, and `Context_compressed` payload verification.
+- 14 new tests in `bindings/python/tests/test_config.py`: JSON config round-trip for all 3 new fields + `context_strategy` (3 variants + unknown-tag failure + backward compat).
+- All 1000+ existing OCaml tests + 60+ Python tests remain green.
+
+### Strategic motivation
+
+Production-readiness gap surfaced by integration feedback: long conversations hit `Context_length_exceeded` errors with no graceful recovery. The reactive arm at engine.ml:539 catches the error and re-applies strategy, but by then the LLM call has already wasted tokens and latency. PAR-p70 fires pre-emptively at 80% — better than Letta and CrewAI which fire reactively. The typed `context_compression_skip_reason` polymorphic variant is a direct expression of STRATEGY.md §4 axis #1 (类型严谨): competitors use string error messages; PAR uses a typed ADT.
+
+### Not in v0.6.3 scope
+
+- Real tokenizer (tiktoken binding) — keeping chars/4 + 1.2× margin; document as future work.
+- `Runtime.invoke_generate` path (Generate.run) — separate from ReAct loop, intentionally skips context_strategy. Long-output generation has its own continuation logic via `on_max_tokens`. Open follow-up if integrators need it.
+- `Runtime.invoke_structured` — uses middleware only, not context_strategy.
+- Tool-call/tool-result pairing invariant (LangChain `start_on` / Letta `is_valid_cutoff` pattern) — current `apply_summarize` uses "keep last 4" heuristic. Future hardening.
+
+---
+
 ## v0.6.2 — STABLE
 
 > Workflow engine fix cycle: closed the suspend → gate → resume loop and aligned API/docs with integration feedback. All 11 reported defects addressed.

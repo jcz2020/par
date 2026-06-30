@@ -147,9 +147,9 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.6.0-beta — Configurable truncation policy (`on_max_tokens_behavior` Retry/Continue/Return_partial ADT), per-provider capability detection with synthesized tool-calling fallback (PAR-k38), auto JSON-Schema derivation via `ppx_deriving_jsonschema` with 13/20 builtin tools migrated (PAR-g4c), CLI session resume fixed (`par -c <id>` / `par -r` now actually round-trip), 14 GH issue audit sweep fixes. See [CHANGES.md](CHANGES.md) for the full release notes.
+**Current**: v0.6.2 — Workflow engine closed loop: suspend → gate → resume now fully functional (resume_workflow with checkpoint replay, approve_workflow with role validation, 7 lifecycle events, boot-time rehydration). Dynamic toolset API (update_agent_tools / unregister_tool / replace_tool). Disclosure enforcement scanner in CI.
 
-**Coming next**: Complete PAR-g4c builtin-tool migration (edit tool + bash), external vector stores (Qdrant/Milvus), document loaders, prompt caching, context compression refinements.
+**Coming next**: Auto context compression by window ratio (v0.6.3-beta — implemented, awaiting release), complete PAR-g4c builtin-tool migration (edit tool + bash), external vector stores (Qdrant/Milvus), document loaders, prompt caching.
 
 ## Getting help
 
