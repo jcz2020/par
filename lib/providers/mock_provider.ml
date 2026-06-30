@@ -258,6 +258,7 @@ let create ?(delay = None) ?(usage = default_usage) ?(model_name = default_model
     );
     list_models_fn = Some (fun () -> Ok ["mock-model"]);
   supports_native_tools_fn = None;
+  context_window_fn = None;
   } in
   (service, state.history)
 

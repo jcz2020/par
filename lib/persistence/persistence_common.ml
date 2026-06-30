@@ -40,6 +40,8 @@ let extract_task_id : event -> string = function
   | Provider_fallback_attempted _ -> ""
   | Llm_response_truncated { task_id; _ } -> Task_id.to_string task_id
   | Generate_continuation { task_id; _ } -> Task_id.to_string task_id
+  | Context_compressed _ -> ""
+  | Context_compression_skipped _ -> ""
 
 let extract_session_id (envelope : event_envelope) : string =
   envelope.metadata.session_id

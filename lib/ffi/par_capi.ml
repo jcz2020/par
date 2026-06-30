@@ -163,6 +163,7 @@ let default_llm_service : Par.Types.llm_service = {
   complete_structured_fn = None;
   list_models_fn = None;
   supports_native_tools_fn = None;
+  context_window_fn = None;
 }
 
 let build_llm_from_provider provider_cfg net =
@@ -172,15 +173,16 @@ let build_llm_from_provider provider_cfg net =
     (match Par.Openai_provider.create (Par.Types.Openai { api_key; base_url; organization; embedding_model = None }) with
      | Ok t ->
        Par.Openai_provider.set_network t net_gen;
-       Some {
-         Par.Types.complete_fn = (fun mc tools conv -> Par.Openai_provider.complete t mc tools conv);
-         stream_fn = (fun mc tools conv sc cb -> Par.Openai_provider.stream t mc tools conv sc cb);
-         close_fn = (fun () -> Par.Openai_provider.close t);
-         complete_structured_fn = None;
-         list_models_fn = None;
+Some {
+          Par.Types.complete_fn = (fun mc tools conv -> Par.Openai_provider.complete t mc tools conv);
+          stream_fn = (fun mc tools conv sc cb -> Par.Openai_provider.stream t mc tools conv sc cb);
+          close_fn = (fun () -> Par.Openai_provider.close t);
+          complete_structured_fn = None;
+          list_models_fn = None;
   supports_native_tools_fn = None;
-       }
-     | Error _ -> None)
+  context_window_fn = None;
+        }
+      | Error _ -> None)
   | Par.Types.Ollama { base_url } ->
     let cfg = Par.Types.Openai { api_key = "ollama-no-auth"; base_url = Some (base_url ^ "/v1"); organization = None; embedding_model = None } in
     (match Par.Openai_provider.create cfg with
@@ -193,6 +195,7 @@ let build_llm_from_provider provider_cfg net =
          complete_structured_fn = None;
          list_models_fn = None;
   supports_native_tools_fn = None;
+  context_window_fn = None;
        }
      | Error _ -> None)
   | Par.Types.Anthropic { api_key; base_url } ->
@@ -207,6 +210,7 @@ let build_llm_from_provider provider_cfg net =
          complete_structured_fn = None;
          list_models_fn = None;
   supports_native_tools_fn = None;
+  context_window_fn = None;
        }
      | Error _ -> None)
   | Par.Types.Custom { base_url = base_url_for_custom; _ } ->
@@ -221,6 +225,7 @@ let build_llm_from_provider provider_cfg net =
             complete_structured_fn = None;
             list_models_fn = None;
   supports_native_tools_fn = None;
+  context_window_fn = None;
           }
         | Error _ -> None)
 
@@ -495,6 +500,35 @@ let parse_resource_quota (json : Yojson.Safe.t) : Par.Types.resource_quota =
   let max_total_tokens = json |> member "max_total_tokens" |> to_int_option in
   { max_concurrent_tasks; max_concurrent_tools_per_agent; max_tokens_per_turn; max_total_tokens }
 
+let parse_context_strategy (json : Yojson.Safe.t) : Par.Types.context_strategy option =
+  let open Yojson.Safe.Util in
+  match json |> member "context_strategy" with
+  | `Assoc fields ->
+    let tag =
+      try List.assoc "tag" fields |> to_string
+      with Not_found | Type_error _ ->
+        failwith "context_strategy object missing or invalid 'tag' field"
+    in
+    (match tag with
+     | "Truncate_oldest" ->
+       Some (Par.Types.Truncate_oldest {
+         keep_system = (try List.assoc "keep_system" fields |> to_bool_option |> Option.value ~default:true with Not_found | Type_error _ -> true);
+         min_messages = (try List.assoc "min_messages" fields |> to_int_option |> Option.value ~default:4 with Not_found | Type_error _ -> 4);
+       })
+     | "Summarize" ->
+       Some (Par.Types.Summarize {
+         max_tokens = (try List.assoc "max_tokens" fields |> to_int_option |> Option.value ~default:4000 with Not_found | Type_error _ -> 4000);
+         summary_model = None;  (* TODO: parse model_config option when supplied *)
+       })
+     | "Sliding_window" ->
+       Some (Par.Types.Sliding_window {
+         max_messages = (try List.assoc "max_messages" fields |> to_int_option |> Option.value ~default:100 with Not_found | Type_error _ -> 100);
+         max_tokens = (try List.assoc "max_tokens" fields |> to_int_option |> Option.value ~default:200000 with Not_found | Type_error _ -> 200000);
+       })
+     | other ->
+       failwith (Printf.sprintf "Unknown context_strategy tag: %s (expected Truncate_oldest|Summarize|Sliding_window)" other))
+  | _ -> Some (Par.Types.Sliding_window { max_messages = 100; max_tokens = 200000 })
+
 let parse_agent_config (json : Yojson.Safe.t) : Par.Types.agent_config =
   let open Yojson.Safe.Util in
   let id = json |> member "id" |> to_string in
@@ -508,7 +542,7 @@ let parse_agent_config (json : Yojson.Safe.t) : Par.Types.agent_config =
   let max_iterations = json |> member "max_iterations" |> to_int_option |> Option.value ~default:1000000 in
   let middleware = [] in
   let retry_policy = None in
-  let context_strategy = Some (Par.Types.Sliding_window { max_messages = 100; max_tokens = 200000 }) in
+  let context_strategy = parse_context_strategy json in
   let resource_quota = match json |> member "resource_quota" with
     | `Assoc _ as v -> Some (parse_resource_quota v)
     | _ -> None
@@ -530,11 +564,16 @@ let parse_agent_config (json : Yojson.Safe.t) : Par.Types.agent_config =
       failwith (Printf.sprintf "Unknown on_max_tokens value: %s (expected retry|continue|return_partial)" other)
   in
   let max_continuation_chunks = json |> member "max_continuation_chunks" |> to_int_option in
+  (* PAR-p70 new fields — all optional, None means "use make_agent default" *)
+  let context_compression_threshold = json |> member "context_compression_threshold" |> to_float_option in
+  let compression_cooldown_messages = json |> member "compression_cooldown_messages" |> to_int_option in
+  let context_window_override = json |> member "context_window_override" |> to_int_option in
   (* omitted -> None = Auto *)
   { id; system_prompt; system_prompt_template; model; tools; max_iterations;
     middleware; retry_policy; context_strategy; resource_quota;
     max_execution_time; tool_timeout = None; early_stopping_method;
-    on_max_tokens; max_continuation_chunks }
+    on_max_tokens; max_continuation_chunks;
+    context_compression_threshold; compression_cooldown_messages; context_window_override }
 
 let do_register_agent (state_id : int) (config_json : string) =
   match get_state state_id with

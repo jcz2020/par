@@ -142,7 +142,8 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
           close_fn = (fun () -> Openai_provider.close t);
           complete_structured_fn = Some (fun mc tools conv schema -> Openai_provider.complete_structured t mc tools conv schema);
           list_models_fn = None;
-  supports_native_tools_fn = None; })
+  supports_native_tools_fn = None;
+  context_window_fn = None; })
   | `Anthropic ->
     let cfg = Anthropic { api_key = api_key_val; base_url = api_base_val } in
     (match Anthropic_provider.create cfg with
@@ -156,7 +157,8 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
           close_fn = (fun () -> Anthropic_provider.close t);
          complete_structured_fn = Some (fun mc tools conv schema -> Anthropic_provider.complete_structured t mc tools conv schema);
          list_models_fn = None;
-  supports_native_tools_fn = None; })
+  supports_native_tools_fn = None;
+  context_window_fn = None; })
   | `Ollama ->
     (* Ollama exposes an OpenAI-compatible /v1 endpoint. Build the OpenAI
        provider with a localhost base_url and a placeholder api_key that
@@ -174,7 +176,8 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
          close_fn = (fun () -> Openai_provider.close t);
          complete_structured_fn = Some (fun mc tools conv schema -> Openai_provider.complete_structured t mc tools conv schema);
           list_models_fn = None;
-  supports_native_tools_fn = None; })
+  supports_native_tools_fn = None;
+  context_window_fn = None; })
   | `Custom _ ->
     (* OpenAI-compatible custom endpoint. The user must supply base_url via
        --api-base; refuse to start otherwise (PAR-z23 / B.1). *)
@@ -195,7 +198,8 @@ let make_llm_service provider_tag api_key_val api_base_val (net : [< `Generic | 
             close_fn = (fun () -> Openai_provider.close t);
             complete_structured_fn = Some (fun mc tools conv schema -> Openai_provider.complete_structured t mc tools conv schema);
             list_models_fn = None;
-  supports_native_tools_fn = None; }))
+  supports_native_tools_fn = None;
+  context_window_fn = None; }))
 
 let make_embedding_service provider_tag api_key_val api_base_val (net : [< `Generic | `Unix > `Generic ] Eio.Net.ty Eio.Resource.t) =
   let open Types in
@@ -1329,6 +1333,15 @@ let format_event_for_history (evt : Types.event) =
        | Max_tokens -> "max_tokens" | Content_filter -> "content_filter")
   | Types.Generate_continuation { chunk_index; chars_added; _ } ->
     Printf.sprintf "GenerateContinuation: chunk=%d added=%d" chunk_index chars_added
+  | Types.Context_compressed { trigger; tokens_before; tokens_after; _ } ->
+    Printf.sprintf "ContextCompressed: trigger=%.2f tokens=%d->%d" trigger tokens_before tokens_after
+  | Types.Context_compression_skipped { reason } ->
+    Printf.sprintf "ContextCompressionSkipped: %s"
+      (match reason with
+       | `Below_threshold f -> Printf.sprintf "below_threshold(%.2f)" f
+       | `Cooldown_active n -> Printf.sprintf "cooldown_active(%d)" n
+       | `No_window_size -> "no_window_size"
+       | `No_strategy -> "no_strategy")
 
 let session_id_arg =
   let open Cmdliner in
