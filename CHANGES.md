@@ -1,5 +1,54 @@
 # CHANGES
 
+## v0.6.4-beta — Typed Prompt Caching Infrastructure (BETA, IN PROGRESS)
+
+> PAR-4lh: content_block list message representation + cache_control types + prompt caching infrastructure. Stable/Volatile phantom types + mark_cache_breakpoint API deferred to follow-up commit (needs OCaml type design for existential record fields).
+
+### BREAKING in 0.x (5 changes, all mechanical)
+
+| # | Old API | New API | Migration |
+|---|---|---|---|
+| 1 | `message.content : string option` | `message.content_blocks : content_block list` | Use `Message.content_of_string` or `Message.text_of_message` helper |
+| 2 | `usage_stats` (3 fields) | `usage_stats` (6 fields) | Add `cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0` |
+| 3 | `llm_service` (no `cache_control_fn`) | `llm_service` (with `cache_control_fn`) | Add `cache_control_fn = None` to all 7 llm_service constructors |
+| 4 | `agent_config` (no `cache_strategy`) | `agent_config` (with `cache_strategy`) | Add `cache_strategy = No_caching` to all 17 record-literal sites |
+| 5 | `Openai` provider config (no `prompt_cache_key`) | `Openai` (with `prompt_cache_key`) | Add `prompt_cache_key = None` to all Openai variant constructors |
+
+### Added — Content blocks
+
+- **NEW** `content_block` ADT: `Text_block` / `Tool_use_block` / `Tool_result_block` / `Image_block`, each with optional `cache_control`. Replaces flattened `string option`.
+- **NEW** `cache_control` type: `{ type_ : [`Ephemeral]; ttl : cache_ttl option }`. Mirrors Anthropic `CacheControlEphemeralParam`.
+- **NEW** `cache_ttl = [`Five_min | `One_hour]`. Single canonical definition in types.ml.
+- **NEW** `image_source = Url of string | Base64 of string`. Type-level prep for v0.7 multimodal.
+- **NEW** `Message` helper module (`lib/core/message.ml`): `content_of_string`, `string_of_content`, `text_of_message`, `content_opt`.
+
+### Added — Prompt caching infrastructure
+
+- **NEW** `cache_strategy = No_caching | With_cache_of of cache_ttl`. On `agent_config` (default `No_caching`).
+- **NEW** `cache_control_fn` capability on `llm_service`: `(unit -> cache_control_capability) option` where `cache_control_capability = { supported_ttls; max_breakpoints }`.
+- **NEW** `prompt_cache_key : string option` on `Openai` provider config. Injected into OpenAI request body when set.
+- **NEW** `Cache_breakpoint` module (`lib/core/cache_breakpoint.ml`): `plan_breakpoints` budget manager — sorts candidates by priority, drops lowest when over provider cap.
+- **NEW** `cache_control_to_json` helper in Anthropic adapter: serializes `cache_control` markers on content blocks to wire format.
+- **NEW** 5 event variants: `Cache_write`, `Cache_read`, `Cache_strategy_skipped`, `Cache_breakpoint_dropped`, `Cache_invalidated_by_skill` + sub-types (`cache_skip_reason`, `breakpoint_location`, `drop_reason`).
+
+### Changed — Provider adapters
+
+- **Anthropic** `build_message_json`: serializes `content_blocks` (was: synthesize from string). Emits `cache_control` JSON on blocks that carry it.
+- **Anthropic** `parse_usage`: reads `cache_creation_input_tokens` and `cache_read_input_tokens`.
+- **OpenAI** `build_request_body`: injects `prompt_cache_key` into request body when set.
+- **OpenAI** `parse_usage`: reads `prompt_tokens_details.cached_tokens`.
+
+### Not yet in v0.6.4 (follow-up commits)
+
+- Stable/Volatile phantom types on `system_prompt` (needs OCaml type design — record fields can't hold existential type parameters)
+- `mark_cache_breakpoint` user-facing API
+- `Cache_breakpoint` module wired into engine (currently standalone)
+- Template zone tagging (current_time/runtime_id → volatile classification)
+- Skill overlay cache invalidation event emission
+- New test files (test_content_blocks, test_cache_breakpoint, etc.)
+
+---
+
 ## v0.6.3-beta — Auto Context Compression by Window Ratio (BETA)
 
 > PAR-p70: ratio-based auto-compression fires when conversation approaches the model's context window limit. Default `Summarize` strategy aligns with industry consensus (Letta, Anthropic, LangChain-classic, CrewAI all default to LLM-summarize; none default to pure-truncate-drop). 36 new tests across OCaml + Python.
