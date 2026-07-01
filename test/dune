@@ -377,3 +377,23 @@
  (name test_session_resume_cli)
  (libraries par eio_main alcotest sqlite3)
  (modules test_session_resume_cli))
+
+(test
+ (name test_budget_manager)
+ (libraries par alcotest)
+ (modules test_budget_manager))
+
+(test
+ (name test_cache_events)
+ (libraries par alcotest)
+ (modules test_cache_events))
+
+(test
+ (name test_template_zone)
+ (libraries par alcotest)
+ (modules test_template_zone))
+
+(test
+ (name test_stable_volatile_prompts)
+ (libraries par alcotest)
+ (modules test_stable_volatile_prompts))
