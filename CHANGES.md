@@ -1,5 +1,57 @@
 # CHANGES
 
+## v0.6.4-beta.2 — Prompt Caching Wrap-up (BETA, IN PROGRESS)
+
+> Continues v0.6.4: template zone classification, make_agent `?cache_strategy` + B.4 zone-validation check, budget manager wired into engine main ReAct loop, 4 new test files (48 new tests). All 1188 tests passing.
+
+### Added — Template zone classification (Track B.2)
+
+- **NEW** `Template.builtin_zone` table: `current_time` → `Zone_volatile` (per-second drift via `Unix.gettimeofday`); `agent_id` / `runtime_id` / `available_tools` / `user_variables` → `Zone_stable`.
+- **NEW** `Template.classify_template_zone : template:string -> zone_tag` — scans template for `{{var}}` references, max-propagates zone (any volatile → whole template volatile). Unknown variables default to stable.
+- **NEW** `Template.zone_of_builtin : string -> zone_tag` — accessor for individual builtin zone lookup.
+- **CHANGED** `Template.effective_system_prompt` return type: `(string, error_category) result` → `(system_prompt, error_category) result`. When `system_prompt_template = None`, returns `agent.system_prompt` as-is (preserving caller-set zone). When template renders, wraps result via `stable_prompt` or `volatile_prompt` per `classify_template_zone`.
+
+### Added — Construction-time cache validation (Track B.4)
+
+- **NEW** `Runtime.make_agent` accepts `?cache_strategy:cache_strategy = No_caching` parameter (was hardcoded).
+- **NEW** B.4 zone-validation check: when `With_cache_of _` is requested but `system_prompt` zone is `Zone_volatile`, downgrades to `No_caching` with `Logs.warn`. v0.6.5 will upgrade to hard error.
+- **NEW** `Runtime.register_agent` emits `Cache_strategy_skipped { reason = \`Volatile_system }` event when make_agent downgrades the strategy (via `rt.publish_event_fn`).
+- **NEW** FFI JSON parser: `parse_cache_strategy` helper in `par_capi.ml`. Accepts `cache_strategy` field in agent JSON config. Shape: `"No_caching"` or `["With_cache_of", "Five_min"]` (case-insensitive).
+
+### Added — Budget manager wiring (Track E integration)
+
+- **NEW** `Engine.run_agent` main ReAct loop (engine.ml:605) now consults `agent.cache_strategy`. When `With_cache_of ttl`:
+  1. Auto-builds ≤3 breakpoint candidates: System message (priority 100, location `` `System ``), last tool (priority 50, `` `Tool i ``), last user message last block (priority 10, `` `Message (i,j) ``).
+  2. Calls `Cache_breakpoint.plan_breakpoints llm candidates` to apply provider cap (4 for Anthropic, 0 for OpenAI/Ollama).
+  3. Emits `Cache_breakpoint_dropped` event for each dropped candidate with reason (`Over_budget` or `Unsupported_by_provider`).
+  4. Applies `cache_control = Some { type_ = \`Ephemeral; ttl = Some ttl }` markers to the corresponding `content_block`s before LLM dispatch.
+- Secondary dispatch sites (run_structured line 334, Generate early-stop line 514, Max_tokens continuation line 884) intentionally NOT wired in v0.6.4 — separate code paths with potentially different cache semantics. Future hardening.
+- **NEW** 3 private helpers in engine.ml: `set_cache_control` (functional update of content_block cache_control field), `build_breakpoint_candidates` (auto-mark from current request state), `apply_breakpoints` (mark conv.messages by breakpoint location).
+
+### Added — Tests (Track H subset)
+
+- **NEW** `test/test_budget_manager.ml` — 11 tests: `plan_breakpoints` with 1/2/4/5/100 candidates, `max_breakpoints=0` → all `Unsupported_by_provider`, `max_override` behavior, priority sort DESC verification.
+- **NEW** `test/test_cache_events.ml` — 11 tests: 5 event variants (`Cache_write`, `Cache_read`, `Cache_strategy_skipped` ×4 reasons, `Cache_breakpoint_dropped` ×locations×reasons, `Cache_invalidated_by_skill`) construction + yojson round-trip.
+- **NEW** `test/test_template_zone.ml` — 12 tests: `classify_template_zone` direct (no-vars/current_time/agent_id/runtime_id/available_tools/mixed/unknown), `zone_of_builtin` table, `effective_system_prompt` zone propagation (no-template preserves / volatile template / stable-only template).
+- **NEW** `test/test_stable_volatile_prompts.ml` — 14 tests: constructors (`stable_prompt`/`volatile_prompt` + empty variants), accessors (`prompt_text`/`zone_of`), make_agent zone preservation, B.4 cache_strategy check (stable+With_cache_of kept / volatile+With_cache_of downgraded / volatile+One_hour downgraded / stable+One_hour kept / No_caching unchanged / default).
+
+### Architecture (per STRATEGY §11 "一次做对")
+
+- Runtime `zone_tag` approach retained per commit `6a22c7f`: "phantom types cannot survive OCaml record field boundary (existential type parameter limitation). Runtime zone_tag provides same guarantee at construction time. This is 架构正确 (per §11 R1), not 范围妥协."
+- Template zone classification extends this runtime mechanism to builtin variables — same architecture, no phantom types.
+- Budget manager wiring scoped to main ReAct loop only. Scope-controlled per R3: secondary paths are separate code paths with different cache semantics; auto-building 3 candidates is "auto-caching" until v0.6.5+ adds user-facing `mark_cache_breakpoint` API.
+- v0.6.4 soft-fail → v0.6.5 hard-fail migration path is explicit and dated (per §11 R2).
+
+### Migration (1 BREAKING in 0.x)
+
+| # | Old API | New API | Migration |
+|---|---|---|---|
+| 1 | `Template.effective_system_prompt` returns `(string, error_category) result` | Returns `(system_prompt, error_category) result` | Use `prompt_text sp` to extract string. Affected: 3 sites in `engine.ml`, `test_template.ml`. |
+
+`Runtime.make_agent ?cache_strategy` is **backwards-compatible** (new optional parameter with default `No_caching`).
+
+---
+
 ## v0.6.4-beta — Typed Prompt Caching Infrastructure (BETA, IN PROGRESS)
 
 > PAR-4lh: content_block list message representation + cache_control types + prompt caching infrastructure. Stable/Volatile phantom types + mark_cache_breakpoint API deferred to follow-up commit (needs OCaml type design for existential record fields).

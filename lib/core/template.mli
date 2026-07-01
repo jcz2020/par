@@ -14,7 +14,11 @@ val render :
   context:render_context ->
   (string, Types.error_category) result
 
+val zone_of_builtin : string -> Types.zone_tag
+
+val classify_template_zone : template:string -> Types.zone_tag
+
 val effective_system_prompt :
   Types.agent_config ->
   runtime_id:string ->
-  (string, Types.error_category) result
+  (Types.system_prompt, Types.error_category) result

@@ -208,7 +208,7 @@ let () =
       Alcotest.test_case "no template returns system_prompt" `Quick (fun () ->
         let agent = dummy_agent ~system_prompt:(stable_prompt "plain prompt") () in
         match Template.effective_system_prompt agent ~runtime_id:"r" with
-        | Ok s -> Alcotest.(check string) "plain" "plain prompt" s
+        | Ok sp -> Alcotest.(check string) "plain" "plain prompt" (prompt_text sp)
         | Error e -> Alcotest.failf "unexpected error: %s" (show_error e)
       );
 
@@ -222,7 +222,7 @@ let () =
                      };
                    } in
         match Template.effective_system_prompt agent ~runtime_id:"r" with
-        | Ok s -> Alcotest.(check string) "rendered" "You are test." s
+        | Ok sp -> Alcotest.(check string) "rendered" "You are test." (prompt_text sp)
         | Error e -> Alcotest.failf "unexpected error: %s" (show_error e)
       );
     ]);

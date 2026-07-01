@@ -59,6 +59,7 @@ val make_agent :
   ?context_compression_threshold:float option ->
   ?compression_cooldown_messages:int option ->
   ?context_window_override:int option ->
+  ?cache_strategy:cache_strategy ->
   unit ->
   (agent_config, error_category) result
 

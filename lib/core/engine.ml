@@ -290,17 +290,19 @@ let run_structured
     token (agent : agent_config) user_message =
   (* System prompt construction mirrors run_agent (engine.ml L205-216). *)
   let sys_prompt =
-    match Template.effective_system_prompt agent ~runtime_id:"structured" with
-    | Ok s -> s
-    | Error e ->
-      let msg = match e with
-        | Invalid_input m -> m
-        | Internal m -> m
-        | _ -> "render failed"
-      in
-      Logs.warn (fun m ->
-        m "[engine] Template render failed (structured), falling back to plain system_prompt: %s" msg);
-      (Types.prompt_text agent.system_prompt)
+    let sys_prompt_sp = match Template.effective_system_prompt agent ~runtime_id:"structured" with
+      | Ok sp -> sp
+      | Error e ->
+        let msg = match e with
+          | Invalid_input m -> m
+          | Internal m -> m
+          | _ -> "render failed"
+        in
+        Logs.warn (fun m ->
+          m "[engine] Template render failed (structured), falling back to plain system_prompt: %s" msg);
+        agent.system_prompt
+    in
+    Types.prompt_text sys_prompt_sp
   in
   let conv0 = match conversation with
     | Some existing ->
@@ -424,6 +426,76 @@ let resolve_max_continuation_chunks ~effective_tools (agent : Types.agent_config
   | Some n -> n
   | None -> if effective_tools = [] then max_int else 3
 
+(* v0.6.4 prompt caching: set cache_control on a content_block. *)
+let set_cache_control (cc : Types.cache_control option) (block : Types.content_block) : Types.content_block =
+  match block with
+  | Types.Text_block tb -> Types.Text_block { tb with cache_control = cc }
+  | Types.Tool_use_block tb -> Types.Tool_use_block { tb with cache_control = cc }
+  | Types.Tool_result_block tb -> Types.Tool_result_block { tb with cache_control = cc }
+  | Types.Image_block ib -> Types.Image_block { ib with cache_control = cc }
+
+(* v0.6.4 prompt caching: build breakpoint candidates from current request state.
+   Pri 100 = System message, pri 50 = last tool definition, pri 10 = last user block. *)
+let build_breakpoint_candidates ~ttl ~tools ~conv : Cache_breakpoint.breakpoint list =
+  let candidates = ref [] in
+  let has_system = List.exists (fun (m : Types.message) -> m.role = System) conv.Types.messages in
+  if has_system then
+    candidates := Cache_breakpoint.{ location = `System; ttl; estimated_tokens = 1000; priority = 100 } :: !candidates;
+  if tools <> [] then begin
+    let last_tool_idx = List.length tools - 1 in
+    candidates := Cache_breakpoint.{ location = `Tool last_tool_idx; ttl; estimated_tokens = 500; priority = 50 } :: !candidates
+  end;
+  let last_user_idx =
+    List.fold_left (fun acc (i, (m : Types.message)) ->
+      if m.role = User then Some i else acc
+    ) None (List.mapi (fun i m -> (i, m)) conv.Types.messages)
+  in
+  (match last_user_idx with
+   | Some msg_idx ->
+     let msg = List.nth conv.Types.messages msg_idx in
+     if msg.content_blocks <> [] then begin
+       let last_block_idx = List.length msg.content_blocks - 1 in
+       candidates := Cache_breakpoint.{ location = `Message (msg_idx, last_block_idx); ttl; estimated_tokens = 200; priority = 10 } :: !candidates
+     end
+   | None -> ());
+  !candidates
+
+(* v0.6.4 prompt caching: apply cache_control markers to content_blocks
+   addressed by each breakpoint. Returns a new conversation with marked blocks. *)
+let apply_breakpoints ~ttl (breakpoints : Cache_breakpoint.breakpoint list) (conv : Types.conversation) :
+  Types.conversation =
+  if breakpoints = [] then conv
+  else
+    let cc = Some { Types.type_ = `Ephemeral; ttl = Some ttl } in
+    let messages = List.mapi (fun i (msg : Types.message) ->
+      let system_bp = List.find_opt (fun (bp : Cache_breakpoint.breakpoint) -> bp.location = `System) breakpoints in
+      let tool_bp = List.find_opt (fun (bp : Cache_breakpoint.breakpoint) -> bp.location = `Tool i) breakpoints in
+      let msg_bps = List.filter (fun (bp : Cache_breakpoint.breakpoint) ->
+        match bp.location with
+        | `Message (mi, _) when mi = i -> true
+        | _ -> false) breakpoints in
+      let is_system_msg = (msg.role = System) in
+      let blocks = List.mapi (fun j block ->
+        let block = match system_bp, is_system_msg with
+          | Some _bp, true when j = List.length msg.content_blocks - 1 ->
+            set_cache_control cc block
+          | _ -> block in
+        let block = match tool_bp with
+          | Some _ -> set_cache_control cc block
+          | None -> block in
+        let block =
+          let targeted = List.find_opt (fun (bp : Cache_breakpoint.breakpoint) ->
+            match bp.location with
+            | `Message (_, bj) when bj = j -> true
+            | _ -> false) msg_bps in
+          match targeted with
+          | Some _ -> set_cache_control cc block
+          | None -> block in
+        block) msg.content_blocks in
+      { msg with content_blocks = blocks }
+    ) conv.Types.messages in
+    { conv with Types.messages = messages }
+
 let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
     ?(tool_call_hooks = None) ?(quota = None) ?(parallel = false)
@@ -463,8 +535,8 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
       "\n\n" ^ Tool_prompt.descriptors_to_prompt_text agent.tools
     else ""
   in
-  let sys_prompt = match Template.effective_system_prompt agent ~runtime_id with
-    | Ok s -> s
+  let sys_prompt_sp = match Template.effective_system_prompt agent ~runtime_id with
+    | Ok sp -> sp
     | Error e ->
       let msg = match e with
         | Types.Invalid_input m -> m
@@ -473,9 +545,9 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
       in
       Logs.warn (fun m ->
         m "Template render failed, falling back to plain system_prompt: %s" msg);
-      (Types.prompt_text agent.system_prompt)
+      agent.system_prompt
   in
-  let sys_prompt = sys_prompt ^ synthesized_prompt_suffix in
+  let sys_prompt_text = (Types.prompt_text sys_prompt_sp) ^ synthesized_prompt_suffix in
   let drain_into_conv conv queue =
     match queue with
     | None -> conv
@@ -593,6 +665,23 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
            | Error _ -> conv)
       in
       let conv = apply_before_llm agent.middleware conv (fun c -> c) in
+      (* v0.6.4 prompt caching: plan breakpoints and apply cache_control markers *)
+      let conv =
+        match agent.cache_strategy with
+        | Types.No_caching -> conv
+        | Types.With_cache_of ttl ->
+          let candidates = build_breakpoint_candidates
+            ~ttl ~tools:tools_for_provider ~conv in
+          let plan = Cache_breakpoint.plan_breakpoints llm candidates in
+          let fire_evt evt = match on_tool_event with Some pub -> pub evt | None -> () in
+          List.iter (fun (bp, reason) ->
+            fire_evt (Types.Cache_breakpoint_dropped {
+              location = bp.Cache_breakpoint.location;
+              reason;
+            })
+          ) plan.dropped;
+          apply_breakpoints ~ttl plan.used conv
+      in
       Logs.info (fun m -> m "[engine] LLM call iter=%d: %d messages, agent=%s model=%s"
         iterations (List.length conv.messages) agent.id agent.model.model_name);
       List.iteri log_message conv.messages;
@@ -791,9 +880,11 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                  })
                | None -> ());
               let target_sys_prompt =
-                match Template.effective_system_prompt target_agent ~runtime_id with
-                | Ok s -> s
-                | Error _ -> (Types.prompt_text target_agent.system_prompt)
+                let sp = match Template.effective_system_prompt target_agent ~runtime_id with
+                  | Ok sp -> sp
+                  | Error _ -> target_agent.system_prompt
+                in
+                Types.prompt_text sp
               in
               (match carry_context with
                | true ->
@@ -918,7 +1009,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
       { existing with messages = existing.messages @ [ usr ] }
     | None ->
       Logs.info (fun m -> m "[engine] New conversation: system_prompt=%d chars, user_message=%d chars"
-        (String.length sys_prompt) (String.length user_message));
-      make_conversation sys_prompt user_message
+        (String.length sys_prompt_text) (String.length user_message));
+      make_conversation sys_prompt_text user_message
   in
   loop ~agent ~global_max:0 conv 0

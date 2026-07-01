@@ -529,6 +529,25 @@ let parse_context_strategy (json : Yojson.Safe.t) : Par.Types.context_strategy o
        failwith (Printf.sprintf "Unknown context_strategy tag: %s (expected Truncate_oldest|Summarize|Sliding_window)" other))
   | _ -> Some (Par.Types.Sliding_window { max_messages = 100; max_tokens = 200000 })
 
+let parse_cache_strategy (json : Yojson.Safe.t) : Par.Types.cache_strategy =
+  match json with
+  | `Null -> Par.Types.No_caching
+  | `String s when String.lowercase_ascii s = "no_caching" -> Par.Types.No_caching
+  | `String s when String.lowercase_ascii s = "with_cache_of" ->
+    Par.Types.No_caching
+  | `List [`String tag; `String ttl_str] ->
+    let is_with_cache = String.lowercase_ascii tag = "with_cache_of" in
+    if not is_with_cache then
+      failwith (Printf.sprintf "Unknown cache_strategy tag: %s" tag);
+    let ttl = match String.lowercase_ascii ttl_str with
+      | "five_min" -> `Five_min
+      | "one_hour" -> `One_hour
+      | _ -> failwith (Printf.sprintf "Unknown cache ttl: %s" ttl_str)
+    in
+    Par.Types.With_cache_of ttl
+  | other ->
+    failwith (Printf.sprintf "Unknown cache_strategy: %s" (Yojson.Safe.to_string other))
+
 let parse_agent_config (json : Yojson.Safe.t) : Par.Types.agent_config =
   let open Yojson.Safe.Util in
   let id = json |> member "id" |> to_string in
@@ -573,7 +592,8 @@ let parse_agent_config (json : Yojson.Safe.t) : Par.Types.agent_config =
     middleware; retry_policy; context_strategy; resource_quota;
     max_execution_time; tool_timeout = None; early_stopping_method;
     on_max_tokens; max_continuation_chunks;
-    context_compression_threshold; compression_cooldown_messages; context_window_override; cache_strategy = No_caching }
+    context_compression_threshold; compression_cooldown_messages; context_window_override;
+    cache_strategy = parse_cache_strategy (json |> Yojson.Safe.Util.member "cache_strategy") }
 
 let do_register_agent (state_id : int) (config_json : string) =
   match get_state state_id with

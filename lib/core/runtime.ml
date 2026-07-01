@@ -94,7 +94,8 @@ let make_agent ~id ?(system_prompt = stable_prompt "") ?(system_prompt_template 
     ?(tool_timeout = None)
     ?(context_compression_threshold = Some 0.8)
     ?(compression_cooldown_messages = Some 6)
-    ?(context_window_override = None) () =
+    ?(context_window_override = None)
+    ?(cache_strategy = Types.No_caching) () =
   let errors = ref [] in
   if String.length id = 0 then
     errors := "id must not be empty" :: !errors;
@@ -115,6 +116,20 @@ let make_agent ~id ?(system_prompt = stable_prompt "") ?(system_prompt_template 
     else
       Hashtbl.add tool_names td.name ()
   ) tools;
+  (* B.4 construction-time check: cache_strategy requires Zone_stable system_prompt.
+     v0.6.4 soft-fail: downgrade to No_caching + Logs.warn.
+     v0.6.5: upgrade to hard fail (return Error). *)
+  let cache_strategy =
+    match cache_strategy, zone_of system_prompt with
+    | Types.With_cache_of _, Zone_volatile ->
+      Logs.warn (fun m ->
+        m "[make_agent] cache_strategy=With_cache_of requires Zone_stable system_prompt, \
+           but got Zone_volatile (prompt starts: %s...). Downgrading to No_caching. \
+           v0.6.5 will make this a hard error."
+        (try String.sub (prompt_text system_prompt) 0 40 with _ -> prompt_text system_prompt));
+      Types.No_caching
+    | cs, _ -> cs
+  in
   match !errors with
   | [] -> Ok {
       id; system_prompt; system_prompt_template; model; tools;
@@ -124,7 +139,7 @@ let make_agent ~id ?(system_prompt = stable_prompt "") ?(system_prompt_template 
       tool_timeout;
       context_compression_threshold;
       compression_cooldown_messages;
-      context_window_override; cache_strategy = No_caching;
+      context_window_override; cache_strategy;
     }
   | errs -> Result.Error (Types.Invalid_input (String.concat "; " errs))
 
@@ -148,9 +163,14 @@ let register_agent rt (agent : agent_config) =
     ?context_compression_threshold:(Some agent.context_compression_threshold)
     ?compression_cooldown_messages:(Some agent.compression_cooldown_messages)
     ?context_window_override:(Some agent.context_window_override)
+    ?cache_strategy:(Some agent.cache_strategy)
     () in
   match validated with
   | Ok valid_agent ->
+    (match agent.cache_strategy, valid_agent.cache_strategy with
+     | Types.With_cache_of _, Types.No_caching ->
+       rt.publish_event_fn (Types.Cache_strategy_skipped { reason = `Volatile_system })
+     | _ -> ());
     htbl_set rt.agents valid_agent.id valid_agent;
     Ok ()
   | Result.Error e -> Result.Error e
