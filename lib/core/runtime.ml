@@ -343,6 +343,35 @@ let compute_active_skill_effects (rt : runtime) (message : string) : skill_effec
   in
   auto_effects @ user_effects
 
+let get_active_skill_ids (rt : runtime) (message : string) : string list =
+  let descriptors = Skill_registry.list_descriptors rt.skills in
+  let auto_ids =
+    List.filter_map (fun (desc : skill_descriptor) ->
+      let eligible = match desc.trigger with
+        | Auto -> true
+        | Manual -> false
+        | Keyword { keywords; _ } ->
+          List.exists (fun kw -> contains_substring message kw) keywords
+      in
+      if eligible then
+        match Skill_registry.resolve rt.skills desc.id with
+        | Some _ -> Some desc.id
+        | None -> None
+      else None)
+      descriptors
+  in
+  let user_set = rt.user_activated_skills in
+  let user_ids =
+    List.filter_map (fun id ->
+      if List.mem id user_set then
+        match Skill_registry.resolve rt.skills id with
+        | Some _ -> Some id
+        | None -> None
+      else None)
+      (List.map (fun (d : skill_descriptor) -> d.id) descriptors)
+  in
+  auto_ids @ user_ids
+
 let compose_skill_effects (effects : skill_effect list) : skill_effect =
   match effects with
   | [] -> { system_prompt_override = None; tool_filter_overlay = All_tools }
@@ -659,7 +688,30 @@ let invoke rt ~agent_id ~message ?cancellation_token ?conversation
     in
     let active_effects = compute_active_skill_effects rt message in
     let composed_effect = compose_skill_effects active_effects in
+    let before_tool_count = List.length config.tools in
     let config = apply_skill_effect_to_config composed_effect config in
+    let after_tool_count = List.length config.tools in
+    (* v0.6.4 B.5.2: emit cache invalidation event when skill overlay mutates state *)
+    (match active_effects with
+     | [] -> ()
+     | _ when after_tool_count <> before_tool_count
+           || composed_effect.system_prompt_override <> None ->
+       let skill_ids = get_active_skill_ids rt message in
+       let skill_id = match skill_ids with
+         | [] -> "unknown"
+         | [id] -> id
+         | _ -> Printf.sprintf "composite:%d" (List.length skill_ids)
+       in
+       let estimated_wasted_tokens =
+         max 0 ((before_tool_count - after_tool_count) * 100)
+       in
+       publish_event rt (Cache_invalidated_by_skill {
+         skill_id;
+         before_tool_count;
+         after_tool_count;
+         estimated_wasted_tokens;
+       })
+     | _ -> ());
     let try_with_provider llm_svc =
       let result = Engine.run_agent ~steering:(Some rt.steering_queue)
         ~followup:(Some rt.followup_queue)
@@ -751,7 +803,30 @@ let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
     in
     let active_effects = compute_active_skill_effects rt message in
     let composed_effect = compose_skill_effects active_effects in
+    let before_tool_count = List.length config.tools in
     let config = apply_skill_effect_to_config composed_effect config in
+    let after_tool_count = List.length config.tools in
+    (* v0.6.4 B.5.2: emit cache invalidation event when skill overlay mutates state *)
+    (match active_effects with
+     | [] -> ()
+     | _ when after_tool_count <> before_tool_count
+           || composed_effect.system_prompt_override <> None ->
+       let skill_ids = get_active_skill_ids rt message in
+       let skill_id = match skill_ids with
+         | [] -> "unknown"
+         | [id] -> id
+         | _ -> Printf.sprintf "composite:%d" (List.length skill_ids)
+       in
+       let estimated_wasted_tokens =
+         max 0 ((before_tool_count - after_tool_count) * 100)
+       in
+       publish_event rt (Cache_invalidated_by_skill {
+         skill_id;
+         before_tool_count;
+         after_tool_count;
+         estimated_wasted_tokens;
+       })
+     | _ -> ());
     match Provider_registry.get_default rt.llm_providers with
     | Error `No_default ->
       let err = Invalid_input "No default LLM provider configured." in

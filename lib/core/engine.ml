@@ -583,6 +583,22 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
       | Types.Generate ->
         let conv' = add_user_feedback conv
           "Based on the work done so far, provide your best final answer." in
+        (* v0.6.4: apply cache marks before final Generate call *)
+        let conv' =
+          match agent.cache_strategy with
+          | Types.No_caching -> conv'
+          | Types.With_cache_of ttl ->
+            let candidates = build_breakpoint_candidates ~ttl ~tools:tools_for_provider ~conv:conv' in
+            let plan = Cache_breakpoint.plan_breakpoints llm candidates in
+            let fire_evt evt = match on_tool_event with Some pub -> pub evt | None -> () in
+            List.iter (fun (bp, reason) ->
+              fire_evt (Types.Cache_breakpoint_dropped {
+                location = bp.Cache_breakpoint.location;
+                reason;
+              })
+            ) plan.dropped;
+            apply_breakpoints ~ttl plan.used conv'
+        in
         (match run_llm_with_optional_streaming llm agent.model tools_for_provider conv' on_chunk with
          | Ok resp ->
            let conv'' = add_assistant_message conv' resp in

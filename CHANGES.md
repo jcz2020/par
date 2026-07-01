@@ -1,5 +1,34 @@
 # CHANGES
 
+## v0.6.4-beta.3 — Prompt Caching Wrap-up Continuation (BETA, IN PROGRESS)
+
+> Completes 2 deferred items from beta.1/beta.2: Generate early-stop cache wiring (Site 2) + Cache_invalidated_by_skill event emission (ROADMAP B.5.2). All 1188 tests passing.
+
+### Added — Generate early-stop cache wiring (Site 2)
+
+- **FIX** `Engine.run_agent` Generate early-stop branch (engine.ml:583-590) now applies cache planning before the final LLM call. Previously this path was reached BEFORE the main dispatch's cache marking (line 668), causing first-iteration-Generate and post-compression edge cases to dispatch with zero cache marks.
+- The block mirrors the main dispatch pattern (lines 668-684): `build_breakpoint_candidates` → `plan_breakpoints` → emit dropped events → `apply_breakpoints` on `conv'`.
+- Secondary dispatch sites (run_structured line 334, Max_tokens continuation line 975) remain intentionally NOT wired:
+  - `run_structured`: would require adding `?on_tool_event` parameter for event publishing; conversations are typically short (3-5 messages); marginal benefit.
+  - Max_tokens continuation: cache marks from main dispatch already propagate to the continuation sub-loop (system + tools messages keep their marks; new continuation messages correctly avoid marks to preserve cache key stability).
+
+### Added — Skill overlay cache invalidation event (ROADMAP B.5.2)
+
+- **NEW** `Cache_invalidated_by_skill` event is now emitted at both `apply_skill_effect_to_config` call sites (`runtime.ml:662` invoke + `:754` invoke_generate).
+- Trigger condition: when `active_effects <> []` AND (`after_tool_count <> before_tool_count` OR `composed_effect.system_prompt_override <> None`).
+- Payload: `{ skill_id; before_tool_count; after_tool_count; estimated_wasted_tokens }` where `estimated_wasted_tokens = max 0 ((before - after) * 100)` (heuristic: each tool definition ~100 tokens).
+- Skill ID resolution: single active skill → its ID; multiple → `"composite:N"`; unresolved → `"unknown"`.
+- **NEW** `get_active_skill_ids` helper in runtime.ml mirrors `compute_active_skill_effects` logic to derive active skill IDs (necessary because `skill_effect` type has no `skill_id` field).
+- The event was previously declared (types.ml:708), tested (test_cache_events.ml:72), and handled by CLI (bin/main.ml:1363) + persistence (persistence_common.ml:49), but never emitted. Now wired end-to-end.
+
+### Architecture
+
+- Skill overlay event scope controlled: B.5.1 phantom-typed `skill_prompt_zone` ADT remains deferred to v0.6.5+ (would require same existential record field design as `mark_cache_breakpoint`). The runtime `string option` for `system_prompt_override` is retained.
+- OpenAI `cached_tokens` confirmed DONE (was incorrectly reported as hardcoded to 0 in prior session notes). Field is correctly parsed from `prompt_tokens_details.cached_tokens` at `openai_provider.ml:316`. The hardcoded `cache_creation_input_tokens = 0` and `cache_read_input_tokens = 0` are correct (Anthropic-only fields).
+- `mark_cache_breakpoint` user-facing API remains deferred per CHANGES.md beta.1 R3 scope decision: "auto-caching until v0.6.5+ adds user-facing mark_cache_breakpoint API". Trigger condition (v0.6.5+) and migration path documented.
+
+---
+
 ## v0.6.4-beta.2 — Prompt Caching Wrap-up (BETA, IN PROGRESS)
 
 > Continues v0.6.4: template zone classification, make_agent `?cache_strategy` + B.4 zone-validation check, budget manager wired into engine main ReAct loop, 4 new test files (48 new tests). All 1188 tests passing.
