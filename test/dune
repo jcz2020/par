@@ -407,3 +407,13 @@
  (name test_engine_breakpoint_candidates)
  (libraries par alcotest)
  (modules test_engine_breakpoint_candidates))
+
+(test
+ (name test_content_blocks)
+ (libraries par alcotest)
+ (modules test_content_blocks))
+
+(test
+ (name test_openai_cached_tokens)
+ (libraries par alcotest)
+ (modules test_openai_cached_tokens))
