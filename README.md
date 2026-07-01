@@ -9,7 +9,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.6.2 — Workflow engine closed loop: suspend → gate → resume now fully functional (resume_workflow with checkpoint replay, approve_workflow with role validation, 7 lifecycle events, boot-time rehydration). Dynamic toolset API (update_agent_tools / unregister_tool / replace_tool). Disclosure enforcement scanner in CI. API may change before v1.0.
+> **Status**: v0.6.4-beta — Typed prompt caching with Stable/Volatile zones, content_block list, mark_cache_breakpoint API, budget manager, skill_prompt_zone ADT. 1228 tests passing. API may change before v1.0.
 
 ---
 
@@ -147,11 +147,11 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.6.2 — Workflow engine closed loop: suspend → gate → resume now fully functional (resume_workflow with checkpoint replay, approve_workflow with role validation, 7 lifecycle events, boot-time rehydration). Dynamic toolset API (update_agent_tools / unregister_tool / replace_tool). Disclosure enforcement scanner in CI.
+**Current**: v0.6.4-beta — Typed prompt caching with Stable/Volatile zones: `content_block list` message representation, `cache_control` markers on all 4 block variants, `cache_strategy` ADT, `mark_tool`/`mark_message` user-facing API, budget manager wired into engine, `skill_prompt_zone` ADT, B.4 construction-time hard-fail, template zone classification, Anthropic adapter emits cache_control to wire format. See [prompt caching guide](docs/sdk/prompt_caching.md) and [content blocks guide](docs/sdk/content_blocks.md).
 
-**Coming next**: Typed prompt caching with Stable/Volatile zones ([v0.6.4-beta — in progress](docs/v0.6.4-ROADMAP.md); Track A-G+E shipped: content_block list, cache_control types, cache_strategy, 5 cache events, budget manager. Track B phantom types pending), complete PAR-g4c builtin-tool migration (edit tool + bash), external vector stores (Qdrant/Milvus), document loaders.
+**Coming next**: External vector stores (Qdrant/Milvus), document loaders, multimodal image tools (v0.7).
 
-**Beta-only (no stable)**: v0.6.3-beta (auto context compression by window ratio) shipped on 2026-06-30; user opted to skip stable release and proceed directly to v0.6.4.
+**Beta-only (no stable)**: v0.6.3-beta (auto context compression) and v0.6.4-beta (prompt caching) shipped; user opted to skip stable releases and iterate on beta.
 
 ## Getting help
 
