@@ -40,7 +40,8 @@ let make_tool ?(name = "tool") handler : tool_binding =
     permission = Allow;
     timeout = None;
     concurrency_limit = None;
-    on_update = None
+    on_update = None;
+    cache_control = None
   } in
   { descriptor; handler }
 

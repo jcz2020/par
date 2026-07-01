@@ -1,7 +1,7 @@
-(* test/test_stable_volatile_prompts.ml — v0.6.4
+(* test/test_stable_volatile_prompts.ml — v0.6.5
    Tests stable_prompt/volatile_prompt constructors, zone_of accessor,
    prompt_text extractor, and the B.4 make_agent cache_strategy zone check
-   (volatile + With_cache_of → downgrade to No_caching). *)
+   (volatile + With_cache_of → hard-fail Error). *)
 
 open Par
 open Par.Types
@@ -95,31 +95,25 @@ let test_make_agent_stable_keeps_cache_strategy () =
   | Error e -> Alcotest.failf "expected Ok, got: %s"
       (match e with Invalid_input m -> m | _ -> "other")
 
-let test_make_agent_volatile_downgrades_cache_strategy () =
-  (* B.4 soft-fail: volatile + With_cache_of → No_caching (v0.6.4 behavior;
-     v0.6.5 will hard-fail). *)
+let test_make_agent_volatile_hard_fails_cache_strategy () =
   match Runtime.make_agent
     ~id:"a"
     ~system_prompt:(volatile_prompt "dynamic")
     ~cache_strategy:(With_cache_of `Five_min)
     ~model:valid_model () with
-  | Ok agent ->
-    Alcotest.(check cache_strategy_testable) "volatile + With_cache_of → No_caching"
-      No_caching agent.cache_strategy
-  | Error e -> Alcotest.failf "expected Ok (soft-fail), got: %s"
-      (match e with Invalid_input m -> m | _ -> "other")
+  | Ok _ -> Alcotest.fail "expected Error (hard-fail), got Ok"
+  | Error (Invalid_input _) -> ()
+  | Error _ -> Alcotest.fail "wrong error type"
 
-let test_make_agent_volatile_downgrades_one_hour () =
+let test_make_agent_volatile_hard_fails_one_hour () =
   match Runtime.make_agent
     ~id:"a"
     ~system_prompt:(volatile_prompt "dynamic")
     ~cache_strategy:(With_cache_of `One_hour)
     ~model:valid_model () with
-  | Ok agent ->
-    Alcotest.(check cache_strategy_testable) "volatile + One_hour → No_caching"
-      No_caching agent.cache_strategy
-  | Error e -> Alcotest.failf "expected Ok (soft-fail), got: %s"
-      (match e with Invalid_input m -> m | _ -> "other")
+  | Ok _ -> Alcotest.fail "expected Error (hard-fail), got Ok"
+  | Error (Invalid_input _) -> ()
+  | Error _ -> Alcotest.fail "wrong error type"
 
 let test_make_agent_stable_keeps_one_hour () =
   match Runtime.make_agent
@@ -176,8 +170,8 @@ let () =
     ];
     "b4-cache-strategy-check", [
       Alcotest.test_case "stable + With_cache_of → kept" `Quick test_make_agent_stable_keeps_cache_strategy;
-      Alcotest.test_case "volatile + With_cache_of → No_caching" `Quick test_make_agent_volatile_downgrades_cache_strategy;
-      Alcotest.test_case "volatile + One_hour → No_caching" `Quick test_make_agent_volatile_downgrades_one_hour;
+      Alcotest.test_case "volatile + With_cache_of → hard-fail" `Quick test_make_agent_volatile_hard_fails_cache_strategy;
+      Alcotest.test_case "volatile + One_hour → hard-fail" `Quick test_make_agent_volatile_hard_fails_one_hour;
       Alcotest.test_case "stable + One_hour → kept" `Quick test_make_agent_stable_keeps_one_hour;
       Alcotest.test_case "No_caching unchanged regardless of zone" `Quick test_make_agent_no_caching_unchanged_regardless_of_zone;
     ];

@@ -1,5 +1,52 @@
 # CHANGES
 
+## v0.6.4-beta.4 — All Deferred Features Completed (BETA, IN PROGRESS)
+
+> Completes ALL previously-deferred v0.6.4 items: mark_cache_breakpoint user-facing API (ROADMAP B.3), skill_prompt_zone ADT (ROADMAP B.5.1), B.4 hard-fail upgrade. 3 breaking changes, 13 new tests, 1201 total passing.
+
+### BREAKING in 0.x (3 changes)
+
+| # | Old API | New API | Migration |
+|---|---|---|---|
+| 1 | `tool_descriptor` (no `cache_control`) | `tool_descriptor` (with `cache_control : cache_control option`) | Add `cache_control = None` to all 30+ construction sites (mechanical) |
+| 2 | `skill_effect.system_prompt_override : string option` | `skill_prompt_zone option` | Wrap `Some "text"` → `Some (Stable_prompt "text")` (or `Volatile_prompt` / `Both_prompts`) |
+| 3 | `make_agent` soft-fail on volatile + `With_cache_of` | Hard-fail: returns `Error (Invalid_input _)` | Callers with volatile prompts + caching must switch to `stable_prompt` or drop caching |
+
+### Added — mark_cache_breakpoint user-facing API (ROADMAP B.3)
+
+- **NEW** `Cache_breakpoint.mark_tool : ttl:cache_ttl -> tool_descriptor -> tool_descriptor` — sets `cache_control` on a tool descriptor, marking it for prompt caching.
+- **NEW** `Cache_breakpoint.mark_message : ttl:cache_ttl -> message -> message` — sets `cache_control` on the LAST content_block of a message. No-op on empty `content_blocks` (MINOR #19).
+- **NEW** `Engine.build_breakpoint_candidates` now scans for pre-marked tools (user used `mark_tool`). Pre-marked tools get priority 60 (higher than auto-guessed 50), ensuring user intent is respected by the budget manager.
+- The auto-caching mechanism (System pri 100, last tool pri 50, last user msg pri 10) continues to work alongside user marks. The budget manager drops lowest-priority when over provider cap.
+
+### Added — skill_prompt_zone ADT (ROADMAP B.5.1)
+
+- **NEW** `type skill_prompt_zone = Stable_prompt of string | Volatile_prompt of string | Both_prompts of { stable : string; volatile : string }` — classifies skill prompt overrides at load time.
+- `skill_effect.system_prompt_override` and `skill_descriptor.system_prompt_override` changed from `string option` to `skill_prompt_zone option`.
+- `apply_skill_effect_to_config` now matches 3 variants: `Stable_prompt s` → `stable_prompt s` (preserves prior behavior); `Volatile_prompt s` → `volatile_prompt s` (forces volatile, cache-busts); `Both_prompts { stable; _ }` → `volatile_prompt stable` (conservative: any volatile component → whole prompt volatile).
+- `Runtime.make_skill` parameter `?system_prompt_override` now takes `skill_prompt_zone` (was `string`).
+- FFI JSON parser + skill_loader classify parsed strings: default `Stable_prompt` (preserves prior behavior for existing skills).
+- `bin/main.ml` skill display extracts the inner string from the ADT for display.
+
+### Changed — B.4 hard-fail (was soft-fail)
+
+- `Runtime.make_agent` now returns `Error (Invalid_input "cache_strategy requires Zone_stable system_prompt, got Zone_volatile")` when `With_cache_of _` is requested with a `Zone_volatile` system prompt. Previously downgraded to `No_caching` with `Logs.warn`.
+- Removed dead code: `register_agent` no longer emits `Cache_strategy_skipped { reason = \`Volatile_system }` (make_agent errors before agent exists). The event variant remains declared for other future emit paths.
+- The 2 affected tests in `test_stable_volatile_prompts.ml` flipped from `Ok agent with No_caching` → `Error (Invalid_input _)`.
+
+### Added — Tests (13 new)
+
+- **NEW** `test/test_cache_breakpoint_api.ml` — 8 tests: `mark_tool` with `Five_min`/`One_hour` TTLs, field preservation, `mark_message` on single/multiple/empty blocks, `Tool_result_block` variant, message field preservation.
+- **NEW** `test/test_engine_breakpoint_candidates.ml` — 5 tests: no marked tools (standard 3 candidates), one marked tool (priority 60), multiple marked tools, `One_hour` ttl propagation, mixed marked + unmarked.
+
+### Architecture (per STRATEGY §11 "一次做对")
+
+- All 3 features use runtime zone_tag mechanism (phantom types excluded by OCaml record-field limitation per commit `6a22c7f`). No existential type design needed.
+- The mark_cache_breakpoint API operates on already-validated values (B.4 check happened at construction). No compile-time phantom type enforcement needed.
+- `skill_prompt_zone` is a regular ADT, not phantom-typed. Skill classification happens at load time (skill_loader) or construction time (make_skill).
+
+---
+
 ## v0.6.4-beta.3 — Prompt Caching Wrap-up Continuation (BETA, IN PROGRESS)
 
 > Completes 2 deferred items from beta.1/beta.2: Generate early-stop cache wiring (Site 2) + Cache_invalidated_by_skill event emission (ROADMAP B.5.2). All 1188 tests passing.

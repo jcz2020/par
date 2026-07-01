@@ -74,6 +74,7 @@ val register_tool :
   ?timeout:float ->
   ?concurrency_limit:int ->
   ?on_update:(string -> unit) option ->
+  ?cache_control:cache_control option ->
   unit ->
   (tool_binding, error_category) result
 
@@ -177,7 +178,7 @@ val list_skills : runtime -> Types.skill_descriptor list
 val make_skill :
   id:string ->
   description:string ->
-  ?system_prompt_override:string ->
+  ?system_prompt_override:skill_prompt_zone ->
   ?tool_filter:Types.tool_filter ->
   ?trigger:Types.skill_trigger ->
   ?expected_output:Yojson.Safe.t ->

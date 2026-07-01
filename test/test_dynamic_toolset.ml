@@ -40,7 +40,7 @@ let basic_agent ?(tools : tool_descriptor list = []) ?(id = "test-agent") () : a
 let make_descriptor ?(description = "test") name =
   { Types.name; description; input_schema = valid_schema;
     output_schema = None; permission = Allow; timeout = None;
-    concurrency_limit = None; on_update = None }
+    concurrency_limit = None; on_update = None; cache_control = None }
 
 let handler_returning json : Tool_registry.handler_fn =
   fun _input _token -> Success json

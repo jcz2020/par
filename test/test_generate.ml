@@ -369,7 +369,7 @@ let test_invoke_generate_skill_overlay_applied () =
     let skill =
       match Runtime.make_skill ~id:"override"
         ~description:"applies override"
-        ~system_prompt_override:"OVERRIDDEN"
+        ~system_prompt_override:(Stable_prompt "OVERRIDDEN")
         ~trigger:Auto () with
       | Ok s -> s
       | Error e -> Alcotest.failf "make_skill failed: %s" (error_to_string e)

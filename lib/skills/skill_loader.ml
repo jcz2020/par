@@ -234,7 +234,7 @@ let parse_skill_file ~path : (Types.skill_descriptor, string) result =
           id = id_v;
           name = name_v;
           description = desc_v;
-          system_prompt_override;
+          system_prompt_override = Option.map (fun s -> Types.Stable_prompt s) system_prompt_override;
           tool_filter;
           trigger;
           expected_output;

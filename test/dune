@@ -397,3 +397,13 @@
  (name test_stable_volatile_prompts)
  (libraries par alcotest)
  (modules test_stable_volatile_prompts))
+
+(test
+ (name test_cache_breakpoint_api)
+ (libraries par alcotest)
+ (modules test_cache_breakpoint_api))
+
+(test
+ (name test_engine_breakpoint_candidates)
+ (libraries par alcotest)
+ (modules test_engine_breakpoint_candidates))

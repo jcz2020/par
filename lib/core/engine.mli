@@ -64,6 +64,18 @@ val resolve_max_continuation_chunks :
   agent_config ->
   int
 
+(** [build_breakpoint_candidates ~ttl ~tools ~conv] builds the list of
+    breakpoint candidates from the current request state:
+    - System message (priority 100)
+    - Last tool definition (priority 50)
+    - Last user message last block (priority 10)
+    - Pre-marked tools with cache_control set (priority 60) *)
+val build_breakpoint_candidates :
+  ttl:cache_ttl ->
+  tools:tool_descriptor list ->
+  conv:conversation ->
+  Cache_breakpoint.breakpoint list
+
 (** [run_structured ~response_schema llm token agent user_message] drives a
     schema-constrained LLM call with a repair-on-failure loop.
 

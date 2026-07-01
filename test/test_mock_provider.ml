@@ -158,7 +158,7 @@ let test_call_history_records_model_and_tools () =
   let tools : tool_descriptor list = [
     { name = "t1"; description = "tool 1";
       input_schema = `Assoc []; output_schema = None; permission = Allow;
-      timeout = None; concurrency_limit = None; on_update = None };
+      timeout = None; concurrency_limit = None; on_update = None; cache_control = None };
   ] in
   let specific_model = { mock_model with model_name = "specific-model" } in
   let (svc, history) = create [Text "x"] in

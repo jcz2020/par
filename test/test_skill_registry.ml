@@ -104,7 +104,7 @@ let test_replace_existing () =
   let d1 = make_skill "x" "X v1" "first" in
   ignore (Skill_registry.register reg (make_binding d1));
   let new_activate : Skill_registry.activate_fn =
-    fun () -> { system_prompt_override = Some "replaced";
+    fun () -> { system_prompt_override = Some (Stable_prompt "replaced");
                  tool_filter_overlay = All_tools } in
   Skill_registry.replace reg "x" new_activate;
   Alcotest.(check bool) "still has x" true

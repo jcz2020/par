@@ -378,7 +378,8 @@ let setup_runtime cfg ~interactive:_ ~f =
         description = Printf.sprintf "Transfer the conversation to agent %s" aid;
         input_schema = `Assoc [("type", `String "object"); ("properties", `Assoc [])];
         output_schema = None; permission = Types.Allow;
-        timeout = None; concurrency_limit = None; on_update = None }
+        timeout = None; concurrency_limit = None; on_update = None;
+        cache_control = None }
     ) handoff_target_ids in
     List.iter (fun aid ->
       ignore (Runtime.register_tool rt
@@ -1559,8 +1560,12 @@ let cmd_skill_show id =
        | Types.Only xs -> "Only [" ^ String.concat ", " xs ^ "]"
        | Types.Except xs -> "Except [" ^ String.concat ", " xs ^ "]");
     (match s.Types.system_prompt_override with
-     | Some p -> Printf.printf "Override:    %s\n"
-                   (if String.length p > 60 then String.sub p 0 60 ^ "..." else p)
+     | Some zone ->
+       let p = match zone with
+         | Types.Stable_prompt s | Types.Volatile_prompt s -> s
+         | Types.Both_prompts { stable = s; _ } -> s in
+       Printf.printf "Override:    %s\n"
+         (if String.length p > 60 then String.sub p 0 60 ^ "..." else p)
      | None -> ())
   | None ->
     Printf.eprintf "Skill not found: %s\n" id;

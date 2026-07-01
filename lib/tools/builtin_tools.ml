@@ -100,6 +100,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 5.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun input _tok ->
@@ -176,6 +177,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 2.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun _input _tok ->
@@ -199,6 +201,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 2.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun input _tok ->
@@ -220,6 +223,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 1.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun _input _tok ->
@@ -240,6 +244,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 2.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun input _tok ->
@@ -269,6 +274,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 1.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun input _tok ->
@@ -303,6 +309,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 1.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun input _tok ->
@@ -332,6 +339,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 2.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun input _tok ->
@@ -358,6 +366,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 1.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun input _tok ->
@@ -401,6 +410,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 1.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun input _tok ->
@@ -517,6 +527,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 15.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun input _tok ->
@@ -559,6 +570,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 15.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun input _tok ->
@@ -617,6 +629,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 15.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun input _tok ->
@@ -692,6 +705,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 30.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun input _tok ->
@@ -761,6 +775,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 10.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun input _tok ->
@@ -843,6 +858,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 30.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let skip_dirs = [".git"; "node_modules"; "_build"; "_opam"] in
@@ -916,6 +932,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 30.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun input _tok ->
@@ -1007,6 +1024,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 30.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun input _tok ->
@@ -1093,6 +1111,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 30.0
       ; concurrency_limit = None
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun input _tok ->
@@ -1200,6 +1219,7 @@ let builtin_tools ~switch ~net =
       ; timeout = Some 60.0
       ; concurrency_limit = Some 4
       ; on_update = None
+      ; cache_control = None
       }
     in
     let handler = (fun input _tok ->

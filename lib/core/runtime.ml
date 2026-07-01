@@ -117,19 +117,11 @@ let make_agent ~id ?(system_prompt = stable_prompt "") ?(system_prompt_template 
       Hashtbl.add tool_names td.name ()
   ) tools;
   (* B.4 construction-time check: cache_strategy requires Zone_stable system_prompt.
-     v0.6.4 soft-fail: downgrade to No_caching + Logs.warn.
-     v0.6.5: upgrade to hard fail (return Error). *)
-  let cache_strategy =
-    match cache_strategy, zone_of system_prompt with
-    | Types.With_cache_of _, Zone_volatile ->
-      Logs.warn (fun m ->
-        m "[make_agent] cache_strategy=With_cache_of requires Zone_stable system_prompt, \
-           but got Zone_volatile (prompt starts: %s...). Downgrading to No_caching. \
-           v0.6.5 will make this a hard error."
-        (try String.sub (prompt_text system_prompt) 0 40 with _ -> prompt_text system_prompt));
-      Types.No_caching
-    | cs, _ -> cs
-  in
+     v0.6.5: hard fail — return Error. *)
+  (match cache_strategy, zone_of system_prompt with
+   | Types.With_cache_of _, Zone_volatile ->
+     errors := "cache_strategy=With_cache_of requires Zone_stable system_prompt, but got Zone_volatile" :: !errors
+   | _ -> ());
   match !errors with
   | [] -> Ok {
       id; system_prompt; system_prompt_template; model; tools;
@@ -167,10 +159,6 @@ let register_agent rt (agent : agent_config) =
     () in
   match validated with
   | Ok valid_agent ->
-    (match agent.cache_strategy, valid_agent.cache_strategy with
-     | Types.With_cache_of _, Types.No_caching ->
-       rt.publish_event_fn (Types.Cache_strategy_skipped { reason = `Volatile_system })
-     | _ -> ());
     htbl_set rt.agents valid_agent.id valid_agent;
     Ok ()
   | Result.Error e -> Result.Error e
@@ -181,8 +169,8 @@ let list_agents rt =
   List.rev !acc
 
 let register_tool rt ~name ~description ~input_schema ~handler
-    ?output_schema ?(permission = Allow) ?timeout ?concurrency_limit ?(on_update = None) () =
-  let descriptor = { Types.name; description; input_schema; output_schema; permission; timeout; concurrency_limit; on_update } in
+    ?output_schema ?(permission = Allow) ?timeout ?concurrency_limit ?(on_update = None) ?(cache_control = None) () =
+  let descriptor = { Types.name; description; input_schema; output_schema; permission; timeout; concurrency_limit; on_update; cache_control } in
   match Tool_registry.register rt.tool_registry descriptor handler with
   | Error (`Duplicate_tool n) ->
     Result.Error (Types.Invalid_input (Printf.sprintf "Tool already registered: %s" n))
@@ -278,7 +266,7 @@ let register_skill rt (descriptor : Types.skill_descriptor) =
 
 let list_skills rt = Skill_registry.list_descriptors rt.skills
 
-let make_skill ~id ~description ?system_prompt_override ?(tool_filter = Types.All_tools)
+let make_skill ~id ~description ?(system_prompt_override : Types.skill_prompt_zone option) ?(tool_filter = Types.All_tools)
     ?(trigger = Types.Auto) ?expected_output () =
   if id = "" then Result.Error (Types.Invalid_input "skill id cannot be empty")
   else if String.length description > 1024 then
@@ -298,7 +286,7 @@ let make_skill ~id ~description ?system_prompt_override ?(tool_filter = Types.Al
     }
 
 type skill_effect_alias = skill_effect = {
-  system_prompt_override : string option;
+  system_prompt_override : skill_prompt_zone option;
   tool_filter_overlay : tool_filter;
 }
 
@@ -402,7 +390,9 @@ let compose_skill_effects (effects : skill_effect list) : skill_effect =
 
 let apply_skill_effect_to_config (eff : skill_effect) config =
   let config = match eff.system_prompt_override with
-  | Some prompt -> { config with system_prompt = stable_prompt prompt }
+  | Some (Stable_prompt s) -> { config with system_prompt = stable_prompt s }
+  | Some (Volatile_prompt s) -> { config with system_prompt = volatile_prompt s }
+  | Some (Both_prompts { stable = s; _ }) -> { config with system_prompt = volatile_prompt s }
   | None -> config
   in
   match eff.tool_filter_overlay with
@@ -614,6 +604,7 @@ let install_bash_tool ?process_mgr ?clock rt =
         timeout = Some 60.0;
         concurrency_limit = Some 4;
         on_update = None;
+        cache_control = None;
       }
       in
       Tool_registry.replace rt.tool_registry descriptor.name (make_handler rt);

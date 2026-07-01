@@ -458,7 +458,17 @@ let build_breakpoint_candidates ~ttl ~tools ~conv : Cache_breakpoint.breakpoint 
        candidates := Cache_breakpoint.{ location = `Message (msg_idx, last_block_idx); ttl; estimated_tokens = 200; priority = 10 } :: !candidates
      end
    | None -> ());
-  !candidates
+  (* Scan for pre-marked tools (user called mark_tool or set cache_control). *)
+  let marked_tool_candidates =
+    tools
+    |> List.mapi (fun i (td : Types.tool_descriptor) ->
+      match td.cache_control with
+      | Some { ttl = Some tool_ttl; _ } ->
+        [Cache_breakpoint.{ location = `Tool i; ttl = tool_ttl; estimated_tokens = 500; priority = 60 }]
+      | _ -> [])
+    |> List.concat
+  in
+  !candidates @ marked_tool_candidates
 
 (* v0.6.4 prompt caching: apply cache_control markers to content_blocks
    addressed by each breakpoint. Returns a new conversation with marked blocks. *)

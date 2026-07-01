@@ -190,6 +190,7 @@ let test_tool_descriptor : tool_descriptor = {
   timeout = None;
   concurrency_limit = None;
   on_update = None;
+  cache_control = None;
 }
 
 let check_resolved_on_max_tokens label expected agent effective_tools =

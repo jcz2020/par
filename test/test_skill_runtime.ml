@@ -1,5 +1,9 @@
 open Par.Types
 
+let zone_str = function
+  | Stable_prompt s | Volatile_prompt s -> s
+  | Both_prompts { stable; _ } -> stable
+
 let () =
   let open Alcotest in
   let tests = [
@@ -20,12 +24,12 @@ let () =
 
     test_case "make_skill with options" `Quick (fun () ->
       (match Par.Runtime.make_skill ~id:"full" ~description:"d"
-                ~system_prompt_override:"You are X"
+                ~system_prompt_override:(Stable_prompt "You are X")
                 ~tool_filter:(Only ["a"; "b"])
                 ~trigger:Manual () with
        | Result.Ok d ->
          check string "override" "You are X"
-           (Option.value d.system_prompt_override ~default:"none");
+           (Option.value (Option.map zone_str d.system_prompt_override) ~default:"none");
          (match d.tool_filter with
           | Only ["a"; "b"] -> ()
           | _ -> failwith "wrong tool_filter");

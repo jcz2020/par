@@ -20,6 +20,7 @@ let dummy_descriptor ~name ~description ~schema : tool_descriptor =
     timeout = None;
     concurrency_limit = None;
     on_update = None;
+    cache_control = None;
   }
 
 let echo_tool =

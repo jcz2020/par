@@ -272,6 +272,7 @@ type tool_descriptor = {
   timeout : float option;
   concurrency_limit : int option;
   on_update : (string -> unit) option;
+  cache_control : cache_control option;
 }
 (* Intentionally no [@@deriving yojson]: the on_update function field
    cannot be serialised to JSON. The runtime/FFI paths use the in-memory
@@ -323,10 +324,16 @@ type skill_trigger =
                  llm_confirm : bool }                   (* false = deterministic activate-on-match;
                                                            true = filter then LLM judges (2-stage) *)
 
+type skill_prompt_zone =
+  | Stable_prompt of string
+  | Volatile_prompt of string
+  | Both_prompts of { stable : string; volatile : string }
+[@@deriving yojson]
+
 (* Effect returned by skill activation. Runtime applies per-invoke, discards after.
    Pure: reads runtime state, returns overlay. Does NOT mutate runtime directly. *)
 type skill_effect = {
-  system_prompt_override : string option;
+  system_prompt_override : skill_prompt_zone option;
   tool_filter_overlay    : tool_filter;
   (* Composition rule (INTERSECTION): when multiple skills activate simultaneously,
      effective filter = intersection of all `Only` filters
@@ -341,7 +348,7 @@ type skill_descriptor = {
   id : string;                                       (* lowercase-hyphen, matches dir name *)
   name : string;                                     (* display name *)
   description : string;                              (* ≤1024 chars; L1 metadata always resident *)
-  system_prompt_override : string option;            (* OpenAI instructions pattern *)
+  system_prompt_override : skill_prompt_zone option;            (* OpenAI instructions pattern *)
   tool_filter : tool_filter;                         (* typed — better than all 5 competitors *)
   trigger : skill_trigger;                           (* ADT, not bool flags *)
   expected_output : Yojson.Safe.t option;            (* STOLEN FROM CREWAI — typed success criteria.

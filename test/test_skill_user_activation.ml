@@ -1,6 +1,10 @@
 open Par
 open Par.Types
 
+let zone_str = function
+  | Stable_prompt s | Volatile_prompt s -> s
+  | Both_prompts { stable; _ } -> stable
+
 (* test/test_skill_user_activation.ml — v0.5.4 PAR-bd8
    Coverage: Runtime.set_user_activated_skills / clear / get and
    compute_active_skill_effects' resolution of manually-activated skills
@@ -43,7 +47,7 @@ let () =
       with_runtime (fun rt _history ->
         (* A Manual-trigger skill is never auto-activated *)
         let sk = match Runtime.make_skill ~id:"m1" ~description:"d"
-                   ~system_prompt_override:"MANUAL_OVERRIDE" ~trigger:Manual () with
+                   ~system_prompt_override:(Stable_prompt "MANUAL_OVERRIDE") ~trigger:Manual () with
           | Ok s -> s | Error _ -> failwith "make_skill" in
         ignore (Runtime.register_skill rt sk);
         let effects = Runtime.compute_active_skill_effects rt "hello" in
@@ -52,7 +56,7 @@ let () =
     test_case "manual skill active via set_user_activated_skills" `Quick (fun () ->
       with_runtime (fun rt _history ->
         let sk = match Runtime.make_skill ~id:"m2" ~description:"d"
-                   ~system_prompt_override:"MANUAL_OVERRIDE" ~trigger:Manual () with
+                   ~system_prompt_override:(Stable_prompt "MANUAL_OVERRIDE") ~trigger:Manual () with
           | Ok s -> s | Error _ -> failwith "make_skill" in
         ignore (Runtime.register_skill rt sk);
         Runtime.set_user_activated_skills rt ["m2"];
@@ -62,12 +66,12 @@ let () =
         check int "manual effect now present" 1 (List.length effects);
         let composed = Runtime.compose_skill_effects effects in
         check (option string) "override applied" (Some "MANUAL_OVERRIDE")
-          composed.system_prompt_override));
+          (Option.map zone_str composed.system_prompt_override)));
 
     test_case "clear_user_activated_skills removes activation" `Quick (fun () ->
       with_runtime (fun rt _history ->
         let sk = match Runtime.make_skill ~id:"m3" ~description:"d"
-                   ~system_prompt_override:"X" ~trigger:Manual () with
+                   ~system_prompt_override:(Stable_prompt "X") ~trigger:Manual () with
           | Ok s -> s | Error _ -> failwith "make_skill" in
         ignore (Runtime.register_skill rt sk);
         Runtime.set_user_activated_skills rt ["m3"];
@@ -80,12 +84,12 @@ let () =
       with_runtime (fun rt _history ->
         (* Manual skill only via user_activated_skills *)
         let manual = match Runtime.make_skill ~id:"manual-skill" ~description:"d"
-                      ~system_prompt_override:"FROM_MANUAL" ~trigger:Manual () with
+                      ~system_prompt_override:(Stable_prompt "FROM_MANUAL") ~trigger:Manual () with
           | Ok s -> s | Error _ -> failwith "make_skill" in
         ignore (Runtime.register_skill rt manual);
         (* Auto skill always active *)
         let auto = match Runtime.make_skill ~id:"auto-skill" ~description:"d"
-                    ~system_prompt_override:"FROM_AUTO" ~trigger:Auto () with
+                    ~system_prompt_override:(Stable_prompt "FROM_AUTO") ~trigger:Auto () with
           | Ok s -> s | Error _ -> failwith "make_skill" in
         ignore (Runtime.register_skill rt auto);
         Runtime.set_user_activated_skills rt ["manual-skill"];
@@ -93,14 +97,14 @@ let () =
         (* Both skills resolve: 1 auto + 1 manual *)
         check int "both effects present" 2 (List.length effects);
         let ids = List.map (fun (e : skill_effect) ->
-          Option.value e.system_prompt_override ~default:"") effects in
+          Option.value (Option.map zone_str e.system_prompt_override) ~default:"") effects in
         check bool "manual present" true (List.mem "FROM_MANUAL" ids);
         check bool "auto present" true (List.mem "FROM_AUTO" ids)));
 
     test_case "end-to-end: invoke with manual activation overrides system prompt" `Quick (fun () ->
       with_runtime (fun rt history ->
         let sk = match Runtime.make_skill ~id:"m-e2e" ~description:"d"
-                   ~system_prompt_override:"OVERRIDDEN_VIA_USE" ~trigger:Manual () with
+                   ~system_prompt_override:(Stable_prompt "OVERRIDDEN_VIA_USE") ~trigger:Manual () with
           | Ok s -> s | Error _ -> failwith "make_skill" in
         ignore (Runtime.register_skill rt sk);
         (* Without activation: Manual skill is dead, original prompt used *)
@@ -127,7 +131,7 @@ let () =
     test_case "user_activated_skills survives across invokes (persistent)" `Quick (fun () ->
       with_runtime (fun rt _history ->
         let sk = match Runtime.make_skill ~id:"persist" ~description:"d"
-                   ~system_prompt_override:"PERSIST" ~trigger:Manual () with
+                   ~system_prompt_override:(Stable_prompt "PERSIST") ~trigger:Manual () with
           | Ok s -> s | Error _ -> failwith "make_skill" in
         ignore (Runtime.register_skill rt sk);
         Runtime.set_user_activated_skills rt ["persist"];

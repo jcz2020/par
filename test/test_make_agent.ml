@@ -83,9 +83,11 @@ let suite = [
 
   Alcotest.test_case "duplicate tool names rejected" `Quick (fun () ->
     let tool_a = { name = "dup"; description = ""; input_schema = `Assoc []; output_schema = None;
-                   permission = Allow; timeout = None; concurrency_limit = None; on_update = None } in
+                   permission = Allow; timeout = None; concurrency_limit = None; on_update = None;
+                   cache_control = None } in
     let tool_b = { name = "dup"; description = ""; input_schema = `Assoc []; output_schema = None;
-                   permission = Allow; timeout = None; concurrency_limit = None; on_update = None } in
+                   permission = Allow; timeout = None; concurrency_limit = None; on_update = None;
+                   cache_control = None } in
     match Runtime.make_agent
       ~id:"a"
       ~system_prompt:(stable_prompt "hello")
@@ -99,7 +101,8 @@ let suite = [
 
   Alcotest.test_case "empty tool name rejected" `Quick (fun () ->
     let bad_tool = { name = ""; description = ""; input_schema = `Assoc []; output_schema = None;
-                     permission = Allow; timeout = None; concurrency_limit = None; on_update = None } in
+                     permission = Allow; timeout = None; concurrency_limit = None; on_update = None;
+                   cache_control = None } in
     match Runtime.make_agent
       ~id:"a"
       ~system_prompt:(stable_prompt "hello")
