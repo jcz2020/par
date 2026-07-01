@@ -1,5 +1,33 @@
 # CHANGES
 
+## v0.6.4-beta.5 — Oracle-Driven Wire-Level Fixes (BETA, IN PROGRESS)
+
+> Fixes 7 blocking issues found by Oracle verification: cache_control markers now actually reach Anthropic's wire format (were silently dropped). FFI parsing bugs fixed. Both_prompts semantic corrected. 1201 tests passing.
+
+### Fixed — Provider wire-level cache_control emission (CRITICAL)
+
+- **FIX** `anthropic_provider.ml:extract_system_prompt` — returns `content_block list option` instead of `string option`. System prompt cache_control markers are no longer flattened to string and lost.
+- **FIX** `anthropic_provider.ml:build_request_body` — emits `("system", `List [...])` with per-block cache_control instead of `("system", `String s)`.
+- **NEW** `anthropic_provider.ml:emit_block_with_cache` — canonical block-to-wire serializer handling ALL 4 content_block variants (Text_block, Tool_use_block, Tool_result_block, Image_block) with cache_control preservation. Replaces the old `text_blocks_json` helper that only handled Text_block.
+- **FIX** `anthropic_provider.ml:build_message_json` — uses `emit_block_with_cache` for all blocks. Tool_result and Tool_use blocks now preserve their cache_control markers.
+- **FIX** `anthropic_provider.ml:tool_descriptor_to_json` — emits `cache_control` field when present on the tool_descriptor. `mark_tool` now has end-to-end wire-format effect.
+
+### Fixed — Engine architecture
+
+- **FIX** `engine.ml:build_breakpoint_candidates` — removed auto-guessed `` `Tool i `` breakpoint (priority 50). Tool caching is now ONLY through explicit `mark_tool` (user intent, per ROADMAP B.3). Pre-marked tools (priority 60) remain.
+- **FIX** `engine.ml:apply_breakpoints` — removed Tool-location handling entirely. Eliminates the namespace confusion where tool-list index was matched against message-list index. Tool cache_control is handled by `tool_descriptor_to_json` directly.
+
+### Fixed — FFI parsing bugs
+
+- **FIX** `par_capi.ml:parse_cache_strategy` — bare string `"with_cache_of"` now fails-fast with clear error message (was silently downgrading to `No_caching`).
+- **FIX** `par_capi.ml:parse_skill_descriptor` — `system_prompt_override` now accepts 3 JSON forms: bare string → `Stable_prompt` (backward compat), tagged object `{"zone":"stable|volatile|both",...}` → corresponding variant, fallback → `Stable_prompt`. Previously ALL overrides were silently `Stable_prompt`.
+
+### Fixed — Semantic bug
+
+- **FIX** `runtime.ml:apply_skill_effect_to_config` — `Both_prompts { stable; volatile }` now concatenates `stable ^ "\n" ^ volatile` and marks as volatile. Previously discarded the volatile string and used only the stable string while still marking as volatile (worst-of-both-worlds).
+
+---
+
 ## v0.6.4-beta.4 — All Deferred Features Completed (BETA, IN PROGRESS)
 
 > Completes ALL previously-deferred v0.6.4 items: mark_cache_breakpoint user-facing API (ROADMAP B.3), skill_prompt_zone ADT (ROADMAP B.5.1), B.4 hard-fail upgrade. 3 breaking changes, 13 new tests, 1201 total passing.

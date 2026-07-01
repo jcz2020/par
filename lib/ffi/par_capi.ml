@@ -534,7 +534,7 @@ let parse_cache_strategy (json : Yojson.Safe.t) : Par.Types.cache_strategy =
   | `Null -> Par.Types.No_caching
   | `String s when String.lowercase_ascii s = "no_caching" -> Par.Types.No_caching
   | `String s when String.lowercase_ascii s = "with_cache_of" ->
-    Par.Types.No_caching
+    failwith "cache_strategy 'with_cache_of' requires a TTL argument. Use [\"with_cache_of\", \"five_min\"] or [\"with_cache_of\", \"one_hour\"]"
   | `List [`String tag; `String ttl_str] ->
     let is_with_cache = String.lowercase_ascii tag = "with_cache_of" in
     if not is_with_cache then
@@ -624,6 +624,21 @@ let parse_skill_descriptor (json : Yojson.Safe.t) : Par.Types.skill_descriptor o
     let system_prompt_override =
       match json |> member "system_prompt_override" with
       | `Null -> None
+      | `String s -> Some (Par.Types.Stable_prompt s)
+      | `Assoc fields as obj ->
+        let zone = try to_string (List.assoc "zone" fields) with _ -> "stable" in
+        (match String.lowercase_ascii zone with
+         | "stable" ->
+           let text = to_string (List.assoc "text" fields) in
+           Some (Par.Types.Stable_prompt text)
+         | "volatile" ->
+           let text = to_string (List.assoc "text" fields) in
+           Some (Par.Types.Volatile_prompt text)
+         | "both" ->
+           let stable = to_string (List.assoc "stable" fields) in
+           let volatile = to_string (List.assoc "volatile" fields) in
+           Some (Par.Types.Both_prompts { stable; volatile })
+         | _ -> Some (Par.Types.Stable_prompt (to_string obj)))
       | v -> Some (Par.Types.Stable_prompt (to_string v))
     in
     let tool_filter =

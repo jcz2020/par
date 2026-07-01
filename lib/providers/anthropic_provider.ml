@@ -37,18 +37,6 @@ let http_error_to_error_category = function
 (* JSON request building                                                 *)
 (* -------------------------------------------------------------------------- *)
 
-let build_tool_result_content msg =
-  match msg.tool_call_id with
-  | Some tool_use_id ->
-    let content_str = Message.string_of_content msg.content_blocks in
-    [ `Assoc
-        [ ("type", `String "tool_result")
-        ; ("tool_use_id", `String tool_use_id)
-        ; ("content", `String content_str)
-        ]
-    ]
-  | None -> []
-
 let build_tool_calls_content tcs =
   List.map
     (fun (tc : tool_call) ->
@@ -66,56 +54,72 @@ let cache_control_to_json (cc : cache_control) =
   | Some `One_hour -> `Assoc [ ("type", `String "ephemeral"); ("ttl", `String "1h") ]
   | None -> `Assoc [ ("type", `String "ephemeral") ]
 
-let build_message_json msg =
-  let text_blocks_json blocks =
-    List.filter_map (function
-      | Text_block { text; cache_control = Some cc } ->
-        Some (`Assoc [ ("type", `String "text"); ("text", `String text)
-                     ; ("cache_control", cache_control_to_json cc) ])
-      | Text_block { text; cache_control = None } ->
-        Some (`Assoc [ ("type", `String "text"); ("text", `String text) ])
-      | _ -> None) blocks
+let emit_block_with_cache (block : content_block) : Yojson.Safe.t =
+  let base = match block with
+    | Text_block { text; _ } ->
+      `Assoc [("type", `String "text"); ("text", `String text)]
+    | Tool_use_block { id; name; arguments; _ } ->
+      `Assoc [("type", `String "tool_use"); ("id", `String id);
+              ("name", `String name); ("input", arguments)]
+    | Tool_result_block { tool_use_id; content; _ } ->
+      `Assoc [("type", `String "tool_result");
+              ("tool_use_id", `String tool_use_id);
+              ("content", `String content)]
+    | Image_block { source; media_type; data; _ } ->
+      let src = match source with
+        | Url u -> `Assoc [("type", `String "url"); ("url", `String u)]
+        | Base64 b -> `Assoc [("type", `String "base64"); ("data", `String b)]
+      in
+      `Assoc [("type", `String "image"); ("source", src);
+              ("media_type", `String media_type); ("data", `String data)]
   in
+  match block with
+  | Text_block { cache_control = Some cc; _ }
+  | Tool_use_block { cache_control = Some cc; _ }
+  | Tool_result_block { cache_control = Some cc; _ }
+  | Image_block { cache_control = Some cc; _ } ->
+    (match base with
+     | `Assoc fields -> `Assoc (("cache_control", cache_control_to_json cc) :: fields)
+     | _ -> base)
+  | _ -> base
+
+let build_message_json msg =
+  let blocks_json = List.map emit_block_with_cache msg.content_blocks in
   match msg.role with
   | Tool ->
-    let content = build_tool_result_content msg in
-    `Assoc [ ("role", `String "user"); ("content", `List content) ]
+    `Assoc [("role", `String "user"); ("content", `List blocks_json)]
   | Assistant ->
-    let text_blocks = text_blocks_json msg.content_blocks in
-    let tool_blocks =
-      match msg.tool_calls with
+    let tool_blocks = match msg.tool_calls with
       | Some tcs -> build_tool_calls_content tcs
       | None -> []
     in
-    `Assoc
-      [ ("role", `String "assistant")
-      ; ("content", `List (text_blocks @ tool_blocks))
-      ]
+    `Assoc [("role", `String "assistant"); ("content", `List (blocks_json @ tool_blocks))]
   | User | System ->
-    let content = text_blocks_json msg.content_blocks in
-    `Assoc [ ("role", `String "user"); ("content", `List content) ]
+    `Assoc [("role", `String "user"); ("content", `List blocks_json)]
 
 let extract_system_prompt conversation =
   let sys, rest =
     List.partition (fun (m : message) -> match m.role with System -> true | _ -> false)
       conversation.messages
   in
-  let system_text =
-    List.map (fun (m : message) -> Message.text_of_message m) sys
-    |> String.concat "\n"
+  let system_blocks =
+    List.concat_map (fun (m : message) -> m.content_blocks) sys
   in
-  let system_opt = if system_text = "" then None else Some system_text in
+  let system_opt = if system_blocks = [] then None else Some system_blocks in
   (system_opt, { conversation with messages = rest })
 
 let tool_descriptor_to_json (td : tool_descriptor) =
-  `Assoc [
+  let base = [
     ("name", `String td.name);
     ("description", `String td.description);
     ("input_schema", td.input_schema);
-  ]
+  ] in
+  match td.cache_control with
+  | Some cc -> `Assoc (("cache_control", cache_control_to_json cc) :: base)
+  | None -> `Assoc base
 
 let build_request_body ~model_config ~tools ~conversation ~stream ?response_schema () =
-  let system_text, conv = extract_system_prompt conversation in
+  let system_blocks, conv = extract_system_prompt conversation in
   let fields =
     [ ("model", `String model_config.model_name)
     ; ("messages", `List (List.map build_message_json conv.messages))
@@ -124,8 +128,9 @@ let build_request_body ~model_config ~tools ~conversation ~stream ?response_sche
     ]
   in
   let fields =
-    match system_text with
-    | Some s -> ("system", `String s) :: fields
+    match system_blocks with
+    | Some blocks ->
+      ("system", `List (List.map emit_block_with_cache blocks)) :: fields
     | None -> fields
   in
   let fields =

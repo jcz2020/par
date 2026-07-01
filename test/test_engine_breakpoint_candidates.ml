@@ -28,8 +28,9 @@ let test_no_marked_tools () =
   Alcotest.check Alcotest.int "no marked candidates" 0 (List.length marked);
   Alcotest.check Alcotest.bool "has system candidate" true
     (List.exists (fun bp -> bp_location bp = `System) cands);
-  Alcotest.check Alcotest.bool "has last tool candidate" true
-    (List.exists (fun bp -> bp_location bp = `Tool 1) cands)
+  let tool_cands = List.filter (fun (bp : Cache_breakpoint.breakpoint) ->
+    match bp.location with `Tool _ -> true | _ -> false) cands in
+  Alcotest.check Alcotest.int "no auto-guessed tool candidates" 0 (List.length tool_cands)
 
 let test_one_marked_tool () =
   let cc = Some { type_ = `Ephemeral; ttl = Some `Five_min } in

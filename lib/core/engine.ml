@@ -435,16 +435,13 @@ let set_cache_control (cc : Types.cache_control option) (block : Types.content_b
   | Types.Image_block ib -> Types.Image_block { ib with cache_control = cc }
 
 (* v0.6.4 prompt caching: build breakpoint candidates from current request state.
-   Pri 100 = System message, pri 50 = last tool definition, pri 10 = last user block. *)
+   Pri 100 = System message, pri 60 = pre-marked tool (mark_tool), pri 10 = last user block.
+   Tool caching is ONLY via explicit mark_tool — no auto-guessing. *)
 let build_breakpoint_candidates ~ttl ~tools ~conv : Cache_breakpoint.breakpoint list =
   let candidates = ref [] in
   let has_system = List.exists (fun (m : Types.message) -> m.role = System) conv.Types.messages in
   if has_system then
     candidates := Cache_breakpoint.{ location = `System; ttl; estimated_tokens = 1000; priority = 100 } :: !candidates;
-  if tools <> [] then begin
-    let last_tool_idx = List.length tools - 1 in
-    candidates := Cache_breakpoint.{ location = `Tool last_tool_idx; ttl; estimated_tokens = 500; priority = 50 } :: !candidates
-  end;
   let last_user_idx =
     List.fold_left (fun acc (i, (m : Types.message)) ->
       if m.role = User then Some i else acc
@@ -479,7 +476,6 @@ let apply_breakpoints ~ttl (breakpoints : Cache_breakpoint.breakpoint list) (con
     let cc = Some { Types.type_ = `Ephemeral; ttl = Some ttl } in
     let messages = List.mapi (fun i (msg : Types.message) ->
       let system_bp = List.find_opt (fun (bp : Cache_breakpoint.breakpoint) -> bp.location = `System) breakpoints in
-      let tool_bp = List.find_opt (fun (bp : Cache_breakpoint.breakpoint) -> bp.location = `Tool i) breakpoints in
       let msg_bps = List.filter (fun (bp : Cache_breakpoint.breakpoint) ->
         match bp.location with
         | `Message (mi, _) when mi = i -> true
@@ -490,9 +486,6 @@ let apply_breakpoints ~ttl (breakpoints : Cache_breakpoint.breakpoint list) (con
           | Some _bp, true when j = List.length msg.content_blocks - 1 ->
             set_cache_control cc block
           | _ -> block in
-        let block = match tool_bp with
-          | Some _ -> set_cache_control cc block
-          | None -> block in
         let block =
           let targeted = List.find_opt (fun (bp : Cache_breakpoint.breakpoint) ->
             match bp.location with

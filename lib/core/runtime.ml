@@ -392,7 +392,8 @@ let apply_skill_effect_to_config (eff : skill_effect) config =
   let config = match eff.system_prompt_override with
   | Some (Stable_prompt s) -> { config with system_prompt = stable_prompt s }
   | Some (Volatile_prompt s) -> { config with system_prompt = volatile_prompt s }
-  | Some (Both_prompts { stable = s; _ }) -> { config with system_prompt = volatile_prompt s }
+  | Some (Both_prompts { stable; volatile }) ->
+    { config with system_prompt = volatile_prompt (stable ^ "\n" ^ volatile) }
   | None -> config
   in
   match eff.tool_filter_overlay with
