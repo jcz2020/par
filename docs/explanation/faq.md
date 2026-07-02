@@ -87,7 +87,7 @@ The skill system, shipped in v0.5.2 Track A, is PAR's typed abstraction over reu
 **What a skill is.** A skill is a directory under `~/.par/skills/<name>/` containing a `skill.md` file with YAML frontmatter and a markdown body. The frontmatter declares:
 
 - `system_prompt_override` or `system_prompt_append`: the prompt material to inject when the skill activates.
-- `tool_filter`: a typed ADT, `All_tools`, `Only ["read_file", "list_dir"]`, or `Except ["bash"]`. Replaces the string-list allowlists every other framework uses.
+- `tool_filter`: a typed ADT, `All_tools`, `Only ["read", "ls"]`, or `Except ["bash"]`. Replaces the string-list allowlists every other framework uses.
 - `trigger`: `Auto` (always load description, LLM judges), `Manual` (explicit invoke only), or `Keyword [...]` (deterministic match, optional LLM confirm).
 - `expected_output`: an optional typed JSON schema for success criteria. Forward-looking, informational in v0.5.2, consumed by an LLM judge in a future version.
 
