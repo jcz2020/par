@@ -359,6 +359,11 @@
  (modules test_skill_registry))
 
 (test
+ (name test_builtin_skills)
+ (libraries par eio_main alcotest)
+ (modules test_builtin_skills))
+
+(test
  (name test_skill_loader)
  (libraries par alcotest)
   (modules test_skill_loader))

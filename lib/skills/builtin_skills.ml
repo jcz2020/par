@@ -7,7 +7,7 @@ let builtin_skills : skill_descriptor list = [
     name = "Code Reviewer";
     description = "Review code for bugs, security issues, and style problems. Use when the user asks to review, audit, or check code quality.";
     system_prompt_override = Some (Stable_prompt "You are a meticulous code reviewer. Analyze code for correctness, security, performance, and style. Provide specific, actionable feedback with file:line references.");
-    tool_filter = Only ["read_file"; "grep"; "glob"];
+    tool_filter = Only ["read"; "grep"; "find"];
     trigger = Keyword { keywords = ["review"; "audit"; "code review"]; llm_confirm = true };
     expected_output = None;
     body_path = "";
@@ -40,7 +40,7 @@ let builtin_skills : skill_descriptor list = [
     name = "RAG Assistant";
     description = "Answer questions using retrieved document context. Use when the user asks about indexed documents or wants knowledge-grounded answers.";
     system_prompt_override = Some (Stable_prompt "You are a RAG assistant. Answer questions using the provided retrieved context. If the context doesn't contain the answer, say so clearly. Always cite which document the information came from.");
-    tool_filter = Only ["add_documents"; "invoke_with_rag"];
+    tool_filter = All_tools;
     trigger = Auto;
     expected_output = None;
     body_path = "";
