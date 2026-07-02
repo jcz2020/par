@@ -9,7 +9,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.6.4-beta — Typed prompt caching with Stable/Volatile zones, content_block list, mark_cache_breakpoint API, budget manager, skill_prompt_zone ADT. 1228 tests passing. API may change before v1.0.
+> **Status**: v0.6.5-beta — Workspace abstraction (multi-root path admission, Sys.getcwd exiled from security primitives), file tools security fix (sensitive-prefix check). 1253 tests passing. API may change before v1.0.
 
 ---
 
@@ -147,7 +147,7 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.6.4-beta — Typed prompt caching with Stable/Volatile zones: `content_block list` message representation, `cache_control` markers on all 4 block variants, `cache_strategy` ADT, `mark_tool`/`mark_message` user-facing API, budget manager wired into engine, `skill_prompt_zone` ADT, B.4 construction-time hard-fail, template zone classification, Anthropic adapter emits cache_control to wire format. See [prompt caching guide](docs/sdk/prompt_caching.md) and [content blocks guide](docs/sdk/content_blocks.md).
+**Current**: v0.6.5-beta — Workspace abstraction: `Workspace` module as sole authority for path admission, multi-root support, `Sys.getcwd()` exiled from all security primitives, file tools gain sensitive-prefix check, `Runtime.create` accepts `?workspace` for custom workspace injection. See [prompt caching guide](docs/sdk/prompt_caching.md) and [content blocks guide](docs/sdk/content_blocks.md).
 
 **Coming next**: External vector stores (Qdrant/Milvus), document loaders, multimodal image tools (v0.7).
 

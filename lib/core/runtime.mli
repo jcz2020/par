@@ -13,6 +13,7 @@ val create :
   ?llm:llm_service ->
   ?embeddings:embedding_service ->
   ?bash_policy:(module Bash_policy.POLICY) ->
+  ?workspace:Workspace.workspace ->
   ?mcp_servers:Mcp_types.server_config list ->
   ?mcp_process_mgr:_ Eio.Process.mgr ->
   ?mcp_net:_ Eio.Net.t ->

@@ -595,7 +595,7 @@ let install_bash_tool ?process_mgr ?clock rt =
               ("description", `String "argv to execute (NOT a shell string)")]);
             ("cwd", `Assoc [
               ("type", `String "string");
-              ("description", `String "CWD-relative working dir; default = .")]);
+              ("description", `String "Working directory (relative to workspace root, or absolute path under workspace root). Default: .")]);
             ("timeout", `Assoc [
               ("type", `String "number");
               ("description", `String "Max seconds; default = 30");
@@ -1385,6 +1385,7 @@ let create ?(persistence = noop_persistence)
                      context_window_fn = None; cache_control_fn = None })
            ?embeddings
            ?(bash_policy = (module Bash_policy.Coder : Bash_policy.POLICY))
+           ?workspace
            ?(mcp_servers = [])
            ?mcp_process_mgr
            ?mcp_net
@@ -1395,9 +1396,12 @@ let create ?(persistence = noop_persistence)
   match validation_result with
   | Error _ as e -> e
   | Ok () ->
-    let workspace = match Workspace.of_cwd () with
-      | Ok w -> w
-      | Error e -> failwith (Printf.sprintf "Runtime.create: Workspace.of_cwd failed: %s" (string_of_error_category e))
+    let workspace = match workspace with
+      | Some w -> w
+      | None ->
+        (match Workspace.of_cwd () with
+         | Ok w -> w
+         | Error e -> failwith (Printf.sprintf "Runtime.create: Workspace.of_cwd failed: %s" (string_of_error_category e)))
     in
     let semaphore = Eio.Semaphore.make config.default_quota.max_concurrent_tasks in
     let persistence_is_noop = persistence == noop_persistence in

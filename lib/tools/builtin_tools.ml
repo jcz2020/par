@@ -1208,7 +1208,7 @@ let builtin_tools ~switch ~net ~workspace =
                                     ; ("items", `Assoc [("type", `String "string")])
                                     ; ("description", `String "argv to execute (NOT a shell string)") ])
               ; ("cwd",      `Assoc [ ("type", `String "string")
-                                    ; ("description", `String "CWD-relative working dir; default = .") ])
+                                    ; ("description", `String "Working directory (relative to workspace root, or absolute path under workspace root). Default: .") ])
               ; ("timeout",  `Assoc [ ("type", `String "number")
                                     ; ("description", `String "Max seconds; default = 30")
                                     ; ("minimum", `Float 0.0) ])
