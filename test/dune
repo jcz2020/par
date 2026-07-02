@@ -129,6 +129,11 @@
  (modules test_bash_runtime))
 
 (test
+ (name test_per_call_workspace)
+ (libraries par eio_main alcotest)
+ (modules test_per_call_workspace))
+
+(test
  (name test_mcp_naming)
  (libraries par alcotest eio yojson logs)
  (modules test_mcp_naming)

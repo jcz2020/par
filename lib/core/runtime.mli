@@ -37,6 +37,21 @@ val install_bash_tool :
     A [clock] is required for timeout enforcement; without it, commands
     that exceed [timeout] will run to completion. *)
 
+val per_call_registry :
+  rt:runtime -> workspace:Workspace.workspace -> Tool_registry.t
+(** Build a fresh tool registry for a single invocation where the bash handler
+    closes over [workspace] (the effective workspace) rather than [rt.workspace].
+    All caller-registered tools are copied as-is; only the bash handler is
+    rebuilt via [rt.bash_rebuild] (set by [install_bash_tool]) against
+    [{ rt with workspace }].
+
+    Used internally by [invoke]/[submit_workflow]/[submit_workflow_async] when
+    the caller passes [?workspace]. Exposed for testing and advanced users who
+    build their own dispatch path.
+
+    v0.6.6 limitation: only the bash handler is rebound. File tools and
+    user-registered tools keep their registration-time workspace closure. *)
+
 val register_agent : runtime -> agent_config -> (unit, error_category) result
 
 val list_agents : runtime -> agent_config list
