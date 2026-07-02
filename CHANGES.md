@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.6.5-beta.20260702 — Workspace Abstraction: Exile Sys.getcwd from Security Primitives (BETA, IN PROGRESS)
+## v0.6.5 — Workspace Abstraction: Exile Sys.getcwd from Security Primitives
 
 > Introduces `Workspace` module as the sole authority for path admission. `Sys.getcwd()` is removed from every security primitive; workspace is an unforgeable `private` value threaded mandatorily through `runtime` and `exec_context`. Multi-root support from day one (for future git-worktree isolation). Bundles a security fix: file tools (read/ls/find/grep/write/edit) now have the sensitive-prefix check they were previously missing. Triggered by integration feedback on worktree-per-task workflows.
 

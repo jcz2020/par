@@ -9,7 +9,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.6.5-beta — Workspace abstraction (multi-root path admission, Sys.getcwd exiled from security primitives), file tools security fix (sensitive-prefix check). 1253 tests passing. API may change before v1.0.
+> **Status**: v0.6.5 — Workspace abstraction (multi-root path admission, Sys.getcwd exiled from security primitives), file tools security fix (sensitive-prefix check). 1253 tests passing. API may change before v1.0.
 
 ---
 
