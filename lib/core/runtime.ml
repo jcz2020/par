@@ -46,6 +46,13 @@ type runtime = {
   mutable tool_call_hooks : Hook.tool_call_hook list;
   bash_policy : (module Bash_policy.POLICY);
   bash_installed : bool ref;
+  (* v0.6.6: closure that builds a fresh bash handler bound to a given runtime's
+     workspace. Set by [install_bash_tool] (captures the Eio process_mgr + clock
+     supplied at install time). Read by [per_call_registry] to rebuild the bash
+     handler against an effective workspace [rt' = { rt with workspace }] without
+     needing access to the original mgr/clock args. [None] when bash is not
+     installed. *)
+  mutable bash_rebuild : (runtime -> Tool_registry.handler_fn) option;
   workspace : Workspace.workspace;
   mcp_servers : (Mcp_types.server_id, Mcp_server.t) Types.protected_hashtbl;
   event_bus_instance : Event_bus.t option;
@@ -431,6 +438,144 @@ let record_task_failed rt =
 let publish_event rt evt =
   rt.publish_event_fn evt
 
+let make_bash_handler rt mgr clock input tok : Types.handler_result =
+  let module P = (val rt.bash_policy : Bash_policy.POLICY) in
+  let argv =
+    let raw =
+      try Yojson.Safe.Util.(input |> member "argv" |> to_list)
+      with _ -> []
+    in
+    List.filter_map
+      (fun j -> match j with `String s -> Some s | _ -> None) raw
+  in
+  let cwd_str =
+    match Yojson.Safe.Util.(input |> member "cwd" |> to_string_option) with
+    | Some s -> s
+    | None -> "."
+  in
+  let timeout =
+    let t = Yojson.Safe.Util.(input |> member "timeout" |> to_float_option) in
+    match t with Some x when x > 0.0 -> x | _ -> 30.0
+  in
+  (match Bash_safe_command.validate_argv argv with
+   | Error e ->
+     Error { category = e; message = "argv validation failed";
+             retryable = false; metadata = [] }
+   | Ok () ->
+   (match Workspace.admit rt.workspace cwd_str with
+      | Error e ->
+        Error { category = e;
+                message = Printf.sprintf "invalid cwd: %s" cwd_str;
+                retryable = false; metadata = [] }
+      | Ok cwd ->
+        let cmd : Bash_safe_command.command =
+          Bash_safe_command.Exec { argv; cwd; env = []; timeout }
+        in
+        (match P.filter cmd with
+         | Error e ->
+           Error { category = e; message = "policy rejected";
+                   retryable = false; metadata = [] }
+         | Ok filtered ->
+           let task_id = Task_id.create () in
+           let start_t = Unix.gettimeofday () in
+           let argv_for_event = Bash_safe_command.argv_of_command filtered in
+           let cwd_for_event = Workspace.to_string cwd in
+           let risk_str =
+             Bash_safe_command.risk_to_string
+               (Bash_safe_command.assess_risk filtered)
+           in
+           publish_event rt
+             (Bash_invoked {
+               task_id; tool_name = "bash";
+               argv = argv_for_event;
+               cwd = cwd_for_event;
+               timeout;
+               risk = risk_str;
+               started_at = start_t;
+             });
+           let proc_result =
+             Eio.Fiber.first
+               (fun () ->
+                 let stdout_buf = Buffer.create 1024 in
+                 let stderr_buf = Buffer.create 1024 in
+                 let proc_argv =
+                   Bash_safe_command.argv_of_command filtered
+                 in
+                 let proc =
+                   Eio.Process.spawn ~sw:tok.switch mgr
+                     ~stdin:(Eio.Flow.string_source "")
+                     ~stdout:(Eio.Flow.buffer_sink stdout_buf)
+                     ~stderr:(Eio.Flow.buffer_sink stderr_buf)
+                     proc_argv
+                 in
+                 let status = Eio.Process.await proc in
+                 let code = match status with
+                   | `Exited n -> n
+                   | `Signaled _ -> 128
+                 in
+                 Ok (Buffer.contents stdout_buf,
+                     Buffer.contents stderr_buf,
+                     code))
+               (fun () ->
+                 (match clock with
+                  | Some c -> Eio.Time.sleep c timeout
+                  | None -> ());
+                 Result.Error `Timeout)
+           in
+           (match proc_result with
+            | Ok (stdout, stderr, exit_code) ->
+              let duration = Unix.gettimeofday () -. start_t in
+              let clean_stdout = Bash_policy.strip_ansi stdout in
+              let clean_stderr = Bash_policy.strip_ansi stderr in
+              let trunc_stdout, was_trunc1 =
+                Bash_policy.truncate_output ~max_bytes:51200
+                  ~max_lines:2000 clean_stdout
+              in
+              let trunc_stderr, was_trunc2 =
+                Bash_policy.truncate_output ~max_bytes:51200
+                  ~max_lines:2000 clean_stderr
+              in
+              let truncated = was_trunc1 || was_trunc2 in
+              publish_event rt
+                (Bash_completed {
+                  task_id; tool_name = "bash";
+                  argv = argv_for_event;
+                  exit_code;
+                  duration;
+                  stdout_truncated = was_trunc1;
+                  stderr_truncated = was_trunc2;
+                });
+              let output =
+                `Assoc [
+                  ("stdout", `String trunc_stdout);
+                  ("stderr", `String trunc_stderr);
+                  ("exit_code", `Int exit_code);
+                  ("duration", `Float duration);
+                  ("truncated", `Bool truncated);
+                ]
+              in
+              Success output
+            | Result.Error `Timeout ->
+              let duration = Unix.gettimeofday () -. start_t in
+              publish_event rt
+                (Bash_completed {
+                  task_id; tool_name = "bash";
+                  argv = argv_for_event;
+                  exit_code = 124;
+                  duration;
+                  stdout_truncated = false;
+                  stderr_truncated = false;
+                });
+              Error { category = Timeout;
+                      message = Printf.sprintf
+                        "bash timed out after %.1fs" timeout;
+                      retryable = false; metadata = [] }
+            | exception exn ->
+              let msg = Printexc.to_string exn in
+              Error { category = Internal msg;
+                      message = "bash execution failed";
+                      retryable = false; metadata = [] }))))
+
 let install_bash_tool ?process_mgr ?clock rt =
   if !(rt.bash_installed) then
     Result.Error (Types.Invalid_input "bash tool already installed")
@@ -441,146 +586,10 @@ let install_bash_tool ?process_mgr ?clock rt =
         "install_bash_tool requires ?process_mgr:\
          pass (Eio.Stdenv.process_mgr env) from the Eio environment")
     | Some mgr ->
-      let module P = (val rt.bash_policy : Bash_policy.POLICY) in
-      let make_handler (rt : runtime) input tok : Types.handler_result =
-        let argv =
-          let raw =
-            try Yojson.Safe.Util.(input |> member "argv" |> to_list)
-            with _ -> []
-          in
-          List.filter_map
-            (fun j -> match j with `String s -> Some s | _ -> None) raw
-        in
-        let cwd_str =
-          match Yojson.Safe.Util.(input |> member "cwd" |> to_string_option) with
-          | Some s -> s
-          | None -> "."
-        in
-        let timeout =
-          let t = Yojson.Safe.Util.(input |> member "timeout" |> to_float_option) in
-          match t with Some x when x > 0.0 -> x | _ -> 30.0
-        in
-        (match Bash_safe_command.validate_argv argv with
-         | Error e ->
-           Error { category = e; message = "argv validation failed";
-                   retryable = false; metadata = [] }
-         | Ok () ->
-          (match Workspace.admit rt.workspace cwd_str with
-             | Error e ->
-               Error { category = e;
-                       message = Printf.sprintf "invalid cwd: %s" cwd_str;
-                       retryable = false; metadata = [] }
-             | Ok cwd ->
-               let cmd : Bash_safe_command.command =
-                 Bash_safe_command.Exec { argv; cwd; env = []; timeout }
-               in
-               (match P.filter cmd with
-                | Error e ->
-                  Error { category = e; message = "policy rejected";
-                          retryable = false; metadata = [] }
-                | Ok filtered ->
-                  let task_id = Task_id.create () in
-                  let start_t = Unix.gettimeofday () in
-                  let argv_for_event = Bash_safe_command.argv_of_command filtered in
-                  let cwd_for_event = Workspace.to_string cwd in
-                 let risk_str =
-                   Bash_safe_command.risk_to_string
-                     (Bash_safe_command.assess_risk filtered)
-                 in
-                 publish_event rt
-                   (Bash_invoked {
-                     task_id; tool_name = "bash";
-                     argv = argv_for_event;
-                     cwd = cwd_for_event;
-                     timeout;
-                     risk = risk_str;
-                     started_at = start_t;
-                   });
-                 let proc_result =
-                   Eio.Fiber.first
-                     (fun () ->
-                       let stdout_buf = Buffer.create 1024 in
-                       let stderr_buf = Buffer.create 1024 in
-                       let proc_argv =
-                         Bash_safe_command.argv_of_command filtered
-                       in
-                       let proc =
-                         Eio.Process.spawn ~sw:tok.switch mgr
-                           ~stdin:(Eio.Flow.string_source "")
-                           ~stdout:(Eio.Flow.buffer_sink stdout_buf)
-                           ~stderr:(Eio.Flow.buffer_sink stderr_buf)
-                           proc_argv
-                       in
-                       let status = Eio.Process.await proc in
-                       let code = match status with
-                         | `Exited n -> n
-                         | `Signaled _ -> 128
-                       in
-                       Ok (Buffer.contents stdout_buf,
-                           Buffer.contents stderr_buf,
-                           code))
-                     (fun () ->
-                       (match clock with
-                        | Some c -> Eio.Time.sleep c timeout
-                        | None -> ());
-                       Result.Error `Timeout)
-                 in
-                 (match proc_result with
-                  | Ok (stdout, stderr, exit_code) ->
-                    let duration = Unix.gettimeofday () -. start_t in
-                    let clean_stdout = Bash_policy.strip_ansi stdout in
-                    let clean_stderr = Bash_policy.strip_ansi stderr in
-                    let trunc_stdout, was_trunc1 =
-                      Bash_policy.truncate_output ~max_bytes:51200
-                        ~max_lines:2000 clean_stdout
-                    in
-                    let trunc_stderr, was_trunc2 =
-                      Bash_policy.truncate_output ~max_bytes:51200
-                        ~max_lines:2000 clean_stderr
-                    in
-                    let truncated = was_trunc1 || was_trunc2 in
-                    publish_event rt
-                      (Bash_completed {
-                        task_id; tool_name = "bash";
-                        argv = argv_for_event;
-                        exit_code;
-                        duration;
-                        stdout_truncated = was_trunc1;
-                        stderr_truncated = was_trunc2;
-                      });
-                    let output =
-                      `Assoc [
-                        ("stdout", `String trunc_stdout);
-                        ("stderr", `String trunc_stderr);
-                        ("exit_code", `Int exit_code);
-                        ("duration", `Float duration);
-                        ("truncated", `Bool truncated);
-                      ]
-                    in
-                    Success output
-                  | Result.Error `Timeout ->
-                    let duration = Unix.gettimeofday () -. start_t in
-                    publish_event rt
-                      (Bash_completed {
-                        task_id; tool_name = "bash";
-                        argv = argv_for_event;
-                        exit_code = 124;
-                        duration;
-                        stdout_truncated = false;
-                        stderr_truncated = false;
-                      });
-                    Error { category = Timeout;
-                            message = Printf.sprintf
-                              "bash timed out after %.1fs" timeout;
-                            retryable = false; metadata = [] }
-                  | exception exn ->
-                    let msg = Printexc.to_string exn in
-                    Error { category = Internal msg;
-                            message = "bash execution failed";
-                            retryable = false; metadata = [] }))))
-      in
+      let builder rt_inner = make_bash_handler rt_inner mgr clock in
+      rt.bash_rebuild <- Some builder;
       let descriptor = Builtin_tools.bash_tool_descriptor in
-      Tool_registry.replace rt.tool_registry descriptor.name (make_handler rt);
+      Tool_registry.replace rt.tool_registry descriptor.name (builder rt);
       rt.bash_installed := true;
       Ok ()
 
@@ -1433,6 +1442,7 @@ let create ?(persistence = noop_persistence)
       publish_event_fn;
       bash_policy;
       bash_installed = ref false;
+      bash_rebuild = None;
       workspace;
       mcp_servers = { data = Hashtbl.create 4; mutex = Eio.Mutex.create () };
       event_bus_instance;
