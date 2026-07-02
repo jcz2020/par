@@ -593,6 +593,15 @@ let install_bash_tool ?process_mgr ?clock rt =
       rt.bash_installed := true;
       Ok ()
 
+let per_call_registry ~(rt : runtime) ~(workspace : Workspace.workspace) : Tool_registry.t =
+  let fresh = Tool_registry.create () in
+  Tool_registry.copy_all ~src:rt.tool_registry ~dst:fresh;
+  let rt' = { rt with workspace } in
+  (match rt.bash_rebuild with
+   | Some rebuild -> Tool_registry.replace fresh "bash" (rebuild rt')
+   | None -> ());
+  fresh
+
 let save_conversation rt =
   match !(rt.session_id), rt.current_conversation with
   | Some sid, Some conv -> rt.services.persistence.save_conversation_fn sid conv
@@ -624,8 +633,9 @@ let load_most_recent_conversation rt =
   | Ok None -> Ok None
   | Error _ as e -> e
 
-let invoke rt ~agent_id ~message ?cancellation_token ?conversation
+let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
     ?on_tool_event ?on_chunk ?enable_handoff () =
+  let effective_workspace = Option.value workspace ~default:rt.workspace in
   let session_id = match !(rt.session_id) with
     | Some sid -> sid
     | None ->
@@ -698,7 +708,7 @@ let invoke rt ~agent_id ~message ?cancellation_token ?conversation
         ?conversation
         ~agent_resolver:(fun aid -> htbl_get rt.agents aid)
         ~enable_handoff:(Option.value enable_handoff ~default:false)
-        token config message llm_svc rt.tool_registry in
+        token config message llm_svc (per_call_registry ~rt ~workspace:effective_workspace) in
       result
     in
     let should_fallback (err : Types.error_category) = match err with
@@ -1004,7 +1014,9 @@ let find_tool_across_agents rt tool_name =
   );
   result.contents
 
-let submit_workflow rt ?(inputs = []) wf =
+let submit_workflow rt ?workspace ?(inputs = []) wf =
+  let effective_workspace = Option.value workspace ~default:rt.workspace in
+  let call_registry = per_call_registry ~rt ~workspace:effective_workspace in
   let effective_vars = wf.def.variables @ inputs in
   let id = Workflow_run_id.create () in
   htbl_set rt.workflows id Wf_running;
@@ -1021,14 +1033,14 @@ let submit_workflow rt ?(inputs = []) wf =
                  agent_resolver = (fun aid -> htbl_get rt.agents aid);
                  tool_resolver = find_tool_across_agents rt;
                  llm = rt.services.llm;
-                 registry = rt.tool_registry;
+                 registry = call_registry;
                   parallel_limit = wf.def.parallel_limit;
                   failure_policy = wf.def.failure_policy;
                  workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
                  on_step_complete = None;
                   workflow_run_id = Some id;
                   workflow_id_resolver = (fun () -> Some wf.def.id);
-                  workspace = rt.workspace;
+                  workspace = effective_workspace;
                 }
     in
     (match rt.services.persistence.save_workflow_state_fn id Wf_running (Some cp) with
@@ -1041,14 +1053,14 @@ let submit_workflow rt ?(inputs = []) wf =
     agent_resolver = (fun aid -> htbl_get rt.agents aid);
     tool_resolver = find_tool_across_agents rt;
     llm = rt.services.llm;
-    registry = rt.tool_registry;
+    registry = call_registry;
     parallel_limit = wf.def.parallel_limit;
     failure_policy = wf.def.failure_policy;
     workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
     on_step_complete = Some checkpoint_cb;
     workflow_run_id = Some id;
     workflow_id_resolver = (fun () -> Some wf.def.id);
-    workspace = rt.workspace;
+    workspace = effective_workspace;
   } in
   (match Workflow_engine.execute_workflow ctx wf with
    | Ok result ->
@@ -1096,7 +1108,9 @@ let submit_workflow rt ?(inputs = []) wf =
 (* §2.2: Async submit — fork execution in background fiber, return run_id
    immediately. Caller tracks progress via get_workflow_status or event bus.
    The sync [submit_workflow] above remains for backwards compat and tests. *)
-let submit_workflow_async rt ?(inputs = []) wf =
+let submit_workflow_async rt ?workspace ?(inputs = []) wf =
+  let effective_workspace = Option.value workspace ~default:rt.workspace in
+  let call_registry = per_call_registry ~rt ~workspace:effective_workspace in
   let effective_vars = wf.def.variables @ inputs in
   let id = Workflow_run_id.create () in
   htbl_set rt.workflows id Wf_running;
@@ -1112,14 +1126,14 @@ let submit_workflow_async rt ?(inputs = []) wf =
                  agent_resolver = (fun aid -> htbl_get rt.agents aid);
                  tool_resolver = find_tool_across_agents rt;
                  llm = rt.services.llm;
-                 registry = rt.tool_registry;
+                 registry = call_registry;
                  parallel_limit = wf.def.parallel_limit;
                  failure_policy = wf.def.failure_policy;
                  workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
                  on_step_complete = None;
     workflow_run_id = Some id;
     workflow_id_resolver = (fun () -> Some wf.def.id);
-    workspace = rt.workspace;
+    workspace = effective_workspace;
   } in
     (match rt.services.persistence.save_workflow_state_fn id Wf_running (Some cp) with
      | Ok () -> ()
@@ -1131,14 +1145,14 @@ let submit_workflow_async rt ?(inputs = []) wf =
     agent_resolver = (fun aid -> htbl_get rt.agents aid);
     tool_resolver = find_tool_across_agents rt;
     llm = rt.services.llm;
-    registry = rt.tool_registry;
+    registry = call_registry;
     parallel_limit = wf.def.parallel_limit;
     failure_policy = wf.def.failure_policy;
     workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
     on_step_complete = Some checkpoint_cb;
     workflow_run_id = Some id;
     workflow_id_resolver = (fun () -> Some wf.def.id);
-    workspace = rt.workspace;
+    workspace = effective_workspace;
   } in
   ignore (Eio.Fiber.fork ~sw:rt.cancellation_root (fun () ->
     (try
@@ -1195,8 +1209,8 @@ let submit_workflow_async rt ?(inputs = []) wf =
    and blocks until terminal/suspend) then maps the run id to the
    terminal result. Returns [Some result] on completion, [None] on
    suspension, [Error] on failure. *)
-let invoke_workflow_sync rt ?inputs wf : (workflow_result option, error_category) result =
-  match submit_workflow rt ?inputs wf with
+let invoke_workflow_sync rt ?workspace ?inputs wf : (workflow_result option, error_category) result =
+  match submit_workflow rt ?workspace ?inputs wf with
   | Error e -> (Error e : (workflow_result option, error_category) result)
   | Ok id ->
     (match htbl_get rt.workflows id with

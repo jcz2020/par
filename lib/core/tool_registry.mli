@@ -23,3 +23,10 @@ val resolve : t -> string -> handler_fn option
 val find_descriptor : Types.tool_descriptor list -> string -> Types.tool_descriptor option
 
 val names : t -> string list
+
+val copy_all : src:t -> dst:t -> unit
+(** Copy all bindings from [src] into [dst], overwriting any existing entries
+    in [dst] that share a name. Used by [Runtime.per_call_registry] to seed a
+    fresh per-invocation registry with the caller-registered tools before
+    overwriting the workspace-sensitive ones (e.g. bash) with effective-workspace
+    closures. *)

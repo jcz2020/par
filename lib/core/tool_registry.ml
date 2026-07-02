@@ -33,3 +33,6 @@ let find_descriptor (tools : Types.tool_descriptor list) tool_name =
 let names tbl =
   Hashtbl.fold (fun n _ acc -> n :: acc) tbl []
   |> List.sort String.compare
+
+let copy_all ~src ~dst =
+  Hashtbl.iter (fun name handler -> Hashtbl.replace dst name handler) src

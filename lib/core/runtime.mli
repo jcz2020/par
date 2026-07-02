@@ -199,6 +199,7 @@ val invoke :
   runtime ->
   agent_id:string ->
   message:string ->
+  ?workspace:Workspace.workspace ->
   ?cancellation_token:cancellation_token ->
   ?conversation:conversation ->
   ?on_tool_event:(event -> unit) ->
@@ -276,6 +277,7 @@ val approve_task : runtime -> Task_id.t -> approver:string -> (unit, error_categ
 
 val submit_workflow :
   runtime ->
+  ?workspace:Workspace.workspace ->
   ?inputs:(string * Yojson.Safe.t) list ->
   workflow ->
   (Workflow_run_id.t, error_category) result
@@ -291,6 +293,7 @@ val submit_workflow :
 
 val submit_workflow_async :
   runtime ->
+  ?workspace:Workspace.workspace ->
   ?inputs:(string * Yojson.Safe.t) list ->
   workflow ->
   (Workflow_run_id.t, error_category) result
@@ -303,6 +306,7 @@ val submit_workflow_async :
 
 val invoke_workflow_sync :
   runtime ->
+  ?workspace:Workspace.workspace ->
   ?inputs:(string * Yojson.Safe.t) list ->
   workflow ->
   (workflow_result option, error_category) result
