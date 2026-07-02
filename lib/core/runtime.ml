@@ -579,36 +579,7 @@ let install_bash_tool ?process_mgr ?clock rt =
                             message = "bash execution failed";
                             retryable = false; metadata = [] }))))
       in
-      let descriptor : Types.tool_descriptor = {
-        Types.name = "bash";
-        description = "Execute a shell command. Input: {\"argv\": [\"ls\", \"-la\"], \
-                      \"timeout\": 30, \"cwd\": \"src\"}. \
-                      Subject to Bash_policy and Bash_blacklist. \
-                      Output: {\"stdout\": \"...\", \"stderr\": \"...\", \"exit_code\": 0, \
-                      \"duration\": 0.12, \"truncated\": false}.";
-        input_schema = `Assoc [
-          ("type", `String "object");
-          ("properties", `Assoc [
-            ("argv", `Assoc [
-              ("type", `String "array");
-              ("items", `Assoc [("type", `String "string")]);
-              ("description", `String "argv to execute (NOT a shell string)")]);
-            ("cwd", `Assoc [
-              ("type", `String "string");
-              ("description", `String "Working directory (relative to workspace root, or absolute path under workspace root). Default: .")]);
-            ("timeout", `Assoc [
-              ("type", `String "number");
-              ("description", `String "Max seconds; default = 30");
-              ("minimum", `Float 0.0)])]);
-          ("required", `List [`String "argv"])];
-        output_schema = None;
-        permission = Types.Allow;
-        timeout = Some 60.0;
-        concurrency_limit = Some 4;
-        on_update = None;
-        cache_control = None;
-      }
-      in
+      let descriptor = Builtin_tools.bash_tool_descriptor in
       Tool_registry.replace rt.tool_registry descriptor.name (make_handler rt);
       rt.bash_installed := true;
       Ok ()

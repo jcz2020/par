@@ -66,7 +66,7 @@ Events are persisted to SQLite and can be queried for post-incident analysis.
 - Shell injection via the type system (no raw string execution).
 - Accidental exposure of secrets in subprocess environments.
 - Unbounded subprocess execution (60-second default timeout, process group cleanup).
-- Overly broad file access (CWD-relative path enforcement).
+- Overly broad file access (workspace-root path enforcement; absolute paths under workspace root are admitted, `..`/:/sensitive-prefixes rejected).
 
 ### What PAR does NOT protect against (yet)
 

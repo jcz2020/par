@@ -85,6 +85,33 @@ type url_encode_input = {
   decode : bool [@default false];
 } [@@deriving yojson { strict = false }, jsonschema]
 
+let bash_tool_descriptor : Types.tool_descriptor =
+  { Types.name = "bash"
+  ; description = "Execute a shell command. Input: {\"argv\": [\"ls\", \"-la\"], \"timeout\": 30, \"cwd\": \"src\"}. \
+                   Subject to Bash_policy and Bash_blacklist. \
+                   Output: {\"stdout\": \"...\", \"stderr\": \"...\", \"exit_code\": 0, \"duration\": 0.12, \"truncated\": false}."
+  ; input_schema = `Assoc
+      [ ("type", `String "object")
+      ; ("properties", `Assoc
+          [ ("argv",     `Assoc [ ("type", `String "array")
+                                ; ("items", `Assoc [("type", `String "string")])
+                                ; ("description", `String "argv to execute (NOT a shell string)") ])
+          ; ("cwd",      `Assoc [ ("type", `String "string")
+                                ; ("description", `String "Working directory (relative to workspace root, or absolute path under workspace root). Default: .") ])
+          ; ("timeout",  `Assoc [ ("type", `String "number")
+                                ; ("description", `String "Max seconds; default = 30")
+                                ; ("minimum", `Float 0.0) ])
+          ])
+      ; ("required", `List [`String "argv"])
+      ]
+  ; output_schema = None
+  ; permission = Types.Allow
+  ; timeout = Some 60.0
+  ; concurrency_limit = Some 4
+  ; on_update = None
+  ; cache_control = None
+  }
+
 let builtin_tools ~switch ~net ~workspace =
   let open Types in
   let token = Cancellation.create_token switch in 
@@ -1196,33 +1223,6 @@ let builtin_tools ~switch ~net ~workspace =
   in
 
   let bash_tool =
-    let descriptor =
-      { name = "bash"
-      ; description = "Execute a shell command. Input: {\"argv\": [\"ls\", \"-la\"], \"timeout\": 30, \"cwd\": \"src\"}. \
-                       Subject to Bash_policy and Bash_blacklist. \
-                       Output: {\"stdout\": \"...\", \"stderr\": \"...\", \"exit_code\": 0, \"duration\": 0.12, \"truncated\": false}."
-      ; input_schema = `Assoc
-          [ ("type", `String "object")
-          ; ("properties", `Assoc
-              [ ("argv",     `Assoc [ ("type", `String "array")
-                                    ; ("items", `Assoc [("type", `String "string")])
-                                    ; ("description", `String "argv to execute (NOT a shell string)") ])
-              ; ("cwd",      `Assoc [ ("type", `String "string")
-                                    ; ("description", `String "Working directory (relative to workspace root, or absolute path under workspace root). Default: .") ])
-              ; ("timeout",  `Assoc [ ("type", `String "number")
-                                    ; ("description", `String "Max seconds; default = 30")
-                                    ; ("minimum", `Float 0.0) ])
-              ])
-          ; ("required", `List [`String "argv"])
-          ]
-      ; output_schema = None
- ; permission = Allow
-      ; timeout = Some 60.0
-      ; concurrency_limit = Some 4
-      ; on_update = None
-      ; cache_control = None
-      }
-    in
     let handler = (fun input _tok ->
         let argv =
           try
@@ -1252,10 +1252,10 @@ let builtin_tools ~switch ~net ~workspace =
                 builtin_tools.ml handler is a pure-data thunk. *)
              Error { category = Internal "bash tool not installed"
                    ; message = "Runtime.install_bash_tool must be called first"
-                   ; retryable = false; metadata = [] })
+                    ; retryable = false; metadata = [] })
       )
     in
-    { descriptor; handler }
+    { descriptor = bash_tool_descriptor; handler }
   in
 
   ignore token;

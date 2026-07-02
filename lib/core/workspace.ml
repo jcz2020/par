@@ -72,6 +72,8 @@ let default_policy () =
   in
   { sensitive_prefixes = prefixes }
 
+let make_policy ~sensitive_prefixes = { sensitive_prefixes }
+
 (* ------------------------------ accessors ------------------------------- *)
 
 let root ws =

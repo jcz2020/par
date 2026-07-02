@@ -307,7 +307,7 @@ Reads file contents with an optional line offset and line limit.
 
 **Limits**:
 - File size <= 10MB (exceeding the cap returns `Error (Invalid_input "File too large")`)
-- Path must be CWD-relative
+- Path must be relative to workspace root, or an absolute path under workspace root
 
 ### ls
 
@@ -432,7 +432,7 @@ Executes shell commands with three layers of defense:
 
 Field reference:
 - `argv` (required): argument array, **not a shell string**
-- `cwd`: CWD-relative path, default `"."`
+- `cwd`: Working directory (relative to workspace root, or absolute path under workspace root). Default: `"."`
 - `timeout`: max execution seconds, default `30`, hard cap `600`
 
 ### Output
@@ -516,7 +516,7 @@ let () = Eio_main.run (fun env ->
 
 | # | Mechanism | Implementation |
 |---|------|------|
-| 1 | CWD lockdown | `sandboxed_path` abstract type; the constructor rejects `..`, absolute paths, `:`, and sensitive prefixes like `/etc` and `~/.ssh` |
+| 1 | Workspace-anchored sandbox | `Workspace.sandboxed_path` abstract type; the constructor rejects `..`, `:`, and sensitive prefixes (`/etc`, `~/.ssh`, etc.). Absolute paths under workspace root are admitted |
 | 2 | Blacklist | 31 regex rules in `Bash_blacklist` (`rm -rf /`, `dd of=/dev/sda`, `:(){:|:&};:`, and similar) |
 | 3 | Whitelist (optional) | implement whitelist logic in a custom `POLICY` |
 | 4 | Timeout | `Eio.Process.spawn` + `Eio.Fiber.first` race; hard cap 600s |

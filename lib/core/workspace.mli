@@ -50,6 +50,11 @@ type sandboxed_path = private Path of string
     derived — downstream code should never re-read [$HOME] for prefixes. *)
 val default_policy : unit -> workspace_policy
 
+(** [make_policy ~sensitive_prefixes] constructs a custom policy with the
+    given prefix list. Use this when you need a non-default sensitive-prefix
+    set (e.g. a workspace that additionally protects a secrets directory). *)
+val make_policy : sensitive_prefixes:string list -> workspace_policy
+
 (** Construct a workspace from the process CWD. This is the ONLY sanctioned
     place [Sys.getcwd] is read by a security primitive (three convenience
     sites elsewhere — skill_loader / par_capi / main — are exempted). *)
