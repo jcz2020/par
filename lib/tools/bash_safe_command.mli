@@ -4,37 +4,26 @@
     design decision: by forcing [argv] to be [string list] at the type
     level, the compiler rejects any code that tries to pass a single
     shell string. Shell injection becomes unrepresentable.
-*)
 
-(** A path guaranteed to be CWD-relative and free of parent traversal.
-    The [private] constructor means [Path] can only be invoked from
-    inside this module — all callers must go through
-    [sandboxed_path_of_string] to obtain a [sandboxed_path]. *)
-type sandboxed_path = private Path of string
-
-val sandboxed_path_of_string :
-  string -> (sandboxed_path, Types.error_category) result
-(** Construct a [sandboxed_path] from a CWD-relative string.
-    Validation rules (first error wins):
-    1. Reject [..] as a path component → [Invalid_input "path contains .."]
-    2. Reject paths starting with [/] → [Invalid_input "absolute path not allowed; must be CWD-relative"]
-    3. Reject paths containing [:] → [Invalid_input "path contains :"]
-    4. Reject paths that, when joined with [Sys.getcwd ()], land inside
-       a sensitive absolute prefix → [Permission_denied "<joined>"] *)
-
-val sandboxed_path_to_string : sandboxed_path -> string
-
-val sandboxed_path_cwd : unit -> sandboxed_path
-(** Returns the current working directory wrapped in [Path]. *)
+    Wave 3 of the path-admission refactor: [sandboxed_path] and its
+    constructors/validators now live in the [Workspace] module. This
+    module references [Workspace.sandboxed_path] for the [Exec.cwd]
+    field. There is no longer an ambient [sandboxed_path_cwd] here —
+    callers must thread a [Workspace.workspace] through and call
+    [Workspace.admit] / [Workspace.of_cwd] to obtain a cwd value. *)
 
 (** A command ready for the policy layer to evaluate.
     - [Exec] is the only way to run a program; argv is mandatory.
     - [Pipeline] composes already-validated commands (no shell parsing).
-    - [No_op] is a sentinel for disabled / test contexts. *)
+    - [No_op] is a sentinel for disabled / test contexts.
+
+    The [cwd] field of [Exec] is a [Workspace.sandboxed_path] — a value
+    that can only originate from [Workspace.admit], so the type system
+    guarantees every [Exec] carries a validated cwd. *)
 type command =
   | Exec of {
       argv : string list;
-      cwd : sandboxed_path;
+      cwd : Workspace.sandboxed_path;
       env : (string * string) list;
       timeout : float;
     }
@@ -43,12 +32,13 @@ type command =
 
 val make_exec :
   argv:string list ->
-  ?cwd:sandboxed_path ->
+  cwd:Workspace.sandboxed_path ->
   ?env:(string * string) list ->
   ?timeout:float ->
   unit -> command
-(** Build an [Exec] command.
-    Defaults: [cwd = sandboxed_path_cwd ()], [env = []], [timeout = 30.0].
+(** Build an [Exec] command. [cwd] is MANDATORY (no default) — callers
+    must obtain it via [Workspace.admit] / [Workspace.of_cwd].
+    Defaults: [env = []], [timeout = 30.0].
     @raise Invalid_argument if [timeout <= 0.0] or [timeout > 600.0]. *)
 
 val make_pipeline : command list -> command

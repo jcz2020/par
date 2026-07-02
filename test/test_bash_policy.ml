@@ -37,7 +37,8 @@ let test_filter_error policy_name cmd =
   | Ok _ -> None
   | Error e -> Some e
 
-let cwd = Bash_safe_command.sandboxed_path_cwd ()
+let ws = match Workspace.of_cwd () with Ok w -> w | Error _ -> failwith "ws"
+let cwd = match Workspace.admit ws "" with Ok p -> p | Error _ -> failwith "cwd"
 let ok_cmd argv = Bash_safe_command.Exec { argv; cwd; env = []; timeout = 5.0 }
 let ok_cmd_env argv env =
   Bash_safe_command.Exec { argv; cwd; env; timeout = 5.0 }

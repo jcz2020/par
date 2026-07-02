@@ -237,7 +237,8 @@ let workflow_engine_suite =
           workflow_resolver = (fun _ -> None);
           on_step_complete = None;
           workflow_run_id = None;
-          workflow_id_resolver = (fun () -> None);
+        workflow_id_resolver = (fun () -> None);
+        workspace = (match Workspace.of_cwd () with Ok w -> w | Error _ -> failwith "test workspace");
         } in
         let steps : workflow_step = Sequential [
           Tool_call { tool_name = "my_tool"; input = `Assoc [] };
@@ -268,6 +269,7 @@ let workflow_engine_suite =
           on_step_complete = None;
           workflow_run_id = None;
         workflow_id_resolver = (fun () -> None);
+        workspace = (match Workspace.of_cwd () with Ok w -> w | Error _ -> failwith "test workspace");
         } in
         let step : workflow_step = Conditional {
           condition = Greater_than (Variable "x", Literal (`Int 5));
@@ -300,6 +302,7 @@ let workflow_engine_suite =
           on_step_complete = None;
           workflow_run_id = None;
         workflow_id_resolver = (fun () -> None);
+        workspace = (match Workspace.of_cwd () with Ok w -> w | Error _ -> failwith "test workspace");
         } in
         let step : workflow_step = Conditional {
           condition = Greater_than (Variable "x", Literal (`Int 5));
@@ -337,6 +340,7 @@ let workflow_engine_suite =
           on_step_complete = None;
           workflow_run_id = None;
         workflow_id_resolver = (fun () -> None);
+        workspace = (match Workspace.of_cwd () with Ok w -> w | Error _ -> failwith "test workspace");
         } in
         let step : workflow_step = Map_reduce {
           over = "items";
@@ -364,6 +368,7 @@ let workflow_engine_suite =
           on_step_complete = None;
           workflow_run_id = None;
         workflow_id_resolver = (fun () -> None);
+        workspace = (match Workspace.of_cwd () with Ok w -> w | Error _ -> failwith "test workspace");
         } in
         let step : workflow_step =
           Agent_call { agent_id = "nonexistent"; prompt_template = "hi" }
@@ -398,6 +403,7 @@ let workflow_persistence_suite =
           on_step_complete = None;
           workflow_run_id = Some (Workflow_run_id.create ());
         workflow_id_resolver = (fun () -> None);
+        workspace = (match Workspace.of_cwd () with Ok w -> w | Error _ -> failwith "test workspace");
         } in
         let step = Human_approval {
           prompt_template = "Approve this action?";
@@ -437,6 +443,7 @@ let workflow_persistence_suite =
           on_step_complete = None;
           workflow_run_id = None;
         workflow_id_resolver = (fun () -> None);
+        workspace = (match Workspace.of_cwd () with Ok w -> w | Error _ -> failwith "test workspace");
         } in
         let step = Human_approval {
           prompt_template = "Approve?";
@@ -483,6 +490,7 @@ let workflow_persistence_suite =
           on_step_complete = None;
           workflow_run_id = None;
         workflow_id_resolver = (fun () -> None);
+        workspace = (match Workspace.of_cwd () with Ok w -> w | Error _ -> failwith "test workspace");
         } in
         let step = Sub_workflow {
           workflow_id = "child-wf";
@@ -518,6 +526,7 @@ let workflow_persistence_suite =
           on_step_complete = None;
           workflow_run_id = None;
         workflow_id_resolver = (fun () -> None);
+        workspace = (match Workspace.of_cwd () with Ok w -> w | Error _ -> failwith "test workspace");
         } in
         let step = Sub_workflow {
           workflow_id = "nonexistent";
@@ -554,6 +563,7 @@ let workflow_persistence_suite =
             checkpoints := (_path, result) :: !checkpoints);
           workflow_run_id = None;
         workflow_id_resolver = (fun () -> None);
+        workspace = (match Workspace.of_cwd () with Ok w -> w | Error _ -> failwith "test workspace");
         } in
         let step : Types.workflow_step = Sequential [
           Tool_call { tool_name = "test_tool"; input = `Assoc [] };

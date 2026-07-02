@@ -102,7 +102,9 @@ let make_ctx ?(variables = []) ?(failure_policy = Fail_fast)
     workflow_resolver;
     on_step_complete;
     workflow_run_id;
-    workflow_id_resolver }
+    workflow_id_resolver;
+    workspace = (match Workspace.of_cwd () with Ok w -> w | Error _ -> failwith "test workspace");
+  }
 
 let ok_or_fail msg = function
   | Ok v -> v

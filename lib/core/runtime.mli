@@ -341,6 +341,11 @@ val bash_policy : runtime -> (module Bash_policy.POLICY)
 (** The bash trust-boundary policy passed to [create], used by
     [install_bash_tool] to filter invocations. *)
 
+val workspace : runtime -> Workspace.workspace
+(** The workspace (path-admission authority) created from CWD at
+    [create] time. Used to thread path-admission into tools that
+    need it (e.g. [Builtin_tools.builtin_tools]). *)
+
 val cancellation_root : runtime -> Eio.Switch.t
 (** The root switch passed to [create]. Useful for spawning
     cancellation tokens in tests and external tools. *)

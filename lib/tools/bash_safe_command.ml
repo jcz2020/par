@@ -1,58 +1,27 @@
 (* NOTE: deliberately NOT `open Types` — that brings in `handler_result.Error`
    (a record constructor) which shadows stdlib's `Result.Error` of `'e`,
    causing the `Error (Invalid_input "...")` calls below to fail type-checking.
-   We use fully-qualified `Types.Invalid_input` / `Types.Permission_denied` instead. *)
+   We use fully-qualified `Types.Invalid_input` / `Types.Permission_denied` instead.
 
-type sandboxed_path = Path of string
-
-let absolute_sensitive_prefixes = ["/etc"; "/var"; "/proc"; "/sys"; "/dev"]
-
-let home_sensitive_suffixes = ["/.ssh"; "/.aws"; "/.gnupg"]
-
-let sensitive_prefixes () =
-  let abs = absolute_sensitive_prefixes in
-  match Sys.getenv_opt "HOME" with
-  | None | Some "" -> abs
-  | Some home ->
-    let home =
-      if String.length home > 0 && home.[String.length home - 1] = '/'
-      then String.sub home 0 (String.length home - 1)
-      else home
-    in
-    abs @ List.map (fun s -> home ^ s) home_sensitive_suffixes
-
-let has_parent_component s =
-  List.exists (fun part -> part = "..") (String.split_on_char '/' s)
-
-let sandboxed_path_of_string s =
-  if has_parent_component s then
-    Error (Types.Invalid_input "path contains ..")
-  else if String.length s > 0 && s.[0] = '/' then
-    Error (Types.Invalid_input "absolute path not allowed; must be CWD-relative")
-  else if String.contains s ':' then
-    Error (Types.Invalid_input "path contains :")
-  else
-    let joined = Filename.concat (Sys.getcwd ()) s in
-    if List.exists (fun p -> String.starts_with ~prefix:p joined) (sensitive_prefixes ()) then
-      Error (Types.Permission_denied joined)
-    else
-      Ok (Path s)
-
-let sandboxed_path_to_string (Path s) = s
-
-let sandboxed_path_cwd () = Path (Sys.getcwd ())
+   Wave 3: the [sandboxed_path] type, its validators
+   ([sandboxed_path_of_string] / [sandboxed_path_cwd] /
+   [sandboxed_path_to_string]), and the [sensitive_prefixes] list have all
+   migrated to the [Workspace] module. This file no longer reads [$HOME] or
+   [Sys.getcwd] for any security primitive — [Workspace] is the sole
+   authority for path admission. The [Exec.cwd] field now references
+   [Workspace.sandboxed_path]. *)
 
 type command =
   | Exec of {
       argv : string list;
-      cwd : sandboxed_path;
+      cwd : Workspace.sandboxed_path;
       env : (string * string) list;
       timeout : float;
     }
   | Pipeline of command list
   | No_op
 
-let make_exec ~argv ?(cwd = sandboxed_path_cwd ()) ?(env = []) ?(timeout = 30.0) () =
+let make_exec ~argv ~cwd ?(env = []) ?(timeout = 30.0) () =
   if timeout <= 0.0 then
     invalid_arg "timeout must be > 0"
   else if timeout > 600.0 then
@@ -142,7 +111,7 @@ let rec command_to_yojson cmd : Yojson.Safe.t =
     `Assoc [
       ("kind", `String "exec");
       ("argv", argv_json);
-      ("cwd", `String (sandboxed_path_to_string cwd));
+      ("cwd", `String (Workspace.to_string cwd));
       ("env", env_json);
       ("timeout", `Float timeout);
       ("risk", `String risk_str);

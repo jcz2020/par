@@ -45,6 +45,7 @@ type exec_context = {
   on_step_complete : (int list -> Yojson.Safe.t -> unit) option;
   workflow_run_id : Workflow_run_id.t option;
   workflow_id_resolver : unit -> string option;
+  workspace : Workspace.workspace;
 }
 
 exception Workflow_suspended of {

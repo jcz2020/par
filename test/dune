@@ -109,6 +109,11 @@
  (modules test_bash_safe_command))
 
 (test
+ (name test_workspace)
+ (libraries par alcotest)
+ (modules test_workspace))
+
+(test
  (name test_bash_blacklist)
  (libraries par alcotest)
  (modules test_bash_blacklist))

@@ -342,7 +342,7 @@ let setup_runtime cfg ~interactive:_ ~f =
     Printf.eprintf "Error creating runtime: %s\n" (error_category_to_string e);
     exit 1
   | Ok rt ->
-    let tools = Builtin_tools.builtin_tools ~switch ~net in
+    let tools = Builtin_tools.builtin_tools ~switch ~net ~workspace:(Runtime.workspace rt) in
     let tool_names = List.map (fun (tb : Types.tool_binding) -> tb.descriptor.Types.name) tools in
     let descriptors = List.map (fun (tb : Types.tool_binding) -> tb.descriptor) tools in
     List.iter (fun (tb : Types.tool_binding) ->

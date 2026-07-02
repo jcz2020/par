@@ -10,6 +10,7 @@
     Sanitize_tool_output. JSON Schema validation lives in [Validation]. *)
 
 module Types = Types
+module Workspace = Workspace
 module Runtime = Runtime
 module Engine = Engine
 module Template = Template

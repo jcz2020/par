@@ -1,5 +1,40 @@
 # CHANGES
 
+## [UNRELEASED] — Workspace Abstraction: Exile Sys.getcwd from Security Primitives (BREAKING)
+
+> Introduces `Workspace` module as the sole authority for path admission. `Sys.getcwd()` is removed from every security primitive; workspace is an unforgeable `private` value threaded mandatorily through `runtime` and `exec_context`. Multi-root support from day one (for future git-worktree isolation). Bundles a security fix: file tools (read/ls/find/grep/write/edit) now have the sensitive-prefix check they were previously missing. Triggered by integration feedback on worktree-per-task workflows.
+
+### BREAKING — Type signature changes
+
+| # | Old API | New API | Migration |
+|---|---------|---------|-----------|
+| 1 | `Bash_safe_command.sandboxed_path` type | `Workspace.sandboxed_path` (moved) | Update all type references to `Workspace.sandboxed_path` |
+| 2 | `Bash_safe_command.sandboxed_path_of_string : string -> (...) result` | `Workspace.admit : workspace -> string -> (...) result` | Pass workspace as first arg; obtain via `rt.workspace` |
+| 3 | `Bash_safe_command.sandboxed_path_cwd : unit -> sandboxed_path` | REMOVED | No ambient authority; construct workspace explicitly via `Workspace.of_cwd ()` |
+| 4 | `Bash_safe_command.sandboxed_path_to_string` | `Workspace.to_string` | Rename call sites |
+| 5 | `Bash_safe_command.make_exec ~argv ?(cwd = sandboxed_path_cwd ())` | `Bash_safe_command.make_exec ~argv ~cwd` (mandatory) | Always pass `cwd` explicitly |
+| 6 | `Builtin_tools.builtin_tools ~switch ~net` | `Builtin_tools.builtin_tools ~switch ~net ~workspace` | Pass workspace at registration |
+| 7 | `Workflow_engine.exec_context` (no workspace) | `exec_context` (with mandatory `workspace` field) | Add `workspace = rt.workspace` at construction |
+| 8 | `Runtime.runtime` record (no workspace) | `runtime` record (with `workspace` field) | Constructed at startup via `Workspace.of_cwd ()` |
+
+### New — `Workspace` module (`lib/core/workspace.ml`)
+
+- `type workspace = private { roots : string list; policy : workspace_policy }` — unforgeable, multi-root
+- `type sandboxed_path = private Path of string` — moved from `Bash_safe_command`
+- `Workspace.of_cwd`, `Workspace.of_dir`, `Workspace.of_dirs` — constructors (canonicalize roots via `Unix.realpath`, fail-closed on non-existent dirs)
+- `Workspace.admit` — validates paths (rejects `..`, `:`, sensitive prefixes; ADMITS absolute paths under workspace root — the key behavioral change)
+- `Workspace.default_policy` — carries sensitive-prefix list (was a global function, now travels with workspace)
+
+### Security improvement — File tools sensitive-prefix check
+
+Previously, `read`/`ls`/`find`/`grep`/`write`/`edit` had inline 3-check validation (no `..`, no absolute, no `:`) but were MISSING the sensitive-prefix check that `bash` had. All 6 tools now route through `Workspace.admit`, getting the sensitive-prefix check for free.
+
+### Changed — Sys.getcwd exile
+
+`Sys.getcwd()` is now called in exactly ONE security-relevant place: `Workspace.of_cwd ()` at runtime startup. Three convenience sites remain (skill_loader, par_capi, main — resource discovery, not security).
+
+---
+
 ## v0.6.4-beta.5 — Oracle-Driven Wire-Level Fixes (BETA, IN PROGRESS)
 
 > Fixes 7 blocking issues found by Oracle verification: cache_control markers now actually reach Anthropic's wire format (were silently dropped). FFI parsing bugs fixed. Both_prompts semantic corrected. 1201 tests passing.

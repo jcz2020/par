@@ -13,7 +13,17 @@ let with_tools f =
   Eio_main.run (fun env ->
     Eio.Switch.run (fun sw ->
       let net = (Eio.Stdenv.net env :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
-      let tools = Builtin_tools.builtin_tools ~switch:sw ~net in
+      let ws = match Workspace.of_cwd () with Ok w -> w | Error _ -> failwith "ws" in
+      let tools = Builtin_tools.builtin_tools ~switch:sw ~net ~workspace:ws in
+      let token = Cancellation.create_token sw in
+      f tools token))
+
+let with_tools_in dir f =
+  Eio_main.run (fun env ->
+    Eio.Switch.run (fun sw ->
+      let net = (Eio.Stdenv.net env :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
+      let ws = match Workspace.of_dir dir with Ok w -> w | Error _ -> failwith "ws" in
+      let tools = Builtin_tools.builtin_tools ~switch:sw ~net ~workspace:ws in
       let token = Cancellation.create_token sw in
       f tools token))
 
@@ -381,19 +391,15 @@ let web_search_suite =
 let read_suite =
   ("read", [
   Alcotest.test_case "read existing file" `Quick (fun () ->
-    with_tools (fun tools token ->
-      let tmp = Filename.temp_file "par_read_test" ".txt" in
-      let rel_name = Filename.basename tmp in
-      let cwd = Sys.getcwd () in
-      Sys.chdir (Filename.dirname tmp);
-      let oc = open_out rel_name in
-      output_string oc "line one\nline two\nline three\n";
-      close_out oc;
-      let cleanup () =
-        (try Unix.unlink rel_name with _ -> ());
-        Sys.chdir cwd
-      in
-      let run () =
+    let tmp = Filename.temp_file "par_read_test" ".txt" in
+    let rel_name = Filename.basename tmp in
+    let dir = Filename.dirname tmp in
+    let oc = open_out tmp in
+    output_string oc "line one\nline two\nline three\n";
+    close_out oc;
+    let cleanup () = (try Unix.unlink tmp with _ -> ()) in
+    let run () =
+      with_tools_in dir (fun tools token ->
         let handler = find_tool "read" tools in
         let result = handler (`Assoc [("path", `String rel_name)]) token in
         match result with
@@ -401,9 +407,9 @@ let read_suite =
           let _ = String.contains s 'l' in
           let _ = String.contains s '\t' in
           ()
-        | _ -> Alcotest.fail "expected Success"
-      in
-      Fun.protect ~finally:cleanup run));
+        | _ -> Alcotest.fail "expected Success")
+    in
+    Fun.protect ~finally:cleanup run);
 
   Alcotest.test_case "empty path rejected" `Quick (fun () ->
     with_tools (fun tools token ->
@@ -424,19 +430,15 @@ let read_suite =
       Alcotest.check Alcotest.bool "is error" true (is_error result)));
 
   Alcotest.test_case "offset and limit" `Quick (fun () ->
-    with_tools (fun tools token ->
-      let tmp = Filename.temp_file "par_read_test" ".txt" in
-      let rel_name = Filename.basename tmp in
-      let cwd = Sys.getcwd () in
-      Sys.chdir (Filename.dirname tmp);
-      let oc = open_out rel_name in
-      output_string oc "a\nb\nc\nd\ne\n";
-      close_out oc;
-      let cleanup () =
-        (try Unix.unlink rel_name with _ -> ());
-        Sys.chdir cwd
-      in
-      let run () =
+    let tmp = Filename.temp_file "par_read_test" ".txt" in
+    let rel_name = Filename.basename tmp in
+    let dir = Filename.dirname tmp in
+    let oc = open_out tmp in
+    output_string oc "a\nb\nc\nd\ne\n";
+    close_out oc;
+    let cleanup () = (try Unix.unlink tmp with _ -> ()) in
+    let run () =
+      with_tools_in dir (fun tools token ->
         let handler = find_tool "read" tools in
         let result = handler (`Assoc [
           ("path", `String rel_name);
@@ -445,9 +447,9 @@ let read_suite =
         ]) token in
         match result with
         | Success _ -> ()
-        | _ -> Alcotest.fail "expected Success"
-      in
-      Fun.protect ~finally:cleanup run));
+        | _ -> Alcotest.fail "expected Success")
+    in
+    Fun.protect ~finally:cleanup run);
   ])
 
 let ls_suite =

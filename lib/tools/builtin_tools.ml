@@ -85,7 +85,7 @@ type url_encode_input = {
   decode : bool [@default false];
 } [@@deriving yojson { strict = false }, jsonschema]
 
-let builtin_tools ~switch ~net =
+let builtin_tools ~switch ~net ~workspace =
   let open Types in
   let token = Cancellation.create_token switch in 
 
@@ -724,13 +724,13 @@ let builtin_tools ~switch ~net =
         in
         if path = "" then
           Error { category = Invalid_input "Empty path"; message = "Path is required"; retryable = false; metadata = [] }
-        else if List.exists (fun part -> part = "..") (String.split_on_char '/' path) then
-          Error { category = Invalid_input "path contains .."; message = "Path traversal not allowed"; retryable = false; metadata = [] }
-        else if String.starts_with ~prefix:"/" path || String.contains path ':' then
-          Error { category = Permission_denied path; message = "Absolute paths not allowed"; retryable = false; metadata = [] }
         else
-          let full_path = Filename.concat (Sys.getcwd ()) path in
-          let read_lines () =
+          match Workspace.admit workspace path with
+          | Error e ->
+            Error { category = e; message = "Path validation failed"; retryable = false; metadata = [] }
+          | Ok sandboxed ->
+            let full_path = Workspace.to_string sandboxed in
+            let read_lines () =
             let ic = open_in full_path in
             Fun.protect (fun () ->
               let n = in_channel_length ic in
@@ -786,14 +786,14 @@ let builtin_tools ~switch ~net =
         in
         if path = "" then
           Error { category = Invalid_input "Empty path"; message = "Path is required"; retryable = false; metadata = [] }
-        else if List.exists (fun part -> part = "..") (String.split_on_char '/' path) then
-          Error { category = Invalid_input "path contains .."; message = "Path traversal not allowed"; retryable = false; metadata = [] }
-        else if String.starts_with ~prefix:"/" path || String.contains path ':' then
-          Error { category = Permission_denied path; message = "Absolute paths not allowed"; retryable = false; metadata = [] }
         else
-          let full_path = Filename.concat (Sys.getcwd ()) path in
-          try
-            let attrs = Unix.LargeFile.lstat full_path in
+          match Workspace.admit workspace path with
+          | Error e ->
+            Error { category = e; message = "Path validation failed"; retryable = false; metadata = [] }
+          | Ok sandboxed ->
+            let full_path = Workspace.to_string sandboxed in
+            try
+              let attrs = Unix.LargeFile.lstat full_path in
             match attrs.Unix.LargeFile.st_kind with
             | Unix.S_DIR ->
               let entries = Sys.readdir full_path in
@@ -897,17 +897,17 @@ let builtin_tools ~switch ~net =
         in
         if pattern = "" then
           Error { category = Invalid_input "Empty pattern"; message = "Pattern is required"; retryable = false; metadata = [] }
-        else if List.exists (fun part -> part = "..") (String.split_on_char '/' path) then
-          Error { category = Invalid_input "path contains .."; message = "Path traversal not allowed"; retryable = false; metadata = [] }
-        else if String.starts_with ~prefix:"/" path || String.contains path ':' then
-          Error { category = Permission_denied path; message = "Absolute paths not allowed"; retryable = false; metadata = [] }
         else
-          let full_path = Filename.concat (Sys.getcwd ()) path in
-          try
-            let results = walk pattern full_path [] in
-            let sorted = List.sort String.compare results in
-            let cwd = Sys.getcwd () in
-            let cwd_len = String.length cwd + 1 in
+          match Workspace.admit workspace path with
+          | Error e ->
+            Error { category = e; message = "Path validation failed"; retryable = false; metadata = [] }
+          | Ok sandboxed ->
+            let full_path = Workspace.to_string sandboxed in
+            try
+              let results = walk pattern full_path [] in
+              let sorted = List.sort String.compare results in
+              let cwd = Workspace.root workspace in
+              let cwd_len = String.length cwd + 1 in
             Success (`List (List.map (fun p ->
               if String.length p > cwd_len && String.sub p 0 cwd_len = cwd ^ "/" then
                 `String (String.sub p cwd_len (String.length p - cwd_len))
@@ -955,13 +955,14 @@ let builtin_tools ~switch ~net =
         in
         if pattern = "" then
           Error { category = Invalid_input "Empty pattern"; message = "Pattern is required"; retryable = false; metadata = [] }
-        else if List.exists (fun part -> part = "..") (String.split_on_char '/' path) then
-          Error { category = Invalid_input "path contains .."; message = "Path traversal not allowed"; retryable = false; metadata = [] }
-        else if String.starts_with ~prefix:"/" path || String.contains path ':' then
-          Error { category = Permission_denied path; message = "Absolute paths not allowed"; retryable = false; metadata = [] }
         else
-          let full_path = Filename.concat (Sys.getcwd ()) path in
-          let regex =
+          match Workspace.admit workspace path with
+          | Error e ->
+            Error { category = e; message = "Path validation failed"; retryable = false; metadata = [] }
+          | Ok sandboxed ->
+            let full_path = Workspace.to_string sandboxed in
+            let root_prefix = Workspace.root workspace in
+            let regex =
             try Str.regexp pattern
             with _ -> raise (Invalid_argument "Invalid regex pattern")
           in
@@ -987,8 +988,8 @@ let builtin_tools ~switch ~net =
                            while true do
                              incr line_no;
                              let line = input_line ic in
-                             if Str.string_match regex line 0 then begin
-                               let display_path = String.sub full (String.length (Filename.concat (Sys.getcwd ()) "") + 1) (String.length full - String.length (Filename.concat (Sys.getcwd ()) "") - 1) in
+                              if Str.string_match regex line 0 then begin
+                                let display_path = String.sub full (String.length (Filename.concat root_prefix "") + 1) (String.length full - String.length (Filename.concat root_prefix "") - 1) in
                                results := Printf.sprintf "%s:%d:%s" display_path (!line_no) line :: !results
                               end
                             done
@@ -1043,14 +1044,14 @@ let builtin_tools ~switch ~net =
         in
         if path = "" then
           Error { category = Invalid_input "Empty path"; message = "Path is required"; retryable = false; metadata = [] }
-        else if List.exists (fun part -> part = "..") (String.split_on_char '/' path) then
-          Error { category = Invalid_input "path contains .."; message = "Path traversal not allowed"; retryable = false; metadata = [] }
-        else if String.starts_with ~prefix:"/" path || String.contains path ':' then
-          Error { category = Permission_denied path; message = "Absolute paths not allowed"; retryable = false; metadata = [] }
         else
-          let full_path = Filename.concat (Sys.getcwd ()) path in
-          try
-            if create_dirs then begin
+          match Workspace.admit workspace path with
+          | Error e ->
+            Error { category = e; message = "Path validation failed"; retryable = false; metadata = [] }
+          | Ok sandboxed ->
+            let full_path = Workspace.to_string sandboxed in
+            try
+              if create_dirs then begin
               let dir = Filename.dirname full_path in
               if dir <> "" && dir <> "." && dir <> Filename.current_dir_name then
                 let rec mkdir_p d =
@@ -1126,13 +1127,13 @@ let builtin_tools ~switch ~net =
         in
         if path = "" then
           Error { category = Invalid_input "Empty path"; message = "Path is required"; retryable = false; metadata = [] }
-        else if List.exists (fun part -> part = "..") (String.split_on_char '/' path) then
-          Error { category = Invalid_input "path contains .."; message = "Path traversal not allowed"; retryable = false; metadata = [] }
-        else if String.starts_with ~prefix:"/" path || String.contains path ':' then
-          Error { category = Permission_denied path; message = "Absolute paths not allowed"; retryable = false; metadata = [] }
         else
-          let full_path = Filename.concat (Sys.getcwd ()) path in
-          let edits = List.filter_map (fun e ->
+          match Workspace.admit workspace path with
+          | Error e ->
+            Error { category = e; message = "Path validation failed"; retryable = false; metadata = [] }
+          | Ok sandboxed ->
+            let full_path = Workspace.to_string sandboxed in
+            let edits = List.filter_map (fun e ->
             let old = e |> member "old" |> to_string_option in
             let new_ = e |> member "new" |> to_string_option in
             match old, new_ with
@@ -1241,7 +1242,7 @@ let builtin_tools ~switch ~net =
         if argv = [] then
           Error { category = Invalid_input "Empty argv"; message = "argv is required"; retryable = false; metadata = [] }
         else
-          (match Bash_safe_command.sandboxed_path_of_string cwd_str with
+           (match Workspace.admit workspace cwd_str with
            | Error e ->
              Error { category = e; message = Printf.sprintf "Invalid cwd: %s" cwd_str; retryable = false; metadata = [] }
            | Ok cwd ->

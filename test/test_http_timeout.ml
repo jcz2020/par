@@ -78,7 +78,8 @@ let test_fetch_url_times_out () =
   Eio.Switch.run @@ fun _sw ->
   with_hanging_server env (fun url ->
     let tools : Types.tool_binding list =
-      Builtin_tools.builtin_tools ~switch:_sw ~net:(Eio.Stdenv.net env)
+      let ws = match Workspace.of_cwd () with Ok w -> w | Error _ -> failwith "ws" in
+      Builtin_tools.builtin_tools ~switch:_sw ~net:(Eio.Stdenv.net env) ~workspace:ws
     in
     let token = Cancellation.create_token _sw in
     let find_tool name (tools : Types.tool_binding list) =
@@ -190,7 +191,9 @@ let () =
   with_hanging_server env (fun url ->
     (* TEST 1: fetch_url *)
     Printf.eprintf "TEST 1: fetch_url timeout\n%!";
-    let tools = Builtin_tools.builtin_tools ~switch:_sw ~net:(Eio.Stdenv.net env) in
+    let tools =
+      let ws = match Workspace.of_cwd () with Ok w -> w | Error _ -> failwith "ws" in
+      Builtin_tools.builtin_tools ~switch:_sw ~net:(Eio.Stdenv.net env) ~workspace:ws in
     let token = Cancellation.create_token _sw in
     let t0 = Unix.gettimeofday () in
     let tool = List.find (fun (tb:Types.tool_binding) -> tb.descriptor.name = "fetch_url") tools in

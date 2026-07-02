@@ -46,6 +46,7 @@ type runtime = {
   mutable tool_call_hooks : Hook.tool_call_hook list;
   bash_policy : (module Bash_policy.POLICY);
   bash_installed : bool ref;
+  workspace : Workspace.workspace;
   mcp_servers : (Mcp_types.server_id, Mcp_server.t) Types.protected_hashtbl;
   event_bus_instance : Event_bus.t option;
   persistence_writer : Persistence_writer.t option;
@@ -464,24 +465,24 @@ let install_bash_tool ?process_mgr ?clock rt =
            Error { category = e; message = "argv validation failed";
                    retryable = false; metadata = [] }
          | Ok () ->
-           (match Bash_safe_command.sandboxed_path_of_string cwd_str with
-            | Error e ->
-              Error { category = e;
-                      message = Printf.sprintf "invalid cwd: %s" cwd_str;
-                      retryable = false; metadata = [] }
-            | Ok cwd ->
-              let cmd : Bash_safe_command.command =
-                Bash_safe_command.Exec { argv; cwd; env = []; timeout }
-              in
-              (match P.filter cmd with
-               | Error e ->
-                 Error { category = e; message = "policy rejected";
-                         retryable = false; metadata = [] }
-               | Ok filtered ->
-                 let task_id = Task_id.create () in
-                 let start_t = Unix.gettimeofday () in
-                 let argv_for_event = Bash_safe_command.argv_of_command filtered in
-                 let cwd_for_event = Bash_safe_command.sandboxed_path_to_string cwd in
+          (match Workspace.admit rt.workspace cwd_str with
+             | Error e ->
+               Error { category = e;
+                       message = Printf.sprintf "invalid cwd: %s" cwd_str;
+                       retryable = false; metadata = [] }
+             | Ok cwd ->
+               let cmd : Bash_safe_command.command =
+                 Bash_safe_command.Exec { argv; cwd; env = []; timeout }
+               in
+               (match P.filter cmd with
+                | Error e ->
+                  Error { category = e; message = "policy rejected";
+                          retryable = false; metadata = [] }
+                | Ok filtered ->
+                  let task_id = Task_id.create () in
+                  let start_t = Unix.gettimeofday () in
+                  let argv_for_event = Bash_safe_command.argv_of_command filtered in
+                  let cwd_for_event = Workspace.to_string cwd in
                  let risk_str =
                    Bash_safe_command.risk_to_string
                      (Bash_safe_command.assess_risk filtered)
@@ -1045,9 +1046,10 @@ let submit_workflow rt ?(inputs = []) wf =
                   failure_policy = wf.def.failure_policy;
                  workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
                  on_step_complete = None;
-                 workflow_run_id = Some id;
-                 workflow_id_resolver = (fun () -> Some wf.def.id);
-               }
+                  workflow_run_id = Some id;
+                  workflow_id_resolver = (fun () -> Some wf.def.id);
+                  workspace = rt.workspace;
+                }
     in
     (match rt.services.persistence.save_workflow_state_fn id Wf_running (Some cp) with
      | Ok () -> ()
@@ -1066,6 +1068,7 @@ let submit_workflow rt ?(inputs = []) wf =
     on_step_complete = Some checkpoint_cb;
     workflow_run_id = Some id;
     workflow_id_resolver = (fun () -> Some wf.def.id);
+    workspace = rt.workspace;
   } in
   (match Workflow_engine.execute_workflow ctx wf with
    | Ok result ->
@@ -1134,9 +1137,10 @@ let submit_workflow_async rt ?(inputs = []) wf =
                  failure_policy = wf.def.failure_policy;
                  workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
                  on_step_complete = None;
-                 workflow_run_id = Some id;
-                 workflow_id_resolver = (fun () -> Some wf.def.id); }
-    in
+    workflow_run_id = Some id;
+    workflow_id_resolver = (fun () -> Some wf.def.id);
+    workspace = rt.workspace;
+  } in
     (match rt.services.persistence.save_workflow_state_fn id Wf_running (Some cp) with
      | Ok () -> ()
      | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)))
@@ -1154,6 +1158,7 @@ let submit_workflow_async rt ?(inputs = []) wf =
     on_step_complete = Some checkpoint_cb;
     workflow_run_id = Some id;
     workflow_id_resolver = (fun () -> Some wf.def.id);
+    workspace = rt.workspace;
   } in
   ignore (Eio.Fiber.fork ~sw:rt.cancellation_root (fun () ->
     (try
@@ -1270,9 +1275,10 @@ let resume_workflow rt wf_id =
          failure_policy = wf.def.failure_policy;
          workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
          on_step_complete = None;
-         workflow_run_id = Some wf_id;
-         workflow_id_resolver = (fun () -> Some wf.def.id);
-       } in
+          workflow_run_id = Some wf_id;
+          workflow_id_resolver = (fun () -> Some wf.def.id);
+          workspace = rt.workspace;
+        } in
        htbl_set rt.workflows wf_id Wf_running;
        (match rt.services.persistence.save_workflow_state_fn wf_id Wf_running None with
         | Ok () -> ()
@@ -1389,6 +1395,10 @@ let create ?(persistence = noop_persistence)
   match validation_result with
   | Error _ as e -> e
   | Ok () ->
+    let workspace = match Workspace.of_cwd () with
+      | Ok w -> w
+      | Error e -> failwith (Printf.sprintf "Runtime.create: Workspace.of_cwd failed: %s" (string_of_error_category e))
+    in
     let semaphore = Eio.Semaphore.make config.default_quota.max_concurrent_tasks in
     let persistence_is_noop = persistence == noop_persistence in
     let (event_bus_service, event_bus_instance, persistence_writer) =
@@ -1448,6 +1458,7 @@ let create ?(persistence = noop_persistence)
       publish_event_fn;
       bash_policy;
       bash_installed = ref false;
+      workspace;
       mcp_servers = { data = Hashtbl.create 4; mutex = Eio.Mutex.create () };
       event_bus_instance;
       persistence_writer;
@@ -1571,6 +1582,8 @@ let close rt =
 let tool_registry rt = rt.tool_registry
 
 let bash_policy rt = rt.bash_policy
+
+let workspace rt = rt.workspace
 
 let cancellation_root rt = rt.cancellation_root
 
