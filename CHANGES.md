@@ -1,5 +1,38 @@
 # CHANGES
 
+## v0.6.6-beta — Per-Run Workspace Override (UNRELEASED — pending version bump)
+
+> Adds `?workspace` parameter to `Runtime.invoke`, `Runtime.submit_workflow`, `Runtime.submit_workflow_async`, and `Runtime.invoke_workflow_sync`. When provided, overrides the runtime's workspace for THAT specific invocation — enabling one process to serve N concurrent workflows each isolated to its own worktree root. Closes the architectural gap identified by Oracle Option E verification of v0.6.5: workspace is now per-run, not just per-runtime. All 7 admission-using builtin tools (bash + read/ls/find/grep/write/edit) honor the override.
+
+### Added — `?workspace` on 4 API entry points
+
+- `Runtime.invoke ... ?workspace:Workspace.workspace ...`
+- `Runtime.submit_workflow ... ?workspace ...`
+- `Runtime.submit_workflow_async ... ?workspace ...`
+- `Runtime.invoke_workflow_sync ... ?workspace ...` (forwards to `submit_workflow`)
+
+When omitted, `effective_workspace` defaults to `rt.workspace` (v0.6.5 behavior — fully backward compatible).
+
+### Added — `per_call_registry` + rebuild mechanism
+
+- `Runtime.per_call_registry ~rt ~workspace : Tool_registry.t` — builds a fresh tool registry for a single invocation. Copies all caller-registered tools, then rebuilds the builtin tools (bash via `rt.bash_rebuild`, file tools via `rt.file_tools_rebuild`) against `rt' = { rt with workspace }`. `handler_fn` signature unchanged (Yojson -> cancellation_token -> result) — no cascade to middleware/FFI/test handlers.
+- `Runtime.register_file_tools_rebuild rt rebuild` — called by the entity registering builtin tools (e.g. CLI) to register a closure that rebuilds file tools bound to a given workspace (capturing the Eio switch + net). Read by `per_call_registry`.
+- `Tool_registry.copy_all ~src ~dst` — seeds a fresh registry with caller-registered tools.
+- `mutable bash_rebuild` / `mutable file_tools_rebuild` fields on the `runtime` record (private — not a public API change).
+
+### Non-goals (deferred to v0.7)
+
+- `?workspace` on `resume_workflow` / `approve_workflow` — workspace is locked to the workflow instance at `submit_workflow` time; resume/approve operate on that instance and should not switch workspace mid-run.
+- Per-call override for user-registered custom tools — `register_tool` signature change is a SemVer break, deferred to v0.7 (§11 R3a two-step). Workaround: re-register custom tools with the effective workspace before invoking, or use `per_call_registry` directly.
+
+### Stats
+
+- 1254 → 1260 tests (6 new: 4 per_call_registry isolation + 1 file-tool override + 1 e2e invoke ?workspace via Mock provider)
+- 0 public type signature changes to `handler_fn`
+- Backward compatible — all additions are optional labeled parameters
+
+---
+
 ## v0.6.5 — Workspace Abstraction: Exile Sys.getcwd from Security Primitives
 
 > Introduces `Workspace` module as the sole authority for path admission. `Sys.getcwd()` is removed from every security primitive; workspace is an unforgeable `private` value threaded mandatorily through `runtime` and `exec_context`. Multi-root support from day one (for future git-worktree isolation). Bundles a security fix: file tools (read/ls/find/grep/write/edit) now have the sensitive-prefix check they were previously missing. Triggered by integration feedback on worktree-per-task workflows.
