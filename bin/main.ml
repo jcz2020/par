@@ -361,6 +361,10 @@ let setup_runtime cfg ~interactive:_ ~f =
            tb.descriptor.Types.name (error_category_to_string e);
          exit 1)
     ) tools;
+    Runtime.register_file_tools_rebuild rt (fun ws ->
+      List.map (fun (tb : Types.tool_binding) ->
+        (tb.descriptor.Types.name, tb.handler))
+        (Builtin_tools.builtin_tools ~switch ~net ~workspace:ws));
     (match Runtime.install_bash_tool
         ~process_mgr:(Eio.Stdenv.process_mgr env)
         ~clock:(Eio.Stdenv.clock env)

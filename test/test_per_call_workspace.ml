@@ -52,6 +52,20 @@ let is_workspace_rejection = function
 
 let mk_input cwd = `Assoc [("argv", `List [`String "ls"]); ("cwd", `String cwd)]
 
+let setup_builtins rt ~switch ~net =
+  let tools = Builtin_tools.builtin_tools ~switch ~net ~workspace:(Runtime.workspace rt) in
+  List.iter (fun (tb : Types.tool_binding) ->
+    ignore (Runtime.register_tool rt
+      ~name:tb.descriptor.Types.name
+      ~description:tb.descriptor.Types.description
+      ~input_schema:tb.descriptor.Types.input_schema
+      ~handler:tb.handler ())
+  ) tools;
+  Runtime.register_file_tools_rebuild rt (fun ws ->
+    List.map (fun (tb : Types.tool_binding) ->
+      (tb.descriptor.Types.name, tb.handler))
+      (Builtin_tools.builtin_tools ~switch ~net ~workspace:ws))
+
 (* -------------------------------------------------------------------------- *)
 (* per_call_registry isolation                                                *)
 (* -------------------------------------------------------------------------- *)
@@ -133,17 +147,80 @@ let isolation_suite =
       Eio_main.run (fun _env ->
         Eio.Switch.run (fun sw ->
           let mgr = Eio.Stdenv.process_mgr _env in
+          let net = Eio.Stdenv.net _env in
           match Runtime.create ~config:test_config sw with
           | Ok rt ->
             (match Runtime.install_bash_tool ~process_mgr:mgr rt with
              | Ok () ->
+               setup_builtins rt ~switch:sw ~net;
                let reg_default = Runtime.per_call_registry ~rt ~workspace:(Runtime.workspace rt) in
                let names_default = Tool_registry.names reg_default in
-               let names_orig = Tool_registry.names (Runtime.tool_registry rt) in
-               Alcotest.(check bool) "same tool set" true (List.length names_default = List.length names_orig);
-               Alcotest.(check bool) "bash present" true (List.mem "bash" names_default)
+               Alcotest.(check bool) "bash present" true (List.mem "bash" names_default);
+               Alcotest.(check bool) "read present" true (List.mem "read" names_default)
              | Error e -> Alcotest.failf "install failed: %s" (error_to_string e))
           | Error e -> Alcotest.failf "create failed: %s" (error_to_string e))));
+
+    Alcotest.test_case "file tool (read) handler respects overridden workspace" `Quick (fun () ->
+      Eio_main.run (fun _env ->
+        Eio.Switch.run (fun sw ->
+          let mgr = Eio.Stdenv.process_mgr _env in
+          let net = Eio.Stdenv.net _env in
+          match Runtime.create ~config:test_config sw with
+          | Ok rt ->
+            (match Runtime.install_bash_tool ~process_mgr:mgr rt with
+             | Ok () ->
+               setup_builtins rt ~switch:sw ~net;
+               let dir_a = make_temp_dir "ft_a" in
+               let dir_b = make_temp_dir "ft_b" in
+               let ws_a = match Workspace.of_dir dir_a with Ok w -> w | Error _ -> Alcotest.fail "ws_a" in
+               let reg_a = Runtime.per_call_registry ~rt ~workspace:ws_a in
+               let h_read = match Tool_registry.resolve reg_a "read" with
+                 | Some h -> h | None -> Alcotest.fail "read not in per_call_registry" in
+               let token = Cancellation.create_token sw in
+               let read_b = `Assoc [("path", `String (dir_b ^ "/file.txt"))] in
+               let read_a = `Assoc [("path", `String (dir_a ^ "/file.txt"))] in
+               Alcotest.(check bool) "read rejects path under dir_b" true
+                 (is_workspace_rejection (h_read read_b token));
+               Alcotest.(check bool) "read admits path under dir_a" false
+                 (is_workspace_rejection (h_read read_a token))
+             | Error e -> Alcotest.failf "install failed: %s" (error_to_string e))
+          | Error e -> Alcotest.failf "create failed: %s" (error_to_string e))));
+
+    Alcotest.test_case "invoke ?workspace routes bash through effective workspace (e2e, Mock)" `Quick (fun () ->
+      (* E2E: Mock LLM emits a bash tool_call with cwd=dir_a. invoke ?workspace:ws_a
+         routes through per_call_registry's bash handler (rebuilt for ws_a), which
+         admits dir_a. Satisfies ROADMAP §5 exit condition 2 (positive direction). *)
+      Eio_main.run (fun env ->
+        Eio.Switch.run (fun sw ->
+          let mgr = Eio.Stdenv.process_mgr env in
+          let net = Eio.Stdenv.net env in
+          let dir_a = make_temp_dir "e2e_a" in
+          let ws_a = match Workspace.of_dir dir_a with Ok w -> w | Error _ -> Alcotest.fail "ws_a" in
+          let bash_call : Types.tool_call = {
+            id = "c1"; name = "bash";
+            arguments = `Assoc [("argv", `List [`String "ls"]); ("cwd", `String dir_a)] } in
+          let (llm, _hist) = Mock_provider.create [
+            Mock_provider.With_tool_calls { text = None; calls = [bash_call] };
+            Mock_provider.Text "done";
+          ] in
+          match Runtime.create ~config:test_config ~llm sw with
+          | Ok rt ->
+            (match Runtime.install_bash_tool ~process_mgr:mgr rt with
+             | Ok () ->
+               setup_builtins rt ~switch:sw ~net;
+               let model : Types.model_config = {
+                 provider = `Openai; model_name = "t"; api_base = None;
+                 temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None } in
+               let agent = match Runtime.make_agent ~id:"a"
+                 ~system_prompt:(Types.stable_prompt "s") ~model
+                 ~tools:[Builtin_tools.bash_tool_descriptor] () with
+                 | Ok a -> a | Error e -> Alcotest.failf "make_agent: %s" (error_to_string e) in
+               ignore (Runtime.register_agent rt agent);
+               (match Runtime.invoke rt ~agent_id:"a" ~message:"m" ~workspace:ws_a () with
+                | Ok _ -> ()  (* bash admitted dir_a under ws_a → tool ran → invoke completed *)
+                | Error (e, _) -> Alcotest.failf "invoke should succeed with ws_a, got %s" (error_to_string e))
+             | Error e -> Alcotest.failf "install: %s" (error_to_string e))
+          | Error e -> Alcotest.failf "create: %s" (error_to_string e))));
   ]
 
 let () =

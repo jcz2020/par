@@ -41,16 +41,21 @@ val per_call_registry :
   rt:runtime -> workspace:Workspace.workspace -> Tool_registry.t
 (** Build a fresh tool registry for a single invocation where the bash handler
     closes over [workspace] (the effective workspace) rather than [rt.workspace].
-    All caller-registered tools are copied as-is; only the bash handler is
-    rebuilt via [rt.bash_rebuild] (set by [install_bash_tool]) against
-    [{ rt with workspace }].
+    All caller-registered tools are copied as-is; then file tools are rebuilt via
+    [rt.file_tools_rebuild] (if set) and the bash handler via [rt.bash_rebuild]
+    (set by [install_bash_tool]) against [{ rt with workspace }].
 
     Used internally by [invoke]/[submit_workflow]/[submit_workflow_async] when
     the caller passes [?workspace]. Exposed for testing and advanced users who
-    build their own dispatch path.
+    build their own dispatch path. *)
 
-    v0.6.6 limitation: only the bash handler is rebound. File tools and
-    user-registered tools keep their registration-time workspace closure. *)
+val register_file_tools_rebuild :
+  runtime -> (Workspace.workspace -> (string * Tool_registry.handler_fn) list) -> unit
+(** Register a closure that rebuilds the builtin file tools (read/ls/find/grep/
+    write/edit) bound to a given workspace. Called by the entity that registers
+    builtin tools (e.g. [bin/main.ml]) after [Builtin_tools.builtin_tools] is
+    first registered, capturing the Eio switch + net. [per_call_registry] reads
+    this so per-call [?workspace] override applies to file tools too. *)
 
 val register_agent : runtime -> agent_config -> (unit, error_category) result
 

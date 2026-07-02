@@ -53,6 +53,11 @@ type runtime = {
      needing access to the original mgr/clock args. [None] when bash is not
      installed. *)
   mutable bash_rebuild : (runtime -> Tool_registry.handler_fn) option;
+  (* v0.6.6: rebuilds file tools (read/ls/find/grep/write/edit) bound to a given
+     workspace. Set by the caller registering builtins (bin/main.ml) via
+     [register_file_tools_rebuild]. [None] on runtimes without builtin file
+     tools (e.g. Python FFI individual registration). *)
+  mutable file_tools_rebuild : (Workspace.workspace -> (string * Tool_registry.handler_fn) list) option;
   workspace : Workspace.workspace;
   mcp_servers : (Mcp_types.server_id, Mcp_server.t) Types.protected_hashtbl;
   event_bus_instance : Event_bus.t option;
@@ -596,11 +601,19 @@ let install_bash_tool ?process_mgr ?clock rt =
 let per_call_registry ~(rt : runtime) ~(workspace : Workspace.workspace) : Tool_registry.t =
   let fresh = Tool_registry.create () in
   Tool_registry.copy_all ~src:rt.tool_registry ~dst:fresh;
+  (match rt.file_tools_rebuild with
+   | Some rebuild ->
+     List.iter (fun (name, handler) -> Tool_registry.replace fresh name handler)
+       (rebuild workspace)
+   | None -> ());
   let rt' = { rt with workspace } in
   (match rt.bash_rebuild with
    | Some rebuild -> Tool_registry.replace fresh "bash" (rebuild rt')
    | None -> ());
   fresh
+
+let register_file_tools_rebuild rt rebuild =
+  rt.file_tools_rebuild <- Some rebuild
 
 let save_conversation rt =
   match !(rt.session_id), rt.current_conversation with
@@ -1457,6 +1470,7 @@ let create ?(persistence = noop_persistence)
       bash_policy;
       bash_installed = ref false;
       bash_rebuild = None;
+      file_tools_rebuild = None;
       workspace;
       mcp_servers = { data = Hashtbl.create 4; mutex = Eio.Mutex.create () };
       event_bus_instance;
