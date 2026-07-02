@@ -12,7 +12,7 @@ PAR has four abstraction layers. Skills sit alongside tools, agents, and middlew
 
 | Layer | What it packages | Example |
 |-------|------------------|---------|
-| **Tool** | A single function callable by the LLM | `read_file`, `web_search`, `bash` |
+| **Tool** | A single function callable by the LLM | `read`, `web_search`, `bash` |
 | **Skill** | System prompt + tool subset + trigger conditions | "Code reviewer" (review prompt + read/grep tools only) |
 | **Agent** | Full config: model, tools, middleware, retry policy | Default agent with GPT-4 + 20 tools |
 | **Middleware** | Cross-cutting hook (logging, retry, rate limit) | Retry with exponential backoff |
@@ -162,7 +162,7 @@ Restricts which tools the LLM can access when the skill is active:
 
 ```yaml
 tool_filter: All                    # all registered tools (default)
-tool_filter: Only [read_file, grep] # only these tools
+tool_filter: Only [read, grep] # only these tools
 tool_filter: Except [bash]          # all tools except these
 ```
 
@@ -221,7 +221,7 @@ Name [my-analyst]:
 Description (≤1024 chars): Analyze data and report insights
 System prompt override (blank = none, \n for newlines): You are a data analyst.
 Tool filter [All|Only|Except] (default: All): Only
-Only tools (comma-separated): read_file, grep, bash
+Only tools (comma-separated): read, grep, bash
 Trigger [Auto|Manual|Keyword] (default: Auto): Keyword
 Keywords (comma-separated): data, analyze, report
 Expected output JSON schema (blank = none):
@@ -250,7 +250,7 @@ rt.register_skill(json.dumps({
     "name": "My Skill",
     "description": "Does something useful.",
     "system_prompt_override": "You are a specialist.",
-    "tool_filter": "Only [read_file]",
+    "tool_filter": "Only [read]",
     "trigger": "Auto"
 }))
 
@@ -269,7 +269,7 @@ let descriptor =
     ~id:"my-skill"
     ~description:"Does something useful."
     ~system_prompt_override:"You are a specialist."
-    ~tool_filter:(Par.Types.Only ["read_file"])
+    ~tool_filter:(Par.Types.Only ["read"])
     ~trigger:Par.Types.Auto
     ()
   |> Result.get_ok
@@ -290,10 +290,10 @@ PAR ships with 4 starter skills. Override them by creating a skill with the same
 
 | ID | Trigger | Tools | Description |
 |----|---------|-------|-------------|
-| `code-reviewer` | Keyword: review, audit | read_file, grep, glob | Reviews code for bugs, security, style |
+| `code-reviewer` | Keyword: review, audit | read, grep, find | Reviews code for bugs, security, style |
 | `summarizer` | Auto | All | Summarizes long text into key points |
 | `translator` | Keyword: translate, 翻译 | All | Translates between languages |
-| `rag-assistant` | Auto | add_documents, invoke_with_rag | Answers using retrieved document context |
+| `rag-assistant` | Auto | All | Answers using retrieved document context |
 
 ---
 
@@ -310,7 +310,7 @@ id: python-analyst
 name: Python Data Analyst
 description: Analyze Python code for data science patterns. Use when the user asks about pandas, numpy, or data analysis code.
 system_prompt_override: "You are a Python data science expert. Focus on pandas/numpy patterns, performance, and correctness."
-tool_filter: Only [read_file, grep, glob]
+tool_filter: Only [read, grep, find]
 trigger: Keyword [pandas, numpy, dataframe, data analysis]
 ---
 
@@ -369,7 +369,7 @@ id: log-parser
 name: Log Parser
 description: Parse and analyze log files. Use when the user mentions logs, stack traces, or error output.
 system_prompt_override: "You are a log analysis expert. Extract timestamps, error codes, and stack traces. Correlate events across log lines."
-tool_filter: Only [read_file, grep, bash]
+tool_filter: Only [read, grep, bash]
 trigger: Keyword [log, stack trace, error output, traceback] deterministic
 ---
 
