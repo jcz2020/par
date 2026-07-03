@@ -39,6 +39,10 @@ docs-check: ## Run all documentation quality checks
 check-disclosure: ## Block forbidden downstream identifiers (rule in AGENTS.md)
 	@bash scripts/check_disclosure.sh --all
 
+check-install-sh: ## Verify install.sh syntax + help output (mandatory before any tag)
+	@bash -n install.sh && echo "OK install.sh syntax valid"
+	@bash install.sh --help 2>&1 | head -5 >/dev/null && echo "OK install.sh --help renders"
+
 # ─── Dev Install ──────────────────────────────────────────────────────
 
 install-dev: build ## Build + install .so + sync version + verify Python binding

@@ -47,10 +47,11 @@ This section is the most important one for new contributors. Read it before open
 
 1. `make docs-check` passes.
 2. `dune runtest` passes (capture the test count for the release notes).
-3. The first 50 lines of `README.md` contain a working OCaml example.
-4. No CJK characters appear in any public doc.
-5. `CHANGES.md` has an entry for the new version.
-6. **Beta tags are pre-release.** Tags with `-beta.` or `-rc.` are automatically published as GitHub pre-release. Only stable tags (`vX.Y.Z`) appear as latest.
+3. `make check-install-sh` passes (install.sh syntax + help output — mandatory since v0.6.7 when install.sh became the SDK wizard).
+4. The first 50 lines of `README.md` contain a working OCaml example.
+5. No CJK characters appear in any public doc.
+6. `CHANGES.md` has an entry for the new version.
+7. **Beta tags are pre-release.** Tags with `-beta.` or `-rc.` are automatically published as GitHub pre-release. Only stable tags (`vX.Y.Z`) appear as latest.
 
 For the full authoring rules, translation rules, and CI integration, see [`docs/DOC-MAINTENANCE.md`](docs/DOC-MAINTENANCE.md).
 

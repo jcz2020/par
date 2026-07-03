@@ -34,6 +34,16 @@ Core rule: when short-term engineering compromise conflicts with long-term archi
 dune build                  # build the library + FFI
 dune runtest                  # run OCaml tests
 make install-dev              # build + install both locations + sync + verify
+
+## Install Script Maintenance (MANDATORY)
+
+`install.sh` is the interactive SDK installer wizard (Python vs OCaml). It evolves across versions. **Every version that touches `install.sh`, `bindings/python/`, `lib/ffi/`, or `dune-project` (package/deps changes) MUST verify install.sh still works before tagging.**
+
+Run `make check-install-sh` — it checks:
+1. `bash -n install.sh` — syntax valid
+2. `bash install.sh --help` — arg parsing + help output render correctly
+
+A version tag MUST NOT be pushed if `make check-install-sh` fails.
 make sync-version             # sync dune-project version to Python bindings
 make validate-version         # check semver format
 make check-version-sync       # verify all 3 version files agree
