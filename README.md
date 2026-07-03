@@ -9,7 +9,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.6.5 — Workspace abstraction (multi-root path admission, Sys.getcwd exiled from security primitives), file tools security fix (sensitive-prefix check). 1254 tests passing. API may change before v1.0.
+> **Status**: v0.6.7-beta — CLI removed (product UX moved to PAR Code repo); new interactive `install.sh` SDK wizard (detect system → pick Python or OCaml → verify env → opt-in auto-setup opam → install → verify). 1248 tests passing. API may change before v1.0.
 
 ---
 
@@ -103,7 +103,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - **SQLite persistence** — embedded audit log (events, task state, workflow checkpoints, conversation history); Noop backend for tests
 - **Structured concurrency** — OCaml 5.4 effects with Eio, no orphan fibers, no callback hell
 - **Python ctypes binding** — `par_runtime` package, thread-safe, no GIL contention with OCaml runtime. Persistent Eio domain per Runtime for full concurrency support.
-- **1000+ OCaml tests + 64 Python tests** passing (all green, including RAG e2e from any cwd)
+- **1248 OCaml tests + Python bindings** passing (all green, including RAG e2e from any cwd)
 - **Skill system** — drop a `skill.md` in `~/.par/skills/<id>/` and it auto-activates during `Runtime.invoke` based on trigger conditions (Auto / Manual / Keyword). See [Skills API](docs/sdk/skills.md).
 
 ## Language tracks
@@ -138,9 +138,9 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 **Current**: v0.6.5-beta — Workspace abstraction: `Workspace` module as sole authority for path admission, multi-root support, `Sys.getcwd()` exiled from all security primitives, file tools gain sensitive-prefix check, `Runtime.create` accepts `?workspace` for custom workspace injection. See [prompt caching guide](docs/sdk/prompt_caching.md) and [content blocks guide](docs/sdk/content_blocks.md).
 
-**Coming next**: External vector stores (Qdrant/Milvus), document loaders, multimodal image tools (v0.7).
+**Coming next**: External vector stores (Qdrant/Milvus), document loaders, multimodal image tools (v0.7+).
 
-**Beta-only (no stable)**: v0.6.3-beta (auto context compression) and v0.6.4-beta (prompt caching) shipped; user opted to skip stable releases and iterate on beta.
+**Recent betas (no stable)**: v0.6.5 (Workspace abstraction) → v0.6.6-beta (per-run workspace override) → v0.6.7-beta (CLI removed). User opted to iterate on beta without promoting to stable.
 
 ## Getting help
 

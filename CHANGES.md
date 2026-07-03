@@ -1,5 +1,54 @@
 # CHANGES
 
+## v0.6.7-beta.20260703 — Remove CLI + SDK Installer Wizard
+
+> PAR is an SDK/runtime. Product-level UX (REPL, config wizard, history/stats) lives in the separate **PAR Code** project in another repo. This release removes the parallel CLI from PAR (caused user confusion about which to install and maintenance drag on engine devs) and replaces `install.sh` with an interactive SDK installation wizard.
+
+### Removed — CLI application
+
+- Entire `bin/` directory (`main.ml` 1741 lines + `cli_style.ml/mli` + `par_config.ml` + `repl_input.ml` + `dune`) — the CLI was a complete product, not a thin wrapper
+- `par_cli` opam package block from `dune-project` + `par_cli.opam` (the package was never successfully published to opam-repository, so deletion has zero external impact)
+- `test_cli_args.ml`, `test_cli_dispatch.ml`, `test_session_resume_cli.ml` (3 CLI tests)
+- `docs/cli.md` (CLI reference)
+- CLI sections from `docs/index.md` (CLI is not a surface anymore)
+- README hero rewritten: no more `curl install.sh | bash → par ask`; lead with `pip install par-runtime` + Python agent example
+- From 3 user surfaces (OCaml SDK / Python / CLI) to 2 (OCaml SDK / Python)
+
+### Added — Interactive SDK installer wizard (rewrites `install.sh`)
+
+The new `install.sh` (231 lines, replaces the 175-line binary-downloader):
+
+- Detects OS (Linux/macOS) + arch (x86_64/arm64)
+- Prompts Python vs OCaml (`--python` / `--ocaml` to skip)
+- Validates environment: Python → `python3 ≥ 3.8` + `pip`; OCaml → `opam ≥ 2.1` + a `par` switch with `OCaml ≥ 5.4`
+- Offers opt-in auto-setup (medium aggressiveness per v0.6.7 ROADMAP):
+  - Missing opam → runs official installer to `~/.opam` (no sudo, no system package manager touches); user must confirm
+  - Missing Python → prints install instructions, does NOT auto-install (system Python is too risky to touch)
+  - `--no-auto-setup` flag to skip offering
+- Installs the chosen variant: `pip install --user par-runtime` (Python) or `opam install -y par` (OCaml)
+- Verifies via import (Python: `from par_runtime import Runtime`) or `opam list --installed par` (OCaml)
+- Prints language-specific quickstart
+
+Flags: `--python`, `--ocaml`, `--yes`, `--no-auto-setup`, `--help`.
+
+### Changed — CI / build / docs
+
+- `ci.yml`, `nightly.yml`: `opam install par_cli --deps-only` → `opam install par --deps-only`; `par_cli.opam` removed from `opam-local-packages`
+- `opam-publish.yml`: `par_cli.opam` removed from publish + upload list + manual instructions
+- `pypi-publish.yml`: `opam install par_cli` → `opam install par`
+- `release.yml`: entire `build` job (binary build/upload) deleted; `release` job kept (creates the GitHub release with notes from CHANGES.md pointing to `pip install par-runtime` / `opam install par`)
+- `Makefile`: `install`/`uninstall` targets now print info stubs (no binary to install); `install-dev` keeps `.so` + version sync but verifies via `par_runtime.__version__` instead of `par --version`
+- `AGENTS.md`: `dune build bin/main.exe` → `dune build`
+
+### Stats
+
+- 1260 → 1248 tests (-12 from CLI test removal; no other test changes)
+- 0 public type signature changes to `par`
+- `par` opam package unchanged (same deps, same description)
+- Internal-only release — no external users affected (par_cli never published)
+
+---
+
 ## v0.6.6-beta.20260703 — Per-Run Workspace Override
 
 > Adds `?workspace` parameter to `Runtime.invoke`, `Runtime.submit_workflow`, `Runtime.submit_workflow_async`, and `Runtime.invoke_workflow_sync`. When provided, overrides the runtime's workspace for THAT specific invocation — enabling one process to serve N concurrent workflows each isolated to its own worktree root. Closes the architectural gap identified by Oracle Option E verification of v0.6.5: workspace is now per-run, not just per-runtime. All 7 admission-using builtin tools (bash + read/ls/find/grep/write/edit) honor the override.
