@@ -1,4 +1,5 @@
 <!-- language: en -->
+**English** · [简体中文](../zh/sdk/observability.md)
 
 # Observability Reference
 

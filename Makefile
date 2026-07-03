@@ -1,4 +1,4 @@
-.PHONY: build clean test sync-version docs-check \
+.PHONY: build clean test sync-version docs-check check-translation \
         install-dev verify validate-version check-version-sync test-count \
         release-patch release-minor release-major release-beta
 
@@ -32,12 +32,16 @@ sync-version: ## Sync version from dune-project to Python bindings
 docs-check: ## Run all documentation quality checks
 	$(MAKE) --no-print-directory check-disclosure
 	bash scripts/check_doc_identifiers.sh
+	bash scripts/check_translation_sync.sh
 	timeout 300 bash scripts/check_doc_links.sh
 	@grep -rPl "[\x{4e00}-\x{9fff}]" README.md docs/ --include='*.md' | grep -v DOC-MAINTENANCE | grep -v zh-CN | while read f; do extra=$$(grep -P '[\x{4e00}-\x{9fff}]' "$$f" | grep -v '简体中文'); if [ -n "$$extra" ]; then echo "$$f"; fi; done; exit 0
 	@echo "All doc checks passed."
 
 check-disclosure: ## Block forbidden downstream identifiers (rule in AGENTS.md)
 	@bash scripts/check_disclosure.sh --all
+
+check-translation: ## Check docs/ vs docs/zh/ translation sync (strict: fail if missing/outdated)
+	@bash scripts/check_translation_sync.sh --strict
 
 check-install-sh: ## Verify install.sh syntax + help output (mandatory before any tag)
 	@bash -n install.sh && echo "OK install.sh syntax valid"

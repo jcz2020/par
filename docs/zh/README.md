@@ -2,16 +2,16 @@
 
 **[English](../../README.md)** · 简体中文
 
-> **v0.6.7 提示：** 本仓库的 CLI（`par ask`、`par config`）已移除；SDK 是唯一受支持的界面。需要交互式编码 Agent 体验请使用 [par-code](https://github.com/jcz2020/par-code)。以下 `par ask` 示例保留作为历史参考，新用户请参考 SDK 部分。
+一个模块化、类型安全的 agent 运行时。LangChain + LangGraph for OCaml —— 但你可以通过 Python 或 OCaml 使用它，不需要写一行另一种语言。
 
-一个模块化、类型安全的 agent 运行时。OCaml 版的 LangChain + LangGraph —— 但你可以通过 Python 或 OCaml 使用它，不需要写一行另一种语言。
+> **需要 CLI？** 请使用 [par-code](https://github.com/jcz2020/par-code) —— 基于本 SDK 构建的交互式编码 Agent。
 
 [![Build Status](https://github.com/jcz2020/par/actions/workflows/ci.yml/badge.svg)](https://github.com/jcz2020/par/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/par-runtime?color=blue&label=PyPI)](https://pypi.org/project/par-runtime/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **状态**: v0.5.0 beta。首个 PyPI 发布于 2026-06-21。原生 wheel 支持 Linux x86_64 和 macOS arm64。v1.0 前 API 可能变化。
+> **状态**: v0.6.7 stable — CLI 已移除（产品 UX 迁至 par-code 仓库）；新增交互式 `install.sh` SDK 向导（检测系统 → 选择 Python 或 OCaml → 验证环境 → 可选自动配置 opam → 安装 → 验证）。1248 tests passing。v1.0 前 API 可能变化。
 
 ---
 
@@ -70,8 +70,6 @@ pip install par-runtime
 opam install par
 ```
 
-> `par_cli` 已于 v0.6.7 移除；如需交互式编码 Agent 体验，请使用 [par-code](https://github.com/jcz2020/par-code)。
-
 **从源码构建:**
 ```bash
 git clone https://github.com/jcz2020/par.git && cd par
@@ -88,6 +86,10 @@ make install-dev   # 构建库 + 安装 .so + 同步 Python 版本
 - [中间件](sdk/middleware.md) — Logging、Retry、Rate_limit、Timeout、PII_mask 等
 - [工具](sdk/tools.md) — 20 个内置工具，包括类型安全的 bash
 - [MCP 客户端](sdk/mcp.md) — 连接任何 Model Context Protocol 服务器
+- [Streaming API](sdk/streaming.md) — token 流式输出、工具调用事件
+- [Generate API](sdk/generate.md) — 长输出生成、on_max_tokens 策略
+- [RAG API](sdk/rag.md) — embeddings、向量存储、检索
+- [Skills API](sdk/skills.md) — 可复用的 prompt + 工具包，支持触发条件
 - [架构](explanation/architecture.md) — PAR 内部工作原理
 - [How-to 指南](howto/) — 并发、自定义 provider、错误处理
 - [文档索引](index.md) — 完整目录
@@ -102,8 +104,9 @@ make install-dev   # 构建库 + 安装 .so + 同步 Python 版本
 - **7 个中间件** — Logging、Retry、Rate_limit、Timeout、Validation、PII_mask、Sanitize_tool_output
 - **SQLite 持久化** — 嵌入式审计日志（事件、任务状态、工作流检查点、对话历史）；测试用 Noop 内存后端
 - **结构化并发** — OCaml 5.4 effects + Eio，无孤立 fiber，无回调地狱
-- **Python ctypes 绑定** — `par_runtime` 包，线程安全，与 OCaml 运行时无 GIL 竞争
-- **987 个 OCaml 测试 + 33 个 Python 测试** 通过
+- **Python ctypes 绑定** — `par_runtime` 包，线程安全，与 OCaml 运行时无 GIL 竞争。每个 Runtime 有独立 Eio domain，完整支持并发。
+- **1248 OCaml 测试 + Python 绑定** 全部通过（包括任意工作目录的 RAG 端到端测试）
+- **Skill 系统** — 在 `~/.par/skills/<id>/` 放一个 `skill.md`，在 `Runtime.invoke` 时根据触发条件（Auto / Manual / Keyword）自动激活。见 [Skills API](sdk/skills.md)。
 
 ## 语言轨道
 
@@ -120,7 +123,7 @@ config = json.dumps({
 with Runtime(config) as rt:
     rt.register_tool("echo", "回显工具", '{"type": "object"}')
 ```
-见 [`bindings/python/examples/basic_agent.py`](../../bindings/python/examples/basic_agent.py) 和 [`bindings/python/tests/`](../../bindings/python/tests/)（33 个 pytest 测试）。
+见 [`bindings/python/examples/basic_agent.py`](../../bindings/python/examples/basic_agent.py) 和 [`bindings/python/tests/`](../../bindings/python/tests/)。
 
 ### OCaml SDK
 ```ocaml
@@ -135,9 +138,11 @@ let () = Eio_main.run (fun _env ->
 
 ## 状态与路线图
 
-**当前**: v0.5.0 — PyPI 原生 wheel 支持 Linux x86_64 + macOS arm64。ARM64 Linux wheel 推迟（GitHub Actions 免费层级 ARM runner 饱和）。Intel Mac 未发布（`macos-13` runner 已弃用）。
+**当前**: v0.6.7 — PAR 现在是纯 SDK/runtime：CLI 应用已移除（产品 UX 迁至独立的 [par-code](https://github.com/jcz2020/par-code) 仓库），`install.sh` 改为交互式 SDK 安装向导。包含 v0.6.5 Workspace 抽象（`Workspace` 模块作为路径准入的唯一权威、多根目录支持、`Runtime.create` 接受 `?workspace`）和 v0.6.6 per-run workspace override（`Runtime.invoke` / `Runtime.submit_workflow` 上的 `?workspace` 参数，一个进程可服务 N 个并发工作流，每个隔离到自己的 worktree 根目录）。见 [prompt caching 指南](../sdk/prompt_caching.md) 和 [content blocks 指南](../sdk/content_blocks.md)。
 
-**v0.5.1+ 计划**: ARM64 Linux wheel、RAG 基础（`Runtime.embed`、`Vector_store`、`invoke_with_rag`）、流式输出、双层持久化改进。
+**下一步**: 外部向量库（Qdrant/Milvus）、文档加载器、多模态输入（v0.7+）。
+
+**近期发布**: v0.6.5（Workspace 抽象）→ v0.6.6（per-run workspace override）→ v0.6.7（CLI 移除，SDK 安装向导）。
 
 ## 获取帮助
 

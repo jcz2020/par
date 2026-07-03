@@ -74,10 +74,15 @@ Only tag/release on explicit "publish release" instruction. Before that: no tags
 
 ## Documentation
 
-See `docs/rules/docs.md` for full doc maintenance rules. Key points:
+**【强制】每次功能开发必须同步更新对应文档。** 代码和文档不一致是最常见的无声债务——release 前才发现滞后就晚了。全局规则（`~/.config/opencode/AGENTS.md` §"文档同步强制规则"）定义了触发场景和违反处理。项目级"必更文档清单"在 `docs/rules/docs.md` §"必更文档清单（Mandatory Doc Updates by Change Type）"。
+
+Key points:
 - English only in public docs (`docs/` root, not `zh/`)
 - OCaml identifiers must never be translated
 - `make docs-check` validates CJK, links, identifiers
+- **中英双语同步**：英文文档改了，中文对应文件（`docs/zh/`）也要改。`mkdocs-static-i18n` 配置 `fallback_to_default: false`——缺失中文文档会 404 而非静默回退英文
+- **同 commit 同步**：代码改动和文档更新必须在同一个 commit/PR 里，不允许"代码先合，文档后补"
+- **Page 构建**：`mkdocs build --strict` 必须通过。GitHub Pages CI（`.github/workflows/docs.yml`）在每次 push docs/ 到 main 时重建
 
 ### No Downstream Identifiable Information (MANDATORY)
 

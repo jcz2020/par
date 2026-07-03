@@ -50,6 +50,7 @@ plugins:
       separator: '[\s\-\.]+'
   - i18n:
       docs_structure: folder
+      fallback_to_default: false
       languages:
         - locale: en
           default: true
@@ -101,9 +102,11 @@ nav:
       - Middleware: sdk/middleware.md
       - Tools: sdk/tools.md
       - MCP Client: sdk/mcp.md
-- Streaming API: sdk/streaming.md
-- Generate API: sdk/generate.md
-- RAG API: sdk/rag.md
+      - Streaming API: sdk/streaming.md
+      - Generate API: sdk/generate.md
+      - RAG API: sdk/rag.md
+      - Prompt Caching: sdk/prompt_caching.md
+      - Content Blocks: sdk/content_blocks.md
       - Skills API: sdk/skills.md
       - Observability: sdk/observability.md
   - Explanation:

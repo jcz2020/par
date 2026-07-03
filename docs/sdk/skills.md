@@ -1,3 +1,6 @@
+<!-- language: en -->
+**English** · [简体中文](../zh/sdk/skills.md)
+
 # Skills API
 
 Skills are reusable bundles of system prompt, tool filter, and trigger conditions. They let you package domain expertise (code review, translation, summarization, RAG) into a single file that PAR auto-discovers and activates when relevant.
