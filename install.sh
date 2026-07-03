@@ -1,175 +1,265 @@
-#!/bin/bash
+#!/usr/bin/env bash
+#
+# PAR SDK installer wizard
+#   curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
+#   curl ... | bash -s -- --python --yes
+#   curl ... | bash -s -- --ocaml --no-auto-setup
+#
+# Detects OS/arch, prompts Python vs OCaml, validates environment,
+# optionally runs opam's official installer (to ~/.opam, no sudo) when
+# the user confirms, then installs the chosen SDK variant and verifies.
+
 set -euo pipefail
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-NC='\033[0m'
-
+if [ -t 1 ]; then
+  RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'
+  BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
+else
+  RED=''; GREEN=''; YELLOW=''; BLUE=''; BOLD=''; NC=''
+fi
 info()  { echo -e "${GREEN}[INFO]${NC} $*" >&2; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }
-die()   { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
+err()   { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+head()  { echo -e "\n${BLUE}${BOLD}── $* ──${NC}" >&2; }
+ask()   { printf "${BOLD}%s${NC} [%s]: " "$1" "$2" >&2; }
 
 GITHUB_REPO="jcz2020/par"
-PREFIX="${PAR_INSTALL_PREFIX:-/usr/local}"
-VERSION="${PAR_INSTALL_VERSION:-latest}"
+MIN_PYTHON_MAJOR=3
+MIN_PYTHON_MINOR=8
+MIN_OPAM_VERSION="2.1.0"
+MIN_OCAML_VERSION="5.4"
 
-detect_platform() {
-  local arch="$(uname -m)"
-  local os="$(uname -s)"
-  case "$os" in
-    Linux)
-      case "$arch" in
-        x86_64)  echo "linux-x64" ;;
-        aarch64) echo "linux-arm64" ;;
-        *)       die "Unsupported Linux arch: $arch" ;;
-      esac ;;
-    Darwin)
-      case "$arch" in
-        x86_64)  echo "macos-x64" ;;
-        arm64)   echo "macos-arm64" ;;
-        *)       die "Unsupported macOS arch: $arch" ;;
-      esac ;;
-    *) die "Unsupported OS: $os. Use scripts/build-from-source.sh" ;;
+TARGET=""
+ASSUME_YES=0
+AUTO_SETUP=1
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --python)    TARGET="python"; shift ;;
+    --ocaml)     TARGET="ocaml"; shift ;;
+    --yes|-y)    ASSUME_YES=1; shift ;;
+    --no-auto-setup) AUTO_SETUP=0; shift ;;
+    -h|--help)
+      sed -n '2,/^$/p' "$0" | sed 's/^# \?//' | head -20
+      exit 0 ;;
+    *) err "Unknown option: $1. Use --help."; exit 1 ;;
+  esac
+done
+
+detect_system() {
+  OS="$(uname -s)"
+  ARCH="$(uname -m)"
+  case "$OS" in
+    Linux)  OS_LABEL="Linux" ;;
+    Darwin) OS_LABEL="macOS" ;;
+    *) err "Unsupported OS: $OS"; exit 1 ;;
+  esac
+  case "$ARCH" in
+    x86_64|amd64) ARCH="x86_64" ;;
+    aarch64|arm64) ARCH="arm64" ;;
+    *) err "Unsupported arch: $ARCH"; exit 1 ;;
   esac
 }
 
-resolve_version() {
-  if [ "$VERSION" = "latest" ]; then
-    local api_response
-    local api_url="https://api.github.com/repos/$GITHUB_REPO/releases/latest"
-    api_response=$(curl -fsSL -H "Accept: application/vnd.github+json" "$api_url" 2>/dev/null) || true
-    if [ -z "$api_response" ]; then
-      api_response=$(curl -fsSL -H "Accept: application/vnd.github+json" \
-        "https://api.github.com/repos/$GITHUB_REPO/tags?per_page=1" 2>/dev/null) || true
-      if [ -n "$api_response" ]; then
-        if command -v python3 >/dev/null 2>&1; then
-          VERSION=$(echo "$api_response" | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['name'])" 2>/dev/null) || true
-        else
-          VERSION=$(echo "$api_response" | grep '"name"' | head -1 | sed -E 's/.*"name"[[:space:]]*:[[:space:]]*"v([^"]+)".*/v\1/') || true
-        fi
-      fi
+have_python() { command -v python3 >/dev/null 2>&1; }
+have_pip()    { python3 -m pip --version >/dev/null 2>&1; }
+have_opam()   { command -v opam >/dev/null 2>&1; }
+have_ocaml()  { command -v ocaml >/dev/null 2>&1; }
+
+python_version() {
+  python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+}
+opam_version()   { opam --version | head -1 | awk '{print $NF}'; }
+ocaml_version()  { ocaml -version; }
+
+# Returns 0 if $1 (actual) >= $2 (minimum), both X.Y form.
+version_gte() {
+  local actual="$1" min="$2"
+  [ "$actual" = "$(printf '%s\n' "$actual\n$min" | sort -V | tail -1)" ]
+}
+
+confirm() {
+  local prompt="$1" default="${2:-y}"
+  if [ "$ASSUME_YES" = 1 ]; then return 0; fi
+  local ans
+  if [ "$default" = "y" ]; then ask "$prompt" "Y/n"; else ask "$prompt" "y/N"; fi
+  read -r ans
+  case "${ans:-$default}" in
+    [Yy]*) return 0 ;;
+    *)     return 1 ;;
+  esac
+}
+
+auto_setup_opam() {
+  head "Auto-setup: installing opam"
+  warn "Opam official installer will run. It installs to ~/.opam (no sudo)."
+  warn "It will modify your shell init file (~/.bashrc or ~/.zshrc) to add opam to PATH."
+  if ! confirm "Proceed with opam auto-install?"; then
+    err "Aborted. Install opam manually: https://opam.ocaml.org/doc/Install.html"
+    exit 1
+  fi
+  local tmp; tmp="$(mktemp -d)"
+  info "Downloading opam installer..."
+  curl -fSL --proto '=https' https://opam.ocaml.org/install -o "$tmp/opam_installer.sh"
+  bash "$tmp/opam_installer.sh" --no-backup --no-setup 2>&1 | tail -20
+  rm -rf "$tmp"
+  # Source opam env so subsequent opam/ocaml calls in THIS shell work.
+  if [ -f "$HOME/.opam/opam-init/init.zsh" ]; then
+    # shellcheck disable=SC1091
+    . "$HOME/.opam/opam-init/init.zsh" >/dev/null 2>&1 || true
+  elif [ -f "$HOME/.opam/opam-init/init.sh" ]; then
+    # shellcheck disable=SC1091
+    . "$HOME/.opam/opam-init/init.sh" >/dev/null 2>&1 || true
+  fi
+  export PATH="$HOME/.opam/bin:$PATH"
+  have_opam || { err "opam still not found after install"; exit 1; }
+  info "Opam $(opam_version) installed."
+}
+
+validate_python() {
+  head "Validating Python environment"
+  if ! have_python; then
+    err "Python 3 not found."
+    err "Install Python 3.${MIN_PYTHON_MINOR}+ manually (https://python.org) and re-run."
+    exit 1
+  fi
+  local ver; ver="$(python_version)"
+  info "Python: $ver"
+  if ! version_gte "$ver" "${MIN_PYTHON_MAJOR}.${MIN_PYTHON_MINOR}"; then
+    err "Python $ver < required ${MIN_PYTHON_MAJOR}.${MIN_PYTHON_MINOR}."
+    exit 1
+  fi
+  if ! have_pip; then
+    err "pip not found. Install with: python3 -m ensurepip"
+    exit 1
+  fi
+  info "pip: $(python3 -m pip --version 2>&1 | head -1)"
+  info "Python environment OK."
+}
+
+validate_ocaml() {
+  head "Validating OCaml environment"
+  if ! have_opam; then
+    if [ "$AUTO_SETUP" = 1 ]; then
+      auto_setup_opam
     else
-      if command -v python3 >/dev/null 2>&1; then
-        VERSION=$(echo "$api_response" | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])" 2>/dev/null) || true
-      else
-        VERSION=$(echo "$api_response" | grep '"tag_name"' | head -1 | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/') || true
-      fi
+      err "opam not found and --no-auto-setup was passed."
+      err "Install manually: https://opam.ocaml.org/doc/Install.html"
+      exit 1
     fi
-    [ -n "$VERSION" ] || die "Failed to resolve latest version from GitHub (rate limited? set PAR_INSTALL_VERSION manually)"
   fi
-  echo "${VERSION#v}"
-}
-
-sha512_checksum() {
-  if command -v sha512sum >/dev/null 2>&1; then
-    sha512sum "$1" | awk '{print $1}'
-  elif command -v shasum >/dev/null 2>&1; then
-    shasum -a 512 "$1" | awk '{print $1}'
-  elif command -v openssl >/dev/null 2>&1; then
-    openssl dgst -sha512 "$1" | awk '{print $NF}'
-  else
-    die "No SHA-512 tool found (tried sha512sum, shasum, openssl)"
+  local opam_v; opam_v="$(opam_version)"
+  info "opam: $opam_v"
+  if ! version_gte "$opam_v" "$MIN_OPAM_VERSION"; then
+    err "opam $opam_v < required $MIN_OPAM_VERSION"
+    exit 1
   fi
-}
-
-download_binary() {
-  local platform="$1"
-  local ver="$2"
-  local tmpdir="$(mktemp -d)"
-  local url="https://github.com/$GITHUB_REPO/releases/download/v${ver}/par-v${ver}-${platform}"
-  local checksum_url="https://github.com/$GITHUB_REPO/releases/download/v${ver}/sha512-checksums.txt"
-
-  info "Downloading PAR v${ver} for ${platform}..."
-  if ! curl -fsSL -o "$tmpdir/par" "$url" 2>/dev/null; then
-    rm -rf "$tmpdir"
-    info "No prebuilt binary for ${platform}. Building from source..."
-    build_from_source "$ver"
-    return $?
-  fi
-
-  info "Downloading checksums..."
-  if curl -fsSL -o "$tmpdir/checksums.txt" "$checksum_url" 2>/dev/null; then
-    local expected="$(grep "par-v${ver}-${platform}" "$tmpdir/checksums.txt" | awk '{print $1}')"
-    if [ -n "$expected" ]; then
-      local actual="$(sha512_checksum "$tmpdir/par")"
-      if [ "$expected" != "$actual" ]; then
-        rm -rf "$tmpdir"
-        die "SHA-512 checksum mismatch!\n  expected: $expected\n  actual:   $actual"
-      fi
-      info "Checksum verified"
-    else
-      warn "No checksum entry for par-v${ver}-${platform}, skipping verification"
+  local ocaml_v
+  if have_ocaml; then
+    ocaml_v="$(ocaml_version | awk -F'+' '{print $1}')"
+    info "OCaml: $ocaml_v"
+    if ! version_gte "$ocaml_v" "$MIN_OCAML_VERSION"; then
+      warn "OCaml $ocaml_v < $MIN_OCAML_VERSION. Creating switch with $MIN_OCAML_VERSION..."
+      opam switch create par "${MIN_OCAML_VERSION}"
+      eval "$(opam env --switch=par)"
     fi
   else
-    warn "Checksums file not found, skipping verification"
+    warn "No OCaml switch found. Creating one with $MIN_OCAML_VERSION..."
+    opam switch create par "${MIN_OCAML_VERSION}"
+    eval "$(opam env --switch=par)"
+    ocaml_v="$(ocaml_version | awk -F'+' '{print $1}')"
+    info "OCaml: $ocaml_v"
   fi
-
-  echo "$tmpdir"
+  eval "$(opam env --switch=par)"
+  info "OCaml environment OK."
 }
 
-build_from_source() {
-  local ver="$1"
-  command -v git >/dev/null 2>&1 || die "git not found (required for build-from-source)"
-  command -v opam >/dev/null 2>&1 || die "opam not found (required for build-from-source). Install from https://opam.ocaml.org/doc/Install.html"
-
-  local build_dir="$(mktemp -d)"
-  if [ "$ver" = "latest" ] || ! git ls-remote --exit-code --heads "https://github.com/$GITHUB_REPO.git" "v${ver}" >/dev/null 2>&1; then
-    info "Cloning PAR main branch (latest)..."
-    git clone --depth 1 "https://github.com/$GITHUB_REPO.git" "$build_dir/par" || die "git clone failed"
-  else
-    info "Cloning PAR v${ver} source..."
-    git clone --depth 1 --branch "v${ver}" "https://github.com/$GITHUB_REPO.git" "$build_dir/par" || die "git clone failed"
-  fi
-
-  cd "$build_dir/par"
-  info "Installing dependencies (this may take a few minutes on first run)..."
-  opam install . --deps-only -y 2>&1 | grep -v -i 'No changes have been' >&2; true
-
-  info "Building..."
-  opam exec -- dune build bin/main.exe >&2 || die "Build failed"
-
-  local tmpdir="$(mktemp -d)"
-  cp _build/default/bin/main.exe "$tmpdir/par"
-  cd - >/dev/null
-  rm -rf "$build_dir"
-
-  info "Build successful."
-  echo "$tmpdir"
+install_python() {
+  head "Installing par-runtime (Python)"
+  python3 -m pip install --user --upgrade par-runtime
+  info "par-runtime installed."
 }
 
-install_binary() {
-  local tmpdir="$1"
-  local target="$PREFIX/bin/par"
+install_ocaml() {
+  head "Installing par (OCaml)"
+  eval "$(opam env --switch=par)"
+  opam install -y par
+  info "par installed (opam switch: par)."
+}
 
-  if [ -w "$PREFIX/bin" ] 2>/dev/null; then
-    install -m 755 "$tmpdir/par" "$target"
-  else
-    sudo install -d "$PREFIX/bin"
-    sudo install -m 755 "$tmpdir/par" "$target"
-  fi
+verify_python() {
+  head "Verifying par-runtime import"
+  python3 -c "from par_runtime import Runtime; r = Runtime('{\"persistence\": [\"Sqlite\", \":memory:\"]}'); r.close(); print('OK')"
+}
 
-  rm -rf "$tmpdir"
-  info "Installed: $target"
+verify_ocaml() {
+  head "Verifying par (opam switch)"
+  eval "$(opam env --switch=par)"
+  opam list --installed par
 }
 
 main() {
-  local platform
-  platform="$(detect_platform)"
-  local ver
-  ver="$(resolve_version)"
+  head "PAR SDK installer"
+  info "Detecting system..."
+  detect_system
+  info "OS: $OS_LABEL ($OS)  Arch: $ARCH"
 
-  info "Installing PAR v${ver} (${platform}) to $PREFIX/bin"
+  head "Choose SDK variant"
+  if [ -z "$TARGET" ]; then
+    echo -e "  ${BOLD}1)${NC} Python  (par-runtime via pip)  — recommended for Python backend devs" >&2
+    echo -e "  ${BOLD}2)${NC} OCaml   (par via opam)            — recommended for OCaml devs" >&2
+    ask "Select" "1"
+    read -r choice
+    case "$choice" in
+      1|py|python|"") TARGET="python" ;;
+      2|oc|ocaml)      TARGET="ocaml"  ;;
+      *) err "Invalid choice"; exit 1 ;;
+    esac
+  fi
+  info "Selected: $TARGET"
 
-  local tmpdir
-  tmpdir="$(download_binary "$platform" "$ver")"
-  install_binary "$tmpdir"
+  case "$TARGET" in
+    python)
+      validate_python
+      install_python
+      verify_python
+      ;;
+    ocaml)
+      validate_ocaml
+      install_ocaml
+      verify_ocaml
+      ;;
+  esac
 
-  info ""
-  info "Installation complete. Run 'par --version' to verify."
-  info "Quick start:"
-  info "  par config"
-  info "  par"
+  head "PAR SDK installed successfully"
+  cat <<EOF >&2
+
+Get started:
+EOF
+  case "$TARGET" in
+    python)
+      cat <<'EOF' >&2
+  Python:
+    >>> from par_runtime import Runtime
+    >>> rt = Runtime('{"persistence": ["Sqlite", ":memory:"]}')
+EOF
+      ;;
+    ocaml)
+      cat <<'EOF' >&2
+  OCaml (in switch 'par'):
+    opam switch set par
+    dune init proj my-agent && cd my-agent
+    # add par to your dune-project deps, then:
+    open Par
+    Eio_main.run (fun _ -> ...)
+EOF
+      ;;
+  esac
+  cat <<EOF >&2
+
+Docs: https://jcz2020.github.io/par
+Repo: https://github.com/${GITHUB_REPO}
+EOF
 }
 
 main
