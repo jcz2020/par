@@ -1,5 +1,28 @@
 # CHANGES
 
+## v0.6.8 — Fix Fresh-Switch Compilation
+
+> v0.6.7 tag had two missing dependency declarations that caused `opam install par` from a fresh switch to fail with `Unbound value string_jsonschema` and `Library "eio_main" not found`. Local incremental builds passed due to stale `.cmx` artifacts; CI fresh switches and clean `opam install` exposed the gap. v0.6.8 is the first release that installs cleanly from scratch.
+
+### Fixed — `ppx_deriving_jsonschema` version pin
+
+- **Root cause**: `par.opam` had no version constraint on `ppx_deriving_jsonschema`. Local switch had `0.0.1` (PPX auto-generates `string_jsonschema` inline); CI/fresh switches installed `0.0.8` (PPX generates bare references expecting an `open` that doesn't exist in source). The two versions have fundamentally different code-generation behavior.
+- **Fix**: `(ppx_deriving_jsonschema {= "0.0.1"})` in `dune-project` + `par.opam`. Pinning to 0.0.1 also avoids dragging in `melange` + `server-reason-react` (heavy deps PAR doesn't need — pure native OCaml).
+
+### Fixed — `eio_main` dependency
+
+- **Root cause**: `lib/ffi/dune` links `eio_main` and multiple test files call `Eio_main.run`, but `eio_main` was never declared in `par.opam` depends. Local switch had it transitively; fresh switches didn't. This error was masked by the `string_jsonschema` error (which compiled first).
+- **Fix**: Added `eio_main` to `dune-project` + `par.opam` depends.
+
+### Stats
+
+- 1248 tests (unchanged from v0.6.7)
+- 0 code changes — only `dune-project` + `par.opam` metadata fixes
+- Linux CI: green (build + runtest)
+- macOS CI: build green, runtest exit-code 1 (pre-existing test-env issue, unrelated to compilation)
+
+---
+
 ## v0.6.7 — Remove CLI + SDK Installer Wizard
 
 > PAR is an SDK/runtime. Product-level UX (REPL, config wizard, history/stats) lives in the separate **PAR Code** project in another repo. This release removes the parallel CLI from PAR (caused user confusion about which to install and maintenance drag on engine devs) and replaces `install.sh` with an interactive SDK installation wizard.
