@@ -2,7 +2,7 @@
 
 **English** · [简体中文](docs/zh/README.md)
 
-A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you can use it from Python or the CLI without writing a single line of OCaml.
+A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you can use it from Python or OCaml without writing a single line of the other.
 
 [![Build Status](https://github.com/jcz2020/par/actions/workflows/ci.yml/badge.svg)](https://github.com/jcz2020/par/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/par-runtime?color=blue&label=PyPI)](https://pypi.org/project/par-runtime/)
@@ -15,29 +15,31 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 
 ## What is PAR?
 
-PAR is an agent runtime that handles the plumbing — ReAct loop, tool dispatch, multi-provider LLM calls, persistence, event bus, middleware — so you can focus on your agent's logic, not on infrastructure. Think of it as the server framework for LLM-powered applications, written in OCaml for type safety and structured concurrency, accessible from three surfaces: OCaml SDK, Python binding, and CLI.
+PAR is an agent runtime that handles the plumbing — ReAct loop, tool dispatch, multi-provider LLM calls, persistence, event bus, middleware — so you can focus on your agent's logic, not on infrastructure. Think of it as the server framework for LLM-powered applications, written in OCaml for type safety and structured concurrency, accessible from two surfaces: OCaml SDK and Python bindings.
 
 ## Who is this for?
 
 - **Python backend engineers** who want type-safe agent infrastructure without rewriting their stack in OCaml — `pip install par-runtime` and call the same runtime from Python.
 - **OCaml developers** building production LLM applications — the SDK is first-class, every public API has a typed interface.
-- **Anyone who wants a CLI** to drive an agent without writing code — `par ask "question"` and you're done.
 
 ## Hero
 
 ```bash
-$ curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
-$ par config          # interactive: choose provider (OpenAI / Anthropic / Ollama), enter API key
-$ par ask "What is 2+2?"
-4
-
 $ pip install par-runtime
->>> from par_runtime import Runtime
->>> rt = Runtime('{"persistence": {"tag": "sqlite", "contents": ":memory:"}}')
->>> rt.register_tool("calc", "Evaluate math", '{"type": "object"}')
+$ python3 -c 'from par_runtime import Runtime, Agent; print("OK")'
+OK
 ```
 
-No OCaml toolchain needed for Python or CLI usage.
+Build a real agent end-to-end:
+
+```python
+from par_runtime import Runtime
+
+config = '{"persistence": {"tag": "sqlite", "contents": ":memory:"}}'
+with Runtime(config) as rt:
+    agent = rt.make_agent(id="assistant", model="openai/gpt-4o-mini")
+    rt.invoke(agent, "Summarize the last 3 log entries")
+```
 
 ## Why PAR?
 
@@ -51,7 +53,7 @@ No OCaml toolchain needed for Python or CLI usage.
 
 ## Quick install
 
-**CLI binary** (~5 seconds):
+**Interactive SDK wizard** (detects system, picks Python or OCaml):
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
 ```
@@ -61,25 +63,22 @@ curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
 pip install par-runtime
 ```
 
-**OCaml SDK** (opam, once published):
+**OCaml SDK**:
 ```bash
-opam install par par_cli
+opam install par
 ```
 
 **Build from source:**
 ```bash
 git clone https://github.com/jcz2020/par.git && cd par
-make install
+make install-dev   # builds library + installs .so + syncs Python version
 ```
-
-Upgrade: `par update`
 
 ## Documentation
 
 Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**):
 
 - [Quickstart](docs/quickstart.md) — 30-minute tutorial, first agent with tool calls
-- [CLI reference](docs/cli.md) — `par`, `par config`, `par ask`, `par history`
 - [Agent API](docs/sdk/agent.md) — `agent_config`, `Runtime.invoke`, tool handlers
 - [Workflow API](docs/sdk/workflow.md) — sequential, parallel, conditional, map-reduce
 - [Middleware](docs/sdk/middleware.md) — Logging, Retry, Rate_limit, Timeout, PII_mask, +3
@@ -122,7 +121,7 @@ config = json.dumps({
 with Runtime(config) as rt:
     rt.register_tool("echo", "Echo tool", '{"type": "object"}')
 ```
-See [`bindings/python/examples/basic_agent.py`](bindings/python/examples/basic_agent.py) and [`bindings/python/tests/`](bindings/python/tests/) (58 pytest tests).
+See [`bindings/python/examples/basic_agent.py`](bindings/python/examples/basic_agent.py) and [`bindings/python/tests/`](bindings/python/tests/).
 
 ### OCaml SDK
 ```ocaml
@@ -134,16 +133,6 @@ let () = Eio_main.run (fun _env ->
     | Error e -> prerr_endline (Runtime.string_of_error_category e)))
 ```
 See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
-
-### CLI
-| Command | Description |
-|---------|-------------|
-| `par` | Interactive REPL |
-| `par config` | Provider/API key/model wizard |
-| `par ask "question"` | Single-shot query |
-| `par update` | Check and install updates |
-| `par history <session>` | Show event history |
-| `par stats` | Usage statistics |
 
 ## Status & roadmap
 
