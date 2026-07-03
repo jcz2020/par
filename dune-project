@@ -36,15 +36,3 @@
    digestif
    yaml
     alcotest))
-
-(package
- (name par_cli)
- (synopsis "Programmable Agent Runtime - CLI tool")
- (description "CLI tool for the Programmable Agent Runtime — interactive REPL, config wizard, and single-shot query")
- (depends
-  ocaml
-  dune
-  cmdliner
-  par
-  eio
-  eio_main))

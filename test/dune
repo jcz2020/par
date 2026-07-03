@@ -282,11 +282,6 @@
  (modules test_streaming_tool_call_id))
 
 (test
- (name test_cli_args)
- (libraries alcotest)
- (modules test_cli_args))
-
-(test
  (name test_strip_ansi)
  (libraries par alcotest)
  (modules test_strip_ansi))
@@ -344,11 +339,6 @@
  (modules test_rag))
 
 (test
- (name test_cli_dispatch)
- (libraries par alcotest)
- (modules test_cli_dispatch))
-
-(test
  (name test_http_timeout)
  (libraries par eio eio_main alcotest)
  (modules test_http_timeout))
@@ -387,11 +377,6 @@
  (libraries par eio_main alcotest)
  (modules test_skill_user_activation))
 (test (name test_skill_e2e) (libraries par eio_main alcotest) (modules test_skill_e2e))
-
-(test
- (name test_session_resume_cli)
- (libraries par eio_main alcotest sqlite3)
- (modules test_session_resume_cli))
 
 (test
  (name test_budget_manager)

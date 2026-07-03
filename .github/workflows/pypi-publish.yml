@@ -51,10 +51,9 @@ jobs:
           dune-cache: true
           opam-local-packages: |
             par.opam
-            par_cli.opam
 
       - name: Install PAR deps via opam
-        run: opam install par_cli --deps-only -y
+        run: opam install par --deps-only -y
 
       - name: Build C FFI shared library
         run: opam exec -- dune build lib/ffi/par_capi.so

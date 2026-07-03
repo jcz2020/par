@@ -20,14 +20,13 @@ jobs:
           dune-cache: true
           opam-local-packages: |
             par.opam
-            par_cli.opam
 
-      - run: opam install par_cli --deps-only -y
+      - run: opam install par --deps-only -y
 
       - run: opam exec -- dune build
 
       - name: Generate opam files
-        run: opam exec -- dune build par.opam par_cli.opam
+        run: opam exec -- dune build par.opam
 
       - name: Create source archive
         run: |
@@ -59,7 +58,6 @@ jobs:
             --clobber \
             par-*.tar.gz \
             _build/default/par.opam \
-            _build/default/par_cli.opam \
             sha512-checksums.txt
 
       - name: Print manual instructions
@@ -70,6 +68,6 @@ jobs:
           echo "Archive uploaded to GitHub Release."
           echo "To submit to opam-repository:"
           echo "  1. Fork opam-repository"
-          echo "  2. Create packages/par.${VERSION}/opam and packages/par_cli.${VERSION}/opam"
+          echo "  2. Create packages/par.${VERSION}/opam"
           echo "  3. Set url.src and url.checksum from the attached tarball"
           echo "  4. Open a PR to opam-repository"

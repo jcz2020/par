@@ -4,15 +4,13 @@
 
 # PAR Documentation
 
-PAR's docs are SDK-first. The CLI is end-user experience; production code uses the OCaml SDK directly. If you're building an agent, start with the SDK overview and the agent API reference. If you're an end user trying the CLI, jump to the quickstart.
+PAR's docs are SDK-first. PAR is an embeddable runtime — production code uses the OCaml SDK directly, and Python code calls the same runtime via ctypes bindings. If you're building an agent, start with the SDK overview and the agent API reference.
 
-The docs are organized by purpose, not by source-tree layout. Four sections follow: Tutorials walk you through a complete task from scratch, How-to guides solve a specific problem, Reference documents every API and flag, and Explanation discusses the design decisions. Pick the section that matches your question; cross-links inside each page point at related material.
-
-If you cannot find what you need, the SDK reference always wins over the CLI reference: when the two disagree, the SDK page is canonical and the CLI page is updated to match.
+The docs are organized by purpose, not by source-tree layout. Four sections follow: Tutorials walk you through a complete task from scratch, How-to guides solve a specific problem, Reference documents every API, and Explanation discusses the design decisions. Pick the section that matches your question; cross-links inside each page point at related material.
 
 Every page in this tree opens with a `<!-- language: en -->` marker on line 1, ships English only, and preserves OCaml identifiers verbatim (backticks, not code blocks). The full authoring contract, the identifier list, and the pre-release checklist live in [Documentation maintenance](DOC-MAINTENANCE.md); contributors should read that file before opening a doc PR.
 
-The audience for this tree is three groups: SDK users who embed `par` in an OCaml application, end users who run the CLI as a daily driver, and contributors who extend the runtime with a new provider, tool, or middleware. The four sections below serve all three, and each page is written so a fresh reader can act on it without first reading the rest of the tree.
+The audience for this tree is two groups: SDK users who embed `par` in their applications (OCaml or Python), and contributors who extend the runtime with a new provider, tool, or middleware. The four sections below serve both, and each page is written so a fresh reader can act on it without first reading the rest of the tree.
 
 ## Tutorials
 
@@ -50,11 +48,9 @@ If you are looking for a one-paragraph answer to a setup or runtime question, th
 
 ## Reference
 
-Reference docs are the API source of truth. Look here for type signatures, configuration options, and command-line flags. The SDK reference is primary; the CLI reference exists to support the end-user experience, not to replace it.
+Reference docs are the API source of truth. Look here for type signatures, configuration options, and Python/OCaml binding details. PAR is an SDK — the reference IS the product; there is no separate "user-facing" surface beyond the bindings.
 
-### SDK
-
-The SDK is the canonical surface. Every page below is marked **PRIMARY** because it documents a public API of the `par` package. If a behavior changes in code, these pages are updated first, and the CLI guide is rewritten to match.
+The SDK is the canonical surface. Every page below is marked **PRIMARY** because it documents a public API of the `par` package. If a behavior changes in code, these pages are updated first.
 
 | Document | Description |
 |----------|-------------|
@@ -67,14 +63,6 @@ The SDK is the canonical surface. Every page below is marked **PRIMARY** because
 | [Generate API](sdk/generate.md) | **PRIMARY**: `invoke_generate`, long-output generation mode, auto-continue on truncation |
 | [RAG API](sdk/rag.md) | Embeddings, vector store, chunking, `invoke_with_rag` |
 | [MCP Client API](sdk/mcp.md) | **PRIMARY**: MCP client (stdio + HTTP/SSE), 7 event types, server lifecycle |
-
-### CLI
-
-The CLI is a thin wrapper over the SDK. Read it when you want to invoke `par` from a shell, configure a provider, or run a single-shot `par ask`; for semantics, error categories, or behavior under failure, follow the SDK link from the same page.
-
-| Document | Description |
-|----------|-------------|
-| [CLI reference](cli.md) | end-user only: `par` / `par config` / `par ask` / `par history` / `par stats` commands and flags |
 
 ## Explanation
 

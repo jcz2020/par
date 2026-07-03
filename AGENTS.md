@@ -31,7 +31,7 @@ Core rule: when short-term engineering compromise conflicts with long-term archi
 ## Build & Install
 
 ```bash
-dune build bin/main.exe      # compile CLI
+dune build                  # build the library + FFI
 dune runtest                  # run OCaml tests
 make install-dev              # build + install both locations + sync + verify
 make sync-version             # sync dune-project version to Python bindings

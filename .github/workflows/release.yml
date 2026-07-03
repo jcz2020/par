@@ -8,58 +8,11 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build ${{ matrix.platform }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-22.04
-            platform: linux-x64
-          - os: macos-15
-            platform: macos-arm64
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: ocaml/setup-ocaml@v3
-        with:
-          ocaml-compiler: "5.4.0"
-          dune-cache: true
-          opam-local-packages: |
-            par.opam
-            par_cli.opam
-
-      - run: opam install par_cli --deps-only -y
-
-      - run: opam exec -- dune build bin/main.exe
-
-      - name: Strip and rename binary
-        run: |
-          cp _build/default/bin/main.exe par-${{ github.ref_name }}-${{ matrix.platform }}
-          chmod +x par-${{ github.ref_name }}-${{ matrix.platform }}
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: par-${{ github.ref_name }}-${{ matrix.platform }}
-          path: par-${{ github.ref_name }}-${{ matrix.platform }}
-          if-no-files-found: error
-
   release:
     name: Publish GitHub Release
-    needs: build
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          merge-multiple: true
-
-      - name: Generate SHA-512 checksums
-        working-directory: artifacts
-        run: sha512sum par-${{ github.ref_name }}-* > sha512-checksums.txt
 
       - name: Generate release notes from CHANGES.md
         env:
@@ -80,13 +33,21 @@ jobs:
 
           ## Install
 
-          \`\`\`bash
+          PAR SDK is a library. Pick your install:
+
+          ```bash
+          # Python
+          pip install par-runtime
+
+          # OCaml
+          opam install par
+          ```
+
+          Or use the interactive SDK installer wizard:
+
+          ```bash
           curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
-          \`\`\`
-
-          Or upgrade: \`par update\`
-
-          > **macOS:** binary is unsigned. Run \`xattr -cr "$(command -v par)"\` once after install.
+          ```
 
           Full changelog: https://github.com/jcz2020/par/blob/main/CHANGES.md
           RELEASE_EOF
@@ -97,7 +58,3 @@ jobs:
           name: ${{ github.ref_name }}
           body_path: release-notes.md
           prerelease: ${{ contains(github.ref_name, '-beta.') || contains(github.ref_name, '-rc.') }}
-          files: |
-            artifacts/par-${{ github.ref_name }}-linux-x64
-            artifacts/par-${{ github.ref_name }}-macos-arm64
-            artifacts/sha512-checksums.txt

@@ -40,9 +40,8 @@ jobs:
           dune-cache: true
           opam-local-packages: |
             par.opam
-            par_cli.opam
 
-      - run: opam install par_cli --deps-only --with-test -y
+      - run: opam install par --deps-only --with-test -y
 
       - run: opam exec -- dune build
 

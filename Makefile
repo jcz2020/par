@@ -1,4 +1,4 @@
-.PHONY: build install uninstall clean test sync-version docs-check \
+.PHONY: build clean test sync-version docs-check \
         install-dev verify validate-version check-version-sync test-count \
         release-patch release-minor release-major release-beta
 
@@ -15,11 +15,10 @@ test:
 	dune runtest
 
 install: build
-	install -d $(DESTDIR)$(PREFIX)/bin
-	install -m 755 _build/default/bin/main.exe $(DESTDIR)$(PREFIX)/bin/par
+	@echo "No binary to install (CLI removed in v0.6.7). Use 'pip install par-runtime' for Python or 'opam install par' for OCaml."
 
 uninstall:
-	rm -f $(DESTDIR)$(PREFIX)/bin/par
+	@echo "No binary to uninstall (CLI removed in v0.6.7)."
 
 clean:
 	dune clean
@@ -42,26 +41,23 @@ check-disclosure: ## Block forbidden downstream identifiers (rule in AGENTS.md)
 
 # ─── Dev Install ──────────────────────────────────────────────────────
 
-install-dev: build ## Build + install to both locations + sync + verify
-	install -d $(DESTDIR)$(PREFIX)/bin
+install-dev: build ## Build + install .so + sync version + verify Python binding
 	install -d $(DESTDIR)$(PREFIX)/lib/par
-	install -m 755 _build/default/bin/main.exe $(DESTDIR)$(PREFIX)/bin/par
-	# Install sqlite-vec extension next to the par binary directory
+	# Install sqlite-vec extension next to the par lib directory
 	# so the OCaml runtime can find it at runtime via path resolution.
 	-cp -f _build/default/lib/ffi/vec0.so $(DESTDIR)$(PREFIX)/lib/par/ 2>/dev/null || true
 	-cp -f _build/default/lib/ffi/vec0.dylib $(DESTDIR)$(PREFIX)/lib/par/ 2>/dev/null || true
-	-cp -f _build/default/lib/main.exe _opam/bin/par 2>/dev/null || true
 	$(MAKE) --no-print-directory sync-version
 	$(MAKE) --no-print-directory verify
 
-verify: ## Verify installed binary matches source version
+verify: ## Verify Python binding version matches dune-project
 	@SRC="$(get-version)"; \
-	BIN=$$(par --version 2>/dev/null | tr -d '\n'); \
-	if [ "$$SRC" != "$$BIN" ]; then \
-		echo "ERROR: source=$$SRC binary=$$BIN mismatch"; \
-		echo "which par → $$(which par)"; exit 1; \
-	fi; \
-	echo "OK Dev install verified: $$SRC"
+	PYVER=$$(python3 -c "from par_runtime import __version__; print(__version__)" 2>/dev/null || echo ""); \
+	if [ "$$SRC" != "$$PYVER" ]; then \
+		echo "ERROR: dune-project=$$SRC par_runtime=$$PYVER mismatch"; exit 1; \
+	else \
+		echo "OK Dev install verified: $$SRC"; \
+	fi
 
 # ─── Version Validation ───────────────────────────────────────────────
 
