@@ -2,6 +2,8 @@
 
 # Tutorial 5: Session Resume
 
+> **Note (v0.6.7):** This stub still references the CLI (`par ask`), which was removed. Final content (when written) should use the SDK — see [SDK overview](../sdk/overview.md) for `Runtime.invoke` re-entry patterns.
+
 > **Status**: Stub. The full content ships after v0.5.4 Track B Phase B.2 (CLI
 > flags for session resume) lands.
 > **Tracked in**: [`.sisyphus/plans/v0.5.4-execution.md`](../../.sisyphus/plans/v0.5.4-execution.md)

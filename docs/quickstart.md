@@ -2,6 +2,8 @@
 
 **English** · [简体中文](zh/quickstart.md)
 
+> **Note (v0.6.7):** The CLI (`par ask`, `par config`) was removed from this repo; the SDK is the supported surface. For an interactive coding agent based on this SDK, see [par-code](https://github.com/jcz2020/par-code). The `par ask` examples below are kept for historical reference; new users should start with the SDK examples in [SDK overview](sdk/overview.md).
+
 > Translated to English for v0.3.2. Source-of-truth: the OCaml modules in lib/ and the README.
 
 # PAR Quickstart

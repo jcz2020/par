@@ -39,12 +39,14 @@ replaces the running binary.
 ### opam
 
 ```bash
-opam install par par_cli
+opam install par
 ```
 
-Both packages resolve against the public opam repository; no extra
-configuration is required. The published packages are `par` and
-`par_cli`. SQLite is the only persistence backend; no separate database
+Only the `par` library package is published (v0.6.7 removed `par_cli`
+— PAR is now SDK-only; the interactive coding-agent experience lives in
+the separate [par-code](https://github.com/jcz2020/par-code) project).
+Resolves against the public opam repository; no extra configuration
+needed. SQLite is the only persistence backend; no separate database
 package is needed.
 
 ### PyPI (Python binding)

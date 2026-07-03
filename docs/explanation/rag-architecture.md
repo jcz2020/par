@@ -2,6 +2,8 @@
 
 # RAG Architecture
 
+> **Note (v0.6.7):** The `par ask` reference early in this article is historical (the CLI was removed). The RAG pipeline — embeddings, vector store, retrieval — is unchanged and exposed via `Runtime.invoke_with_rag`. See [RAG reference](../sdk/rag.md).
+
 RAG, retrieval-augmented generation, is the pattern of grounding an LLM's answer in your own documents: embed the documents, store the vectors, search for the ones closest to the query, and hand the retrieved context to the LLM as part of the prompt. PAR shipped a RAG foundation in v0.5.1. This document explains the design decisions behind that foundation, why the vector store is embedding-agnostic, why sqlite-vec was the first backend, and how the three-phase retrieval pipeline is wired. For the API signatures, read the [RAG reference](../sdk/rag.md) at `docs/sdk/rag.md`. Here we cover the *why*.
 
 ## The decision that shaped everything: embedding-agnostic storage

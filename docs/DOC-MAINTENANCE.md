@@ -74,7 +74,7 @@ When a new identifier crosses a category boundary (for example, a new MCP event 
 
 **Persistence:** `` `Sqlite ``, `` `Noop ``
 
-**CLI commands:** `par`, `par config`, `par ask`, `par update`, `par history`, `par stats`, `par --version`
+**CLI commands** *(removed in v0.6.7; PAR is now SDK-only — see [par-code](https://github.com/jcz2020/par-code) for the interactive agent)*: `par`, `par config`, `par ask`, `par update`, `par history`, `par stats`, `par --version`
 
 **Bash modules:** `Bash_safe_command`, `Bash_policy`, `Bash_blacklist`, `Bash_invoked`, `Bash_completed`
 

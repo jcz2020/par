@@ -2,6 +2,10 @@
 
 **English** · [简体中文](../zh/howto/rag-pipeline.md)
 
+# Build a RAG Pipeline
+
+> **Note (v0.6.7):** The `par config` references in this how-to are historical (the CLI was removed). For the SDK equivalents, see the [RAG reference](../sdk/rag.md) — the recommended entry points are `Runtime.invoke_with_rag` (Python/OCaml) or the [par-code](https://github.com/jcz2020/par-code) interactive agent.
+
 > Added in v0.5.2. Fulfills the v0.5.1-ROADMAP B.6 promise of a runnable RAG how-to.
 
 # How-to: Build a Basic RAG Pipeline

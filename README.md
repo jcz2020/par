@@ -4,6 +4,8 @@
 
 A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you can use it from Python or OCaml without writing a single line of the other.
 
+> **Looking for the CLI?** Use [par-code](https://github.com/jcz2020/par-code) — an interactive coding agent built on this SDK.
+
 [![Build Status](https://github.com/jcz2020/par/actions/workflows/ci.yml/badge.svg)](https://github.com/jcz2020/par/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/par-runtime?color=blue&label=PyPI)](https://pypi.org/project/par-runtime/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)

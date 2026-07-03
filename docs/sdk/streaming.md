@@ -2,6 +2,8 @@
 
 # Streaming API Reference
 
+> **Note (v0.6.7):** The reference to `bin/main.ml` line 386 is historical — the CLI was removed in v0.6.7, the streaming logic lives in the SDK and FFI. See [SDK overview](overview.md) for current entry points.
+
 > Added in v0.5.1. Source-of-truth: the OCaml type `Types.llm_response_chunk` in `lib/core/types.ml`. Phase C.1 design contract; Phases C.2 (FFI bridge) and C.3 (Python generator) implement this document.
 
 This page is the API contract for streaming LLM output from PAR's Python binding. It locks the shape of `invoke_stream`, the `Event` tagged union, the backpressure strategy, and the threading model. If you are writing Python code that consumes tokens as they arrive, read the Usage Examples section. If you are implementing the FFI bridge, skip to the Implementation Notes at the end.

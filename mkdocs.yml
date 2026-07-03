@@ -95,7 +95,6 @@ nav:
       - Error Handling: howto/error-handling.md
       - Build a RAG Pipeline: howto/rag-pipeline.md
   - Reference:
-      - CLI: cli.md
       - SDK Overview: sdk/overview.md
       - Agent API: sdk/agent.md
       - Workflow API: sdk/workflow.md

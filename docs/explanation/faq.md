@@ -2,6 +2,8 @@
 
 # FAQ: Common Questions
 
+> **Note (v0.6.7):** PAR's CLI (`par`, `par ask`, `par config`) was removed; the supported surfaces are the OCaml SDK (`opam install par`) and Python binding (`pip install par-runtime`). For an interactive coding-agent experience based on this SDK, see [par-code](https://github.com/jcz2020/par-code). The CLI rows/questions below are kept for historical context.
+
 This page collects the questions that come up most often when someone evaluates PAR, picks a surface to start with, or hits a behavior they did not expect. Each answer points at the deeper reference page so you can keep reading without backtracking. If your question is not here, the [How-to guides](../howto/) cover specific recipes and the [Architecture](architecture.md) page covers the design rationale.
 
 ## Q1. How is PAR different from LangChain?

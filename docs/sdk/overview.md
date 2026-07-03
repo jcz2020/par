@@ -4,6 +4,8 @@
 
 # PAR SDK Overview
 
+> **Note (v0.6.7):** PAR's CLI was removed; the SDK and Python binding are the two supported surfaces. The table row "Trying PAR for the first time" historically pointed at `par config`; new users should install the Python binding (`pip install par-runtime`) or the OCaml SDK (`opam install par`) — or, for an interactive coding-agent experience, use [par-code](https://github.com/jcz2020/par-code).
+
 The PAR SDK is an OCaml 5.4+ library for building LLM-powered agents. It provides a ReAct reasoning loop, multi-provider LLM abstraction, type-safe shell execution, MCP client integration (stdio + HTTP/SSE), and a 7-middleware pipeline. This overview is the deep dive; the README is the landing.
 
 ## What is the PAR SDK?
