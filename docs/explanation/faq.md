@@ -26,15 +26,14 @@ PAR ships three surfaces over the same runtime. They are not three products. The
 |---------|--------------|---------------|
 | OCaml SDK | You are writing production OCaml and need every public API typed end to end | You do not want an OCaml toolchain in your build |
 | Python binding (`par_runtime` on PyPI) | You have an existing Python service and want a typed agent runtime without rewriting your stack | You need features the binding has not exposed yet (some advanced config fields are SDK-only) |
-| CLI (`par`, `par ask`, `par config`) | You want a one-off answer, a smoke test, or a REPL | You are building anything programmatic |
 
 The decision matrix is mostly about who owns the deployment. The OCaml SDK is the canonical surface. Every public API exists here first, every behavior is documented against the OCaml types, and every other surface is a thin wrapper. If you are writing OCaml, there is no reason to pick anything else. The SDK reference under `docs/sdk/` is the source of truth for type signatures.
 
 The Python binding is for the case PAR was designed for, Python backend engineers who want type-safe agent infrastructure without rewriting their stack in OCaml. You `pip install par-runtime`, import `Runtime`, and call `invoke` or `invoke_stream`. The binding talks to the same OCaml runtime through a ctypes FFI bridge. A persistent OCaml domain owns the `Runtime`, and Python threads dispatch work closures onto it. The Python surface is thread-safe without holding a global lock on the Python side. Where the SDK and the binding disagree, the SDK reference wins, and the binding is updated to match.
 
-The CLI is a convenience layer. It is the right tool for answering a single question from a shell, for running `par config` to set up a provider, or for the interactive REPL. It is not the right tool for building an agent-powered service. The CLI is documented under [CLI reference](../cli.md) and exists to support the end-user experience, not to replace the SDK.
+For an interactive coding-agent experience (the successor to the removed CLI), see [par-code](https://github.com/jcz2020/par-code) — a separate project built on this SDK.
 
-A reasonable progression looks like this. Start with the CLI to verify the install and feel out the provider config. Move to the Python binding when you have a real service to build and your stack is Python. Move to the OCaml SDK when you want full type coverage, custom tool handlers in OCaml, or features the binding does not surface yet. The runtime behavior is identical across all three, so swapping surfaces later is a refactor, not a rewrite.
+A reasonable progression looks like this. Start with the Python binding to verify the install and feel out the provider config. Move to the OCaml SDK when you want full type coverage, custom tool handlers in OCaml, or features the binding does not surface yet. The runtime behavior is identical across both, so swapping surfaces later is a refactor, not a rewrite.
 
 ## Q3. Does streaming deliver tokens incrementally?
 

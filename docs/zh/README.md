@@ -4,7 +4,7 @@
 
 > **v0.6.7 提示：** 本仓库的 CLI（`par ask`、`par config`）已移除；SDK 是唯一受支持的界面。需要交互式编码 Agent 体验请使用 [par-code](https://github.com/jcz2020/par-code)。以下 `par ask` 示例保留作为历史参考，新用户请参考 SDK 部分。
 
-一个模块化、类型安全的 agent 运行时。OCaml 版的 LangChain + LangGraph —— 但你可以完全通过 Python 或 CLI 使用它，不需要写一行 OCaml 代码。
+一个模块化、类型安全的 agent 运行时。OCaml 版的 LangChain + LangGraph —— 但你可以通过 Python 或 OCaml 使用它，不需要写一行另一种语言。
 
 [![Build Status](https://github.com/jcz2020/par/actions/workflows/ci.yml/badge.svg)](https://github.com/jcz2020/par/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/par-runtime?color=blue&label=PyPI)](https://pypi.org/project/par-runtime/)
@@ -17,29 +17,31 @@
 
 ## PAR 是什么？
 
-PAR 是一个 agent 运行时，处理所有底层管道 —— ReAct 循环、工具分发、多 provider LLM 调用、持久化、事件总线、中间件 —— 让你专注 agent 逻辑而非基础设施。可以把它理解为 LLM 应用的服务端框架，用 OCaml 编写以保证类型安全和结构化并发，可通过三个入口使用：OCaml SDK、Python 绑定、CLI。
+PAR 是一个 agent 运行时，处理所有底层管道 —— ReAct 循环、工具分发、多 provider LLM 调用、持久化、事件总线、中间件 —— 让你专注 agent 逻辑而非基础设施。可以把它理解为 LLM 应用的服务端框架，用 OCaml 编写以保证类型安全和结构化并发，可通过两个入口使用：OCaml SDK 和 Python 绑定。
 
 ## 适合谁用？
 
 - **Python 后端工程师** —— 想要类型安全的 agent 基础设施，但不想用 OCaml 重写整个技术栈。`pip install par-runtime` 即可从 Python 调用同一个运行时。
 - **OCaml 开发者** —— 构建生产级 LLM 应用。SDK 是一等公民，每个公共 API 都有类型化接口。
-- **任何想用 CLI 驱动 agent 的人** —— `par ask "问题"` 即可，无需写代码。
 
 ## 演示
 
 ```bash
-$ curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
-$ par config          # 交互式：选择 provider（OpenAI / Anthropic / Ollama），输入 API key
-$ par ask "2加2等于几？"
-4
-
 $ pip install par-runtime
->>> from par_runtime import Runtime
->>> rt = Runtime('{"persistence": {"tag": "sqlite", "contents": ":memory:"}}')
->>> rt.register_tool("calc", "数学计算", '{"type": "object"}')
+$ python3 -c 'from par_runtime import Runtime, Agent; print("OK")'
+OK
 ```
 
-Python 或 CLI 使用不需要安装 OCaml 工具链。
+构建一个完整的 agent：
+
+```python
+from par_runtime import Runtime
+
+config = '{"persistence": {"tag": "sqlite", "contents": ":memory:"}}'
+with Runtime(config) as rt:
+    agent = rt.make_agent(id="assistant", model="openai/gpt-4o-mini")
+    rt.invoke(agent, "总结最近的日志")
+```
 
 ## 为什么选 PAR？
 
@@ -53,7 +55,7 @@ Python 或 CLI 使用不需要安装 OCaml 工具链。
 
 ## 快速安装
 
-**CLI 二进制**（~5 秒）:
+**交互式 SDK 向导**（检测系统，选 Python 或 OCaml）:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
 ```
@@ -63,7 +65,7 @@ curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
 pip install par-runtime
 ```
 
-**OCaml SDK**（opam，发布后）:
+**OCaml SDK**:
 ```bash
 opam install par
 ```
@@ -73,17 +75,14 @@ opam install par
 **从源码构建:**
 ```bash
 git clone https://github.com/jcz2020/par.git && cd par
-make install
+make install-dev   # 构建库 + 安装 .so + 同步 Python 版本
 ```
-
-升级: `par update`
 
 ## 文档
 
 完整文档在 [`docs/`](../) 中（同时发布在 **jcz2020.github.io/par**）:
 
 - [快速入门](quickstart.md) — 30 分钟教程，构建第一个带工具调用的 agent
-- [CLI 参考](cli.md) — `par`、`par config`、`par ask`、`par history`
 - [Agent API](sdk/agent.md) — `agent_config`、`Runtime.invoke`、工具处理器
 - [工作流 API](sdk/workflow.md) — 顺序、并行、条件、map-reduce
 - [中间件](sdk/middleware.md) — Logging、Retry、Rate_limit、Timeout、PII_mask 等
@@ -133,16 +132,6 @@ let () = Eio_main.run (fun _env ->
     | Error e -> prerr_endline (Runtime.string_of_error_category e)))
 ```
 完整教程见 [`docs/quickstart.md`](../quickstart.md)。
-
-### CLI
-| 命令 | 描述 |
-|------|------|
-| `par` | 交互式 REPL |
-| `par config` | Provider/API key/模型配置向导 |
-| `par ask "问题"` | 单次查询 |
-| `par update` | 检查并安装更新 |
-| `par history <session>` | 显示事件历史 |
-| `par stats` | 使用统计 |
 
 ## 状态与路线图
 

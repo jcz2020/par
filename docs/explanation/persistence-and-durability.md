@@ -125,4 +125,4 @@ The dual-layer design is on the roadmap (tracked as bd issue `PAR-4dt`, targeted
 - [Architecture](architecture.md) for where persistence sits in the module structure and the event flow diagram
 - [Concurrency Model](concurrency-model.md) for how the drain fiber cooperates with the runtime switch and cancellation
 - [Workflow API](../sdk/workflow.md) for how workflow checkpoints interact with `workflow_states`
-- [CLI](../cli.md) for `par history`, the read-side companion to this write path
+- [SDK overview](../sdk/overview.md) for the event-bus subscribe API (the read-side companion to this write path)
