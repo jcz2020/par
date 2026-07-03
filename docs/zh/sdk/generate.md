@@ -1,3 +1,5 @@
+<!-- language: zh -->
+
 # Generate API 参考
 
 [English](../sdk/generate.md) · **简体中文**
@@ -192,6 +194,43 @@ with Runtime(config) as rt:
 ```
 
 agent 配置里 `tools = []`，因为 `invoke_generate` 拒绝带工具的 agent。Python 绑定返回的字段与 OCaml `generate_result` 记录一致。
+
+### 示例 3：带流式回调
+
+传入 `?on_chunk` 以在文本落地时实时渲染。回调接收与 `Runtime.invoke` 和 `invoke_stream` 相同的 `llm_response_chunk` ADT。拼接 `Text_delta` 载荷即可增量渲染。
+
+```python
+import json
+from par_runtime import Runtime, TextDelta
+
+def on_chunk_json(chunk_json: str) -> None:
+    chunk = json.loads(chunk_json)
+    if chunk.get("tag") == "Text_delta":
+        print(chunk["contents"]["text"], end="", flush=True)
+
+with Runtime(config) as rt:
+    rt.register_agent(json.dumps({
+        "id": "mockup-agent",
+        "system_prompt": "You produce self-contained HTML mockups.",
+        "model": {"provider": "anthropic",
+                  "model_name": "claude-sonnet-4-20250514",
+                  "temperature": 0.3, "max_tokens": 8192},
+        "tools": [],
+        "max_iterations": 1,
+        "early_stopping_method": "Force",
+    }))
+    result = rt.invoke_generate(
+        "mockup-agent",
+        "Mock up a settings page with light and dark modes.",
+        on_chunk=on_chunk_json,
+        total_timeout=90.0,
+    )
+    print()  # 流式文本后的换行
+    print(f"[done: {result['continuations']} continuations, "
+          f"{result['elapsed']:.2f}s]")
+```
+
+`total_timeout` 对整个生成（包含续写）设上限。如果模型在截止时间仍在运行，runtime 返回已累积的内容。
 
 ## 限制
 

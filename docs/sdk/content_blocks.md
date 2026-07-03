@@ -4,7 +4,7 @@
 
 # Content Blocks
 
-Messages in PAR carry structured content through `content_block list` rather than flat strings. Each block in the list can independently hold a `cache_control` field, which provider adapters (Anthropic, OpenAI) emit in the wire format for prompt caching.
+Messages in PAR carry structured content through `content_block list` rather than flat strings. When you call `Runtime.invoke`, the response message contains a list of these blocks — text, tool calls, tool results, or images. Each block in the list can independently hold a `cache_control` field, which provider adapters (`` `Anthropic ``, `` `Openai ``) emit in the wire format for prompt caching.
 
 The `message` type in `Types` looks like this:
 
@@ -230,7 +230,7 @@ The function walks to the last block and applies `cache_control` to it regardles
 
 ### Provider support
 
-Prompt caching is currently supported by the Anthropic wire format. When the provider adapter encounters a block with `cache_control` set, it emits the corresponding field in the JSON payload. OpenAI and Ollama adapters ignore `cache_control` silently, so setting it on those providers is harmless.
+Prompt caching is currently supported by the `` `Anthropic `` wire format. When the provider adapter encounters a block with `cache_control` set, it emits the corresponding field in the JSON payload. The `` `Openai `` and `` `Ollama `` adapters ignore `cache_control` silently, so setting it on those providers is harmless.
 
 ## Image blocks
 
@@ -246,7 +246,7 @@ Image blocks are part of PAR's type-level preparation for multimodal content. Th
 
 ## Migration from string
 
-The old `message` type had `content : string option`. The new type replaces this with `content_blocks : content_block list`. Here's how to migrate:
+The old `message` type had `content : string option`. The new type, used by `Runtime.create` and all agent interactions, replaces this with `content_blocks : content_block list`. Here's how to migrate:
 
 ```ocaml
 (* Old pattern *)

@@ -6,21 +6,21 @@
 
 > Added in v0.6.4-beta. Source-of-truth: `lib/core/types.ml` (types), `lib/core/cache_breakpoint.ml` (marking API), `lib/core/engine.ml` (budget manager).
 
-Prompt caching lets you avoid reprocessing repeated prefixes across LLM calls. Anthropic charges full price for every token in the prompt, even if the same system instructions and tool definitions appear word-for-word on every request. With caching, the provider stores the prefix after the first call and charges a fraction of the cost on subsequent calls. The savings compound fast for agents that reuse long system prompts or large tool lists.
+Prompt caching lets you avoid reprocessing repeated prefixes across LLM calls. The `` `Anthropic `` provider charges full price for every token in the prompt, even if the same system instructions and tool definitions appear word-for-word on every request. With caching, the provider stores the prefix after the first call and charges a fraction of the cost on subsequent calls. The savings compound fast for agents that reuse long system prompts or large tool lists.
 
-PAR exposes this through a typed API: a `cache_strategy` on the agent config for coarse control, and `mark_tool` / `mark_message` functions for fine-grained per-block marking.
+PAR exposes this through a typed API: a `cache_strategy` on the agent config for coarse control, and `mark_tool` / `mark_message` functions for fine-grained per-block marking. The strategy is set on `agent_config` when you create agents through `Runtime.create` or register them via the FFI.
 
 ## Overview
 
 Different providers handle caching differently.
 
-**Anthropic** uses explicit `cache_control` markers. You attach a `cache_control` field to content blocks (system prompt segments, tool definitions, message blocks), and Anthropic caches the marked prefix for the specified TTL. Without a marker, nothing is cached.
+**`` `Anthropic ``** uses explicit `cache_control` markers. You attach a `cache_control` field to content blocks (system prompt segments, tool definitions, message blocks), and Anthropic caches the marked prefix for the specified TTL. Without a marker, nothing is cached.
 
-**OpenAI** caches automatically for prompts that share a long common prefix. No markers are needed. The effect is visible in usage stats: a `cached_tokens` field in the response indicates how many prompt tokens were served from cache.
+**`` `Openai ``** caches automatically for prompts that share a long common prefix. No markers are needed. The effect is visible in usage stats: a `cached_tokens` field in the response indicates how many prompt tokens were served from cache.
 
-**Ollama** does not support prompt caching.
+**`` `Ollama ``** does not support prompt caching.
 
-PAR's caching API targets Anthropic's marker-based system. When you set a `cache_strategy` or use `mark_tool` / `mark_message`, PAR attaches `cache_control` to the appropriate content blocks before sending them to Anthropic. On OpenAI, these markers are ignored and automatic prefix caching works as usual. On Ollama, caching is a no-op.
+PAR's caching API targets the `` `Anthropic `` marker-based system. When you set a `cache_strategy` or use `mark_tool` / `mark_message`, PAR attaches `cache_control` to the appropriate content blocks before sending them to Anthropic. On `` `Openai ``, these markers are ignored and automatic prefix caching works as usual. On `` `Ollama ``, caching is a no-op.
 
 ## Quick Start
 
@@ -54,7 +54,7 @@ let agent = {
 }
 ```
 
-From Python via the FFI:
+From Python via the FFI, use `Runtime.register_agent` to register the agent with caching enabled:
 
 ```python
 import json
@@ -164,7 +164,7 @@ val Cache_breakpoint.mark_message : ttl:cache_ttl -> message -> message
 
 ### mark_tool
 
-Attaches `cache_control` to a tool descriptor. When the engine builds the request, marked tools carry their `cache_control` through to the wire format.
+Attaches `cache_control` to a tool descriptor created via `Runtime.register_tool`. When the engine builds the request, marked tools carry their `cache_control` through to the wire format.
 
 ```ocaml
 let my_tool = Runtime.register_tool rt
@@ -318,11 +318,11 @@ Fired when a skill modifies the tool list in a way that invalidates cached prefi
 | OpenAI | Automatic prefix caching | Ignored (no effect) | Yes, visible via `cached_tokens` in usage |
 | Ollama | None | Ignored | No |
 
-For Anthropic, PAR's entire caching API (strategy, `mark_tool`, `mark_message`, budget manager) controls which markers are sent. For OpenAI, you do not need to do anything. The provider caches automatically when the prompt prefix is stable across calls, and reports the savings in the response's `usage` field.
+For `` `Anthropic ``, PAR's entire caching API (strategy, `mark_tool`, `mark_message`, budget manager) controls which markers are sent. For `` `Openai ``, you do not need to do anything. The provider caches automatically when the prompt prefix is stable across calls, and reports the savings in the response's `usage` field.
 
 ## FFI / Python Config
 
-When configuring agents from Python (through the FFI layer), use these JSON shapes:
+When configuring agents from Python (through the `par_runtime` FFI layer), use these JSON shapes:
 
 ### cache_strategy
 
