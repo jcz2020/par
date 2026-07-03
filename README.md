@@ -138,11 +138,11 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.6.7 — PAR is now a pure SDK/runtime: the CLI application has been removed (product UX moved to the separate [par-code](https://github.com/jcz2020/par-code) repo) and `install.sh` is now an interactive SDK installation wizard. Includes the v0.6.5 Workspace abstraction (`Workspace` module as sole authority for path admission, multi-root support, `Runtime.create` accepts `?workspace`) and the v0.6.6 per-run workspace override (`?workspace` on `Runtime.invoke` / `Runtime.submit_workflow` — one process serves N concurrent workflows each isolated to its own worktree root). See [prompt caching guide](docs/sdk/prompt_caching.md) and [content blocks guide](docs/sdk/content_blocks.md).
+**Current**: v0.6.5-beta — Workspace abstraction: `Workspace` module as sole authority for path admission, multi-root support, `Sys.getcwd()` exiled from all security primitives, file tools gain sensitive-prefix check, `Runtime.create` accepts `?workspace` for custom workspace injection. See [prompt caching guide](docs/sdk/prompt_caching.md) and [content blocks guide](docs/sdk/content_blocks.md).
 
 **Coming next**: External vector stores (Qdrant/Milvus), document loaders, multimodal image tools (v0.7+).
 
-**Recent releases**: v0.6.5 (Workspace abstraction) → v0.6.6 (per-run workspace override) → v0.6.7 (CLI removed, SDK installer wizard).
+**Recent betas (no stable)**: v0.6.5 (Workspace abstraction) → v0.6.6-beta (per-run workspace override) → v0.6.7-beta (CLI removed). User opted to iterate on beta without promoting to stable.
 
 ## Getting help
 

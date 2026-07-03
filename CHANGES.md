@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.6.7 — Remove CLI + SDK Installer Wizard
+## v0.6.7-beta.20260703 — Remove CLI + SDK Installer Wizard
 
 > PAR is an SDK/runtime. Product-level UX (REPL, config wizard, history/stats) lives in the separate **PAR Code** project in another repo. This release removes the parallel CLI from PAR (caused user confusion about which to install and maintenance drag on engine devs) and replaces `install.sh` with an interactive SDK installation wizard.
 
@@ -50,8 +50,6 @@ Flags: `--python`, `--ocaml`, `--yes`, `--no-auto-setup`, `--help`.
 ---
 
 ## v0.6.6-beta.20260703 — Per-Run Workspace Override
-
-> *Shipped as beta; merged into v0.6.7 stable without a separate v0.6.6 stable tag (user opted to iterate on beta). The `?workspace` override + `per_call_registry` mechanism described here ships in v0.6.7.*
 
 > Adds `?workspace` parameter to `Runtime.invoke`, `Runtime.submit_workflow`, `Runtime.submit_workflow_async`, and `Runtime.invoke_workflow_sync`. When provided, overrides the runtime's workspace for THAT specific invocation — enabling one process to serve N concurrent workflows each isolated to its own worktree root. Closes the architectural gap identified by Oracle Option E verification of v0.6.5: workspace is now per-run, not just per-runtime. All 7 admission-using builtin tools (bash + read/ls/find/grep/write/edit) honor the override.
 
