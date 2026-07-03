@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.6.6-beta — Per-Run Workspace Override (UNRELEASED — pending version bump)
+## v0.6.6-beta.20260703 — Per-Run Workspace Override
 
 > Adds `?workspace` parameter to `Runtime.invoke`, `Runtime.submit_workflow`, `Runtime.submit_workflow_async`, and `Runtime.invoke_workflow_sync`. When provided, overrides the runtime's workspace for THAT specific invocation — enabling one process to serve N concurrent workflows each isolated to its own worktree root. Closes the architectural gap identified by Oracle Option E verification of v0.6.5: workspace is now per-run, not just per-runtime. All 7 admission-using builtin tools (bash + read/ls/find/grep/write/edit) honor the override.
 
