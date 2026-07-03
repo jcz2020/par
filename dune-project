@@ -21,7 +21,7 @@
   uuidm
   ppx_deriving
   ppx_deriving_yojson
-  ppx_deriving_jsonschema
+  (ppx_deriving_jsonschema (= "0.0.1"))
   ppx_sexp_conv
   ppx_compare
    sqlite3
