@@ -87,7 +87,7 @@ def main():
 
             print("\n=== Done ===")
             print("Note: Agent invocation requires an LLM provider.")
-            print("Configure via 'par config' or set PAR_RUNTIME_LIB.")
+            print("Set environment variables (e.g. OPENAI_API_KEY) or export PAR_RUNTIME_LIB.")
 
     except PARError as e:
         print(f"\nPAR Error: {e}")

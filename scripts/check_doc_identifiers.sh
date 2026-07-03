@@ -3,7 +3,6 @@ set -euo pipefail
 
 read -r -d '' IDENTS <<'EOF' || true
 par;PK
-par_cli;PK
 par_runtime;PK
 Runtime.create;API
 Runtime.invoke;API
@@ -16,10 +15,6 @@ Runtime.mcp_server;API
 `Ollama;LLM
 `Sqlite;PER
 `Noop;PER
-par;CLI
-par config;CLI
-par ask;CLI
-par --version;CLI
 Bash_safe_command;BSH
 Bash_policy;BSH
 Bash_blacklist;BSH

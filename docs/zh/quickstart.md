@@ -1,4 +1,6 @@
 # PAR 快速入门
+
+> **v0.6.7 提示：** 本仓库的 CLI（`par ask`、`par config`）已移除；SDK 是受支持的界面。交互式 Agent 请使用 [par-code](https://github.com/jcz2020/par-code)。下文的 `par ask` 示例保留作为历史参考，新用户请参考 SDK 部分（见 [SDK 概览](../sdk/overview.md)）。
 [English](../quickstart.md) · **简体中文**
 
 > 从零开始，30 分钟内用 OCaml 跑起一个带工具调用的 LLM Agent。

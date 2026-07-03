@@ -2,6 +2,8 @@
 
 **[English](../../README.md)** · 简体中文
 
+> **v0.6.7 提示：** 本仓库的 CLI（`par ask`、`par config`）已移除；SDK 是唯一受支持的界面。需要交互式编码 Agent 体验请使用 [par-code](https://github.com/jcz2020/par-code)。以下 `par ask` 示例保留作为历史参考，新用户请参考 SDK 部分。
+
 一个模块化、类型安全的 agent 运行时。OCaml 版的 LangChain + LangGraph —— 但你可以完全通过 Python 或 CLI 使用它，不需要写一行 OCaml 代码。
 
 [![Build Status](https://github.com/jcz2020/par/actions/workflows/ci.yml/badge.svg)](https://github.com/jcz2020/par/actions/workflows/ci.yml)

@@ -1,6 +1,8 @@
 # PAR 文档
 [English](../index.md) · **简体中文**
 
+> **v0.6.7 提示：** 本仓库的 CLI 已移除；SDK（OCaml / Python）是受支持的界面。需要交互式编码 Agent 体验请使用 [par-code](https://github.com/jcz2020/par-code)。
+
 本目录包含 PAR (Programmable Agent Runtime) 的用户文档。
 
 文档按 [Diátaxis](https://diataxis.fr/) 框架组织为四个分类：
@@ -31,7 +33,7 @@
 
 | 文档 | 内容 |
 |------|------|
-| [CLI 参考](cli.md) | `par` / `par config` / `par ask` 全部命令与参数 |
+| [CLI 参考 *（v0.6.7 已移除）*](https://github.com/jcz2020/par-code) | 交互式编码 Agent 已迁移到独立的 par-code 项目 |
 | [SDK 概览](sdk/overview.md) | SDK 模块索引与文档导航 |
 | [Agent API](sdk/agent.md) | Agent 配置、Runtime API、工具注册 |
 | [Workflow API](sdk/workflow.md) | 工作流定义、8 种 step 类型、检查点 |
