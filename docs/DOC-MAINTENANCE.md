@@ -66,7 +66,9 @@ The list is grouped by category so a reviewer can audit a PR by category. Packag
 
 When a new identifier crosses a category boundary (for example, a new MCP event that also needs a new JSON field), add the new literal to every category it belongs to in the same commit. Splitting the addition across two commits hides a partial failure from the diff and makes the next refactor harder to reason about.
 
-**Package names:** `par`, `par_cli`, `par_runtime`
+**Package names:** `par`, `par_runtime`
+
+(Removed in v0.6.7: `par_cli`, `par`, `par config`, `par ask`, `par update`, `par history`, `par stats`, `par --version`. PAR is now SDK-only; the interactive coding-agent product is in the separate [par-code](https://github.com/jcz2020/par-code) project.)
 
 **Core APIs:** `Runtime.create`, `Runtime.invoke`, `Runtime.register_tool`, `Runtime.register_agent`, `Runtime.mcp_server`
 

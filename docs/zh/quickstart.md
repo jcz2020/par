@@ -47,9 +47,11 @@ dune install                   # 安装到 opam 环境
 curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
 ```
 
-安装后会得到两个包：
-- `par` -- SDK 库
-- `par_cli` -- 命令行工具（`par`、`par config`、`par ask`）
+安装后会得到一个 opam 包和一个 PyPI 包：
+- `par` -- SDK 库（OCaml）
+- `par-runtime` -- Python 绑定（PyPI）
+
+> `par_cli` 包已于 v0.6.7 移除；如需交互式编码 Agent 体验，请使用 [par-code](https://github.com/jcz2020/par-code)。
 
 ## 项目初始化
 

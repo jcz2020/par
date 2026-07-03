@@ -46,9 +46,11 @@ dune build                     # compile
 dune install                   # install into opam environment
 ```
 
-After installation you get two packages:
-- `par` — the SDK library
-- `par_cli` — the CLI tool (`par`, `par config`, `par ask`)
+After installation you get one opam package and one PyPI package:
+- `par` — the SDK library (OCaml)
+- `par-runtime` — the Python binding (PyPI)
+
+> The `par_cli` CLI package was removed in v0.6.7; for an interactive coding agent built on this SDK, see [par-code](https://github.com/jcz2020/par-code).
 
 ## Project setup
 

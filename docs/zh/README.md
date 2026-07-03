@@ -65,8 +65,10 @@ pip install par-runtime
 
 **OCaml SDK**（opam，发布后）:
 ```bash
-opam install par par_cli
+opam install par
 ```
+
+> `par_cli` 已于 v0.6.7 移除；如需交互式编码 Agent 体验，请使用 [par-code](https://github.com/jcz2020/par-code)。
 
 **从源码构建:**
 ```bash

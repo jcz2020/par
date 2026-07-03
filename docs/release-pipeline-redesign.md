@@ -59,7 +59,7 @@ Build the wheel inside a manylinux container, then run `auditwheel` to repair an
   [tool.cibuildwheel]
   build = "cp311-*"
   skip = "*-musllinux_*"
-  before-build = "opam install par_cli --deps-only -y && opam exec -- dune build lib/ffi/par_capi.so"
+    before-build = "opam install par --deps-only -y && opam exec -- dune build lib/ffi/par_capi.so"
   ```
 - GitHub Action `pypa/cibuildwheel` runs the matrix, produces 1 wheel per platform/Python combo.
 
