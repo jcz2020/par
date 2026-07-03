@@ -18,6 +18,7 @@
   base
   yojson
   eio
+  eio_main
   uuidm
   ppx_deriving
   ppx_deriving_yojson
