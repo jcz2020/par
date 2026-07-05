@@ -26,8 +26,8 @@ jobs:
           if [ -z "$SECTION" ]; then
             SECTION="(No changelog entry found for $VERSION_NUM)"
           fi
-          cat > release-notes.md << RELEASE_EOF
-          $SECTION
+          echo "$SECTION" > release-notes.md
+          cat >> release-notes.md << 'INSTALL_EOF'
 
           ---
 
@@ -50,7 +50,7 @@ jobs:
           ```
 
           Full changelog: https://github.com/jcz2020/par/blob/main/CHANGES.md
-          RELEASE_EOF
+          INSTALL_EOF
 
       - uses: softprops/action-gh-release@v2
         with:
