@@ -6,13 +6,17 @@
 # identifiers in any committed artifact.
 #
 # Two-tier denylist:
-# 1. PUBLIC_DENYLIST (hardcoded below) — identifiers that already leaked
-#    into git history in earlier cycles and were cleaned in sweep commits.
-#    Listing them publicly is safe (history is public anyway) and prevents
-#    regressions.
+# 1. PUBLIC_DENYLIST (hardcoded below) — generic placeholder, kept empty by
+#    default. Add entries ONLY for identifiers that are safe to publish
+#    (e.g. competitors mentioned in marketing). Real downstream partner
+#    names must NOT be hardcoded here — see #2.
 # 2. PRIVATE denylist via $DISCLOSURE_DENYLIST_EXTRA env var (one
-#    identifier per line). For partner names that have never been
-#    committed. CI injects via repo secret; locally, export the env var.
+#    identifier per line). For partner names that must never be committed.
+#    CI injects via repo secret; locally, export the env var.
+#    Example local use:
+#      export DISCLOSURE_DENYLIST_EXTRA="partner-one
+#      partner-two
+#      specific-agent-name"
 #
 # Usage:
 #   bash scripts/check_disclosure.sh                  # diff working tree vs HEAD
@@ -29,15 +33,10 @@ set -euo pipefail
 
 # ─── Public denylist ───────────────────────────────────────────────────
 # Append with care. Each line is one identifier (case-insensitive substring match).
-# These are already in git history from earlier cycles; the disclosure
-# sweep cleaned forward-going content. Listing them here prevents regressions.
-PUBLIC_DENYLIST="
-a downstream project
-a downstream integrator
-one downstream agent
-another downstream agent
-another downstream agent
-"
+# Keep this empty by default — real partner identifiers go in
+# $DISCLOSURE_DENYLIST_EXTRA (env var / CI secret). Listing them here would
+# re-introduce them into the public repo, defeating the disclosure rule.
+PUBLIC_DENYLIST=""
 
 # ─── Private denylist (env var) ────────────────────────────────────────
 PRIVATE_DENYLIST="${DISCLOSURE_DENYLIST_EXTRA:-}"
@@ -174,27 +173,27 @@ run_self_test() {
   tmpdir="$(mktemp -d)"
 
   echo "all good here, no violations" > "$tmpdir/clean.md"
-  DENYLIST="$PUBLIC_DENYLIST" bash "$0" --all "$tmpdir/clean.md" >/dev/null 2>&1 \
+  DENYLIST="acme-corp" bash "$0" --all "$tmpdir/clean.md" >/dev/null 2>&1 \
     && { echo "PASS: clean content → exit 0"; rc_passed=$((rc_passed+1)); } \
     || { echo "FAIL: clean content should not be flagged"; rc_failed=$((rc_failed+1)); }
 
-  echo "discussion of a downstream project integration" > "$tmpdir/violation.md"
-  DENYLIST="$PUBLIC_DENYLIST" bash "$0" --all "$tmpdir/violation.md" >/dev/null 2>&1 \
-    && { echo "FAIL: a downstream project should be flagged"; rc_failed=$((rc_failed+1)); } \
-    || { echo "PASS: a downstream project → exit 1"; rc_passed=$((rc_passed+1)); }
+  echo "discussion of acme-corp integration" > "$tmpdir/violation.md"
+  DENYLIST="acme-corp" bash "$0" --all "$tmpdir/violation.md" >/dev/null 2>&1 \
+    && { echo "FAIL: acme-corp should be flagged"; rc_failed=$((rc_failed+1)); } \
+    || { echo "PASS: denylist match → exit 1"; rc_passed=$((rc_passed+1)); }
 
-  echo "the pmws project" > "$tmpdir/lower.md"
-  DENYLIST="$PUBLIC_DENYLIST" bash "$0" --all "$tmpdir/lower.md" >/dev/null 2>&1 \
-    && { echo "FAIL: lowercase pmws should be flagged"; rc_failed=$((rc_failed+1)); } \
+  echo "the ACME-CORP project" > "$tmpdir/upper.md"
+  DENYLIST="acme-corp" bash "$0" --all "$tmpdir/upper.md" >/dev/null 2>&1 \
+    && { echo "FAIL: uppercase ACME-CORP should be flagged"; rc_failed=$((rc_failed+1)); } \
     || { echo "PASS: case-insensitive match"; rc_passed=$((rc_passed+1)); }
 
-  echo "acme-corp partnership" > "$tmpdir/acme.md"
-  DENYLIST="acme-corp" bash "$0" --all "$tmpdir/acme.md" >/dev/null 2>&1 \
-    && { echo "FAIL: env-var denylist should flag acme-corp"; rc_failed=$((rc_failed+1)); } \
+  echo "zetacorp partnership" > "$tmpdir/zeta.md"
+  DENYLIST="zetacorp" bash "$0" --all "$tmpdir/zeta.md" >/dev/null 2>&1 \
+    && { echo "FAIL: env-var denylist should flag zetacorp"; rc_failed=$((rc_failed+1)); } \
     || { echo "PASS: env-var denylist works"; rc_passed=$((rc_passed+1)); }
 
-  echo "a downstream project" > "$tmpdir/scratch.lock"
-  DENYLIST="$PUBLIC_DENYLIST" bash "$0" --all "$tmpdir/scratch.lock" >/dev/null 2>&1 \
+  echo "acme-corp" > "$tmpdir/scratch.lock"
+  DENYLIST="acme-corp" bash "$0" --all "$tmpdir/scratch.lock" >/dev/null 2>&1 \
     && { echo "PASS: non-whitelisted extension skipped"; rc_passed=$((rc_passed+1)); } \
     || { echo "FAIL: .lock should be skipped by extension filter"; rc_failed=$((rc_failed+1)); }
 
