@@ -491,10 +491,11 @@ let () = Eio_main.run (fun env ->
   Eio.Switch.run (fun sw ->
     let mgr = Eio.Stdenv.process_mgr env in
     let clock = Eio.Stdenv.clock env in
+    let fs = Eio.Stdenv.fs env in
     match Runtime.create ~config:my_config sw with
     | Error _ -> failwith "runtime create failed"
     | Ok rt ->
-      (match Runtime.install_bash_tool ~process_mgr:mgr ~clock rt with
+      (match Runtime.install_bash_tool ~process_mgr:mgr ~clock ~fs rt with
        | Ok () -> () (* bash 工具就绪 *)
        | Error e -> Printf.failwithf "bash install failed: %a"
            Yojson.Safe.pp (Types.error_category_to_yojson e))
@@ -506,6 +507,7 @@ let () = Eio_main.run (fun env ->
 **必需参数**：
 - `process_mgr`：`Eio.Stdenv.process_mgr env`，用于 `Eio.Process.spawn`
 - `clock`：`Eio.Stdenv.clock env`，用于 timeout 强制（无 clock 则超时失效）
+- `fs`：`Eio.Stdenv.fs env`，文件系统 capability，用于设置子进程的 cwd。不传则 bash 命令在 PAR 进程的 cwd 运行，workspace 沙箱失效。
 
 ### 9 维安全机制
 

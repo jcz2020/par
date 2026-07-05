@@ -11,7 +11,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.6.7-beta — CLI removed (product UX moved to PAR Code repo); new interactive `install.sh` SDK wizard (detect system → pick Python or OCaml → verify env → opt-in auto-setup opam → install → verify). 1248 tests passing. API may change before v1.0.
+> **Status**: v0.6.9 — bash tool cwd fix (commands now run in the workspace-validated directory, not the parent process's cwd) + `Sqlite_persistence.raw_sqlite3_db` accessor for downstream FTS5/index needs. 1249 tests passing. API may change before v1.0.
 
 ---
 
@@ -138,11 +138,11 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.6.7 — PAR is now a pure SDK/runtime: the CLI application has been removed (product UX moved to the separate [par-code](https://github.com/jcz2020/par-code) repo) and `install.sh` is now an interactive SDK installation wizard. Includes the v0.6.5 Workspace abstraction (`Workspace` module as sole authority for path admission, multi-root support, `Runtime.create` accepts `?workspace`) and the v0.6.6 per-run workspace override (`?workspace` on `Runtime.invoke` / `Runtime.submit_workflow` — one process serves N concurrent workflows each isolated to its own worktree root). See [prompt caching guide](docs/sdk/prompt_caching.md) and [content blocks guide](docs/sdk/content_blocks.md).
+**Current**: v0.6.9 — Bash tool cwd fix: `Eio.Process.spawn` in the bash handler now passes `~cwd`, so commands actually run in the directory validated by `Workspace.admit` (previously the validation was decorative — commands ran in the PAR process's cwd). `install_bash_tool` gained a required `?fs` parameter. Also adds `Sqlite_persistence.raw_sqlite3_db : t -> Sqlite3.db` for downstream projects that need to extend the SQLite schema (FTS5 tables, custom indexes).
 
 **Coming next**: External vector stores (Qdrant/Milvus), document loaders, multimodal image tools (v0.7+).
 
-**Recent releases**: v0.6.5 (Workspace abstraction) → v0.6.6 (per-run workspace override) → v0.6.7 (CLI removed, SDK installer wizard).
+**Recent releases**: v0.6.5 (Workspace abstraction) → v0.6.6 (per-run workspace override) → v0.6.7 (CLI removed, SDK installer wizard) → v0.6.8 (fresh-switch compilation fix) → v0.6.9 (bash cwd fix, raw SQLite accessor).
 
 ## Getting help
 

@@ -496,10 +496,11 @@ let () = Eio_main.run (fun env ->
   Eio.Switch.run (fun sw ->
     let mgr = Eio.Stdenv.process_mgr env in
     let clock = Eio.Stdenv.clock env in
+    let fs = Eio.Stdenv.fs env in
     match Runtime.create ~config:my_config sw with
     | Error _ -> failwith "runtime create failed"
     | Ok rt ->
-      (match Runtime.install_bash_tool ~process_mgr:mgr ~clock rt with
+      (match Runtime.install_bash_tool ~process_mgr:mgr ~clock ~fs rt with
        | Ok () -> () (* bash tool is ready *)
        | Error e -> Printf.failwithf "bash install failed: %a"
            Yojson.Safe.pp (Types.error_category_to_yojson e))
@@ -511,6 +512,7 @@ let () = Eio_main.run (fun env ->
 **Required parameters**:
 - `process_mgr`: `Eio.Stdenv.process_mgr env`, used for `Eio.Process.spawn`
 - `clock`: `Eio.Stdenv.clock env`, used to enforce the timeout (without a clock, timeouts do nothing)
+- `fs`: `Eio.Stdenv.fs env`, the filesystem capability used to set the child process's cwd. Without it, bash commands would run in the PAR process's cwd, defeating the workspace sandbox.
 
 ### The 9-layer safety mechanism
 
