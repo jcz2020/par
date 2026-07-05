@@ -443,7 +443,7 @@ let record_task_failed rt =
 let publish_event rt evt =
   rt.publish_event_fn evt
 
-let make_bash_handler rt mgr clock input tok : Types.handler_result =
+let make_bash_handler rt mgr clock fs input tok : Types.handler_result =
   let module P = (val rt.bash_policy : Bash_policy.POLICY) in
   let argv =
     let raw =
@@ -503,16 +503,18 @@ let make_bash_handler rt mgr clock input tok : Types.handler_result =
                (fun () ->
                  let stdout_buf = Buffer.create 1024 in
                  let stderr_buf = Buffer.create 1024 in
-                 let proc_argv =
-                   Bash_safe_command.argv_of_command filtered
-                 in
-                 let proc =
-                   Eio.Process.spawn ~sw:tok.switch mgr
-                     ~stdin:(Eio.Flow.string_source "")
-                     ~stdout:(Eio.Flow.buffer_sink stdout_buf)
-                     ~stderr:(Eio.Flow.buffer_sink stderr_buf)
-                     proc_argv
-                 in
+                  let proc_argv =
+                    Bash_safe_command.argv_of_command filtered
+                  in
+                  let cwd_eio = Eio.Path.(fs / Workspace.to_string cwd) in
+                  let proc =
+                    Eio.Process.spawn ~sw:tok.switch mgr
+                      ~cwd:cwd_eio
+                      ~stdin:(Eio.Flow.string_source "")
+                      ~stdout:(Eio.Flow.buffer_sink stdout_buf)
+                      ~stderr:(Eio.Flow.buffer_sink stderr_buf)
+                      proc_argv
+                  in
                  let status = Eio.Process.await proc in
                  let code = match status with
                    | `Exited n -> n
@@ -581,7 +583,7 @@ let make_bash_handler rt mgr clock input tok : Types.handler_result =
                       message = "bash execution failed";
                       retryable = false; metadata = [] }))))
 
-let install_bash_tool ?process_mgr ?clock rt =
+let install_bash_tool ?process_mgr ?clock ?fs rt =
   if !(rt.bash_installed) then
     Result.Error (Types.Invalid_input "bash tool already installed")
   else
@@ -591,12 +593,18 @@ let install_bash_tool ?process_mgr ?clock rt =
         "install_bash_tool requires ?process_mgr:\
          pass (Eio.Stdenv.process_mgr env) from the Eio environment")
     | Some mgr ->
-      let builder rt_inner = make_bash_handler rt_inner mgr clock in
-      rt.bash_rebuild <- Some builder;
-      let descriptor = Builtin_tools.bash_tool_descriptor in
-      Tool_registry.replace rt.tool_registry descriptor.name (builder rt);
-      rt.bash_installed := true;
-      Ok ()
+      (match fs with
+       | None ->
+         Result.Error (Types.Invalid_input
+           "install_bash_tool requires ?fs:\
+            pass (Eio.Stdenv.fs env) from the Eio environment")
+       | Some fs_dir ->
+         let builder rt_inner = make_bash_handler rt_inner mgr clock fs_dir in
+         rt.bash_rebuild <- Some builder;
+         let descriptor = Builtin_tools.bash_tool_descriptor in
+         Tool_registry.replace rt.tool_registry descriptor.name (builder rt);
+         rt.bash_installed := true;
+         Ok ())
 
 let per_call_registry ~(rt : runtime) ~(workspace : Workspace.workspace) : Tool_registry.t =
   let fresh = Tool_registry.create () in

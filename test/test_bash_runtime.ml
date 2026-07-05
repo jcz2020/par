@@ -41,8 +41,9 @@ let with_runtime_eio ?bash_policy f =
   Eio_main.run (fun env ->
     Eio.Switch.run (fun sw ->
       let mgr = Eio.Stdenv.process_mgr env in
+      let fs = Eio.Stdenv.fs env in
       match Runtime.create ?bash_policy ~config:test_config sw with
-      | Ok rt -> f rt mgr
+      | Ok rt -> f rt mgr fs
       | Error e -> Alcotest.failf "Runtime.create failed: %s" (error_to_string e)))
 
 let bash_handler rt =
@@ -88,18 +89,18 @@ let custom_policy_suite =
 
 let install_first_succeeds =
   Alcotest.test_case "first install succeeds" `Quick (fun () ->
-    with_runtime_eio (fun rt mgr ->
-      match Runtime.install_bash_tool ~process_mgr:mgr rt with
+    with_runtime_eio (fun rt mgr fs ->
+      match Runtime.install_bash_tool ~process_mgr:mgr ~fs rt with
       | Ok () -> ()
       | Error e -> Alcotest.failf "install_bash_tool failed: %s" (error_to_string e)))
 
 let install_second_fails =
   Alcotest.test_case "second install fails (idempotency)" `Quick (fun () ->
-    with_runtime_eio (fun rt mgr ->
-      (match Runtime.install_bash_tool ~process_mgr:mgr rt with
+    with_runtime_eio (fun rt mgr fs ->
+      (match Runtime.install_bash_tool ~process_mgr:mgr ~fs rt with
        | Ok () -> ()
        | Error e -> Alcotest.failf "first install failed: %s" (error_to_string e));
-      match Runtime.install_bash_tool ~process_mgr:mgr rt with
+      match Runtime.install_bash_tool ~process_mgr:mgr ~fs rt with
       | Ok () -> Alcotest.fail "second install should have failed"
       | Error (Types.Invalid_input msg) ->
         Alcotest.(check bool) "msg mentions already" true
@@ -110,8 +111,8 @@ let install_second_fails =
 
 let install_appears_in_registry =
   Alcotest.test_case "bash tool appears in tool list" `Quick (fun () ->
-    with_runtime_eio (fun rt mgr ->
-      (match Runtime.install_bash_tool ~process_mgr:mgr rt with
+    with_runtime_eio (fun rt mgr fs ->
+      (match Runtime.install_bash_tool ~process_mgr:mgr ~fs rt with
        | Ok () -> ()
        | Error e -> Alcotest.failf "install failed: %s" (error_to_string e));
       let names = Tool_registry.names (Runtime.tool_registry rt) in
@@ -119,7 +120,7 @@ let install_appears_in_registry =
 
 let install_requires_process_mgr =
   Alcotest.test_case "install without process_mgr fails gracefully" `Quick (fun () ->
-    with_runtime_eio (fun rt _mgr ->
+    with_runtime_eio (fun rt _mgr _fs ->
       match Runtime.install_bash_tool rt with
       | Ok () -> Alcotest.fail "install should require process_mgr"
       | Error (Types.Invalid_input msg) ->
@@ -142,8 +143,8 @@ let install_suite =
 (* -------------------------------------------------------------------------- *)
 
 let policy_rejects ~policy_name ~policy_mod ~argv =
-  with_runtime_eio ~bash_policy:policy_mod (fun rt mgr ->
-    (match Runtime.install_bash_tool ~process_mgr:mgr rt with
+  with_runtime_eio ~bash_policy:policy_mod (fun rt mgr fs ->
+    (match Runtime.install_bash_tool ~process_mgr:mgr ~fs rt with
      | Ok () -> ()
      | Error e -> Alcotest.failf "install failed: %s" (error_to_string e));
     let h = bash_handler rt in
@@ -166,8 +167,8 @@ let policy_enforcement_suite =
     Alcotest.test_case "Coder allows cat (no Permission_denied)" `Quick (fun () ->
       with_runtime_eio
         ~bash_policy:(module Bash_policy.Coder : Bash_policy.POLICY)
-        (fun rt mgr ->
-          (match Runtime.install_bash_tool ~process_mgr:mgr rt with
+        (fun rt mgr fs ->
+          (match Runtime.install_bash_tool ~process_mgr:mgr ~fs rt with
            | Ok () -> ()
            | Error e -> Alcotest.failf "install failed: %s" (error_to_string e));
           let h = bash_handler rt in

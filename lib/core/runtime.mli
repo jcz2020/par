@@ -28,6 +28,7 @@ val close : runtime -> int
 val install_bash_tool :
   ?process_mgr:[> [> `Generic ] Eio.Process.mgr_ty ] Eio.Resource.t ->
   ?clock:[> float Eio.Time.clock_ty ] Eio.Resource.t ->
+  ?fs:Eio.Fs.dir_ty Eio.Path.t ->
   runtime -> (unit, error_category) result
 (** Idempotent: registers the bash tool with the runtime's configured policy.
     Returns Invalid_input if bash is already installed.
@@ -35,7 +36,11 @@ val install_bash_tool :
     A [process_mgr] is required for actual command execution; without it,
     the install registers a handler that will error when invoked.
     A [clock] is required for timeout enforcement; without it, commands
-    that exceed [timeout] will run to completion. *)
+    that exceed [timeout] will run to completion.
+    An [fs] (filesystem capability, typically [Eio.Stdenv.fs env]) is required
+    so the spawned process can be launched with the cwd validated by
+    [Workspace.admit]. Without it, commands would silently run in the parent
+    process's cwd, defeating the workspace sandbox. *)
 
 val per_call_registry :
   rt:runtime -> workspace:Workspace.workspace -> Tool_registry.t

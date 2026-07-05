@@ -80,7 +80,7 @@ let isolation_suite =
           let mgr = Eio.Stdenv.process_mgr env in
           match Runtime.create ~config:test_config sw with
           | Ok rt ->
-            (match Runtime.install_bash_tool ~process_mgr:mgr rt with
+            (match Runtime.install_bash_tool ~process_mgr:mgr ~fs:(Eio.Stdenv.fs env) rt with
              | Ok () ->
                let dir_a = make_temp_dir "a" in
                let dir_b = make_temp_dir "b" in
@@ -102,7 +102,7 @@ let isolation_suite =
           let mgr = Eio.Stdenv.process_mgr env in
           match Runtime.create ~config:test_config sw with
           | Ok rt ->
-            (match Runtime.install_bash_tool ~process_mgr:mgr rt with
+            (match Runtime.install_bash_tool ~process_mgr:mgr ~fs:(Eio.Stdenv.fs env) rt with
              | Ok () ->
                let dir_a = make_temp_dir "adm" in
                let ws_a = match Workspace.of_dir dir_a with Ok w -> w | Error _ -> Alcotest.fail "ws_a" in
@@ -121,7 +121,7 @@ let isolation_suite =
           let mgr = Eio.Stdenv.process_mgr env in
           match Runtime.create ~config:test_config sw with
           | Ok rt ->
-            (match Runtime.install_bash_tool ~process_mgr:mgr rt with
+            (match Runtime.install_bash_tool ~process_mgr:mgr ~fs:(Eio.Stdenv.fs env) rt with
              | Ok () ->
                let dir_a = make_temp_dir "iso_a" in
                let dir_b = make_temp_dir "iso_b" in
@@ -150,7 +150,7 @@ let isolation_suite =
           let net = Eio.Stdenv.net _env in
           match Runtime.create ~config:test_config sw with
           | Ok rt ->
-            (match Runtime.install_bash_tool ~process_mgr:mgr rt with
+            (match Runtime.install_bash_tool ~process_mgr:mgr ~fs:(Eio.Stdenv.fs _env) rt with
              | Ok () ->
                setup_builtins rt ~switch:sw ~net;
                let reg_default = Runtime.per_call_registry ~rt ~workspace:(Runtime.workspace rt) in
@@ -167,7 +167,7 @@ let isolation_suite =
           let net = Eio.Stdenv.net _env in
           match Runtime.create ~config:test_config sw with
           | Ok rt ->
-            (match Runtime.install_bash_tool ~process_mgr:mgr rt with
+            (match Runtime.install_bash_tool ~process_mgr:mgr ~fs:(Eio.Stdenv.fs _env) rt with
              | Ok () ->
                setup_builtins rt ~switch:sw ~net;
                let dir_a = make_temp_dir "ft_a" in
@@ -205,7 +205,7 @@ let isolation_suite =
           ] in
           match Runtime.create ~config:test_config ~llm sw with
           | Ok rt ->
-            (match Runtime.install_bash_tool ~process_mgr:mgr rt with
+            (match Runtime.install_bash_tool ~process_mgr:mgr ~fs:(Eio.Stdenv.fs env) rt with
              | Ok () ->
                setup_builtins rt ~switch:sw ~net;
                let model : Types.model_config = {
@@ -221,6 +221,37 @@ let isolation_suite =
                 | Error (e, _) -> Alcotest.failf "invoke should succeed with ws_a, got %s" (error_to_string e))
              | Error e -> Alcotest.failf "install: %s" (error_to_string e))
           | Error e -> Alcotest.failf "create: %s" (error_to_string e))));
+
+    Alcotest.test_case "spawn cwd reaches process (regression for runtime.ml:510)" `Quick (fun () ->
+      (* Regression: Eio.Process.spawn must receive ~cwd so the child process
+         runs in the directory validated by Workspace.admit, not the parent's cwd.
+         Before the fix, spawn omitted ~cwd, so all commands ran in the PAR
+         process's cwd regardless of what the user passed. *)
+      Eio_main.run (fun env ->
+        Eio.Switch.run (fun sw ->
+          let mgr = Eio.Stdenv.process_mgr env in
+          let fs = Eio.Stdenv.fs env in
+          let clock = Eio.Stdenv.clock env in
+          match Runtime.create ~config:test_config sw with
+          | Ok rt ->
+            (match Runtime.install_bash_tool ~process_mgr:mgr ~clock ~fs rt with
+             | Ok () ->
+               let dir = make_temp_dir "cwd_regress" in
+               let ws = match Workspace.of_dir dir with Ok w -> w | Error _ -> Alcotest.fail "ws" in
+               let reg = Runtime.per_call_registry ~rt ~workspace:ws in
+               let h = handler_of reg in
+               let token = Cancellation.create_token sw in
+               let input = `Assoc [("argv", `List [`String "pwd"]); ("cwd", `String dir)] in
+               (match h input token with
+                | Types.Success output ->
+                  let stdout = match Yojson.Safe.Util.(output |> member "stdout") with
+                    | `String s -> String.trim s | _ -> "" in
+                  Alcotest.(check string) "pwd output equals cwd" dir stdout
+                | Types.Error _ ->
+                  Alcotest.fail "handler returned Error (expected Success with pwd output)"
+                | _ -> Alcotest.fail "unexpected result")
+             | Error e -> Alcotest.failf "install failed: %s" (error_to_string e))
+          | Error e -> Alcotest.failf "create failed: %s" (error_to_string e))));
   ]
 
 let () =
