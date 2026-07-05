@@ -46,3 +46,12 @@ CLAUDE.md
 .claude/
 CLAUDE.md
 site/
+
+# ----------------------------------------------------------------
+# Personal development tooling (NOT part of the open-source product)
+# ----------------------------------------------------------------
+# These are maintainer-private workflow tools, not user-facing features.
+.githooks/
+scripts/bd_issue_template.md
+scripts/bd-create-from-template.sh
+scripts/check_string_references.sh

@@ -1,0 +1,169 @@
+# CI Health Check
+#
+# Purpose: run four daily probes that surface silent outages within 24h by
+# auto-opening a GitHub issue on any failure.
+#
+# History: caught the class of outages that resulted in docs-Page-CI being
+# broken for 7 days in 2026-06 before being noticed. Each probe maps to a
+# previously-unnoticed failure mode (CI flapping, docs 404, PyPI/opam skew).
+#
+# Overlap note: nightly.yml runs tests + version sync but does NOT monitor
+# CI run status, docs reachability, PyPI/opam parity, or auto-issue. This
+# workflow is purely additive.
+
+name: CI Health
+
+on:
+  schedule:
+    - cron: "0 8 * * *"  # 08:00 UTC = 16:00 HKT daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ci-health
+  cancel-in-progress: false
+
+jobs:
+  ci-health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe 1 - Recent CI failures on main (last 24h)
+        id: probe_ci
+        continue-on-error: true
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          set -uo pipefail
+          cutoff=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+          fails=$(gh run list --branch main --limit 30 \
+                  --json status,conclusion,workflowName,createdAt,htmlUrl \
+                  | jq --arg c "$cutoff" '[.[] | select(.createdAt >= $c
+                      and (.conclusion == "failure" or .conclusion == "cancelled"))]
+                      | sort_by(.createdAt) | reverse')
+          count=$(echo "$fails" | jq 'length')
+          {
+            echo "## Probe 1 - CI failures on main: $count in last 24h"; echo
+            if [ "$count" -gt 0 ]; then
+              echo "status=FAIL" >> "$GITHUB_OUTPUT"
+              echo "$fails" | jq -r '.[] | "- [\(.workflowName)](\(.htmlUrl)) - \(.conclusion) @ \(.createdAt)"'
+            else
+              echo "status=PASS" >> "$GITHUB_OUTPUT"
+              echo "(none)"
+            fi
+          } | tee /tmp/probe_ci.md
+
+      - name: Probe 2 - Docs site reachable
+        id: probe_docs
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          url="https://jcz2020.github.io/par/"
+          # One retry rides over transient network blips (MUST NOT #4).
+          code=$(curl -sS -o /dev/null -w "%{http_code}" \
+                  --retry 2 --retry-delay 5 --retry-connrefused -I "$url" || echo "000")
+          status=PASS; [ "$code" -ge 400 ] || [ "$code" = "000" ] && status=FAIL
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Probe 2 - Docs site: HTTP $code"; echo
+            [ "$status" = FAIL ] && echo "HEAD \`$url\` failed." || echo "Reachable."
+          } | tee /tmp/probe_docs.md
+
+      - name: Probe 3 - PyPI version parity
+        id: probe_pypi
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          local_v=$(sed -n 's/^(version "\([^"]*\)").*/\1/p' dune-project)
+          pypi_v=$(curl -sS --retry 2 --retry-delay 5 \
+                    https://pypi.org/pypi/par-runtime/json \
+                    | jq -r '.info.version // "UNKNOWN"')
+          status=PASS; [ "$pypi_v" != "$local_v" ] && status=FAIL
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Probe 3 - PyPI: dune=$local_v pypi=$pypi_v"; echo
+            [ "$status" = FAIL ] && echo "Version mismatch." || echo "Parity OK."
+          } | tee /tmp/probe_pypi.md
+
+      - name: Probe 4 - opam-repo version parity (best-effort)
+        id: probe_opam
+        continue-on-error: true
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          set -uo pipefail
+          local_v=$(sed -n 's/^(version "\([^"]*\)").*/\1/p' dune-project)
+          # Empty if par not yet on opam-repo - warn only, do not fail.
+          opam_v=$(gh api --jq '.[].name' \
+                    /repos/ocaml/opam-repository/contents/packages/par 2>/dev/null \
+                    | sed -n 's/^par\.\(.*\)/\1/p' | sort -V | tail -1 || true)
+          if [ -z "$opam_v" ]; then
+            echo "status=WARN" >> "$GITHUB_OUTPUT"
+            echo "## Probe 4 - opam-repo: par not yet published (warn only)" > /tmp/probe_opam.md
+          else
+            status=PASS; [ "$opam_v" != "$local_v" ] && status=FAIL
+            echo "status=$status" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Probe 4 - opam-repo: dune=$local_v opam=$opam_v"; echo
+              [ "$status" = FAIL ] && echo "Version mismatch." || echo "Parity OK."
+            } | tee /tmp/probe_opam.md
+          fi
+
+      - name: Aggregate probes
+        id: aggregate
+        if: always()
+        run: |
+          set -uo pipefail
+          cat /tmp/probe_ci.md /tmp/probe_docs.md /tmp/probe_pypi.md \
+              /tmp/probe_opam.md > /tmp/health_report.md 2>/dev/null || true
+          # Anything not PASS or WARN (incl. empty/errored) trips fail.
+          any_fail=false
+          for v in "${{ steps.probe_ci.outputs.status }}" \
+                   "${{ steps.probe_docs.outputs.status }}" \
+                   "${{ steps.probe_pypi.outputs.status }}" \
+                   "${{ steps.probe_opam.outputs.status }}"; do
+            case "$v" in PASS|WARN) ;; *) any_fail=true ;; esac
+          done
+          echo "failed=$any_fail" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Open or comment on failure issue
+        if: always() && steps.aggregate.outputs.failed == 'true'
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          set -uo pipefail
+          repo="${{ github.repository }}"
+          date="${{ steps.aggregate.outputs.date }}"
+          body="$(cat /tmp/health_report.md)
+
+          ---
+          Auto-filed by \`ci-health.yml\` - run [#${{ github.run_id }}](https://github.com/${repo}/actions/runs/${{ github.run_id }}) on ${date}."
+          existing=$(gh issue list --repo "$repo" --state open \
+                      --label "ci-health" --label "automated" \
+                      --json number | jq -r '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$repo" --body "$body"
+          else
+            gh issue create --repo "$repo" \
+              --title "CI Health Check Failed (${date})" \
+              --label "ci-health,automated" --body "$body"
+          fi
+          exit 1  # hard-fail so the run is marked red
+
+      - name: Close stale issue on recovery
+        if: always() && steps.aggregate.outputs.failed == 'false'
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          set -uo pipefail
+          repo="${{ github.repository }}"
+          date="${{ steps.aggregate.outputs.date }}"
+          existing=$(gh issue list --repo "$repo" --state open \
+                      --label "ci-health" --label "automated" \
+                      --json number | jq -r '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$repo" \
+              --body "All probes green again as of ${date}. Closing."
+            gh issue close "$existing" --repo "$repo"
+          fi
