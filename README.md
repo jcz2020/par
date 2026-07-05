@@ -67,7 +67,7 @@ pip install par-runtime
 
 **OCaml SDK**:
 ```bash
-opam install par
+opam pin add par https://github.com/jcz2020/par.git
 ```
 
 **Build from source:**
