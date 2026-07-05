@@ -117,12 +117,7 @@ nav:
       - FAQ: explanation/faq.md
 
 not_in_nav: |
-  rules/*
-  STRATEGY.md
-  v*-ROADMAP.md
   RELEASE-TEMPLATE.md
-  release-pipeline-redesign.md
-  release.md
   DOC-MAINTENANCE.md
   archive/*
   evaluations/*

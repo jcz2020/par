@@ -1116,7 +1116,7 @@ The Python FFI bridge was rebuilt to fix a fundamental Eio context issue.
   - debian:12 container (CI): PASS (run 27884715322)
   - ubuntu:22.04 container (CI): PASS (run 27884715322)
   - ubuntu:24.04 container (CI): PASS (run 27884715322)
-- **bd issue closures**: PAR-0qf, PAR-8cs, PAR-cog, PAR-j8i, PAR-b94 all CLOSED via `bd close` and pushed to Dolt remote.
+- **Issues resolved**: PAR-0qf, PAR-8cs, PAR-cog, PAR-j8i, PAR-b94.
 
 ## v0.4.10 (2026-06-21)
 

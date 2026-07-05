@@ -4,13 +4,9 @@
 
 > **Note (v0.6.7):** This stub still references the CLI (`par ask`), which was removed. Final content (when written) should use the SDK — see [SDK overview](../sdk/overview.md) for `Runtime.invoke` re-entry patterns.
 
-> **Status**: Stub. The full content ships after v0.5.4 Track B Phase B.2 (CLI
-> flags for session resume) lands.
-> **Tracked in**: [`.sisyphus/plans/v0.5.4-execution.md`](../../.sisyphus/plans/v0.5.4-execution.md)
-> Task 7.
-> **Depends on**: the `conversations` persistence table (B.0), the
-   `Runtime.save_conversation` / `load_conversation` API (B.1), and the
-   `par -c <id>` / `par -r` CLI flags (B.2).
+> **Status**: Stub. The full content ships after the `conversations`
+> persistence table, `Runtime.save_conversation` / `load_conversation` API,
+> and re-entry patterns land. None have shipped yet.
 
 This tutorial will demonstrate a conversation that survives a process restart.
 Today every PAR session is ephemeral and lives only in memory, so closing the

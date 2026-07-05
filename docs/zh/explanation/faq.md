@@ -12,7 +12,7 @@
 
 PAR 占据与 LangChain 相同的生态位：agent 运行时加编排原语。但设计优先级完全相反。LangChain 优化的是广度和 Python 易用性，PAR 优化的是类型严谨和结构化并发。区别体现在三个具体方面。
 
-**编译期类型安全，不是运行时。** LangChain 工具是 Python callable，背后是一个字典形状的 `args_schema`。字段名拼错、参数缺失、类型错误，全部在 agent 循环深处以运行时崩溃的形式出现。PAR 工具是 OCaml record，背后是类型化的 `tool_descriptor`，每个调用点都经过编译器强制你覆盖的模式匹配。bash 工具是最突出的例子。LangChain 暴露的是 `subprocess.run` 加原始字符串。PAR 有 `Bash_safe_command` ADT（代数数据类型），没有 `Exec_raw_shell` 构造器，意味着 shell 注入在类型层不可表示。你写不出这个 bug。STRATEGY.md 第 3 节把这称为核心差异化能力，PAR 不可复制的属性。
+**编译期类型安全，不是运行时。** LangChain 工具是 Python callable，背后是一个字典形状的 `args_schema`。字段名拼错、参数缺失、类型错误，全部在 agent 循环深处以运行时崩溃的形式出现。PAR 工具是 OCaml record，背后是类型化的 `tool_descriptor`，每个调用点都经过编译器强制你覆盖的模式匹配。bash 工具是最突出的例子。LangChain 暴露的是 `subprocess.run` 加原始字符串。PAR 有 `Bash_safe_command` ADT（代数数据类型），没有 `Exec_raw_shell` 构造器，意味着 shell 注入在类型层不可表示。你写不出这个 bug。这是 PAR 的核心差异化能力，PAR 不可复制的属性。
 
 **结构化并发，不是 asyncio。** LangChain 运行在 Python asyncio 上。每个 async 函数都带着颜色标记，每个 `await` 都是一个挂起点，工具处理器必须选 `async def` 或保持同步。PAR 运行在 OCaml 5.4 effect handlers 加 Eio 库之上。函数是直接风格（direct style），没有颜色区分。运行时给每个 `Runtime.create` 调用一个 `Eio.Switch.t`，运行时 fork 的每个 fiber 都是该 switch 的子 fiber。switch 退出时，子 fiber 全部被 join。一个泄漏的工具处理器持有数据库连接，不可能比它的运行时活得更久。Go 有 goroutine 和 context 模型，要求子任务协作式取消。asyncio 在 3.11 有 task groups。Eio 从第一天起就强制结构化。
 

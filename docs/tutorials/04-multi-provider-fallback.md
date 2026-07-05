@@ -2,12 +2,8 @@
 
 # Tutorial 4: Multi-Provider Fallback
 
-> **Status**: Stub. The full content ships after v0.5.4 Track A Phase A.3
-> (cross-provider fallback policy) lands.
-> **Tracked in**: [`.sisyphus/plans/v0.5.4-execution.md`](../../.sisyphus/plans/v0.5.4-execution.md)
-> Task 6c.
-> **Depends on**: the `fallback_policy` ADT plus a `Provider_fallback_attempted`
-> event, neither of which has shipped yet.
+> **Status**: Stub. The full content ships after the `fallback_policy` ADT
+> plus a `Provider_fallback_attempted` event land. Neither has shipped yet.
 
 This tutorial will demonstrate configuring two providers (OpenAI as primary,
 Anthropic as standby), then triggering a fallback when the primary returns
