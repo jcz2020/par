@@ -24,3 +24,11 @@ val save_conversation : t -> string -> conversation -> (unit, error_category) re
 val load_conversation : t -> string -> (conversation option, error_category) result
 val load_most_recent_conversation : t -> ((string * conversation) option, error_category) result
 val transaction : t -> (t -> 'a) -> ('a, error_category) result
+
+val raw_sqlite3_db : t -> Sqlite3.db
+(** Unrestricted access to the underlying SQLite handle.
+    Bypasses the internal mutex — caller is responsible for thread safety
+    if the runtime may be using [t] concurrently (e.g. via [save_events]).
+    Use cases: creating FTS5 virtual tables, custom indexes, raw queries
+    that the typed API above does not cover. Do NOT close the returned
+    handle; use [close] on [t] instead. *)
