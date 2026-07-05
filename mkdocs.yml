@@ -118,6 +118,5 @@ nav:
 
 not_in_nav: |
   RELEASE-TEMPLATE.md
-  DOC-MAINTENANCE.md
   archive/*
   evaluations/*

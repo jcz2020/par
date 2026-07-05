@@ -39,7 +39,7 @@ This section is the most important one for new contributors. Read it before open
 
 **English-only public docs.** Public documentation is English-only. Do not introduce Chinese characters (Unicode U+4E00 through U+9FFF) or any other non-English content in any public doc. Every doc opens with an `<!-- language: en -->` marker on its first line to declare its language. Future translations branch from this anchor.
 
-**OCaml identifier preservation.** Code-level identifiers must never be translated, modified, or paraphrased. This includes literals like `Runtime.create`, `` `Sqlite ``, `par`, `par_runtime`, every MCP event name (such as `Mcp_server_started`), every bash module name (such as `Bash_safe_command`), and every JSON config field name (such as `event_bus.max_queue_size`). A doc update that breaks any of these fails the identifier check in CI. See [`docs/rules/docs.md`](docs/rules/docs.md) for the complete identifier list and the rationale.
+**OCaml identifier preservation.** Code-level identifiers must never be translated, modified, or paraphrased. This includes literals like `Runtime.create`, `` `Sqlite ``, `par`, `par_runtime`, every MCP event name (such as `Mcp_server_started`), every bash module name (such as `Bash_safe_command`), and every JSON config field name (such as `event_bus.max_queue_size`). A doc update that breaks any of these fails the identifier check in CI.
 
 **CLI identifiers (v0.6.7).** The old CLI commands (`par`, `par config`, `par ask`, `par update`, `par history`, `par stats`, `par --version`) and the `par_cli` package name no longer exist in this repo. They should NOT appear in doc identifiers (the registry above already excludes them). For the interactive Agent product based on this SDK, see [par-code](https://github.com/jcz2020/par-code).
 
@@ -53,7 +53,7 @@ This section is the most important one for new contributors. Read it before open
 6. `CHANGES.md` has an entry for the new version.
 7. **Beta tags are pre-release.** Tags with `-beta.` or `-rc.` are automatically published as GitHub pre-release. Only stable tags (`vX.Y.Z`) appear as latest.
 
-For the full authoring rules, translation rules, and CI integration, see [`docs/rules/docs.md`](docs/rules/docs.md).
+For the full authoring rules, translation rules, and CI integration, see the sections above and the [documentation index](docs/index.md).
 
 ## Pull Request Process
 
@@ -79,4 +79,3 @@ If a bead issue exists for the change, reference it in the PR description. This 
 - [`docs/index.md`](docs/index.md): documentation index
 - [`CHANGES.md`](CHANGES.md): changelog
 - [`SECURITY.md`](SECURITY.md): security disclosure
-- [`docs/rules/docs.md`](docs/rules/docs.md): documentation maintenance rules

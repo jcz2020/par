@@ -380,4 +380,3 @@ let rag_qa rt store question =
 - [Streaming API](streaming.md) - `invoke_stream`、Event 类型、分块输出接口
 - [工作流 API](workflow.md) - 顺序、并行、条件编排
 - [概览](overview.md) - SDK 架构和模块映射
-- [B.2 向量存储设计](../plans/b2-vector-store-design.md) - embedding 无关的设计理由和 sqlite-vec 扩展加载策略

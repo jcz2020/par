@@ -56,7 +56,7 @@
 
 ### 文档内部规则
 
-[文档维护规则](../rules/docs.md)：保持 PAR 文档整洁的规则（标识符保留、语言标记、CJK 检查、CI 集成）。
+文档维护规则：标识符保留、语言标记、CJK 检查、CI 集成——见 [CONTRIBUTING.md](../../CONTRIBUTING.md)。
 
 ## 项目链接
 

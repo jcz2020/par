@@ -42,7 +42,7 @@ if [ "$FORCE" = false ]; then
             echo "   → Refresh beta date only: sed -i ... dune-project && make sync-version"
             echo "   → Or use --force if you have an explicit reason."
             echo ""
-            echo "   Aborting. See docs/rules/release.md Pre-Bump Gate."
+            echo "   Aborting. Pre-Bump Gate failed (see project release rules)."
             exit 1
         fi
     fi

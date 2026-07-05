@@ -379,4 +379,3 @@ The retrieved documents come back with their scores so you can show provenance i
 - [Streaming API](streaming.md) - `invoke_stream`, Event types, the chunked output surface
 - [Workflow API](workflow.md) - sequential, parallel, conditional orchestration
 - [Overview](overview.md) - SDK architecture and module map
-- [B.2 Vector Store Design](../plans/b2-vector-store-design.md) - embedding-agnostic rationale and the sqlite-vec extension loading strategy

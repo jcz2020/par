@@ -8,7 +8,7 @@ PAR's docs are SDK-first. PAR is an embeddable runtime — production code uses 
 
 The docs are organized by purpose, not by source-tree layout. Four sections follow: Tutorials walk you through a complete task from scratch, How-to guides solve a specific problem, Reference documents every API, and Explanation discusses the design decisions. Pick the section that matches your question; cross-links inside each page point at related material.
 
-Every page in this tree opens with a `<!-- language: en -->` marker on line 1, ships English only, and preserves OCaml identifiers verbatim (backticks, not code blocks). The full authoring contract, the identifier list, and the pre-release checklist live in [Documentation maintenance](rules/docs.md); contributors should read that file before opening a doc PR.
+Every page in this tree opens with a `<!-- language: en -->` marker on line 1, ships English only, and preserves OCaml identifiers verbatim (backticks, not code blocks). Contributors should read [CONTRIBUTING.md](../CONTRIBUTING.md) before opening a doc PR — it covers the authoring contract, the identifier list, and the pre-release checklist.
 
 The audience for this tree is two groups: SDK users who embed `par` in their applications (OCaml or Python), and contributors who extend the runtime with a new provider, tool, or middleware. The four sections below serve both, and each page is written so a fresh reader can act on it without first reading the rest of the tree.
 
@@ -82,7 +82,7 @@ Explanation docs discuss the why behind PAR's design. Read these when you want t
 
 ### Doc internals
 
-[Documentation maintenance](rules/docs.md): the rules that keep PAR's docs clean (identifier preservation, language indicator, CJK check, CI integration).
+Documentation maintenance: identifier preservation, language indicator, CJK check, CI integration — see [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Project links
 

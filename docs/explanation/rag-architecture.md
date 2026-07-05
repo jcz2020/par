@@ -16,7 +16,7 @@ The bug is embedding-model drift. If the vectors stored for your documents were 
 
 PAR's `Vector_store` makes drift impossible by construction. The store's type signature takes `float array` in and returns `float array` results. There is no embed call inside it. The only place an embedding model lives is `Runtime.services.embeddings`, injected once at runtime creation. The caller, `Runtime.invoke_with_rag`, uses that one service to embed both documents (at index time) and the query (at search time). Two different models cannot sneak in, because there is only one handle to an embedding service in the whole runtime.
 
-The full reasoning is in `docs/plans/b2-vector-store-design.md`. The short version: PAR evaluated three options (embedding-coupled, embedding-agnostic, two-layer functor) and picked embedding-agnostic because it eliminates the drift class for the cost of about five lines of composition at the single orchestration site that already exists. The store is trivially testable with hand-crafted vectors, no mock embeddings needed. And the interface ports verbatim to Qdrant, Milvus, or pgvector in a future version, because all of them accept raw vectors.
+PAR evaluated three options (embedding-coupled, embedding-agnostic, two-layer functor) and picked embedding-agnostic because it eliminates the drift class for the cost of about five lines of composition at the single orchestration site that already exists. The store is trivially testable with hand-crafted vectors, no mock embeddings needed. And the interface ports verbatim to Qdrant, Milvus, or pgvector in a future version, because all of them accept raw vectors.
 
 ## Why sqlite-vec
 
@@ -107,6 +107,5 @@ The throughline is that each gap is additive. The embedding-agnostic store, the 
 ## See also
 
 - [RAG API reference](../sdk/rag.md) for the function signatures and provider support table
-- [B.2 Vector Store Design](../plans/b2-vector-store-design.md) for the full Option A/B/C evaluation that produced the embedding-agnostic decision
 - [Architecture](architecture.md) for how the RAG services fit into the `Runtime.services` registry alongside LLM, persistence, and event bus
 - [Concurrency Model](concurrency-model.md) for how embedding API calls (network I/O) cooperate with the runtime's fibers
