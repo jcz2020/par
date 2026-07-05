@@ -1,5 +1,29 @@
 # CHANGES
 
+## v0.6.9 — Bash Cwd Fix + Raw SQLite Accessor
+
+> Two changes driven by integration feedback: a silent security bug in the bash tool's cwd handling, and a new accessor for downstream projects that need to extend the SQLite schema (e.g. FTS5 memory tables).
+
+### Fixed — bash handler did not pass cwd to spawned process
+
+- **Root cause**: `Eio.Process.spawn` in `make_bash_handler` was called without `~cwd`. All bash commands ran in the PAR process's cwd regardless of the `cwd` parameter the user passed. The `Workspace.admit` validation was decorative — it validated the path but the spawned process never used it.
+- **Fix**: `install_bash_tool` now requires a `?fs` parameter (typically `Eio.Stdenv.fs env`). The handler constructs `Eio.Path.(fs / Workspace.to_string cwd)` and passes it as `~cwd` to `Eio.Process.spawn`.
+- **Breaking**: `Runtime.install_bash_tool` gained a required `?fs` parameter. Callers must pass `~fs:(Eio.Stdenv.fs env)`.
+- **Test**: regression test `spawn cwd reaches process (regression for runtime.ml:510)` — invokes `pwd` with a specific cwd and asserts stdout equals the expected directory.
+
+### Added — `Sqlite_persistence.raw_sqlite3_db : t -> Sqlite3.db`
+
+- Downstream projects that need to create FTS5 virtual tables, custom indexes, or run raw SQL on the same database can now access the underlying handle.
+- The accessor bypasses the internal mutex — callers are responsible for thread safety.
+
+### Stats
+
+- 1249 tests (1248 existing + 1 new regression test)
+- Linux CI: green
+- macOS CI: pending
+
+---
+
 ## v0.6.8 — Fix Fresh-Switch Compilation
 
 > v0.6.7 tag had two missing dependency declarations that caused `opam install par` from a fresh switch to fail with `Unbound value string_jsonschema` and `Library "eio_main" not found`. Local incremental builds passed due to stale `.cmx` artifacts; CI fresh switches and clean `opam install` exposed the gap. v0.6.8 is the first release that installs cleanly from scratch.
