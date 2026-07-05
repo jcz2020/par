@@ -361,7 +361,7 @@ Previously, `read`/`ls`/`find`/`grep`/`write`/`edit` had inline 3-check validati
 ### Added — Configurable behavior (plan §2.2)
 
 - **NEW** `agent_config.context_compression_threshold : float option` — when `Some r` (0.0–1.0), auto-fires compression when `estimated_tokens / context_window ≥ r`. Default `Some 0.8`. `None` = disabled (preserves pre-v0.6.3 manual-mode behavior).
-- **NEW** `agent_config.compression_cooldown_messages : int option` — minimum iterations between auto-compressions. Prevents LLM-summarize thrash. Default `Some 6` (value drawn from a production practice; matches industry practice).
+- **NEW** `agent_config.compression_cooldown_messages : int option` — minimum iterations between auto-compressions. Prevents LLM-summarize thrash. Default `Some 6` (value informed by production practice; matches industry norms).
 - **NEW** `agent_config.context_window_override : int option` — user-supplied context window size. Overrides provider capability and static table. `None` = use tier-1/2 resolver.
 - **NEW** `llm_service.context_window_fn : (unit -> int) option` — provider capability function mirroring `supports_native_tools_fn`. Custom providers SHOULD set this for accurate ratio computation.
 - **NEW** `Runtime.make_agent` optional params for all three new fields.
@@ -468,7 +468,7 @@ Production-readiness gap surfaced by integration feedback: long conversations hi
 
 ### Strategic motivation
 
-Downstream integration feedback reported that the suspend → gate → resume closed loop was broken in three of four places: resume was a stub, approve was a no-op, and step results didn't propagate. Combined with §2.1 durability gap, the workflow engine was unfit for production Human-in-the-Loop scenarios. This cycle closes all 11 reported defects and brings the engine to functional parity with the documented API.
+Integration feedback reported that the suspend → gate → resume closed loop was broken in three of four places: resume was a stub, approve was a no-op, and step results didn't propagate. Combined with §2.1 durability gap, the workflow engine was unfit for production Human-in-the-Loop scenarios. This cycle closes all 11 reported defects and brings the engine to functional parity with the documented API.
 
 ---
 
@@ -506,7 +506,7 @@ Downstream integration feedback reported that the suspend → gate → resume cl
 
 ### Strategic motivation (plan §1)
 
-A an integrator reported that long-output agents bypass PAR's ReAct loop and call LLM directly. Survey of 4 mainstream coding agents (Claude Code, Codex CLI, OpenCode, a comparable coding agent) confirmed none treat `Max_tokens` as iteration-consuming failure. PAR v0.6.0 was the only one still treating it as a loop-budget event. This change closes that gap and re-aligns with the strategic positioning in `docs/STRATEGY.md`.
+Integration feedback reported that long-output agents bypass PAR's ReAct loop and call LLM directly. Survey of 4 mainstream coding agents (Claude Code, Codex CLI, OpenCode, and a fourth comparable coding agent) confirmed none treat `Max_tokens` as iteration-consuming failure. PAR v0.6.0 was the only one still treating it as a loop-budget event. This change closes that gap and re-aligns with the strategic positioning in `docs/STRATEGY.md`.
 
 ### Tests
 
@@ -570,7 +570,7 @@ Two new optional fields on `agent_config`:
 | `Retry` | Preserve truncated message for context, re-enter the ReAct loop. Bounded by `max_iterations`. |
 | `Continue` | Inject "continue from where you stopped" follow-up, concatenate chunks. Capped by `max_continuation_chunks`. Diminishing-returns guard: stops if a continuation chunk adds <500 chars. Inspired by Claude Code's escalate+retry approach. |
 
-**Design context**: 3-way research compared Claude Code (Retry+escalate×3), OpenAI Codex CLI (blind retry — known bug openai/codex#14753), and a comparable coding agent (Return_partial). PAR's typed ADT approach is a strict improvement over Codex's string-based generic retry, and more configurable than Claude Code's hardcoded constants.
+**Design context**: 3-way research compared Claude Code (Retry+escalate×3), OpenAI Codex CLI (blind retry — known bug openai/codex#14753), and a fourth comparable coding agent (Return_partial). PAR's typed ADT approach is a strict improvement over Codex's string-based generic retry, and more configurable than Claude Code's hardcoded constants.
 
 **Python binding**: No code changes needed. Set via JSON: `{"on_max_tokens": "continue", "max_continuation_chunks": 3}`.
 
@@ -599,7 +599,7 @@ Two new optional fields on `agent_config`:
 
 Full test suite: zero regressions (all existing tests pass).
 
-**Design note**: This mirrors a comparable coding agent's `classify.ts` approach (content-present truncation = valid `final`), avoiding the anti-pattern seen in OpenAI Codex CLI (openai/codex#14753, closed without fix) where truncation is bundled into the generic stream-error retry path. A configurable `on_max_tokens_behavior` policy (Retry | Continue | Return_partial) is planned for v0.6.0.
+**Design note**: This mirrors a comparable coding agent's classify-style approach (content-present truncation = valid `final`), avoiding the anti-pattern seen in OpenAI Codex CLI (openai/codex#14753, closed without fix) where truncation is bundled into the generic stream-error retry path. A configurable `on_max_tokens_behavior` policy (Retry | Continue | Return_partial) is planned for v0.6.0.
 
 ---
 
