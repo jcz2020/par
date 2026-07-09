@@ -9,6 +9,7 @@ type invoke_context = {
   tool_call_hooks_snapshot : Hook.tool_call_hook list;
   steering_queue : Steering_queue.t;
   followup_queue : Steering_queue.t;
+  system_prompt_appendix : string option;
 }
 
 let invoke_context_key : invoke_context Eio.Fiber.key =
@@ -21,6 +22,7 @@ let create
     ?(skills = [])
     ?(steering = Steering_queue.create ())
     ?(followup = Steering_queue.create ())
+    ?system_prompt_appendix
     () =
   {
     session_id;
@@ -29,9 +31,18 @@ let create
     tool_call_hooks_snapshot = hooks;
     steering_queue = steering;
     followup_queue = followup;
+    system_prompt_appendix;
   }
 
 let get_current () = Eio.Fiber.get invoke_context_key
+
+(** [appendix_text ()] returns the system_prompt_appendix from the current
+    invoke_context, prefixed with ["\\n\\n"] when present, or [""] when no
+    context or no appendix is set. *)
+let appendix_text () =
+  match Eio.Fiber.get invoke_context_key with
+  | Some { system_prompt_appendix = Some app; _ } -> "\n\n" ^ app
+  | _ -> ""
 
 let get_current_exn () =
   match Eio.Fiber.get invoke_context_key with

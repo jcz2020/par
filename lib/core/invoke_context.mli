@@ -34,6 +34,7 @@ type invoke_context = private {
   tool_call_hooks_snapshot : Hook.tool_call_hook list;
   steering_queue : Steering_queue.t;
   followup_queue : Steering_queue.t;
+  system_prompt_appendix : string option;
 }
 
 (** The fiber-local key. Exported so callers (e.g. Engine) can read the
@@ -49,6 +50,7 @@ val create :
   ?skills:string list ->
   ?steering:Steering_queue.t ->
   ?followup:Steering_queue.t ->
+  ?system_prompt_appendix:string ->
   unit ->
   invoke_context
 
@@ -56,6 +58,8 @@ val create :
     no binding exists (e.g. calls outside [with_context]). Graceful
     degradation for code paths that pre-date the carrier migration. *)
 val get_current : unit -> invoke_context option
+
+val appendix_text : unit -> string
 
 (** Like [get_current] but raises when no binding exists. Use on hot paths
     where a binding MUST exist — its absence indicates a programming error

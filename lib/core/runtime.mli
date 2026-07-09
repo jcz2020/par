@@ -12,7 +12,7 @@ val create :
   ?event_bus:Types.event_bus_service ->
   ?llm:llm_service ->
   ?embeddings:embedding_service ->
-  ?memory:Par_memory.Memory_service.memory_service ->
+  ?memory:memory_service ->
   ?bash_policy:(module Bash_policy.POLICY) ->
   ?workspace:Workspace.workspace ->
   ?mcp_servers:Mcp_types.server_config list ->
@@ -237,6 +237,7 @@ val invoke :
   ?on_tool_event:(event -> unit) ->
   ?on_chunk:(llm_response_chunk -> unit) option ->
   ?enable_handoff:bool ->
+  ?system_prompt_appendix:string ->
   ?context:Invoke_context.invoke_context ->
   unit ->
   (invoke_result, error_category * conversation) result
@@ -255,6 +256,7 @@ val invoke_async :
   ?on_tool_event:(event -> unit) ->
   ?on_chunk:(llm_response_chunk -> unit) option ->
   ?enable_handoff:bool ->
+  ?system_prompt_appendix:string ->
   ?context:Invoke_context.invoke_context ->
   unit ->
   Invoke_context.invoke_handle
@@ -283,6 +285,7 @@ val invoke_generate :
   ?total_timeout:float ->
   ?on_tool_event:(event -> unit) ->
   ?on_chunk:(llm_response_chunk -> unit) ->
+  ?system_prompt_appendix:string ->
   unit ->
   (generate_result, error_category * conversation) result
 

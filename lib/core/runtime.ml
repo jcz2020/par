@@ -670,7 +670,8 @@ let load_most_recent_conversation rt =
   | Error _ as e -> e
 
 let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
-    ?on_tool_event ?on_chunk ?enable_handoff ?(context : Invoke_context.invoke_context option) () =
+    ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix
+    ?(context : Invoke_context.invoke_context option) () =
   let effective_workspace = Option.value workspace ~default:rt.workspace in
   let ctx = match context with
     | Some c -> c
@@ -687,6 +688,7 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
         ~metrics:(Metrics.empty ())
         ~hooks:rt.tool_call_hooks
         ~skills:rt.user_activated_skills
+        ?system_prompt_appendix
         ()
   in
   (match rt.event_bus_instance with
@@ -814,7 +816,7 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
  
 
 let invoke_async rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
-    ?on_tool_event ?on_chunk ?enable_handoff ?context () =
+    ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix ?context () =
   let token = match cancellation_token with
     | Some t -> t
     | None -> Cancellation.create_token rt.cancellation_root
@@ -822,10 +824,10 @@ let invoke_async rt ~agent_id ~message ?workspace ?cancellation_token ?conversat
   Invoke_context.fork_invoke ~sw:rt.cancellation_root ~token (fun () ->
     invoke rt ~agent_id ~message ?workspace
       ~cancellation_token:token ?conversation ?on_tool_event ?on_chunk
-      ?enable_handoff ?context ())
+      ?enable_handoff ?system_prompt_appendix ?context ())
 
 let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
-    ?on_tool_event ?on_chunk () =
+    ?on_tool_event ?on_chunk ?system_prompt_appendix () =
   let session_id = match !(rt.session_id) with
     | Some sid -> sid
     | None ->
@@ -877,6 +879,12 @@ let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
          estimated_wasted_tokens;
        })
      | _ -> ());
+    let ctx = Invoke_context.create
+      ~session_id
+      ~metrics:(Metrics.empty ())
+      ?system_prompt_appendix
+      () in
+    Invoke_context.with_context ctx (fun () ->
     match Provider_registry.get_default rt.llm_providers with
     | Error `No_default ->
       let err = Invalid_input "No default LLM provider configured." in
@@ -903,7 +911,7 @@ let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
        | Error (err, conv) ->
          record_llm_error rt err;
          rt.current_conversation <- Some conv;
-         Result.Error (err, conv))
+         Result.Error (err, conv)))
 
 let invoke_structured rt ~agent_id ~message ~response_schema
     ?(max_repair_attempts = 3) ?cancellation_token ?conversation
@@ -1540,7 +1548,10 @@ let create ?(persistence = noop_persistence)
     } in
     (match memory with
      | Some _svc ->
-       rt.memory_rebuild <- Some (Builtin_tools.build_memory_tools memory persistence)
+       let tools = Builtin_tools.build_memory_tools memory persistence in
+       rt.memory_rebuild <- Some tools;
+       List.iter (fun (name, handler) ->
+         Tool_registry.replace rt.tool_registry name handler) tools
      | None -> ());
      (* §2.1: Rehydrate suspended workflows AND workflow definitions from
         persistence. Without restoring workflow_defs, resume_workflow would

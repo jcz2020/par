@@ -459,6 +459,11 @@
  (modules test_memory))
 
 (test
+ (name test_memory_tools)
+ (libraries par par_memory eio_main alcotest)
+ (modules test_memory_tools))
+
+(test
  (name test_fiber_spike)
  (libraries eio_main)
  (modules test_fiber_spike)
