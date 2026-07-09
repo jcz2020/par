@@ -35,13 +35,39 @@ Runtime.default_shutdown_config   (* drain_timeout=30s *)
 
 ```ocaml
 val Runtime.create :
-  ?persistence:Types.persistence_service ->
+  ?persistence:persistence_service ->
   ?event_bus:Types.event_bus_service ->
-  ?llm:Types.llm_service ->
-  config:Types.runtime_config ->
+  ?llm:llm_service ->
+  ?embeddings:embedding_service ->
+  ?memory:memory_service ->
+  ?bash_policy:(module Bash_policy.POLICY) ->
+  ?workspace:Workspace.workspace ->
+  ?mcp_servers:Mcp_types.server_config list ->
+  ?mcp_process_mgr:_ Eio.Process.mgr ->
+  ?mcp_net:_ Eio.Net.t ->
+  ?mcp_clock:_ Eio.Time.clock ->
+  ?mcp_startup_policy:Mcp_types.startup_policy ->
+  config:runtime_config ->
   Eio.Switch.t ->
-  (runtime, Types.error_category) result
+  (runtime, error_category) result
 ```
+
+所有可选参数默认为 `None`。关键可选参数：
+
+| 参数 | 说明 |
+|------|------|
+| `?persistence` | 持久化后端（如 `Sqlite` 或 `Noop`）。 |
+| `?event_bus` | 自定义事件总线配置。 |
+| `?llm` | 主 LLM 服务 provider。 |
+| `?embeddings` | 嵌入服务，用于 RAG 管道。见 [RAG API](rag.md)。 |
+| `?memory` | 内存服务，用于跨会话 agent 记忆（FTS5）。见 [Memory API](memory.md)。 |
+| `?bash_policy` | Bash 信任边界策略模块。默认：`Always`（允许所有）。 |
+| `?workspace` | 文件系统沙箱的 Workspace。默认为 CWD。 |
+| `?mcp_servers` | 创建时启动的 MCP 服务器配置。 |
+| `?mcp_process_mgr` | MCP stdio 服务器的 Eio 进程管理器。 |
+| `?mcp_net` | MCP HTTP/SSE 服务器的 Eio 网络能力。 |
+| `?mcp_clock` | MCP 启动超时的 Eio 时钟。 |
+| `?mcp_startup_policy` | MCP 服务器启动策略（阻塞 vs 延迟）。 |
 
 完整示例：
 
@@ -210,17 +236,104 @@ val Runtime.invoke :
   runtime ->
   agent_id:string ->
   message:string ->
-  ?cancellation_token:Types.cancellation_token ->
+  ?workspace:Workspace.workspace ->
+  ?cancellation_token:cancellation_token ->
+  ?conversation:conversation ->
+  ?on_tool_event:(event -> unit) ->
+  ?on_chunk:(llm_response_chunk -> unit) option ->
+  ?enable_handoff:bool ->
+  ?system_prompt_appendix:string ->
+  ?context:Invoke_context.invoke_context ->
   unit ->
-  (Types.llm_response, Types.error_category) result
+  (invoke_result, error_category * conversation) result
 ```
+
+所有可选参数：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `?workspace` | `Workspace.workspace` | 单次调用 workspace 覆盖。工具使用此 workspace 而非运行时默认值。 |
+| `?cancellation_token` | `cancellation_token` | 协作取消令牌。见下方「取消令牌」章节。 |
+| `?conversation` | `conversation option` | 恢复的对话历史。传 `None` 开始新对话。 |
+| `?on_tool_event` | `event -> unit` | 工具相关事件回调（tool_call_sent、tool_result_received 等）。 |
+| `?on_chunk` | `(llm_response_chunk -> unit) option` | LLM 响应块的流式回调。`None` 禁用流式。 |
+| `?enable_handoff` | `bool` | 启用 agent 间交接（handoff）工具。默认：`false`。 |
+| `?system_prompt_appendix` | `string` | 仅本次调用追加到 system prompt 的文本。见 [invoke_context](invoke_context.md)。 |
+| `?context` | `Invoke_context.invoke_context` | 预构建的单次调用隔离上下文。提供时使用此上下文而非创建新的。见 [invoke_context](invoke_context.md)。 |
+
+返回类型为 `invoke_result`（不是 `llm_response`）：
+
+```ocaml
+type invoke_result = {
+  response : llm_response;
+  conversation : conversation;
+}
+```
+
+错误元组中的 `conversation` 字段携带失败时的对话状态，支持错误恢复或部分结果提取。
 
 ```ocaml
 match Runtime.invoke rt ~agent_id:"my-agent" ~message:"Hello!" () with
-| Ok resp ->
+| Ok result ->
+  let resp = result.response in
   (match resp.text with Some text -> Printf.printf "Response: %s\n" text
   | None -> Printf.printf "No text response\n")
-| Error err -> Printf.eprintf "Error: %s\n" (Types.error_category_to_yojson err |> Yojson.Safe.to_string)
+| Error (err, _conv) ->
+  Printf.eprintf "Error: %s\n"
+    (Types.error_category_to_yojson err |> Yojson.Safe.to_string)
+```
+
+### 流式示例
+
+```ocaml
+Runtime.invoke rt ~agent_id:"my-agent" ~message:"Tell me a story"
+  ~on_chunk:(fun chunk ->
+    Printf.printf "%s%!" chunk.text)
+  ()
+```
+
+### 异步调用
+
+`Runtime.invoke_async` 在后台 fiber 中运行调用，立即返回一个 `invoke_handle`，可用于等待、取消或轮询结果。完整详情见 [invoke_context](invoke_context.md)。
+
+```ocaml
+val Runtime.invoke_async :
+  runtime ->
+  agent_id:string ->
+  message:string ->
+  ?workspace:Workspace.workspace ->
+  ?cancellation_token:cancellation_token ->
+  ?conversation:conversation ->
+  ?on_tool_event:(event -> unit) ->
+  ?on_chunk:(llm_response_chunk -> unit) option ->
+  ?enable_handoff:bool ->
+  ?system_prompt_appendix:string ->
+  ?context:Invoke_context.invoke_context ->
+  unit ->
+  Invoke_context.invoke_handle
+```
+
+Handle 函数：
+
+```ocaml
+val Invoke_context.invoke_handle_await :
+  invoke_handle ->
+  (invoke_result, error_category * conversation) result
+
+val Invoke_context.invoke_handle_cancel : invoke_handle -> unit
+val Invoke_context.invoke_handle_status : invoke_handle -> invoke_status
+```
+
+```ocaml
+let handle = Runtime.invoke_async rt ~agent_id:"researcher"
+  ~message:"Find recent papers on OCaml effects" () in
+(* 在 agent 后台运行时做其他事情 ... *)
+match Invoke_context.invoke_handle_await handle with
+| Ok result ->
+  Printf.printf "Done: %s\n" (result.response.text |> Option.value ~default:"")
+| Error (err, _) ->
+  Printf.eprintf "Failed: %s\n"
+    (Types.error_category_to_yojson err |> Yojson.Safe.to_string)
 ```
 
 ### 关闭运行时
@@ -405,6 +518,9 @@ Cancellation.request_cancel token
 ## See also
 
 - [Overview](overview.md) -- SDK 架构概览
+- [invoke_context](invoke_context.md) -- 单次调用隔离、`invoke_async`、动态 system prompt
 - [Workflow API](workflow.md) -- 工作流编排
 - [Middleware API](middleware.md) -- 中间件管道
+- [Memory API](memory.md) -- 跨会话 agent 记忆，FTS5 搜索
+- [MCP client](mcp.md) -- `Runtime.mcp_server` 生命周期、`call_tool`、`read_resource`、`get_prompt`
 - [examples/basic_agent.ml](../../../examples/basic_agent.ml) -- 完整可运行示例

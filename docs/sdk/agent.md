@@ -4,7 +4,7 @@
 
 # Agent API Reference
 
-> Translated to English for v0.3.2. Source-of-truth: the OCaml types in `lib/core/types.ml`.
+> Translated to English for v0.3.2. Source-of-truth: the OCaml types in `lib/core/runtime.mli` and `lib/core/types.mli`.
 
 This document describes the P-A-R SDK's Agent configuration, runtime management, and tool registration API. The `Par` facade (see `lib/par.ml`) re-exports every public module, so a single `open Par` brings the runtime, types, providers, persistence, and middleware into scope.
 
@@ -43,13 +43,39 @@ Runtime.default_bash_confirm      (* Always policy *)
 
 ```ocaml
 val Runtime.create :
-  ?persistence:Types.persistence_service ->
+  ?persistence:persistence_service ->
   ?event_bus:Types.event_bus_service ->
-  ?llm:Types.llm_service ->
-  config:Types.runtime_config ->
+  ?llm:llm_service ->
+  ?embeddings:embedding_service ->
+  ?memory:memory_service ->
+  ?bash_policy:(module Bash_policy.POLICY) ->
+  ?workspace:Workspace.workspace ->
+  ?mcp_servers:Mcp_types.server_config list ->
+  ?mcp_process_mgr:_ Eio.Process.mgr ->
+  ?mcp_net:_ Eio.Net.t ->
+  ?mcp_clock:_ Eio.Time.clock ->
+  ?mcp_startup_policy:Mcp_types.startup_policy ->
+  config:runtime_config ->
   Eio.Switch.t ->
-  (runtime, Types.error_category) result
+  (runtime, error_category) result
 ```
+
+All optional parameters are `None` by default. Key optional parameters:
+
+| Parameter | Description |
+|-----------|-------------|
+| `?persistence` | Persistence backend (e.g. `Sqlite` or `Noop`). |
+| `?event_bus` | Custom event bus configuration. |
+| `?llm` | Primary LLM service provider. |
+| `?embeddings` | Embedding service for RAG pipelines. See [RAG API](rag.md). |
+| `?memory` | Memory service for cross-session agent memory (FTS5). See [Memory API](memory.md). |
+| `?bash_policy` | Bash trust-boundary policy module. Default: `Always` (allow all). |
+| `?workspace` | Workspace for file-system sandboxing. Defaults to CWD. |
+| `?mcp_servers` | MCP server configurations to start on creation. |
+| `?mcp_process_mgr` | Eio process manager for MCP stdio servers. |
+| `?mcp_net` | Eio network capability for MCP HTTP/SSE servers. |
+| `?mcp_clock` | Eio clock for MCP startup timeouts. |
+| `?mcp_startup_policy` | MCP server startup policy (blocking vs lazy). |
 
 Full example:
 
@@ -217,17 +243,104 @@ val Runtime.invoke :
   runtime ->
   agent_id:string ->
   message:string ->
-  ?cancellation_token:Types.cancellation_token ->
+  ?workspace:Workspace.workspace ->
+  ?cancellation_token:cancellation_token ->
+  ?conversation:conversation ->
+  ?on_tool_event:(event -> unit) ->
+  ?on_chunk:(llm_response_chunk -> unit) option ->
+  ?enable_handoff:bool ->
+  ?system_prompt_appendix:string ->
+  ?context:Invoke_context.invoke_context ->
   unit ->
-  (Types.llm_response, Types.error_category) result
+  (invoke_result, error_category * conversation) result
 ```
+
+All optional parameters:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `?workspace` | `Workspace.workspace` | Per-call workspace override. Tools use this workspace instead of the runtime's default. |
+| `?cancellation_token` | `cancellation_token` | Token for cooperative cancellation. See [Cancellation tokens](#cancellation-tokens). |
+| `?conversation` | `conversation option` | Resumed conversation history. Pass `None` to start fresh. |
+| `?on_tool_event` | `event -> unit` | Callback fired for tool-related events (tool_call_sent, tool_result_received, etc.). |
+| `?on_chunk` | `(llm_response_chunk -> unit) option` | Streaming callback for LLM response chunks. `None` disables streaming. |
+| `?enable_handoff` | `bool` | Enable agent-to-agent handoff via the `handoff` tool. Default: `false`. |
+| `?system_prompt_appendix` | `string` | Text appended to the system prompt for this invocation only. See [invoke_context](invoke_context.md). |
+| `?context` | `Invoke_context.invoke_context` | Pre-built per-call isolation context. When provided, uses this context instead of creating a fresh one. See [invoke_context](invoke_context.md). |
+
+The return type is `invoke_result` (not `llm_response`):
+
+```ocaml
+type invoke_result = {
+  response : llm_response;
+  conversation : conversation;
+}
+```
+
+The `conversation` field in the error tuple carries the conversation state up to the point of failure, enabling error recovery or partial result extraction.
 
 ```ocaml
 match Runtime.invoke rt ~agent_id:"my-agent" ~message:"Hello!" () with
-| Ok resp ->
+| Ok result ->
+  let resp = result.response in
   (match resp.text with Some text -> Printf.printf "Response: %s\n" text
   | None -> Printf.printf "No text response\n")
-| Error err -> Printf.eprintf "Error: %s\n" (Types.error_category_to_yojson err |> Yojson.Safe.to_string)
+| Error (err, _conv) ->
+  Printf.eprintf "Error: %s\n"
+    (Types.error_category_to_yojson err |> Yojson.Safe.to_string)
+```
+
+### Streaming example
+
+```ocaml
+Runtime.invoke rt ~agent_id:"my-agent" ~message:"Tell me a story"
+  ~on_chunk:(fun chunk ->
+    Printf.printf "%s%!" chunk.text)
+  ()
+```
+
+### Async invocation
+
+`Runtime.invoke_async` runs the invocation in a background fiber and returns immediately with an `invoke_handle` you can use to await, cancel, or poll the result. See [invoke_context](invoke_context.md) for full details.
+
+```ocaml
+val Runtime.invoke_async :
+  runtime ->
+  agent_id:string ->
+  message:string ->
+  ?workspace:Workspace.workspace ->
+  ?cancellation_token:cancellation_token ->
+  ?conversation:conversation ->
+  ?on_tool_event:(event -> unit) ->
+  ?on_chunk:(llm_response_chunk -> unit) option ->
+  ?enable_handoff:bool ->
+  ?system_prompt_appendix:string ->
+  ?context:Invoke_context.invoke_context ->
+  unit ->
+  Invoke_context.invoke_handle
+```
+
+The handle functions:
+
+```ocaml
+val Invoke_context.invoke_handle_await :
+  invoke_handle ->
+  (invoke_result, error_category * conversation) result
+
+val Invoke_context.invoke_handle_cancel : invoke_handle -> unit
+val Invoke_context.invoke_handle_status : invoke_handle -> invoke_status
+```
+
+```ocaml
+let handle = Runtime.invoke_async rt ~agent_id:"researcher"
+  ~message:"Find recent papers on OCaml effects" () in
+(* Do other work while the agent runs in the background ... *)
+match Invoke_context.invoke_handle_await handle with
+| Ok result ->
+  Printf.printf "Done: %s\n" (result.response.text |> Option.value ~default:"")
+| Error (err, _) ->
+  Printf.eprintf "Failed: %s\n"
+    (Types.error_category_to_yojson err |> Yojson.Safe.to_string)
 ```
 
 ### Shutting down the runtime
@@ -552,7 +665,9 @@ Cancellation.request_cancel token
 ## See also
 
 - [Overview](overview.md) -- SDK architecture overview
+- [invoke_context](invoke_context.md) -- Per-call isolation, `invoke_async`, dynamic system prompt
 - [Workflow API](workflow.md) -- Workflow orchestration
 - [Middleware API](middleware.md) -- Middleware pipeline
+- [Memory API](memory.md) -- Cross-session agent memory with FTS5 search
 - [MCP client](mcp.md) -- `Runtime.mcp_server` lifecycle, `call_tool`, `read_resource`, `get_prompt`
 - [examples/basic_agent.ml](../../examples/basic_agent.ml) -- Complete runnable example
