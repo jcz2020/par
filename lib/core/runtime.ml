@@ -58,6 +58,7 @@ type runtime = {
      [register_file_tools_rebuild]. [None] on runtimes without builtin file
      tools (e.g. Python FFI individual registration). *)
   mutable file_tools_rebuild : (Workspace.workspace -> (string * Tool_registry.handler_fn) list) option;
+  mutable memory_rebuild : ((string * Tool_registry.handler_fn) list) option;
   workspace : Workspace.workspace;
   mcp_servers : (Mcp_types.server_id, Mcp_server.t) Types.protected_hashtbl;
   event_bus_instance : Event_bus.t option;
@@ -627,6 +628,10 @@ let per_call_registry ~(rt : runtime) ~(workspace : Workspace.workspace) : Tool_
   let rt' = { rt with workspace } in
   (match rt.bash_rebuild with
    | Some rebuild -> Tool_registry.replace fresh "bash" (rebuild rt')
+   | None -> ());
+  (match rt.memory_rebuild with
+   | Some tools ->
+     List.iter (fun (name, handler) -> Tool_registry.replace fresh name handler) tools
    | None -> ());
   fresh
 
@@ -1405,10 +1410,10 @@ let approve_workflow rt wf_id ~approver =
   | Some _ -> Result.Error (Invalid_input "Workflow is not suspended")
 
 let noop_persistence : Types.persistence_service = {
-  save_events_fn = (fun _events -> Ok ());
+  save_events_fn = (fun ?scope:_ _events -> Ok ());
   load_events_fn = (fun _task_id -> Ok []);
-  load_events_by_session_fn = (fun _session_id -> Ok []);
-  load_sessions_fn = (fun _limit -> Ok []);
+  load_events_by_session_fn = (fun ?scope:_ _session_id -> Ok []);
+  load_sessions_fn = (fun ?scope:_ _limit -> Ok []);
   save_task_state_fn = (fun _ts -> Ok ());
   load_task_state_fn = (fun _task_id -> Ok None);
   save_workflow_state_fn = (fun _id _status _checkpoint -> Ok ());
@@ -1416,9 +1421,9 @@ let noop_persistence : Types.persistence_service = {
   load_all_suspended_workflows_fn = (fun _ -> Ok []);
   save_workflow_def_fn = (fun _ _ -> Ok ());
   load_all_workflow_defs_fn = (fun _ -> Ok []);
-  save_conversation_fn = (fun _sid _conv -> Ok ());
+  save_conversation_fn = (fun ?scope:_ _sid _conv -> Ok ());
   load_conversation_fn = (fun _sid -> Ok None);
-  load_most_recent_conversation_fn = (fun () -> Ok None);
+  load_most_recent_conversation_fn = (fun ?scope:_ () -> Ok None);
   close_fn = ignore;
 }
 
@@ -1440,6 +1445,7 @@ let create ?(persistence = noop_persistence)
                      supports_native_tools_fn = None;
                      context_window_fn = None; cache_control_fn = None })
            ?embeddings
+           ?memory
            ?(bash_policy = (module Bash_policy.Coder : Bash_policy.POLICY))
            ?workspace
            ?(mcp_servers = [])
@@ -1493,6 +1499,7 @@ let create ?(persistence = noop_persistence)
         persistence;
         llm;
         embeddings;
+        memory;
         event_bus = event_bus_service;
         config;
       };
@@ -1520,6 +1527,7 @@ let create ?(persistence = noop_persistence)
       bash_installed = ref false;
       bash_rebuild = None;
       file_tools_rebuild = None;
+      memory_rebuild = None;
       workspace;
       mcp_servers = { data = Hashtbl.create 4; mutex = Eio.Mutex.create () };
       event_bus_instance;
@@ -1530,6 +1538,10 @@ let create ?(persistence = noop_persistence)
       current_conversation = None;
       fallback_policy = Types.No_fallback;
     } in
+    (match memory with
+     | Some _svc ->
+       rt.memory_rebuild <- Some (Builtin_tools.build_memory_tools memory persistence)
+     | None -> ());
      (* §2.1: Rehydrate suspended workflows AND workflow definitions from
         persistence. Without restoring workflow_defs, resume_workflow would
         fail with "Workflow definition not found" for any rehydrated run. *)
@@ -1637,6 +1649,9 @@ let close rt =
   rt.services.persistence.close_fn ();
   rt.services.llm.close_fn ();
   (match rt.services.embeddings with
+   | Some svc -> svc.close_fn ()
+   | None -> ());
+  (match rt.services.memory with
    | Some svc -> svc.close_fn ()
    | None -> ());
   0

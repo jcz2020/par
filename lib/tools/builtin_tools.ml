@@ -1280,3 +1280,239 @@ let builtin_tools ~switch ~net ~workspace =
   ; edit_tool
   ; bash_tool
   ]
+
+let[@warning "-32"] build_memory_tools (memory_opt : Types.memory_service option)
+    (persistence : Types.persistence_service) :
+    (string * Tool_registry.handler_fn) list =
+  match memory_opt with
+  | None -> []
+  | Some memory ->
+    let open Types in
+    let recall_memory =
+      let descriptor : Types.tool_descriptor =
+        { name = "recall_memory"
+        ; description = "Search stored memories by query. Returns matching memories scoped to the current session. \
+                         Input: {\"query\": \"search terms\", \"limit\": 5}"
+        ; input_schema = `Assoc
+            [ ("type", `String "object")
+            ; ("properties", `Assoc
+                [ ("query", `Assoc
+                    [ ("type", `String "string")
+                    ; ("description", `String "Search query to find relevant memories")
+                    ])
+                ; ("limit", `Assoc
+                    [ ("type", `String "integer")
+                    ; ("description", `String "Maximum number of results (default 5)")
+                    ; ("minimum", `Int 1)
+                    ; ("maximum", `Int 50)
+                    ])
+                ])
+            ; ("required", `List [`String "query"])
+            ]
+        ; output_schema = None
+        ; permission = Allow
+        ; timeout = Some 10.0
+        ; concurrency_limit = None
+        ; on_update = None
+        ; cache_control = None
+        }
+      in
+      let handler = (fun input _tok ->
+        let open Yojson.Safe.Util in
+        let query = match input |> member "query" |> to_string_option with
+          | Some q -> q | None -> ""
+        in
+        let limit = match input |> member "limit" |> to_int_option with
+          | Some n -> max 1 (min n 50) | None -> 5
+        in
+        if query = "" then
+          Error { category = Invalid_input "Missing query parameter";
+                  message = "query is required"; retryable = false; metadata = [] }
+        else
+          let ctx = Invoke_context.get_current_exn () in
+          let scope = ctx.session_id in
+          match memory.Types.search_fn ~scope ~limit query with
+          | Error e ->
+            Error { category = e;
+                    message = "Memory search failed"; retryable = false; metadata = [] }
+          | Ok results ->
+            Success (`Assoc
+              [ ("results", `List results)
+              ; ("count", `Int (List.length results))
+              ]))
+      in
+      (descriptor.name, handler)
+    in
+
+    let remember_memory =
+      let descriptor : Types.tool_descriptor =
+        { name = "remember_memory"
+        ; description = "Store a new memory for future recall. Memories are scoped to the current session. \
+                         Input: {\"content\": \"fact to remember\", \"summary\": \"short summary\", \
+                         \"categories\": [\"category1\"]}"
+        ; input_schema = `Assoc
+            [ ("type", `String "object")
+            ; ("properties", `Assoc
+                [ ("content", `Assoc
+                    [ ("type", `String "string")
+                    ; ("description", `String "The full content to remember")
+                    ])
+                ; ("summary", `Assoc
+                    [ ("type", `String "string")
+                    ; ("description", `String "A short summary of the memory (optional)")
+                    ])
+                ; ("categories", `Assoc
+                    [ ("type", `String "array")
+                    ; ("items", `Assoc [("type", `String "string")])
+                    ; ("description", `String "Tags for categorization (optional)")
+                    ])
+                ])
+            ; ("required", `List [`String "content"])
+            ]
+        ; output_schema = None
+        ; permission = Allow
+        ; timeout = Some 10.0
+        ; concurrency_limit = None
+        ; on_update = None
+        ; cache_control = None
+        }
+      in
+      let handler = (fun input _tok ->
+        let open Yojson.Safe.Util in
+        let content = match input |> member "content" |> to_string_option with
+          | Some c -> c | None -> ""
+        in
+        let summary = input |> member "summary" |> to_string_option in
+        let categories =
+          match input |> member "categories" with
+          | `List xs -> List.filter_map to_string_option xs
+          | _ -> []
+        in
+        if content = "" then
+          Error { category = Invalid_input "Missing content parameter";
+                  message = "content is required"; retryable = false; metadata = [] }
+        else
+          let ctx = Invoke_context.get_current_exn () in
+          let scope = ctx.session_id in
+          match memory.Types.add_fn ~content ?summary ~scope
+                  ~categories ~source:"tool" () with
+          | Error e ->
+            Error { category = e;
+                    message = "Failed to store memory"; retryable = false; metadata = [] }
+          | Ok obj ->
+            Success obj)
+      in
+      (descriptor.name, handler)
+    in
+
+    let search_history =
+      let descriptor : tool_descriptor =
+        { name = "search_history"
+        ; description = "Search conversation history from recent sessions. \
+                         Input: {\"query\": \"search terms\", \"limit\": 10}"
+        ; input_schema = `Assoc
+            [ ("type", `String "object")
+            ; ("properties", `Assoc
+                [ ("query", `Assoc
+                    [ ("type", `String "string")
+                    ; ("description", `String "Search query to find in conversation messages")
+                    ])
+                ; ("limit", `Assoc
+                    [ ("type", `String "integer")
+                    ; ("description", `String "Maximum number of sessions to search (default 10)")
+                    ; ("minimum", `Int 1)
+                    ; ("maximum", `Int 50)
+                    ])
+                ])
+            ; ("required", `List [`String "query"])
+            ]
+        ; output_schema = None
+        ; permission = Allow
+        ; timeout = Some 10.0
+        ; concurrency_limit = None
+        ; on_update = None
+        ; cache_control = None
+        }
+      in
+      let extract_text (msg : message) : string =
+        let buf = Buffer.create 256 in
+        List.iter (function
+          | Text_block { text; _ } -> Buffer.add_string buf text
+          | _ -> ()
+        ) msg.content_blocks;
+        Buffer.contents buf
+      in
+      let role_to_string (r : message_role) : string =
+        match r with System -> "system" | User -> "user" | Assistant -> "assistant" | Tool -> "tool"
+      in
+      let handler = (fun input _tok ->
+        let open Yojson.Safe.Util in
+        let query = match input |> member "query" |> to_string_option with
+          | Some q -> q | None -> ""
+        in
+        let limit = match input |> member "limit" |> to_int_option with
+          | Some n -> max 1 (min n 50) | None -> 10
+        in
+        if query = "" then
+          Error { category = Invalid_input "Missing query parameter";
+                  message = "query is required"; retryable = false; metadata = [] }
+        else
+          let query_lower = String.lowercase_ascii query in
+          let matches = ref [] in
+          let ctx = Invoke_context.get_current_exn () in
+          let sessions_result = persistence.load_sessions_fn limit in
+          (match sessions_result with
+           | Error e ->
+             Error { category = e;
+                     message = "Failed to load sessions"; retryable = false; metadata = [] }
+           | Ok sessions ->
+             List.iter (fun (summary : session_summary) ->
+               match persistence.load_conversation_fn summary.session_id with
+               | Ok (Some conv) ->
+                 List.iter (fun (msg : message) ->
+                   let text = extract_text msg in
+                   let text_lower = String.lowercase_ascii text in
+                   if String.length text_lower > 0 &&
+                      (try ignore (Str.search_forward (Str.regexp_string query_lower) text_lower 0); true
+                       with Not_found -> false) then
+                     matches := `Assoc
+                       [ ("session_id", `String summary.session_id)
+                       ; ("role", `String (role_to_string msg.role))
+                       ; ("content", `String (if String.length text > 500
+                                              then String.sub text 0 500 ^ "..."
+                                              else text))
+                       ] :: !matches
+                 ) conv.messages
+               | _ -> ()
+             ) sessions;
+             let results = List.rev !matches in
+             let ctx_session_match =
+               match persistence.load_conversation_fn ctx.session_id with
+               | Ok (Some conv) ->
+                 List.filter_map (fun (msg : message) ->
+                   let text = extract_text msg in
+                   let text_lower = String.lowercase_ascii text in
+                   if String.length text_lower > 0 &&
+                      (try ignore (Str.search_forward (Str.regexp_string query_lower) text_lower 0); true
+                       with Not_found -> false) then
+                     Some (`Assoc
+                       [ ("session_id", `String ctx.session_id)
+                       ; ("role", `String (role_to_string msg.role))
+                       ; ("content", `String (if String.length text > 500
+                                              then String.sub text 0 500 ^ "..."
+                                              else text))
+                       ])
+                   else None
+                 ) conv.messages
+               | _ -> []
+             in
+             let all_results = ctx_session_match @ results in
+             Success (`Assoc
+               [ ("results", `List all_results)
+               ; ("count", `Int (List.length all_results))
+               ])))
+      in
+      (descriptor.name, handler)
+    in
+
+    [ recall_memory; remember_memory; search_history ]

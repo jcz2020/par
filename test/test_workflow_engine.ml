@@ -910,11 +910,11 @@ let rehydration_runtime_config db_path : runtime_config =
     event_retention_seconds = 604800.0; }
 
 let make_rehydration_persist (sqlt : Sqlite_persistence.t) : persistence_service =
-  { save_events_fn = (fun envs -> Sqlite_persistence.save_events sqlt envs);
+  { save_events_fn = (fun ?scope envs -> Sqlite_persistence.save_events ?scope sqlt envs);
     load_events_fn = (fun tid -> Sqlite_persistence.load_events sqlt tid);
     load_events_by_session_fn =
-      (fun sid -> Sqlite_persistence.load_events_by_session sqlt sid);
-    load_sessions_fn = (fun lim -> Sqlite_persistence.load_sessions sqlt lim);
+      (fun ?scope sid -> Sqlite_persistence.load_events_by_session ?scope sqlt sid);
+    load_sessions_fn = (fun ?scope lim -> Sqlite_persistence.load_sessions ?scope sqlt lim);
     save_task_state_fn =
       (fun ts -> Sqlite_persistence.save_task_state sqlt ts);
     load_task_state_fn =
@@ -930,11 +930,11 @@ let make_rehydration_persist (sqlt : Sqlite_persistence.t) : persistence_service
     load_all_workflow_defs_fn =
       (fun () -> Sqlite_persistence.load_all_workflow_defs sqlt);
     save_conversation_fn =
-      (fun sid conv -> Sqlite_persistence.save_conversation sqlt sid conv);
+      (fun ?scope sid conv -> Sqlite_persistence.save_conversation ?scope sqlt sid conv);
     load_conversation_fn =
       (fun sid -> Sqlite_persistence.load_conversation sqlt sid);
     load_most_recent_conversation_fn =
-      (fun () -> Sqlite_persistence.load_most_recent_conversation sqlt);
+      (fun ?scope () -> Sqlite_persistence.load_most_recent_conversation ?scope sqlt);
     close_fn = (fun () -> Sqlite_persistence.close sqlt); }
 
 let rehydration_mock_llm =

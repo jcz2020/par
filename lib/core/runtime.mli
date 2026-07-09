@@ -12,6 +12,7 @@ val create :
   ?event_bus:Types.event_bus_service ->
   ?llm:llm_service ->
   ?embeddings:embedding_service ->
+  ?memory:Par_memory.Memory_service.memory_service ->
   ?bash_policy:(module Bash_policy.POLICY) ->
   ?workspace:Workspace.workspace ->
   ?mcp_servers:Mcp_types.server_config list ->

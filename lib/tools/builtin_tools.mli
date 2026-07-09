@@ -8,3 +8,8 @@ val builtin_tools :
   net:'a Eio.Net.t ->
   workspace:Workspace.workspace ->
   Types.tool_binding list
+
+val build_memory_tools :
+  Types.memory_service option ->
+  Types.persistence_service ->
+  (string * (Yojson.Safe.t -> Types.cancellation_token -> Types.handler_result)) list

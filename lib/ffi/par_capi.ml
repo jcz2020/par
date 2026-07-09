@@ -309,35 +309,94 @@ let do_init (config_json : string) =
             (match Par.Sqlite_persistence.create path with
              | Ok sqlt ->
                let open Par.Types in
-               Some {
-                 save_events_fn = (fun envs -> Par.Sqlite_persistence.save_events sqlt envs);
-                 load_events_fn = (fun tid -> Par.Sqlite_persistence.load_events sqlt tid);
-                 load_events_by_session_fn = (fun sid -> Par.Sqlite_persistence.load_events_by_session sqlt sid);
-                 load_sessions_fn = (fun lim -> Par.Sqlite_persistence.load_sessions sqlt lim);
-                 save_task_state_fn = (fun ts -> Par.Sqlite_persistence.save_task_state sqlt ts);
-                 load_task_state_fn = (fun tid -> Par.Sqlite_persistence.load_task_state sqlt tid);
-                 save_workflow_state_fn = (fun id st cp -> Par.Sqlite_persistence.save_workflow_state sqlt id st cp);
-                 load_workflow_state_fn = (fun id -> Par.Sqlite_persistence.load_workflow_state sqlt id);
-                 load_all_suspended_workflows_fn = (fun () -> Par.Sqlite_persistence.load_all_suspended_workflows sqlt);
-                 save_workflow_def_fn = (fun id def -> Par.Sqlite_persistence.save_workflow_def sqlt id def);
-                 load_all_workflow_defs_fn = (fun () -> Par.Sqlite_persistence.load_all_workflow_defs sqlt);
-                 save_conversation_fn = (fun sid conv -> Par.Sqlite_persistence.save_conversation sqlt sid conv);
-                 load_conversation_fn = (fun sid -> Par.Sqlite_persistence.load_conversation sqlt sid);
-                 load_most_recent_conversation_fn = (fun () -> Par.Sqlite_persistence.load_most_recent_conversation sqlt);
-                 close_fn = (fun () -> Par.Sqlite_persistence.close sqlt);
-               }
+                Some {
+                  save_events_fn = (fun ?scope envs -> Par.Sqlite_persistence.save_events ?scope sqlt envs);
+                  load_events_fn = (fun tid -> Par.Sqlite_persistence.load_events sqlt tid);
+                  load_events_by_session_fn = (fun ?scope sid -> Par.Sqlite_persistence.load_events_by_session ?scope sqlt sid);
+                  load_sessions_fn = (fun ?scope lim -> Par.Sqlite_persistence.load_sessions ?scope sqlt lim);
+                  save_task_state_fn = (fun ts -> Par.Sqlite_persistence.save_task_state sqlt ts);
+                  load_task_state_fn = (fun tid -> Par.Sqlite_persistence.load_task_state sqlt tid);
+                  save_workflow_state_fn = (fun id st cp -> Par.Sqlite_persistence.save_workflow_state sqlt id st cp);
+                  load_workflow_state_fn = (fun id -> Par.Sqlite_persistence.load_workflow_state sqlt id);
+                  load_all_suspended_workflows_fn = (fun () -> Par.Sqlite_persistence.load_all_suspended_workflows sqlt);
+                  save_workflow_def_fn = (fun id def -> Par.Sqlite_persistence.save_workflow_def sqlt id def);
+                  load_all_workflow_defs_fn = (fun () -> Par.Sqlite_persistence.load_all_workflow_defs sqlt);
+                  save_conversation_fn = (fun ?scope sid conv -> Par.Sqlite_persistence.save_conversation ?scope sqlt sid conv);
+                  load_conversation_fn = (fun sid -> Par.Sqlite_persistence.load_conversation sqlt sid);
+                  load_most_recent_conversation_fn = (fun ?scope () -> Par.Sqlite_persistence.load_most_recent_conversation ?scope sqlt);
+                  close_fn = (fun () -> Par.Sqlite_persistence.close sqlt);
+                }
              | Error e ->
                fd_log ("[do_init] SQLite persistence create failed: " ^
                  (match e with
                   | Par.Types.Internal m -> m
                   | _ -> "unknown error"));
-               None)
+                None)
+        in
+        let memory_svc =
+          let json = Yojson.Safe.from_string config_json in
+          match Yojson.Safe.Util.member "memory" json with
+          | `Null | `Assoc [] -> None
+          | mem_cfg ->
+            let backend = Yojson.Safe.Util.(mem_cfg |> member "backend" |> to_string_option) in
+            let path = Yojson.Safe.Util.(mem_cfg |> member "path" |> to_string_option) in
+            match backend, path with
+            | Some "sqlite", Some db_path ->
+              fd_log (Printf.sprintf "[do_init] creating SQLite memory at %s" db_path);
+              (match Par_memory.Sqlite_memory.make_service db_path with
+               | Ok svc ->
+                 fd_log "[do_init] memory service created OK";
+                 let open Par_memory in
+                 Some (Par.Types.{
+                   add_fn = (fun ~content ?summary ?scope ?metadata ?categories ?source () ->
+                     match svc.Memory_service.add_fn ~content ?summary ?scope ?metadata ?categories ?source () with
+                     | Ok obj -> Ok (Memory_object.to_yojson obj)
+                     | Error e -> Error (Par.Types.Internal (Memory_error.to_string e)));
+                   search_fn = (fun ?scope ?limit query ->
+                     match svc.Memory_service.search_fn ?scope ?limit query with
+                     | Ok objs -> Ok (List.map Memory_object.to_yojson objs)
+                     | Error e -> Error (Par.Types.Internal (Memory_error.to_string e)));
+                   update_fn = (fun json ->
+                     match Memory_object.of_yojson json with
+                     | Ok obj ->
+                       (match svc.Memory_service.update_fn obj with
+                        | Ok updated -> Ok (Memory_object.to_yojson updated)
+                        | Error e -> Error (Par.Types.Internal (Memory_error.to_string e)))
+                     | Error msg -> Error (Par.Types.Internal msg));
+                   delete_fn = (fun id ->
+                     match svc.Memory_service.delete_fn id with
+                     | Ok () -> Ok ()
+                     | Error e -> Error (Par.Types.Internal (Memory_error.to_string e)));
+                   list_all_fn = (fun ?scope ?limit () ->
+                     match svc.Memory_service.list_all_fn ?scope ?limit () with
+                     | Ok objs -> Ok (List.map Memory_object.to_yojson objs)
+                     | Error e -> Error (Par.Types.Internal (Memory_error.to_string e)));
+                   close_fn = svc.Memory_service.close_fn;
+                   render_index_fn = svc.Memory_service.render_index_fn;
+                 })
+               | Error e ->
+                 fd_log ("[do_init] memory service create failed: " ^
+                   Par_memory.Memory_error.to_string e);
+                 None)
+            | Some other, _ ->
+              fd_log (Printf.sprintf "[do_init] unknown memory backend: %s" other);
+              None
+            | _, _ ->
+              fd_log "[do_init] memory config missing backend or path";
+              None
         in
         fd_log "[do_init] about to call Runtime.create";
         Eio.Switch.run (fun sw ->
-          let create_result = match persistence_svc with
-            | Some svc -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~persistence:svc sw
-            | None -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt sw
+          let create_result =
+            match persistence_svc, memory_svc with
+            | Some psvc, Some msvc ->
+              Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~persistence:psvc ~memory:msvc sw
+            | Some psvc, None ->
+              Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~persistence:psvc sw
+            | None, Some msvc ->
+              Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~memory:msvc sw
+            | None, None ->
+              Par.Runtime.create ~config ~llm ?embeddings:embed_opt sw
           in
           match create_result with
           | Ok rt ->

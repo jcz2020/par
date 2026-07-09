@@ -70,5 +70,30 @@ let () =
             | Ok evs ->
               Alcotest.(check int) "3 events returned" 3 (List.length evs);
               Sqlite_persistence.close t)));
+
+      Alcotest.test_case "scope_filters_sessions" `Quick (fun () ->
+        let db = tmp_db () in
+        (match Sqlite_persistence.create db with
+         | Error _ -> Alcotest.fail "create failed"
+         | Ok t ->
+           let env_a1 = make_envelope 0 "s1" 1.0 in
+           let env_a2 = make_envelope 1 "s2" 2.0 in
+           let env_b  = make_envelope 2 "s3" 3.0 in
+           ignore (Sqlite_persistence.save_events ~scope:"A" t [env_a1]);
+           ignore (Sqlite_persistence.save_events ~scope:"A" t [env_a2]);
+           ignore (Sqlite_persistence.save_events ~scope:"B" t [env_b]);
+           (match Sqlite_persistence.load_sessions ~scope:"A" t 100 with
+            | Error _ -> Sqlite_persistence.close t; Alcotest.fail "load A failed"
+            | Ok ss ->
+              Alcotest.(check int) "scope A has 2 sessions" 2 (List.length ss));
+           (match Sqlite_persistence.load_sessions ~scope:"B" t 100 with
+            | Error _ -> Sqlite_persistence.close t; Alcotest.fail "load B failed"
+            | Ok ss ->
+              Alcotest.(check int) "scope B has 1 session" 1 (List.length ss));
+           (match Sqlite_persistence.load_sessions t 100 with
+            | Error _ -> Sqlite_persistence.close t; Alcotest.fail "load all failed"
+            | Ok ss ->
+              Alcotest.(check int) "no scope has all 3 sessions" 3 (List.length ss));
+           Sqlite_persistence.close t));
     ]
   ]

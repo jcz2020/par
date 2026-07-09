@@ -18,6 +18,26 @@ let exec_sql db sql =
   | Sqlite3.Rc.OK -> Ok ()
   | rc -> Result.Error (Internal (Printf.sprintf "SQLite error: %s" (Sqlite3.Rc.to_string rc)))
 
+let column_exists db table column =
+  let stmt = Sqlite3.prepare db
+    (Printf.sprintf "PRAGMA table_info(%s)" table) in
+  let found = ref false in
+  let stop = ref false in
+  while not !stop do
+    match Sqlite3.step stmt with
+    | Sqlite3.Rc.ROW ->
+      let name = Sqlite3.column_text stmt 1 in
+      if name = column then found := true
+    | _ -> stop := true
+  done;
+  let _ = Sqlite3.finalize stmt in
+  !found
+
+let add_column_if_missing db table column def =
+  if not (column_exists db table column) then
+    ignore (exec_sql db (Printf.sprintf "ALTER TABLE %s ADD COLUMN %s %s" table column def))
+
+(* Migration: PRAGMA table_info replaces silent ALTER error swallowing *)
 let init_schema db =
   let core_statements = [
     {|CREATE TABLE IF NOT EXISTS events (
@@ -61,18 +81,15 @@ let init_schema db =
    ) core_statements with
    | Some e -> e
    | None ->
-     let migrations = [
-       {|ALTER TABLE events ADD COLUMN session_id TEXT NOT NULL DEFAULT ''|};
-       {|ALTER TABLE events ADD COLUMN actions_json TEXT|};
-     ] in
-     List.iter (fun sql ->
-       match exec_sql db sql with
-       | Ok () -> ()
-       | Result.Error _ -> ()
-     ) migrations;
+     add_column_if_missing db "events" "session_id" "TEXT NOT NULL DEFAULT ''";
+     add_column_if_missing db "events" "actions_json" "TEXT";
+     add_column_if_missing db "events" "scope" "TEXT";
+     add_column_if_missing db "conversations" "scope" "TEXT";
      let indexes = [
        {|CREATE INDEX IF NOT EXISTS idx_events_task_id ON events(task_id, timestamp)|};
        {|CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id, timestamp)|};
+       {|CREATE INDEX IF NOT EXISTS idx_events_scope ON events(scope)|};
+       {|CREATE INDEX IF NOT EXISTS idx_conversations_scope ON conversations(scope)|};
        {|CREATE INDEX IF NOT EXISTS conv_updated ON conversations(updated_at DESC)|};
      ] in
      List.iter (fun sql -> ignore (exec_sql db sql)) indexes;
@@ -124,13 +141,13 @@ let extract_session_id = Persistence_common.extract_session_id
 (* Write operations                                                      *)
 (* -------------------------------------------------------------------------- *)
 
-let insert_event db (envelope : event_envelope) =
+let insert_event ?scope db (envelope : event_envelope) =
   let ev = envelope.payload in
   let session_id = extract_session_id envelope in
   let stmt =
     Sqlite3.prepare db
-      "INSERT OR IGNORE INTO events (id, task_id, payload, timestamp, idempotency_key, session_id, actions_json) \
-       VALUES (?, ?, ?, ?, ?, ?, NULL)"
+      "INSERT OR IGNORE INTO events (id, task_id, payload, timestamp, idempotency_key, session_id, actions_json, scope) \
+       VALUES (?, ?, ?, ?, ?, ?, NULL, ?)"
   in
   let task_id = extract_task_id ev in
   let ts = envelope.metadata.timestamp in
@@ -143,6 +160,10 @@ let insert_event db (envelope : event_envelope) =
   let _ = Sqlite3.bind_double stmt 4 ts in
   let _ = Sqlite3.bind_text stmt 5 idem_key in
   let _ = Sqlite3.bind_text stmt 6 session_id in
+  let _ = match scope with
+    | Some s -> Sqlite3.bind_text stmt 7 s
+    | None -> Sqlite3.bind stmt 7 Sqlite3.Data.NULL
+  in
   let step_result = Sqlite3.step stmt in
   let _ = Sqlite3.finalize stmt in
   match step_result with
@@ -169,9 +190,9 @@ let upsert_task_state db (ts : task_state) =
 (* PERSISTENCE_SERVICE implementation                                      *)
 (* -------------------------------------------------------------------------- *)
 
-let save_events t events =
+let save_events ?scope t events =
   Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
-    let results = List.map (insert_event t.db) events in
+    let results = List.map (insert_event ?scope t.db) events in
     match List.find_map (function Result.Error e -> Some e | _ -> None) results with
     | Some e -> Result.Error e
     | None -> Ok ()
@@ -210,13 +231,20 @@ let load_events t task_id =
     result
   )
 
-let load_events_by_session t session_id =
+let load_events_by_session ?scope t session_id =
   Eio.Mutex.use_ro t.mutex (fun () ->
-    let stmt =
-      Sqlite3.prepare t.db
-        "SELECT payload FROM events WHERE session_id = ? ORDER BY timestamp ASC"
+    let sql, bindings = match scope with
+      | Some s ->
+        ("SELECT payload FROM events WHERE session_id = ? AND scope = ? ORDER BY timestamp ASC",
+         [session_id; s])
+      | None ->
+        ("SELECT payload FROM events WHERE session_id = ? ORDER BY timestamp ASC",
+         [session_id])
     in
-    let _ = Sqlite3.bind_text stmt 1 session_id in
+    let stmt = Sqlite3.prepare t.db sql in
+    List.iteri (fun i v ->
+      ignore (Sqlite3.bind_text stmt (i + 1) v)
+    ) bindings;
     let acc = ref [] in
     let result =
       let stop = ref false in
@@ -242,14 +270,22 @@ let load_events_by_session t session_id =
     result
   )
 
-let load_sessions t limit =
+let load_sessions ?scope t limit =
   Eio.Mutex.use_ro t.mutex (fun () ->
-    let stmt =
-      Sqlite3.prepare t.db
+    let sql = match scope with
+      | Some _ ->
+        "SELECT session_id, COUNT(*) AS cnt, MIN(timestamp) AS first_at, MAX(timestamp) AS last_at \
+         FROM events WHERE scope = ? GROUP BY session_id ORDER BY last_at DESC LIMIT ?"
+      | None ->
         "SELECT session_id, COUNT(*) AS cnt, MIN(timestamp) AS first_at, MAX(timestamp) AS last_at \
          FROM events GROUP BY session_id ORDER BY last_at DESC LIMIT ?"
     in
-    let _ = Sqlite3.bind_int stmt 1 limit in
+    let stmt = Sqlite3.prepare t.db sql in
+    let next_idx = match scope with
+      | Some s -> ignore (Sqlite3.bind_text stmt 1 s); 2
+      | None -> 1
+    in
+    let _ = Sqlite3.bind_int stmt next_idx limit in
     let acc = ref [] in
     let result =
       let stop = ref false in
@@ -539,7 +575,7 @@ let json_to_metadata (s : string) : ((string * Yojson.Safe.t) list, string) resu
   | `Assoc xs -> Ok (List.map (fun (k, v) -> (k, v)) xs)
   | _ -> Error "expected JSON object for metadata"
 
-let save_conversation t session_id (conv : Types.conversation) =
+let save_conversation ?scope t session_id (conv : Types.conversation) =
   Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
     let msgs_json = conversation_messages_to_json conv.Types.messages in
     let md_json = conversation_metadata_to_json conv.Types.metadata in
@@ -548,14 +584,18 @@ let save_conversation t session_id (conv : Types.conversation) =
     let stmt =
       Sqlite3.prepare t.db
         "INSERT OR REPLACE INTO conversations \
-         (session_id, messages_json, metadata_json, updated_at, turn_count) \
-         VALUES (?, ?, ?, ?, ?)"
+         (session_id, messages_json, metadata_json, updated_at, turn_count, scope) \
+         VALUES (?, ?, ?, ?, ?, ?)"
     in
     let _ = Sqlite3.bind_text stmt 1 session_id in
     let _ = Sqlite3.bind_text stmt 2 msgs_json in
     let _ = Sqlite3.bind_text stmt 3 md_json in
     let _ = Sqlite3.bind_double stmt 4 now in
     let _ = Sqlite3.bind_int stmt 5 turn_count in
+    let _ = match scope with
+      | Some s -> Sqlite3.bind_text stmt 6 s
+      | None -> Sqlite3.bind stmt 6 Sqlite3.Data.NULL
+    in
     let step_result = Sqlite3.step stmt in
     let _ = Sqlite3.finalize stmt in
     match step_result with
@@ -586,12 +626,20 @@ let load_conversation t session_id =
     result
   )
 
-let load_most_recent_conversation t =
+let load_most_recent_conversation ?scope t =
   Eio.Mutex.use_ro t.mutex (fun () ->
-    let stmt =
-      Sqlite3.prepare t.db
+    let sql = match scope with
+      | Some _ ->
+        "SELECT session_id, messages_json, metadata_json \
+         FROM conversations WHERE scope = ? ORDER BY updated_at DESC LIMIT 1"
+      | None ->
         "SELECT session_id, messages_json, metadata_json \
          FROM conversations ORDER BY updated_at DESC LIMIT 1"
+    in
+    let stmt = Sqlite3.prepare t.db sql in
+    let _ = match scope with
+      | Some s -> ignore (Sqlite3.bind_text stmt 1 s)
+      | None -> ()
     in
     let result =
       match Sqlite3.step stmt with

@@ -5,13 +5,13 @@ type t
 val create : string -> (t, error_category) result
 val close : t -> unit
 
-val save_events : t -> event_envelope list -> (unit, error_category) result
+val save_events : ?scope:string -> t -> event_envelope list -> (unit, error_category) result
 val load_events : t -> Task_id.t -> (event list, error_category) result
 val save_task_state : t -> task_state -> (unit, error_category) result
 val load_task_state : t -> Task_id.t -> (task_state option, error_category) result
 val save_workflow_state : t -> Workflow_run_id.t -> workflow_status -> workflow_checkpoint option -> (unit, error_category) result
 val load_workflow_state : t -> Workflow_run_id.t -> (workflow_checkpoint option, error_category) result
-val save_conversation : t -> string -> conversation -> (unit, error_category) result
+val save_conversation : ?scope:string -> t -> string -> conversation -> (unit, error_category) result
 val load_conversation : t -> string -> (conversation option, error_category) result
-val load_most_recent_conversation : t -> ((string * conversation) option, error_category) result
+val load_most_recent_conversation : ?scope:string -> t -> ((string * conversation) option, error_category) result
 val transaction : t -> (t -> 'a) -> ('a, error_category) result

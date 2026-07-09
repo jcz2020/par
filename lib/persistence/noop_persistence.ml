@@ -9,7 +9,7 @@ let create (_conninfo : string) =
 
 let close (_ : t) = ()
 
-let save_events (_ : t) (_events : event_envelope list) = Ok ()
+let save_events ?scope:_ (_ : t) (_events : event_envelope list) = Ok ()
 
 let load_events (_ : t) (_task_id : Task_id.t) = Ok []
 
@@ -25,14 +25,14 @@ let load_workflow_state (_ : t) (_run_id : Workflow_run_id.t) = Ok None
 let transaction (t : t) (f : t -> 'a) =
   Ok (f t)
 
-let save_conversation t session_id conv =
+let save_conversation ?scope:_ t session_id conv =
   Hashtbl.replace t.conversations session_id conv;
   Ok ()
 
 let load_conversation t session_id =
   Ok (Hashtbl.find_opt t.conversations session_id)
 
-let load_most_recent_conversation t =
+let load_most_recent_conversation ?scope:_ t =
   let acc = ref None in
   let _ : unit = Hashtbl.fold (fun k v () ->
     match !acc with

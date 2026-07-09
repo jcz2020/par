@@ -52,10 +52,10 @@ let test_runtime_create_persists_published_events () =
       | Error e -> cleanup (); Alcotest.fail ("sqlite create: " ^ err_str e)
       | Ok sqlt ->
         let persist : Types.persistence_service = {
-          save_events_fn = (fun envs -> Sqlite_persistence.save_events sqlt envs);
+          save_events_fn = (fun ?scope envs -> Sqlite_persistence.save_events ?scope sqlt envs);
           load_events_fn = (fun tid -> Sqlite_persistence.load_events sqlt tid);
-          load_events_by_session_fn = (fun sid -> Sqlite_persistence.load_events_by_session sqlt sid);
-          load_sessions_fn = (fun lim -> Sqlite_persistence.load_sessions sqlt lim);
+          load_events_by_session_fn = (fun ?scope sid -> Sqlite_persistence.load_events_by_session ?scope sqlt sid);
+          load_sessions_fn = (fun ?scope lim -> Sqlite_persistence.load_sessions ?scope sqlt lim);
           save_task_state_fn = (fun ts -> Sqlite_persistence.save_task_state sqlt ts);
           load_task_state_fn = (fun tid -> Sqlite_persistence.load_task_state sqlt tid);
           save_workflow_state_fn = (fun id st cp -> Sqlite_persistence.save_workflow_state sqlt id st cp);
@@ -63,9 +63,9 @@ let test_runtime_create_persists_published_events () =
           load_all_suspended_workflows_fn = (fun () -> Sqlite_persistence.load_all_suspended_workflows sqlt);
           save_workflow_def_fn = (fun id def -> Sqlite_persistence.save_workflow_def sqlt id def);
           load_all_workflow_defs_fn = (fun () -> Sqlite_persistence.load_all_workflow_defs sqlt);
-          save_conversation_fn = (fun sid conv -> Sqlite_persistence.save_conversation sqlt sid conv);
+          save_conversation_fn = (fun ?scope sid conv -> Sqlite_persistence.save_conversation ?scope sqlt sid conv);
           load_conversation_fn = (fun sid -> Sqlite_persistence.load_conversation sqlt sid);
-          load_most_recent_conversation_fn = (fun () -> Sqlite_persistence.load_most_recent_conversation sqlt);
+          load_most_recent_conversation_fn = (fun ?scope () -> Sqlite_persistence.load_most_recent_conversation ?scope sqlt);
           close_fn = (fun () -> Sqlite_persistence.close sqlt);
         } in
         match Runtime.create ~llm:mock_llm ~persistence:persist ~config sw with

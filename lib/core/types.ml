@@ -1181,10 +1181,10 @@ type workflow_run = {
 [@@deriving yojson]
 
 type persistence_service = {
-  save_events_fn : event_envelope list -> (unit, error_category) result;
+  save_events_fn : ?scope:string -> event_envelope list -> (unit, error_category) result;
   load_events_fn : Task_id.t -> (event list, error_category) result;
-  load_events_by_session_fn : string -> (event list, error_category) result;
-  load_sessions_fn : int -> (session_summary list, error_category) result;
+  load_events_by_session_fn : ?scope:string -> string -> (event list, error_category) result;
+  load_sessions_fn : ?scope:string -> int -> (session_summary list, error_category) result;
   save_task_state_fn : task_state -> (unit, error_category) result;
   load_task_state_fn : Task_id.t -> (task_state option, error_category) result;
   save_workflow_state_fn : Workflow_run_id.t -> workflow_status -> workflow_checkpoint option -> (unit, error_category) result;
@@ -1192,16 +1192,51 @@ type persistence_service = {
   load_all_suspended_workflows_fn : unit -> ((Workflow_run_id.t * workflow_status) list, error_category) result;
   save_workflow_def_fn : string -> Yojson.Safe.t -> (unit, error_category) result;
   load_all_workflow_defs_fn : unit -> ((string * Yojson.Safe.t) list, error_category) result;
-  save_conversation_fn : string -> conversation -> (unit, error_category) result;
+  save_conversation_fn : ?scope:string -> string -> conversation -> (unit, error_category) result;
   load_conversation_fn : string -> (conversation option, error_category) result;
-  load_most_recent_conversation_fn : unit -> ((string * conversation) option, error_category) result;
+  load_most_recent_conversation_fn : ?scope:string -> unit -> ((string * conversation) option, error_category) result;
   close_fn : unit -> unit;
+}
+
+type memory_service = {
+  add_fn :
+    content:string ->
+    ?summary:string ->
+    ?scope:string ->
+    ?metadata:(string * Yojson.Safe.t) list ->
+    ?categories:string list ->
+    ?source:string ->
+    unit ->
+    (Yojson.Safe.t, error_category) result;
+  search_fn :
+    ?scope:string ->
+    ?limit:int ->
+    string ->
+    (Yojson.Safe.t list, error_category) result;
+  update_fn :
+    Yojson.Safe.t ->
+    (Yojson.Safe.t, error_category) result;
+  delete_fn :
+    string ->
+    (unit, error_category) result;
+  list_all_fn :
+    ?scope:string ->
+    ?limit:int ->
+    unit ->
+    (Yojson.Safe.t list, error_category) result;
+  close_fn : unit -> unit;
+  render_index_fn :
+    ?max_entries:int ->
+    ?scope:string ->
+    unit ->
+    string;
 }
 
 type service_registry = {
   persistence : persistence_service;
   llm : llm_service;
   embeddings : embedding_service option;
+  memory : memory_service option;
   event_bus : event_bus_service;
   config : runtime_config;
 }
