@@ -368,7 +368,7 @@ let search_vec t ?scope ?(limit=5) query_vec =
         "SELECT %s FROM memory_entries me \
          INNER JOIN ( \
            SELECT rowid, distance FROM memory_entries_vec \
-           WHERE embedding MATCH ? ORDER BY distance LIMIT ? \
+           WHERE embedding MATCH ? AND k = ? \
          ) vec ON me.id = vec.rowid"
         select_cols_qualified in
     wrap_db_error (fun () ->
@@ -384,7 +384,7 @@ let search_vec t ?scope ?(limit=5) query_vec =
         "SELECT %s FROM memory_entries me \
          INNER JOIN ( \
            SELECT rowid, distance FROM memory_entries_vec \
-           WHERE embedding MATCH ? ORDER BY distance LIMIT ? \
+           WHERE embedding MATCH ? AND k = ? \
          ) vec ON me.id = vec.rowid \
          WHERE me.scope = ?"
         select_cols_qualified in
