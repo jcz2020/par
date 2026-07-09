@@ -193,6 +193,109 @@ let test_invoke_context_with_binding_propagates () =
         in
         ignore (Runtime.close rt)))
 
+let test_system_prompt_appendix_with () =
+  Eio_main.run (fun _ ->
+    Eio.Switch.run (fun sw ->
+      let config = match runtime_config_of_yojson (Yojson.Safe.from_string config_json) with
+        | Ok c -> c | Error _ -> failwith "config" in
+      let (llm, _) = Mock_provider.create [Mock_provider.Text "ok"] in
+      match Runtime.create ~config ~llm sw with
+      | Error _ -> failwith "create"
+      | Ok rt ->
+        let model = { provider = `Openai; model_name = "t"; api_base = None;
+                      temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None } in
+        let agent = match Runtime.make_agent ~id:"t"
+                      ~system_prompt:(stable_prompt "base prompt") ~model () with
+          | Ok a -> a | Error _ -> failwith "make_agent" in
+        ignore (Runtime.register_agent rt agent);
+        let result = Runtime.invoke rt ~agent_id:"t" ~message:"hello"
+          ~system_prompt_appendix:"CUSTOM APPENDIX" () in
+        (match result with
+         | Error _ -> Alcotest.fail "invoke should succeed"
+         | Ok res ->
+           let sys_msg = List.find
+             (fun (m : Par.Types.message) -> m.role = System) res.conversation.messages in
+           let sys_text = Par.Message.text_of_message sys_msg in
+           Alcotest.(check bool "system prompt ends with appendix"
+             true
+             (let suffix = "\n\nCUSTOM APPENDIX" in
+              let len = String.length sys_text in
+              let slen = String.length suffix in
+              len >= slen && String.sub sys_text (len - slen) slen = suffix)));
+        ignore (Runtime.close rt)))
+
+let test_system_prompt_appendix_without () =
+  Eio_main.run (fun _ ->
+    Eio.Switch.run (fun sw ->
+      let config = match runtime_config_of_yojson (Yojson.Safe.from_string config_json) with
+        | Ok c -> c | Error _ -> failwith "config" in
+      let (llm, _) = Mock_provider.create [Mock_provider.Text "ok"] in
+      match Runtime.create ~config ~llm sw with
+      | Error _ -> failwith "create"
+      | Ok rt ->
+        let model = { provider = `Openai; model_name = "t"; api_base = None;
+                      temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None } in
+        let agent = match Runtime.make_agent ~id:"t"
+                      ~system_prompt:(stable_prompt "base prompt") ~model () with
+          | Ok a -> a | Error _ -> failwith "make_agent" in
+        ignore (Runtime.register_agent rt agent);
+        let result = Runtime.invoke rt ~agent_id:"t" ~message:"hello" () in
+        (match result with
+         | Error _ -> Alcotest.fail "invoke should succeed"
+         | Ok res ->
+           let sys_msg = List.find
+             (fun (m : Par.Types.message) -> m.role = System) res.conversation.messages in
+           let sys_text = Par.Message.text_of_message sys_msg in
+           Alcotest.(check string "system prompt is unchanged"
+             "base prompt" sys_text));
+        ignore (Runtime.close rt)))
+
+let test_system_prompt_appendix_resume () =
+  Eio_main.run (fun _ ->
+    Eio.Switch.run (fun sw ->
+      let config = match runtime_config_of_yojson (Yojson.Safe.from_string config_json) with
+        | Ok c -> c | Error _ -> failwith "config" in
+      let (llm, _) = Mock_provider.create [Mock_provider.Text "ok"] in
+      match Runtime.create ~config ~llm sw with
+      | Error _ -> failwith "create"
+      | Ok rt ->
+        let model = { provider = `Openai; model_name = "t"; api_base = None;
+                      temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None } in
+        let agent = match Runtime.make_agent ~id:"t"
+                      ~system_prompt:(stable_prompt "base prompt") ~model () with
+          | Ok a -> a | Error _ -> failwith "make_agent" in
+        ignore (Runtime.register_agent rt agent);
+        let existing_conv = {
+          Par.Types.messages = [
+            { role = System;
+              content_blocks = Par.Message.content_of_string "original system";
+              tool_calls = None; tool_call_id = None; name = None };
+            { role = User;
+              content_blocks = Par.Message.content_of_string "first msg";
+              tool_calls = None; tool_call_id = None; name = None };
+            { role = Assistant;
+              content_blocks = Par.Message.content_of_string "first reply";
+              tool_calls = None; tool_call_id = None; name = None };
+          ];
+          metadata = [];
+        } in
+        let result = Runtime.invoke rt ~agent_id:"t" ~message:"second msg"
+          ~conversation:existing_conv
+          ~system_prompt_appendix:"RESUME APPENDIX" () in
+        (match result with
+         | Error _ -> Alcotest.fail "invoke should succeed"
+         | Ok res ->
+           let sys_msg = List.find
+             (fun (m : Par.Types.message) -> m.role = System) res.conversation.messages in
+           let sys_text = Par.Message.text_of_message sys_msg in
+           Alcotest.(check bool "resumed system prompt has appendix"
+             true
+             (let suffix = "\n\nRESUME APPENDIX" in
+              let len = String.length sys_text in
+              let slen = String.length suffix in
+              len >= slen && String.sub sys_text (len - slen) slen = suffix)));
+        ignore (Runtime.close rt)))
+
 let () =
   let open Alcotest in
   run "concurrency" [
@@ -208,4 +311,12 @@ let () =
         `Quick test_auto_skill_no_system_prompt_override];
     "invoke_context_binding", [test_case "with_context binding visible inside invoke"
         `Quick test_invoke_context_with_binding_propagates];
+    "system_prompt_appendix", [
+      test_case "appendix appended to system prompt" `Quick
+        test_system_prompt_appendix_with;
+      test_case "no appendix leaves system prompt unchanged" `Quick
+        test_system_prompt_appendix_without;
+      test_case "appendix applied on conversation resume" `Quick
+        test_system_prompt_appendix_resume;
+    ];
   ]
