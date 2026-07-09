@@ -31,7 +31,11 @@ type counters
 val Metrics.empty : unit -> counters
 ```
 
-`counters` is opaque. You do not construct fields by hand. The runtime allocates one internally at `Runtime.create` and threads it through the Engine. The only operations on a `counters` value are the six incrementers and the snapshot.
+`counters` is opaque. Each field uses an `int Atomic.t`, so increments are lock-free and race-free. The runtime allocates one at `Runtime.create` and threads it through the Engine. Per-call accumulators use separate `counters` values that get folded into the runtime-wide counters at `invoke` exit. The only operations on a `counters` value are the six incrementers, the snapshot, and `merge_into`.
+
+### Thread safety
+
+Every counter is an `Atomic.t`. `incr_*` calls use `Atomic.incr` (lock-free CAS), so concurrent `Runtime.invoke` fibers never contend on a mutex. `snapshot` reads each counter with `Atomic.get`, which returns the latest value without blocking. This means metrics are always eventually consistent: a snapshot taken mid-increment may see a partially-updated set of counters, but each individual counter value is always current.
 
 ### Incrementers
 
@@ -70,6 +74,18 @@ The runtime exposes the snapshot without forcing you to touch the `counters` val
 ```ocaml
 val Runtime.metrics_snapshot : runtime -> (string * int) list
 ```
+
+### Merging counters
+
+`Runtime.invoke` creates a per-call `counters` accumulator so that concurrent invokes do not contend on shared atomic fields. When the invoke exits, it folds the per-call counters into the runtime-wide counters using `merge_into`:
+
+```ocaml
+val Metrics.merge_into : target:counters -> source:counters -> unit
+```
+
+`merge_into` atomically adds every counter in `source` into the corresponding counter in `target`. Both operands use `Atomic` fields so the merge is race-free even when multiple invokes exit concurrently. After the merge, `source` is discarded.
+
+You will not normally call `merge_into` yourself unless you are building a custom runtime or aggregating metrics across multiple runtime instances. The standard path is `Runtime.metrics_snapshot`, which reads the already-merged runtime-wide counters.
 
 ### What is not here
 

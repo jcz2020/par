@@ -108,6 +108,7 @@ nav:
       - RAG API: sdk/rag.md
       - Document Loaders: sdk/document_loaders.md
       - Memory API: sdk/memory.md
+      - Persistence API: sdk/persistence.md
       - Prompt Caching: sdk/prompt_caching.md
       - Content Blocks: sdk/content_blocks.md
       - Skills API: sdk/skills.md

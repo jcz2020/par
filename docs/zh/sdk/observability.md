@@ -31,7 +31,11 @@ type counters
 val Metrics.empty : unit -> counters
 ```
 
-`counters` 是不透明的。你不手动构造字段。runtime 在 `Runtime.create` 时内部分配一个，并将其穿线到 Engine 中。对 `counters` 值的唯一操作是六个递增器和快照。
+`counters` 是不透明的。每个字段使用 `int Atomic.t`，因此递增是无锁且无竞争的。runtime 在 `Runtime.create` 时分配一个，并将其穿线到 Engine 中。每次调用的累加器使用单独的 `counters` 值，在 `invoke` 退出时折叠到 runtime 级别的计数器中。对 `counters` 值的唯一操作是六个递增器、快照和 `merge_into`。
+
+### 线程安全
+
+每个计数器都是 `Atomic.t`。`incr_*` 调用使用 `Atomic.incr`（无锁 CAS），因此并发的 `Runtime.invoke` fiber 永远不会在 mutex 上竞争。`snapshot` 使用 `Atomic.get` 读取每个计数器，返回最新值而不阻塞。这意味着指标始终是最终一致的：在递增过程中拍摄的快照可能看到部分更新的计数器集合，但每个单独的计数器值始终是最新的。
 
 ### 递增器
 
@@ -70,6 +74,18 @@ runtime 暴露快照，无需你直接操作 `counters` 值：
 ```ocaml
 val Runtime.metrics_snapshot : runtime -> (string * int) list
 ```
+
+### 合并计数器
+
+`Runtime.invoke` 创建每次调用的 `counters` 累加器，使并发 invoke 不会在共享原子字段上竞争。invoke 退出时，使用 `merge_into` 将每次调用的计数器折叠到 runtime 级别的计数器中：
+
+```ocaml
+val Metrics.merge_into : target:counters -> source:counters -> unit
+```
+
+`merge_into` 将 `source` 中的每个计数器原子地添加到 `target` 中对应的计数器。两个操作数都使用 `Atomic` 字段，因此即使多个 invoke 并发退出，合并也是无竞争的。合并后，`source` 被丢弃。
+
+你通常不会自己调用 `merge_into`，除非你正在构建自定义 runtime 或跨多个 runtime 实例聚合指标。标准路径是 `Runtime.metrics_snapshot`，它读取已经合并的 runtime 级别计数器。
 
 ### 不包含什么
 
