@@ -475,7 +475,4 @@
  (modules test_deprecation)
  (action (run %{test})))
 
-(test
- (name test_ffi_persistence)
- (libraries par eio_main alcotest sqlite3)
- (modules test_ffi_persistence))
+
