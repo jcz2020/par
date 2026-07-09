@@ -1,6 +1,10 @@
-type t
+type t = {
+  db : Sqlite3.db;
+  mutex : Eio.Mutex.t;
+  dimension : int;
+}
 
-val create : string -> (t, Memory_error.memory_error) result
+val create : ?dimension:int -> string -> (t, Memory_error.memory_error) result
 
 val add :
   t ->
@@ -47,5 +51,6 @@ val render_index :
   string
 
 val make_service :
+  ?dimension:int ->
   string ->
   (Memory_service.memory_service, Memory_error.memory_error) result

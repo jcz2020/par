@@ -4,6 +4,7 @@ open Memory_object
 type t = {
   db : Sqlite3.db;
   mutex : Eio.Mutex.t;
+  dimension : int;
 }
 
 let exec_sql db sql =
@@ -21,8 +22,44 @@ let check_fts5 db =
     Ok ()
   | Error _ -> Error (FTS5_unavailable "this SQLite build lacks FTS5 support")
 
-let init_schema db =
-  let stmts = [
+let resolve_vec_extension_path () =
+  let so_name =
+    if Sys.os_type = "Unix"
+    then (match Sys.getenv_opt "PAR_OS" with
+          | Some "macos" | Some "darwin" -> "vec0.dylib"
+          | _ -> "vec0.so")
+    else "vec0.so"
+  in
+  let exe_dir = Filename.dirname Sys.executable_name in
+  let cwd = Sys.getcwd () in
+  let candidates = [
+    Filename.concat exe_dir so_name;
+    Filename.concat "/usr/local/lib/par" so_name;
+    Filename.concat "/usr/local/share/par" so_name;
+    Filename.concat cwd ("vendor/sqlite-vec/linux-x86_64/" ^ so_name);
+    Filename.concat cwd ("vendor/sqlite-vec/macos-aarch64/" ^ so_name);
+  ] in
+  List.find_opt Sys.file_exists candidates
+
+let load_vec_extension db =
+  match resolve_vec_extension_path () with
+  | None -> Error (Database_error "vec0 extension not found in known locations")
+  | Some path ->
+    if not (Sqlite3.enable_load_extension db true) then
+      Error (Database_error "enable_load_extension returned false \
+                             — SQLITE_OMIT_LOAD_EXTENSION")
+    else
+      let rc =
+        Sqlite3.exec db (Printf.sprintf "SELECT load_extension('%s');" path)
+      in
+      let _ = Sqlite3.enable_load_extension db false in
+      if rc <> Sqlite3.Rc.OK then
+        Error (Database_error
+                 (Printf.sprintf "load_extension failed: %s" (Sqlite3.errmsg db)))
+      else Ok ()
+
+let init_schema db ~dimension =
+  let base_stmts = [
     "CREATE TABLE IF NOT EXISTS memory_entries (\
        id            INTEGER PRIMARY KEY AUTOINCREMENT,\
        ext_id        TEXT NOT NULL UNIQUE,\
@@ -65,9 +102,18 @@ let init_schema db =
     match exec_sql db sql with
     | Ok () -> None
     | Error e -> Some (Error e)
-  ) stmts with
+  ) base_stmts with
   | Some e -> e
-  | None -> Ok ()
+  | None ->
+    let vec_sql =
+      Printf.sprintf
+        "CREATE VIRTUAL TABLE IF NOT EXISTS memory_entries_vec USING vec0(\
+         \n  embedding float[%d] distance_metric=cosine)"
+        dimension
+    in
+    (match exec_sql db vec_sql with
+     | Ok () -> Ok ()
+     | Error _ -> Ok ())
 
 let generate_id () =
   Uuidm.to_string (Uuidm.v4_gen (Random.State.make_self_init ()) ())
@@ -138,16 +184,19 @@ let wrap_db_error f =
   | Sqlite3.Error msg -> Error (Database_error msg)
   | Sqlite3.SqliteError msg -> Error (Database_error msg)
 
-let create db_path =
+let create ?(dimension=1536) db_path =
+  if dimension <= 0 then
+    invalid_arg "Sqlite_memory.create: dimension must be positive";
   match check_fts5 (Sqlite3.db_open ":memory:") with
   | Error e -> Error e
   | Ok () ->
     wrap_db_error (fun () ->
       let db = Sqlite3.db_open db_path in
       ignore (exec_sql db "PRAGMA journal_mode=WAL;");
-      match init_schema db with
+      let _ = load_vec_extension db in
+      match init_schema db ~dimension with
       | Ok () ->
-        { db; mutex = Eio.Mutex.create () }
+        { db; mutex = Eio.Mutex.create (); dimension }
       | Error (Database_error msg) ->
         ignore (Sqlite3.db_close db);
         raise (Sqlite3.Error msg)
@@ -365,8 +414,8 @@ let render_index t ?(max_entries=50) ?scope () =
 let close t =
   ignore (Sqlite3.db_close t.db)
 
-let make_service db_path =
-  match create db_path with
+let make_service ?(dimension=1536) db_path =
+  match create ~dimension db_path with
   | Error e -> Error e
   | Ok t ->
     Ok {
