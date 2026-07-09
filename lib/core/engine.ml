@@ -550,7 +550,8 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
         m "Template render failed, falling back to plain system_prompt: %s" msg);
       agent.system_prompt
   in
-  let sys_prompt_text = (Types.prompt_text sys_prompt_sp) ^ synthesized_prompt_suffix in
+  let sys_prompt_text = (Types.prompt_text sys_prompt_sp) ^ synthesized_prompt_suffix
+                        ^ Invoke_context.appendix_text () in
   let drain_into_conv conv queue =
     match queue with
     | None -> conv
@@ -903,7 +904,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                   | Ok sp -> sp
                   | Error _ -> target_agent.system_prompt
                 in
-                Types.prompt_text sp
+                Types.prompt_text sp ^ Invoke_context.appendix_text ()
               in
               (match carry_context with
                | true ->
@@ -1023,9 +1024,20 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     | Some existing ->
       Logs.info (fun m -> m "[engine] Resuming conversation: %d existing messages, appending user message (%d chars)"
         (List.length existing.messages) (String.length user_message));
+      let appendix = Invoke_context.appendix_text () in
+      let messages =
+        if appendix = "" then existing.messages
+        else
+          List.map (fun (m : message) ->
+            if m.role = System then
+              let text = Message.text_of_message m ^ appendix in
+              { m with content_blocks = Message.content_of_string text }
+            else m
+          ) existing.messages
+      in
       let usr = { role = User; content_blocks = Message.content_of_string user_message; tool_calls = None;
                   tool_call_id = None; name = None } in
-      { existing with messages = existing.messages @ [ usr ] }
+      { existing with messages = messages @ [ usr ] }
     | None ->
       Logs.info (fun m -> m "[engine] New conversation: system_prompt=%d chars, user_message=%d chars"
         (String.length sys_prompt_text) (String.length user_message));
