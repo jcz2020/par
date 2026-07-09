@@ -475,4 +475,3 @@
  (modules test_deprecation)
  (action (run %{test})))
 
-
