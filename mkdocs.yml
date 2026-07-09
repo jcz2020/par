@@ -98,6 +98,7 @@ nav:
   - Reference:
       - SDK Overview: sdk/overview.md
       - Agent API: sdk/agent.md
+      - invoke_context: sdk/invoke_context.md
       - Workflow API: sdk/workflow.md
       - Middleware: sdk/middleware.md
       - Tools: sdk/tools.md
