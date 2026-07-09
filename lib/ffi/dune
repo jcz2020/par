@@ -32,3 +32,9 @@
  (enabled_if (= %{system} "macosx"))
  (action
   (copy ../../vendor/sqlite-vec/macos-aarch64/vec0.dylib vec0.dylib)))
+
+(rule
+ (target vec0.dll)
+ (enabled_if (= %{system} "win32"))
+ (action
+  (copy ../../vendor/sqlite-vec/windows-x86_64/vec0.dll vec0.dll)))
