@@ -74,3 +74,24 @@ val command_to_string : command -> string
 val command_to_yojson : command -> Yojson.Safe.t
 (** Serialize a command for event payloads. Includes kind, argv, cwd
     (for [Exec]), env, timeout (for [Exec]), and the assessed risk. *)
+
+(** {1:v0.6.5 Deprecated re-exports}
+
+    The path types and constructors below lived in this module before
+    v0.6.5. They migrated to the [Workspace] module (see CHANGES.md,
+    "Workspace Abstraction"). These aliases / wrappers remain so
+    downstream code referencing the old names gets a compile-time
+    [@@deprecated] warning and a runtime [Deprecated_api_called] event
+    on upgrade, instead of a hard "Unbound type/value". They are
+    removed in v0.8 — migrate to the [Workspace] equivalents. *)
+
+type sandboxed_path = Workspace.sandboxed_path
+  [@@deprecated "since v0.6.5: use Workspace.sandboxed_path"]
+(** Alias for [Workspace.sandboxed_path]. Deprecated since v0.6.5;
+    removed in v0.8. *)
+
+val sandboxed_path_to_string : Workspace.sandboxed_path -> string
+  [@@deprecated "since v0.6.5: use Workspace.to_string"]
+(** Delegate for [Workspace.to_string]. Deprecated since v0.6.5;
+    removed in v0.8. *)
+

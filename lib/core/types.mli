@@ -628,13 +628,22 @@ type event =
        location : breakpoint_location;
        reason : drop_reason;
      }
-   | Cache_invalidated_by_skill of {
-       skill_id : string;
-       before_tool_count : int;
-       after_tool_count : int;
-       estimated_wasted_tokens : int;
-     }
-   [@@deriving yojson]
+    | Cache_invalidated_by_skill of {
+        skill_id : string;
+        before_tool_count : int;
+        after_tool_count : int;
+        estimated_wasted_tokens : int;
+      }
+  (** Fired by [Deprecation.warn_once] the first time a deprecated API is
+      called in this process. Lets the event bus / persistence layer surface
+      stale-API usage to operators. Idempotent per [fn_name]. *)
+  | Deprecated_api_called of {
+      fn_name : string;
+      since : string;
+      removed_in : string;
+      migration : string;
+    }
+    [@@deriving yojson]
 
  and cache_skip_reason =
    [ `Volatile_system
@@ -986,7 +995,11 @@ val compose_middleware : middleware_hook list -> middleware_stack
 (* -------------------------------------------------------------------------- *)
 
 type workflow_step =
-  | Agent_call of { agent_id : string; prompt_template : string }
+  | Agent_call of {
+      agent_id : string;
+      prompt_template : string;
+      response_schema : Yojson.Safe.t option;
+    }
   | Tool_call of { tool_name : string; input : Yojson.Safe.t }
   | Parallel of workflow_step list
   | Sequential of workflow_step list

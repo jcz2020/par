@@ -1,5 +1,21 @@
 # CHANGES
 
+## Unreleased — Workflow `response_schema` (additive)
+
+> The `Agent_call` step variant gains an optional `response_schema` field. When `Some _`, the workflow engine routes the call through `Engine.run_structured` (schema-validated output + repair loop) and exposes the validated JSON object as `result.output`, letting subsequent `Conditional` steps reference nested fields via dot-paths (e.g. `result.output.sentiment`). No version bump — pure additive change.
+
+### Added
+
+- **NEW** `response_schema : Yojson.Safe.t option` field on `Agent_call` workflow step (default `None`, decoder uses `[@deriving.yojson.default None]` for backward compat with existing workflow JSON files).
+- **NEW** `lib/jsonschema_validation.ml` wrapper exposing `Jsonschema_validation.compile` and `Jsonschema_validation.validate` for `Jsonschema_validation.Draft2020_12` (draft-07) schema validation. Used by the workflow engine for additional `response_schema` validation.
+- **NEW** Dependency: `jsonschema-validation` (opam, 0.1.0, draft-07 keywords).
+- **NEW** Tests in `test/test_workflow_engine.ml`: regression guard for `None` path, schema-validated happy path, repair loop, and `Conditional` referencing `result.output.*` via dot-paths.
+
+### Backward compatibility
+
+- Existing 2-field `Agent_call` constructions in OCaml code now require `response_schema = None` (additive field).
+- Existing workflow JSON files (e.g. `examples/sequential_workflow.json`, `examples/test_workflow.json`) decode unchanged — the missing `response_schema` key defaults to `None` via the `[@deriving.yojson.default None]` attribute.
+
 ## v0.7.0-beta — Document Loaders Framework
 
 > PAR RAG previously only accepted raw strings. Document loaders turn real files (text, Markdown, HTML, CSV, PDF) into `Document.t` records that plug directly into the existing `Chunking` + `Vector_store` + `invoke_with_rag` pipeline, unlocking real-world RAG.

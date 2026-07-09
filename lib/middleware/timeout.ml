@@ -7,18 +7,17 @@ open Types
    [Par.Types.agent_config.tool_timeout], which the engine enforces via
    [Cancellation.with_timeout] inside [Engine.execute_tool].
 
-   This module is preserved only for backward compatibility with
-   existing user code: it emits a deprecation warning on first use and
+   This module is preserved only for backward compatibility with existing
+   user code: it emits a [Deprecation.warn_once] signal on first use and
    returns a no-op hook so programs still type-check. *)
 
-let _warned = ref false
-
 let timeout_middleware ~default_timeout:_ =
-  if not !_warned then begin
-    _warned := true;
-    Logs.warn (fun m ->
-      m "Timeout.timeout_middleware is deprecated (PAR-19b); use agent_config.tool_timeout via Runtime.make_agent ~tool_timeout:<seconds> instead. The legacy middleware cannot enforce timeouts from inside the middleware_hook contract.")
-  end;
+  Deprecation.warn_once
+    ~since:"v0.6.4"
+    ~removed_in:"v0.8"
+    ~migration:
+      "use agent_config.tool_timeout via Runtime.make_agent ~tool_timeout:<seconds>"
+    ~fn_name:"Timeout.timeout_middleware" ();
   {
     name = "timeout";
     on_before_tool = Some (fun _call -> None);

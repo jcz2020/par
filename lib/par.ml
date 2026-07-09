@@ -10,8 +10,10 @@
     Sanitize_tool_output. JSON Schema validation lives in [Validation]. *)
 
 module Types = Types
+module Deprecation = Deprecation
 module Workspace = Workspace
 module Runtime = Runtime
+module Invoke_context = Invoke_context
 module Engine = Engine
 module Template = Template
 module Steering_queue = Steering_queue
