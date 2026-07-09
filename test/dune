@@ -484,7 +484,12 @@
   (modules test_hybrid_search))
 
 (test
- (name test_fiber_spike)
+  (name test_memory_search_modes)
+  (libraries par_memory alcotest eio_main str)
+  (modules test_memory_search_modes))
+
+(test
+  (name test_fiber_spike)
  (libraries eio_main)
  (modules test_fiber_spike)
  (action (run %{test})))
