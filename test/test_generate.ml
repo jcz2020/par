@@ -384,8 +384,8 @@ let test_invoke_generate_skill_overlay_applied () =
      | Ok _ -> ());
     Alcotest.(check int) "exactly one LLM call" 1 capture.call_count;
     Alcotest.(check (option string))
-      "LLM was called with OVERRIDDEN system prompt"
-      (Some "OVERRIDDEN") capture.captured_system)
+      "Auto-trigger skill does NOT apply system_prompt_override (#9 fix)"
+      (Some "original") capture.captured_system)
 
 (* -------------------------------------------------------------------------- *)
 (* Test suite                                                                *)

@@ -26,10 +26,10 @@ let () =
            | None -> prerr_endline "FAIL: no call"; exit 1
            | Some r ->
              match r.Mock_provider.conversation.messages with
-             | f :: _ ->
-                let p = Option.value (Message.content_opt f) ~default:"<none>" in
-               Printf.printf "system_prompt_sent = %S\n" p;
-               if p = "OVERRIDDEN" then print_endline "ALL 3 RISKS VERIFIED"
-               else (Printf.eprintf "FAIL: expected OVERRIDDEN got %S\n" p; exit 1)
-             | [] -> prerr_endline "FAIL: empty msgs"; exit 1);
+              | f :: _ ->
+                 let p = Option.value (Message.content_opt f) ~default:"<none>" in
+                Printf.printf "system_prompt_sent = %S\n" p;
+                if p = "ORIGINAL" then print_endline "AUTO-SKILL FIX #9 VERIFIED: no override applied"
+                else (Printf.eprintf "FAIL: expected ORIGINAL (Auto skill must not override system prompt), got %S\n" p; exit 1)
+              | [] -> prerr_endline "FAIL: empty msgs"; exit 1);
         ignore (Runtime.close rt)))

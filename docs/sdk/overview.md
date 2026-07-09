@@ -136,11 +136,13 @@ let wf = {
   Types.version = 1;
   Types.steps = Sequential [
     Agent_call { agent_id = "researcher";
-                 prompt_template = "Research: {{topic}}" };
+                 prompt_template = "Research: {{topic}}";
+                 response_schema = None };
     Human_approval { prompt_template = "Approve summary of {{topic}}?";
                      timeout = 60.0; allowed_roles = ["admin"] };
     Agent_call { agent_id = "summarizer";
-                 prompt_template = "Summarize: {{topic}}" } ];
+                 prompt_template = "Summarize: {{topic}}";
+                 response_schema = None } ];
   Types.variables = [("topic", `String "OCaml 5 effects")];
   Types.failure_policy = Fail_fast;
   Types.parallel_limit = 3; Types.timeout = 600.0;

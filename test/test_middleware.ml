@@ -448,6 +448,12 @@ let rate_limit_suite = ("rate_limit", [
 (* Timeout tests                                                               *)
 (* -------------------------------------------------------------------------- *)
 
+(* [Timeout.timeout_middleware] is [@@deprecated] since v0.6.4 (PAR-19b) and
+   emits a [Deprecation.warn_once] signal. These tests exercise the no-op
+   hook contract the shim still guarantees, so the [deprecated] alert is
+   suppressed for this section only. *)
+[@@@alert "-deprecated"]
+
 let test_timeout_on_before_tool_returns_none () =
   let hook = Timeout.timeout_middleware ~default_timeout:30.0 in
   let f = Option.get hook.on_before_tool in
@@ -488,6 +494,9 @@ let timeout_suite = ("timeout", [
     test_timeout_no_other_hooks;
   Alcotest.test_case "name field is 'timeout'" `Quick test_timeout_name_field;
 ])
+
+(* Restore the [deprecated] alert for the rest of the file. *)
+[@@@alert "+deprecated"]
 
 (* -------------------------------------------------------------------------- *)
 (* Logging tests                                                               *)

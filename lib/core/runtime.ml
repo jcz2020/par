@@ -315,7 +315,8 @@ let contains_substring (s : string) (needle : string) : bool =
       else search (i + 1)
     in search 0
 
-let compute_active_skill_effects (rt : runtime) (message : string) : skill_effect list =
+let compute_active_skill_effects ?user_skills (rt : runtime) (message : string) : skill_effect list =
+  let user_skills = Option.value user_skills ~default:rt.user_activated_skills in
   let descriptors = Skill_registry.list_descriptors rt.skills in
   let auto_effects =
     List.filter_map (fun (desc : skill_descriptor) ->
@@ -326,16 +327,19 @@ let compute_active_skill_effects (rt : runtime) (message : string) : skill_effec
         List.exists (fun kw -> contains_substring message kw) keywords
       in
       if eligible then
-        match Skill_registry.resolve rt.skills desc.id with
-        | Some activate -> Some (activate ())
-        | None -> None
+        match Skill_registry.resolve rt.skills desc.id, desc.trigger with
+        | Some activate, Auto ->
+          let e = activate () in
+          Some ({ system_prompt_override = None;
+                  tool_filter_overlay = e.tool_filter_overlay } : skill_effect)
+        | Some activate, _ -> Some (activate ())
+        | None, _ -> None
       else None)
       descriptors
   in
-  let user_set = rt.user_activated_skills in
   let user_effects =
     List.filter_map (fun id ->
-      if List.mem id user_set then
+      if List.mem id user_skills then
         match Skill_registry.resolve rt.skills id with
         | Some activate -> Some (activate ())
         | None -> None
@@ -344,7 +348,8 @@ let compute_active_skill_effects (rt : runtime) (message : string) : skill_effec
   in
   auto_effects @ user_effects
 
-let get_active_skill_ids (rt : runtime) (message : string) : string list =
+let get_active_skill_ids ?user_skills (rt : runtime) (message : string) : string list =
+  let user_skills = Option.value user_skills ~default:rt.user_activated_skills in
   let descriptors = Skill_registry.list_descriptors rt.skills in
   let auto_ids =
     List.filter_map (fun (desc : skill_descriptor) ->
@@ -361,10 +366,9 @@ let get_active_skill_ids (rt : runtime) (message : string) : string list =
       else None)
       descriptors
   in
-  let user_set = rt.user_activated_skills in
   let user_ids =
     List.filter_map (fun id ->
-      if List.mem id user_set then
+      if List.mem id user_skills then
         match Skill_registry.resolve rt.skills id with
         | Some _ -> Some id
         | None -> None
@@ -424,15 +428,21 @@ let apply_skill_effect_to_config (eff : skill_effect) config =
 let record_llm_success rt =
   rt.last_llm_call_at <- Some (Unix.gettimeofday ());
   rt.last_llm_call_status <- `Success;
-  Metrics.incr_llm rt.metrics
+  match Invoke_context.get_current () with
+  | Some ctx -> Metrics.incr_llm ctx.metrics_accumulator
+  | None -> Metrics.incr_llm rt.metrics
 
 let record_llm_error rt err =
   rt.last_llm_call_at <- Some (Unix.gettimeofday ());
   rt.last_llm_call_status <- `Error err;
-  Metrics.incr_llm rt.metrics
+  match Invoke_context.get_current () with
+  | Some ctx -> Metrics.incr_llm ctx.metrics_accumulator
+  | None -> Metrics.incr_llm rt.metrics
 
 let record_tool_invocation rt =
-  Metrics.incr_tool_invocations rt.metrics
+  match Invoke_context.get_current () with
+  | Some ctx -> Metrics.incr_tool_invocations ctx.metrics_accumulator
+  | None -> Metrics.incr_tool_invocations rt.metrics
 
 let record_task_completed rt =
   Metrics.incr_task_completed rt.metrics
@@ -655,18 +665,30 @@ let load_most_recent_conversation rt =
   | Error _ as e -> e
 
 let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
-    ?on_tool_event ?on_chunk ?enable_handoff () =
+    ?on_tool_event ?on_chunk ?enable_handoff ?(context : Invoke_context.invoke_context option) () =
   let effective_workspace = Option.value workspace ~default:rt.workspace in
-  let session_id = match !(rt.session_id) with
-    | Some sid -> sid
+  let ctx = match context with
+    | Some c -> c
     | None ->
-      let new_sid = Session_id.to_string (Session_id.create ()) in
-      rt.session_id := Some new_sid;
-      new_sid
+      let session_id = match !(rt.session_id) with
+        | Some sid -> sid
+        | None ->
+          let new_sid = Session_id.to_string (Session_id.create ()) in
+          rt.session_id := Some new_sid;
+          new_sid
+      in
+      Invoke_context.create
+        ~session_id
+        ~metrics:(Metrics.empty ())
+        ~hooks:rt.tool_call_hooks
+        ~skills:rt.user_activated_skills
+        ()
   in
   (match rt.event_bus_instance with
-   | Some bus -> Event_bus.set_session_id bus session_id
-   | None -> rt.services.event_bus.set_session_id_fn session_id);
+   | Some bus -> Event_bus.set_session_id bus ctx.session_id
+   | None -> rt.services.event_bus.set_session_id_fn ctx.session_id);
+  Invoke_context.with_context ctx (fun () ->
+  let result =
   let agent = htbl_get rt.agents agent_id in
   match agent with
   | None -> Result.Error (Invalid_input (Printf.sprintf "Agent not found: %s" agent_id),
@@ -690,17 +712,20 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
        | Some cb -> cb evt
        | None -> ())
     in
-    let active_effects = compute_active_skill_effects rt message in
+    let active_effects =
+      compute_active_skill_effects ~user_skills:ctx.user_activated_skills_snapshot rt message
+    in
     let composed_effect = compose_skill_effects active_effects in
     let before_tool_count = List.length config.tools in
     let config = apply_skill_effect_to_config composed_effect config in
     let after_tool_count = List.length config.tools in
-    (* v0.6.4 B.5.2: emit cache invalidation event when skill overlay mutates state *)
     (match active_effects with
      | [] -> ()
      | _ when after_tool_count <> before_tool_count
            || composed_effect.system_prompt_override <> None ->
-       let skill_ids = get_active_skill_ids rt message in
+       let skill_ids =
+         get_active_skill_ids ~user_skills:ctx.user_activated_skills_snapshot rt message
+       in
        let skill_id = match skill_ids with
          | [] -> "unknown"
          | [id] -> id
@@ -717,10 +742,10 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
        })
      | _ -> ());
     let try_with_provider llm_svc =
-      let result = Engine.run_agent ~steering:(Some rt.steering_queue)
-        ~followup:(Some rt.followup_queue)
+      let result = Engine.run_agent ~steering:(Some ctx.steering_queue)
+        ~followup:(Some ctx.followup_queue)
         ~runtime_id:rt.runtime_id
-        ~tool_call_hooks:(Some rt.tool_call_hooks)
+        ~tool_call_hooks:(Some ctx.tool_call_hooks_snapshot)
         ~quota:(Some rt.task_semaphore)
         ~parallel:rt.parallel_tool_execution
         ~on_progress:(Some on_tool_progress)
@@ -757,26 +782,42 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
          | Error `Unknown _ -> try_providers rest
          | Ok llm_svc ->
 (match try_with_provider llm_svc with
-             | Ok (resp, conv) ->
-               record_llm_success rt;
-               rt.current_conversation <- Some conv;
-               Result.Ok { Types.response = resp; conversation = conv }
-             | Error (err, _conv) when should_fallback err && rest <> [] ->
-               record_llm_error rt err;
-               let evt = Types.Provider_fallback_attempted {
-                 from_provider = id;
-                 to_provider = List.hd rest;
-               } in
-               (match rt.event_bus_instance with
-                | Some bus -> Event_bus.publish bus evt
-                | None -> rt.services.event_bus.publish_fn evt);
-               try_providers rest
-             | Error (err, conv) ->
-               record_llm_error rt err;
-               rt.current_conversation <- Some conv;
-               Result.Error (err, conv)))
+              | Ok (resp, conv) ->
+                record_llm_success rt;
+                rt.current_conversation <- Some conv;
+                Result.Ok { Types.response = resp; conversation = conv }
+              | Error (err, _conv) when should_fallback err && rest <> [] ->
+                record_llm_error rt err;
+                let evt = Types.Provider_fallback_attempted {
+                  from_provider = id;
+                  to_provider = List.hd rest;
+                } in
+                (match rt.event_bus_instance with
+                 | Some bus -> Event_bus.publish bus evt
+                 | None -> rt.services.event_bus.publish_fn evt);
+                try_providers rest
+              | Error (err, conv) ->
+                record_llm_error rt err;
+                rt.current_conversation <- Some conv;
+                Result.Error (err, conv)))
     in
     try_providers all_ids
+  in
+  Metrics.merge_into ~target:rt.metrics ~source:ctx.metrics_accumulator;
+  result)
+
+ 
+
+let invoke_async rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
+    ?on_tool_event ?on_chunk ?enable_handoff ?context () =
+  let token = match cancellation_token with
+    | Some t -> t
+    | None -> Cancellation.create_token rt.cancellation_root
+  in
+  Invoke_context.fork_invoke ~sw:rt.cancellation_root ~token (fun () ->
+    invoke rt ~agent_id ~message ?workspace
+      ~cancellation_token:token ?conversation ?on_tool_event ?on_chunk
+      ?enable_handoff ?context ())
 
 let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
     ?on_tool_event ?on_chunk () =

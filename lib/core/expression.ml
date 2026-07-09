@@ -6,13 +6,29 @@ let default_limits = { max_depth = 10; max_node_visits = 1000 }
 
 type eval_context = (string * Yojson.Safe.t) list
 
-let visit_count = ref 0
+(* Per-call visit counters. In an Eio fiber context, each [evaluate] call
+   binds its own [int ref] to [visit_count_key], giving concurrent calls
+   fully isolated counters (the previous global [ref 0] raced on concurrent
+   evaluates). In a non-Eio context (e.g. the alcotest harness), [with_binding]
+   raises [Get_context]; we fall back to a process-local [fallback_counter]
+   which is safe because there are no fibers = no concurrency. *)
+let visit_count_key : int ref Eio.Fiber.key = Eio.Fiber.create_key ()
 
-let reset_visit () = visit_count := 0
+let fallback_counter = ref 0
+
+let current_counter () =
+  try
+    match Eio.Fiber.get visit_count_key with
+    | Some r -> r
+    | None -> fallback_counter
+  with
+  | Stdlib.Effect.Unhandled _ -> fallback_counter
+
+let reset_visit () = current_counter () := 0
 
 let check_limit limits =
-  incr visit_count;
-  if !visit_count > limits.max_node_visits then
+  incr (current_counter ());
+  if !(current_counter ()) > limits.max_node_visits then
     raise (Resource_limit "Expression evaluator: max node visits exceeded")
 
 let rec eval limits ctx expr depth =
@@ -132,13 +148,20 @@ and json_matches json pattern =
   | _ -> false
 
 let evaluate ?(limits = default_limits) ctx expr =
-  reset_visit ();
-  try
-    let result = eval limits ctx expr 0 in
-    Ok result
+  let run_eval () =
+    current_counter () := 0;
+    try
+      let result = eval limits ctx expr 0 in
+      Ok result
+    with
+    | Resource_limit msg -> Result.Error (Internal msg)
+    | Failure msg -> Result.Error (Invalid_input msg)
+  in
+  let counter = ref 0 in
+  try Eio.Fiber.with_binding visit_count_key counter run_eval
   with
-  | Resource_limit msg -> Result.Error (Internal msg)
-  | Failure msg -> Result.Error (Invalid_input msg)
+  | Eio.Cancel.Cancelled _ -> run_eval ()
+  | Stdlib.Effect.Unhandled _ -> run_eval ()
 
 let evaluate_to_bool ?(limits = default_limits) ctx expr =
   match evaluate ~limits ctx expr with

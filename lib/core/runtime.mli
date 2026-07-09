@@ -213,12 +213,18 @@ val make_skill :
 
 (** {1 Skill activation (internal)} *)
 
-val compute_active_skill_effects : runtime -> string -> Types.skill_effect list
+val compute_active_skill_effects :
+  ?user_skills:string list -> runtime -> string -> Types.skill_effect list
+
+val get_active_skill_ids :
+  ?user_skills:string list -> runtime -> string -> string list
 
 val compose_skill_effects : Types.skill_effect list -> Types.skill_effect
 
 val apply_skill_effect_to_config :
   Types.skill_effect -> Types.agent_config -> Types.agent_config
+
+(** {1 Agent invocation} *)
 
 val invoke :
   runtime ->
@@ -230,8 +236,27 @@ val invoke :
   ?on_tool_event:(event -> unit) ->
   ?on_chunk:(llm_response_chunk -> unit) option ->
   ?enable_handoff:bool ->
+  ?context:Invoke_context.invoke_context ->
   unit ->
   (invoke_result, error_category * conversation) result
+
+(** [invoke_async rt ...] runs [invoke] in a background fiber and returns
+    immediately with an [Invoke_context.invoke_handle]. Use the handle to
+    [await], [cancel], or poll [status]. The fiber is forked under
+    [rt.cancellation_root], mirroring [submit_workflow_async]. *)
+val invoke_async :
+  runtime ->
+  agent_id:string ->
+  message:string ->
+  ?workspace:Workspace.workspace ->
+  ?cancellation_token:cancellation_token ->
+  ?conversation:conversation ->
+  ?on_tool_event:(event -> unit) ->
+  ?on_chunk:(llm_response_chunk -> unit) option ->
+  ?enable_handoff:bool ->
+  ?context:Invoke_context.invoke_context ->
+  unit ->
+  Invoke_context.invoke_handle
 
 (** Long-output pure generation API (plan §3.1.2).
 

@@ -94,12 +94,15 @@ let () =
         ignore (Runtime.register_skill rt auto);
         Runtime.set_user_activated_skills rt ["manual-skill"];
         let effects = Runtime.compute_active_skill_effects rt "anything" in
-        (* Both skills resolve: 1 auto + 1 manual *)
         check int "both effects present" 2 (List.length effects);
         let ids = List.map (fun (e : skill_effect) ->
           Option.value (Option.map zone_str e.system_prompt_override) ~default:"") effects in
         check bool "manual present" true (List.mem "FROM_MANUAL" ids);
-        check bool "auto present" true (List.mem "FROM_AUTO" ids)));
+        (* #9 fix: Auto-trigger skills MUST NOT apply system_prompt_override.
+           The auto skill contributes an effect, but its override is None. *)
+        check bool "auto override stripped (#9 fix)" true
+          (List.exists (fun (e : skill_effect) ->
+             e.system_prompt_override = None) effects)));
 
     test_case "end-to-end: invoke with manual activation overrides system prompt" `Quick (fun () ->
       with_runtime (fun rt history ->
