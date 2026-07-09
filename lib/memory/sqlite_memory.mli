@@ -30,6 +30,18 @@ val search :
   string ->
   (Memory_object.memory_object list, Memory_error.memory_error) result
 
+val hybrid_search :
+  t ->
+  ?scope:string ->
+  ?limit:int ->
+  ?weight_fts:float ->
+  ?weight_vec:float ->
+  ?rrf_k:int ->
+  query:string ->
+  query_vec:float array ->
+  unit ->
+  (Memory_object.memory_object list, Memory_error.memory_error) result
+
 val update :
   t ->
   Memory_object.memory_object ->
