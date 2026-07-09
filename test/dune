@@ -417,3 +417,38 @@
  (name test_openai_cached_tokens)
  (libraries par alcotest)
  (modules test_openai_cached_tokens))
+
+(test
+ (name test_html_loader)
+ (libraries par alcotest)
+ (modules test_html_loader))
+
+(test
+ (name test_pdf_loader)
+ (libraries par alcotest str)
+ (modules test_pdf_loader))
+
+(test
+ (name test_text_loader)
+ (libraries par alcotest)
+ (modules test_text_loader))
+
+(test
+ (name test_markdown_loader)
+ (libraries par alcotest)
+ (modules test_markdown_loader))
+
+(test
+ (name test_csv_loader)
+ (libraries par alcotest)
+ (modules test_csv_loader))
+
+(test
+ (name test_directory_loader)
+ (libraries par alcotest)
+ (modules test_directory_loader))
+
+(test
+ (name test_document_loaders_e2e)
+ (libraries par alcotest eio_main)
+ (modules test_document_loaders_e2e))
