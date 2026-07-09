@@ -65,8 +65,8 @@
 
 ### Tests
 
-- 1270 → ~1320 tests passing (exact count in release-verify gate).
-- New test files: `test_concurrency.ml`, `test_fiber_spike.ml`, `test_deprecation.ml`, `test_memory.ml`, `test_memory_tools.ml`.
+- 1270 → 1306 tests passing (+36 new tests).
+- New test files: `test_concurrency.ml` (9), `test_fiber_spike.ml` (exit-code based), `test_deprecation.ml` (5), `test_memory.ml` (12), `test_memory_tools.ml` (3).
 - Extended: `test_skill_e2e.ml` (flipped #9 assertion), `test_skill_user_activation.ml`, `test_generate.ml`, `test_workflow_engine.ml`, `test_sessions.ml`.
 
 ### Backward compatibility

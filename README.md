@@ -11,7 +11,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.7.1-beta — Concurrency Architecture + Memory Module + Persistence Scope + Deprecation Framework + Dynamic System Prompt. `invoke_context` per-call isolation via Eio.Fiber makes `Runtime.invoke` safe for reentrancy, parallelism, and `invoke_async`. New `Memory_service` (FTS5) + 3 builtin tools. Workflow `Agent_call` gains `response_schema`. Generic persistence `scope` dimension. `Deprecation.warn_once` + event bus signaling. Per-turn `system_prompt_appendix`. Auto-skill `system_prompt_override` bug fixed. FFI persistence wiring fixed. ~1320 tests passing. API may change before v1.0.
+> **Status**: v0.7.1-beta — Concurrency Architecture + Memory Module + Persistence Scope + Deprecation Framework + Dynamic System Prompt. `invoke_context` per-call isolation via Eio.Fiber makes `Runtime.invoke` safe for reentrancy, parallelism, and `invoke_async`. New `Memory_service` (FTS5) + 3 builtin tools. Workflow `Agent_call` gains `response_schema`. Generic persistence `scope` dimension. `Deprecation.warn_once` + event bus signaling. Per-turn `system_prompt_appendix`. Auto-skill `system_prompt_override` bug fixed. FFI persistence wiring fixed. 1306 tests passing. API may change before v1.0.
 
 ---
 
@@ -110,7 +110,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - **Dynamic system prompt** — per-turn `system_prompt_appendix` via `invoke_context`. Appends after template + skill overlay + tool suffix. Covers invoke/generate/handoff paths.
 - **Deprecation framework** — `warn_once` helper + `Deprecated_api_called` event + `[@@deprecated]` annotations + migration guides. Breaking changes no longer happen silently.
 - **Python ctypes binding** — `par_runtime` package, thread-safe, no GIL contention with OCaml runtime. Persistent Eio domain per Runtime for full concurrency support.
-- **~1320 OCaml tests + Python bindings** passing (all green, including RAG e2e from any cwd)
+- **1306 OCaml tests + Python bindings** passing (all green, including RAG e2e from any cwd)
 - **Skill system** — drop a `skill.md` in `~/.par/skills/<id>/` and it auto-activates during `Runtime.invoke` based on trigger conditions (Auto / Manual / Keyword). Auto-trigger skills no longer replace the system prompt. See [Skills API](docs/sdk/skills.md).
 
 ## Language tracks
@@ -143,7 +143,7 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.7.1-beta — Concurrency Architecture (invoke_context + invoke_async + reentrancy), Memory Module (FTS5 + 3 builtin tools), Persistence Session Scope Dimension, Deprecation Framework (warn_once + event + migration guide), Per-turn Dynamic System Prompt (system_prompt_appendix), Workflow response_schema, Auto-skill system_prompt_override bug fix, FFI persistence wiring fix. ~1320 tests passing.
+**Current**: v0.7.1-beta — Concurrency Architecture (invoke_context + invoke_async + reentrancy), Memory Module (FTS5 + 3 builtin tools), Persistence Session Scope Dimension, Deprecation Framework (warn_once + event + migration guide), Per-turn Dynamic System Prompt (system_prompt_appendix), Workflow response_schema, Auto-skill system_prompt_override bug fix, FFI persistence wiring fix. 1306 tests passing.
 
 **Coming next**: Windows process support (v0.7.2), vector-based semantic recall (backlog P0), external vector stores (Qdrant/Milvus), multimodal image tools, .docx support.
 
