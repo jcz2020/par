@@ -84,8 +84,8 @@ let sandboxed_path_suite =
       expect_invalid_input "absolute path not under any workspace root"
         (Workspace.admit ws "/etc/passwd"));
 
-    Alcotest.test_case "rejects 'C:\\Windows' (contains :)" `Quick (fun () ->
-      expect_invalid_input "path contains :"
+    Alcotest.test_case "rejects 'C:\\Windows' (absolute not under workspace root)" `Quick (fun () ->
+      expect_invalid_input "absolute path not under any workspace root"
         (Workspace.admit ws "C:\\Windows"));
 
     Alcotest.test_case "rejects 'foo:bar' (contains :)" `Quick (fun () ->

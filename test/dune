@@ -469,6 +469,11 @@
  (modules test_memory_tools))
 
 (test
+ (name test_memory_embedding)
+ (libraries par_memory alcotest eio_main sqlite3)
+ (modules test_memory_embedding))
+
+(test
  (name test_fiber_spike)
  (libraries eio_main)
  (modules test_fiber_spike)
@@ -489,4 +494,9 @@
  (name test_capability)
  (libraries par alcotest)
  (modules test_capability))
+
+(test
+ (name test_workspace_paths)
+ (libraries par alcotest)
+ (modules test_workspace_paths))
 
