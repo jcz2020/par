@@ -452,3 +452,20 @@
  (name test_document_loaders_e2e)
  (libraries par alcotest eio_main)
  (modules test_document_loaders_e2e))
+
+(test
+ (name test_ffi_persistence)
+ (libraries par eio_main alcotest sqlite3)
+ (modules test_ffi_persistence))
+
+(test
+ (name test_memory)
+ (libraries par alcotest eio_main str par.memory)
+ (modules test_memory)
+ (action (run %{test})))
+
+(test
+ (name test_fiber_spike)
+ (libraries eio_main)
+ (modules test_fiber_spike)
+ (action (run %{test})))
