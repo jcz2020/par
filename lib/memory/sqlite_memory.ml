@@ -113,7 +113,27 @@ let init_schema db ~dimension =
         dimension
     in
     (match exec_sql db vec_sql with
-     | Ok () -> Ok ()
+     | Ok () ->
+       (* vec0 lazy-sync: DELETE trigger removes embedding; UPDATE
+          trigger drops stale embedding (re-embed on next add/search).
+          No INSERT trigger — application embeds on add. *)
+       let vec_triggers = [
+         {|CREATE TRIGGER IF NOT EXISTS memory_entries_vec_ad
+           AFTER DELETE ON memory_entries BEGIN
+             DELETE FROM memory_entries_vec WHERE rowid = OLD.id;
+           END|};
+         {|CREATE TRIGGER IF NOT EXISTS memory_entries_vec_au
+           AFTER UPDATE OF content ON memory_entries BEGIN
+             DELETE FROM memory_entries_vec WHERE rowid = OLD.id;
+           END|};
+       ] in
+       (match List.find_map (fun sql ->
+         match exec_sql db sql with
+         | Ok () -> None
+         | Error e -> Some (Error e)
+       ) vec_triggers with
+        | Some e -> e
+        | None -> Ok ())
      | Error _ -> Ok ())
 
 let generate_id () =
@@ -377,22 +397,70 @@ let search_vec t ?scope ?(limit=5) query_vec =
       List.iter (fun (m : memory_object) -> bump_usage t ~ext_id:m.id) results;
       results)
 
-let merge_hybrid ~limit fts_results vec_results =
-  let k = 60.0 in
-  let score_tbl : (string, float * memory_object) Hashtbl.t = Hashtbl.create 64 in
-  List.iteri (fun rank (m : memory_object) ->
-    let rr = 1.0 /. (k +. float_of_int (rank + 1)) in
-    Hashtbl.replace score_tbl m.id (rr, m)
-  ) fts_results;
-  List.iteri (fun rank (m : memory_object) ->
-    let rr = 1.0 /. (k +. float_of_int (rank + 1)) in
-    match Hashtbl.find_opt score_tbl m.id with
-    | Some (prev, _) -> Hashtbl.replace score_tbl m.id (prev +. rr, m)
-    | None -> Hashtbl.replace score_tbl m.id (rr, m)
-  ) vec_results;
-  let merged = Hashtbl.fold (fun _id (score, m) acc -> (score, m) :: acc) score_tbl [] in
-  let sorted = List.sort (fun (s1, _) (s2, _) -> Float.compare s2 s1) merged in
-  List.map snd (List.filteri (fun i _ -> i < limit) sorted)
+let hybrid_search t ?scope ?(limit=5) ?(weight_fts=0.5) ?(weight_vec=0.5)
+    ?(rrf_k=60) ~query ~query_vec () =
+  let fts_query = sanitize_fts_query query in
+  let blob = float_array_to_blob query_vec in
+  let overfetch = limit * 3 in
+  let combined_rank_expr =
+    Printf.sprintf
+      "COALESCE(1.0 / (%d + f.fts_rank), 0.0) * %.6f + \
+       COALESCE(1.0 / (%d + v.vec_rank), 0.0) * %.6f"
+      rrf_k weight_fts rrf_k weight_vec
+  in
+  let scope_clause = match scope with None -> "" | Some _ -> " AND me.scope = ?" in
+  let sql =
+    Printf.sprintf
+      "WITH fts_ranks AS (\
+       \n  SELECT me.id AS mid, ROW_NUMBER() OVER (ORDER BY rank) AS fts_rank\
+       \n  FROM memory_entries_fts\
+       \n  JOIN memory_entries me ON me.id = memory_entries_fts.rowid\
+       \n  WHERE memory_entries_fts MATCH ?%s\
+       \n  ORDER BY rank\
+       \n  LIMIT ?\
+       \n),\
+       \nvec_ranks AS (\
+       \n  SELECT rowid AS vid, ROW_NUMBER() OVER (ORDER BY distance) AS vec_rank\
+       \n  FROM memory_entries_vec\
+       \n  WHERE embedding MATCH ? AND k = ?\
+       \n)\
+       \nSELECT %s,\
+       \n       %s AS combined_rank\
+       \nFROM memory_entries me\
+       \nLEFT JOIN fts_ranks f ON f.mid = me.id\
+       \nLEFT JOIN vec_ranks v ON v.vid = me.id\
+       \nWHERE (f.mid IS NOT NULL OR v.vid IS NOT NULL)%s\
+       \nORDER BY combined_rank DESC\
+       \nLIMIT ?"
+      scope_clause select_cols_qualified combined_rank_expr scope_clause
+  in
+  wrap_db_error (fun () ->
+    let results = collect_rows t.db sql (fun stmt ->
+      let p = ref 1 in
+      (* FTS CTE: query, [scope], overfetch *)
+      Sqlite3.bind stmt !p (Sqlite3.Data.TEXT fts_query) |> ignore;
+      incr p;
+      (match scope with
+       | Some sc ->
+         Sqlite3.bind stmt !p (Sqlite3.Data.TEXT sc) |> ignore; incr p
+       | None -> ());
+      Sqlite3.bind stmt !p (Sqlite3.Data.INT (Int64.of_int overfetch)) |> ignore;
+      incr p;
+      (* Vec CTE: blob, overfetch-as-k *)
+      Sqlite3.bind stmt !p (Sqlite3.Data.BLOB blob) |> ignore;
+      incr p;
+      Sqlite3.bind stmt !p (Sqlite3.Data.INT (Int64.of_int overfetch)) |> ignore;
+      incr p;
+      (* Outer WHERE: [scope] *)
+      (match scope with
+       | Some sc ->
+         Sqlite3.bind stmt !p (Sqlite3.Data.TEXT sc) |> ignore; incr p
+       | None -> ());
+      (* Final LIMIT *)
+      Sqlite3.bind stmt !p (Sqlite3.Data.INT (Int64.of_int limit)) |> ignore;
+      ()) in
+    List.iter (fun (m : memory_object) -> bump_usage t ~ext_id:m.id) results;
+    results)
 
 let search t ?mode ?scope ?(limit=5) query =
   Eio.Mutex.use_ro t.mutex (fun () ->
@@ -417,16 +485,9 @@ let search t ?mode ?scope ?(limit=5) query =
           | Error _ -> search_fts t ?scope ~limit query
           | Ok [] -> search_fts t ?scope ~limit query
           | Ok (vec :: _) ->
-            let fts_results = match search_fts t ?scope ~limit:(limit * 2) query with
-              | Ok l -> l | Error _ -> [] in
-            let vec_results = match search_vec t ?scope ~limit:(limit * 2) vec with
-              | Ok l -> l | Error _ -> [] in
-            if fts_results = [] && vec_results = [] then Ok []
-            else begin
-              let merged = merge_hybrid ~limit fts_results vec_results in
-              List.iter (fun (m : memory_object) -> bump_usage t ~ext_id:m.id) merged;
-              Ok merged
-            end)))
+            (match hybrid_search t ?scope ~limit ~query ~query_vec:vec () with
+             | Ok results -> Ok results
+             | Error _ -> search_fts t ?scope ~limit query))))
 
 let update t (existing : memory_object) =
   Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->

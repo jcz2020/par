@@ -469,9 +469,19 @@
  (modules test_memory_tools))
 
 (test
- (name test_memory_embedding)
+  (name test_memory_embedding)
+  (libraries par_memory alcotest eio_main sqlite3)
+  (modules test_memory_embedding))
+
+(test
+ (name test_vec_triggers)
  (libraries par_memory alcotest eio_main sqlite3)
- (modules test_memory_embedding))
+ (modules test_vec_triggers))
+
+(test
+  (name test_hybrid_search)
+  (libraries par_memory alcotest eio_main str)
+  (modules test_hybrid_search))
 
 (test
  (name test_fiber_spike)
@@ -494,6 +504,11 @@
  (name test_capability)
  (libraries par alcotest)
  (modules test_capability))
+
+(test
+ (name test_capability_gating)
+ (libraries par alcotest)
+ (modules test_capability_gating))
 
 (test
  (name test_workspace_paths)
