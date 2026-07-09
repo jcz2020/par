@@ -1,6 +1,52 @@
 # CHANGES
 
-## Unreleased — v0.7.1: Concurrency, Memory, Persistence Scope, Deprecation, Dynamic Prompt
+## Unreleased — v0.7.2: Windows Support, Vector Memory, SDK Docs
+
+> v0.7.2 adds Windows platform support, vector-based semantic memory search, and completes SDK documentation for all v0.7.1 APIs. All changes are SemVer-additive.
+
+### Added — Windows Process Support (#5)
+
+- **NEW** `lib/core/capability.{ml,mli}` — runtime capability registry. Single source of truth for platform-specific feature detection (`Process_spawning`, `Pipe_io`, `Signal_based_kill`). Centralizes `Sys.os_type` checks — no scattered platform conditionals.
+- **CHANGED** `lib/ffi/par_ffi.c` — `#ifdef _WIN32` guards: `SRWLOCK` replaces `pthread_mutex_t`, `InterlockedExchange`/`InterlockedCompareExchange` replace GCC atomics. Zero logic changes. POSIX path unchanged.
+- **CHANGED** `lib/core/workspace.ml` — cross-platform path handling: `HOME` → `USERPROFILE` → `HOMEDRIVE+HOMEPATH` fallback chain; drive-letter-aware colon rejection (`C:\` allowed, `foo:bar` rejected); `is_absolute_path` detects Unix `/`, Windows `C:\`, and UNC `\\server\share`.
+- **CHANGED** `lib/core/runtime.ml` — bash tool checks `Capability.detect \`Process_spawning` before `Eio.Process.spawn`. Returns typed error on unavailable platforms.
+- **CHANGED** `lib/mcp/mcp_transport_stdio.ml` — MCP stdio transport gated behind capability check.
+- **NEW** `vendor/sqlite-vec/windows-x86_64/vec0.dll` — pre-built MSVC sqlite-vec extension for Windows (KERNEL32.dll only, 289KB).
+- **CHANGED** `lib/ffi/par_capi.ml` — `vec_extension_path` handles `Sys.os_type = "Win32"` → `vec0.dll` lookup.
+- **CHANGED** `.github/workflows/ci.yml` + `nightly.yml` — `windows-latest` added to OS matrix with MinGW-w64 OCaml (`5.3.0+mingw64c`).
+- **CHANGED** 4 process-spawning test files skip cleanly on Windows via `Sys.os_type = "Win32"` guard.
+
+### Added — Vector-Based Semantic Memory Search
+
+- **NEW** `vec0` virtual table (`memory_entries_vec`) alongside existing FTS5 in `Sqlite_memory`. Configurable dimension (default 1536, cosine distance).
+- **NEW** `search_mode` type: `Keyword_only | Vector_only | Hybrid | Auto`. Smart default: Hybrid when `embedding_fn` configured, Keyword_only otherwise.
+- **NEW** `embedding_fn` type in `Memory_service` — lightweight function type (`string list -> (float array list, string) result`). Callers bridge from `Types.embedding_service`.
+- **CHANGED** `Sqlite_memory.create` accepts `?embedding_fn` + `?dimension`. On `add`, embeds content and stores in vec0 (graceful degradation on failure).
+- **NEW** `hybrid_search` function — Reciprocal Rank Fusion (RRF) in a single SQL statement. Over-fetches k×3 from each leg, fuses via `1/(60+rank_fts) + 1/(60+rank_vec)`. Configurable weights and k constant.
+- **NEW** vec0 sync triggers — `DELETE` trigger removes embedding on row delete; `UPDATE OF content` trigger drops stale embedding (lazy re-embed pattern).
+- **FIX** `search_vec` SQL: use vec0 `k = ?` constraint instead of `LIMIT ?` (vec0 requires `k = ?` in subqueries).
+- **NEW** `Embedding_unavailable` error variant in `memory_error`.
+- **NEW** `test/test_sqlite_memory_schema.ml` (5 tests), `test/test_memory_embedding.ml` (11 tests), `test/test_hybrid_search.ml` (7 tests), `test/test_vec_triggers.ml` (4 tests), `test/test_memory_search_modes.ml` (11 tests).
+
+### Added — SDK Documentation Completion
+
+- **NEW** `docs/sdk/invoke_context.md` + ZH — per-call isolation, `invoke_async`, `?context`, `?system_prompt_appendix`.
+- **NEW** `docs/sdk/persistence.md` + ZH — persistence service CRUD, `?scope` dimension, SQLite/Noop backends.
+- **CHANGED** `docs/sdk/agent.md` + ZH — fixed `Runtime.invoke` (7 missing params) and `Runtime.create` (9 missing params) signatures. Added `invoke_async` section. Fixed return type (`invoke_result` not `llm_response`).
+- **CHANGED** `docs/sdk/tools.md` + ZH — tool count 20 → 23 (added `recall_memory`, `remember_memory`, `search_history`).
+- **CHANGED** `docs/sdk/memory.md` + ZH — fixed signatures to match `.mli`, documented `search_mode` + `embedding_fn` + RRF hybrid search.
+- **CHANGED** `docs/sdk/overview.md` + ZH — refreshed module map (added Capability, Invoke_context, Deprecation, Memory_service), tool count, Windows platform support section.
+- **CHANGED** `docs/sdk/observability.md` + ZH — documented `Atomic.t` counters + `Metrics.merge_into`.
+- **CHANGED** `docs/zh/README.md` — refreshed from v0.7.0-beta to v0.7.1-beta status with all v0.7.1 feature bullets.
+
+### Tests
+
+- 1306 → 1387 tests passing (+81 new tests).
+- New test files: `test_capability.ml` (8), `test_capability_gating.ml` (4), `test_workspace_paths.ml`, `test_sqlite_memory_schema.ml` (5), `test_memory_embedding.ml` (11), `test_hybrid_search.ml` (7), `test_vec_triggers.ml` (4), `test_memory_search_modes.ml` (11).
+
+---
+
+## v0.7.1 — Concurrency, Memory, Persistence Scope, Deprecation, Dynamic Prompt
 
 > v0.7.1 is the largest PAR SDK release yet, addressing 9 of 10 issues in a single iteration. The foundational change is the `invoke_context` per-call isolation layer (hybrid typed-record + Eio.Fiber carrier) that makes `Runtime.invoke` safe for reentrancy, parallelism, and background async execution — with **zero breaking changes** (all additive). Windows support (#5) is deferred to v0.7.2 per user direction.
 
