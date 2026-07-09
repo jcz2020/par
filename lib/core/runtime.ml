@@ -509,14 +509,18 @@ let make_bash_handler rt mgr clock fs input tok : Types.handler_result =
                risk = risk_str;
                started_at = start_t;
              });
-           let proc_result =
-             Eio.Fiber.first
-               (fun () ->
-                 let stdout_buf = Buffer.create 1024 in
-                 let stderr_buf = Buffer.create 1024 in
-                  let proc_argv =
-                    Bash_safe_command.argv_of_command filtered
-                  in
+            let proc_result =
+            match Capability.detect () `Process_spawning with
+            | `Unavailable reason ->
+              Result.Error (`Capability_unavailable reason)
+            | `Available ->
+              Eio.Fiber.first
+                (fun () ->
+                  let stdout_buf = Buffer.create 1024 in
+                  let stderr_buf = Buffer.create 1024 in
+                   let proc_argv =
+                     Bash_safe_command.argv_of_command filtered
+                   in
                   let cwd_eio = Eio.Path.(fs / Workspace.to_string cwd) in
                   let proc =
                     Eio.Process.spawn ~sw:tok.switch mgr
@@ -587,6 +591,11 @@ let make_bash_handler rt mgr clock fs input tok : Types.handler_result =
               Error { category = Timeout;
                       message = Printf.sprintf
                         "bash timed out after %.1fs" timeout;
+                      retryable = false; metadata = [] }
+            | Result.Error (`Capability_unavailable reason) ->
+              Error { category = Internal reason;
+                      message = Printf.sprintf
+                        "bash tool unavailable: %s" reason;
                       retryable = false; metadata = [] }
             | exception exn ->
               let msg = Printexc.to_string exn in

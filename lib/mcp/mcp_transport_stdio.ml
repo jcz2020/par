@@ -187,6 +187,11 @@ let spawn_with ~sw ~process_mgr ~command ~args ?env ?cwd ?stdin_timeout
     (_config : Mcp_types.server_config) :
     (t * int, Types.error_category) result =
   let _ = (cwd, stdin_timeout) in
+  (match Capability.detect () `Process_spawning with
+   | `Unavailable reason ->
+     Error (Types.Internal
+       (Printf.sprintf "MCP stdio transport unavailable: %s" reason))
+   | `Available ->
   let base_env = default_child_env () in
   let user_env = Option.value ~default:[] env in
   (* User env takes precedence on duplicate keys. *)
@@ -216,6 +221,7 @@ let spawn_with ~sw ~process_mgr ~command ~args ?env ?cwd ?stdin_timeout
     let msg = Printf.sprintf "spawn %s failed: %s"
       command (Printexc.to_string ex) in
     Error (Types.External_failure msg)
+  )
 
 let to_transport (t : t) : Mcp_transport.t = {
   request_response = (fun req ->
