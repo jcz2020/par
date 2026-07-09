@@ -1,0 +1,3 @@
+(executable
+ (name pdf_spike)
+ (libraries camlpdf))
