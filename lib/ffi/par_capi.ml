@@ -302,9 +302,44 @@ let do_init (config_json : string) =
              build_embed_from_provider provider_cfg net)
         in
         let llm = Option.value llm_opt ~default:default_llm_service in
+        let persistence_svc =
+          match config.Par.Types.persistence with
+          | `Sqlite path ->
+            fd_log (Printf.sprintf "[do_init] creating SQLite persistence at %s" path);
+            (match Par.Sqlite_persistence.create path with
+             | Ok sqlt ->
+               let open Par.Types in
+               Some {
+                 save_events_fn = (fun envs -> Par.Sqlite_persistence.save_events sqlt envs);
+                 load_events_fn = (fun tid -> Par.Sqlite_persistence.load_events sqlt tid);
+                 load_events_by_session_fn = (fun sid -> Par.Sqlite_persistence.load_events_by_session sqlt sid);
+                 load_sessions_fn = (fun lim -> Par.Sqlite_persistence.load_sessions sqlt lim);
+                 save_task_state_fn = (fun ts -> Par.Sqlite_persistence.save_task_state sqlt ts);
+                 load_task_state_fn = (fun tid -> Par.Sqlite_persistence.load_task_state sqlt tid);
+                 save_workflow_state_fn = (fun id st cp -> Par.Sqlite_persistence.save_workflow_state sqlt id st cp);
+                 load_workflow_state_fn = (fun id -> Par.Sqlite_persistence.load_workflow_state sqlt id);
+                 load_all_suspended_workflows_fn = (fun () -> Par.Sqlite_persistence.load_all_suspended_workflows sqlt);
+                 save_workflow_def_fn = (fun id def -> Par.Sqlite_persistence.save_workflow_def sqlt id def);
+                 load_all_workflow_defs_fn = (fun () -> Par.Sqlite_persistence.load_all_workflow_defs sqlt);
+                 save_conversation_fn = (fun sid conv -> Par.Sqlite_persistence.save_conversation sqlt sid conv);
+                 load_conversation_fn = (fun sid -> Par.Sqlite_persistence.load_conversation sqlt sid);
+                 load_most_recent_conversation_fn = (fun () -> Par.Sqlite_persistence.load_most_recent_conversation sqlt);
+                 close_fn = (fun () -> Par.Sqlite_persistence.close sqlt);
+               }
+             | Error e ->
+               fd_log ("[do_init] SQLite persistence create failed: " ^
+                 (match e with
+                  | Par.Types.Internal m -> m
+                  | _ -> "unknown error"));
+               None)
+        in
         fd_log "[do_init] about to call Runtime.create";
         Eio.Switch.run (fun sw ->
-          match Par.Runtime.create ~config ~llm ?embeddings:embed_opt sw with
+          let create_result = match persistence_svc with
+            | Some svc -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~persistence:svc sw
+            | None -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt sw
+          in
+          match create_result with
           | Ok rt ->
             fd_log "[do_init] Runtime.create Ok, putting init slot";
             slot_put init_slot (`Ok rt);
