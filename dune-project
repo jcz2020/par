@@ -12,21 +12,21 @@
  (synopsis "Programmable Agent Runtime - SDK")
   (description "A modular, type-safe agent runtime for OCaml 5.4+ with multi-provider LLM support, ReAct engine, workflow orchestration, and strict state guarantees")
  (tags (agents llm runtime ffi))
- (depends
-  ocaml
-  dune
-  base
-  yojson
-  eio
-  eio_main
-  uuidm
-  ppx_deriving
-  ppx_deriving_yojson
-  (ppx_deriving_jsonschema (= "0.0.1"))
-  ppx_sexp_conv
-  ppx_compare
-   sqlite3
-   logs
+  (depends
+   ocaml
+   dune
+   base
+   yojson
+   eio
+   eio_main
+   uuidm
+   ppx_deriving
+   ppx_deriving_yojson
+   (ppx_deriving_jsonschema (= "0.0.1"))
+   ppx_sexp_conv
+   ppx_compare
+    sqlite3
+    logs
   tls-eio
   cohttp-eio
   lambdasoup
@@ -38,4 +38,5 @@
     yaml
     omd
     ctypes
-    alcotest))
+    alcotest
+    jsonschema-validation))

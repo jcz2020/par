@@ -242,7 +242,7 @@ let workflow_engine_suite =
         } in
         let steps : workflow_step = Sequential [
           Tool_call { tool_name = "my_tool"; input = `Assoc [] };
-          Agent_call { agent_id = "test-agent"; prompt_template = "hello" };
+          Agent_call { agent_id = "test-agent"; prompt_template = "hello"; response_schema = None };
         ] in
         (match Workflow_engine.execute_step ctx steps with
          | Ok (`List [ a; b ]) ->
@@ -371,7 +371,7 @@ let workflow_engine_suite =
         workspace = (match Workspace.of_cwd () with Ok w -> w | Error _ -> failwith "test workspace");
         } in
         let step : workflow_step =
-          Agent_call { agent_id = "nonexistent"; prompt_template = "hi" }
+          Agent_call { agent_id = "nonexistent"; prompt_template = "hi"; response_schema = None }
         in
         (match Workflow_engine.execute_step ctx step with
          | Error (Invalid_input msg) ->

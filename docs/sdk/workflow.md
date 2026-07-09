@@ -119,10 +119,11 @@ Calls a registered agent. `prompt_template` supports `{{variable_name}}` placeho
 Agent_call {
   agent_id = "summarizer";
   prompt_template = "Please summarize: {{content}}";
+  response_schema = None;  (* optional JSON Schema for schema-validated structured output *)
 }
 ```
 
-The result of an `Agent_call` is a structured JSON value of shape `` `Assoc [("text", `String _); ("tool_calls", `List _)] ``. Downstream steps in a Sequential can reference the parts individually, for example `{{result.text}}` for the assistant text and `{{result.tool_calls}}` for the tool-call array. See [Variables and context propagation](#variables-and-context-propagation) for the full binding rules.
+The result of an `Agent_call` is a structured JSON value of shape `` `Assoc [("text", `String _); ("tool_calls", `List _)] ``. Downstream steps in a Sequential can reference the parts individually, for example `{{result.text}}` for the assistant text and `{{result.tool_calls}}` for the tool-call array. When `response_schema` is `Some _`, a third key `output` is added with the schema-validated JSON object, and `Conditional` steps can reference nested fields via dot-paths (e.g. `result.output.sentiment`). See [Variables and context propagation](#variables-and-context-propagation) for the full binding rules.
 
 ### Tool_call
 
@@ -150,8 +151,8 @@ Executes a list of steps in order. Each completed step propagates its result to 
 
 ```ocaml
 Sequential [
-  Agent_call { agent_id = "agent-a"; prompt_template = "Describe X" };
-  Agent_call { agent_id = "agent-b"; prompt_template = "Critique: {{result.text}}" };
+  Agent_call { agent_id = "agent-a"; prompt_template = "Describe X"; response_schema = None };
+  Agent_call { agent_id = "agent-b"; prompt_template = "Critique: {{result.text}}"; response_schema = None };
 ]
 ```
 
@@ -177,7 +178,7 @@ Conditional {
   condition = Greater_than (
     Variable "score", Literal (`Int 80)
   );
-  then_step = Agent_call { agent_id = "approver"; prompt_template = "Approve" };
+  then_step = Agent_call { agent_id = "approver"; prompt_template = "Approve"; response_schema = None };
   else_step = Tool_call { tool_name = "echo"; input = `Assoc [("msg", `String "Rejected")] };
 }
 ```
@@ -441,6 +442,7 @@ let wf : workflow = {
       Agent_call {
         agent_id = "researcher";
         prompt_template = "Research the topic: {{topic}}";
+        response_schema = None;
       };
       Human_approval {
         prompt_template = "Research complete. Continue to summarize?";
@@ -450,6 +452,7 @@ let wf : workflow = {
       Agent_call {
         agent_id = "summarizer";
         prompt_template = "Summarize this: {{result.text}}";
+        response_schema = None;
       };
     ];
     variables = [("topic", `String "OCaml 5 concurrency")];

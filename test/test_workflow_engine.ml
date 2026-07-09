@@ -1042,7 +1042,8 @@ let test_rehydration_resume_works_after_restart () =
           Human_approval { prompt_template = "ok?"; timeout = 60.0;
                            allowed_roles = ["admin"] };
           Agent_call { agent_id = "post-approver";
-                       prompt_template = "You are approved. Say 'done'." };
+                       prompt_template = "You are approved. Say 'done'.";
+                       response_schema = None };
         ]) () in
         (match Runtime.register_workflow rt1 wf with
          | Ok () -> ()
@@ -1693,7 +1694,7 @@ let test_agent_call_preserves_tool_calls () =
     let ctx = make_ctx
       ~agent_resolver:(fun _ -> Some agent)
       ~token ~llm ~registry:reg () in
-    let step = Agent_call { agent_id = "test-agent"; prompt_template = "x" } in
+    let step = Agent_call { agent_id = "test-agent"; prompt_template = "x"; response_schema = None } in
     match Workflow_engine.execute_step ctx step with
     | Ok (`Assoc fields) ->
       (match List.assoc_opt "tool_calls" fields with
@@ -1717,7 +1718,7 @@ let test_sequential_propagates_result_to_next_step () =
       ~tool_resolver:(fun _ -> Some t.descriptor)
       ~token ~llm ~registry:reg () in
     let step = Sequential [
-      Agent_call { agent_id = "test-agent"; prompt_template = "anything" };
+      Agent_call { agent_id = "test-agent"; prompt_template = "anything"; response_schema = None };
       Tool_call { tool_name = "test_tool"; input = `Assoc [("msg", `String "got {{result.text}}")] };
     ] in
     match Workflow_engine.execute_step ctx step with
@@ -1743,8 +1744,8 @@ let test_sequential_propagates_indexed_results () =
       ~tool_resolver:(fun _ -> Some t.descriptor)
       ~token ~llm ~registry:reg () in
     let step = Sequential [
-      Agent_call { agent_id = "test-agent"; prompt_template = "1" };
-      Agent_call { agent_id = "test-agent"; prompt_template = "2" };
+      Agent_call { agent_id = "test-agent"; prompt_template = "1"; response_schema = None };
+      Agent_call { agent_id = "test-agent"; prompt_template = "2"; response_schema = None };
       Tool_call { tool_name = "test_tool"; input = `Assoc [("x", `String "{{result_0.text}}-{{result_1.text}}")] };
     ] in
     match Workflow_engine.execute_step ctx step with
@@ -1766,7 +1767,7 @@ let test_workflow_def_round_trips_yojson () =
     name = "Round Trip";
     version = 1;
     steps = Sequential [
-      Agent_call { agent_id = "a"; prompt_template = "x" };
+      Agent_call { agent_id = "a"; prompt_template = "x"; response_schema = None };
       Tool_call { tool_name = "t"; input = `Assoc [] };
     ];
     variables = [("k", `String "v"); ("n", `Int 42)];
@@ -1781,9 +1782,215 @@ let test_workflow_def_round_trips_yojson () =
      Alcotest.(check string) "name round-trips" def.name def'.name;
      Alcotest.(check int) "version round-trips" def.version def'.version;
      Alcotest.(check int) "parallel_limit round-trips" def.parallel_limit def'.parallel_limit;
-     Alcotest.(check (float 0.0001)) "timeout round-trips" def.timeout def'.timeout
+      Alcotest.(check (float 0.0001)) "timeout round-trips" def.timeout def'.timeout
    | Error e ->
      Alcotest.failf "workflow_def_of_yojson failed: %s" e)
+
+(* -------------------------------------------------------------------------- *)
+(* Response_schema (Agent_call schema-validated structured output)            *)
+(* -------------------------------------------------------------------------- *)
+
+(* A minimal JSON Schema for { "sentiment": "positive" | "negative" | "neutral" }. *)
+let sentiment_schema : Yojson.Safe.t =
+  `Assoc [
+    ("type", `String "object");
+    ("properties", `Assoc [
+      ("sentiment", `Assoc [
+        ("type", `String "string");
+        ("enum", `List [`String "positive"; `String "negative"; `String "neutral"]);
+      ]);
+    ]);
+    ("required", `List [`String "sentiment"]);
+    ("additionalProperties", `Bool false);
+  ]
+
+let test_agent_call_without_schema_unchanged () =
+  (* Regression guard: when response_schema = None the execution path is
+     identical to the pre-feature behaviour — only "text" and "tool_calls"
+     are present in the result, no "output" key. *)
+  let llm = mock_llm [text_response "hello world"] in
+  let agent = basic_agent () in
+  with_token (fun token ->
+    let reg = make_registry [] in
+    let ctx = make_ctx
+      ~agent_resolver:(fun _ -> Some agent)
+      ~token ~llm ~registry:reg () in
+    let step = Agent_call { agent_id = "test-agent"; prompt_template = "hi"; response_schema = None } in
+    match Workflow_engine.execute_step ctx step with
+    | Ok (`Assoc fields) ->
+      (match List.assoc_opt "output" fields with
+       | None -> Alcotest.(check bool) "no output key (regression guard)" true true
+       | Some v -> Alcotest.failf "unexpected output key: %s" (Yojson.Safe.to_string v));
+      (match List.assoc_opt "text" fields with
+       | Some (`String s) -> Alcotest.(check string) "text preserved" "hello world" s
+       | _ -> Alcotest.failf "missing text field, got: %s"
+                (Yojson.Safe.to_string (`Assoc fields)))
+    | Ok other -> Alcotest.failf "expected Assoc, got %s" (Yojson.Safe.to_string other)
+    | Error e -> Alcotest.failf "expected Ok: %s" (error_to_string e))
+
+let test_agent_call_with_schema_happy_path () =
+  (* Agent_call with response_schema = Some: the LLM returns text that
+     contains a JSON object matching the schema, run_structured extracts
+     and validates it, and the validated JSON is surfaced as "output". *)
+  let valid_json = `Assoc [("sentiment", `String "positive")] in
+  let llm = mock_llm [text_response (Yojson.Safe.to_string valid_json)] in
+  let agent = basic_agent () in
+  with_token (fun token ->
+    let reg = make_registry [] in
+    let ctx = make_ctx
+      ~agent_resolver:(fun _ -> Some agent)
+      ~token ~llm ~registry:reg () in
+    let step = Agent_call {
+      agent_id = "test-agent";
+      prompt_template = "Classify: {{text}}";
+      response_schema = Some sentiment_schema;
+    } in
+    match Workflow_engine.execute_step ctx step with
+    | Ok (`Assoc fields) ->
+      (match List.assoc_opt "output" fields with
+       | Some (`Assoc [("sentiment", `String s)]) ->
+         Alcotest.(check string) "output.sentiment" "positive" s
+       | Some v -> Alcotest.failf "output has wrong shape: %s" (Yojson.Safe.to_string v)
+       | None -> Alcotest.failf "output key missing, got: %s"
+                   (Yojson.Safe.to_string (`Assoc fields)))
+    | Ok other -> Alcotest.failf "expected Assoc, got %s" (Yojson.Safe.to_string other)
+    | Error e -> Alcotest.failf "expected Ok, got: %s" (error_to_string e))
+
+let test_agent_call_with_schema_repair_loop () =
+  (* First LLM call returns prose (no JSON), second returns valid JSON.
+     The run_structured repair loop should kick in: a JSON-parse error
+     triggers a repair feedback message and a retry. *)
+  let valid_json = `Assoc [("sentiment", `String "negative")] in
+  let llm = mock_llm [
+    text_response "I'm not sure, let me think...";
+    text_response (Yojson.Safe.to_string valid_json);
+  ] in
+  let agent = basic_agent () in
+  with_token (fun token ->
+    let reg = make_registry [] in
+    let ctx = make_ctx
+      ~agent_resolver:(fun _ -> Some agent)
+      ~token ~llm ~registry:reg () in
+    let step = Agent_call {
+      agent_id = "test-agent";
+      prompt_template = "x";
+      response_schema = Some sentiment_schema;
+    } in
+    match Workflow_engine.execute_step ctx step with
+    | Ok (`Assoc fields) ->
+      (match List.assoc_opt "output" fields with
+       | Some (`Assoc [("sentiment", `String s)]) ->
+         Alcotest.(check string) "repair succeeded on attempt 2" "negative" s
+       | Some v -> Alcotest.failf "output wrong shape: %s" (Yojson.Safe.to_string v)
+       | None -> Alcotest.failf "output key missing")
+    | Ok other -> Alcotest.failf "expected Assoc, got %s" (Yojson.Safe.to_string other)
+    | Error e -> Alcotest.failf "expected Ok (repair loop should have succeeded): %s"
+                   (error_to_string e))
+
+let test_conditional_references_schema_output_dot_path () =
+  (* End-to-end: a Sequential of [Agent_call (with schema); Conditional]
+     where the Condition reads result.output.sentiment via dot-path.
+     The dot-path resolve_path in expression.ml must drill into the
+     nested JSON object that run_structured produces. *)
+  let valid_json = `Assoc [("sentiment", `String "positive")] in
+  let llm = mock_llm [
+    text_response (Yojson.Safe.to_string valid_json);
+    text_response "branch: pos";
+    text_response "branch: pos";
+    text_response "branch: pos";
+  ] in
+  let agent = basic_agent () in
+  (* A Conditional that picks "pos" when sentiment == "positive", else "neg". *)
+  let condition_step : workflow_step = Conditional {
+    condition = Equals (
+      Variable "result.output.sentiment",
+      Literal (`String "positive")
+    );
+    then_step = Agent_call {
+      agent_id = "test-agent";
+      prompt_template = "branch: pos";
+      response_schema = None;
+    };
+    else_step = Some (Agent_call {
+      agent_id = "test-agent";
+      prompt_template = "branch: neg";
+      response_schema = None;
+    });
+  }
+  in
+  with_token (fun token ->
+    let reg = make_registry [] in
+    let ctx = make_ctx
+      ~agent_resolver:(fun _ -> Some agent)
+      ~token ~llm ~registry:reg () in
+    let step = Sequential [
+      Agent_call {
+        agent_id = "test-agent";
+        prompt_template = "classify";
+        response_schema = Some sentiment_schema;
+      };
+      condition_step;
+    ] in
+    match Workflow_engine.execute_step ctx step with
+    | Ok (`List [first; second]) ->
+      (match first with
+       | `Assoc first_fields ->
+         (match List.assoc_opt "output" first_fields with
+          | Some _ -> ()
+          | None -> Alcotest.failf "first step missing output: %s"
+                      (Yojson.Safe.to_string first))
+       | _ -> Alcotest.failf "first step not an Assoc: %s"
+                (Yojson.Safe.to_string first));
+      (match second with
+       | `Assoc fields ->
+         (match List.assoc_opt "text" fields with
+          | Some (`String s) ->
+            Alcotest.(check string) "conditional picked 'pos' branch"
+              "branch: pos" s
+          | _ -> Alcotest.failf "expected text from pos branch, got: %s"
+                   (Yojson.Safe.to_string second))
+       | _ -> Alcotest.failf "expected Assoc from pos branch, got: %s"
+                (Yojson.Safe.to_string second))
+    | Ok other -> Alcotest.failf "expected List, got %s" (Yojson.Safe.to_string other)
+    | Error e -> Alcotest.failf "expected Ok: %s" (error_to_string e))
+
+let test_workflow_step_yojson_backward_compat () =
+  (* Verifies the [@deriving.yojson.default None] attribute: existing 2-field
+     Agent_call JSON (no response_schema key) decodes successfully. *)
+  let json = `List [
+    `String "Agent_call";
+    `Assoc [
+      ("agent_id", `String "default-agent");
+      ("prompt_template", `String "hello");
+    ]
+  ] in
+  match workflow_step_of_yojson json with
+  | Ok (Agent_call { agent_id; prompt_template; response_schema }) ->
+    Alcotest.(check string) "agent_id round-trips" "default-agent" agent_id;
+    Alcotest.(check string) "prompt round-trips" "hello" prompt_template;
+    Alcotest.(check bool) "response_schema defaults to None"
+      true (response_schema = None)
+  | Ok _ -> Alcotest.fail "expected Agent_call variant"
+  | Error e -> Alcotest.failf "backward-compat decode failed: %s" e
+
+let test_workflow_step_yojson_with_response_schema () =
+  (* Forward compat: 3-field Agent_call JSON with response_schema decodes. *)
+  let json = `List [
+    `String "Agent_call";
+    `Assoc [
+      ("agent_id", `String "a");
+      ("prompt_template", `String "p");
+      ("response_schema", sentiment_schema);
+    ]
+  ] in
+  match workflow_step_of_yojson json with
+  | Ok (Agent_call { agent_id; prompt_template; response_schema }) ->
+    Alcotest.(check string) "agent_id" "a" agent_id;
+    Alcotest.(check string) "prompt" "p" prompt_template;
+    Alcotest.(check bool) "response_schema present"
+      true (Option.is_some response_schema)
+  | Ok _ -> Alcotest.fail "expected Agent_call variant"
+  | Error e -> Alcotest.failf "decode failed: %s" e
 
 let () =
   Alcotest.run "Workflow engine" [
@@ -1915,8 +2122,22 @@ let () =
       Alcotest.test_case "agent call preserves tool_calls" `Quick
         test_agent_call_preserves_tool_calls;
     ]);
+    ("Response_schema (Agent_call)", [
+      Alcotest.test_case "without schema: unchanged behaviour (regression guard)" `Quick
+        test_agent_call_without_schema_unchanged;
+      Alcotest.test_case "with schema: validated JSON in result.output" `Quick
+        test_agent_call_with_schema_happy_path;
+      Alcotest.test_case "with schema + invalid LLM output: repair loop succeeds" `Quick
+        test_agent_call_with_schema_repair_loop;
+      Alcotest.test_case "Conditional reads result.output.<field> via dot-path" `Quick
+        test_conditional_references_schema_output_dot_path;
+    ]);
     ("Serialization", [
       Alcotest.test_case "workflow_def yojson round-trips" `Quick
         test_workflow_def_round_trips_yojson;
+      Alcotest.test_case "workflow_step 2-field JSON decodes (backward compat)" `Quick
+        test_workflow_step_yojson_backward_compat;
+      Alcotest.test_case "workflow_step 3-field JSON decodes (with response_schema)" `Quick
+        test_workflow_step_yojson_with_response_schema;
     ]);
   ]

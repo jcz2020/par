@@ -118,21 +118,37 @@ let rec flatten_json prefix (json : Yojson.Safe.t) : (string * Yojson.Safe.t) li
 let rec execute_step ?(path=[]) ctx step =
   Cancellation.check_cancel ctx.token;
   match step with
-  | Agent_call { agent_id; prompt_template } ->
+  | Agent_call { agent_id; prompt_template; response_schema } ->
     (match ctx.agent_resolver agent_id with
      | None -> Result.Error (Invalid_input (Printf.sprintf "Agent not found: %s" agent_id))
      | Some agent ->
        let prompt = substitute prompt_template ctx.variables in
-        match Engine.run_agent ctx.token agent prompt ctx.llm ctx.registry with
-        | Ok (resp, _) ->
-          let text_field = match resp.text with
-            | Some t -> ("text", `String t)
-            | None -> ("text", `Null) in
-          let tool_calls_field = match resp.tool_calls with
-            | Some tcs -> ("tool_calls", `List (List.map Types.tool_call_to_yojson tcs))
-            | None -> ("tool_calls", `Null) in
-          Ok (`Assoc [text_field; tool_calls_field])
-        | Result.Error (err, _) -> Result.Error err)
+       (match response_schema with
+        | None ->
+          (match Engine.run_agent ctx.token agent prompt ctx.llm ctx.registry with
+           | Ok (resp, _) ->
+             let text_field = match resp.text with
+               | Some t -> ("text", `String t)
+               | None -> ("text", `Null) in
+             let tool_calls_field = match resp.tool_calls with
+               | Some tcs -> ("tool_calls", `List (List.map Types.tool_call_to_yojson tcs))
+               | None -> ("tool_calls", `Null) in
+             Ok (`Assoc [text_field; tool_calls_field])
+           | Result.Error (err, _) -> Result.Error err)
+        | Some schema ->
+          (match Engine.run_structured ~response_schema:schema
+             ctx.llm ctx.token agent prompt with
+           | Ok result ->
+             let resp = result.raw_response in
+             let text_field = match resp.text with
+               | Some t -> ("text", `String t)
+               | None -> ("text", `Null) in
+             let tool_calls_field = match resp.tool_calls with
+               | Some tcs -> ("tool_calls", `List (List.map Types.tool_call_to_yojson tcs))
+               | None -> ("tool_calls", `Null) in
+             Ok (`Assoc [text_field; tool_calls_field;
+                         ("output", result.value)])
+           | Result.Error (err, _) -> Result.Error err)))
 
   | Tool_call { tool_name; input } ->
     (match ctx.tool_resolver tool_name with

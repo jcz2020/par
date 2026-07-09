@@ -117,10 +117,11 @@ type workflow_step =
 Agent_call {
   agent_id = "summarizer";
   prompt_template = "Please summarize: {{content}}";
+  response_schema = None;  (* 可选的 JSON Schema，用于 schema 校验的结构化输出 *)
 }
 ```
 
-`Agent_call` 的结果是形如 `` `Assoc [("text", `String _); ("tool_calls", `List _)] `` 的结构化 JSON 值。Sequential 中的下游步骤可以分别引用各部分，例如 `{{result.text}}` 获取助手文本，`{{result.tool_calls}}` 获取工具调用数组。完整绑定规则见[变量与上下文传播](#变量与上下文传播)。
+`Agent_call` 的结果是形如 `` `Assoc [("text", `String _); ("tool_calls", `List _)] `` 的结构化 JSON 值。Sequential 中的下游步骤可以分别引用各部分，例如 `{{result.text}}` 获取助手文本，`{{result.tool_calls}}` 获取工具调用数组。当 `response_schema` 为 `Some _` 时，会增加第三个键 `output`（包含 schema 校验后的 JSON 对象），`Conditional` 步骤可通过点路径引用嵌套字段（如 `result.output.sentiment`）。完整绑定规则见[变量与上下文传播](#变量与上下文传播)。
 
 ### Tool_call
 
@@ -148,8 +149,8 @@ Tool_call {
 
 ```ocaml
 Sequential [
-  Agent_call { agent_id = "agent-a"; prompt_template = "Describe X" };
-  Agent_call { agent_id = "agent-b"; prompt_template = "Critique: {{result.text}}" };
+  Agent_call { agent_id = "agent-a"; prompt_template = "Describe X"; response_schema = None };
+  Agent_call { agent_id = "agent-b"; prompt_template = "Critique: {{result.text}}"; response_schema = None };
 ]
 ```
 
@@ -175,7 +176,7 @@ Conditional {
   condition = Greater_than (
     Variable "score", Literal (`Int 80)
   );
-  then_step = Agent_call { agent_id = "approver"; prompt_template = "Approve" };
+  then_step = Agent_call { agent_id = "approver"; prompt_template = "Approve"; response_schema = None };
   else_step = Tool_call { tool_name = "echo"; input = `Assoc [("msg", `String "Rejected")] };
 }
 ```
@@ -438,6 +439,7 @@ let wf : workflow = {
       Agent_call {
         agent_id = "researcher";
         prompt_template = "Research the topic: {{topic}}";
+        response_schema = None;
       };
       Human_approval {
         prompt_template = "Research complete. Continue to summarize?";
@@ -447,6 +449,7 @@ let wf : workflow = {
       Agent_call {
         agent_id = "summarizer";
         prompt_template = "Summarize this: {{result.text}}";
+        response_schema = None;
       };
     ];
     variables = [("topic", `String "OCaml 5 concurrency")];

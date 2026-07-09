@@ -37,6 +37,7 @@ depends: [
   "omd"
   "ctypes"
   "alcotest"
+  "jsonschema-validation"
   "odoc" {with-doc}
 ]
 build: [
