@@ -11,15 +11,63 @@ PAR 提供一等公民的记忆抽象，用于跨会话的 agent 知识存储。
 记忆模块镜像了 `llm_service` 的闭包记录模式：
 
 ```ocaml
+type embedding_fn = string list -> (float array list, string) result
+
+type search_mode =
+  | Keyword_only  (* 仅 FTS5 关键词搜索 *)
+  | Vector_only   (* 仅嵌入向量 KNN 搜索 *)
+  | Hybrid        (* 关键词 + 向量，RRF 融合 *)
+  | Auto          (* 智能默认：有嵌入用 Hybrid，否则 Keyword_only *)
+
 module type MEMORY_SERVICE = sig
   type t
-  val create : string -> (t, memory_error) result
-  val add : t -> memory_object -> (string, memory_error) result
-  val search : t -> ?scope:string -> string -> (memory_object list, memory_error) result
-  val update : t -> string -> memory_object -> (unit, memory_error) result
-  val delete : t -> string -> (unit, memory_error) result
-  val list_all : t -> ?scope:string -> unit -> (memory_object list, memory_error) result
+
+  val create : string -> (t, Memory_error.memory_error) result
+
+  val add :
+    t ->
+    content:string ->
+    ?summary:string ->
+    ?scope:string ->
+    ?metadata:(string * Yojson.Safe.t) list ->
+    ?categories:string list ->
+    ?source:string ->
+    unit ->
+    (Memory_object.memory_object, Memory_error.memory_error) result
+
+  val search :
+    t ->
+    ?mode:search_mode ->
+    ?scope:string ->
+    ?limit:int ->
+    string ->
+    (Memory_object.memory_object list, Memory_error.memory_error) result
+
+  val update :
+    t ->
+    Memory_object.memory_object ->
+    (Memory_object.memory_object, Memory_error.memory_error) result
+
+  val delete :
+    t ->
+    string ->
+    (unit, Memory_error.memory_error) result
+
+  val list_all :
+    t ->
+    ?scope:string ->
+    ?limit:int ->
+    unit ->
+    (Memory_object.memory_object list, Memory_error.memory_error) result
+
   val close : t -> unit
+
+  val render_index :
+    t ->
+    ?max_entries:int ->
+    ?scope:string ->
+    unit ->
+    string
 end
 ```
 
@@ -27,15 +75,65 @@ end
 
 ```ocaml
 type memory_service = {
-  add_fn : memory_object -> (string, error_category) result;
-  search_fn : ?scope:string -> string -> (memory_object list, error_category) result;
-  update_fn : string -> memory_object -> (unit, error_category) result;
-  delete_fn : string -> (unit, error_category) result;
-  list_all_fn : ?scope:string -> unit -> (memory_object list, error_category) result;
+  add_fn :
+    content:string ->
+    ?summary:string ->
+    ?scope:string ->
+    ?metadata:(string * Yojson.Safe.t) list ->
+    ?categories:string list ->
+    ?source:string ->
+    unit ->
+    (Memory_object.memory_object, Memory_error.memory_error) result;
+  search_fn :
+    ?mode:search_mode ->
+    ?scope:string ->
+    ?limit:int ->
+    string ->
+    (Memory_object.memory_object list, Memory_error.memory_error) result;
+  update_fn :
+    Memory_object.memory_object ->
+    (Memory_object.memory_object, Memory_error.memory_error) result;
+  delete_fn :
+    string ->
+    (unit, Memory_error.memory_error) result;
+  list_all_fn :
+    ?scope:string ->
+    ?limit:int ->
+    unit ->
+    (Memory_object.memory_object list, Memory_error.memory_error) result;
   close_fn : unit -> unit;
-  render_index_fn : ?max_entries:int -> ?scope:string -> unit -> string;
+  render_index_fn :
+    ?max_entries:int ->
+    ?scope:string ->
+    unit ->
+    string;
 }
 ```
+
+## 类型
+
+### `embedding_fn`
+
+本地类型，封装 `Types.embedding_service.embed_fn`。接收字符串列表，返回嵌入向量：
+
+```ocaml
+type embedding_fn = string list -> (float array list, string) result
+```
+
+提供嵌入函数时，记忆服务使用向量搜索。未提供时仅支持 FTS5 关键词搜索。
+
+### `search_mode`
+
+控制 `search` 如何检索记忆：
+
+| 模式 | 行为 |
+|------|------|
+| `Keyword_only` | FTS5 关键词搜索，BM25 排序 |
+| `Vector_only` | 嵌入向量 KNN 搜索（需要 `embedding_fn`） |
+| `Hybrid` | 关键词 + 向量，通过 RRF（倒数排名融合）合并 |
+| `Auto` | 智能默认：有嵌入用 `Hybrid`，否则 `Keyword_only` |
+
+`search` 的 `?mode` 参数默认为 `Auto`，调用方无需显式配置即可获得最佳策略。
 
 ## Memory 对象
 
@@ -51,7 +149,7 @@ type memory_service = {
 | `categories` | `string list` | 分类标签 |
 | `created_at` | `float` | Unix 时间戳 |
 | `updated_at` | `float` | Unix 时间戳 |
-| `source` | `string` | 来源标签（`"manual"`、`"agent"`、`"import"`） |
+| `source` | `string` | 来源标签（`"manual"`、`"agent"`、`"tool"`、`"import"`） |
 
 ## 默认后端：SQLite + FTS5
 
@@ -86,20 +184,64 @@ CREATE VIRTUAL TABLE memory_entries_fts USING fts5(
 - **只增不改（ADD-only）**：`update` 会创建带新 UUID 的新行，不会原地修改已有内容。这保留了审计历史。
 - **使用追踪**：`search` 会提升匹配条目的 `usage_count` 和 `last_used_at`。`render_index` 按 `last_used_at DESC, usage_count DESC` 排序。
 
-## 接入 Runtime
+### 混合搜索与 RRF
+
+提供嵌入函数时，`Hybrid` 模式通过倒数排名融合（RRF）合并 FTS5 关键词结果与向量 KNN 结果：
 
 ```ocaml
-(* OCaml SDK *)
+val hybrid_search :
+  t ->
+  ?scope:string ->
+  ?limit:int ->
+  ?weight_fts:float ->
+  ?weight_vec:float ->
+  ?rrf_k:int ->
+  query:string ->
+    query_vec:float array ->
+  unit ->
+  (Memory_object.memory_object list, Memory_error.memory_error) result
+```
+
+RRF 合并两个来源的排序列表：`score(d) = 1/(k + rank_fts(d)) + 1/(k + rank_vec(d))`，其中 `k` 默认为 60。`?weight_fts` 和 `?weight_vec` 参数允许调整各来源的相对权重。
+
+## 接入 Runtime
+
+### OCaml SDK
+
+```ocaml
+(* 仅关键词搜索（无嵌入） *)
 let memory = match Sqlite_memory.create "~/.par/memory.db" with
   | Ok t -> Some (Sqlite_memory.make_service t)
   | Error _ -> None
 in
 match Runtime.create ~config ~llm ?memory switch with
 | Ok rt -> ...
+
+(* 使用嵌入 + 混合搜索 *)
+let my_embedding text_list =
+  (* 调用你的嵌入 API *)
+  Ok (List.map (fun _ -> Array.make 1536 0.0) text_list)
+in
+let memory = match Sqlite_memory.create ~dimension:1536 ~embedding_fn:my_embedding "~/.par/memory.db" with
+  | Ok t -> Some (Sqlite_memory.make_service ~dimension:1536 ~embedding_fn:my_embedding "~/.par/memory.db")
+  | Error _ -> None
+in
+match Runtime.create ~config ~llm ?memory switch with
+| Ok rt -> ...
 ```
 
+`Sqlite_memory.create` 接受两个可选参数：
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `?dimension` | 1536 | 嵌入向量维度 |
+| `?embedding_fn` | `None` | 嵌入函数；为 `None` 时仅支持关键词搜索 |
+
+`Sqlite_memory.make_service` 接受相同的可选参数，直接返回 `Memory_service.memory_service` 记录。
+
+### Python 绑定
+
 ```python
-# Python 绑定
 config = json.dumps({
     "persistence": {"tag": "sqlite", "contents": ":memory:"},
     "memory": {"backend": "sqlite", "path": "~/.par/memory.db"},
@@ -115,8 +257,8 @@ with Runtime(config) as rt:
 | 工具 | 输入 | 说明 |
 |------|------|------|
 | `recall_memory` | `{"query": "...", "limit": N}` | 按关键词搜索记忆，按 `invoke_context.session_id` 分区 |
-| `remember_memory` | `{"content": "...", "summary": "..."}` | 存储新记忆，按 `invoke_context.session_id` 分区 |
-| `search_history` | `{"query": "..."}` | 搜索对话历史 |
+| `remember_memory` | `{"content": "...", "summary": "...", "categories": [...]}` | 存储新记忆，按 `invoke_context.session_id` 分区 |
+| `search_history` | `{"query": "...", "limit": N}` | 搜索跨会话的对话历史 |
 
 所有工具从 `Invoke_context.get_current_exn().session_id` 读取每次调用的分区——记忆自动按会话隔离。
 
@@ -137,5 +279,4 @@ rt.invoke(agent, "我跟你说了什么？")           # 搜索 scope="workspace
 
 ## 限制
 
-- **向量化语义检索**推迟到后续版本。v0.7.1 仅提供关键词（FTS5）搜索。
 - **跨 agent 知识共享**：每个 Runtime 有自己的 memory 服务。多 agent 知识共享需要共享 SQLite 文件或未来的远程后端。

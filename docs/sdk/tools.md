@@ -6,10 +6,10 @@
 
 # Tool API Reference
 
-This document describes the 20 built-in tools provided by the P-A-R SDK. New tools are registered through `Runtime.register_tool`; the tool description gets injected into the LLM's system prompt so the model knows when to call which tool.
+This document describes the 23 built-in tools provided by the P-A-R SDK. New tools are registered through `Runtime.register_tool`; the tool description gets injected into the LLM's system prompt so the model knows when to call which tool.
 
-**Version**: v0.3.1
-**Total tools**: 20 (19 from v0.3.0 plus `bash` added in v0.3.1)
+**Version**: v0.7.1
+**Total tools**: 23 (19 from v0.3.0 + `bash` in v0.3.1 + 3 memory tools in v0.7.1)
 
 ## Overview
 
@@ -27,7 +27,7 @@ type tool_descriptor = {
 }
 ```
 
-The tools fall into four categories by purpose:
+The tools fall into five categories by purpose:
 
 | Category | Count | Tools |
 |------|------|------|
@@ -37,8 +37,9 @@ The tools fall into four categories by purpose:
 | fs (read) | 4 | `read` / `ls` / `find` / `grep` |
 | fs (write) | 2 | `write` / `edit` |
 | exec | 1 | `bash` (added in v0.3.1, **the only one with a security policy**) |
+| memory | 3 | `recall_memory` / `remember_memory` / `search_history` (added in v0.7.1, **require `Memory_service`**) |
 
-All tools except `bash` use `permission = Allow`. The file-path tools (`read` / `ls` / `find` / `grep` / `write` / `edit`) reject absolute paths and any path containing `:`.
+All tools except `bash` use `permission = Allow`. The file-path tools (`read` / `ls` / `find` / `grep` / `write` / `edit`) reject absolute paths and any path containing `:`. The memory tools (`recall_memory` / `remember_memory` / `search_history`) require a configured `Memory_service` and read scope from `Invoke_context.get_current_exn().session_id`.
 
 ## Quick Index
 
@@ -64,6 +65,9 @@ All tools except `bash` use `permission = Allow`. The file-path tools (`read` / 
 | `write` | fs (write) | medium | 30s | optional `create_dirs` for auto mkdir -p |
 | `edit` | fs (write) | medium | 30s | batch replace; overlapping ranges are rejected |
 | **`bash`** | **exec** | **high** | **60s** | **added in v0.3.1, 9-layer safety mechanism** |
+| `recall_memory` | memory | low | 10s | search memories by keyword, scoped by session |
+| `remember_memory` | memory | low | 10s | store a new memory, scoped by session |
+| `search_history` | memory | low | 10s | search conversation history across sessions |
 
 ---
 
@@ -541,6 +545,73 @@ let () = Eio_main.run (fun env ->
 ### Risk scoring
 
 `Bash_safe_command.assess_risk` returns `Low` / `Medium` / `High` / `Critical`, attached to the `risk` field of the `Bash_invoked` event.
+
+---
+
+## memory category (added in v0.7.1)
+
+The three memory tools require a configured `Memory_service`. They are auto-registered when `Runtime.create` receives a `?memory` parameter. All tools read scope from `Invoke_context.get_current_exn().session_id`, so memories are automatically isolated by session.
+
+### recall_memory
+
+Search stored memories by keyword query. Uses FTS5 full-text search with BM25 ranking.
+
+**Input**:
+```json
+{ "query": "ocaml concurrency", "limit": 5 }
+```
+
+**Output**:
+```json
+{
+  "results": [
+    { "id": "...", "content": "...", "summary": "...", "scope": "...", "categories": [...], "created_at": 1717... }
+  ],
+  "count": 2
+}
+```
+
+**Note**: `limit` defaults to 5, capped at 50. The `scope` is read from the current `invoke_context.session_id`.
+
+### remember_memory
+
+Store a new memory for future recall. Memories are scoped to the current session.
+
+**Input**:
+```json
+{ "content": "The project uses OCaml 5.4 with Eio for concurrency", "summary": "OCaml concurrency stack", "categories": ["architecture", "tech-stack"] }
+```
+
+**Output** (the created `memory_object`):
+```json
+{ "id": "550e8400-...", "content": "...", "summary": "...", "scope": "...", "categories": ["architecture", "tech-stack"], "created_at": 1717... }
+```
+
+**Parameters**:
+- `content` (required): the full text to remember
+- `summary` (optional): short summary, indexed by FTS5
+- `categories` (optional): tags for categorization
+
+### search_history
+
+Search conversation history from recent sessions. Performs a case-insensitive substring match across message text.
+
+**Input**:
+```json
+{ "query": "Eio concurrency", "limit": 10 }
+```
+
+**Output**:
+```json
+{
+  "results": [
+    { "session_id": "...", "role": "user", "content": "Tell me about Eio..." }
+  ],
+  "count": 3
+}
+```
+
+**Note**: `limit` controls the number of sessions to search (default 10, capped at 50). Matching text is truncated at 500 characters. The current session is searched first.
 
 ---
 

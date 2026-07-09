@@ -1,10 +1,10 @@
 # 工具 API 参考
 [English](../sdk/tools.md) · **简体中文**
 
-本文档描述 P-A-R SDK 提供的 20 个内置工具。新增工具通过 `Runtime.register_tool` 注册，工具描述会被注入 LLM 的 system prompt，让 LLM 知道何时调用哪个工具。
+本文档描述 P-A-R SDK 提供的 23 个内置工具。新增工具通过 `Runtime.register_tool` 注册，工具描述会被注入 LLM 的 system prompt，让 LLM 知道何时调用哪个工具。
 
-**版本**: v0.3.1
-**工具总数**: 20（v0.3.0 的 19 个 + v0.3.1 新增的 `bash`）
+**版本**: v0.7.1
+**工具总数**: 23（v0.3.0 的 19 个 + v0.3.1 新增的 `bash` + v0.7.1 新增的 3 个 memory 工具）
 
 ## 概述
 
@@ -22,7 +22,7 @@ type tool_descriptor = {
 }
 ```
 
-工具按用途分四类：
+工具按用途分五类：
 
 | 类别 | 数量 | 工具 |
 |------|------|------|
@@ -32,8 +32,9 @@ type tool_descriptor = {
 | fs (read) | 4 | `read` / `ls` / `find` / `grep` |
 | fs (write) | 2 | `write` / `edit` |
 | exec | 1 | `bash`（v0.3.1 新增，**唯一带安全策略**） |
+| memory | 3 | `recall_memory` / `remember_memory` / `search_history`（v0.7.1 新增，**需配置 `Memory_service`**） |
 
-除 `bash` 外，所有工具的 `permission = Allow`。文件路径类工具（`read` / `ls` / `find` / `grep` / `write` / `edit`）拒绝绝对路径与含 `:` 的路径。
+除 `bash` 外，所有工具的 `permission = Allow`。文件路径类工具（`read` / `ls` / `find` / `grep` / `write` / `edit`）拒绝绝对路径与含 `:` 的路径。Memory 工具（`recall_memory` / `remember_memory` / `search_history`）需要配置 `Memory_service`，从 `Invoke_context.get_current_exn().session_id` 读取 scope。
 
 ## 快速索引
 
@@ -59,6 +60,9 @@ type tool_descriptor = {
 | `write` | fs (write) | 中 | 30s | 可选 `create_dirs` 自动 mkdir -p |
 | `edit` | fs (write) | 中 | 30s | 批量替换；重叠区间被拒 |
 | **`bash`** | **exec** | **高** | **60s** | **v0.3.1 新增，9 维安全机制** |
+| `recall_memory` | memory | 低 | 10s | 按关键词搜索记忆，按会话分区 |
+| `remember_memory` | memory | 低 | 10s | 存储新记忆，按会话分区 |
+| `search_history` | memory | 低 | 10s | 搜索跨会话的对话历史 |
 
 ---
 
@@ -536,6 +540,73 @@ let () = Eio_main.run (fun env ->
 ### 风险评分
 
 `Bash_safe_command.assess_risk` 返回 `Low` / `Medium` / `High` / `Critical`，挂在 `Bash_invoked` 事件的 `risk` 字段上。
+
+---
+
+## memory 类（v0.7.1 新增）
+
+三个 memory 工具需要配置 `Memory_service`。当 `Runtime.create` 接收 `?memory` 参数时自动注册。所有工具从 `Invoke_context.get_current_exn().session_id` 读取 scope，记忆自动按会话隔离。
+
+### recall_memory
+
+按关键词查询搜索已存储的记忆。使用 FTS5 全文搜索和 BM25 排序。
+
+**输入**：
+```json
+{ "query": "ocaml concurrency", "limit": 5 }
+```
+
+**输出**：
+```json
+{
+  "results": [
+    { "id": "...", "content": "...", "summary": "...", "scope": "...", "categories": [...], "created_at": 1717... }
+  ],
+  "count": 2
+}
+```
+
+**注意**：`limit` 默认 5，上限 50。`scope` 从当前 `invoke_context.session_id` 读取。
+
+### remember_memory
+
+存储新记忆以供将来检索。记忆按当前会话分区。
+
+**输入**：
+```json
+{ "content": "项目使用 OCaml 5.4 和 Eio 实现并发", "summary": "OCaml 并发技术栈", "categories": ["架构", "技术选型"] }
+```
+
+**输出**（创建的 `memory_object`）：
+```json
+{ "id": "550e8400-...", "content": "...", "summary": "...", "scope": "...", "categories": ["架构", "技术选型"], "created_at": 1717... }
+```
+
+**参数**：
+- `content`（必需）：要记住的完整文本
+- `summary`（可选）：简短摘要，被 FTS5 索引
+- `categories`（可选）：分类标签
+
+### search_history
+
+搜索最近会话的对话历史。对消息文本执行大小写不敏感的子串匹配。
+
+**输入**：
+```json
+{ "query": "Eio concurrency", "limit": 10 }
+```
+
+**输出**：
+```json
+{
+  "results": [
+    { "session_id": "...", "role": "user", "content": "跟我说说 Eio..." }
+  ],
+  "count": 3
+}
+```
+
+**注意**：`limit` 控制搜索的会话数（默认 10，上限 50）。匹配文本截断到 500 字符。当前会话优先搜索。
 
 ---
 
