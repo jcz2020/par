@@ -6,13 +6,17 @@ on:
   pull_request:
     branches: [main]
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   ocaml:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-15]
+        os: [ubuntu-22.04, macos-15, windows-latest]
         # macos-13 (Intel x64) removed 2026-06-19: free-tier Intel runners queue 24h+
         # then hit max-execution-time. Do NOT re-add — permanently abandoned per user.
     steps:
@@ -23,7 +27,8 @@ jobs:
           make check-version-sync
       - uses: ocaml/setup-ocaml@v3
         with:
-          ocaml-compiler: 5.4.0
+          # Windows uses MinGW-w64 port (broadest package ecosystem).
+          ocaml-compiler: ${{ runner.os == 'Windows' && '5.3.0+mingw64c' || '5.4.0' }}
           dune-cache: true
           opam-local-packages: |
             par.opam
@@ -41,6 +46,7 @@ jobs:
           echo "VERSION=$VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
       - uses: actions/upload-artifact@v4
+        if: runner.os != 'Windows'
         with:
           name: par-capi-${{ matrix.os }}
           path: _build/default/lib/ffi/par_capi.so

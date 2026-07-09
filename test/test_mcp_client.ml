@@ -294,6 +294,10 @@ let test_connect_failure_bad_command () =
      | Error _ -> ())
 
 let () =
+  if Sys.os_type = "Win32" then begin
+    print_endline "[SKIP] Process spawning tests skipped on Windows";
+    exit 0
+  end;
   let open Alcotest in
   run "Mcp_client" [
     "connect", [

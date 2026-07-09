@@ -255,4 +255,8 @@ let isolation_suite =
   ]
 
 let () =
+  if Sys.os_type = "Win32" then begin
+    print_endline "[SKIP] Process spawning tests skipped on Windows";
+    exit 0
+  end;
   Alcotest.run "per_call_workspace" [ isolation_suite ]

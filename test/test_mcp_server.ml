@@ -485,6 +485,10 @@ let test_call_tool_echo_returns_text () =
     | Error e -> Alcotest.failf "spawn: %s" (string_of_error_category e)
 
 let () =
+  if Sys.os_type = "Win32" then begin
+    print_endline "[SKIP] Process spawning tests skipped on Windows";
+    exit 0
+  end;
   let open Alcotest in
   run "Mcp_server" [
     "handshake", [

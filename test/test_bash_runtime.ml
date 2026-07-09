@@ -196,6 +196,10 @@ let policy_enforcement_suite =
   ]
 
 let () =
+  if Sys.os_type = "Win32" then begin
+    print_endline "[SKIP] Process spawning tests skipped on Windows";
+    exit 0
+  end;
   Alcotest.run "bash_runtime" [
     default_policy_suite;
     custom_policy_suite;
