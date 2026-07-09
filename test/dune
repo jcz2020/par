@@ -459,6 +459,11 @@
  (modules test_memory))
 
 (test
+ (name test_sqlite_memory_schema)
+ (libraries par_memory alcotest eio_main str sqlite3)
+ (modules test_sqlite_memory_schema))
+
+(test
  (name test_memory_tools)
  (libraries par par_memory eio_main alcotest)
  (modules test_memory_tools))
@@ -479,4 +484,9 @@
  (libraries par alcotest logs)
  (modules test_deprecation)
  (action (run %{test})))
+
+(test
+ (name test_capability)
+ (libraries par alcotest)
+ (modules test_capability))
 

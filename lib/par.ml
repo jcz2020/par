@@ -7,10 +7,11 @@
      Sqlite_persistence, Noop_persistence,
      Event_bus, Persistence_writer, Builtin_tools,
     Logging, Retry, Rate_limit, Timeout, Arg_validation, Output_validation, Pii_mask,
-    Sanitize_tool_output. JSON Schema validation lives in [Validation]. *)
+    Sanitize_tool_output, Capability. JSON Schema validation lives in [Validation]. *)
 
 module Types = Types
 module Deprecation = Deprecation
+module Capability = Capability
 module Workspace = Workspace
 module Runtime = Runtime
 module Invoke_context = Invoke_context
