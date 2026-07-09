@@ -1,5 +1,31 @@
 # CHANGES
 
+## v0.7.0-beta — Document Loaders Framework
+
+> PAR RAG previously only accepted raw strings. Document loaders turn real files (text, Markdown, HTML, CSV, PDF) into `Document.t` records that plug directly into the existing `Chunking` + `Vector_store` + `invoke_with_rag` pipeline, unlocking real-world RAG.
+
+### Added
+
+- **NEW** `Document` module (`lib/documents/document.ml`): `Document.t` record with `content`, `metadata` (Hashtbl of Yojson values), and `source` fields. Includes `Meta` submodule (`empty`/`singleton`/`add`/`add_string`/`add_int`/`to_yojson`/`of_yojson`) and `module type LOADER` (`lazy_load` canonical, `load` convenience).
+- **NEW** `Text_loader`, `Markdown_loader` (with YAML frontmatter via `Yaml`), `Html_loader` (via lambdasoup), `Csv_loader` (row-per-Document), `Pdf_loader` (via camlpdf `Pdftext` simple text extraction) — each producing `Document.t list`.
+- **NEW** `Directory_loader` with extension-dispatch `default_map` and custom map support.
+- **NEW** `Load_error` ADT: `File_not_found`, `Permission_denied`, `Unsupported_format`, `Extraction_failed`, `Workspace_rejected`.
+- **NEW** Public API: `Par.Document`, `Par.Text_loader`, `Par.Markdown_loader`, `Par.Html_loader`, `Par.Csv_loader`, `Par.Pdf_loader`, `Par.Directory_loader`.
+- **NEW** Dependencies: `camlpdf` (PDF), `csv`, `omd` (Markdown), all LGPL+OCaml-linking-exception (MIT-compatible).
+- **NEW** ROADMAP `docs/v0.7.0-ROADMAP.md` with 12 section 11.3 decisions documented.
+
+### Limitations (scope compromises, R2 retirement plans in ROADMAP)
+
+- `.docx` (Word) deferred to v0.7.1 (no maintained OCaml library; DIY is fragile).
+- PDF loader uses simple text-stream extraction; no layout preservation, no OCR. Trigger for layout-aware extraction: downstream failure rate >20% or v0.8.
+
+### Tests
+
+- 21 new tests covering Document type, 5 loaders, Directory loader, E2E RAG.
+- Total test count: 1249 → 1270, all passing.
+
+---
+
 ## v0.6.9 — Bash Cwd Fix + Raw SQLite Accessor
 
 > Two changes driven by integration feedback: a silent security bug in the bash tool's cwd handling, and a new accessor for downstream projects that need to extend the SQLite schema (e.g. FTS5 memory tables).

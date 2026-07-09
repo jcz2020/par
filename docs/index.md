@@ -62,6 +62,7 @@ The SDK is the canonical surface. Every page below is marked **PRIMARY** because
 | [Streaming API](sdk/streaming.md) | **PRIMARY**: `invoke_stream`, 5-event tagged union, backpressure, 3 runnable examples |
 | [Generate API](sdk/generate.md) | **PRIMARY**: `invoke_generate`, long-output generation mode, auto-continue on truncation |
 | [RAG API](sdk/rag.md) | Embeddings, vector store, chunking, `invoke_with_rag` |
+| [Document Loaders](sdk/document_loaders.md) | **PRIMARY**: load text, Markdown, HTML, CSV, PDF into `Document.t` for RAG |
 | [MCP Client API](sdk/mcp.md) | **PRIMARY**: MCP client (stdio + HTTP/SSE), 7 event types, server lifecycle |
 | [Skills API](sdk/skills.md) | Reusable prompt + tool bundles with trigger conditions |
 | [Observability](sdk/observability.md) | Metrics, health endpoints, event bus, structured logging |

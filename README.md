@@ -11,7 +11,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.6.9 — bash tool cwd fix (commands now run in the workspace-validated directory, not the parent process's cwd) + `Sqlite_persistence.raw_sqlite3_db` accessor for downstream FTS5/index needs. 1249 tests passing. API may change before v1.0.
+> **Status**: v0.7.0-beta — Document Loaders Framework: 5 format loaders (text, Markdown, HTML, CSV, PDF) + directory loader, `Document.t` record type, `LOADER` module type, and `Load_error` ADT. PDF loader uses simple text-stream extraction (no layout preservation, no OCR). 1270 tests passing. API may change before v1.0.
 
 ---
 
@@ -89,6 +89,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - [Streaming API](docs/sdk/streaming.md) — token streaming, tool call events
 - [Generate API](docs/sdk/generate.md) — long-output generation, on_max_tokens policy
 - [RAG API](docs/sdk/rag.md) — embeddings, vector store, retrieval
+- [Document Loaders](docs/sdk/document_loaders.md) — load text, Markdown, HTML, CSV, PDF into `Document.t` for RAG
 - [Skills API](docs/sdk/skills.md) — reusable prompt + tool bundles with triggers
 - [Architecture](docs/explanation/architecture.md) — how PAR works internally
 - [How-to guides](docs/howto/) — concurrency, custom providers, error handling
@@ -105,7 +106,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - **SQLite persistence** — embedded audit log (events, task state, workflow checkpoints, conversation history); Noop backend for tests
 - **Structured concurrency** — OCaml 5.4 effects with Eio, no orphan fibers, no callback hell
 - **Python ctypes binding** — `par_runtime` package, thread-safe, no GIL contention with OCaml runtime. Persistent Eio domain per Runtime for full concurrency support.
-- **1248 OCaml tests + Python bindings** passing (all green, including RAG e2e from any cwd)
+- **1270 OCaml tests + Python bindings** passing (all green, including RAG e2e from any cwd)
 - **Skill system** — drop a `skill.md` in `~/.par/skills/<id>/` and it auto-activates during `Runtime.invoke` based on trigger conditions (Auto / Manual / Keyword). See [Skills API](docs/sdk/skills.md).
 
 ## Language tracks
@@ -138,11 +139,11 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.6.9 — Bash tool cwd fix: `Eio.Process.spawn` in the bash handler now passes `~cwd`, so commands actually run in the directory validated by `Workspace.admit` (previously the validation was decorative — commands ran in the PAR process's cwd). `install_bash_tool` gained a required `?fs` parameter. Also adds `Sqlite_persistence.raw_sqlite3_db : t -> Sqlite3.db` for downstream projects that need to extend the SQLite schema (FTS5 tables, custom indexes).
+**Current**: v0.7.0-beta — Document Loaders Framework: `Document.t` record type with `content`, `metadata` (Hashtbl of Yojson values), and `source` fields. `module type LOADER` with `lazy_load` canonical. 5 format loaders (Text, Markdown with YAML frontmatter, HTML via lambdasoup, CSV row-per-Document, PDF via camlpdf simple text extraction). `Directory_loader` with extension-dispatch `default_map` and custom map support. `Load_error` ADT: `File_not_found`, `Permission_denied`, `Unsupported_format`, `Extraction_failed`, `Workspace_rejected`. 21 new tests, total 1270 passing.
 
-**Coming next**: External vector stores (Qdrant/Milvus), document loaders, multimodal image tools (v0.7+).
+**Coming next**: External vector stores (Qdrant/Milvus), multimodal image tools, .docx support (v0.7.1).
 
-**Recent releases**: v0.6.5 (Workspace abstraction) → v0.6.6 (per-run workspace override) → v0.6.7 (CLI removed, SDK installer wizard) → v0.6.8 (fresh-switch compilation fix) → v0.6.9 (bash cwd fix, raw SQLite accessor).
+**Recent releases**: v0.6.5 (Workspace abstraction) → v0.6.6 (per-run workspace override) → v0.6.7 (CLI removed, SDK installer wizard) → v0.6.8 (fresh-switch compilation fix) → v0.6.9 (bash cwd fix, raw SQLite accessor) → v0.7.0-beta (Document Loaders Framework).
 
 ## Getting help
 

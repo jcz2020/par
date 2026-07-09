@@ -41,6 +41,7 @@
 | [Tools API](sdk/tools.md) | 20 个内置工具（含类型安全 bash） |
 | [Generate API](sdk/generate.md) | `invoke_generate` 长输出生成模式，截断自动续写 |
 | [MCP Client API](sdk/mcp.md) | MCP 客户端（stdio + HTTP/SSE）：连接外部工具服务器 |
+| [文档加载器](sdk/document_loaders.md) | 加载文本、Markdown、HTML、CSV、PDF 为 `Document.t`，接入 RAG |
 | [Skills API](sdk/skills.md) | 可复用的 prompt + 工具包，支持触发条件 |
 | [Observability](sdk/observability.md) | 指标、健康检查端点、事件总线、结构化日志 |
 | [Prompt Caching](sdk/prompt_caching.md) | 缓存系统 prompt 和重复上下文，降低延迟和成本 |

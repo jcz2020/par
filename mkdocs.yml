@@ -105,6 +105,7 @@ nav:
       - Streaming API: sdk/streaming.md
       - Generate API: sdk/generate.md
       - RAG API: sdk/rag.md
+      - Document Loaders: sdk/document_loaders.md
       - Prompt Caching: sdk/prompt_caching.md
       - Content Blocks: sdk/content_blocks.md
       - Skills API: sdk/skills.md

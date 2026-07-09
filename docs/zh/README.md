@@ -11,7 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **状态**: v0.6.7 stable — CLI 已移除（产品 UX 迁至 par-code 仓库）；新增交互式 `install.sh` SDK 向导（检测系统 → 选择 Python 或 OCaml → 验证环境 → 可选自动配置 opam → 安装 → 验证）。1248 tests passing。v1.0 前 API 可能变化。
+> **状态**: v0.7.0-beta — 文档加载器框架：5 个格式加载器（文本、Markdown、HTML、CSV、PDF）+ 目录加载器、`Document.t` 记录类型、`LOADER` 模块类型和 `Load_error` ADT。PDF 加载器使用简单文本流提取（不保留布局、不支持 OCR）。1270 tests passing。v1.0 前 API 可能变化。
 
 ---
 
@@ -89,6 +89,7 @@ make install-dev   # 构建库 + 安装 .so + 同步 Python 版本
 - [Streaming API](sdk/streaming.md) — token 流式输出、工具调用事件
 - [Generate API](sdk/generate.md) — 长输出生成、on_max_tokens 策略
 - [RAG API](sdk/rag.md) — embeddings、向量存储、检索
+- [文档加载器](sdk/document_loaders.md) — 加载文本、Markdown、HTML、CSV、PDF 为 `Document.t`，接入 RAG
 - [Skills API](sdk/skills.md) — 可复用的 prompt + 工具包，支持触发条件
 - [架构](explanation/architecture.md) — PAR 内部工作原理
 - [How-to 指南](howto/) — 并发、自定义 provider、错误处理
@@ -105,7 +106,7 @@ make install-dev   # 构建库 + 安装 .so + 同步 Python 版本
 - **SQLite 持久化** — 嵌入式审计日志（事件、任务状态、工作流检查点、对话历史）；测试用 Noop 内存后端
 - **结构化并发** — OCaml 5.4 effects + Eio，无孤立 fiber，无回调地狱
 - **Python ctypes 绑定** — `par_runtime` 包，线程安全，与 OCaml 运行时无 GIL 竞争。每个 Runtime 有独立 Eio domain，完整支持并发。
-- **1248 OCaml 测试 + Python 绑定** 全部通过（包括任意工作目录的 RAG 端到端测试）
+- **1270 OCaml 测试 + Python 绑定** 全部通过（包括任意工作目录的 RAG 端到端测试）
 - **Skill 系统** — 在 `~/.par/skills/<id>/` 放一个 `skill.md`，在 `Runtime.invoke` 时根据触发条件（Auto / Manual / Keyword）自动激活。见 [Skills API](sdk/skills.md)。
 
 ## 语言轨道
@@ -138,11 +139,11 @@ let () = Eio_main.run (fun _env ->
 
 ## 状态与路线图
 
-**当前**: v0.6.7 — PAR 现在是纯 SDK/runtime：CLI 应用已移除（产品 UX 迁至独立的 [par-code](https://github.com/jcz2020/par-code) 仓库），`install.sh` 改为交互式 SDK 安装向导。包含 v0.6.5 Workspace 抽象（`Workspace` 模块作为路径准入的唯一权威、多根目录支持、`Runtime.create` 接受 `?workspace`）和 v0.6.6 per-run workspace override（`Runtime.invoke` / `Runtime.submit_workflow` 上的 `?workspace` 参数，一个进程可服务 N 个并发工作流，每个隔离到自己的 worktree 根目录）。见 [prompt caching 指南](../sdk/prompt_caching.md) 和 [content blocks 指南](../sdk/content_blocks.md)。
+**当前**: v0.7.0-beta — 文档加载器框架：`Document.t` 记录类型包含 `content`、`metadata`（Yojson 值的哈希表）和 `source` 字段。`module type LOADER` 以 `lazy_load` 为规范入口。5 个格式加载器（Text、带 YAML frontmatter 的 Markdown、lambdasoup 的 HTML、行级文档的 CSV、camlpdf 简单提取的 PDF）。`Directory_loader` 支持扩展名分发 `default_map` 和自定义映射。`Load_error` ADT：`File_not_found`、`Permission_denied`、`Unsupported_format`、`Extraction_failed`、`Workspace_rejected`。21 个新测试，共 1270 个通过。
 
-**下一步**: 外部向量库（Qdrant/Milvus）、文档加载器、多模态输入（v0.7+）。
+**下一步**: 外部向量库（Qdrant/Milvus）、多模态输入工具、.docx 支持（v0.7.1）。
 
-**近期发布**: v0.6.5（Workspace 抽象）→ v0.6.6（per-run workspace override）→ v0.6.7（CLI 移除，SDK 安装向导）。
+**近期发布**: v0.6.5（Workspace 抽象）→ v0.6.6（per-run workspace override）→ v0.6.7（CLI 移除，SDK 安装向导）→ v0.6.8（fresh-switch 编译修复）→ v0.6.9（bash cwd 修复，raw SQLite accessor）→ v0.7.0-beta（文档加载器框架）。
 
 ## 获取帮助
 
