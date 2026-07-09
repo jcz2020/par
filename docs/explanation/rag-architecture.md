@@ -94,11 +94,11 @@ The runtime does not silently fall back. If you configure Anthropic as your only
 
 ## What is not here yet
 
-PAR's RAG foundation is deliberately scoped. Three things are on the roadmap but not in v0.5.1.
+PAR's RAG foundation is deliberately scoped. Three things are on the roadmap but not yet shipped.
 
 **External vector stores.** Qdrant and Milvus support is planned for v0.5.5 and later. The embedding-agnostic `Vector_store` interface is designed so that adding them means swapping the `type t` implementation; the search and add signatures stay the same. A future `module type VECTOR_STORE`, mirroring the existing `LLM_SERVICE` module type, will abstract the backend when there is a second implementation to motivate the abstraction. Until then, one interface and one backend is the right amount of generality.
 
-**Document loaders.** PAR chunking takes raw text. It does not parse PDFs, HTML, Markdown frontmatter, or any structured document format. A future version plans a document-loader layer that converts common formats into the text strings the chunker expects. Today, the caller converts. This keeps the chunker pure and testable, and it avoids pulling in a forest of format-specific dependencies for users who only have plain text.
+**Document loaders.** Shipped in v0.7.0. The `lib/documents/` module provides `Document.t` (a record of `content` + `metadata` + `source`) and a `LOADER` module type. Five built-in loaders convert PDF (via camlpdf `Pdftext`), Markdown (with YAML frontmatter via `omd` + `Yaml`), HTML (via `lambdasoup`), CSV (row-per-Document), and plain text into `Document.t` lists. `Directory_loader` dispatches by extension. Each loader goes through `Workspace.admit` for path safety. This closes the gap between real files and the chunker's text input without coupling the chunker to format-specific dependencies. See [Document Loaders](../sdk/document_loaders.md) for the API and the composition pattern with `Chunking` + `Vector_store`. The chunker itself stays pure and format-agnostic — loaders convert, the chunker splits, the two compose.
 
 **Hybrid search.** Pure vector retrieval can miss exact-match queries (a document containing the literal string the user searched for may not be the nearest neighbor in embedding space). BM25 plus vector reranking is the standard fix. PAR's `search` signature has room for a future `hybrid_search` addition without perturbing the core surface, but it is not implemented yet.
 
@@ -107,5 +107,6 @@ The throughline is that each gap is additive. The embedding-agnostic store, the 
 ## See also
 
 - [RAG API reference](../sdk/rag.md) for the function signatures and provider support table
+- [Document Loaders](../sdk/document_loaders.md) for the v0.7.0 document-loader layer that feeds the chunker
 - [Architecture](architecture.md) for how the RAG services fit into the `Runtime.services` registry alongside LLM, persistence, and event bus
 - [Concurrency Model](concurrency-model.md) for how embedding API calls (network I/O) cooperate with the runtime's fibers
