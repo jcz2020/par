@@ -11,7 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **状态**: v0.7.0-beta — 文档加载器框架：5 个格式加载器（文本、Markdown、HTML、CSV、PDF）+ 目录加载器、`Document.t` 记录类型、`LOADER` 模块类型和 `Load_error` ADT。PDF 加载器使用简单文本流提取（不保留布局、不支持 OCR）。1270 tests passing。v1.0 前 API 可能变化。
+> **状态**: v0.7.1-beta — 并发架构 + 记忆模块 + 持久化 scope 维度 + 弃用框架 + 动态 system prompt。`invoke_context` 通过 Eio.Fiber 实现 per-call 隔离，`Runtime.invoke` 支持重入、并行和 `invoke_async`。新增 `Memory_service`（FTS5）+ 3 个内置工具。工作流 `Agent_call` 支持 `response_schema`。通用持久化 `scope` 维度。`Deprecation.warn_once` + 事件总线通知。per-turn `system_prompt_appendix`。Auto-skill `system_prompt_override` bug 修复。FFI 持久化接线修复。1306 tests passing。v1.0 前 API 可能变化。
 
 ---
 
@@ -50,7 +50,7 @@ with Runtime(config) as rt:
 | 类型安全 | 运行时崩溃 | 运行时崩溃 | **编译时保证** |
 | 并发模型 | asyncio 回调 | asyncio 回调 | **Eio 结构化 effects** |
 | Shell 安全 | `exec` 拼接原始字符串 | 原始 subprocess | **类型安全 ADT，注入不可能** |
-| 工具数量 | 50+（臃肿风险） | 5（仅 LLM） | **20 内置 + 自定义注册** |
+| 工具数量 | 50+（臃肿风险） | 5（仅 LLM） | **23 内置 + 自定义注册** |
 | MCP 客户端 | 需要额外库 | 非内置 | **stdio + HTTP/SSE 内置** |
 
 ## 快速安装
@@ -84,12 +84,13 @@ make install-dev   # 构建库 + 安装 .so + 同步 Python 版本
 - [Agent API](sdk/agent.md) — `agent_config`、`Runtime.invoke`、工具处理器
 - [工作流 API](sdk/workflow.md) — 顺序、并行、条件、map-reduce
 - [中间件](sdk/middleware.md) — Logging、Retry、Rate_limit、Timeout、PII_mask 等
-- [工具](sdk/tools.md) — 20 个内置工具，包括类型安全的 bash
+- [工具](sdk/tools.md) — 23 个内置工具，包括类型安全的 bash
 - [MCP 客户端](sdk/mcp.md) — 连接任何 Model Context Protocol 服务器
 - [Streaming API](sdk/streaming.md) — token 流式输出、工具调用事件
 - [Generate API](sdk/generate.md) — 长输出生成、on_max_tokens 策略
 - [RAG API](sdk/rag.md) — embeddings、向量存储、检索
 - [文档加载器](sdk/document_loaders.md) — 加载文本、Markdown、HTML、CSV、PDF 为 `Document.t`，接入 RAG
+- [Memory API](sdk/memory.md) — 跨会话 agent 记忆，FTS5 搜索 + 3 个内置工具
 - [Skills API](sdk/skills.md) — 可复用的 prompt + 工具包，支持触发条件
 - [架构](explanation/architecture.md) — PAR 内部工作原理
 - [How-to 指南](howto/) — 并发、自定义 provider、错误处理
@@ -98,16 +99,19 @@ make install-dev   # 构建库 + 安装 .so + 同步 Python 版本
 ## 功能特性
 
 - **ReAct agent 循环** — 有界迭代，每个 LLM/工具边界都有中间件钩子
-- **工作流引擎** — 顺序、并行、条件、map-reduce，支持检查点
+- **工作流引擎** — 顺序、并行、条件、map-reduce，支持检查点；`Agent_call` 支持 `response_schema` 生成结构化输出
 - **多 provider LLM** — OpenAI、Anthropic、Ollama（本地）、Mock（测试）+ 自定义注册任何 OpenAI 兼容端点
 - **MCP 客户端**（stdio + HTTP/SSE）— 连接任何 Model Context Protocol 服务器获取工具、资源、提示
-- **20 个内置工具** — 包括类型安全的 bash（`Bash_safe_command` ADT，shell 注入在类型层不可能）
+- **23 个内置工具** — 包括类型安全的 bash（`Bash_safe_command` ADT，shell 注入在类型层不可能）、记忆工具（`recall_memory`、`remember_memory`、`search_history`）
 - **7 个中间件** — Logging、Retry、Rate_limit、Timeout、Validation、PII_mask、Sanitize_tool_output
-- **SQLite 持久化** — 嵌入式审计日志（事件、任务状态、工作流检查点、对话历史）；测试用 Noop 内存后端
-- **结构化并发** — OCaml 5.4 effects + Eio，无孤立 fiber，无回调地狱
+- **SQLite 持久化** — 嵌入式审计日志，通用 `scope` 维度支持会话分组（workspace/user/tenant）；测试用 Noop 内存后端
+- **结构化并发** — OCaml 5.4 effects + Eio，无孤立 fiber，无回调地狱。`invoke_context` 通过 `Eio.Fiber.with_binding` 实现 per-call 隔离，`Runtime.invoke` 支持重入、并行和 `invoke_async`。
 - **Python ctypes 绑定** — `par_runtime` 包，线程安全，与 OCaml 运行时无 GIL 竞争。每个 Runtime 有独立 Eio domain，完整支持并发。
-- **1270 OCaml 测试 + Python 绑定** 全部通过（包括任意工作目录的 RAG 端到端测试）
-- **Skill 系统** — 在 `~/.par/skills/<id>/` 放一个 `skill.md`，在 `Runtime.invoke` 时根据触发条件（Auto / Manual / Keyword）自动激活。见 [Skills API](sdk/skills.md)。
+- **Agent 记忆** — 跨会话 `Memory_service`（FTS5 关键字搜索）+ 3 个内置工具。通过 `invoke_context` 限定 session scope。像 `llm_service` 一样可插拔。
+- **动态 system prompt** — 通过 `invoke_context` 支持 per-turn `system_prompt_appendix`。在 template + skill overlay + tool suffix 之后追加。覆盖 invoke/generate/handoff 路径。
+- **弃用框架** — `warn_once` 辅助函数 + `Deprecated_api_called` 事件 + `[@@deprecated]` 注解 + 迁移指南。破坏性变更不再无声发生。
+- **1306 OCaml 测试 + Python 绑定** 全部通过（包括任意工作目录的 RAG 端到端测试）
+- **Skill 系统** — 在 `~/.par/skills/<id>/` 放一个 `skill.md`，在 `Runtime.invoke` 时根据触发条件（Auto / Manual / Keyword）自动激活。Auto-trigger skill 不再替换 system prompt。见 [Skills API](sdk/skills.md)。
 
 ## 语言轨道
 
@@ -139,11 +143,11 @@ let () = Eio_main.run (fun _env ->
 
 ## 状态与路线图
 
-**当前**: v0.7.0-beta — 文档加载器框架：`Document.t` 记录类型包含 `content`、`metadata`（Yojson 值的哈希表）和 `source` 字段。`module type LOADER` 以 `lazy_load` 为规范入口。5 个格式加载器（Text、带 YAML frontmatter 的 Markdown、lambdasoup 的 HTML、行级文档的 CSV、camlpdf 简单提取的 PDF）。`Directory_loader` 支持扩展名分发 `default_map` 和自定义映射。`Load_error` ADT：`File_not_found`、`Permission_denied`、`Unsupported_format`、`Extraction_failed`、`Workspace_rejected`。21 个新测试，共 1270 个通过。
+**当前**: v0.7.1-beta — 并发架构（`invoke_context` + `invoke_async` + 重入）、记忆模块（FTS5 + 3 个内置工具）、持久化 session scope 维度、弃用框架（`warn_once` + 事件 + 迁移指南）、per-turn 动态 system prompt（`system_prompt_appendix`）、工作流 `response_schema`、Auto-skill `system_prompt_override` bug 修复、FFI 持久化接线修复。1306 tests passing。
 
-**下一步**: 外部向量库（Qdrant/Milvus）、多模态输入工具、.docx 支持（v0.7.1）。
+**下一步**: Windows 进程支持（v0.7.2）、基于向量的语义召回（backlog P0）、外部向量库（Qdrant/Milvus）、多模态输入工具、.docx 支持。
 
-**近期发布**: v0.6.5（Workspace 抽象）→ v0.6.6（per-run workspace override）→ v0.6.7（CLI 移除，SDK 安装向导）→ v0.6.8（fresh-switch 编译修复）→ v0.6.9（bash cwd 修复，raw SQLite accessor）→ v0.7.0-beta（文档加载器框架）。
+**近期发布**: v0.6.5（Workspace 抽象）→ v0.6.6（per-run workspace override）→ v0.6.7（CLI 移除，SDK 安装向导）→ v0.6.8（fresh-switch 编译修复）→ v0.6.9（bash cwd 修复，raw SQLite accessor）→ v0.7.0-beta（文档加载器框架）→ v0.7.1-beta（并发 + 记忆 + scope + 弃用 + 动态 prompt）。
 
 ## 获取帮助
 

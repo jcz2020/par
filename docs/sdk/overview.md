@@ -14,11 +14,11 @@ PAR (Programmable Agent Runtime) ships as one opam package (`par`) plus a PyPI P
 
 - One opam package: `par` (SDK library)
 - One PyPI package: `par_runtime` (Python ctypes binding)
-- 9 sub-libraries under `lib/` plus a facade module `Par` (re-exports all sub-modules)
-- 20 built-in tools including the type-safe `bash` tool
+- 10 sub-libraries under `lib/` plus a facade module `Par` (re-exports all sub-modules)
+- 23 built-in tools including the type-safe `bash` tool and 3 memory tools
 - 7 built-in middlewares (logging, retry, rate-limit, timeout, input validation, PII mask, tool-output sanitization)
 - Multi-provider: OpenAI compatible + Anthropic Messages API + custom registration
-- 666 OCaml tests + 16 Python tests passing
+- 1306 OCaml tests + Python bindings passing
 
 ## Architecture at a glance
 
@@ -31,9 +31,10 @@ graph TD
   P --> EVB["lib/event_bus"]
   P --> MID["lib/middleware"]
   P --> TOOL["lib/tools"]
+  P --> MEM["lib/memory"]
   P --> MCP["lib/mcp"]
   P --> FFI["lib/ffi"]
-  CORE --> RT["Runtime / Engine / Workflow_engine / Expression / State_machine / Context_manager / Cancellation / Tool_registry / Template / Steering_queue / Hook / Metrics"]
+  CORE --> RT["Runtime / Engine / Workflow_engine / Expression / State_machine / Context_manager / Cancellation / Tool_registry / Template / Steering_queue / Hook / Metrics / Capability / Invoke_context / Deprecation"]
   PROV --> PROV_API["Openai_provider / Anthropic_provider / Mock_provider"]
   PERS --> PERS_API["Sqlite_persistence / Noop_persistence"]
   EVB --> EVB_API["Event_bus with DLQ + Eio.Stream"]
@@ -207,12 +208,13 @@ Every public module lives under one of the 9 sub-libraries below, plus the facad
 
 | Library | Public modules (excerpt) | Purpose |
 |---|---|---|
-| `lib/core` | `Par.Types`, `Par.Runtime`, `Par.Engine`, `Par.Workflow_engine`, `Par.Expression`, `Par.State_machine`, `Par.Context_manager`, `Par.Cancellation`, `Par.Tool_registry`, `Par.Template`, `Par.Steering_queue`, `Par.Hook`, `Par.Metrics` | Core types, runtime, ReAct loop, workflow, expression evaluator, state machine, context manager, cancellation tokens, tool registry |
+| `lib/core` | `Par.Types`, `Par.Runtime`, `Par.Engine`, `Par.Workflow_engine`, `Par.Expression`, `Par.State_machine`, `Par.Context_manager`, `Par.Cancellation`, `Par.Tool_registry`, `Par.Template`, `Par.Steering_queue`, `Par.Hook`, `Par.Metrics`, `Par.Capability`, `Par.Invoke_context`, `Par.Deprecation` | Core types, runtime, ReAct loop, workflow, expression evaluator, state machine, context manager, cancellation tokens, tool registry, capability detection, per-call isolation, deprecation framework |
 | `lib/providers` | `Par.Openai_provider`, `Par.Anthropic_provider`, `Par.Mock_provider` | LLM provider implementations |
 | `lib/persistence` | `Par.Sqlite_persistence`, `Par.Noop_persistence` | Sqlite backend (dev), no-op (tests) |
 | `lib/event_bus` | `Par.Event_bus` | Eio-based event bus with DLQ |
 | `lib/middleware` | `Par.Logging`, `Par.Retry`, `Par.Rate_limit`, `Par.Timeout`, `Par.Arg_validation`, `Par.Validation`, `Par.Pii_mask`, `Par.Sanitize_tool_output` | 7 built-in middlewares |
-| `lib/tools` | `Par.Builtin_tools`, `Par.Bash_safe_command`, `Par.Bash_policy`, `Par.Bash_blacklist` | 20 built-in tools + the type-safe bash tool |
+| `lib/tools` | `Par.Builtin_tools`, `Par.Bash_safe_command`, `Par.Bash_policy`, `Par.Bash_blacklist` | 23 built-in tools including type-safe bash and 3 memory tools |
+| `lib/memory` | `Par.Memory_service`, `Par.Sqlite_memory`, `Par.Memory_error`, `Par.Memory_object` | Agent memory with FTS5 keyword search |
 | `lib/mcp` | `Par.Mcp_types`, `Par.Mcp_server`, `Par.Mcp_client`, `Par.Mcp_transport_stdio`, `Par.Mcp_transport_http`, `Par.Mcp_naming`, `Par.Mcp_errors` | MCP client (stdio v0.3.1, HTTP/SSE v0.4.3) |
 | `lib/ffi` | `Par_capi` (build artifact) | C ABI for Python binding |
 | `lib/par.ml` | (facade, re-exports above) | `open Par` entry point |
@@ -232,13 +234,47 @@ The type system enforces five guarantees that would be runtime checks in a less 
 
 Together these turn the SDK into a library that fails loudly at the boundary (compile error, typed `Error` variant, `Cancelled` exception) rather than silently at runtime.
 
+## Platform support
+
+PAR runs on Linux, macOS, and Windows. The core runtime (agents, LLM calls, persistence, memory, workflows, HTTP/SSE MCP) works on all three platforms. Some capabilities depend on the operating system, and PAR detects them at runtime.
+
+| Platform | Core runtime | Process spawning | Pipe I/O | Signal-based kill |
+|----------|-------------|-----------------|----------|-------------------|
+| Linux | full support | available | available | available |
+| macOS | full support | available | available | available |
+| Windows | full support | unavailable | unavailable | unavailable |
+
+**Windows notes:**
+- Agents, LLM calls (OpenAI, Anthropic, Ollama), SQLite persistence, memory (`Memory_service` with FTS5), workflows, and HTTP/SSE MCP all work on Windows.
+- Process spawning (the `bash` tool, MCP stdio transport) returns a typed `Unavailable` error via `Capability.detect` instead of crashing. The agent loop handles this gracefully.
+- `sqlite-vec` vector store works on Windows (the `vec0.dll` is vendored in the build).
+- MCP over HTTP/SSE is the recommended transport on Windows since stdio depends on process spawning.
+
+### Capability detection API
+
+The `Capability` module provides a single detection point for platform-dependent features:
+
+```ocaml
+open Par
+
+let status = Capability.detect () `Process_spawning
+(* Linux/macOS: `Available
+   Windows:      `Unavailable "Process spawning requires Eio.Process, ..." *)
+
+let is_win = Capability.is_windows ()   (* true on Win32, false elsewhere *)
+let platform = Capability.platform_name ()  (* "Linux", "macOS", "Windows", etc. *)
+```
+
+Tool handlers and runtime internals consult `Capability.detect` rather than scattering `Sys.os_type` checks across the codebase. This keeps platform gating centralized and testable.
+
 ## Next steps
 
 - [`docs/sdk/agent.md`](agent.md): primary reference, covers `Runtime.create`, `register_agent`, `register_tool`, the ReAct loop
 - [`docs/sdk/workflow.md`](workflow.md): step taxonomy, checkpointing, human approval, JSON workflow format
 - [`docs/sdk/mcp.md`](mcp.md): MCP client lifecycle, event types, server naming and isolation
 - [`docs/sdk/middleware.md`](middleware.md): all 7 built-in middlewares and the `middleware_hook` shape
-- [`docs/sdk/tools.md`](tools.md): all 20 built-in tools with input/output schemas
+- [`docs/sdk/tools.md`](tools.md): all 23 built-in tools with input/output schemas
+- [`docs/sdk/persistence.md`](persistence.md): persistence service, SQLite backend, scope dimension
 - [`docs/quickstart.md`](../quickstart.md): 30-minute hands-on for new users
 - [`docs/explanation/architecture.md`](../explanation/architecture.md): deep dive on data flow, the Eio model, and event payload schema
 - [`CHANGES.md`](../../CHANGES.md): release notes, including the v0.3.1 bash addition and the current test count

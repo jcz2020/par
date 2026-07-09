@@ -34,7 +34,7 @@ P-A-R (Programmable Agent Runtime) 是一个基于 OCaml 5.4+ 的模块化 Agent
 | Expr     |          |          |          |  Validation  |
 | State_m  |          |          |          |  Pii_mask    |
 +----------+----------+----------+----------+------+-------+
-|                   Tools (20 builtin)                     |
+|                   Tools (23 builtin)                     |
 |       calculator / web_search / fetch_url / bash ...     |
 +----------+-----------------------------------------------+
 |  MCP Client (v0.3.1)    |  tools / resources / prompts   |
@@ -58,13 +58,17 @@ P-A-R (Programmable Agent Runtime) 是一个基于 OCaml 5.4+ 的模块化 Agent
 | Core | `Par.Context_manager` | 上下文窗口管理：截断、摘要、滑动窗口 |
 | Core | `Par.Cancellation` | 取消令牌：协作式取消、超时包装 |
 | Core | `Par.Tool_registry` | 工具处理器注册表（名称 -> handler 映射） |
+| Core | `Par.Capability` | 运行时能力检测：provider 是否支持原生工具调用 |
+| Core | `Par.Invoke_context` | 每次调用隔离：通过 `Eio.Fiber.with_binding` 实现的 per-call 上下文 |
+| Core | `Par.Deprecation` | 弃用框架：`warn_once` + 事件总线信号 + 迁移指南 |
 | Providers | `Par.Openai_provider` | OpenAI Chat Completions API + SSE 流式响应 |
 | Providers | `Par.Anthropic_provider` | Anthropic Messages API |
 | Providers | `Par.Mock_provider` | 测试用 mock provider |
 | Persistence | `Par.Sqlite_persistence` | SQLite 后端（事件 + 任务状态 + 工作流状态） |
 | Persistence | `Par.Noop_persistence` | 空操作持久化（用于测试和快速原型） |
+| Memory | `Par.Memory_service`, `Par.Sqlite_memory`, `Par.Memory_error`, `Par.Memory_object` | Agent 记忆，FTS5 关键词搜索 |
 | Event_bus | `Par.Event_bus` | Eio 异步事件总线 + 死信队列 |
-| Tools | `Par.Builtin_tools` | 20 个内置工具（计算器、时间、UUID、哈希、Web、bash 等） |
+| Tools | `Par.Builtin_tools` | 23 个内置工具（计算器、时间、UUID、哈希、Web、bash、记忆工具等） |
 | MCP | `Par.Mcp_types` | MCP 协议类型：server_config、capabilities、tool/resource/prompt 类型 |
 | MCP | `Par.Mcp_server` | MCP server 生命周期：spawn、stop、call_method、notify |
 | MCP | `Par.Mcp_client` | MCP 高阶客户端：connect、list_tools、call_tool、list_resources、read_resource、list_prompts、get_prompt |
@@ -112,7 +116,41 @@ let () = Eio_main.run (fun _env ->
 | [Workflow API](workflow.md) | 工作流定义、步骤类型、条件分支、审批、检查点 |
 | [Middleware API](middleware.md) | 中间件概念、7 个内置中间件、自定义中间件编写 |
 | [Tools API](tools.md) | 20 个内置工具（含 bash 安全工具） |
+| [Persistence API](persistence.md) | 持久化服务、SQLite 后端、scope 维度 |
 | [MCP Client API](mcp.md) | MCP 客户端（stdio + HTTP/SSE）：连接外部 MCP server |
+
+## 平台支持
+
+PAR 支持 Linux、macOS 和 Windows。核心运行时（agent、LLM 调用、持久化、记忆、工作流、HTTP/SSE MCP）在三个平台上均可运行。部分能力依赖操作系统，PAR 在运行时检测。
+
+| 平台 | 核心运行时 | 进程生成 | Pipe I/O | 基于信号的终止 |
+|------|-----------|---------|----------|---------------|
+| Linux | 完整支持 | 可用 | 可用 | 可用 |
+| macOS | 完整支持 | 可用 | 可用 | 可用 |
+| Windows | 完整支持 | 不可用 | 不可用 | 不可用 |
+
+**Windows 注意事项：**
+- Agent、LLM 调用（OpenAI、Anthropic、Ollama）、SQLite 持久化、记忆（`Memory_service` FTS5）、工作流和 HTTP/SSE MCP 在 Windows 上均可工作。
+- 进程生成（`bash` 工具、MCP stdio 传输）通过 `Capability.detect` 返回类型化的 `Unavailable` 错误，不会崩溃。Agent 循环优雅处理此情况。
+- `sqlite-vec` 向量存储在 Windows 上可用（构建中内嵌了 `vec0.dll`）。
+- Windows 上推荐使用 HTTP/SSE 传输连接 MCP，因为 stdio 依赖进程生成。
+
+### 能力检测 API
+
+`Capability` 模块为平台相关功能提供单一检测点：
+
+```ocaml
+open Par
+
+let status = Capability.detect () `Process_spawning
+(* Linux/macOS: `Available
+   Windows:      `Unavailable "Process spawning requires Eio.Process, ..." *)
+
+let is_win = Capability.is_windows ()   (* Win32 上为 true，其他为 false *)
+let platform = Capability.platform_name ()  (* "Linux"、"macOS"、"Windows" 等 *)
+```
+
+工具处理器和运行时内部逻辑通过 `Capability.detect` 查询能力，而不是在代码库中散落 `Sys.os_type` 检查。这使得平台门控集中化且可测试。
 
 ## See also
 
