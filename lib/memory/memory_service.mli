@@ -1,3 +1,14 @@
+(** Lightweight embedding function type.
+    Callers wrap [Types.embedding_service.embed_fn] into this form. *)
+type embedding_fn = string list -> (float array list, string) result
+
+(** Search mode for memory retrieval. *)
+type search_mode =
+  | Keyword_only  (** FTS5 keyword search only *)
+  | Vector_only   (** Embedding vector KNN search only *)
+  | Hybrid        (** Keyword + vector with RRF fusion *)
+  | Auto          (** Smart default: Hybrid if embedding available, else Keyword_only *)
+
 module type MEMORY_SERVICE = sig
   type t
 
@@ -16,6 +27,7 @@ module type MEMORY_SERVICE = sig
 
   val search :
     t ->
+    ?mode:search_mode ->
     ?scope:string ->
     ?limit:int ->
     string ->
@@ -59,6 +71,7 @@ type memory_service = {
     unit ->
     (Memory_object.memory_object, Memory_error.memory_error) result;
   search_fn :
+    ?mode:search_mode ->
     ?scope:string ->
     ?limit:int ->
     string ->

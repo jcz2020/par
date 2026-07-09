@@ -5,6 +5,7 @@ type t = {
   db : Sqlite3.db;
   mutex : Eio.Mutex.t;
   dimension : int;
+  embedding : Memory_service.embedding_fn option;
 }
 
 let exec_sql db sql =
@@ -118,6 +119,33 @@ let init_schema db ~dimension =
 let generate_id () =
   Uuidm.to_string (Uuidm.v4_gen (Random.State.make_self_init ()) ())
 
+let float_array_to_blob (arr : float array) : string =
+  let len = Array.length arr in
+  let buf = Bytes.create (len * 4) in
+  Array.iteri (fun i f ->
+    let bits = Int32.bits_of_float f in
+    Bytes.set_int32_le buf (i * 4) bits
+  ) arr;
+  Bytes.to_string buf
+
+let insert_embedding db ~rowid ~embedding_fn ~content =
+  match embedding_fn [content] with
+  | Error _ -> ()
+  | Ok vectors ->
+    match vectors with
+    | [] -> ()
+    | vec :: _ ->
+      if Array.length vec = 0 then ()
+      else
+        let blob = float_array_to_blob vec in
+        let stmt = Sqlite3.prepare db
+          "INSERT OR IGNORE INTO memory_entries_vec(rowid, embedding) VALUES (?, ?)" in
+        let _ = Sqlite3.bind stmt 1 (Sqlite3.Data.INT (Int64.of_int rowid)) in
+        let _ = Sqlite3.bind stmt 2 (Sqlite3.Data.BLOB blob) in
+        let _ = Sqlite3.step stmt in
+        let _ = Sqlite3.finalize stmt in
+        ()
+
 let select_cols =
   "ext_id, content, summary, scope, metadata, categories, \
     created_at, updated_at, last_used_at, usage_count, source"
@@ -184,7 +212,7 @@ let wrap_db_error f =
   | Sqlite3.Error msg -> Error (Database_error msg)
   | Sqlite3.SqliteError msg -> Error (Database_error msg)
 
-let create ?(dimension=1536) db_path =
+let create ?(dimension=1536) ?embedding_fn db_path =
   if dimension <= 0 then
     invalid_arg "Sqlite_memory.create: dimension must be positive";
   match check_fts5 (Sqlite3.db_open ":memory:") with
@@ -196,7 +224,7 @@ let create ?(dimension=1536) db_path =
       let _ = load_vec_extension db in
       match init_schema db ~dimension with
       | Ok () ->
-        { db; mutex = Eio.Mutex.create (); dimension }
+        { db; mutex = Eio.Mutex.create (); dimension; embedding = embedding_fn }
       | Error (Database_error msg) ->
         ignore (Sqlite3.db_close db);
         raise (Sqlite3.Error msg)
@@ -236,6 +264,10 @@ let add t ~content ?summary ?scope ?(metadata=[]) ?(categories=[]) ?(source="") 
       (match rc with
        | Sqlite3.Rc.DONE -> ()
        | _ -> raise (Sqlite3.Error (Sqlite3.Rc.to_string rc)));
+      let rowid = Int64.to_int (Sqlite3.last_insert_rowid t.db) in
+      (match t.embedding with
+       | Some embed_fn -> insert_embedding t.db ~rowid ~embedding_fn:embed_fn ~content
+       | None -> ());
       { id = ext_id; content; summary; scope; metadata; categories;
         created_at = now; updated_at = now; source }))
 
@@ -265,41 +297,136 @@ let bump_usage t ~ext_id =
     ()
   with _ -> ()
 
-let search t ?scope ?(limit=5) query =
+let resolve_mode (mode : Memory_service.search_mode option) embedding_opt =
+  match mode with
+  | Some m -> m
+  | None -> (match embedding_opt with
+    | Some _ -> Memory_service.Hybrid
+    | None -> Memory_service.Keyword_only)
+
+let search_fts t ?scope ?(limit=5) query =
+  let fts_query = sanitize_fts_query query in
+  match scope with
+  | None ->
+    let sql =
+      Printf.sprintf
+        "SELECT %s FROM memory_entries_fts \
+         JOIN memory_entries me ON me.id = memory_entries_fts.rowid \
+         WHERE memory_entries_fts MATCH ? \
+         ORDER BY rank LIMIT ?"
+        select_cols_qualified in
+    wrap_db_error (fun () ->
+      let results = collect_rows t.db sql (fun stmt ->
+        let _ = Sqlite3.bind stmt 1 (Sqlite3.Data.TEXT fts_query) in
+        let _ = Sqlite3.bind stmt 2 (Sqlite3.Data.INT (Int64.of_int limit)) in
+        ()) in
+      List.iter (fun (m : memory_object) -> bump_usage t ~ext_id:m.id) results;
+      results)
+  | Some sc ->
+    let sql =
+      Printf.sprintf
+        "SELECT %s FROM memory_entries_fts \
+         JOIN memory_entries me ON me.id = memory_entries_fts.rowid \
+         WHERE memory_entries_fts MATCH ? AND me.scope = ? \
+         ORDER BY rank LIMIT ?"
+        select_cols_qualified in
+    wrap_db_error (fun () ->
+      let results = collect_rows t.db sql (fun stmt ->
+        let _ = Sqlite3.bind stmt 1 (Sqlite3.Data.TEXT fts_query) in
+        let _ = Sqlite3.bind stmt 2 (Sqlite3.Data.TEXT sc) in
+        let _ = Sqlite3.bind stmt 3 (Sqlite3.Data.INT (Int64.of_int limit)) in
+        ()) in
+      List.iter (fun (m : memory_object) -> bump_usage t ~ext_id:m.id) results;
+      results)
+
+let search_vec t ?scope ?(limit=5) query_vec =
+  let blob = float_array_to_blob query_vec in
+  match scope with
+  | None ->
+    let sql =
+      Printf.sprintf
+        "SELECT %s FROM memory_entries me \
+         INNER JOIN ( \
+           SELECT rowid, distance FROM memory_entries_vec \
+           WHERE embedding MATCH ? ORDER BY distance LIMIT ? \
+         ) vec ON me.id = vec.rowid"
+        select_cols_qualified in
+    wrap_db_error (fun () ->
+      let results = collect_rows t.db sql (fun stmt ->
+        let _ = Sqlite3.bind stmt 1 (Sqlite3.Data.BLOB blob) in
+        let _ = Sqlite3.bind stmt 2 (Sqlite3.Data.INT (Int64.of_int limit)) in
+        ()) in
+      List.iter (fun (m : memory_object) -> bump_usage t ~ext_id:m.id) results;
+      results)
+  | Some sc ->
+    let sql =
+      Printf.sprintf
+        "SELECT %s FROM memory_entries me \
+         INNER JOIN ( \
+           SELECT rowid, distance FROM memory_entries_vec \
+           WHERE embedding MATCH ? ORDER BY distance LIMIT ? \
+         ) vec ON me.id = vec.rowid \
+         WHERE me.scope = ?"
+        select_cols_qualified in
+    wrap_db_error (fun () ->
+      let results = collect_rows t.db sql (fun stmt ->
+        let _ = Sqlite3.bind stmt 1 (Sqlite3.Data.BLOB blob) in
+        let _ = Sqlite3.bind stmt 2 (Sqlite3.Data.INT (Int64.of_int limit)) in
+        let _ = Sqlite3.bind stmt 3 (Sqlite3.Data.TEXT sc) in
+        ()) in
+      List.iter (fun (m : memory_object) -> bump_usage t ~ext_id:m.id) results;
+      results)
+
+let merge_hybrid ~limit fts_results vec_results =
+  let k = 60.0 in
+  let score_tbl : (string, float * memory_object) Hashtbl.t = Hashtbl.create 64 in
+  List.iteri (fun rank (m : memory_object) ->
+    let rr = 1.0 /. (k +. float_of_int (rank + 1)) in
+    Hashtbl.replace score_tbl m.id (rr, m)
+  ) fts_results;
+  List.iteri (fun rank (m : memory_object) ->
+    let rr = 1.0 /. (k +. float_of_int (rank + 1)) in
+    match Hashtbl.find_opt score_tbl m.id with
+    | Some (prev, _) -> Hashtbl.replace score_tbl m.id (prev +. rr, m)
+    | None -> Hashtbl.replace score_tbl m.id (rr, m)
+  ) vec_results;
+  let merged = Hashtbl.fold (fun _id (score, m) acc -> (score, m) :: acc) score_tbl [] in
+  let sorted = List.sort (fun (s1, _) (s2, _) -> Float.compare s2 s1) merged in
+  List.map snd (List.filteri (fun i _ -> i < limit) sorted)
+
+let search t ?mode ?scope ?(limit=5) query =
   Eio.Mutex.use_ro t.mutex (fun () ->
-    let fts_query = sanitize_fts_query query in
-    match scope with
-    | None ->
-      let sql =
-        Printf.sprintf
-          "SELECT %s FROM memory_entries_fts \
-           JOIN memory_entries me ON me.id = memory_entries_fts.rowid \
-           WHERE memory_entries_fts MATCH ? \
-           ORDER BY rank LIMIT ?"
-          select_cols_qualified in
-      wrap_db_error (fun () ->
-        let results = collect_rows t.db sql (fun stmt ->
-          let _ = Sqlite3.bind stmt 1 (Sqlite3.Data.TEXT fts_query) in
-          let _ = Sqlite3.bind stmt 2 (Sqlite3.Data.INT (Int64.of_int limit)) in
-          ()) in
-        List.iter (fun (m : memory_object) -> bump_usage t ~ext_id:m.id) results;
-        results)
-    | Some sc ->
-      let sql =
-        Printf.sprintf
-          "SELECT %s FROM memory_entries_fts \
-           JOIN memory_entries me ON me.id = memory_entries_fts.rowid \
-           WHERE memory_entries_fts MATCH ? AND me.scope = ? \
-           ORDER BY rank LIMIT ?"
-          select_cols_qualified in
-      wrap_db_error (fun () ->
-        let results = collect_rows t.db sql (fun stmt ->
-          let _ = Sqlite3.bind stmt 1 (Sqlite3.Data.TEXT fts_query) in
-          let _ = Sqlite3.bind stmt 2 (Sqlite3.Data.TEXT sc) in
-          let _ = Sqlite3.bind stmt 3 (Sqlite3.Data.INT (Int64.of_int limit)) in
-          ()) in
-        List.iter (fun (m : memory_object) -> bump_usage t ~ext_id:m.id) results;
-        results))
+    let resolved = resolve_mode mode t.embedding in
+    match resolved with
+    | Keyword_only -> search_fts t ?scope ~limit query
+    | Vector_only ->
+      (match t.embedding with
+       | None -> Error Embedding_unavailable
+       | Some embed_fn ->
+         (match embed_fn [query] with
+          | Error msg -> Error (Database_error (Printf.sprintf "embedding failed: %s" msg))
+          | Ok [] -> search_fts t ?scope ~limit query
+          | Ok (vec :: _) -> search_vec t ?scope ~limit vec))
+    | Auto ->
+      search_fts t ?scope ~limit query
+    | Hybrid ->
+      (match t.embedding with
+       | None -> search_fts t ?scope ~limit query
+       | Some embed_fn ->
+         (match embed_fn [query] with
+          | Error _ -> search_fts t ?scope ~limit query
+          | Ok [] -> search_fts t ?scope ~limit query
+          | Ok (vec :: _) ->
+            let fts_results = match search_fts t ?scope ~limit:(limit * 2) query with
+              | Ok l -> l | Error _ -> [] in
+            let vec_results = match search_vec t ?scope ~limit:(limit * 2) vec with
+              | Ok l -> l | Error _ -> [] in
+            if fts_results = [] && vec_results = [] then Ok []
+            else begin
+              let merged = merge_hybrid ~limit fts_results vec_results in
+              List.iter (fun (m : memory_object) -> bump_usage t ~ext_id:m.id) merged;
+              Ok merged
+            end)))
 
 let update t (existing : memory_object) =
   Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
@@ -414,15 +541,15 @@ let render_index t ?(max_entries=50) ?scope () =
 let close t =
   ignore (Sqlite3.db_close t.db)
 
-let make_service ?(dimension=1536) db_path =
-  match create ~dimension db_path with
+let make_service ?(dimension=1536) ?embedding_fn db_path =
+  match create ~dimension ?embedding_fn db_path with
   | Error e -> Error e
   | Ok t ->
     Ok {
       Memory_service.add_fn = (fun ~content ?summary ?scope ?metadata ?categories ?source () ->
         add t ~content ?summary ?scope ?metadata ?categories ?source ());
-      search_fn = (fun ?scope ?limit query ->
-        search t ?scope ?limit query);
+      search_fn = (fun ?mode ?scope ?limit query ->
+        search t ?mode ?scope ?limit query);
       update_fn = (fun obj -> update t obj);
       delete_fn = (fun id -> delete t id);
       list_all_fn = (fun ?scope ?limit () ->

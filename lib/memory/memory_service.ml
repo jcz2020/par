@@ -1,3 +1,11 @@
+type embedding_fn = string list -> (float array list, string) result
+
+type search_mode =
+  | Keyword_only
+  | Vector_only
+  | Hybrid
+  | Auto
+
 module type MEMORY_SERVICE = sig
   type t
 
@@ -16,6 +24,7 @@ module type MEMORY_SERVICE = sig
 
   val search :
     t ->
+    ?mode:search_mode ->
     ?scope:string ->
     ?limit:int ->
     string ->
@@ -59,6 +68,7 @@ type memory_service = {
     unit ->
     (Memory_object.memory_object, Memory_error.memory_error) result;
   search_fn :
+    ?mode:search_mode ->
     ?scope:string ->
     ?limit:int ->
     string ->

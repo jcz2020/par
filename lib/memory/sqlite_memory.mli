@@ -2,9 +2,14 @@ type t = {
   db : Sqlite3.db;
   mutex : Eio.Mutex.t;
   dimension : int;
+  embedding : Memory_service.embedding_fn option;
 }
 
-val create : ?dimension:int -> string -> (t, Memory_error.memory_error) result
+val create :
+  ?dimension:int ->
+  ?embedding_fn:Memory_service.embedding_fn ->
+  string ->
+  (t, Memory_error.memory_error) result
 
 val add :
   t ->
@@ -19,6 +24,7 @@ val add :
 
 val search :
   t ->
+  ?mode:Memory_service.search_mode ->
   ?scope:string ->
   ?limit:int ->
   string ->
@@ -52,5 +58,6 @@ val render_index :
 
 val make_service :
   ?dimension:int ->
+  ?embedding_fn:Memory_service.embedding_fn ->
   string ->
   (Memory_service.memory_service, Memory_error.memory_error) result
