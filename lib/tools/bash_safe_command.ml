@@ -31,6 +31,27 @@ let make_exec ~argv ~cwd ?(env = []) ?(timeout = 30.0) () =
 
 let make_pipeline cmds = Pipeline cmds
 
+(* ─── v0.6.5 deprecated re-exports ──────────────────────────────────
+   [sandboxed_path] and its constructors migrated to the [Workspace]
+   module in v0.6.5 (see CHANGES.md "Workspace Abstraction"). These
+   aliases / wrappers are kept so downstream code that still references
+   the old names gets a compile-time [@@deprecated] warning plus a
+   one-line migration path and a runtime [Deprecated_api_called] event,
+   instead of a hard "Unbound type/value" error on upgrade. Removed in
+   v0.8. *)
+
+type sandboxed_path = Workspace.sandboxed_path
+  [@@deprecated "since v0.6.5: use Workspace.sandboxed_path"]
+
+let sandboxed_path_to_string (p : Workspace.sandboxed_path) : string =
+  Deprecation.warn_once
+    ~since:"v0.6.5"
+    ~removed_in:"v0.8"
+    ~migration:"use Workspace.to_string"
+    ~fn_name:"Bash_safe_command.sandboxed_path_to_string" ();
+  Workspace.to_string p
+
+
 type risk = Low | Medium | High | Critical
 
 let danger_basenames =

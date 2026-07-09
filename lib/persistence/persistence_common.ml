@@ -47,6 +47,7 @@ let extract_task_id : event -> string = function
   | Cache_strategy_skipped _ -> ""
   | Cache_breakpoint_dropped _ -> ""
   | Cache_invalidated_by_skill _ -> ""
+  | Deprecated_api_called _ -> ""
 
 let extract_session_id (envelope : event_envelope) : string =
   envelope.metadata.session_id
