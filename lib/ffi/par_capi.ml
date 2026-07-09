@@ -1184,6 +1184,96 @@ let do_add_documents (state_id : int) (docs_json : string) : int =
        with _ -> Obj.repr (-5))) in
     (Obj.obj result : int)
 
+(* -------------------------------------------------------------------------- *)
+(* Document loaders — FFI entry points                                        *)
+(* -------------------------------------------------------------------------- *)
+
+(* Map a file extension to its loader function. Mirrors Directory_loader.default_map
+   but accessed via the Par facade modules. *)
+let loader_for_extension (ext : string)
+    : (Par.Workspace.workspace -> string -> (unit -> Par.Document.t list, Par.Document.load_error) result) option =
+  match ext with
+  | ".txt" -> Some Par.Text_loader.make
+  | ".md"  -> Some Par.Markdown_loader.make
+  | ".html" | ".htm" -> Some Par.Html_loader.make
+  | ".csv" -> Some Par.Csv_loader.make
+  | ".pdf" -> Some Par.Pdf_loader.make
+  | _ -> None
+
+(* Convert a Document.t to a Yojson.Safe.t *)
+let document_to_json (doc : Par.Document.t) : Yojson.Safe.t =
+  `Assoc [
+    ("content", `String doc.Par.Document.content);
+    ("metadata", Par.Document.Meta.to_yojson doc.Par.Document.metadata);
+    ("source", `String doc.Par.Document.source);
+  ]
+
+let do_load_document (state_id : int) (path : string) : string =
+  match get_state state_id with
+  | None -> error_json "Invalid runtime handle"
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      (try
+         let ws = Par.Runtime.workspace rt in
+         let ext = String.lowercase_ascii (Filename.extension path) in
+         match loader_for_extension ext with
+         | None ->
+           Obj.repr (error_json (Printf.sprintf "Unsupported file extension: %s" ext))
+         | Some make_fn ->
+           (match make_fn ws path with
+            | Error e ->
+              Obj.repr (error_json (Par.Document.load_error_to_string e))
+            | Ok thunk ->
+              let docs = thunk () in
+              let json_docs = `List (List.map document_to_json docs) in
+              Obj.repr (Yojson.Safe.to_string json_docs))
+       with exc ->
+         Obj.repr (error_json (Printexc.to_string exc)))) in
+    (Obj.obj result : string)
+
+let parse_loaders_json (json_str : string)
+    : (string * (Par.Workspace.workspace -> string -> (unit -> Par.Document.t list, Par.Document.load_error) result)) list =
+  match Yojson.Safe.from_string json_str with
+  | `Assoc pairs ->
+    List.filter_map (fun (ext, v) ->
+      match v with
+      | `String loader_name ->
+        let fn = match String.lowercase_ascii loader_name with
+          | "text" | "txt" -> Some Par.Text_loader.make
+          | "markdown" | "md" -> Some Par.Markdown_loader.make
+          | "html" -> Some Par.Html_loader.make
+          | "csv" -> Some Par.Csv_loader.make
+          | "pdf" -> Some Par.Pdf_loader.make
+          | _ -> None
+        in
+        (match fn with
+         | Some f -> Some ((if ext.[0] = '.' then ext else "." ^ ext), f)
+         | None -> None)
+      | _ -> None
+    ) pairs
+  | _ -> []
+
+let do_load_directory (state_id : int) (dir_path : string) (loaders_json_opt : string option) : string =
+  match get_state state_id with
+  | None -> error_json "Invalid runtime handle"
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      (try
+         let ws = Par.Runtime.workspace rt in
+         let map = match loaders_json_opt with
+           | None -> Par.Directory_loader.default_map
+           | Some json_str -> parse_loaders_json json_str
+         in
+         (match Par.Directory_loader.load ws ~map dir_path with
+          | Error e ->
+            Obj.repr (error_json (Par.Document.load_error_to_string e))
+          | Ok docs ->
+            let json_docs = `List (List.map document_to_json docs) in
+            Obj.repr (Yojson.Safe.to_string json_docs))
+       with exc ->
+         Obj.repr (error_json (Printexc.to_string exc)))) in
+    (Obj.obj result : string)
+
 let do_invoke_with_rag (state_id : int) (agent_id : string) (message : string) (k_str : string) : string =
   match get_state state_id with
   | None -> "{\"error\":\"runtime handle not found\"}"
@@ -1483,3 +1573,16 @@ let () =
     (fun (state_id_obj : Obj.t) (agent_id : string) (message : string) (k_str : string) ->
       let state_id : int = Obj.magic state_id_obj in
       do_invoke_with_rag state_id agent_id message k_str)
+
+let () =
+  Callback.register "par_load_document"
+    (fun (state_id_obj : Obj.t) (path : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_load_document state_id path)
+
+let () =
+  Callback.register "par_load_directory"
+    (fun (state_id_obj : Obj.t) (dir_path : string) (loaders_json : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      let loaders_opt = if String.length loaders_json = 0 then None else Some loaders_json in
+      do_load_directory state_id dir_path loaders_opt)

@@ -55,6 +55,9 @@ char* par_embed(par_runtime_t* rt, const char* messages_json);
 
 int par_add_documents(par_runtime_t* rt, const char* docs_json);
 
+char* par_load_document(par_runtime_t* rt, const char* path);
+char* par_load_directory(par_runtime_t* rt, const char* path, const char* loaders_json);
+
 char* par_invoke_with_rag(par_runtime_t* rt, const char* agent_id,
                          const char* message, const char* k_str);
 

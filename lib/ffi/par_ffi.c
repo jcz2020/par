@@ -355,6 +355,29 @@ int par_add_documents(par_runtime_t* rt, const char* docs_json) {
     return ret;
 }
 
+char* par_load_document(par_runtime_t* rt, const char* path) {
+    value c_path = caml_copy_string(path);
+
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call2_exn("par_load_document", rt->_ocaml_value, c_path);
+    char* ret = extract_string(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return ret;
+}
+
+char* par_load_directory(par_runtime_t* rt, const char* path,
+                         const char* loaders_json) {
+    value c_path = caml_copy_string(path);
+    value c_loaders = caml_copy_string(loaders_json ? loaders_json : "");
+
+    pthread_mutex_lock(&ocaml_lock);
+    value result = call3_exn("par_load_directory", rt->_ocaml_value,
+                             c_path, c_loaders);
+    char* ret = extract_string(result);
+    pthread_mutex_unlock(&ocaml_lock);
+    return ret;
+}
+
 char* par_invoke_with_rag(par_runtime_t* rt, const char* agent_id,
                          const char* message, const char* k_str) {
     pthread_mutex_lock(&ocaml_lock);

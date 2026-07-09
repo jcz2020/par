@@ -651,6 +651,58 @@ class Runtime:
             raise PARError(f"add_documents failed with code {result}")
         return result
 
+    def load_document(self, path: str) -> list[dict]:
+        """Load a single document file. Extension auto-detects loader.
+
+        Supported extensions: .txt, .md, .html/.htm, .csv, .pdf.
+
+        Args:
+            path: Path to the document file.
+
+        Returns:
+            List of dicts with keys: content (str), metadata (dict), source (str).
+
+        Raises:
+            RuntimeError: If loading fails or extension is unsupported.
+        """
+        self._check_handle()
+        result_ptr = _lib.par_load_document(self._handle, _c_str(path))
+        raw = _py_str(result_ptr)
+        if not raw:
+            raise RuntimeError("load_document returned empty result")
+        result = json.loads(raw)
+        if isinstance(result, dict) and "error" in result:
+            raise RuntimeError(result["error"])
+        return result
+
+    def load_directory(self, path: str, loaders: dict[str, str] | None = None) -> list[dict]:
+        """Recursively load all supported files in a directory.
+
+        Args:
+            path: Path to the directory.
+            loaders: Optional extension-to-loader mapping dict.
+                     Keys are extensions (e.g. ".txt"), values are loader
+                     names ("text", "markdown", "html", "csv", "pdf").
+                     If None, uses the default mapping.
+
+        Returns:
+            List of dicts with keys: content (str), metadata (dict), source (str).
+
+        Raises:
+            RuntimeError: If loading fails.
+        """
+        self._check_handle()
+        loaders_json = json.dumps(loaders).encode("utf-8") if loaders else b""
+        result_ptr = _lib.par_load_directory(
+            self._handle, _c_str(path), loaders_json)
+        raw = _py_str(result_ptr)
+        if not raw:
+            raise RuntimeError("load_directory returned empty result")
+        result = json.loads(raw)
+        if isinstance(result, dict) and "error" in result:
+            raise RuntimeError(result["error"])
+        return result
+
     def invoke_with_rag(self, agent_id: str, message: str, k: int = 4) -> str:
         """Invoke an agent with RAG-augmented context.
 

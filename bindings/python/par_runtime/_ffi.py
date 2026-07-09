@@ -169,6 +169,14 @@ _lib.par_embed.restype = ctypes.c_void_p
 _lib.par_add_documents.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_add_documents.restype = ctypes.c_int
 
+# char* par_load_document(par_runtime_t* rt, const char* path);
+_lib.par_load_document.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_load_document.restype = ctypes.c_void_p
+
+# char* par_load_directory(par_runtime_t* rt, const char* path, const char* loaders_json);
+_lib.par_load_directory.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
+_lib.par_load_directory.restype = ctypes.c_void_p
+
 # char* par_invoke_with_rag(par_runtime_t* rt, const char* agent_id,
 #                           const char* message, const char* k_str);
 _lib.par_invoke_with_rag.argtypes = [ctypes.c_void_p, ctypes.c_char_p,
