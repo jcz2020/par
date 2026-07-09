@@ -370,4 +370,4 @@ with Runtime(config) as rt:
 - 在[教程 2：流式 UI](02-streaming-ui.md) 中查看 token 逐个生成的过程。回答你问题的同一个运行时，可以逐 token 流式输出回复。
 - 阅读 [RAG API 参考](../sdk/rag.md) 了解分块策略、OCaml `Vector_store` 和 `Chunking` 模块签名，以及重新索引规则。
 
-另有两个教程将在依赖就绪后发布。多 provider 故障转移（[教程 4](04-multi-provider-fallback.md)）展示在 OpenAI 触发速率限制时自动切换到 Anthropic。会话恢复（[教程 5](05-session-resume.md)）展示对话在进程重启后恢复。两者目前均为占位。
+另有两个教程将在依赖就绪后发布。多 provider 故障转移（[教程 4](../../tutorials/04-multi-provider-fallback.md)）展示在 OpenAI 触发速率限制时自动切换到 Anthropic。会话恢复（[教程 5](../../tutorials/05-session-resume.md)）展示对话在进程重启后恢复。两者目前均为占位。
