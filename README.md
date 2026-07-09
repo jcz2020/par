@@ -11,7 +11,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.7.0-beta — Document Loaders Framework: 5 format loaders (text, Markdown, HTML, CSV, PDF) + directory loader, `Document.t` record type, `LOADER` module type, and `Load_error` ADT. PDF loader uses simple text-stream extraction (no layout preservation, no OCR). 1270 tests passing. API may change before v1.0.
+> **Status**: v0.7.1-beta — Concurrency Architecture + Memory Module + Persistence Scope + Deprecation Framework + Dynamic System Prompt. `invoke_context` per-call isolation via Eio.Fiber makes `Runtime.invoke` safe for reentrancy, parallelism, and `invoke_async`. New `Memory_service` (FTS5) + 3 builtin tools. Workflow `Agent_call` gains `response_schema`. Generic persistence `scope` dimension. `Deprecation.warn_once` + event bus signaling. Per-turn `system_prompt_appendix`. Auto-skill `system_prompt_override` bug fixed. FFI persistence wiring fixed. ~1320 tests passing. API may change before v1.0.
 
 ---
 
@@ -90,6 +90,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - [Generate API](docs/sdk/generate.md) — long-output generation, on_max_tokens policy
 - [RAG API](docs/sdk/rag.md) — embeddings, vector store, retrieval
 - [Document Loaders](docs/sdk/document_loaders.md) — load text, Markdown, HTML, CSV, PDF into `Document.t` for RAG
+- [Memory API](docs/sdk/memory.md) — cross-session agent memory with FTS5 search + 3 builtin tools
 - [Skills API](docs/sdk/skills.md) — reusable prompt + tool bundles with triggers
 - [Architecture](docs/explanation/architecture.md) — how PAR works internally
 - [How-to guides](docs/howto/) — concurrency, custom providers, error handling
@@ -98,16 +99,19 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 ## Features
 
 - **ReAct agent loop** with bounded iterations, middleware at every LLM/tool boundary
-- **Workflow engine** — sequential, parallel, conditional, map-reduce with checkpoints
+- **Workflow engine** — sequential, parallel, conditional, map-reduce with checkpoints; `Agent_call` supports `response_schema` for structured output
 - **Multi-provider LLM** — OpenAI, Anthropic, Ollama (local), Mock (tests), + custom registration for any OpenAI-compatible endpoint
 - **MCP client** (stdio + HTTP/SSE) — connect any Model Context Protocol server for tools, resources, prompts
-- **20 built-in tools** including type-safe bash (`Bash_safe_command` ADT, shell injection unrepresentable)
+- **23 built-in tools** including type-safe bash (`Bash_safe_command` ADT), memory tools (`recall_memory`, `remember_memory`, `search_history`)
 - **7 middleware** — Logging, Retry, Rate_limit, Timeout, Validation, PII_mask, Sanitize_tool_output
-- **SQLite persistence** — embedded audit log (events, task state, workflow checkpoints, conversation history); Noop backend for tests
-- **Structured concurrency** — OCaml 5.4 effects with Eio, no orphan fibers, no callback hell
+- **SQLite persistence** — embedded audit log with generic `scope` dimension for session grouping (workspace/user/tenant); Noop backend for tests
+- **Structured concurrency** — OCaml 5.4 effects with Eio, no orphan fibers, no callback hell. `invoke_context` per-call isolation via `Eio.Fiber.with_binding` makes `Runtime.invoke` safe for reentrancy, parallelism, and `invoke_async`.
+- **Agent memory** — cross-session `Memory_service` (FTS5 keyword search) + 3 builtin tools. Scoped per-session via `invoke_context`. Pluggable like `llm_service`.
+- **Dynamic system prompt** — per-turn `system_prompt_appendix` via `invoke_context`. Appends after template + skill overlay + tool suffix. Covers invoke/generate/handoff paths.
+- **Deprecation framework** — `warn_once` helper + `Deprecated_api_called` event + `[@@deprecated]` annotations + migration guides. Breaking changes no longer happen silently.
 - **Python ctypes binding** — `par_runtime` package, thread-safe, no GIL contention with OCaml runtime. Persistent Eio domain per Runtime for full concurrency support.
-- **1270 OCaml tests + Python bindings** passing (all green, including RAG e2e from any cwd)
-- **Skill system** — drop a `skill.md` in `~/.par/skills/<id>/` and it auto-activates during `Runtime.invoke` based on trigger conditions (Auto / Manual / Keyword). See [Skills API](docs/sdk/skills.md).
+- **~1320 OCaml tests + Python bindings** passing (all green, including RAG e2e from any cwd)
+- **Skill system** — drop a `skill.md` in `~/.par/skills/<id>/` and it auto-activates during `Runtime.invoke` based on trigger conditions (Auto / Manual / Keyword). Auto-trigger skills no longer replace the system prompt. See [Skills API](docs/sdk/skills.md).
 
 ## Language tracks
 
@@ -139,11 +143,11 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.7.0-beta — Document Loaders Framework: `Document.t` record type with `content`, `metadata` (Hashtbl of Yojson values), and `source` fields. `module type LOADER` with `lazy_load` canonical. 5 format loaders (Text, Markdown with YAML frontmatter, HTML via lambdasoup, CSV row-per-Document, PDF via camlpdf simple text extraction). `Directory_loader` with extension-dispatch `default_map` and custom map support. `Load_error` ADT: `File_not_found`, `Permission_denied`, `Unsupported_format`, `Extraction_failed`, `Workspace_rejected`. 21 new tests, total 1270 passing.
+**Current**: v0.7.1-beta — Concurrency Architecture (invoke_context + invoke_async + reentrancy), Memory Module (FTS5 + 3 builtin tools), Persistence Session Scope Dimension, Deprecation Framework (warn_once + event + migration guide), Per-turn Dynamic System Prompt (system_prompt_appendix), Workflow response_schema, Auto-skill system_prompt_override bug fix, FFI persistence wiring fix. ~1320 tests passing.
 
-**Coming next**: External vector stores (Qdrant/Milvus), multimodal image tools, .docx support (v0.7.1).
+**Coming next**: Windows process support (v0.7.2), vector-based semantic recall (backlog P0), external vector stores (Qdrant/Milvus), multimodal image tools, .docx support.
 
-**Recent releases**: v0.6.5 (Workspace abstraction) → v0.6.6 (per-run workspace override) → v0.6.7 (CLI removed, SDK installer wizard) → v0.6.8 (fresh-switch compilation fix) → v0.6.9 (bash cwd fix, raw SQLite accessor) → v0.7.0-beta (Document Loaders Framework).
+**Recent releases**: v0.6.5 (Workspace abstraction) → v0.6.6 (per-run workspace override) → v0.6.7 (CLI removed, SDK installer wizard) → v0.6.8 (fresh-switch compilation fix) → v0.6.9 (bash cwd fix, raw SQLite accessor) → v0.7.0-beta (Document Loaders Framework) → v0.7.1-beta (Concurrency + Memory + Scope + Deprecation + Dynamic Prompt).
 
 ## Getting help
 

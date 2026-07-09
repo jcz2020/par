@@ -1,8 +1,84 @@
 # CHANGES
 
-## Unreleased — Workflow `response_schema` (additive)
+## Unreleased — v0.7.1: Concurrency, Memory, Persistence Scope, Deprecation, Dynamic Prompt
 
-> The `Agent_call` step variant gains an optional `response_schema` field. When `Some _`, the workflow engine routes the call through `Engine.run_structured` (schema-validated output + repair loop) and exposes the validated JSON object as `result.output`, letting subsequent `Conditional` steps reference nested fields via dot-paths (e.g. `result.output.sentiment`). No version bump — pure additive change.
+> v0.7.1 is the largest PAR SDK release yet, addressing 9 of 10 issues in a single iteration. The foundational change is the `invoke_context` per-call isolation layer (hybrid typed-record + Eio.Fiber carrier) that makes `Runtime.invoke` safe for reentrancy, parallelism, and background async execution — with **zero breaking changes** (all additive). Windows support (#5) is deferred to v0.7.2 per user direction.
+
+### Added — Concurrency Architecture (#1, #3, #10)
+
+- **NEW** `lib/core/invoke_context.{ml,mli}` — typed `invoke_context` record carrying per-call `session_id`, `Metrics` accumulator, skill/hook snapshots, and per-call steering/followup queues. Delivered via `Eio.Fiber.with_binding` — propagates to forked fibers (parallel tools, workflow steps, nested invokes). `Engine.run_agent` signature unchanged.
+- **NEW** `invoke_handle` type + `invoke_async` function on `Runtime` — mirrors `submit_workflow_async` shape (fork under `rt.cancellation_root`, track status, emit events). Returns handle with `await`/`cancel`/`status`.
+- **NEW** `?context:invoke_context` optional parameter on `Runtime.invoke` (additive, non-breaking).
+- **CHANGED** `Metrics.counters` fields → `Atomic.t` for race-free concurrent increments. Added `Metrics.merge_into` for atomic accumulator merge.
+- **CHANGED** `Expression.visit_count` moved from module-level ref to fiber-local key (with non-Eio fallback).
+- **NEW** `test/test_concurrency.ml` — 6 concurrency tests (session_id isolation, metrics isolation, hooks isolation, async handle lifecycle, expression visit_count, auto-skill override).
+- **NEW** `test/test_fiber_spike.ml` — permanent spike-gate artifact documenting that `Eio.Fiber.with_binding` propagates into `fork_promise` children.
+
+### Added — Memory Abstraction Module (#8)
+
+- **NEW** `lib/memory/` subdirectory (mirrors `lib/documents/` precedent):
+  - `module type MEMORY_SERVICE` + `memory_service` closure record (mirrors `llm_service` pattern).
+  - `memory_object` record: `id`, `content`, `summary`, `scope`, `metadata`, `categories`, timestamps, `source`.
+  - `Sqlite_memory` — default FTS5 backend (porter+unicode61 tokenizer, BM25 ranking, sync triggers, ADD-only lifecycle).
+  - `memory_error` ADT: `Not_found`, `Invalid_scope`, `FTS5_unavailable`, `Database_error`.
+- **NEW** 3 builtin tools: `recall_memory`, `remember_memory`, `search_history` — read per-call scope from `Invoke_context.get_current_exn().session_id`.
+- **NEW** `service_registry` gains `memory : memory_service option` (additive, mirrors `embeddings` pattern).
+- **NEW** `Runtime.create` accepts `?memory:memory_service` optional param.
+- **NEW** FFI parses `{"memory":{"backend":"sqlite","path":"..."}}` config.
+- **NEW** `test/test_memory.ml` — 12 unit tests + `test/test_memory_tools.ml` E2E scope isolation test.
+- Vector-based semantic recall deferred to backlog (P0, user prioritizes).
+
+### Added — Workflow `response_schema` (#2)
+
+- **NEW** `response_schema : Yojson.Safe.t option` field on `Agent_call` workflow step (default `None`, decoder uses `[@deriving.yojson.default None]` for backward compat with existing workflow JSON files).
+- **NEW** When `Some _`, workflow engine routes through `Engine.run_structured` (schema-validated output + repair loop) and exposes validated JSON as `result.output` for downstream `Conditional` dot-path access.
+- **NEW** Dependency: `jsonschema-validation` (opam, 0.1.0).
+
+### Added — Persistence Session Scope Dimension (#4)
+
+- **NEW** Generic `scope : string option` indexed column on `events` and `conversations` tables. Applications use this to partition sessions by arbitrary dimensions (workspace_id, user_id, tenant_id). Scope name is generic — no baked-in dimensions.
+- **NEW** `?scope:string` optional parameter on persistence CRUD functions: `save_events`, `load_events_by_session`, `load_sessions`, `save_conversation`, `load_most_recent_conversation`. All optional (backward compatible).
+- **NEW** Idempotent schema migration via `PRAGMA table_info` check (replaces silent `ALTER TABLE` error swallowing).
+- **NEW** Indexes `idx_events_scope` and `idx_conversations_scope`.
+
+### Added — Deprecation Framework (#6)
+
+- **NEW** `lib/core/deprecation.{ml,mli}` — reusable `warn_once` helper with idempotent per-`fn_name` logging (Hashtbl-backed) + event bus emission. Thread-safe via `Eio.Mutex`.
+- **NEW** `Deprecated_api_called` event variant on `Types.event` bus (with yojson). Fired the first time a deprecated API is called in this process.
+- **NEW** Retrofitted `[@@deprecated]` OCaml annotations on recently-broken APIs.
+- **CHANGED** `lib/middleware/timeout.ml` refactored to use the new `Deprecation` module.
+- **NEW** `docs/migration/v0.7.1.md` (EN) + `docs/zh/migration/v0.7.1.md` (ZH) — consolidated upgrade guide.
+
+### Added — Per-turn Dynamic System Prompt (#7)
+
+- **NEW** `system_prompt_appendix : string option` field on `invoke_context`.
+- **NEW** `?system_prompt_appendix:string` optional parameter on `Runtime.invoke`, `Runtime.invoke_generate`, `Runtime.invoke_async`. Appended AFTER template render + skill overlay + synthesized tool suffix, BEFORE conversation creation. Covers all 3 prompt-construction paths: invoke (`engine.ml`), generate (`generate.ml`), handoff (`engine.ml`).
+- **NEW** Conversation resume: appendix appended to existing system message in-place (not duplicated).
+
+### Fixed — Auto-skill `system_prompt_override` Bug (#9)
+
+- **FIXED** `trigger=Auto` skills no longer apply `system_prompt_override`. Previously, Auto-trigger skills with `system_prompt_override` silently replaced the agent's system prompt every turn. Now, the produced `skill_effect` has `system_prompt_override = None` when `trigger=Auto` — only `tool_filter_overlay` is honored. Affects builtin skills `summarizer` and `rag-assistant`.
+
+### Fixed — FFI Persistence Wiring (#4 bug)
+
+- **FIXED** FFI path at `par_capi.ml` now wires parsed persistence config into `Runtime.create`. Previously, Python users who configured SQLite persistence in JSON config silently got `noop_persistence` — events, conversations, sessions were never persisted via the Python binding.
+
+### Tests
+
+- 1270 → ~1320 tests passing (exact count in release-verify gate).
+- New test files: `test_concurrency.ml`, `test_fiber_spike.ml`, `test_deprecation.ml`, `test_memory.ml`, `test_memory_tools.ml`.
+- Extended: `test_skill_e2e.ml` (flipped #9 assertion), `test_skill_user_activation.ml`, `test_generate.ml`, `test_workflow_engine.ml`, `test_sessions.ml`.
+
+### Backward compatibility
+
+- All changes are SemVer-additive (no breaking changes). Existing callers compile and run unchanged.
+- `Agent_call` variant gains `response_schema` with `[@@deriving.yojson.default None]` — existing workflow JSON files decode unchanged.
+- `?scope`, `?context`, `?system_prompt_appendix`, `?memory` are all optional parameters — omitting them preserves v0.7.0 behavior.
+
+### Scope deferrals (R2-compliant)
+
+- **Windows process support (#5)**: deferred to v0.7.2 per user direction. Eio Windows backend is materially incomplete (Issue #125 open since Jan 2022).
+- **Vector-based semantic recall**: deferred to backlog (P0, user prioritizes). SQLite FTS5 keyword search is the v0.7.1 default.
 
 ### Added
 
