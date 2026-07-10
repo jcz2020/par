@@ -14,7 +14,13 @@ let make workspace path =
     end
     else
       Ok (fun () ->
-        let rows = Csv.load full_path in
+        let rows =
+          try Csv.load full_path
+          with exn ->
+            Logs.warn (fun m ->
+              m "Csv_loader: parse failed for %s: %s" path (Printexc.to_string exn));
+            []
+        in
         let file_size = (Unix.stat full_path).Unix.st_size in
         let file_name = Filename.basename full_path in
         match rows with
@@ -29,16 +35,15 @@ let make workspace path =
               Buffer.add_string buf ": ";
               Buffer.add_string buf value;
               Buffer.add_char buf '\n';
-              Document.Meta.add_string metadata col value
+              Document.Meta.add_string metadata ("csv_" ^ col) value
             ) header row with Invalid_argument _ ->
-              (* row has different length than header — best effort *)
               List.iteri (fun j value ->
                 let col = try List.nth header j with _ -> Printf.sprintf "col_%d" j in
                 Buffer.add_string buf col;
                 Buffer.add_string buf ": ";
                 Buffer.add_string buf value;
                 Buffer.add_char buf '\n';
-                Document.Meta.add_string metadata col value
+                Document.Meta.add_string metadata ("csv_" ^ col) value
               ) row);
             Document.Meta.add_string metadata "file_path" full_path;
             Document.Meta.add_string metadata "file_name" file_name;

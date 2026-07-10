@@ -88,25 +88,34 @@ let make workspace path =
     end
     else
       Ok (fun () ->
-        let pdf =
-          try Pdfread.pdf_of_file None None full_path
-          with exn ->
-            failwith (Document.load_error_to_string
-              (Document.Extraction_failed
-                ("PDF load failed", Printexc.to_string exn)))
-        in
-        let pages = Pdfpage.pages_of_pagetree pdf in
-        let file_name = Filename.basename full_path in
-        let stat = Unix.stat full_path in
-        let file_size = stat.Unix.st_size in
-        List.mapi (fun i page ->
-          let content = extract_page_text pdf page in
-          let metadata = Document.Meta.empty () in
-          Document.Meta.add_int metadata "page" (i + 1);
-          Document.Meta.add_string metadata "file_path" full_path;
-          Document.Meta.add_string metadata "file_name" file_name;
-          Document.Meta.add_int metadata "file_size" file_size;
-          Document.Meta.add_string metadata "file_type" "application/pdf";
-          Document.{ content; metadata; source = path }
-        ) pages
+        match Pdfread.pdf_of_file None None full_path with
+        | exception exn ->
+          let msg = Printexc.to_string exn in
+          let is_encrypted =
+            try ignore (Str.search_forward
+                  (Str.regexp_case_fold "encrypt\\|password") msg 0); true
+            with Not_found -> false
+          in
+          if is_encrypted then
+            Logs.err (fun m ->
+              m "Pdf_loader: PDF is encrypted/password-protected: %s" full_path)
+          else
+            Logs.err (fun m ->
+              m "Pdf_loader: extraction failed for %s: %s" path msg);
+          []
+        | pdf ->
+          let pages = Pdfpage.pages_of_pagetree pdf in
+          let file_name = Filename.basename full_path in
+          let stat = Unix.stat full_path in
+          let file_size = stat.Unix.st_size in
+          List.mapi (fun i page ->
+            let content = extract_page_text pdf page in
+            let metadata = Document.Meta.empty () in
+            Document.Meta.add_int metadata "page" (i + 1);
+            Document.Meta.add_string metadata "file_path" full_path;
+            Document.Meta.add_string metadata "file_name" file_name;
+            Document.Meta.add_int metadata "file_size" file_size;
+            Document.Meta.add_string metadata "file_type" "application/pdf";
+            Document.{ content; metadata; source = path }
+          ) pages
       )

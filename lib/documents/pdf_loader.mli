@@ -6,7 +6,8 @@
     - Tables and complex layouts may produce poor output
     - Trigger for layout-aware extraction: downstream failure rate >20% or v0.8
 
-    For each page, produces one [Document.t] with metadata["page"] = page number. *)
+    For each page, produces one [Document.t] with metadata["page"] = page number.
+    Encrypted/password-protected PDFs produce a typed [Extraction_failed] error. *)
 
 val make : Workspace.workspace -> string ->
   (unit -> Document.t list, Document.load_error) result

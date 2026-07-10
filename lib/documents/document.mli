@@ -36,12 +36,3 @@ type load_error =
   | Workspace_rejected of Types.error_category
 
 val load_error_to_string : load_error -> string
-
-(** The loader contract. Each format's loader module satisfies this signature.
-
-    [lazy_load] is canonical (override this). [load] has a default
-    implementation = [List.of_seq (lazy_load ())]. *)
-module type LOADER = sig
-  val lazy_load : unit -> t Seq.t
-  val load : unit -> t list
-end

@@ -62,18 +62,18 @@ let print_error err =
   prerr_endline (Document.load_error_to_string err)
 ```
 
-## The LOADER contract
+## The loader `make` pattern
 
-Every format loader satisfies the `LOADER` module type:
+Every format loader follows a two-phase constructor pattern:
 
 ```ocaml
-module type LOADER = sig
-  val lazy_load : unit -> Document.t Seq.t   (** canonical; override this *)
-  val load : unit -> Document.t list          (** default = List.of_seq (lazy_load ()) *)
+module My_loader : sig
+  val make : Workspace.workspace -> string ->
+    (unit -> Document.t list, Document.load_error) result
 end
 ```
 
-`lazy_load` is the canonical entry point. It returns a lazy sequence, which matters for large directories where you don't want all documents in memory at once. `load` has a default implementation that materializes the sequence into a list.
+`make` takes a workspace (for path security validation) and a file path. On success it returns a thunk that, when called, reads the file and produces `Document.t list`. If the path is invalid, `make` itself returns `Error` immediately without reading any file. Extraction errors inside the thunk are caught gracefully (logged, empty list returned).
 
 ### Implementing a custom loader
 
@@ -95,15 +95,18 @@ open Par
 
 let make ws path =
   match Workspace.admit ws path with
-  | Error e -> Error (Workspace_rejected e)
-  | Ok () ->
+  | Error e -> Error (Document.Workspace_rejected e)
+  | Ok sandboxed ->
+    let full_path = Workspace.to_string sandboxed in
     Ok (fun () ->
-      let ic = open_in path in
-      let content = really_input_string ic (in_channel_length ic) in
-      close_in ic;
-      let meta = Document.Meta.empty () in
-      Document.Meta.add_string meta "file_type" "application/x-myformat";
-      [{ Document.content; metadata = meta; source = path }])
+      let ic = open_in full_path in
+      Fun.protect
+        ~finally:(fun () -> close_in ic)
+        (fun () ->
+          let content = really_input_string ic (in_channel_length ic) in
+          let meta = Document.Meta.empty () in
+          Document.Meta.add_string meta "file_type" "application/x-myformat";
+          Ok [{ Document.content; metadata = meta; source = path }]))
 ```
 
 ## Built-in loaders
@@ -169,7 +172,7 @@ match Html_loader.make ws "page.html" with
 Reads a CSV file. The header row defines column names. Each data row (excluding the header) produces one `Document.t`:
 
 - `content`: key-value lines formatted as `"column_name: value\n"` for each column.
-- `metadata`: each column name mapped to its value (as `String`), plus `row_index`, `file_path`, `file_name`, `file_size`, `file_type = "text/csv"`.
+- `metadata`: each column name prefixed with `csv_` mapped to its value (as `String`), plus `row_index`, `file_path`, `file_name`, `file_size`, `file_type = "text/csv"`.
 - `source`: the input file path.
 
 ```ocaml
@@ -218,13 +221,13 @@ match Pdf_loader.make ws "paper.pdf" with
 
 ## Directory_loader
 
-The directory loader recursively scans a directory tree and dispatches each file to the appropriate format loader based on its extension.
+The directory loader recursively scans a directory tree and dispatches each file to the appropriate format loader based on its extension. Circular symlinks are detected and skipped.
 
 ```ocaml
 open Par
 
 let ws = Workspace.of_cwd () in
-match Directory_loader.load ws ~map:Directory_loader.default_map "docs/" with
+match Directory_loader.load ws "docs/" with
 | Error e -> prerr_endline (Document.load_error_to_string e)
 | Ok docs ->
   Printf.printf "Loaded %d documents from directory\n" (List.length docs)
@@ -335,7 +338,7 @@ match My_loader.make ws path with
   ...
 ```
 
-The two-step pattern (make returns a thunk, calling the thunk produces documents) separates path validation from I/O. If the path is invalid, you get an error immediately without reading any file. If the file exists but extraction fails, the error comes from calling the thunk.
+The two-step pattern (make returns a thunk, calling the thunk produces documents) separates path validation from I/O. If the path is invalid, you get an error immediately without reading any file. Extraction errors inside the thunk are caught and logged (the thunk returns an empty list rather than crashing).
 
 For `Directory_loader`, individual file errors are logged and skipped rather than aborting the entire scan. This is intentional: you want a corrupt PDF in your knowledge base to not prevent the Markdown files next to it from being indexed.
 

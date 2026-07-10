@@ -62,18 +62,18 @@ let print_error err =
   prerr_endline (Document.load_error_to_string err)
 ```
 
-## LOADER 契约
+## 加载器 `make` 模式
 
-每个格式加载器都满足 `LOADER` 模块类型：
+每个格式加载器都遵循两阶段构造函数模式：
 
 ```ocaml
-module type LOADER = sig
-  val lazy_load : unit -> Document.t Seq.t   (** 规范入口；覆盖此方法 *)
-  val load : unit -> Document.t list          (** 默认实现 = List.of_seq (lazy_load ()) *)
+module My_loader : sig
+  val make : Workspace.workspace -> string ->
+    (unit -> Document.t list, Document.load_error) result
 end
 ```
 
-`lazy_load` 是规范入口。它返回惰性序列，这对大目录很重要，避免一次性将所有文档加载到内存中。`load` 有默认实现，将序列物化为列表。
+`make` 接受一个 workspace（用于路径安全验证）和文件路径。成功时返回一个 thunk，调用时读取文件并产出 `Document.t list`。如果路径无效，`make` 本身立即返回 `Error`，不读取任何文件。提取过程中的异常会被优雅捕获（记录日志，返回空列表）。
 
 ### 实现自定义加载器
 
@@ -95,15 +95,18 @@ open Par
 
 let make ws path =
   match Workspace.admit ws path with
-  | Error e -> Error (Workspace_rejected e)
-  | Ok () ->
+  | Error e -> Error (Document.Workspace_rejected e)
+  | Ok sandboxed ->
+    let full_path = Workspace.to_string sandboxed in
     Ok (fun () ->
-      let ic = open_in path in
-      let content = really_input_string ic (in_channel_length ic) in
-      close_in ic;
-      let meta = Document.Meta.empty () in
-      Document.Meta.add_string meta "file_type" "application/x-myformat";
-      [{ Document.content; metadata = meta; source = path }])
+      let ic = open_in full_path in
+      Fun.protect
+        ~finally:(fun () -> close_in ic)
+        (fun () ->
+          let content = really_input_string ic (in_channel_length ic) in
+          let meta = Document.Meta.empty () in
+          Document.Meta.add_string meta "file_type" "application/x-myformat";
+          Ok [{ Document.content; metadata = meta; source = path }]))
 ```
 
 ## 内置加载器
@@ -169,7 +172,7 @@ match Html_loader.make ws "page.html" with
 读取 CSV 文件。表头行定义列名。每行数据（不含表头）产出一个 `Document.t`：
 
 - `content`：按 `"column_name: value\n"` 格式排列的键值行。
-- `metadata`：每个列名映射到其值（作为 `String`），加上 `row_index`、`file_path`、`file_name`、`file_size`、`file_type = "text/csv"`。
+- `metadata`：每个列名以 `csv_` 为前缀映射到其值（作为 `String`），加上 `row_index`、`file_path`、`file_name`、`file_size`、`file_type = "text/csv"`。
 - `source`：输入文件路径。
 
 ```ocaml
@@ -218,13 +221,13 @@ match Pdf_loader.make ws "paper.pdf" with
 
 ## Directory_loader
 
-目录加载器递归扫描目录树，根据文件扩展名将每个文件分发到对应的格式加载器。
+目录加载器递归扫描目录树，根据文件扩展名将每个文件分发到对应的格式加载器。循环符号链接会被检测并跳过。
 
 ```ocaml
 open Par
 
 let ws = Workspace.of_cwd () in
-match Directory_loader.load ws ~map:Directory_loader.default_map "docs/" with
+match Directory_loader.load ws "docs/" with
 | Error e -> prerr_endline (Document.load_error_to_string e)
 | Ok docs ->
   Printf.printf "Loaded %d documents from directory\n" (List.length docs)
@@ -335,7 +338,7 @@ match My_loader.make ws path with
   ...
 ```
 
-两步模式（make 返回 thunk，调用 thunk 产出文档）将路径验证与 I/O 分离。如果路径无效，会立即收到错误而不读取任何文件。如果文件存在但提取失败，错误来自调用 thunk。
+两步模式（make 返回 thunk，调用 thunk 产出文档）将路径验证与 I/O 分离。如果路径无效，会立即收到错误而不读取任何文件。提取过程中的异常会被捕获并记录日志（thunk 返回空列表而非崩溃）。
 
 对于 `Directory_loader`，单个文件的错误会被记录并跳过，而不是中止整个扫描。这是有意的设计：知识库中一个损坏的 PDF 不应该阻止旁边的 Markdown 文件被索引。
 

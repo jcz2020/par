@@ -59,7 +59,8 @@ let load_error_to_string = function
   | Workspace_rejected cat ->
     Printf.sprintf "Workspace rejected: %s" (string_of_error_category cat)
 
-module type LOADER = sig
-  val lazy_load : unit -> t Seq.t
-  val load : unit -> t list
-end
+(** Loader pattern: Each format's loader module provides:
+    [make : Workspace.workspace -> string ->
+      (unit -> Document.t list, load_error) result]
+    Two-phase design: validate path immediately (return Error), defer I/O to thunk.
+    Thunks catch extraction errors gracefully (return empty list, log warning). *)

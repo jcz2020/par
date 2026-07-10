@@ -18,15 +18,15 @@ let test_header_two_data_rows_two_documents () =
     let docs = loader () in
     Alcotest.(check int) "2 documents" 2 (List.length docs);
     let d1 = List.nth docs 0 in
-    (match Hashtbl.find d1.metadata "name" with
+    (match Hashtbl.find d1.metadata "csv_name" with
      | `String s -> Alcotest.(check string) "row 1 name" "Alice" s
-     | _ -> Alcotest.fail "name not a String");
-    (match Hashtbl.find d1.metadata "age" with
+     | _ -> Alcotest.fail "csv_name not a String");
+    (match Hashtbl.find d1.metadata "csv_age" with
      | `String s -> Alcotest.(check string) "row 1 age" "30" s
-     | _ -> Alcotest.fail "age not a String");
-    (match Hashtbl.find d1.metadata "city" with
+     | _ -> Alcotest.fail "csv_age not a String");
+    (match Hashtbl.find d1.metadata "csv_city" with
      | `String s -> Alcotest.(check string) "row 1 city" "SF" s
-     | _ -> Alcotest.fail "city not a String")
+     | _ -> Alcotest.fail "csv_city not a String")
 
 let test_row_index_in_metadata () =
   let ws = Workspace.of_dir "/tmp/opencode" |> Result.get_ok in
