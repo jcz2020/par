@@ -1161,7 +1161,7 @@ let set_vec_extension_path_override (path : string) : int =
     0
   end else -1
 
-let vec_extension_path : string =
+let vec_extension_path () : string =
   match !vec_extension_override with
   | Some p -> p
   | None ->
@@ -1203,7 +1203,7 @@ let ensure_vector_store state_id dim =
   | None ->
     (match Par.Vector_store.create
        ~db_path:":memory:"
-       ~vec_extension_path
+       ~vec_extension_path:(vec_extension_path ())
        ~dimension:dim () with
      | Ok vs -> Hashtbl.add runtime_vector_stores state_id vs; vs
      | Error e -> failwith (Types.error_category_to_yojson e |> Yojson.Safe.to_string))

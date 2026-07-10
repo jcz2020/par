@@ -353,15 +353,16 @@ char* par_generate(par_runtime_t* rt, const char* agent_id,
 }
 
 char* par_embed(par_runtime_t* rt, const char* messages_json) {
-    PAR_MUTEX_LOCK(ocaml_lock);
+    /* caml_copy_string can raise OOM via longjmp — must be outside lock */
+    value c_msgs = caml_copy_string(messages_json);
 
+    PAR_MUTEX_LOCK(ocaml_lock);
     const value* cb = caml_named_value("par_embed");
     if (!cb) {
         PAR_MUTEX_UNLOCK(ocaml_lock);
         return NULL;
     }
 
-    value c_msgs = caml_copy_string(messages_json);
     value result = caml_callback2_exn(*cb, rt->_ocaml_value, c_msgs);
     char* ret = extract_string(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
@@ -369,15 +370,16 @@ char* par_embed(par_runtime_t* rt, const char* messages_json) {
 }
 
 int par_add_documents(par_runtime_t* rt, const char* docs_json) {
-    PAR_MUTEX_LOCK(ocaml_lock);
+    /* caml_copy_string can raise OOM via longjmp — must be outside lock */
+    value c_docs = caml_copy_string(docs_json);
 
+    PAR_MUTEX_LOCK(ocaml_lock);
     const value* cb = caml_named_value("par_add_documents");
     if (!cb) {
         PAR_MUTEX_UNLOCK(ocaml_lock);
         return -1;
     }
 
-    value c_docs = caml_copy_string(docs_json);
     value result = caml_callback2_exn(*cb, rt->_ocaml_value, c_docs);
     int ret = Is_exception_result(result) ? -99 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
@@ -409,16 +411,17 @@ char* par_load_directory(par_runtime_t* rt, const char* path,
 
 char* par_invoke_with_rag(par_runtime_t* rt, const char* agent_id,
                          const char* message, const char* k_str) {
-    PAR_MUTEX_LOCK(ocaml_lock);
+    /* caml_copy_string can raise OOM via longjmp — must be outside lock */
+    value c_aid = caml_copy_string(agent_id);
+    value c_msg = caml_copy_string(message);
+    value c_k = caml_copy_string(k_str);
 
+    PAR_MUTEX_LOCK(ocaml_lock);
     const value* cb = caml_named_value("par_invoke_with_rag");
     if (!cb) {
         PAR_MUTEX_UNLOCK(ocaml_lock);
         return NULL;
     }
-    value c_aid = caml_copy_string(agent_id);
-    value c_msg = caml_copy_string(message);
-    value c_k = caml_copy_string(k_str);
     value args[4] = { rt->_ocaml_value, c_aid, c_msg, c_k };
     value result = caml_callbackN_exn(*cb, 4, args);
     char* ret = extract_string(result);
@@ -636,9 +639,11 @@ char* par_version(void) {
 }
 
 int par_set_request_timeout(double seconds) {
+    /* caml_copy_double can raise OOM via longjmp — must be outside lock */
+    value c_secs = caml_copy_double(seconds);
     PAR_MUTEX_LOCK(ocaml_lock);
     ensure_initialized();
-    value result = call1_exn("par_set_request_timeout", caml_copy_double(seconds));
+    value result = call1_exn("par_set_request_timeout", c_secs);
     int rc = Is_exception_result(result) ? -1 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
     return rc;
@@ -648,9 +653,11 @@ int par_set_request_timeout(double seconds) {
    (or before the first add_documents). Returns 0 on success, -1 on failure. */
 int par_set_vec_extension_path(const char* path) {
     if (!path) return -1;
+    /* caml_copy_string can raise OOM via longjmp — must be outside lock */
+    value c_path = caml_copy_string(path);
     PAR_MUTEX_LOCK(ocaml_lock);
     ensure_initialized();
-    value result = call1_exn("par_set_vec_extension_path", caml_copy_string(path));
+    value result = call1_exn("par_set_vec_extension_path", c_path);
     int rc = Is_exception_result(result) ? -1 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
     return rc;
