@@ -1,3 +1,10 @@
+let macos_skip = Sys.file_exists "/System/Library"
+
+let () =
+  if macos_skip then begin
+    print_endline "[SKIP] Workspace path tests are Linux-specific (macOS /tmp symlink differences)";
+    exit 0
+  end
 open Par
 open Workspace
 
