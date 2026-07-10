@@ -1,5 +1,68 @@
 # CHANGES
 
+## v0.7.3-beta — Audit Fixes (38 Issues Resolved)
+
+> Full audit of v0.7.0–v0.7.2 codebase found 38 issues (10 P0, 6 P1, 10 P2 doc mismatches, 12 P3 quality). All 38 fixed, verified, and tested. 1387 tests passing.
+
+### Fixed — Memory Module (9 issues)
+
+- `Auto` search mode now resolves dynamically (Hybrid if embeddings available, Keyword_only otherwise) — was dead code returning FTS-only
+- `update()` now deletes old row before INSERT — was leaking orphaned rows + embeddings + FTS entries on every update
+- Windows `vec0.dll` vendor path added to `sqlite_memory.ml` candidate list
+- Embedding dimension validation before blob insert — was silently corrupting vec0 index on mismatch
+- FTS5 trigger creation wrapped in `BEGIN`/`COMMIT` transaction
+- `close()` logs `db_close` failure instead of silent ignore
+- FTS5 availability check closes `:memory:` handle — was leaking DB handle
+- `search` uses write lock (`use_rw`) since `bump_usage` performs UPDATE — was using read lock
+- Embedding generation errors logged via `Logs.warn` — was silently swallowed
+
+### Fixed — Document Loaders (11 issues)
+
+- PDF loader catches exceptions and returns empty list instead of `failwith` — was crashing entire directory scan
+- HTML loader adds `Sys.file_exists` check — was throwing uncaught `Sys_error` on missing file
+- HTML loader wraps file handle in `Fun.protect` — was leaking FD on exception
+- `LOADER` module type removed (dead code); `make` pattern documented as canonical
+- CSV loader wraps `Csv.load` in try/with — was propagating uncaught exception
+- `Directory_loader.load` default map = `default_map` — was silently loading zero files without `~map`
+- Markdown frontmatter parser handles `\r\n` (Windows line endings)
+- PDF loader detects encrypted PDFs via typed `Pdf.PDFError` pattern match
+- Directory loader circular symlink protection via `Unix.realpath` + visited set
+- CSV column names prefixed with `csv_` to avoid metadata key collision
+- HTML `file_size` reports actual file bytes, not cleaned text length
+
+### Fixed — FFI / Native (2 issues)
+
+- 5 FFI functions move `caml_copy_string`/`caml_copy_double` outside `PAR_MUTEX_LOCK` — was risking deadlock from OOM longjmp skipping mutex unlock
+- `vec_extension_path` changed from `let` binding to `unit -> string` function — Python binding override was never taking effect
+
+### Fixed — Core Runtime (4 issues)
+
+- `invoke_structured` now accepts `?system_prompt_appendix` and wraps in `Invoke_context.with_context` — was bypassing context entirely
+- `run_structured` injects `Invoke_context.appendix_text ()` into system prompt — was missing (unlike `run_agent`)
+- Double-appendix on conversation resume fixed: appendix stored in conversation metadata, stripped before re-applying — was accumulating on every resume
+- `invoke_handle_cancel` TOCTOU race fixed: `request_cancel` first, CAS loop respects `Completed` — was flipping Cancelled→Completed
+
+### Fixed — SDK Documentation (12 issues)
+
+- `agent_config.system_prompt` type corrected (record, not `string`) in EN + ZH
+- `agent_config.cache_strategy` field added to docs
+- `Runtime.register_tool` return type updated to `(tool_binding, error_category) result`
+- `tool_descriptor` missing fields added: `output_schema`, `on_update`, `cache_control`
+- `handler_result` `Handoff` variant documented
+- `llm_provider_config.Openai` missing fields added: `embedding_model`, `prompt_cache_key`
+- `context_strategy.Truncate_oldest` field renamed to `keep_system` (snake_case)
+- `Noop_persistence.create` signature corrected in EN + ZH
+- `Sqlite_memory.make_service` return type adds `result` wrapper
+- CHANGES.md v0.7.2 duplicate sections removed
+- `overview.md` sub-library count corrected (10→11), middleware count (7→8), module map updated
+- ZH `agent.md` missing sections translated: System prompt templates + Context strategy
+
+### Fixed — Review Follow-ups (3 issues)
+
+- `fork_invoke` uses `Atomic.compare_and_set` for Completed status — was unconditionally overriding Cancelled
+- 11 `system_prompt` examples in 7 doc files corrected to use `Types.stable_prompt`
+- Audit findings file marked as resolved
+
 ## v0.7.2-beta — Vector Memory, SDK Docs; Windows Platform Code Added (CI Build Pending)
 
 > v0.7.2 ships vector-based semantic memory search (RRF hybrid search) and completes SDK documentation for all v0.7.1 APIs. All changes are SemVer-additive.
