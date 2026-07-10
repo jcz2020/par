@@ -110,7 +110,7 @@ let () = Eio_main.run (fun _env ->
 ```ocaml
 type agent_config = {
   id : string;                            (* Unique Agent identifier *)
-  system_prompt : string;                 (* System prompt *)
+  system_prompt : system_prompt;          (* Typed record: { sp_raw : string; sp_zone : zone_tag } *)
   system_prompt_template : system_prompt_template option;  (* Optional templated prompt with variables *)
   model : model_config;                   (* LLM model configuration *)
   tools : tool_descriptor list;           (* Available tool list *)
@@ -127,6 +127,7 @@ type agent_config = {
   context_compression_threshold : float option;   (* v0.6.3+: auto-compress at ratio. None=manual mode, Some 0.8=default *)
   compression_cooldown_messages : int option;     (* v0.6.3+: min iterations between auto-compressions. Some 6=default *)
   context_window_override : int option;           (* v0.6.3+: override context window size; None=use provider capability or static table *)
+  cache_strategy : cache_strategy;        (* Prompt caching strategy: No_caching | With_cache_of of cache_ttl *)
 }
 ```
 
@@ -199,7 +200,9 @@ Provider instances are created through `llm_provider_config` and passed to the `
 ```ocaml
 type llm_provider_config =
   | Openai of { api_key : string; base_url : string option;
-                organization : string option }
+                organization : string option;
+                embedding_model : string option;
+                prompt_cache_key : string option }
   | Anthropic of { api_key : string; base_url : string option }
   | Ollama of { base_url : string }
   | Custom of { base_url : string; headers : (string * string) list;
@@ -360,9 +363,12 @@ type tool_descriptor = {
   name : string;
   description : string;
   input_schema : Yojson.Safe.t;     (* JSON Schema format *)
+  output_schema : Yojson.Safe.t option;  (* optional JSON Schema for tool output *)
   permission : tool_permission;     (* default Allow *)
   timeout : float option;
   concurrency_limit : int option;
+  on_update : (string -> unit) option;  (* optional progress callback *)
+  cache_control : cache_control option;  (* optional prompt-caching breakpoint *)
 }
 ```
 
@@ -381,6 +387,11 @@ type handler_result =
       retryable : bool;
       metadata : (string * Yojson.Safe.t) list;
     }
+  | Handoff of {
+      target_agent_id : string;
+      carry_context : bool;
+      task : string option;
+    }
 ```
 
 ### Runtime.register_tool
@@ -392,11 +403,14 @@ val Runtime.register_tool :
   description:string ->
   input_schema:Yojson.Safe.t ->
   handler:handler_fn ->
+  ?output_schema:Yojson.Safe.t ->
   ?permission:tool_permission ->
   ?timeout:float ->
   ?concurrency_limit:int ->
+  ?on_update:(string -> unit) option ->
+  ?cache_control:cache_control option ->
   unit ->
-  tool_binding    (* returns descriptor + handler *)
+  (tool_binding, error_category) result
 ```
 
 `tool_binding` contains `descriptor` (for `agent_config.tools`) and `handler` (already registered with the registry):
@@ -606,12 +620,12 @@ Long conversations outgrow the model's context window. The `agent_config.context
 
 ```ocaml
 type context_strategy =
-  | Truncate_oldest of { keepSystem : bool; min_messages : int }
+  | Truncate_oldest of { keep_system : bool; min_messages : int }
   | Summarize of { max_tokens : int; summary_model : model_config option }
   | Sliding_window of { max_messages : int; max_tokens : int }
 ```
 
-`Truncate_oldest` drops the oldest non-system messages until the conversation fits. `keepSystem` (default true) pins system messages at the front; `min_messages` is the floor below which nothing else is dropped even if the token estimate is over budget. Reach for this strategy when the recent turns carry the signal and old turns are noise.
+`Truncate_oldest` drops the oldest non-system messages until the conversation fits. `keep_system` (default true) pins system messages at the front; `min_messages` is the floor below which nothing else is dropped even if the token estimate is over budget. Reach for this strategy when the recent turns carry the signal and old turns are noise.
 
 `Summarize` compresses earlier turns into a summary message using a second LLM call. `max_tokens` bounds the summary length. `summary_model` optionally routes the summarization call to a cheaper or faster model than the agent's primary model; `None` reuses the agent's own `model_config`. This is the right choice when early context genuinely matters but token budget is tight, at the cost of an extra LLM round trip per summarization.
 

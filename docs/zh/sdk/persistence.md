@@ -48,7 +48,7 @@ val Sqlite_persistence.create :
 `Noop_persistence` 什么都不做。每个操作返回 `Ok ()` 或 `Ok None`。当你想让 runtime 编译运行但不触碰磁盘时使用它。
 
 ```ocaml
-val Noop_persistence.create : unit -> Noop_persistence.t
+val Noop_persistence.create : string -> (Noop_persistence.t, error_category) result
 ```
 
 ## `scope` 维度

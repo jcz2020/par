@@ -105,7 +105,7 @@ let () = Eio_main.run (fun _env ->
 ```ocaml
 type agent_config = {
   id : string;                            (* Agent 唯一标识 *)
-  system_prompt : string;                 (* 系统提示词 *)
+  system_prompt : system_prompt;          (* 类型化记录：{ sp_raw : string; sp_zone : zone_tag } *)
   system_prompt_template : system_prompt_template option;  (* 可选模板化提示词（带变量）*)
   model : model_config;                   (* LLM 模型配置 *)
   tools : tool_descriptor list;           (* 可用工具列表 *)
@@ -122,6 +122,7 @@ type agent_config = {
   context_compression_threshold : float option;   (* v0.6.3+：按比例自动压缩。None=手动模式，Some 0.8=默认 *)
   compression_cooldown_messages : int option;     (* v0.6.3+：两次自动压缩间最小迭代数。Some 6=默认 *)
   context_window_override : int option;           (* v0.6.3+：覆盖 context window 大小；None=用 provider capability 或静态表 *)
+  cache_strategy : cache_strategy;        (* 提示词缓存策略：No_caching | With_cache_of of cache_ttl *)
 }
 ```
 
@@ -192,7 +193,9 @@ Provider 实例通过 `llm_provider_config` 创建，传递给 `Runtime.create` 
 ```ocaml
 type llm_provider_config =
   | Openai of { api_key : string; base_url : string option;
-                organization : string option }
+                organization : string option;
+                embedding_model : string option;
+                prompt_cache_key : string option }
   | Anthropic of { api_key : string; base_url : string option }
   | Ollama of { base_url : string }
   | Custom of { base_url : string; headers : (string * string) list;
@@ -351,9 +354,12 @@ type tool_descriptor = {
   name : string;
   description : string;
   input_schema : Yojson.Safe.t;     (* JSON Schema 格式 *)
+  output_schema : Yojson.Safe.t option;  (* 可选的工具输出 JSON Schema *)
   permission : tool_permission;     (* 默认 Allow *)
   timeout : float option;
   concurrency_limit : int option;
+  on_update : (string -> unit) option;  (* 可选的进度回调 *)
+  cache_control : cache_control option;  (* 可选的提示词缓存断点 *)
 }
 ```
 
@@ -372,6 +378,11 @@ type handler_result =
       retryable : bool;
       metadata : (string * Yojson.Safe.t) list;
     }
+  | Handoff of {
+      target_agent_id : string;
+      carry_context : bool;
+      task : string option;
+    }
 ```
 
 ### Runtime.register_tool
@@ -383,11 +394,14 @@ val Runtime.register_tool :
   description:string ->
   input_schema:Yojson.Safe.t ->
   handler:handler_fn ->
+  ?output_schema:Yojson.Safe.t ->
   ?permission:tool_permission ->
   ?timeout:float ->
   ?concurrency_limit:int ->
+  ?on_update:(string -> unit) option ->
+  ?cache_control:cache_control option ->
   unit ->
-  tool_binding    (* 返回 descriptor + handler *)
+  (tool_binding, error_category) result
 ```
 
 `tool_binding` 包含 `descriptor`（用于 `agent_config.tools`）和 `handler`（已自动注册到 registry）：
@@ -497,6 +511,145 @@ system_prompt = {|
   Always show your reasoning step by step.
 |}
 ```
+
+## System Prompt 模板
+
+当系统提示词需要在每次调用时变化（注入 agent id、运行时 id、可用工具列表或用户提供的变量），可以使用 `system_prompt_template` 代替普通 `system_prompt`。作为 `agent_config.system_prompt_template` 字段添加，它提供 mustache 风格的 `{{variable}}` 替换，无需引入额外的模板依赖。
+
+### 模板类型
+
+```ocaml
+type system_prompt_template = {
+  template : string;        (* 带 {{var}} 占位符的正文 *)
+  variables : string list;  (* 模板可能使用的所有占位符名 *)
+  required : string list;   (* 必须提供的 `variables` 子集 *)
+}
+```
+
+`variables` 是渲染器识别的所有变量名集合。`required` 是渲染时必须存在的子集；缺少 required 变量会返回 `Error` 而非静默替换为空字符串。将两个列表分开让模板可以声明可选的辅助变量（用户的 locale、session 标签）和硬性要求（agent id）。
+
+### render_context
+
+渲染器从 `render_context` 记录中提取值。运行时内部构建它；如果你手动调用 `Template.render`，则需要自己构造。
+
+```ocaml
+type render_context = {
+  agent_id : string;
+  runtime_id : string;
+  user_variables : (string * Yojson.Safe.t) list;
+  available_tools : string list;
+}
+```
+
+`agent_id` 和 `runtime_id` 始终可用。`available_tools` 是 agent 上注册的工具名列表。`user_variables` 是调用方提供的值。渲染器在解析 `{{name}}` 时查阅这四个字段。
+
+### 渲染
+
+```ocaml
+val Template.render :
+  template:string ->
+  variables:(string * Yojson.Safe.t) list ->
+  required:string list ->
+  context:render_context ->
+  (string, Types.error_category) result
+
+val Template.effective_system_prompt :
+  Types.agent_config ->
+  runtime_id:string ->
+  (string, Types.error_category) result
+```
+
+`Template.render` 是低级入口。`effective_system_prompt` 是便捷包装：传入 `agent_config` 和 `runtime_id`，返回引擎将发送给 LLM 的最终字符串。如果 `system_prompt_template` 为 `None`，则回退到普通 `system_prompt` 字段，所以现有 agent 无需改动即可继续工作。
+
+### 何时使用模板
+
+当以下任一条件满足时使用模板：
+
+- 提示词需要引用 agent id 或运行时 id，且你不想手动插值。
+- 提示词需要每次调用时的变量（用户 locale、session 元数据、动态示例），由调用方提供。
+- 你希望渲染器在启动时强制检查 required 变量，而非在对话中途才发现缺失值。
+
+当文本是静态的时，使用普通 `system_prompt`。`variables` 为空列表的模板没有收益，只会增加渲染步骤。
+
+### 示例
+
+```ocaml
+let agent = {
+  Types.id = "support";
+  system_prompt = "You are a helpful assistant.";   (* 回退值 *)
+  system_prompt_template = Some {
+    template = {|
+      You are {{role}}, assisting agent {{agent_id}} on runtime {{runtime_id}}.
+      Available tools: {{available_tools}}.
+      User context: {{user_locale}}.
+    |};
+    variables = ["role"; "agent_id"; "runtime_id";
+                 "available_tools"; "user_locale"];
+    required = ["role"; "user_locale"];
+  };
+  model = (* ... *);
+  tools = [];
+  max_iterations = 5;
+  middleware = [];
+  retry_policy = None;
+  context_strategy = None;
+  resource_quota = None;
+  max_execution_time = None;
+  early_stopping_method = Types.Force;
+  on_max_tokens = None;              (* Auto：Continue（此 agent 无工具）*)
+  max_continuation_chunks = None;    (* Auto：无上限（无工具长输出模式）*)
+  tool_timeout = None;
+}
+```
+
+在调用时，渲染器从运行时替换 `agent_id`、`runtime_id` 和 `available_tools`，从每次调用的 `user_variables` 中提取 `role` 和 `user_locale`。因为两者都是 `required`，忘记 `user_locale` 的调用方会在第一次 LLM 往返之前收到 `Error`，而不是一个乱码的提示词。
+
+## 上下文策略
+
+长时间对话会超出模型的上下文窗口。`agent_config.context_strategy` 字段决定 PAR 在每次 LLM 调用前如何裁剪对话。保持为 `None` 时运行时应用默认值；显式设置可覆盖。
+
+### 策略变体
+
+```ocaml
+type context_strategy =
+  | Truncate_oldest of { keep_system : bool; min_messages : int }
+  | Summarize of { max_tokens : int; summary_model : model_config option }
+  | Sliding_window of { max_messages : int; max_tokens : int }
+```
+
+`Truncate_oldest` 丢弃最旧的非系统消息直到对话适合。`keep_system`（默认 true）将系统消息固定在前面；`min_messages` 是下限，即使 token 估算超预算也不会丢弃更多消息。当近期对话轮次携带主要信号、旧轮次是噪声时使用此策略。
+
+`Summarize` 使用第二次 LLM 调用将早期轮次压缩为摘要消息。`max_tokens` 限定摘要长度。`summary_model` 可选地将摘要调用路由到比 agent 主模型更便宜或更快的模型；`None` 复用 agent 自身的 `model_config`。当早期上下文确实重要但 token 预算紧张时选择此策略，代价是每次摘要多一次 LLM 往返。
+
+`Sliding_window` 保留最近的 `max_messages` 条消息，丢弃所有更旧的内容，受 `max_tokens` 上限约束。它是最便宜的策略，因为从不调用其他模型，并且逐字保留对话尾部。v0.6.3 之前这是默认值；从 v0.6.3 开始默认是 `Summarize`（见上方"自动上下文压缩"）。
+
+### 引擎如何应用策略
+
+每次 LLM 往返前，引擎在当前对话上调用 `Context_manager.apply_strategy`。函数返回（可能缩减的）对话，或在策略无法满足约束时返回 `Error`（例如 `Truncate_oldest` 达到 `min_messages` 但仍超 `max_tokens`）。
+
+```ocaml
+val Context_manager.apply_strategy :
+  Types.context_strategy -> Types.conversation ->
+  Types.llm_service option ->
+  on_event:(Types.event -> unit) option ->
+  (Types.conversation, Types.error_category) result
+
+val Context_manager.estimate_tokens : Types.conversation -> int
+```
+
+`estimate_tokens` 是粗略的字符数除以四的启发式方法。它不是分词器。在推理预算时将数字视为参考值。
+
+### v0.5.1 默认值
+
+从 v0.5.1 开始，没有显式 `context_strategy` 的运行时获得：
+
+```ocaml
+Some (Sliding_window { max_messages = 100; max_tokens = 200000 })
+```
+
+这是对早期 beta 版本的刻意变更，之前策略未设置让对话无限增长直到 provider 拒绝。200K token 上限匹配当前最大的生产模型，100 条消息上限防止对话在单条消息很短时依然膨胀。如果你之前依赖无限增长（例如在运行时外部自行摘要），显式设置 `context_strategy = None` 可恢复旧行为。
+
+对于使用较小窗口的模型，同时降低两个数字。4K token 模型配合 `max_messages = 100` 仍会触发 provider 限制，因为 `max_messages` 在 token 估算之前检查。
 
 ## 取消令牌
 

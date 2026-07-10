@@ -48,7 +48,7 @@ The optional `retention_ttl` parameter sets how long old events are kept, in sec
 `Noop_persistence` does nothing. Every operation returns `Ok ()` or `Ok None`. Use it when you want the runtime to compile and run without touching disk.
 
 ```ocaml
-val Noop_persistence.create : unit -> Noop_persistence.t
+val Noop_persistence.create : string -> (Noop_persistence.t, error_category) result
 ```
 
 ## The `scope` dimension

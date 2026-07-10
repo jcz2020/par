@@ -237,7 +237,7 @@ match Runtime.create ~config ~llm ?memory switch with
 | `?dimension` | 1536 | Embedding vector dimension |
 | `?embedding_fn` | `None` | Embedding function; when `None`, only keyword search is available |
 
-`Sqlite_memory.make_service` accepts the same optional parameters and returns a `Memory_service.memory_service` record directly.
+`Sqlite_memory.make_service` accepts the same optional parameters and returns `(Memory_service.memory_service, Memory_error.memory_error) result`.
 
 ### Python binding
 

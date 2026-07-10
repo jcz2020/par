@@ -237,7 +237,7 @@ match Runtime.create ~config ~llm ?memory switch with
 | `?dimension` | 1536 | 嵌入向量维度 |
 | `?embedding_fn` | `None` | 嵌入函数；为 `None` 时仅支持关键词搜索 |
 
-`Sqlite_memory.make_service` 接受相同的可选参数，直接返回 `Memory_service.memory_service` 记录。
+`Sqlite_memory.make_service` 接受相同的可选参数，返回 `(Memory_service.memory_service, Memory_error.memory_error) result`。
 
 ### Python 绑定
 

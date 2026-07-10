@@ -53,34 +53,6 @@
 - New test files: `test_capability.ml` (8), `test_capability_gating.ml` (4), `test_workspace_paths.ml`, `test_sqlite_memory_schema.ml` (5), `test_memory_embedding.ml` (11), `test_hybrid_search.ml` (7), `test_vec_triggers.ml` (4), `test_memory_search_modes.ml` (11).
 - CI: Ubuntu ✅, macOS ✅, Windows pending (MinGW build fix), Python bindings pending.
 
-### Added — Vector-Based Semantic Memory Search
-
-- **NEW** `vec0` virtual table (`memory_entries_vec`) alongside existing FTS5 in `Sqlite_memory`. Configurable dimension (default 1536, cosine distance).
-- **NEW** `search_mode` type: `Keyword_only | Vector_only | Hybrid | Auto`. Smart default: Hybrid when `embedding_fn` configured, Keyword_only otherwise.
-- **NEW** `embedding_fn` type in `Memory_service` — lightweight function type (`string list -> (float array list, string) result`). Callers bridge from `Types.embedding_service`.
-- **CHANGED** `Sqlite_memory.create` accepts `?embedding_fn` + `?dimension`. On `add`, embeds content and stores in vec0 (graceful degradation on failure).
-- **NEW** `hybrid_search` function — Reciprocal Rank Fusion (RRF) in a single SQL statement. Over-fetches k×3 from each leg, fuses via `1/(60+rank_fts) + 1/(60+rank_vec)`. Configurable weights and k constant.
-- **NEW** vec0 sync triggers — `DELETE` trigger removes embedding on row delete; `UPDATE OF content` trigger drops stale embedding (lazy re-embed pattern).
-- **FIX** `search_vec` SQL: use vec0 `k = ?` constraint instead of `LIMIT ?` (vec0 requires `k = ?` in subqueries).
-- **NEW** `Embedding_unavailable` error variant in `memory_error`.
-- **NEW** `test/test_sqlite_memory_schema.ml` (5 tests), `test/test_memory_embedding.ml` (11 tests), `test/test_hybrid_search.ml` (7 tests), `test/test_vec_triggers.ml` (4 tests), `test/test_memory_search_modes.ml` (11 tests).
-
-### Added — SDK Documentation Completion
-
-- **NEW** `docs/sdk/invoke_context.md` + ZH — per-call isolation, `invoke_async`, `?context`, `?system_prompt_appendix`.
-- **NEW** `docs/sdk/persistence.md` + ZH — persistence service CRUD, `?scope` dimension, SQLite/Noop backends.
-- **CHANGED** `docs/sdk/agent.md` + ZH — fixed `Runtime.invoke` (7 missing params) and `Runtime.create` (9 missing params) signatures. Added `invoke_async` section. Fixed return type (`invoke_result` not `llm_response`).
-- **CHANGED** `docs/sdk/tools.md` + ZH — tool count 20 → 23 (added `recall_memory`, `remember_memory`, `search_history`).
-- **CHANGED** `docs/sdk/memory.md` + ZH — fixed signatures to match `.mli`, documented `search_mode` + `embedding_fn` + RRF hybrid search.
-- **CHANGED** `docs/sdk/overview.md` + ZH — refreshed module map (added Capability, Invoke_context, Deprecation, Memory_service), tool count, Windows platform support section.
-- **CHANGED** `docs/sdk/observability.md` + ZH — documented `Atomic.t` counters + `Metrics.merge_into`.
-- **CHANGED** `docs/zh/README.md` — refreshed from v0.7.0-beta to v0.7.1-beta status with all v0.7.1 feature bullets.
-
-### Tests
-
-- 1306 → 1387 tests passing (+81 new tests).
-- New test files: `test_capability.ml` (8), `test_capability_gating.ml` (4), `test_workspace_paths.ml`, `test_sqlite_memory_schema.ml` (5), `test_memory_embedding.ml` (11), `test_hybrid_search.ml` (7), `test_vec_triggers.ml` (4), `test_memory_search_modes.ml` (11).
-
 ---
 
 ## v0.7.1 — Concurrency, Memory, Persistence Scope, Deprecation, Dynamic Prompt
