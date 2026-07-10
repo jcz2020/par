@@ -197,7 +197,12 @@ let run_llm_with_optional_streaming llm agent_model agent_tools conv user_cb =
 let make_conversation system_prompt user_message =
   let sys = { role = System; content_blocks = Message.content_of_string system_prompt; tool_calls = None; tool_call_id = None; name = None } in
   let usr = { role = User; content_blocks = Message.content_of_string user_message; tool_calls = None; tool_call_id = None; name = None } in
-  { messages = [ sys; usr ]; metadata = [] }
+  let appendix = Invoke_context.appendix_text () in
+  let metadata =
+    if appendix = "" then []
+    else [Invoke_context.appendix_metadata_key, `String appendix]
+  in
+  { messages = [ sys; usr ]; metadata }
 
 let add_assistant_message conv (resp : llm_response) =
   let msg = {
@@ -302,7 +307,7 @@ let run_structured
           m "[engine] Template render failed (structured), falling back to plain system_prompt: %s" msg);
         agent.system_prompt
     in
-    Types.prompt_text sys_prompt_sp
+    Types.prompt_text sys_prompt_sp ^ Invoke_context.appendix_text ()
   in
   let conv0 = match conversation with
     | Some existing ->
@@ -498,6 +503,10 @@ let apply_breakpoints ~ttl (breakpoints : Cache_breakpoint.breakpoint list) (con
       { msg with content_blocks = blocks }
     ) conv.Types.messages in
     { conv with Types.messages = messages }
+
+let ends_with s suffix =
+  let slen = String.length s and suflen = String.length suffix in
+  slen >= suflen && String.sub s (slen - suflen) suflen = suffix
 
 let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
@@ -1024,20 +1033,46 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     | Some existing ->
       Logs.info (fun m -> m "[engine] Resuming conversation: %d existing messages, appending user message (%d chars)"
         (List.length existing.messages) (String.length user_message));
-      let appendix = Invoke_context.appendix_text () in
+      let current_appendix = Invoke_context.appendix_text () in
+      let stored_appendix_text =
+        match List.assoc_opt Invoke_context.appendix_metadata_key existing.metadata with
+        | Some (`String ap) when ap <> "" -> Some ap
+        | _ -> None
+      in
+      let bare_messages =
+        match stored_appendix_text with
+        | Some ap ->
+          List.map (fun (m : message) ->
+            if m.role = System then
+              let text = Message.text_of_message m in
+              let stripped =
+                if ends_with text ap then
+                  String.sub text 0 (String.length text - String.length ap)
+                else text
+              in
+              { m with content_blocks = Message.content_of_string stripped }
+            else m
+          ) existing.messages
+        | None -> existing.messages
+      in
       let messages =
-        if appendix = "" then existing.messages
+        if current_appendix = "" then bare_messages
         else
           List.map (fun (m : message) ->
             if m.role = System then
-              let text = Message.text_of_message m ^ appendix in
+              let text = Message.text_of_message m ^ current_appendix in
               { m with content_blocks = Message.content_of_string text }
             else m
-          ) existing.messages
+          ) bare_messages
+      in
+      let updated_metadata =
+        let key = Invoke_context.appendix_metadata_key in
+        (key, `String current_appendix) ::
+        (List.filter (fun (k, _) -> k <> key) existing.metadata)
       in
       let usr = { role = User; content_blocks = Message.content_of_string user_message; tool_calls = None;
                   tool_call_id = None; name = None } in
-      { existing with messages = messages @ [ usr ] }
+      { messages = messages @ [ usr ]; metadata = updated_metadata }
     | None ->
       Logs.info (fun m -> m "[engine] New conversation: system_prompt=%d chars, user_message=%d chars"
         (String.length sys_prompt_text) (String.length user_message));

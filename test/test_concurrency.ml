@@ -250,6 +250,17 @@ let test_system_prompt_appendix_without () =
              "base prompt" sys_text));
         ignore (Runtime.close rt)))
 
+let count_substring str sub =
+  let slen = String.length str and sublen = String.length sub in
+  if sublen = 0 then 0
+  else
+    let rec count i acc =
+      if i > slen - sublen then acc
+      else if String.sub str i sublen = sub then count (i + 1) (acc + 1)
+      else count (i + 1) acc
+    in
+    count 0 0
+
 let test_system_prompt_appendix_resume () =
   Eio_main.run (fun _ ->
     Eio.Switch.run (fun sw ->
@@ -279,6 +290,7 @@ let test_system_prompt_appendix_resume () =
           ];
           metadata = [];
         } in
+        let appendix_marker = "\n\nRESUME APPENDIX" in
         let result = Runtime.invoke rt ~agent_id:"t" ~message:"second msg"
           ~conversation:existing_conv
           ~system_prompt_appendix:"RESUME APPENDIX" () in
@@ -290,10 +302,22 @@ let test_system_prompt_appendix_resume () =
            let sys_text = Par.Message.text_of_message sys_msg in
            Alcotest.(check bool "resumed system prompt has appendix"
              true
-             (let suffix = "\n\nRESUME APPENDIX" in
-              let len = String.length sys_text in
-              let slen = String.length suffix in
-              len >= slen && String.sub sys_text (len - slen) slen = suffix)));
+             (let len = String.length sys_text in
+              let slen = String.length appendix_marker in
+              len >= slen && String.sub sys_text (len - slen) slen = appendix_marker));
+           Alcotest.(check int) "appendix appears exactly once after first resume"
+             1 (count_substring sys_text appendix_marker);
+           let result2 = Runtime.invoke rt ~agent_id:"t" ~message:"third msg"
+             ~conversation:res.conversation
+             ~system_prompt_appendix:"RESUME APPENDIX" () in
+           (match result2 with
+            | Error _ -> Alcotest.fail "second invoke should succeed"
+            | Ok res2 ->
+              let sys_msg2 = List.find
+                (fun (m : Par.Types.message) -> m.role = System) res2.conversation.messages in
+              let sys_text2 = Par.Message.text_of_message sys_msg2 in
+              Alcotest.(check int) "appendix appears exactly once after second resume"
+                1 (count_substring sys_text2 appendix_marker)));
         ignore (Runtime.close rt)))
 
 let () =

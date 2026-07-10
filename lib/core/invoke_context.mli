@@ -61,6 +61,8 @@ val get_current : unit -> invoke_context option
 
 val appendix_text : unit -> string
 
+val appendix_metadata_key : string
+
 (** Like [get_current] but raises when no binding exists. Use on hot paths
     where a binding MUST exist — its absence indicates a programming error
     (calling invoke-only code without going through [with_context]). *)

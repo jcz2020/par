@@ -297,6 +297,7 @@ val invoke_structured :
   ?max_repair_attempts:int ->
   ?cancellation_token:cancellation_token ->
   ?conversation:conversation ->
+  ?system_prompt_appendix:string ->
   ?on_tool_event:(event -> unit) ->
   ?on_repair_attempt:(int -> error_category -> conversation -> unit) ->
   unit ->

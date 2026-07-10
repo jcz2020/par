@@ -67,8 +67,18 @@ let invoke_handle_token h = h.token
 let invoke_handle_await h = Eio.Promise.await_exn h.result_promise
 
 let invoke_handle_cancel h =
-  Atomic.set h.status Cancelled;
-  Cancellation.request_cancel h.token
+  Cancellation.request_cancel h.token;
+  (* CAS loop: set to Cancelled only if not already Completed *)
+  let rec try_set () =
+    match Atomic.get h.status with
+    | Completed -> ()  (* already done, don't override *)
+    | current ->
+      if not (Atomic.compare_and_set h.status current Cancelled) then
+        try_set ()  (* retry if CAS failed *)
+  in
+  try_set ()
+
+let appendix_metadata_key = "_par_system_prompt_appendix"
 
 let empty_conversation = { messages = []; metadata = [] }
 

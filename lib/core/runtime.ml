@@ -924,11 +924,18 @@ let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
 
 let invoke_structured rt ~agent_id ~message ~response_schema
     ?(max_repair_attempts = 3) ?cancellation_token ?conversation
+    ?system_prompt_appendix
     ?on_tool_event ?on_repair_attempt () =
   let session_id = Session_id.to_string (Session_id.create ()) in
   (match rt.event_bus_instance with
    | Some bus -> Event_bus.set_session_id bus session_id
    | None -> rt.services.event_bus.set_session_id_fn session_id);
+  let ctx = Invoke_context.create
+    ~session_id
+    ~metrics:(Metrics.empty ())
+    ?system_prompt_appendix
+    () in
+  Invoke_context.with_context ctx (fun () ->
   let agent = htbl_get rt.agents agent_id in
   match agent with
   | None -> Result.Error (Invalid_input (Printf.sprintf "Agent not found: %s" agent_id),
@@ -980,7 +987,7 @@ let invoke_structured rt ~agent_id ~message ~response_schema
          task_id = Task_id.create ();
        } in
        publish_event rt evt;
-       Result.Error (err, conv))
+       Result.Error (err, conv)))
 
 let embed rt messages =
   match rt.services.embeddings with
