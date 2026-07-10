@@ -1,5 +1,13 @@
 open Par
 
+let fixtures_available = Sys.file_exists "/tmp/opencode"
+
+let () =
+  if not fixtures_available then begin
+    print_endline "[SKIP] Fixtures not available at /tmp/opencode";
+    exit 0
+  end
+
 let sample_pdf = "/tmp/opencode/sample.pdf"
 
 let ws () = Workspace.of_dir "/tmp/opencode" |> Result.get_ok

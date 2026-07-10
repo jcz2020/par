@@ -1,5 +1,13 @@
 open Par
 
+let fixtures_available = Sys.file_exists "/tmp/opencode"
+
+let () =
+  if not fixtures_available then begin
+    print_endline "[SKIP] Fixtures not available at /tmp/opencode";
+    exit 0
+  end
+
 let test_loads_mixed_directory () =
   let ws = Workspace.of_dir "/tmp/opencode" |> Result.get_ok in
   match Directory_loader.load ws ~map:Directory_loader.default_map "dir_loader_test" with

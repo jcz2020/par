@@ -1,5 +1,13 @@
 open Par
 
+let fixtures_available = Sys.file_exists "/tmp/opencode"
+
+let () =
+  if not fixtures_available then begin
+    print_endline "[SKIP] Fixtures not available at /tmp/opencode";
+    exit 0
+  end
+
 let fixture_path = "/tmp/opencode/test_html_loader.html"
 
 let has_substr haystack needle =
