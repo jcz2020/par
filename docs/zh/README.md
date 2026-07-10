@@ -143,9 +143,9 @@ let () = Eio_main.run (fun _env ->
 
 ## 状态与路线图
 
-**当前**: v0.7.1-beta — 并发架构（`invoke_context` + `invoke_async` + 重入）、记忆模块（FTS5 + 3 个内置工具）、持久化 session scope 维度、弃用框架（`warn_once` + 事件 + 迁移指南）、per-turn 动态 system prompt（`system_prompt_appendix`）、工作流 `response_schema`、Auto-skill `system_prompt_override` bug 修复、FFI 持久化接线修复。1306 tests passing。
+**当前**: v0.7.2-beta — Windows 能力框架（capability registry + FFI shim + 路径规范化 + 进程生成门控）、向量记忆（vec0 + search_mode + RRF 混合搜索 + 同步触发器）、SDK 文档完善（invoke_context + agent.md + persistence + overview + observability + zh sync）。1387 tests passing。
 
-**下一步**: Windows 进程支持（v0.7.2）、基于向量的语义召回（backlog P0）、外部向量库（Qdrant/Milvus）、多模态输入工具、.docx 支持。
+**下一步**: Windows 原生构建（MinGW par_ffi.c 修复）、Python 绑定 CI、外部向量库（Qdrant/Milvus）、多模态输入工具、.docx 支持。
 
 **近期发布**: v0.6.5（Workspace 抽象）→ v0.6.6（per-run workspace override）→ v0.6.7（CLI 移除，SDK 安装向导）→ v0.6.8（fresh-switch 编译修复）→ v0.6.9（bash cwd 修复，raw SQLite accessor）→ v0.7.0-beta（文档加载器框架）→ v0.7.1-beta（并发 + 记忆 + scope + 弃用 + 动态 prompt）。
 
