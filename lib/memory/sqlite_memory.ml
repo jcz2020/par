@@ -38,8 +38,10 @@ let resolve_vec_extension_path () =
     Filename.concat "/usr/local/share/par" so_name;
     Filename.concat cwd ("vendor/sqlite-vec/linux-x86_64/" ^ so_name);
     Filename.concat cwd ("vendor/sqlite-vec/macos-aarch64/" ^ so_name);
+    Filename.concat cwd ("vendor/sqlite-vec/windows-x86_64/" ^ so_name);
     Filename.concat cwd ("../vendor/sqlite-vec/linux-x86_64/" ^ so_name);
     Filename.concat cwd ("../vendor/sqlite-vec/macos-aarch64/" ^ so_name);
+    Filename.concat cwd ("../vendor/sqlite-vec/windows-x86_64/" ^ so_name);
   ] in
   List.find_opt Sys.file_exists candidates
 
@@ -64,6 +66,7 @@ let load_vec_extension db =
       Error (Database_error "enable_load_extension not supported on this SQLite build")
 
 let init_schema db ~dimension =
+  let _ = exec_sql db "BEGIN" in
   let base_stmts = [
     "CREATE TABLE IF NOT EXISTS memory_entries (\
        id            INTEGER PRIMARY KEY AUTOINCREMENT,\
@@ -102,8 +105,8 @@ let init_schema db ~dimension =
         INSERT INTO memory_entries_fts(rowid, content, summary, scope)
         VALUES (new.id, new.content, new.summary, new.scope);
      END|};
-  ] in
-  match List.find_map (fun sql ->
+   ] in
+  let result = match List.find_map (fun sql ->
     match exec_sql db sql with
     | Ok () -> None
     | Error e -> Some (Error e)
@@ -139,6 +142,11 @@ let init_schema db ~dimension =
         | Some e -> e
         | None -> Ok ())
      | Error _ -> Ok ())
+  in
+  (match result with
+   | Ok () -> ignore (exec_sql db "COMMIT")
+   | Error _ -> ignore (exec_sql db "ROLLBACK"));
+  result
 
 let generate_id () =
   Uuidm.to_string (Uuidm.v4_gen (Random.State.make_self_init ()) ())
@@ -152,14 +160,18 @@ let float_array_to_blob (arr : float array) : string =
   ) arr;
   Bytes.to_string buf
 
-let insert_embedding db ~rowid ~embedding_fn ~content =
+let insert_embedding db ~rowid ~dimension ~embedding_fn ~content =
   match embedding_fn [content] with
-  | Error _ -> ()
+  | Error e ->
+    Logs.warn (fun m -> m "Sqlite_memory: embedding generation failed: %s" e)
   | Ok vectors ->
     match vectors with
     | [] -> ()
     | vec :: _ ->
       if Array.length vec = 0 then ()
+      else if Array.length vec <> dimension then
+        Logs.warn (fun m -> m "Sqlite_memory: embedding dimension mismatch (expected %d, got %d), skipping"
+          dimension (Array.length vec))
       else
         let blob = float_array_to_blob vec in
         let stmt = Sqlite3.prepare db
@@ -239,7 +251,10 @@ let wrap_db_error f =
 let create ?(dimension=1536) ?embedding_fn db_path =
   if dimension <= 0 then
     invalid_arg "Sqlite_memory.create: dimension must be positive";
-  match check_fts5 (Sqlite3.db_open ":memory:") with
+  let fts5_db = Sqlite3.db_open ":memory:" in
+  let result = check_fts5 fts5_db in
+  let _ = Sqlite3.db_close fts5_db in
+  match result with
   | Error e -> Error e
   | Ok () ->
     wrap_db_error (fun () ->
@@ -289,9 +304,9 @@ let add t ~content ?summary ?scope ?(metadata=[]) ?(categories=[]) ?(source="") 
        | Sqlite3.Rc.DONE -> ()
        | _ -> raise (Sqlite3.Error (Sqlite3.Rc.to_string rc)));
       let rowid = Int64.to_int (Sqlite3.last_insert_rowid t.db) in
-      (match t.embedding with
-       | Some embed_fn -> insert_embedding t.db ~rowid ~embedding_fn:embed_fn ~content
-       | None -> ());
+       (match t.embedding with
+        | Some embed_fn -> insert_embedding t.db ~rowid ~dimension:t.dimension ~embedding_fn:embed_fn ~content
+        | None -> ());
       { id = ext_id; content; summary; scope; metadata; categories;
         created_at = now; updated_at = now; source }))
 
@@ -323,10 +338,11 @@ let bump_usage t ~ext_id =
 
 let resolve_mode (mode : Memory_service.search_mode option) embedding_opt =
   match mode with
+  | Some Memory_service.Auto | None ->
+    (match embedding_opt with
+     | Some _ -> Memory_service.Hybrid
+     | None -> Memory_service.Keyword_only)
   | Some m -> m
-  | None -> (match embedding_opt with
-    | Some _ -> Memory_service.Hybrid
-    | None -> Memory_service.Keyword_only)
 
 let search_fts t ?scope ?(limit=5) query =
   let fts_query = sanitize_fts_query query in
@@ -467,7 +483,7 @@ let hybrid_search t ?scope ?(limit=5) ?(weight_fts=0.5) ?(weight_vec=0.5)
     results)
 
 let search t ?mode ?scope ?(limit=5) query =
-  Eio.Mutex.use_ro t.mutex (fun () ->
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
     let resolved = resolve_mode mode t.embedding in
     match resolved with
     | Keyword_only -> search_fts t ?scope ~limit query
@@ -501,8 +517,14 @@ let update t (existing : memory_object) =
       let metadata_json = Yojson.Safe.to_string (`Assoc existing.metadata) in
       let categories_json =
         Yojson.Safe.to_string
-          (`List (List.map (fun s -> `String s) existing.categories))
+           (`List (List.map (fun s -> `String s) existing.categories))
       in
+      (* Delete old row — vec0 and FTS5 triggers handle cascading cleanup *)
+      let del_stmt = Sqlite3.prepare t.db
+        "DELETE FROM memory_entries WHERE ext_id = ?" in
+      let _ = Sqlite3.bind del_stmt 1 (Sqlite3.Data.TEXT existing.id) in
+      let _ = Sqlite3.step del_stmt in
+      let _ = Sqlite3.finalize del_stmt in
       let stmt = Sqlite3.prepare t.db
         ("INSERT INTO memory_entries \
           (ext_id, content, summary, scope, metadata, categories, \
@@ -604,7 +626,10 @@ let render_index t ?(max_entries=50) ?scope () =
     Buffer.contents buf
 
 let close t =
-  ignore (Sqlite3.db_close t.db)
+  match Sqlite3.db_close t.db with
+  | true -> ()
+  | false ->
+    Logs.err (fun m -> m "Sqlite_memory: db_close failed: database was busy")
 
 let make_service ?(dimension=1536) ?embedding_fn db_path =
   match create ~dimension ?embedding_fn db_path with

@@ -52,17 +52,15 @@ let test_add_only_lifecycle () =
       | Error e -> Alcotest.failf "update: %s" (Memory_error.to_string e)
       | Ok m -> m
     in
-    Alcotest.(check bool) "new id differs" true (original.id <> updated.id);
-    Alcotest.(check string) "updated has v2 content" "v2 content" updated.content;
-    (match Sqlite_memory.search t ~scope:"proj" "v1 content" with
-     | Error e -> Alcotest.failf "search v1: %s" (Memory_error.to_string e)
-     | Ok results ->
-       Alcotest.(check int) "v1 still exists" 1 (List.length results);
-       Alcotest.(check string) "v1 content preserved"
-         "v1 content" (List.hd results).content);
-    (match Sqlite_memory.search t ~scope:"proj" "v2 content" with
-     | Error e -> Alcotest.failf "search v2: %s" (Memory_error.to_string e)
-     | Ok results ->
+     Alcotest.(check bool) "new id differs" true (original.id <> updated.id);
+     Alcotest.(check string) "updated has v2 content" "v2 content" updated.content;
+     (match Sqlite_memory.search t ~scope:"proj" "v1 content" with
+      | Error e -> Alcotest.failf "search v1: %s" (Memory_error.to_string e)
+      | Ok results ->
+       Alcotest.(check int) "v1 deleted after update" 0 (List.length results));
+     (match Sqlite_memory.search t ~scope:"proj" "v2 content" with
+      | Error e -> Alcotest.failf "search v2: %s" (Memory_error.to_string e)
+      | Ok results ->
        Alcotest.(check int) "v2 exists" 1 (List.length results));
     Sqlite_memory.close t
 

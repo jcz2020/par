@@ -3,6 +3,6 @@
 (library
  (name par_memory)
  (public_name par.memory)
- (libraries sqlite3 eio uuidm yojson unix str)
+ (libraries sqlite3 eio uuidm yojson unix str logs)
  (preprocess
   (pps ppx_deriving_yojson)))
