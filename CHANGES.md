@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.7.3-beta — Audit Fixes (38 Issues Resolved)
+## v0.7.3 — Audit Fixes (38 Issues Resolved)
 
 > Full audit of v0.7.0–v0.7.2 codebase found 38 issues (10 P0, 6 P1, 10 P2 doc mismatches, 12 P3 quality). All 38 fixed, verified, and tested. 1387 tests passing.
 
