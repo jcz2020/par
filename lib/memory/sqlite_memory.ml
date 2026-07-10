@@ -25,20 +25,21 @@ let check_fts5 db =
 
 let resolve_vec_extension_path () =
   let so_name =
-    if Sys.os_type = "Unix"
-    then (match Sys.getenv_opt "PAR_OS" with
-          | Some "macos" | Some "darwin" -> "vec0.dylib"
-          | _ -> "vec0.so")
+    if Sys.os_type = "Win32" then "vec0.dll"
+    else if Sys.file_exists "/System/Library" then "vec0.dylib"
     else "vec0.so"
   in
   let exe_dir = Filename.dirname Sys.executable_name in
   let cwd = Sys.getcwd () in
   let candidates = [
     Filename.concat exe_dir so_name;
+    Filename.concat exe_dir ("../lib/ffi/" ^ so_name);
     Filename.concat "/usr/local/lib/par" so_name;
     Filename.concat "/usr/local/share/par" so_name;
     Filename.concat cwd ("vendor/sqlite-vec/linux-x86_64/" ^ so_name);
     Filename.concat cwd ("vendor/sqlite-vec/macos-aarch64/" ^ so_name);
+    Filename.concat cwd ("../vendor/sqlite-vec/linux-x86_64/" ^ so_name);
+    Filename.concat cwd ("../vendor/sqlite-vec/macos-aarch64/" ^ so_name);
   ] in
   List.find_opt Sys.file_exists candidates
 
