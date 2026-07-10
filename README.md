@@ -11,7 +11,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.7.1-beta — Concurrency Architecture + Memory Module + Persistence Scope + Deprecation Framework + Dynamic System Prompt. `invoke_context` per-call isolation via Eio.Fiber makes `Runtime.invoke` safe for reentrancy, parallelism, and `invoke_async`. New `Memory_service` (FTS5) + 3 builtin tools. Workflow `Agent_call` gains `response_schema`. Generic persistence `scope` dimension. `Deprecation.warn_once` + event bus signaling. Per-turn `system_prompt_appendix`. Auto-skill `system_prompt_override` bug fixed. FFI persistence wiring fixed. 1306 tests passing. API may change before v1.0.
+> **Status**: v0.7.2-beta — Windows Capability Framework + Vector Memory (RRF Hybrid Search) + SDK Documentation Completion. `Capability` module gates platform-specific features (process spawning returns typed error on Windows instead of crashing). `Memory_service` gains vec0 virtual table + `search_mode` (Keyword/Vector/Hybrid/Auto) with Reciprocal Rank Fusion. SDK docs completed for all v0.7.1+ APIs (invoke_context, persistence, overview, observability). 1387 tests passing. API may change before v1.0.
 
 ---
 
@@ -143,11 +143,11 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.7.1-beta — Concurrency Architecture (invoke_context + invoke_async + reentrancy), Memory Module (FTS5 + 3 builtin tools), Persistence Session Scope Dimension, Deprecation Framework (warn_once + event + migration guide), Per-turn Dynamic System Prompt (system_prompt_appendix), Workflow response_schema, Auto-skill system_prompt_override bug fix, FFI persistence wiring fix. 1306 tests passing.
+**Current**: v0.7.2-beta — Windows Capability Framework (capability registry + FFI shim + path normalization + process spawning gates), Vector Memory (vec0 + search_mode + RRF hybrid search + sync triggers), SDK Documentation Completion (invoke_context + agent.md + persistence + overview + observability + zh sync). 1387 tests passing.
 
-**Coming next**: Windows process support (v0.7.2), vector-based semantic recall (backlog P0), external vector stores (Qdrant/Milvus), multimodal image tools, .docx support.
+**Coming next**: Windows native build (MinGW par_ffi.c fix), Python binding CI, external vector stores (Qdrant/Milvus), multimodal image tools, .docx support.
 
-**Recent releases**: v0.6.5 (Workspace abstraction) → v0.6.6 (per-run workspace override) → v0.6.7 (CLI removed, SDK installer wizard) → v0.6.8 (fresh-switch compilation fix) → v0.6.9 (bash cwd fix, raw SQLite accessor) → v0.7.0-beta (Document Loaders Framework) → v0.7.1-beta (Concurrency + Memory + Scope + Deprecation + Dynamic Prompt).
+**Recent releases**: v0.6.5 (Workspace abstraction) → v0.6.6 (per-run workspace override) → v0.6.7 (CLI removed, SDK installer wizard) → v0.6.8 (fresh-switch compilation fix) → v0.6.9 (bash cwd fix, raw SQLite accessor) → v0.7.0-beta (Document Loaders Framework) → v0.7.1-beta (Concurrency + Memory + Scope + Deprecation + Dynamic Prompt) → v0.7.2-beta (Windows Capability + Vector Memory + SDK Docs).
 
 ## Getting help
 

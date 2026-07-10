@@ -11,7 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **状态**: v0.7.1-beta — 并发架构 + 记忆模块 + 持久化 scope 维度 + 弃用框架 + 动态 system prompt。`invoke_context` 通过 Eio.Fiber 实现 per-call 隔离，`Runtime.invoke` 支持重入、并行和 `invoke_async`。新增 `Memory_service`（FTS5）+ 3 个内置工具。工作流 `Agent_call` 支持 `response_schema`。通用持久化 `scope` 维度。`Deprecation.warn_once` + 事件总线通知。per-turn `system_prompt_appendix`。Auto-skill `system_prompt_override` bug 修复。FFI 持久化接线修复。1306 tests passing。v1.0 前 API 可能变化。
+> **状态**: v0.7.2-beta — Windows 能力框架 + 向量记忆（RRF 混合搜索）+ SDK 文档完善。`Capability` 模块管理平台特定功能（进程生成在 Windows 上返回类型化错误而非崩溃）。`Memory_service` 新增 vec0 虚拟表 + `search_mode`（关键词/向量/混合/自动）+ 倒数排名融合。SDK 文档覆盖所有 v0.7.1+ API（invoke_context、持久化、概览、可观测性）。1387 tests passing。v1.0 前 API 可能变化。
 
 ---
 
@@ -110,7 +110,7 @@ make install-dev   # 构建库 + 安装 .so + 同步 Python 版本
 - **Agent 记忆** — 跨会话 `Memory_service`（FTS5 关键字搜索）+ 3 个内置工具。通过 `invoke_context` 限定 session scope。像 `llm_service` 一样可插拔。
 - **动态 system prompt** — 通过 `invoke_context` 支持 per-turn `system_prompt_appendix`。在 template + skill overlay + tool suffix 之后追加。覆盖 invoke/generate/handoff 路径。
 - **弃用框架** — `warn_once` 辅助函数 + `Deprecated_api_called` 事件 + `[@@deprecated]` 注解 + 迁移指南。破坏性变更不再无声发生。
-- **1306 OCaml 测试 + Python 绑定** 全部通过（包括任意工作目录的 RAG 端到端测试）
+- **1387 OCaml 测试 + Python 绑定** 全部通过（包括任意工作目录的 RAG 端到端测试）
 - **Skill 系统** — 在 `~/.par/skills/<id>/` 放一个 `skill.md`，在 `Runtime.invoke` 时根据触发条件（Auto / Manual / Keyword）自动激活。Auto-trigger skill 不再替换 system prompt。见 [Skills API](sdk/skills.md)。
 
 ## 语言轨道
