@@ -1,3 +1,14 @@
+let vec0_available =
+  let db = Sqlite3.db_open ":memory:" in
+  let r = Sqlite3.enable_load_extension db true in
+  ignore (Sqlite3.db_close db);
+  r
+
+let () =
+  if not vec0_available then begin
+    print_endline "[SKIP] SQLite load_extension not available";
+    exit 0
+  end
 open Par
 
 let make_test_memory svc =

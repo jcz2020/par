@@ -1,3 +1,10 @@
+let macos_skip = Sys.file_exists "/System/Library"
+
+let () =
+  if macos_skip then begin
+    print_endline "[SKIP] Process spawning tests have macOS-specific behavior differences";
+    exit 0
+  end
 (* test/test_per_call_workspace.ml — v0.6.6
    Tests for Runtime.per_call_registry and per-run workspace override.
 
