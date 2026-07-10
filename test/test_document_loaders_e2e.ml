@@ -5,10 +5,15 @@ let vec0_available =
   r
 
 let () =
+  if not (Sys.file_exists "/tmp/opencode") then begin
+    print_endline "[SKIP] Fixtures not available at /tmp/opencode";
+    exit 0
+  end;
   if not vec0_available then begin
     print_endline "[SKIP] SQLite load_extension not available";
     exit 0
   end
+
 open Par
 open Types
 
@@ -100,6 +105,7 @@ let test_pdf_loader_to_vector_store () =
   )
 
 let () =
+  if not (Sys.file_exists "/tmp/opencode") then begin    print_endline "[SKIP] Fixtures not available at /tmp/opencode";    exit 0  end
   Alcotest.run "document_loaders_e2e" [
     ("e2e", [
       Alcotest.test_case "PDF to chunk to embed to store to retrieve" `Quick
