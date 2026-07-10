@@ -1,6 +1,6 @@
 let vec0_available =
   let db = Sqlite3.db_open ":memory:" in
-  let r = Sqlite3.enable_load_extension db true in
+  let r = (try Sqlite3.enable_load_extension db true with Failure _ -> false) in
   ignore (Sqlite3.db_close db);
   r
 
