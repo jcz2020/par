@@ -47,18 +47,21 @@ let load_vec_extension db =
   match resolve_vec_extension_path () with
   | None -> Error (Database_error "vec0 extension not found in known locations")
   | Some path ->
-    if not (Sqlite3.enable_load_extension db true) then
-      Error (Database_error "enable_load_extension returned false \
-                             — SQLITE_OMIT_LOAD_EXTENSION")
-    else
-      let rc =
-        Sqlite3.exec db (Printf.sprintf "SELECT load_extension('%s');" path)
-      in
-      let _ = Sqlite3.enable_load_extension db false in
-      if rc <> Sqlite3.Rc.OK then
-        Error (Database_error
-                 (Printf.sprintf "load_extension failed: %s" (Sqlite3.errmsg db)))
-      else Ok ()
+    try
+      if not (Sqlite3.enable_load_extension db true) then
+        Error (Database_error "enable_load_extension returned false \
+                               — SQLITE_OMIT_LOAD_EXTENSION")
+      else
+        let rc =
+          Sqlite3.exec db (Printf.sprintf "SELECT load_extension('%s');" path)
+        in
+        let _ = Sqlite3.enable_load_extension db false in
+        if rc <> Sqlite3.Rc.OK then
+          Error (Database_error
+                   (Printf.sprintf "load_extension failed: %s" (Sqlite3.errmsg db)))
+        else Ok ()
+    with Failure _ ->
+      Error (Database_error "enable_load_extension not supported on this SQLite build")
 
 let init_schema db ~dimension =
   let base_stmts = [
