@@ -199,7 +199,7 @@ let () =
         (* 5. Define the agent configuration *)
         let agent = {
           Types.id = "echo-agent";
-          system_prompt = "You are an echo assistant. Use the echo tool.";
+          system_prompt = Types.stable_prompt "You are an echo assistant. Use the echo tool.";
           model = {
             provider = `Openai;
             model_name = "gpt-4";
@@ -325,7 +325,7 @@ let () =
         (* Create an agent with the calculator tool *)
         let agent = {
           Types.id = "math-agent";
-          system_prompt = "You are a math assistant. Use the calculator tool.";
+          system_prompt = Types.stable_prompt "You are a math assistant. Use the calculator tool.";
           model = {
             provider = `Openai;
             model_name = "gpt-4";

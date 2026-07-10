@@ -200,7 +200,7 @@ let () =
         (* 5. 定义 Agent 配置 *)
         let agent = {
           Types.id = "echo-agent";
-          system_prompt = "You are an echo assistant. Use the echo tool.";
+          system_prompt = Types.stable_prompt "You are an echo assistant. Use the echo tool.";
           model = {
             provider = `Openai;
             model_name = "gpt-4";
@@ -326,7 +326,7 @@ let () =
         (* 创建带 calculator 的 Agent *)
         let agent = {
           Types.id = "math-agent";
-          system_prompt = "You are a math assistant. Use the calculator tool.";
+          system_prompt = Types.stable_prompt "You are a math assistant. Use the calculator tool.";
           model = {
             provider = `Openai;
             model_name = "gpt-4";

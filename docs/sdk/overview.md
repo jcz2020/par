@@ -88,7 +88,7 @@ let () = Eio_main.run (fun _env ->
           (Yojson.Safe.to_string input))))
       () |> Result.get_ok in
     ignore (Runtime.register_agent rt
-      { id = "echo-agent"; system_prompt = "You are an echo assistant.";
+      { id = "echo-agent"; system_prompt = Types.stable_prompt "You are an echo assistant.";
         system_prompt_template = None;
         model = { provider = `Openai; model_name = "gpt-4"; api_base = None;
                   temperature = 0.7; max_tokens = None; top_p = None;

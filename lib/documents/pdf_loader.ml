@@ -89,19 +89,14 @@ let make workspace path =
     else
       Ok (fun () ->
         match Pdfread.pdf_of_file None None full_path with
+        | exception Pdf.PDFError msg
+            when String.length msg >= 10 && String.sub msg 0 10 = "Encryption" ->
+          Logs.err (fun m ->
+            m "Pdf_loader: PDF is encrypted/password-protected: %s" full_path);
+          []
         | exception exn ->
-          let msg = Printexc.to_string exn in
-          let is_encrypted =
-            try ignore (Str.search_forward
-                  (Str.regexp_case_fold "encrypt\\|password") msg 0); true
-            with Not_found -> false
-          in
-          if is_encrypted then
-            Logs.err (fun m ->
-              m "Pdf_loader: PDF is encrypted/password-protected: %s" full_path)
-          else
-            Logs.err (fun m ->
-              m "Pdf_loader: extraction failed for %s: %s" path msg);
+          Logs.err (fun m ->
+            m "Pdf_loader: extraction failed for %s: %s" path (Printexc.to_string exn));
           []
         | pdf ->
           let pages = Pdfpage.pages_of_pagetree pdf in

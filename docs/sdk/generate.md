@@ -128,7 +128,7 @@ let () = Eio_main.run (fun _env ->
       (* Tool-less agent: the only kind invoke_generate accepts. *)
       let agent = {
         Types.id = "prd-agent";
-        system_prompt = "You write detailed product requirement documents.";
+        system_prompt = Types.stable_prompt "You write detailed product requirement documents.";
         system_prompt_template = None;
         model = { provider = `Openai; model_name = "gpt-4";
                   api_base = None; temperature = 0.4;

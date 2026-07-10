@@ -91,7 +91,8 @@ let fork_invoke
     Eio.Fiber.fork_promise ~sw (fun () ->
       try
         let r = f () in
-        Atomic.set status Completed;
+        (* CAS: don't override Cancelled status set by invoke_handle_cancel *)
+        let _ = Atomic.compare_and_set status Running Completed in
         r
       with
       | Eio.Cancel.Cancelled _ ->

@@ -220,7 +220,7 @@ val Runtime.register_agent : runtime -> agent_config -> (unit, error_category) r
 ```ocaml
 let agent = {
   Types.id = "my-agent";
-  system_prompt = "You are a helpful assistant.";
+  system_prompt = Types.stable_prompt "You are a helpful assistant.";
   model = { provider = `Openai; model_name = "gpt-4"; api_base = None;
             temperature = 0.7; max_tokens = None; top_p = None;
             stop_sequences = None };
@@ -584,7 +584,7 @@ Stick with a plain `system_prompt` when the text is static. A template with an e
 ```ocaml
 let agent = {
   Types.id = "support";
-  system_prompt = "You are a helpful assistant.";   (* fallback *)
+  system_prompt = Types.stable_prompt "You are a helpful assistant.";   (* fallback *)
   system_prompt_template = Some {
     template = {|
       You are {{role}}, assisting agent {{agent_id}} on runtime {{runtime_id}}.
