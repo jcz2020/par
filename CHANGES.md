@@ -1,5 +1,13 @@
 # CHANGES
 
+## v0.7.4 — json_extract think-tag + fence ordering fix
+
+> `extract_json_from_text` processing order bug: `strip_think_tags` left whitespace where the tag was removed, causing `strip_markdown_fences` to miss fences that no longer started at position 0. Fixed by reordering: strip think tags → trim → strip fences → trim.
+
+### Fixed — JSON Extraction
+
+- `extract_json_from_text`: move `String.trim` to after `strip_think_tags` and before `strip_markdown_fences`. Without this fix, input like `<think>reasoning</think>\n\`\`\`json\n{...}\n\`\`\`` would fail to strip the markdown fence because the leading `\n` (leftover from think-tag removal) prevented the fence-start check from matching.
+
 ## v0.7.3 — Audit Fixes (38 Issues Resolved)
 
 > Full audit of v0.7.0–v0.7.2 codebase found 38 issues (10 P0, 6 P1, 10 P2 doc mismatches, 12 P3 quality). All 38 fixed, verified, and tested. 1387 tests passing.
