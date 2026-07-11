@@ -286,6 +286,61 @@ match Runtime.invoke rt ~agent_id:"my-agent" ~message:"Hello!" () with
     (Types.error_category_to_yojson err |> Yojson.Safe.to_string)
 ```
 
+### 结构化输出
+
+`Runtime.invoke_structured` 返回通过 schema 校验的 JSON，而非自由文本。函数签名：
+
+```ocaml
+val Runtime.invoke_structured :
+  runtime ->
+  agent_id:string ->
+  message:string ->
+  response_schema:Yojson.Safe.t ->
+  ?max_repair_attempts:int ->
+  ?cancellation_token:cancellation_token ->
+  ?conversation:conversation ->
+  ?system_prompt_appendix:string ->
+  ?on_tool_event:(event -> unit) ->
+  ?on_repair_attempt:(int -> error_category -> conversation -> unit) ->
+  unit ->
+  (structured_invoke_result, error_category * conversation) result
+```
+
+返回类型 `structured_invoke_result` 携带校验后的 JSON、原始 LLM 响应、完整对话历史和 repair-loop 重试次数：
+
+```ocaml
+type structured_invoke_result = {
+  value : Yojson.Safe.t;          (* 通过 schema 校验的 JSON *)
+  raw_response : llm_response;   (* 原始 LLM 响应（调试 / token 核算） *)
+  conversation : conversation;   (* 包含所有 repair 轮的完整对话历史 *)
+  attempts : int;                (* 1 = 一次性成功；>1 = repair-loop 触发 *)
+}
+```
+
+当 `Json_extract.extract_json_from_text` 无法从 LLM 文本解析出有效 JSON，或解析后的 JSON 无法通过 `Validation.validate_tool_input_result` 的 schema 校验时，repair loop 会触发。最多重试 `max_repair_attempts`（默认 3）次，每次都会在对话中追加 user-feedback 消息。每次迭代顶部的 cancellation token 检查防止无限制的 LLM 调用。
+
+**工具执行 + 结构化输出（v0.7.4+）**：当 agent 注册了工具且你需要校验后的 JSON 时，runtime 会自动路由到 `Engine.run_agent_structured` —— 一种两阶段模式：
+
+1. **阶段一**：完整 ReAct 循环运行 agent 与工具（bash、http、自定义）交互，直到 LLM 产出最终文本响应。
+2. **阶段二**：完整对话历史（包括所有工具调用结果）传给一个独立的结构化 LLM 调用，提取并对照 `response_schema` 校验 JSON。
+
+此模式对齐 LangGraph 的 `create_react_agent(response_format=)` 方案。它能跨所有 LLM provider（OpenAI、Anthropic、Ollama、自定义）工作，不依赖 provider 原生支持同时传 `tools + response_format`（在非 OpenAI provider 上不可靠 —— 见 CrewAI issue #5472）。
+
+```ocaml
+match Runtime.invoke_structured rt
+    ~agent_id:"env-detector"
+    ~message:"检查项目并报告运行时环境"
+    ~response_schema:(`Assoc [
+      ("language", `String "OCaml");
+      ("ocaml_version", `String "5.x.x");
+      ("dune_version", `String "3.x.x");
+    ]) () with
+| Ok { value; _ } -> Yojson.Safe.to_string value
+| Error (err, _conv) -> Printf.eprintf "Error: %s" (Types.error_category_to_string err)
+```
+
+如果 agent 没有工具（`config.tools = []`），`invoke_structured` 直接走轻量级 `run_structured` 路径 —— 无 ReAct 循环，单次 LLM 调用。设置 `?on_tool_event` 可在 ReAct 阶段观察工具调用。
+
 ### 流式示例
 
 ```ocaml

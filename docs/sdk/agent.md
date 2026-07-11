@@ -293,6 +293,61 @@ match Runtime.invoke rt ~agent_id:"my-agent" ~message:"Hello!" () with
     (Types.error_category_to_yojson err |> Yojson.Safe.to_string)
 ```
 
+### Structured output
+
+`Runtime.invoke_structured` returns schema-validated JSON instead of free-form text. The function signature:
+
+```ocaml
+val Runtime.invoke_structured :
+  runtime ->
+  agent_id:string ->
+  message:string ->
+  response_schema:Yojson.Safe.t ->
+  ?max_repair_attempts:int ->
+  ?cancellation_token:cancellation_token ->
+  ?conversation:conversation ->
+  ?system_prompt_appendix:string ->
+  ?on_tool_event:(event -> unit) ->
+  ?on_repair_attempt:(int -> error_category -> conversation -> unit) ->
+  unit ->
+  (structured_invoke_result, error_category * conversation) result
+```
+
+The return type `structured_invoke_result` carries the validated JSON plus the raw LLM response, the full conversation, and the repair-loop attempt count:
+
+```ocaml
+type structured_invoke_result = {
+  value : Yojson.Safe.t;          (* schema-validated JSON *)
+  raw_response : llm_response;   (* original LLM reply (debugging / token accounting) *)
+  conversation : conversation;   (* full conversation history including repair turns *)
+  attempts : int;                (* 1 = happy path; >1 = repair-loop fired *)
+}
+```
+
+The repair loop fires when `Json_extract.extract_json_from_text` fails to parse valid JSON from the LLM text, or when the parsed JSON fails schema validation via `Validation.validate_tool_input_result`. Up to `max_repair_attempts` (default 3) retries are issued with user-feedback messages appended to the conversation. A cancellation token check at the top of each iteration prevents unbounded LLM calls.
+
+**Tool execution + structured output (v0.7.4+)**: When the agent has registered tools AND you need validated JSON, the runtime automatically routes to `Engine.run_agent_structured` — a two-phase pattern:
+
+1. **Phase 1**: Full ReAct loop runs the agent with tools (bash, http, custom) until the LLM produces a final text response.
+2. **Phase 2**: The complete conversation history (including all tool call results) is passed to a separate structured LLM call that extracts and validates JSON against `response_schema`.
+
+This pattern matches LangGraph's `create_react_agent(response_format=)` approach. It works across all LLM providers (OpenAI, Anthropic, Ollama, custom) without requiring provider-specific `tools + response_format` support (which is unreliable on non-OpenAI providers — see CrewAI issue #5472).
+
+```ocaml
+match Runtime.invoke_structured rt
+    ~agent_id:"env-detector"
+    ~message:"Inspect the project and report the runtime environment"
+    ~response_schema:(`Assoc [
+      ("language", `String "OCaml");
+      ("ocaml_version", `String "5.x.x");
+      ("dune_version", `String "3.x.x");
+    ]) () with
+| Ok { value; _ } -> Yojson.Safe.to_string value
+| Error (err, _conv) -> Printf.eprintf "Error: %s" (Types.error_category_to_string err)
+```
+
+If the agent has no tools (`config.tools = []`), `invoke_structured` uses the lightweight `run_structured` path directly — no ReAct loop, single LLM call. Set `?on_tool_event` to observe tool calls during the ReAct phase.
+
 ### Streaming example
 
 ```ocaml

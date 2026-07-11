@@ -11,7 +11,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.7.3 — Audit Fixes (38 issues resolved across memory, documents, FFI, core runtime, and SDK docs). 1387 tests passing. API may change before v1.0.
+> **Status**: v0.7.4 — json_extract think-tag + fence ordering fix + run_agent_structured (two-phase ReAct loop + structured output). 1387 tests passing. API may change before v1.0.
 
 ---
 
@@ -143,11 +143,11 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.7.3 — Audit Fixes (38 issues resolved: memory Auto mode + data leak, FFI lock safety + override mechanism, document loader robustness, invoke_structured context + double-appendix + cancel race, SDK doc corrections). 1387 tests passing.
+**Current**: v0.7.4 — json_extract ordering fix (think-tag strip before fence detection) + Engine.run_agent_structured (two-phase: ReAct loop → structured JSON, fixes tool+schema gap). 1387 tests passing.
 
 **Coming next**: Windows native build (MinGW par_ffi.c fix), Python binding CI, external vector stores (Qdrant/Milvus), multimodal image tools, .docx support.
 
-**Recent releases**: v0.6.5 (Workspace abstraction) → v0.6.6 (per-run workspace override) → v0.6.7 (CLI removed, SDK installer wizard) → v0.6.8 (fresh-switch compilation fix) → v0.6.9 (bash cwd fix, raw SQLite accessor) → v0.7.0-beta (Document Loaders Framework) → v0.7.1-beta (Concurrency + Memory + Scope + Deprecation + Dynamic Prompt) → v0.7.2-beta (Windows Capability + Vector Memory + SDK Docs) → v0.7.3 (Audit Fixes).
+**Recent releases**: v0.6.5 (Workspace abstraction) → v0.6.6 (per-run workspace override) → v0.6.7 (CLI removed, SDK installer wizard) → v0.6.8 (fresh-switch compilation fix) → v0.6.9 (bash cwd fix, raw SQLite accessor) → v0.7.0-beta (Document Loaders Framework) → v0.7.1-beta (Concurrency + Memory + Scope + Deprecation + Dynamic Prompt) → v0.7.2-beta (Windows Capability + Vector Memory + SDK Docs) → v0.7.3 (Audit Fixes) → v0.7.4 (json_extract fix + run_agent_structured).
 
 ## Getting help
 

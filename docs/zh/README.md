@@ -11,7 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **状态**: v0.7.3 — 审计修复（38 个问题全部修复：内存、文档加载器、FFI、核心运行时、SDK 文档）。1387 tests passing。v1.0 前 API 可能变化。
+> **状态**: v0.7.4 — json_extract think-tag + fence 顺序修复 + run_agent_structured（两阶段 ReAct 循环 + 结构化输出）。1387 tests passing。v1.0 前 API 可能变化。
 
 ---
 
@@ -143,11 +143,11 @@ let () = Eio_main.run (fun _env ->
 
 ## 状态与路线图
 
-**当前**: v0.7.3 — 审计修复（38 个问题全部修复）。1387 tests passing。
+**当前**: v0.7.4 — json_extract 顺序修复（think-tag 剥离在 fence 检测之前）+ Engine.run_agent_structured（两阶段：ReAct 循环 → 结构化 JSON，修复工具+schema 缺失）。1387 tests passing。
 
 **下一步**: Windows 原生构建（MinGW par_ffi.c 修复）、Python 绑定 CI、外部向量库（Qdrant/Milvus）、多模态输入工具、.docx 支持。
 
-**近期发布**: v0.6.5（Workspace 抽象）→ v0.6.6（per-run workspace override）→ v0.6.7（CLI 移除，SDK 安装向导）→ v0.6.8（fresh-switch 编译修复）→ v0.6.9（bash cwd 修复，raw SQLite accessor）→ v0.7.0-beta（文档加载器框架）→ v0.7.1-beta（并发 + 记忆 + scope + 弃用 + 动态 prompt）→ v0.7.2-beta（Windows 能力 + 向量记忆 + SDK 文档）→ v0.7.3（审计修复）。
+**近期发布**: v0.6.5（Workspace 抽象）→ v0.6.6（per-run workspace override）→ v0.6.7（CLI 移除，SDK 安装向导）→ v0.6.8（fresh-switch 编译修复）→ v0.6.9（bash cwd 修复，raw SQLite accessor）→ v0.7.0-beta（文档加载器框架）→ v0.7.1-beta（并发 + 记忆 + scope + 弃用 + 动态 prompt）→ v0.7.2-beta（Windows 能力 + 向量记忆 + SDK 文档）→ v0.7.3（审计修复）→ v0.7.4（json_extract 修复 + run_agent_structured）。
 
 ## 获取帮助
 
