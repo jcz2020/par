@@ -194,5 +194,15 @@ let () =
         check_ok_json "no tags = passthrough"
           (Yojson.Safe.from_string "{\"w\":4}")
           (Json_extract.extract_json_from_text "{\"w\":4}"));
+      Alcotest.test_case "think block before fenced json" `Quick (fun () ->
+        check_ok_json "think + fence"
+          (Yojson.Safe.from_string "{\"k\":\"v\"}")
+          (Json_extract.extract_json_from_text
+            "<think>Let me reason.</think>\n```json\n{\"k\":\"v\"}\n```"));
+      Alcotest.test_case "reasoning block before fenced json" `Quick (fun () ->
+        check_ok_json "reasoning + fence"
+          (Yojson.Safe.from_string "{\"k2\":\"v2\"}")
+          (Json_extract.extract_json_from_text
+            "<reasoning>Thoughts.</reasoning>\n```\n{\"k2\":\"v2\"}\n```"));
     ]);
   ]

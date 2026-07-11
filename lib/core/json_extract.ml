@@ -105,8 +105,8 @@ let strip_think_tags s =
   Str.global_replace re_reasoning "" (Str.global_replace re_think "" s)
 
 let extract_json_from_text s =
-  let s = String.trim s in
   let s = strip_think_tags s in
+  let s = String.trim s in
   let s = strip_markdown_fences s in
   let s = String.trim s in
   match try_parse s with
