@@ -136,8 +136,15 @@ let rec execute_step ?(path=[]) ctx step =
              Ok (`Assoc [text_field; tool_calls_field])
            | Result.Error (err, _) -> Result.Error err)
         | Some schema ->
-          (match Engine.run_structured ~response_schema:schema
-             ctx.llm ctx.token agent prompt with
+          let run_fn =
+            if agent.tools <> [] then
+              Engine.run_agent_structured ~response_schema:schema
+                ctx.llm ctx.token agent prompt ctx.registry
+            else
+              Engine.run_structured ~response_schema:schema
+                ctx.llm ctx.token agent prompt
+          in
+          (match run_fn with
            | Ok result ->
              let resp = result.raw_response in
              let text_field = match resp.text with

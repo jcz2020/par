@@ -116,6 +116,31 @@ val run_structured :
   string ->
   (structured_invoke_result, error_category * conversation) result
 
+val run_agent_structured :
+  ?max_repair_attempts:int ->
+  ?on_repair_attempt:(int -> error_category -> conversation -> unit) ->
+  ?on_before_llm:(conversation -> conversation option) option ->
+  ?on_after_llm:(llm_response -> llm_response option) option ->
+  ?tool_call_hooks:Hook.tool_call_hook list option ->
+  ?quota:Eio.Semaphore.t option ->
+  ?parallel:bool ->
+  ?on_progress:(string -> unit) option ->
+  ?on_tool_event:(event -> unit) option ->
+  ?conversation:conversation ->
+  ?agent_resolver:(string -> agent_config option) ->
+  ?enable_handoff:bool ->
+  response_schema:Yojson.Safe.t ->
+  llm_service ->
+  cancellation_token ->
+  agent_config ->
+  string ->
+  Tool_registry.t ->
+  (structured_invoke_result, error_category * conversation) result
+(** Two-phase structured output: runs the full ReAct loop with tools
+    (Phase 1), then makes a separate structured LLM call using the
+    complete conversation history (Phase 2). Use this when the agent
+    has tools AND needs structured JSON output. *)
+
 val run_agent :
   ?tool_mode:Types.tool_mode ->
   ?runtime_id:string ->

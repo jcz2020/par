@@ -1079,3 +1079,36 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
       make_conversation sys_prompt_text user_message
   in
   loop ~agent ~global_max:0 conv 0
+
+(* Two-phase structured output: ReAct loop with tools, then structured call.
+   Composes run_agent (Phase 1) and run_structured (Phase 2).
+   Use when the agent has tools AND needs structured JSON output. *)
+let run_agent_structured
+    ?(max_repair_attempts = 3)
+    ?on_repair_attempt
+    ?(on_before_llm : (conversation -> conversation option) option = None)
+    ?(on_after_llm : (llm_response -> llm_response option) option = None)
+    ?tool_call_hooks ?quota ?parallel
+    ?on_progress ?on_tool_event
+    ?conversation ?agent_resolver ?enable_handoff
+    ~response_schema
+    (llm : llm_service) token (agent : agent_config) message
+    (registry : Tool_registry.t) =
+  match run_agent
+    ?tool_call_hooks ?quota ?parallel
+    ?on_progress ?on_tool_event
+    ?conversation ?agent_resolver ?enable_handoff
+    token agent message llm registry with
+  | Error (err, conv) -> Result.Error (err, conv)
+  | Ok (_resp, conv) ->
+    let agent_no_tools = { agent with tools = [] } in
+    let structured_msg =
+      "Based on the conversation above, provide your final response as valid JSON matching the response schema."
+    in
+    run_structured
+      ~max_repair_attempts
+      ~on_before_llm ~on_after_llm
+      ?on_repair_attempt
+      ~conversation:conv
+      ~response_schema
+      llm token agent_no_tools structured_msg

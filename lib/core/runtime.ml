@@ -945,7 +945,12 @@ let invoke_structured rt ~agent_id ~message ~response_schema
       | Some t -> t
       | None -> Cancellation.create_token rt.cancellation_root
     in
-    let _ = on_tool_event in
+    let combined_tool_event evt =
+      publish_event rt evt;
+      (match on_tool_event with
+       | Some cb -> cb evt
+       | None -> ())
+    in
     let on_before_llm_hook conv =
       Some (Engine.apply_before_llm config.middleware conv (fun c -> c))
     in
@@ -960,14 +965,29 @@ let invoke_structured rt ~agent_id ~message ~response_schema
         record_llm_error rt err;
         Result.Error (err, { Types.messages = []; metadata = [] })
       | Ok llm_svc ->
-        Engine.run_structured
-          ~max_repair_attempts
-          ~on_before_llm:(Some on_before_llm_hook)
-          ~on_after_llm:(Some on_after_llm_hook)
-          ~response_schema
-          ?conversation
-          ?on_repair_attempt
-          llm_svc token config message
+        if config.tools <> [] then
+          let call_registry = per_call_registry ~rt ~workspace:rt.workspace in
+          Engine.run_agent_structured
+            ~max_repair_attempts
+            ~on_before_llm:(Some on_before_llm_hook)
+            ~on_after_llm:(Some on_after_llm_hook)
+            ~on_tool_event:(Some combined_tool_event)
+            ~quota:(Some rt.task_semaphore)
+            ~parallel:rt.parallel_tool_execution
+            ?on_repair_attempt
+            ?conversation
+            ~response_schema
+            llm_svc token config message
+            call_registry
+        else
+          Engine.run_structured
+            ~max_repair_attempts
+            ~on_before_llm:(Some on_before_llm_hook)
+            ~on_after_llm:(Some on_after_llm_hook)
+            ~response_schema
+            ?conversation
+            ?on_repair_attempt
+            llm_svc token config message
     in
     (match result with
      | Ok struct_result ->

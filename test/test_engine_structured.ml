@@ -418,5 +418,91 @@ let structured_suite =
           Alcotest.fail ("second call: " ^ error_to_string e)));
   ])
 
+let tool_call_response tool_name tool_call_id args_json : llm_response =
+  { text = None;
+    tool_calls = Some [{ id = tool_call_id; name = tool_name; arguments = args_json }];
+    finish_reason = Tool_calls; usage = dummy_usage; model = "mock" }
+
+let agent_structured_suite =
+  ("Engine.run_agent_structured", [
+
+    Alcotest.test_case "1. tools + structured: ReAct then JSON" `Quick (fun () ->
+      let llm = mock_llm_with_structured [
+        tool_call_response "test_tool" "call_1" (`Assoc [("cmd", `String "ls")]);
+        text_response "Tool executed successfully.";
+        text_response (Yojson.Safe.to_string valid_person_json);
+      ] in
+      let test_desc : tool_descriptor = {
+        name = "test_tool"; description = "A test tool";
+        input_schema = `Assoc [("type", `String "object")];
+        output_schema = None; permission = Allow; timeout = None;
+        concurrency_limit = None; on_update = None; cache_control = None;
+      } in
+      let registry = Tool_registry.create () in
+      Tool_registry.replace registry "test_tool"
+        (fun _input _token -> Success (`Assoc [("result", `String "ok")]));
+      let agent = basic_agent ~tools:[{ descriptor = test_desc;
+        handler = fun _input _token -> Success (`Assoc [("result", `String "ok")]) }] () in
+      with_token (fun token ->
+        match Engine.run_agent_structured ~response_schema:person_schema
+            llm token agent "Who is Alice?" registry with
+        | Ok result ->
+          Alcotest.(check int) "attempts" 1 result.attempts;
+          Alcotest.(check string) "name field"
+            "Alice" (get_string_field "name" result.value)
+        | Error (e, _) ->
+          Alcotest.fail ("expected Ok, got Error: " ^ error_to_string e)));
+
+    Alcotest.test_case "2. no tools delegates to run_structured" `Quick (fun () ->
+      let llm = mock_llm_with_structured [
+        text_response "phase 1 done";
+        text_response (Yojson.Safe.to_string valid_person_json);
+      ] in
+      let agent = basic_agent () in
+      let registry = Tool_registry.create () in
+      with_token (fun token ->
+        match Engine.run_agent_structured ~response_schema:person_schema
+            llm token agent "Who is Alice?" registry with
+        | Ok result ->
+          Alcotest.(check int) "attempts" 1 result.attempts;
+          Alcotest.(check string) "name field"
+            "Alice" (get_string_field "name" result.value)
+        | Error (e, _) ->
+          Alcotest.fail ("expected Ok, got Error: " ^ error_to_string e)));
+
+    Alcotest.test_case "3. Phase 1 error propagates" `Quick (fun () ->
+      let llm = {
+        complete_fn = (fun _model _tools _conv ->
+          Error (External_failure "network down"));
+        stream_fn = (fun _ _tools _ _ _ ->
+          Error (External_failure "network down"));
+        close_fn = (fun () -> ());
+        complete_structured_fn = Some (fun _model _tools _conv _schema ->
+          Ok (text_response (Yojson.Safe.to_string valid_person_json)));
+        list_models_fn = None;
+        supports_native_tools_fn = None;
+        context_window_fn = None; cache_control_fn = None;
+      } in
+      let agent = basic_agent ~tools:[{
+        descriptor = {
+          name = "test_tool"; description = "A test tool";
+          input_schema = `Assoc [("type", `String "object")];
+          output_schema = None; permission = Allow; timeout = None;
+          concurrency_limit = None; on_update = None; cache_control = None;
+        };
+        handler = fun _input _token -> Success (`Assoc [("result", `String "ok")]) }] () in
+      let registry = Tool_registry.create () in
+      with_token (fun token ->
+        match Engine.run_agent_structured ~response_schema:person_schema
+            llm token agent "Who is Alice?" registry with
+        | Ok _ -> Alcotest.fail "expected Error, got Ok"
+        | Error (e, _) ->
+          (match e with
+           | External_failure _ -> ()
+           | other ->
+             Alcotest.fail
+               ("expected External_failure, got: " ^ error_to_string other))));
+  ])
+
 let () =
-  Alcotest.run "test_engine_structured" [ structured_suite ]
+  Alcotest.run "test_engine_structured" [ structured_suite; agent_structured_suite ]
