@@ -1,8 +1,14 @@
 # CHANGES
 
-## v0.7.4 — json_extract think-tag + fence ordering fix
+## v0.7.4 — json_extract think-tag + fence ordering fix + run_agent_structured
 
-> `extract_json_from_text` processing order bug: `strip_think_tags` left whitespace where the tag was removed, causing `strip_markdown_fences` to miss fences that no longer started at position 0. Fixed by reordering: strip think tags → trim → strip fences → trim.
+> `extract_json_from_text` processing order bug fixed. New `Engine.run_agent_structured` enables two-phase (ReAct loop + structured output) for agents that need both tools and schema-validated JSON.
+
+### Added — Structured Output + Tools
+
+- **NEW** `Engine.run_agent_structured` — two-phase pattern: Phase 1 runs full ReAct loop with tools (bash, http, custom), Phase 2 makes a separate structured LLM call with the complete conversation history. Follows LangGraph's `create_react_agent(response_format=)` approach. Works across all providers without requiring native `tools + response_format` support.
+- **CHANGED** `Runtime.invoke_structured` routing: when `agent.tools <> []`, routes to `run_agent_structured` (two-phase); when `agent.tools = []`, routes to `run_structured` (lightweight, unchanged). Previously `invoke_structured` always used `run_structured` which silently ignored tool calls.
+- **CHANGED** `workflow_engine.ml` `Agent_call` with `response_schema` and tools also routes to `run_agent_structured`.
 
 ### Fixed — JSON Extraction
 
