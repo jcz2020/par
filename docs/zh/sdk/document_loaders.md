@@ -5,7 +5,7 @@
 
 > 在 v0.7.0 (beta) 中添加。真实来源：`lib/documents/document.mli`、`lib/documents/*_loader.mli` 和 `lib/documents/directory_loader.mli` 中的 OCaml 类型。
 
-PAR 的文档加载器将真实文件（文本、Markdown、HTML、CSV、PDF）转换为 `Document.t` 记录，直接接入 RAG 管道。加载 PDF，用 `Chunking` 分块，用 `Runtime.embed` 嵌入向量，存入 `Vector_store`，再通过 `Runtime.invoke_with_rag` 查询。加载器处理文件 I/O、格式解析和元数据提取，让你专注于管道本身。
+PAR 的文档加载器将真实文件（文本、Markdown、HTML、CSV、PDF、Word）转换为 `Document.t` 记录，直接接入 RAG 管道。加载 PDF，用 `Chunking` 分块，用 `Runtime.embed` 嵌入向量，存入 `Vector_store`，再通过 `Runtime.invoke_with_rag` 查询。加载器处理文件 I/O、格式解析和元数据提取，让你专注于管道本身。
 
 完整的 RAG 管道（embeddings、向量存储、分块、检索）见 [RAG API](rag.md)。文档加载器产出的 `Document.t` 值直接馈入该管道。
 
@@ -111,7 +111,7 @@ let make ws path =
 
 ## 内置加载器
 
-PAR 提供五个格式加载器。每个从单个文件产出 `Document.t list`。
+PAR 提供六个格式加载器。每个从单个文件产出 `Document.t list`。
 
 ### Text_loader (.txt)
 
@@ -217,7 +217,41 @@ match Pdf_loader.make ws "paper.pdf" with
 
     **布局感知提取的触发条件：** 如果下游集成报告失败率超过 20%，或者 v0.8 规划开始时（以先到者为准）。迁移路径是替换 `Pdf_loader.extract_text` 的内部实现而不更改公共接口，因为 `Document.t -> Document.t` 契约保持不变。
 
-    **.docx（Word）支持**推迟到 v0.7.1。目前没有维护中的 OCaml Word 文档库，DIY 实现会很脆弱。完整推后理由见 ROADMAP v0.7.0 第 4 节。
+### Docx_loader (.docx)
+
+从 Word `.docx` 文件中提取纯文本。`.docx` 格式是 OOXML ZIP 容器；加载器用 camlzip 打开它，读取 `word/document.xml`，并用 xmlm 解析 XML，从 `<w:t>` 元素中恢复可见文本。
+
+```ocaml
+open Par
+
+let ws = Workspace.of_cwd () in
+match Docx_loader.make ws "report.docx" with
+| Error e -> prerr_endline (Document.load_error_to_string e)
+| Ok load ->
+  let docs = load () in
+  Printf.printf "Extracted %d document(s)\n" (List.length docs)
+```
+
+**元数据字段：** `file_path`、`file_name`、`file_size`（磁盘上文件的实际大小，而非提取文本的长度）、`file_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"`。
+
+#### 工作原理
+
+`.docx` 文件是包含名为 `word/document.xml` 的 OOXML 部件的 ZIP 归档。加载器：
+
+1. 用 camlzip（`Zip.open_in`）打开 ZIP 容器。
+2. 读取 `word/document.xml` 条目。
+3. 用 xmlm 流式解析 XML，从 `<w:t>` 元素（WordprocessingML 文本运行）中累积字符数据。
+4. 将结构元素映射为空白：`<w:p>`（段落）→ 换行，`<w:tab>` → 制表符，`<w:br>`（换行符）→ 换行。
+
+仅捕获 `<w:t>` 元素内的字符数据，因此域指令（`<w:instrText>`）和修订删除文本（`<w:delText>`）被排除。
+
+#### 局限性
+
+- **不保留格式：** 粗体、斜体、字号、颜色、样式均被丢弃 —— 只有纯文本保留。
+- **表格被扁平化：** 表格单元格文本按文档顺序提取，不保留行列结构。
+- **不支持图片：** 嵌入的图片、图表、形状不产出任何内容。
+- **不支持页眉/页脚：** 仅读取文档正文（`word/document.xml`）；页眉、页脚、脚注（ZIP 中的独立部件）不被提取。
+- **不支持 .doc（旧格式）：** 不支持旧的二进制 Word `.doc` 格式。仅处理 `.docx`（OOXML，Word 2007+）。
 
 ## Directory_loader
 
@@ -233,7 +267,7 @@ match Directory_loader.load ws "docs/" with
   Printf.printf "Loaded %d documents from directory\n" (List.length docs)
 ```
 
-**`default_map`** 覆盖 `.txt`、`.md`、`.html`、`.csv` 和 `.pdf`。未知扩展名通过 `Logs.warn` 跳过。单个文件的错误会被记录并跳过（扫描不会中止）。
+**`default_map`** 覆盖 `.txt`、`.md`、`.html`、`.csv`、`.pdf` 和 `.docx`。未知扩展名通过 `Logs.warn` 跳过。单个文件的错误会被记录并跳过（扫描不会中止）。
 
 ### 自定义扩展名映射
 

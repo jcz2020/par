@@ -444,6 +444,11 @@
  (modules test_csv_loader))
 
 (test
+ (name test_docx_loader)
+ (libraries par alcotest str zip)
+ (modules test_docx_loader))
+
+(test
  (name test_directory_loader)
  (libraries par alcotest)
  (modules test_directory_loader))

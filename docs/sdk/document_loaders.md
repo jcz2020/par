@@ -5,7 +5,7 @@
 
 > Added in v0.7.0 (beta). Source-of-truth: the OCaml types in `lib/documents/document.mli`, `lib/documents/*_loader.mli`, and `lib/documents/directory_loader.mli`.
 
-PAR's document loaders turn real files (text, Markdown, HTML, CSV, PDF) into `Document.t` records that plug directly into the RAG pipeline. Load a PDF, chunk it with `Chunking`, embed the chunks with `Runtime.embed`, store them in a `Vector_store`, and query with `Runtime.invoke_with_rag`. The loaders handle file I/O, format parsing, and metadata extraction so you don't have to.
+PAR's document loaders turn real files (text, Markdown, HTML, CSV, PDF, Word) into `Document.t` records that plug directly into the RAG pipeline. Load a PDF, chunk it with `Chunking`, embed the chunks with `Runtime.embed`, store them in a `Vector_store`, and query with `Runtime.invoke_with_rag`. The loaders handle file I/O, format parsing, and metadata extraction so you don't have to.
 
 For the full RAG pipeline (embeddings, vector store, chunking, retrieval), see the [RAG API](rag.md). Document loaders produce the `Document.t` values that feed into that pipeline.
 
@@ -111,7 +111,7 @@ let make ws path =
 
 ## Built-in loaders
 
-PAR ships five format loaders. Each one produces `Document.t list` from a single file.
+PAR ships six format loaders. Each one produces `Document.t list` from a single file.
 
 ### Text_loader (.txt)
 
@@ -217,7 +217,41 @@ match Pdf_loader.make ws "paper.pdf" with
 
     **Trigger for layout-aware extraction:** If downstream integration reports a failure rate greater than 20%, or when v0.8 planning begins, whichever comes first. The migration path is to replace the internals of `Pdf_loader.extract_text` without changing the public interface, since the `Document.t -> Document.t` contract stays the same.
 
-    **.docx (Word) support** is deferred to v0.7.1. There is no maintained OCaml library for Word documents, and a DIY implementation would be fragile. See ROADMAP v0.7.0 section 4 for the full deferral rationale.
+### Docx_loader (.docx)
+
+Extracts plain text from a Word `.docx` file. The `.docx` format is an OOXML ZIP container; the loader opens it with camlzip, reads `word/document.xml`, and parses the XML with xmlm to recover visible text from `<w:t>` elements.
+
+```ocaml
+open Par
+
+let ws = Workspace.of_cwd () in
+match Docx_loader.make ws "report.docx" with
+| Error e -> prerr_endline (Document.load_error_to_string e)
+| Ok load ->
+  let docs = load () in
+  Printf.printf "Extracted %d document(s)\n" (List.length docs)
+```
+
+**Metadata fields:** `file_path`, `file_name`, `file_size` (the real on-disk file size, not the extracted text length), `file_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"`.
+
+#### How it works
+
+A `.docx` file is a ZIP archive containing an OOXML part named `word/document.xml`. The loader:
+
+1. Opens the ZIP container with camlzip (`Zip.open_in`).
+2. Reads the `word/document.xml` entry.
+3. Streams the XML with xmlm, accumulating character data from `<w:t>` elements (WordprocessingML text runs).
+4. Maps structural elements to whitespace: `<w:p>` (paragraph) → newline, `<w:tab>` → tab, `<w:br>` (break) → newline.
+
+Only character data inside `<w:t>` elements is captured, so field instructions (`<w:instrText>`) and tracked-deletion text (`<w:delText>`) are excluded.
+
+#### Limitations
+
+- **No formatting:** Bold, italic, font size, color, and styles are discarded — only plain text survives.
+- **Tables are flattened:** Table cell text is extracted in document order, with no row/column structure preserved.
+- **No images:** Embedded images, charts, and shapes produce no output.
+- **No headers/footers:** Only the document body (`word/document.xml`) is read; headers, footers, and footnotes (separate parts in the ZIP) are not extracted.
+- **No .doc (legacy):** The old binary Word `.doc` format is not supported. Only `.docx` (OOXML, Word 2007+) is handled.
 
 ## Directory_loader
 
@@ -233,7 +267,7 @@ match Directory_loader.load ws "docs/" with
   Printf.printf "Loaded %d documents from directory\n" (List.length docs)
 ```
 
-**`default_map`** covers `.txt`, `.md`, `.html`, `.csv`, and `.pdf`. Unknown extensions are skipped with a `Logs.warn`. Errors in individual files are logged and skipped (the scan does not abort).
+**`default_map`** covers `.txt`, `.md`, `.html`, `.csv`, `.pdf`, and `.docx`. Unknown extensions are skipped with a `Logs.warn`. Errors in individual files are logged and skipped (the scan does not abort).
 
 ### Custom extension map
 

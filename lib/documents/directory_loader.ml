@@ -15,6 +15,7 @@ let default_map : extension_map = [
   ".htm", Html_loader.make;
   ".csv", Csv_loader.make;
   ".pdf", Pdf_loader.make;
+  ".docx", Docx_loader.make;
 ]
 
 let load

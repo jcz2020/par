@@ -38,6 +38,8 @@
     yaml
     omd
     camlpdf
+    camlzip
+    xmlm
     csv
     sexplib0
     ctypes

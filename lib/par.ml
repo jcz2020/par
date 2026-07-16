@@ -34,6 +34,7 @@ module Pdf_loader = Pdf_loader
 module Text_loader = Text_loader
 module Markdown_loader = Markdown_loader
 module Csv_loader = Csv_loader
+module Docx_loader = Docx_loader
 module Directory_loader = Directory_loader
 module Vector_store = Vector_store
 module Tool_registry = Tool_registry
