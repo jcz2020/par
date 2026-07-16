@@ -260,6 +260,8 @@ match Runtime.create ~vector_store_backend:backend ~config switch with
 
 When `?vector_store_backend` is passed to `Runtime.create`, the vector store is created and stored in the runtime. `Runtime.invoke_with_rag` will use it automatically when no explicit `?vector_store` is passed.
 
+> **Note**: The HNSW backend and `vector_store_backend` configuration are OCaml SDK only in v0.7.5. Python FFI exposure is tracked for a future version.
+
 ### Chunking
 
 Long documents should be split before embedding. A 10,000-token PDF fed to the embedder in one piece produces a single vector that averages away every useful signal. Chunking turns one long document into many short ones, each with its own vector, so retrieval can land on the right passage.

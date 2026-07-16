@@ -18,7 +18,7 @@ PAR (Programmable Agent Runtime) ships as one opam package (`par`) plus a PyPI P
 - 23 built-in tools including the type-safe `bash` tool and 3 memory tools
 - 8 built-in middlewares (logging, retry, rate-limit, timeout, input validation, PII mask, tool-output sanitization)
 - Multi-provider: OpenAI compatible + Anthropic Messages API + custom registration
-- 1306 OCaml tests + Python bindings passing
+- 1408 OCaml tests + Python bindings passing
 
 ## Architecture at a glance
 
