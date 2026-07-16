@@ -20,6 +20,10 @@ val create :
   unit ->
   (t, error_category) result
 
+val create_for_backend :
+  vector_store_backend ->
+  (t, error_category) result
+
 val add : t -> (document * float array) list -> (unit, error_category) result
 
 val search :

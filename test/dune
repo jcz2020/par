@@ -525,3 +525,12 @@
  (libraries par alcotest)
  (modules test_workspace_paths))
 
+(test
+ (name test_hnsw)
+ (libraries par alcotest)
+ (modules test_hnsw))
+
+(test
+ (name test_in_memory_vector_store)
+ (libraries par eio_main alcotest)
+ (modules test_in_memory_vector_store))

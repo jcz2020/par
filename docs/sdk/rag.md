@@ -215,6 +215,51 @@ The full signature:
 
 `score` is cosine similarity in `[-1.0, 1.0]`; higher means more similar. The `document` record carries `id : string`, `content : string`, and `metadata : Yojson.Safe.t option`. Metadata is opaque to the store; it rides along on every search result so the caller can filter or display provenance.
 
+### Vector store backends
+
+Since v0.7.5, PAR supports two vector store backends:
+
+| Backend | Implementation | External deps | Platform | Use case |
+|---------|---------------|---------------|----------|----------|
+| **sqlite-vec** | SQLite with vec0 extension | C extension (`vec0.so`/`.dll`/`.dylib`) | Linux x86_64, macOS arm64 | Production with persistence |
+| **HNSW** | Pure OCaml HNSW graph | None | All platforms (including Windows) | Portability, zero deps |
+
+**sqlite-vec** (default) uses SQLite with the vec0 C extension for vector similarity search. It requires the `vec0.so` (or platform equivalent) shared library. This is the recommended backend for production use on supported platforms.
+
+**HNSW** is a pure OCaml implementation of the Hierarchical Navigable Small World algorithm (Malkov & Yashunin, TPAMI 2020). It requires zero external dependencies and works on all platforms, including Windows where the vec0 extension was problematic. It stores vectors in memory with optional file persistence.
+
+To use the HNSW backend:
+
+```ocaml
+open Par
+
+let config : Types.vector_store_backend = Vs_hnsw {
+  persist_path = None;       (* or Some "/path/to/index.bin" for persistence *)
+  dimension = 1536;
+  m = 16;                    (* max edges per node, default 16 *)
+  ef_construction = 200;     (* insert search width, default 200 *)
+  ef_search = 50;            (* query search width, default 50 *)
+}
+
+match Vector_store.create_for_backend config with
+| Ok store -> (* use store with add/search/delete/close *)
+| Error e -> (* handle error *)
+```
+
+To use via `Runtime.create`:
+
+```ocaml
+let backend = Types.Vs_hnsw {
+  persist_path = Some "/tmp/my_index.bin";
+  dimension = 1536; m = 16; ef_construction = 200; ef_search = 50;
+} in
+match Runtime.create ~vector_store_backend:backend ~config switch with
+| Ok rt -> (* rt.services.vector_store is set automatically *)
+| Error e -> ...
+```
+
+When `?vector_store_backend` is passed to `Runtime.create`, the vector store is created and stored in the runtime. `Runtime.invoke_with_rag` will use it automatically when no explicit `?vector_store` is passed.
+
 ### Chunking
 
 Long documents should be split before embedding. A 10,000-token PDF fed to the embedder in one piece produces a single vector that averages away every useful signal. Chunking turns one long document into many short ones, each with its own vector, so retrieval can land on the right passage.

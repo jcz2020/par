@@ -1232,6 +1232,16 @@ type memory_service = {
     string;
 }
 
+type vector_store_backend =
+  | Vs_sqlite_vec of { db_path : string; vec_extension_path : string; dimension : int }
+  | Vs_hnsw of {
+      persist_path : string option;
+      dimension : int;
+      m : int;
+      ef_construction : int;
+      ef_search : int;
+    }
+
 type service_registry = {
   persistence : persistence_service;
   llm : llm_service;

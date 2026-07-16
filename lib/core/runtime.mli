@@ -13,6 +13,7 @@ val create :
   ?llm:llm_service ->
   ?embeddings:embedding_service ->
   ?memory:memory_service ->
+  ?vector_store_backend:Types.vector_store_backend ->
   ?bash_policy:(module Bash_policy.POLICY) ->
   ?workspace:Workspace.workspace ->
   ?mcp_servers:Mcp_types.server_config list ->

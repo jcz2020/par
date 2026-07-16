@@ -68,6 +68,7 @@ type runtime = {
   session_id : string option ref;
   mutable current_conversation : Types.conversation option;
   mutable fallback_policy : Types.fallback_policy;
+  vector_store : Vector_store.t option;
 } [@@warning "-69"]
 
 let default_event_bus_config = {
@@ -1015,7 +1016,11 @@ let embed rt messages =
   | Some svc -> svc.embed_fn messages
 
 let invoke_with_rag rt ~agent_id ~message ?(k = 4) ?vector_store () =
-  match vector_store with
+  let vs = match vector_store with
+    | Some v -> Some v
+    | None -> rt.vector_store
+  in
+  match vs with
   | None ->
     (match invoke rt ~agent_id ~message () with
      | Result.Ok answer -> Result.Ok (answer, [])
@@ -1490,6 +1495,7 @@ let create ?(persistence = noop_persistence)
                      context_window_fn = None; cache_control_fn = None })
            ?embeddings
            ?memory
+           ?vector_store_backend
            ?(bash_policy = (module Bash_policy.Coder : Bash_policy.POLICY))
            ?workspace
            ?(mcp_servers = [])
@@ -1537,6 +1543,16 @@ let create ?(persistence = noop_persistence)
     let publish_event_fn = event_bus_service.publish_fn in
     let llm_providers_registry = Provider_registry.create () in
     let _ = Provider_registry.register llm_providers_registry ~id:"default" llm in
+    let vector_store = match vector_store_backend with
+      | None -> None
+      | Some backend ->
+        (match Vector_store.create_for_backend backend with
+         | Ok vs -> Some vs
+         | Error e ->
+           Logs.err (fun m -> m "Runtime.create: vector_store_backend init failed: %s"
+                        (string_of_error_category e));
+           None)
+    in
     let rt = {
       agents = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
       services = {
@@ -1581,6 +1597,7 @@ let create ?(persistence = noop_persistence)
       session_id = ref None;
       current_conversation = None;
       fallback_policy = Types.No_fallback;
+      vector_store;
     } in
     (match memory with
      | Some _svc ->
@@ -1700,6 +1717,9 @@ let close rt =
    | None -> ());
   (match rt.services.memory with
    | Some svc -> svc.close_fn ()
+   | None -> ());
+  (match rt.vector_store with
+   | Some vs -> Vector_store.close vs
    | None -> ());
   0
 

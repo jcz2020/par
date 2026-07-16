@@ -37,6 +37,7 @@ module Csv_loader = Csv_loader
 module Docx_loader = Docx_loader
 module Directory_loader = Directory_loader
 module Vector_store = Vector_store
+module Hnsw = Hnsw
 module Tool_registry = Tool_registry
 module Skill_registry = Skill_registry
 module Skill_loader = Skill_loader
