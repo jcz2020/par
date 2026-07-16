@@ -16,9 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-15]
-        # windows-latest: code complete but MinGW build has par_ffi.c type issues.
-        # Will re-add when MinGW compilation is resolved.
+        os: [ubuntu-22.04, macos-15, windows-latest]
         # macos-13 (Intel x64) removed 2026-06-19: free-tier Intel runners queue 24h+
         # then hit max-execution-time. Do NOT re-add — permanently abandoned per user.
     steps:

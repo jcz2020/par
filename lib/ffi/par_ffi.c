@@ -51,7 +51,11 @@ struct par_result {
     value _ocaml_value;
 };
 
-static char* caml_argv[] = { "par_ffi", NULL };
+#ifdef _WIN32
+static wchar_t *caml_argv[] = { L"par_ffi", NULL };
+#else
+static char *caml_argv[] = { "par_ffi", NULL };
+#endif
 static int ocaml_initialized = 0;
 static par_mutex_t ocaml_lock = PAR_MUTEX_INIT;
 
