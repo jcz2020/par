@@ -326,6 +326,8 @@ type structured_invoke_result = {
 
 此模式对齐 LangGraph 的 `create_react_agent(response_format=)` 方案。它能跨所有 LLM provider（OpenAI、Anthropic、Ollama、自定义）工作，不依赖 provider 原生支持同时传 `tools + response_format`（在非 OpenAI provider 上不可靠 —— 见 CrewAI issue #5472）。
 
+**原生结构化输出（v0.7.5+）**：OpenAI 和 Anthropic provider 现在使用原生结构化输出模式，而非之前的文本注入回退。OpenAI 发送 `response_format: {type: json_schema, json_schema: {name, schema, strict: true}}` 以实现严格的 JSON schema 校验。Anthropic 发送 `output_config: {format: {type: json_schema, schema}}`。Ollama 和 Custom provider 继续使用文本注入回退（基于 prompt 的 JSON 提取 + schema 校验），因为它们可能不支持严格的 JSON schema 模式。
+
 ```ocaml
 match Runtime.invoke_structured rt
     ~agent_id:"env-detector"

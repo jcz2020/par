@@ -333,6 +333,8 @@ The repair loop fires when `Json_extract.extract_json_from_text` fails to parse 
 
 This pattern matches LangGraph's `create_react_agent(response_format=)` approach. It works across all LLM providers (OpenAI, Anthropic, Ollama, custom) without requiring provider-specific `tools + response_format` support (which is unreliable on non-OpenAI providers — see CrewAI issue #5472).
 
+**Native structured output (v0.7.5+)**: OpenAI and Anthropic providers now use their native structured output modes instead of the text-injection fallback. OpenAI sends `response_format: {type: json_schema, json_schema: {name, schema, strict: true}}` for strict JSON schema enforcement. Anthropic sends `output_config: {format: {type: json_schema, schema}}`. Ollama and Custom providers continue to use the text-injection fallback (prompt-based JSON extraction with schema validation), as they may not support strict JSON schema mode.
+
 ```ocaml
 match Runtime.invoke_structured rt
     ~agent_id:"env-detector"
