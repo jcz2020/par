@@ -1,5 +1,6 @@
 .PHONY: build clean test sync-version docs-check check-translation \
         install-dev verify validate-version check-version-sync test-count \
+        python-test \
         release-patch release-minor release-major release-beta
 
 PREFIX ?= /usr/local
@@ -96,6 +97,9 @@ test-count: ## Run tests and output total count
 	COUNT=$$(echo "$$OUTPUT" | grep -oP '\d+(?= tests? run\.)' | awk '{s+=$$1} END {print s}'); \
 	if [ -z "$$COUNT" ]; then COUNT=unknown; fi; \
 	echo ""; echo "TEST_COUNT=$$COUNT"
+
+python-test: ## Run Python binding tests via pytest
+	cd bindings/python && python3 -m pytest tests/ -v
 
 # ─── Release Automation (scripts/release-bump.sh enforces Pre-Bump Gate) ───
 

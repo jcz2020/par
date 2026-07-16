@@ -2,9 +2,15 @@
 
 ; Shared object build — optional, requires eio_main
 ; Build with: dune build lib/ffi/par_capi.so
+; Note: eio_main internally selects the platform-appropriate backend
+; (eio_posix on Unix, eio_windows on Windows). We do NOT list eio.unix
+; here because (a) par_capi.ml does not use the Eio_unix module directly,
+; and (b) eio.unix is POSIX-only and would break the Windows build.
+; The `unix` library below is the OCaml standard library (Unix module),
+; which is available on both POSIX and MinGW/Windows.
 (executable
  (name par_capi)
- (libraries par par_memory eio_main eio.unix unix threads mirage-crypto-rng.unix)
+ (libraries par par_memory eio_main unix threads mirage-crypto-rng.unix)
  (foreign_stubs
   (language c)
   (names par_ffi))

@@ -45,7 +45,19 @@ jobs:
       # It depends on the `postgresql` package, which is not in the standard
       # opam repository. par_postgres is published as a separate opam package
       # (v0.4 onward). CLI was removed in v0.6.7 (product UX lives in PAR Code).
-      - run: opam install . --deps-only --with-test --no-depexts
+      - name: Install dependencies
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            # Windows: skip --with-test. The flag pulls in test deps of ALL
+            # transitive dependencies, not just PAR's own tests. On Cygwin/MinGW
+            # this drags in ctypes test deps -> conf-pkg-config (no pkgconf on
+            # Cygwin) and eio test deps -> crowbar -> cmdliner build failures
+            # (exit 31). PAR's own tests can't run on Windows anyway until the
+            # build itself succeeds, so build-only deps are sufficient here.
+            opam install . --deps-only --no-depexts
+          else
+            opam install . --deps-only --with-test --no-depexts
+          fi
       - run: opam exec -- dune build
       - run: opam exec -- dune runtest
       - name: Capture test count
@@ -57,4 +69,28 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: par-capi-${{ matrix.os }}
-          path: _build/default/lib/ffi/par_capi.so
+          path: _build/default/lib/ffi/
+
+  python:
+    name: Python bindings tests (${{ matrix.python-version }})
+    needs: ocaml
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: par-capi-ubuntu-22.04
+          path: _build/default/lib/ffi/
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - run: pip install pytest
+
+      - run: cd bindings/python && python3 -m pytest tests/ -v
