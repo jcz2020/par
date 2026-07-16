@@ -3,6 +3,8 @@
 ## v0.7.5 — HNSW vector store + .docx loader + native structured output
 
 > Three features: (1) pure OCaml HNSW vector store backend — zero external deps, works on all platforms including Windows; (2) Word `.docx` document loader via camlzip + xmlm; (3) native structured output for OpenAI/Anthropic replacing text-injection fallback. 1408 tests passing.
+>
+> **Note**: `vector_store_backend`, HNSW, and `Docx_loader` are OCaml SDK only in this release. Python FFI exposure is tracked for a future version.
 
 ### Added — HNSW Vector Store Backend
 

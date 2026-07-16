@@ -11,7 +11,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.7.4 — json_extract think-tag + fence ordering fix + run_agent_structured (two-phase ReAct loop + structured output). 1387 tests passing. API may change before v1.0.
+> **Status**: v0.7.5 — HNSW vector store + .docx loader + native structured output. 1408 tests passing. API may change before v1.0.
 
 ---
 
@@ -110,7 +110,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - **Dynamic system prompt** — per-turn `system_prompt_appendix` via `invoke_context`. Appends after template + skill overlay + tool suffix. Covers invoke/generate/handoff paths.
 - **Deprecation framework** — `warn_once` helper + `Deprecated_api_called` event + `[@@deprecated]` annotations + migration guides. Breaking changes no longer happen silently.
 - **Python ctypes binding** — `par_runtime` package, thread-safe, no GIL contention with OCaml runtime. Persistent Eio domain per Runtime for full concurrency support.
-- **1306 OCaml tests + Python bindings** passing (all green, including RAG e2e from any cwd)
+- **1408 OCaml tests + Python bindings** passing (all green, including RAG e2e from any cwd)
 - **Skill system** — drop a `skill.md` in `~/.par/skills/<id>/` and it auto-activates during `Runtime.invoke` based on trigger conditions (Auto / Manual / Keyword). Auto-trigger skills no longer replace the system prompt. See [Skills API](docs/sdk/skills.md).
 
 ## Language tracks
@@ -143,11 +143,11 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.7.4 — json_extract ordering fix (think-tag strip before fence detection) + Engine.run_agent_structured (two-phase: ReAct loop → structured JSON, fixes tool+schema gap). 1387 tests passing.
+**Current**: v0.7.5 — HNSW vector store + .docx loader + native structured output (OpenAI/Anthropic). 1408 tests passing.
 
-**Coming next**: Windows native build (MinGW par_ffi.c fix), Python binding CI, external vector stores (Qdrant/Milvus), multimodal image tools, .docx support.
+**Coming next**: Python FFI for HNSW/docx (currently OCaml SDK only), Windows CI green (remove continue-on-error), external vector store adapters, multimodal image tools.
 
-**Recent releases**: v0.6.5 (Workspace abstraction) → v0.6.6 (per-run workspace override) → v0.6.7 (CLI removed, SDK installer wizard) → v0.6.8 (fresh-switch compilation fix) → v0.6.9 (bash cwd fix, raw SQLite accessor) → v0.7.0-beta (Document Loaders Framework) → v0.7.1-beta (Concurrency + Memory + Scope + Deprecation + Dynamic Prompt) → v0.7.2-beta (Windows Capability + Vector Memory + SDK Docs) → v0.7.3 (Audit Fixes) → v0.7.4 (json_extract fix + run_agent_structured).
+**Recent releases**: v0.6.5 (Workspace abstraction) → v0.6.6 (per-run workspace override) → v0.6.7 (CLI removed, SDK installer wizard) → v0.6.8 (fresh-switch compilation fix) → v0.6.9 (bash cwd fix, raw SQLite accessor) → v0.7.0-beta (Document Loaders Framework) → v0.7.1-beta (Concurrency + Memory + Scope + Deprecation + Dynamic Prompt) → v0.7.2-beta (Windows Capability + Vector Memory + SDK Docs) → v0.7.3 (Audit Fixes) → v0.7.4 (json_extract fix + run_agent_structured) → v0.7.5 (HNSW + .docx + native structured output).
 
 ## Getting help
 

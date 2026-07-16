@@ -11,7 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **状态**: v0.7.4 — json_extract think-tag + fence 顺序修复 + run_agent_structured（两阶段 ReAct 循环 + 结构化输出）。1387 tests passing。v1.0 前 API 可能变化。
+> **状态**: v0.7.5 — HNSW 向量库 + .docx 加载器 + 原生结构化输出。1408 tests passing。v1.0 前 API 可能变化。
 
 ---
 
@@ -110,7 +110,7 @@ make install-dev   # 构建库 + 安装 .so + 同步 Python 版本
 - **Agent 记忆** — 跨会话 `Memory_service`（FTS5 关键字搜索）+ 3 个内置工具。通过 `invoke_context` 限定 session scope。像 `llm_service` 一样可插拔。
 - **动态 system prompt** — 通过 `invoke_context` 支持 per-turn `system_prompt_appendix`。在 template + skill overlay + tool suffix 之后追加。覆盖 invoke/generate/handoff 路径。
 - **弃用框架** — `warn_once` 辅助函数 + `Deprecated_api_called` 事件 + `[@@deprecated]` 注解 + 迁移指南。破坏性变更不再无声发生。
-- **1387 OCaml 测试 + Python 绑定** 全部通过（包括任意工作目录的 RAG 端到端测试）
+- **1408 OCaml 测试 + Python 绑定** 全部通过（包括任意工作目录的 RAG 端到端测试）
 - **Skill 系统** — 在 `~/.par/skills/<id>/` 放一个 `skill.md`，在 `Runtime.invoke` 时根据触发条件（Auto / Manual / Keyword）自动激活。Auto-trigger skill 不再替换 system prompt。见 [Skills API](sdk/skills.md)。
 
 ## 语言轨道
@@ -143,11 +143,11 @@ let () = Eio_main.run (fun _env ->
 
 ## 状态与路线图
 
-**当前**: v0.7.4 — json_extract 顺序修复（think-tag 剥离在 fence 检测之前）+ Engine.run_agent_structured（两阶段：ReAct 循环 → 结构化 JSON，修复工具+schema 缺失）。1387 tests passing。
+**当前**: v0.7.5 — 纯 OCaml HNSW 向量库（零外部依赖，全平台）+ Word .docx 加载器（camlzip + xmlm）+ OpenAI/Anthropic 原生结构化输出（response_format json_schema）。1408 tests passing。
 
-**下一步**: Windows 原生构建（MinGW par_ffi.c 修复）、Python 绑定 CI、外部向量库（Qdrant/Milvus）、多模态输入工具、.docx 支持。
+**下一步**: HNSW/.docx 的 Python FFI 暴露（当前仅 OCaml SDK）、Windows CI 变绿（移除 continue-on-error）、外部向量库适配器、多模态输入工具。
 
-**近期发布**: v0.6.5（Workspace 抽象）→ v0.6.6（per-run workspace override）→ v0.6.7（CLI 移除，SDK 安装向导）→ v0.6.8（fresh-switch 编译修复）→ v0.6.9（bash cwd 修复，raw SQLite accessor）→ v0.7.0-beta（文档加载器框架）→ v0.7.1-beta（并发 + 记忆 + scope + 弃用 + 动态 prompt）→ v0.7.2-beta（Windows 能力 + 向量记忆 + SDK 文档）→ v0.7.3（审计修复）→ v0.7.4（json_extract 修复 + run_agent_structured）。
+**近期发布**: v0.6.5（Workspace 抽象）→ v0.6.6（per-run workspace override）→ v0.6.7（CLI 移除，SDK 安装向导）→ v0.6.8（fresh-switch 编译修复）→ v0.6.9（bash cwd 修复，raw SQLite accessor）→ v0.7.0-beta（文档加载器框架）→ v0.7.1-beta（并发 + 记忆 + scope + 弃用 + 动态 prompt）→ v0.7.2-beta（Windows 能力 + 向量记忆 + SDK 文档）→ v0.7.3（审计修复）→ v0.7.4（json_extract 修复 + run_agent_structured）→ v0.7.5（HNSW + .docx + 原生结构化输出）。
 
 ## 获取帮助
 

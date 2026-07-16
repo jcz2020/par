@@ -147,6 +147,53 @@ OCaml SDK 给你显式控制。传入真实文件路径到 `Vector_store.create 
 
 你不需要重索引的情况：你更换了 chat 模型（embedding 和 chat 是解耦的）、你更改了 `k`、或者你对持久化 db 文件重启了进程。
 
+### 向量存储后端
+
+从 v0.7.5 起，PAR 支持两种向量存储后端：
+
+| 后端 | 实现 | 外部依赖 | 平台 | 适用场景 |
+|------|------|---------|------|---------|
+| **sqlite-vec** | SQLite + vec0 扩展 | C 扩展（`vec0.so`/`.dll`/`.dylib`） | Linux x86_64、macOS arm64 | 需要持久化的生产环境 |
+| **HNSW** | 纯 OCaml HNSW 图 | 无 | 所有平台（包括 Windows） | 可移植、零依赖 |
+
+**sqlite-vec**（默认）使用 SQLite 和 vec0 C 扩展进行向量相似度搜索。需要 `vec0.so`（或平台等价文件）共享库。这是支持平台上的推荐生产后端。
+
+**HNSW** 是 Hierarchical Navigable Small World 算法的纯 OCaml 实现（Malkov & Yashunin, TPAMI 2020）。零外部依赖，在所有平台上工作——包括 vec0 扩展有问题的 Windows。向量存储在内存中，可选文件持久化。
+
+使用 HNSW 后端（仅 OCaml SDK）：
+
+```ocaml
+open Par
+
+let config : Types.vector_store_backend = Vs_hnsw {
+  persist_path = None;       (* 或 Some "/path/to/index.bin" 用于持久化 *)
+  dimension = 1536;
+  m = 16;                    (* 每节点最大边数，默认 16 *)
+  ef_construction = 200;     (* 插入搜索宽度，默认 200 *)
+  ef_search = 50;            (* 查询搜索宽度，默认 50 *)
+}
+
+match Vector_store.create_for_backend config with
+| Ok store -> (* 使用 store 进行 add/search/delete/close *)
+| Error e -> (* 处理错误 *)
+```
+
+通过 `Runtime.create` 使用：
+
+```ocaml
+let backend = Types.Vs_hnsw {
+  persist_path = Some "/tmp/my_index.bin";
+  dimension = 1536; m = 16; ef_construction = 200; ef_search = 50;
+} in
+match Runtime.create ~vector_store_backend:backend ~config switch with
+| Ok rt -> (* rt.services.vector_store 自动设置 *)
+| Error e -> ...
+```
+
+当 `?vector_store_backend` 传入 `Runtime.create` 时，向量存储会被创建并保存在运行时中。`Runtime.invoke_with_rag` 在未显式传入 `?vector_store` 时会自动使用它。
+
+> **注意**：HNSW 后端和 `vector_store_backend` 配置在 v0.7.5 中仅通过 OCaml SDK 暴露。Python FFI 暴露计划在后续版本中添加。
+
 ## OCaml SDK 参考
 
 OCaml 接口是真实来源。每个 Python 方法通过 FFI 映射到一个 OCaml 函数，因此下面的签名是运行时实际执行的。
