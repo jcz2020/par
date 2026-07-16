@@ -36,7 +36,7 @@ jobs:
       # It depends on the `postgresql` package, which is not in the standard
       # opam repository. par_postgres is published as a separate opam package
       # (v0.4 onward). CLI was removed in v0.6.7 (product UX lives in PAR Code).
-      - run: opam install par --deps-only --with-test
+      - run: opam install . --deps-only --with-test
       - run: opam exec -- dune build
       - run: opam exec -- dune runtest
       - name: Capture test count
