@@ -1,5 +1,38 @@
 # CHANGES
 
+## v0.7.5 — HNSW vector store + .docx loader + native structured output
+
+> Three features: (1) pure OCaml HNSW vector store backend — zero external deps, works on all platforms including Windows; (2) Word `.docx` document loader via camlzip + xmlm; (3) native structured output for OpenAI/Anthropic replacing text-injection fallback. 1408 tests passing.
+
+### Added — HNSW Vector Store Backend
+
+- **NEW** `lib/core/hnsw.ml` + `hnsw.mli`: Pure OCaml HNSW approximate nearest neighbor search. Implements Algorithms 1-4 from Malkov & Yashunin (TPAMI 2020). Supports cosine and L2 distance metrics. Configurable M, ef_construction, ef_search parameters. Binary persistence via Marshal.
+- **NEW** `Types.vector_store_backend`: ADT with `Vs_sqlite_vec` and `Vs_hnsw` variants for backend selection.
+- **NEW** `Vector_store.create_for_backend`: Factory function dispatching to sqlite-vec or HNSW backend. `Vector_store.t` internal type changed to variant; all public functions dispatch transparently.
+- **NEW** `Runtime.create ?vector_store_backend`: When provided, creates the vector store and stores it in the runtime. `invoke_with_rag` uses it automatically.
+- **NEW** `test/test_hnsw.ml` (8 tests) + `test/test_in_memory_vector_store.ml` (2 tests): recall >= 0.8 at 100 vectors, >= 0.7 at 1000 vectors, persistence, delete, dimension mismatch, cosine vs L2.
+- **CHANGED** `docs/sdk/rag.md`: Vector store backends section added.
+
+### Added — Word Document Loader
+
+- **NEW** `lib/documents/docx_loader.ml` + `docx_loader.mli`: Extracts text from Word `.docx` (OOXML ZIP). camlzip opens ZIP, xmlm streams `word/document.xml`, extracts `<w:t>` text. Paragraphs → newlines, tabs preserved, field instructions excluded.
+- **NEW** `test/test_docx_loader.ml` (6 tests): extraction, metadata, missing file, invalid ZIP, workspace rejection.
+- **CHANGED** `dune-project` + `par.opam`: `camlzip` + `xmlm` dependencies.
+- **CHANGED** `docs/sdk/document_loaders.md` + `docs/zh/sdk/document_loaders.md`: `.docx` section (EN + ZH synced).
+
+### Changed — Native Structured Output
+
+- **CHANGED** `par_capi.ml`: OpenAI and Anthropic branches now set `complete_structured_fn = Some` instead of `None`. OpenAI uses `response_format: json_schema` (strict), Anthropic uses `output_config: json_schema`. Ollama/Custom keep text-injection fallback.
+- **CHANGED** `docs/sdk/agent.md` + `docs/zh/sdk/agent.md`: Structured output section documents native mode.
+
+### Infrastructure
+
+- **CI**: Python binding tests added to ci.yml (Python 3.10-3.13, ubuntu, needs ocaml artifact).
+- **CI**: Windows conditional `--with-test` (avoids Cygwin test-dep build failures).
+- **CI**: `lib/ffi/dune` — removed `eio.unix` (POSIX-only, unused; eio_main handles platform dispatch).
+- **NEW** `Makefile python-test` target.
+- **NEW** `bindings/python/tests/test_structured.py`: invoke_structured with-tools integration test (two-phase ReAct→structured path).
+
 ## v0.7.4 — json_extract think-tag + fence ordering fix + run_agent_structured
 
 > `extract_json_from_text` processing order bug fixed. New `Engine.run_agent_structured` enables two-phase (ReAct loop + structured output) for agents that need both tools and schema-validated JSON.
