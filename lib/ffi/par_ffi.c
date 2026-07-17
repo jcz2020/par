@@ -1,8 +1,9 @@
 /* par_ffi.c — C implementation of the P-A-R FFI bridge.
    Bridges C callers to OCaml runtime via caml_callback.
-   Thread-safe: pthread_mutex serializes callbacks.
-   Allocation (caml_copy_string) is done OUTSIDE the lock to prevent
-   longjmp from OCaml OOM skipping pthread_mutex_unlock. */
+   Thread-safe: ocaml_lock serializes callbacks.
+   All OCaml value locals use CAMLparam/CAMLlocal macros to register
+   as GC roots, preventing dangling pointers when caml_copy_string
+   triggers a minor GC that moves previously allocated values. */
 
 #include "par_ffi.h"
 #include <caml/mlvalues.h>
@@ -33,8 +34,6 @@ typedef pthread_mutex_t par_mutex_t;
 #endif
 
 /* ---- Portable atomic abstraction ---- */
-/* GCC/Clang __atomic builtins on POSIX; MSVC _Interlocked* on Windows.
-   Both provide sequential-consistency-equivalent acquire/release semantics. */
 #ifdef _WIN32
 #define ATOMIC_LOAD_ACQUIRE(x)  ((int)_InterlockedCompareExchange((volatile LONG*)&(x), 0, 0))
 #define ATOMIC_STORE_RELEASE(x, v) _InterlockedExchange((volatile LONG*)&(x), (LONG)(v))
@@ -62,20 +61,8 @@ static par_mutex_t ocaml_lock = PAR_MUTEX_INIT;
 #define MAX_PYTHON_HANDLERS 256
 static par_tool_callback python_handler_table[MAX_PYTHON_HANDLERS];
 
-/* Streaming chunk callback (par_invoke_stream).
-   Single-slot: only one stream in flight per process at a time. The
-   OCaml lock serializes invocations, so concurrent streams would
-   already be broken; this is a deliberate simplification. */
 static par_chunk_callback g_chunk_callback = NULL;
 static void* g_chunk_user_data = NULL;
-
-/* Cancel flag for par_cancel_stream / par_invoke_stream. Written by
-   par_cancel_stream from ANY pthread (including signal handlers and
-   Python __del__ on a non-FFI thread) and read by the streaming
-   on_chunk callback (on the OCaml work_loop Domain). Uses GCC/Clang
-   __atomic builtins so no C11 <stdatomic.h> header is required and
-   the store is signal-safe. The flag is process-global single-slot:
-   only one stream is in flight at a time, so one flag suffices. */
 static volatile int g_stream_cancel_requested = 0;
 
 void par_store_python_handler(int handler_id, par_tool_callback fn) {
@@ -85,39 +72,35 @@ void par_store_python_handler(int handler_id, par_tool_callback fn) {
 }
 
 value caml_invoke_python_handler(value v_handler_id, value v_input_json) {
+    CAMLparam2(v_handler_id, v_input_json);
+    CAMLlocal1(v_result);
     int handler_id = Int_val(v_handler_id);
     const char* input = String_val(v_input_json);
     if (handler_id >= 0 && handler_id < MAX_PYTHON_HANDLERS && python_handler_table[handler_id] != NULL) {
         char* result = python_handler_table[handler_id](handler_id, input);
         if (result != NULL) {
-            value v_result = caml_copy_string(result);
+            v_result = caml_copy_string(result);
             free(result);
-            return v_result;
+            CAMLreturn(v_result);
         }
     }
-    return caml_copy_string("");
+    v_result = caml_copy_string("");
+    CAMLreturn(v_result);
 }
 
-/* Called by OCaml's chunk callback (par_capi.ml) to dispatch a
-   serialized llm_response_chunk to the C-side chunk callback
-   registered by par_invoke_stream. Receives a JSON string value
-   (no copy required — we read it under the OCaml lock and hand
-   the pointer to the callback synchronously). */
 value caml_dispatch_chunk_to_c(value v_json_chunk) {
+    CAMLparam1(v_json_chunk);
     if (g_chunk_callback != NULL) {
         const char* json = String_val(v_json_chunk);
         g_chunk_callback(json, g_chunk_user_data);
     }
-    return Val_unit;
+    CAMLreturn(Val_unit);
 }
 
-/* Read the stream-cancel flag from OCaml (on_chunk closure). Called on
-   the OCaml work_loop Domain, which already holds the OCaml domain
-   runtime lock, so a plain atomic read here is safe. */
 value caml_stream_cancel_requested(value v_unit) {
-    (void)v_unit;
+    CAMLparam1(v_unit);
     int v = ATOMIC_LOAD_ACQUIRE(g_stream_cancel_requested);
-    return Val_int(v);
+    CAMLreturn(Val_int(v));
 }
 
 static void ensure_initialized(void) {
@@ -171,28 +154,29 @@ static char* extract_string(value v) {
 /* --- Public API --- */
 
 par_runtime_t* par_init(const char* config_json) {
-    PAR_MUTEX_LOCK(ocaml_lock);
     ensure_initialized();
-    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLparam0();
+    CAMLlocal1(c_config);
 
-    /* caml_copy_string can raise OOM via longjmp — must be outside lock */
-    value c_config = caml_copy_string(config_json);
+    c_config = caml_copy_string(config_json);
 
     PAR_MUTEX_LOCK(ocaml_lock);
     value rt_val = call1_exn("par_init", c_config);
     int is_exc = Is_exception_result(rt_val);
     PAR_MUTEX_UNLOCK(ocaml_lock);
 
-    if (is_exc) return NULL;
+    if (is_exc) {
+        CAMLreturnT(par_runtime_t*, NULL);
+    }
 
     par_runtime_t* handle = (par_runtime_t*)malloc(sizeof(par_runtime_t));
     if (!handle) {
         fprintf(stderr, "P-A-R FFI: malloc failed for runtime handle\n");
-        return NULL;
+        CAMLreturnT(par_runtime_t*, NULL);
     }
     handle->_ocaml_value = rt_val;
     caml_register_generational_global_root(&handle->_ocaml_value);
-    return handle;
+    CAMLreturnT(par_runtime_t*, handle);
 }
 
 void par_shutdown(par_runtime_t* rt) {
@@ -205,40 +189,35 @@ void par_shutdown(par_runtime_t* rt) {
     }
 }
 
-/* Register a custom tool with the PAR runtime.
- * Returns: 0  on success
- *         -1  on general error (invalid handle, internal failure)
- *         -2  on invalid schema (malformed JSON or not a JSON object)
- *         -3  on empty tool name
- *         -4  on duplicate tool name */
 int par_register_tool(par_runtime_t* rt, const char* name,
                       const char* description, const char* input_schema) {
-    /* caml_copy_string can raise — outside lock */
-    value c_name = caml_copy_string(name);
-    value c_desc = caml_copy_string(description);
-    value c_schema = caml_copy_string(input_schema);
+    CAMLparam0();
+    CAMLlocal3(c_name, c_desc, c_schema);
 
-    /* Only callback invocation inside lock */
+    c_name = caml_copy_string(name);
+    c_desc = caml_copy_string(description);
+    c_schema = caml_copy_string(input_schema);
+
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call4_exn("par_register_tool", rt->_ocaml_value,
                              c_name, c_desc, c_schema);
     int is_exc = Is_exception_result(result);
     int rc = is_exc ? -1 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return rc;
+    CAMLreturnT(int, rc);
 }
 
-/* Register a tool with a Python callback handler.
- * handler_id maps to a callback in the handler table managed by par_capi.ml.
- * Returns: 0 on success, negative on error (same codes as par_register_tool). */
 int par_register_tool_with_handler(par_runtime_t* rt, const char* name,
                                     const char* description,
                                     const char* input_schema,
                                     int handler_id) {
-    value c_name = caml_copy_string(name);
-    value c_desc = caml_copy_string(description);
-    value c_schema = caml_copy_string(input_schema);
+    CAMLparam0();
+    CAMLlocal3(c_name, c_desc, c_schema);
     value c_hid = Val_int(handler_id);
+
+    c_name = caml_copy_string(name);
+    c_desc = caml_copy_string(description);
+    c_schema = caml_copy_string(input_schema);
 
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call5_exn("par_register_tool_with_handler", rt->_ocaml_value,
@@ -246,29 +225,33 @@ int par_register_tool_with_handler(par_runtime_t* rt, const char* name,
     int is_exc = Is_exception_result(result);
     int rc = is_exc ? -1 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return rc;
+    CAMLreturnT(int, rc);
 }
 
 int par_register_agent(par_runtime_t* rt, const char* config_json) {
-    value c_config = caml_copy_string(config_json);
+    CAMLparam0();
+    CAMLlocal1(c_config);
+    c_config = caml_copy_string(config_json);
 
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call2_exn("par_register_agent", rt->_ocaml_value, c_config);
     int is_exc = Is_exception_result(result);
     int rc = is_exc ? -1 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return rc;
+    CAMLreturnT(int, rc);
 }
 
 int par_register_skill(par_runtime_t* rt, const char* json) {
-    value c_json = caml_copy_string(json);
+    CAMLparam0();
+    CAMLlocal1(c_json);
+    c_json = caml_copy_string(json);
 
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call2_exn("par_register_skill", rt->_ocaml_value, c_json);
     int is_exc = Is_exception_result(result);
     int rc = is_exc ? -1 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return rc;
+    CAMLreturnT(int, rc);
 }
 
 char* par_list_skills(par_runtime_t* rt) {
@@ -288,21 +271,26 @@ char* par_list_llm_providers(par_runtime_t* rt) {
 }
 
 int par_set_default_llm_provider(par_runtime_t* rt, const char* provider_id) {
-    value c_id = caml_copy_string(provider_id);
+    CAMLparam0();
+    CAMLlocal1(c_id);
+    c_id = caml_copy_string(provider_id);
 
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call2_exn("par_set_default_llm_provider", rt->_ocaml_value, c_id);
     int is_exc = Is_exception_result(result);
     int rc = is_exc ? -1 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return rc;
+    CAMLreturnT(int, rc);
 }
 
 void par_set_session_id(par_runtime_t* rt, const char* session_id) {
-    value c_sid = caml_copy_string(session_id);
+    CAMLparam0();
+    CAMLlocal1(c_sid);
+    c_sid = caml_copy_string(session_id);
     PAR_MUTEX_LOCK(ocaml_lock);
     call2_exn("par_set_session_id", rt->_ocaml_value, c_sid);
     PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLreturn0;
 }
 
 char* par_get_session_id(par_runtime_t* rt) {
@@ -323,142 +311,141 @@ int par_save_conversation(par_runtime_t* rt) {
 }
 
 int par_load_conversation(par_runtime_t* rt, const char* session_id) {
-    value c_sid = caml_copy_string(session_id);
+    CAMLparam0();
+    CAMLlocal1(c_sid);
+    c_sid = caml_copy_string(session_id);
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call2_exn("par_load_conversation", rt->_ocaml_value, c_sid);
     int is_exc = Is_exception_result(result);
     int rc = is_exc ? -1 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return rc;
+    CAMLreturnT(int, rc);
 }
 
 char* par_invoke(par_runtime_t* rt, const char* agent_id,
                  const char* message) {
-    value c_aid = caml_copy_string(agent_id);
-    value c_msg = caml_copy_string(message);
+    CAMLparam0();
+    CAMLlocal2(c_aid, c_msg);
+    c_aid = caml_copy_string(agent_id);
+    c_msg = caml_copy_string(message);
 
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call3_exn("par_invoke", rt->_ocaml_value, c_aid, c_msg);
     char* ret = extract_string(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return ret;
+    CAMLreturnT(char*, ret);
 }
 
 char* par_generate(par_runtime_t* rt, const char* agent_id,
                    const char* message) {
-    value c_aid = caml_copy_string(agent_id);
-    value c_msg = caml_copy_string(message);
+    CAMLparam0();
+    CAMLlocal2(c_aid, c_msg);
+    c_aid = caml_copy_string(agent_id);
+    c_msg = caml_copy_string(message);
 
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call3_exn("par_generate", rt->_ocaml_value, c_aid, c_msg);
     char* ret = extract_string(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return ret;
+    CAMLreturnT(char*, ret);
 }
 
 char* par_embed(par_runtime_t* rt, const char* messages_json) {
-    /* caml_copy_string can raise OOM via longjmp — must be outside lock */
-    value c_msgs = caml_copy_string(messages_json);
+    CAMLparam0();
+    CAMLlocal1(c_msgs);
+    c_msgs = caml_copy_string(messages_json);
 
     PAR_MUTEX_LOCK(ocaml_lock);
     const value* cb = caml_named_value("par_embed");
     if (!cb) {
         PAR_MUTEX_UNLOCK(ocaml_lock);
-        return NULL;
+        CAMLreturnT(char*, NULL);
     }
-
     value result = caml_callback2_exn(*cb, rt->_ocaml_value, c_msgs);
     char* ret = extract_string(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return ret;
+    CAMLreturnT(char*, ret);
 }
 
 int par_add_documents(par_runtime_t* rt, const char* docs_json) {
-    /* caml_copy_string can raise OOM via longjmp — must be outside lock */
-    value c_docs = caml_copy_string(docs_json);
+    CAMLparam0();
+    CAMLlocal1(c_docs);
+    c_docs = caml_copy_string(docs_json);
 
     PAR_MUTEX_LOCK(ocaml_lock);
     const value* cb = caml_named_value("par_add_documents");
     if (!cb) {
         PAR_MUTEX_UNLOCK(ocaml_lock);
-        return -1;
+        CAMLreturnT(int, -1);
     }
-
     value result = caml_callback2_exn(*cb, rt->_ocaml_value, c_docs);
     int ret = Is_exception_result(result) ? -99 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return ret;
+    CAMLreturnT(int, ret);
 }
 
 char* par_load_document(par_runtime_t* rt, const char* path) {
-    value c_path = caml_copy_string(path);
+    CAMLparam0();
+    CAMLlocal1(c_path);
+    c_path = caml_copy_string(path);
 
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call2_exn("par_load_document", rt->_ocaml_value, c_path);
     char* ret = extract_string(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return ret;
+    CAMLreturnT(char*, ret);
 }
 
 char* par_load_directory(par_runtime_t* rt, const char* path,
                          const char* loaders_json) {
-    value c_path = caml_copy_string(path);
-    value c_loaders = caml_copy_string(loaders_json ? loaders_json : "");
+    CAMLparam0();
+    CAMLlocal2(c_path, c_loaders);
+    c_path = caml_copy_string(path);
+    c_loaders = caml_copy_string(loaders_json ? loaders_json : "");
 
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call3_exn("par_load_directory", rt->_ocaml_value,
                              c_path, c_loaders);
     char* ret = extract_string(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return ret;
+    CAMLreturnT(char*, ret);
 }
 
 char* par_invoke_with_rag(par_runtime_t* rt, const char* agent_id,
                          const char* message, const char* k_str) {
-    /* caml_copy_string can raise OOM via longjmp — must be outside lock */
-    value c_aid = caml_copy_string(agent_id);
-    value c_msg = caml_copy_string(message);
-    value c_k = caml_copy_string(k_str);
+    CAMLparam0();
+    CAMLlocal3(c_aid, c_msg, c_k);
+    c_aid = caml_copy_string(agent_id);
+    c_msg = caml_copy_string(message);
+    c_k = caml_copy_string(k_str);
 
     PAR_MUTEX_LOCK(ocaml_lock);
     const value* cb = caml_named_value("par_invoke_with_rag");
     if (!cb) {
         PAR_MUTEX_UNLOCK(ocaml_lock);
-        return NULL;
+        CAMLreturnT(char*, NULL);
     }
     value args[4] = { rt->_ocaml_value, c_aid, c_msg, c_k };
     value result = caml_callbackN_exn(*cb, 4, args);
     char* ret = extract_string(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return ret;
+    CAMLreturnT(char*, ret);
 }
 
-/* Streaming invocation. The C-side chunk callback is stored in
-   g_chunk_callback / g_chunk_user_data BEFORE acquiring the OCaml
-   lock, because the OCaml side will call caml_dispatch_chunk_to_c
-   while inside the lock, and that function needs the globals set.
-   After the call returns, we clear them so a subsequent
-   par_invoke_stream (or any unrelated code) doesn't accidentally
-   invoke a stale callback. */
 char* par_invoke_stream(par_runtime_t* rt, const char* agent_id,
                         const char* message,
                         par_chunk_callback cb, void* user_data) {
-    if (!rt || !agent_id || !message) return NULL;
+    CAMLparam0();
+    CAMLlocal2(c_aid, c_msg);
 
-    /* Clear any stale cancel request so this stream starts clean. A
-       prior par_cancel_stream that arrived after the previous stream
-       had already finished would leave the flag set; without this
-       reset the new stream would abort on its first chunk. */
+    if (!rt || !agent_id || !message) CAMLreturnT(char*, NULL);
+
     ATOMIC_STORE_RELEASE(g_stream_cancel_requested, 0);
-
-    /* Store the callback + user_data BEFORE entering the OCaml lock
-       so the dispatch function (called from inside the lock) can
-       see them. */
     g_chunk_callback = cb;
     g_chunk_user_data = user_data;
 
-    value c_aid = caml_copy_string(agent_id);
-    value c_msg = caml_copy_string(message);
+    c_aid = caml_copy_string(agent_id);
+    c_msg = caml_copy_string(message);
 
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call3_exn("par_invoke_stream", rt->_ocaml_value,
@@ -466,53 +453,50 @@ char* par_invoke_stream(par_runtime_t* rt, const char* agent_id,
     char* ret = extract_string(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
 
-    /* Clear globals so we don't dispatch into a stale callback. */
     g_chunk_callback = NULL;
     g_chunk_user_data = NULL;
-
-    return ret;
+    CAMLreturnT(char*, ret);
 }
 
 void par_cancel_stream(par_runtime_t* rt) {
-    /* Deliberately does NOT acquire ocaml_lock: during an in-flight
-       par_invoke_stream that mutex is held by the streaming thread for
-       the entire stream duration, so acquiring it here would block
-       until the LLM stream completes naturally — the exact behavior we
-       are trying to eliminate. A single atomic store is signal-safe,
-       visible to the on_chunk callback at the next chunk boundary, and
-       sufficient given the single-stream-at-a-time design. */
     (void)rt;
     ATOMIC_STORE_RELEASE(g_stream_cancel_requested, 1);
 }
 
 char* par_invoke_structured(par_runtime_t* rt, const char* agent_id,
                             const char* message, const char* schema_json) {
-    value c_aid = caml_copy_string(agent_id);
-    value c_msg = caml_copy_string(message);
-    value c_schema = caml_copy_string(schema_json);
+    CAMLparam0();
+    CAMLlocal3(c_aid, c_msg, c_schema);
+    c_aid = caml_copy_string(agent_id);
+    c_msg = caml_copy_string(message);
+    c_schema = caml_copy_string(schema_json);
 
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call4_exn("par_invoke_structured", rt->_ocaml_value,
                              c_aid, c_msg, c_schema);
     char* ret = extract_string(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return ret;
+    CAMLreturnT(char*, ret);
 }
 
 char* par_submit_workflow(par_runtime_t* rt, const char* workflow_json) {
-    value c_wf = caml_copy_string(workflow_json);
+    CAMLparam0();
+    CAMLlocal1(c_wf);
+    c_wf = caml_copy_string(workflow_json);
 
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call2_exn("par_submit_workflow", rt->_ocaml_value, c_wf);
     char* ret = extract_string(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return ret;
+    CAMLreturnT(char*, ret);
 }
 
 int par_approve_workflow(par_runtime_t* rt, const char* run_id,
                          const char* approver) {
-    value c_rid = caml_copy_string(run_id);
-    value c_apr = caml_copy_string(approver);
+    CAMLparam0();
+    CAMLlocal2(c_rid, c_apr);
+    c_rid = caml_copy_string(run_id);
+    c_apr = caml_copy_string(approver);
 
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call3_exn("par_approve_workflow", rt->_ocaml_value,
@@ -520,17 +504,19 @@ int par_approve_workflow(par_runtime_t* rt, const char* run_id,
     int is_exc = Is_exception_result(result);
     int rc = is_exc ? -1 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return rc;
+    CAMLreturnT(int, rc);
 }
 
 char* par_resume_workflow(par_runtime_t* rt, const char* run_id) {
-    value c_rid = caml_copy_string(run_id);
+    CAMLparam0();
+    CAMLlocal1(c_rid);
+    c_rid = caml_copy_string(run_id);
 
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call2_exn("par_resume_workflow", rt->_ocaml_value, c_rid);
     char* ret = extract_string(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return ret;
+    CAMLreturnT(char*, ret);
 }
 
 char* par_health(par_runtime_t* rt) {
@@ -550,25 +536,29 @@ char* par_metrics(par_runtime_t* rt) {
 }
 
 int par_steer(par_runtime_t* rt, const char* message) {
-    value c_msg = caml_copy_string(message);
+    CAMLparam0();
+    CAMLlocal1(c_msg);
+    c_msg = caml_copy_string(message);
 
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call2_exn("par_steer", rt->_ocaml_value, c_msg);
     int is_exc = Is_exception_result(result);
     int rc = is_exc ? -1 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return rc;
+    CAMLreturnT(int, rc);
 }
 
 int par_follow_up(par_runtime_t* rt, const char* message) {
-    value c_msg = caml_copy_string(message);
+    CAMLparam0();
+    CAMLlocal1(c_msg);
+    c_msg = caml_copy_string(message);
 
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call2_exn("par_follow_up", rt->_ocaml_value, c_msg);
     int is_exc = Is_exception_result(result);
     int rc = is_exc ? -1 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return rc;
+    CAMLreturnT(int, rc);
 }
 
 void par_result_free(par_result_t* result) {
@@ -581,48 +571,51 @@ void par_result_free(par_result_t* result) {
 }
 
 char* par_mcp_server(par_runtime_t* rt, const char* server_id) {
-    value c_sid = caml_copy_string(server_id);
+    CAMLparam0();
+    CAMLlocal1(c_sid);
+    c_sid = caml_copy_string(server_id);
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call2_exn("par_mcp_server", rt->_ocaml_value, c_sid);
     char* ret = extract_string(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return ret;
+    CAMLreturnT(char*, ret);
 }
 
 char* par_mcp_list_tools(par_runtime_t* rt, const char* server_id) {
-    value c_sid = caml_copy_string(server_id);
+    CAMLparam0();
+    CAMLlocal1(c_sid);
+    c_sid = caml_copy_string(server_id);
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call2_exn("par_mcp_list_tools", rt->_ocaml_value, c_sid);
     char* ret = extract_string(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return ret;
+    CAMLreturnT(char*, ret);
 }
 
 char* par_workflow_status(par_runtime_t* rt, const char* run_id) {
-    value c_rid = caml_copy_string(run_id);
+    CAMLparam0();
+    CAMLlocal1(c_rid);
+    c_rid = caml_copy_string(run_id);
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call2_exn("par_workflow_status", rt->_ocaml_value, c_rid);
     char* ret = extract_string(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return ret;
+    CAMLreturnT(char*, ret);
 }
 
 int par_workflow_cancel(par_runtime_t* rt, const char* run_id) {
-    value c_rid = caml_copy_string(run_id);
+    CAMLparam0();
+    CAMLlocal1(c_rid);
+    c_rid = caml_copy_string(run_id);
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call2_exn("par_workflow_cancel", rt->_ocaml_value, c_rid);
     int is_exc = Is_exception_result(result);
     int rc = is_exc ? -1 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return rc;
+    CAMLreturnT(int, rc);
 }
 
 int par_event_subscribe(par_runtime_t* rt, par_event_callback cb) {
-    /* cb is not used here directly: the OCaml side stores its own
-       dispatch table keyed by an int callback_id and invokes the C
-       function via the registered "caml_dispatch_event_to_c"
-       external. For now we just pass a placeholder 0; the real
-       wiring is in par_capi.ml::do_event_subscribe. */
     (void)cb;
     value c_cb = Val_int(0);
     PAR_MUTEX_LOCK(ocaml_lock);
@@ -643,27 +636,26 @@ char* par_version(void) {
 }
 
 int par_set_request_timeout(double seconds) {
-    /* caml_copy_double can raise OOM via longjmp — must be outside lock */
-    value c_secs = caml_copy_double(seconds);
+    CAMLparam0();
+    CAMLlocal1(c_secs);
+    c_secs = caml_copy_double(seconds);
     PAR_MUTEX_LOCK(ocaml_lock);
     ensure_initialized();
     value result = call1_exn("par_set_request_timeout", c_secs);
     int rc = Is_exception_result(result) ? -1 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return rc;
+    CAMLreturnT(int, rc);
 }
 
-/* Override the sqlite-vec extension path. Can be called before or after
-   par_init — triggers OCaml runtime initialization if needed.
-   Returns 0 on success, -1 on failure. */
 int par_set_vec_extension_path(const char* path) {
     if (!path) return -1;
     ensure_initialized();
-    /* caml_copy_string can raise OOM via longjmp — must be outside lock */
-    value c_path = caml_copy_string(path);
+    CAMLparam0();
+    CAMLlocal1(c_path);
+    c_path = caml_copy_string(path);
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call1_exn("par_set_vec_extension_path", c_path);
     int rc = Is_exception_result(result) ? -1 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return rc;
+    CAMLreturnT(int, rc);
 }
