@@ -274,7 +274,9 @@ let do_init (config_json : string) =
   let json = Yojson.Safe.from_string config_json in
   let config = match Par.Types.runtime_config_of_yojson json with
     | Ok c -> c
-    | Error s -> failwith (Printf.sprintf "Invalid config JSON: %s" s)
+    | Error s ->
+      fd_log (Printf.sprintf "[do_init] config parse error: %s" s);
+      failwith (Printf.sprintf "Invalid config JSON: %s" s)
   in
   let state_id = alloc_state () in
   let state = Hashtbl.find states state_id in
@@ -424,9 +426,15 @@ let do_init (config_json : string) =
         fd_log "[do_init] about to call Runtime.create";
         Eio.Switch.run (fun sw ->
           let create_result =
-            Par.Runtime.create ~config ~llm ?embeddings:embed_opt
-              ?persistence:persistence_svc ?memory:memory_svc
-              ?vector_store_backend sw
+            match persistence_svc, memory_svc, vector_store_backend with
+            | Some p, Some m, Some v -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~persistence:p ~memory:m ~vector_store_backend:v sw
+            | Some p, Some m, None  -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~persistence:p ~memory:m sw
+            | Some p, None,  Some v -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~persistence:p ~vector_store_backend:v sw
+            | Some p, None,  None  -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~persistence:p sw
+            | None,  Some m, Some v -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~memory:m ~vector_store_backend:v sw
+            | None,  Some m, None  -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~memory:m sw
+            | None,  None,  Some v -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~vector_store_backend:v sw
+            | None,  None,  None  -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt sw
           in
           match create_result with
           | Ok rt ->

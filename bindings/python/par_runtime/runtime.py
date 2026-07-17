@@ -346,6 +346,18 @@ class Runtime:
             "llm_providers": [],
             "parallel_tool_execution": True,
             "event_retention_seconds": 604800.0,
+            "event_bus": {
+                "buffer_capacity": 100,
+                "delivery": {
+                    "max_delivery_attempts": 3,
+                    "initial_retry_delay": 0.1,
+                    "retry_backoff": ["Fixed", 0.5],
+                    "delivery_timeout": 5.0,
+                },
+                "dlq_enabled": False,
+                "dlq_max_size": 10,
+                "critical_event_types": [],
+            },
         }
         for key, default in defaults.items():
             if key not in cfg:
@@ -365,6 +377,21 @@ class Runtime:
                 cfg["event_bus"]["delivery"].setdefault("delivery_timeout", 5.0)
         if "vector_store" in cfg and isinstance(cfg["vector_store"], dict):
             cfg["vector_store"].setdefault("backend", "sqlite_vec")
+        if "persistence" in cfg and isinstance(cfg["persistence"], dict):
+            p = cfg["persistence"]
+            if "tag" in p and "contents" in p:
+                tag = p["tag"]
+                tag = tag[0].upper() + tag[1:] if tag else tag
+                cfg["persistence"] = [tag, p["contents"]]
+        if "llm_providers" in cfg and isinstance(cfg["llm_providers"], list):
+            for entry in cfg["llm_providers"]:
+                if isinstance(entry, list) and len(entry) == 2:
+                    provider = entry[1]
+                    if isinstance(provider, list) and len(provider) == 2:
+                        tag, pcfg = provider[0], provider[1]
+                        if isinstance(pcfg, dict):
+                            if tag in ("Openai", "openai"):
+                                pcfg.setdefault("prompt_cache_key", None)
         return json.dumps(cfg)
 
     def __enter__(self) -> "Runtime":

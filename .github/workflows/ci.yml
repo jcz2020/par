@@ -93,4 +93,11 @@ jobs:
 
       - run: pip install pytest
 
-      - run: cd bindings/python && python3 -m pytest tests/ -v
+      - run: |
+          cd bindings/python
+          FAILED=0
+          for f in tests/test_*.py; do
+            echo "=== $(basename $f) ==="
+            python3 -m pytest "$f" -v --tb=short || FAILED=1
+          done
+          exit $FAILED
