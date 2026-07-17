@@ -363,6 +363,8 @@ class Runtime:
                 cfg["event_bus"]["delivery"].setdefault("initial_retry_delay", 0.1)
                 cfg["event_bus"]["delivery"].setdefault("retry_backoff", ["Fixed", 0.5])
                 cfg["event_bus"]["delivery"].setdefault("delivery_timeout", 5.0)
+        if "vector_store" in cfg and isinstance(cfg["vector_store"], dict):
+            cfg["vector_store"].setdefault("backend", "sqlite_vec")
         return json.dumps(cfg)
 
     def __enter__(self) -> "Runtime":
@@ -632,8 +634,15 @@ class Runtime:
         """Add documents to the runtime's internal vector store for RAG.
 
         Documents are embedded via the configured provider and stored
-        in an in-memory sqlite-vec index. The vector store is created
-        lazily on first call.
+        in the vector store. The store backend is determined by the
+        ``vector_store`` config field:
+
+        - ``{"backend": "hnsw", "dimension": N}`` — in-memory HNSW index
+          (fast approximate nearest-neighbor).
+        - ``{"backend": "sqlite_vec"}`` or omitted — sqlite-vec extension
+          (default, in-memory sqlite-vec index).
+
+        The vector store is created lazily on first call.
 
         Args:
             documents: List of text strings or dicts with id/content/metadata.

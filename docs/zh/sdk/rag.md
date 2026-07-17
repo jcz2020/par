@@ -192,7 +192,7 @@ match Runtime.create ~vector_store_backend:backend ~config switch with
 
 当 `?vector_store_backend` 传入 `Runtime.create` 时，向量存储会被创建并保存在运行时中。`Runtime.invoke_with_rag` 在未显式传入 `?vector_store` 时会自动使用它。
 
-> **注意**：HNSW 后端和 `vector_store_backend` 配置在 v0.7.5 中仅通过 OCaml SDK 暴露。Python FFI 暴露计划在后续版本中添加。
+> **注意**：HNSW 后端在 OCaml SDK 和 Python 绑定中均可使用（v0.7.6+）。Python 用户可通过 `vector_store` 配置字段选择：`{"vector_store": {"backend": "hnsw", "dimension": 1536}}`。
 
 ## OCaml SDK 参考
 

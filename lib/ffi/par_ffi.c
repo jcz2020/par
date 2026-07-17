@@ -653,14 +653,15 @@ int par_set_request_timeout(double seconds) {
     return rc;
 }
 
-/* Override the sqlite-vec extension path. Must be called BEFORE par_init
-   (or before the first add_documents). Returns 0 on success, -1 on failure. */
+/* Override the sqlite-vec extension path. Can be called before or after
+   par_init — triggers OCaml runtime initialization if needed.
+   Returns 0 on success, -1 on failure. */
 int par_set_vec_extension_path(const char* path) {
     if (!path) return -1;
+    ensure_initialized();
     /* caml_copy_string can raise OOM via longjmp — must be outside lock */
     value c_path = caml_copy_string(path);
     PAR_MUTEX_LOCK(ocaml_lock);
-    ensure_initialized();
     value result = call1_exn("par_set_vec_extension_path", c_path);
     int rc = Is_exception_result(result) ? -1 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);

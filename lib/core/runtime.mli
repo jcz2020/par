@@ -496,3 +496,7 @@ val set_fallback_policy : runtime -> Types.fallback_policy -> unit
 (** Set the cross-provider fallback policy for [invoke]. Default: [No_fallback]. *)
 
 val get_fallback_policy : runtime -> Types.fallback_policy
+
+val vector_store : runtime -> Vector_store.t option
+(** The vector store configured at [create] time via [?vector_store_backend],
+    if any. [None] when no backend was specified. *)

@@ -140,5 +140,77 @@ class TestEndToEndRAG(unittest.TestCase):
             rt.close()
 
 
+def _hnsw_config(base_url, dimension=3):
+    cfg = json.loads(_test_config(base_url))
+    cfg["vector_store"] = {
+        "backend": "hnsw",
+        "dimension": dimension,
+    }
+    return json.dumps(cfg)
+
+
+class TestHNSWVectorStore(unittest.TestCase):
+    """HNSW backend: config parsing, add_documents, invoke_with_rag."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.port = _free_port()
+        cls.server = _start_mock_server(cls.port)
+        cls.base_url = f"http://127.0.0.1:{cls.port}/v1"
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+
+    def test_hnsw_add_documents_succeeds(self):
+        rt = Runtime(_hnsw_config(self.base_url))
+        try:
+            rc = rt.add_documents([
+                {"id": "d1", "content": "alpha"},
+                {"id": "d2", "content": "beta"},
+            ])
+            self.assertEqual(rc, 0)
+        finally:
+            rt.close()
+
+    def test_hnsw_invoke_with_rag_no_crash(self):
+        rt = Runtime(_hnsw_config(self.base_url))
+        try:
+            rt.add_documents([{"id": "d1", "content": "hello"}])
+            result = rt.invoke_with_rag("nonexistent", "query", k=1)
+            self.assertIsNotNone(result)
+        finally:
+            rt.close()
+
+    def test_hnsw_with_custom_params(self):
+        cfg = json.loads(_hnsw_config(self.base_url))
+        cfg["vector_store"]["m"] = 32
+        cfg["vector_store"]["ef_construction"] = 400
+        cfg["vector_store"]["ef_search"] = 100
+        rt = Runtime(json.dumps(cfg))
+        try:
+            rc = rt.add_documents(["custom params doc"])
+            self.assertEqual(rc, 0)
+        finally:
+            rt.close()
+
+    def test_backward_compat_no_vector_store_config(self):
+        rt = Runtime(_test_config(self.base_url))
+        try:
+            rc = rt.add_documents(["backward compat"])
+            self.assertEqual(rc, 0)
+        finally:
+            rt.close()
+
+    def test_hnsw_normalize_config_sets_default_backend(self):
+        raw = json.dumps({
+            "persistence": {"tag": "sqlite", "contents": ":memory:"},
+            "vector_store": {"dimension": 3},
+        })
+        normalized = Runtime._normalize_config(raw)
+        cfg = json.loads(normalized)
+        self.assertEqual(cfg["vector_store"]["backend"], "sqlite_vec")
+
+
 if __name__ == "__main__":
     unittest.main()

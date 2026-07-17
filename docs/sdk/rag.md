@@ -260,7 +260,7 @@ match Runtime.create ~vector_store_backend:backend ~config switch with
 
 When `?vector_store_backend` is passed to `Runtime.create`, the vector store is created and stored in the runtime. `Runtime.invoke_with_rag` will use it automatically when no explicit `?vector_store` is passed.
 
-> **Note**: The HNSW backend and `vector_store_backend` configuration are OCaml SDK only in v0.7.5. Python FFI exposure is tracked for a future version.
+> **Note**: The HNSW backend is available in both OCaml SDK and Python bindings (v0.7.6+). Python users can select it via the `vector_store` config field: `{"vector_store": {"backend": "hnsw", "dimension": 1536}}`.
 
 ### Chunking
 

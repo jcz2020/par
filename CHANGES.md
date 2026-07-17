@@ -1,5 +1,27 @@
 # CHANGES
 
+## Unreleased — v0.7.6 Python parity
+
+> Three fixes completing v0.7.5's Python parity promise: (1) fix Python CI SIGABRT (caml_copy_string before caml_startup); (2) fix .docx FFI dispatch table gaps; (3) expose HNSW vector store backend to Python via config JSON.
+
+### Fixed — Python CI SIGABRT
+
+- **FIX** `lib/ffi/par_ffi.c` `par_set_vec_extension_path`: Moved `ensure_initialized()` before `caml_copy_string()`. Previously, Python module import called `par_set_vec_extension_path` before `par_init`, which triggered `caml_copy_string` on an uninitialized OCaml GC → SIGABRT. Now `ensure_initialized()` runs `caml_startup` first if needed.
+
+### Fixed — .docx FFI Dispatch
+
+- **FIX** `lib/ffi/par_capi.ml` `loader_for_extension`: Added `.docx -> Some Par.Docx_loader.make` (was missing, causing `load_document("file.docx")` to fail with "Unsupported file extension").
+- **FIX** `lib/ffi/par_capi.ml` `parse_loaders_json`: Added `"docx" -> Some Par.Docx_loader.make` (was missing, causing custom loaders dict to not support .docx).
+
+### Added — HNSW Vector Store Python FFI
+
+- **NEW** `Runtime.vector_store` getter in `runtime.mli`/`runtime.ml` — exposes the runtime's internal vector store for FFI access.
+- **NEW** `par_capi.ml` `do_init`: Parses `"vector_store"` field from config JSON. Schema: `{"vector_store": {"backend": "hnsw", "dimension": 1536, "m": 16, "ef_construction": 200, "ef_search": 50, "persist_path": null}}`. Passes `Vs_hnsw` to `Runtime.create ~vector_store_backend`.
+- **CHANGED** `par_capi.ml` `ensure_vector_store`: Now checks runtime's vector store (via `Runtime.vector_store`) before creating a new sqlite-vec store. If HNSW was configured, uses that.
+- **CHANGED** `bindings/python/par_runtime/runtime.py` `_normalize_config`: Passes through `vector_store` config field. Updated `add_documents` docstring.
+- **NEW** `bindings/python/tests/test_rag_e2e.py`: HNSW config integration test.
+- **CHANGED** `docs/sdk/rag.md` + `docs/zh/sdk/rag.md`: Updated caveat — HNSW now available in both OCaml SDK and Python (was "OCaml SDK only").
+
 ## v0.7.5 — HNSW vector store + .docx loader + native structured output
 
 > Three features: (1) pure OCaml HNSW vector store backend — zero external deps, works on all platforms including Windows; (2) Word `.docx` document loader via camlzip + xmlm; (3) native structured output for OpenAI/Anthropic replacing text-injection fallback. 1408 tests passing.

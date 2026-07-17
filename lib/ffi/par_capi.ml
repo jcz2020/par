@@ -385,18 +385,48 @@ let do_init (config_json : string) =
               fd_log "[do_init] memory config missing backend or path";
               None
         in
+        let vector_store_backend =
+          let open Yojson.Safe.Util in
+          match member "vector_store" json with
+          | `Null -> None
+          | vs_json ->
+            let backend_str =
+              vs_json |> member "backend" |> to_string_option
+              |> Option.value ~default:"sqlite_vec"
+            in
+            (match String.lowercase_ascii backend_str with
+             | "hnsw" ->
+               let dimension =
+                 try vs_json |> member "dimension" |> to_int
+                 with Type_error _ ->
+                   failwith "vector_store.dimension is required for hnsw backend"
+               in
+               let m = vs_json |> member "m" |> to_int_option
+                       |> Option.value ~default:16 in
+               let ef_construction = vs_json |> member "ef_construction"
+                                     |> to_int_option
+                                     |> Option.value ~default:200 in
+               let ef_search = vs_json |> member "ef_search"
+                               |> to_int_option
+                               |> Option.value ~default:50 in
+               let persist_path =
+                 match vs_json |> member "persist_path" with
+                 | `Null -> None
+                 | `String s -> Some s
+                 | _ -> None
+               in
+               fd_log (Printf.sprintf "[do_init] vector_store backend=hnsw dim=%d" dimension);
+               Some (Par.Types.Vs_hnsw {
+                 persist_path; dimension; m; ef_construction; ef_search
+               })
+             | _ -> None)
+        in
         fd_log "[do_init] about to call Runtime.create";
         Eio.Switch.run (fun sw ->
           let create_result =
-            match persistence_svc, memory_svc with
-            | Some psvc, Some msvc ->
-              Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~persistence:psvc ~memory:msvc sw
-            | Some psvc, None ->
-              Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~persistence:psvc sw
-            | None, Some msvc ->
-              Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~memory:msvc sw
-            | None, None ->
-              Par.Runtime.create ~config ~llm ?embeddings:embed_opt sw
+            Par.Runtime.create ~config ~llm ?embeddings:embed_opt
+              ?persistence:persistence_svc ?memory:memory_svc
+              ?vector_store_backend sw
           in
           match create_result with
           | Ok rt ->
@@ -1197,16 +1227,21 @@ let vec_extension_path () : string =
 
 let runtime_vector_stores : (int, Par.Vector_store.t) Hashtbl.t = Hashtbl.create 8
 
-let ensure_vector_store state_id dim =
+let ensure_vector_store rt state_id dim =
   match Hashtbl.find_opt runtime_vector_stores state_id with
   | Some vs -> vs
   | None ->
-    (match Par.Vector_store.create
-       ~db_path:":memory:"
-       ~vec_extension_path:(vec_extension_path ())
-       ~dimension:dim () with
-     | Ok vs -> Hashtbl.add runtime_vector_stores state_id vs; vs
-     | Error e -> failwith (Types.error_category_to_yojson e |> Yojson.Safe.to_string))
+    (match Par.Runtime.vector_store rt with
+     | Some vs ->
+       Hashtbl.replace runtime_vector_stores state_id vs;
+       vs
+     | None ->
+       (match Par.Vector_store.create
+          ~db_path:":memory:"
+          ~vec_extension_path:(vec_extension_path ())
+          ~dimension:dim () with
+        | Ok vs -> Hashtbl.add runtime_vector_stores state_id vs; vs
+        | Error e -> failwith (Types.error_category_to_yojson e |> Yojson.Safe.to_string)))
 
 (* -------------------------------------------------------------------------- *)
 (* RAG operations: dispatch through work loop                                  *)
@@ -1273,7 +1308,7 @@ let do_add_documents (state_id : int) (docs_json : string) : int =
             | Ok [] -> Obj.repr (-3)
             | Ok (first_vec :: _ as vecs) ->
               let dim = Array.length first_vec in
-              let vs = ensure_vector_store state_id dim in
+              let vs = ensure_vector_store rt state_id dim in
               let doc_vecs = List.mapi (fun i vec ->
                 (List.nth docs i, vec)) vecs in
               (match Par.Vector_store.add vs doc_vecs with
@@ -1296,6 +1331,7 @@ let loader_for_extension (ext : string)
   | ".html" | ".htm" -> Some Par.Html_loader.make
   | ".csv" -> Some Par.Csv_loader.make
   | ".pdf" -> Some Par.Pdf_loader.make
+  | ".docx" -> Some Par.Docx_loader.make
   | _ -> None
 
 (* Convert a Document.t to a Yojson.Safe.t *)
@@ -1342,6 +1378,7 @@ let parse_loaders_json (json_str : string)
           | "html" -> Some Par.Html_loader.make
           | "csv" -> Some Par.Csv_loader.make
           | "pdf" -> Some Par.Pdf_loader.make
+          | "docx" -> Some Par.Docx_loader.make
           | _ -> None
         in
         (match fn with

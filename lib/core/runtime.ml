@@ -1731,6 +1731,8 @@ let workspace rt = rt.workspace
 
 let cancellation_root rt = rt.cancellation_root
 
+let vector_store rt = rt.vector_store
+
 let mcp_servers rt = rt.mcp_servers
 
 let mcp_server rt server_id =
