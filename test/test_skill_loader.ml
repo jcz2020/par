@@ -114,6 +114,36 @@ let () =
           | _ -> failwith "wrong trigger")
        | Error e -> failwith ("expected Ok, got: " ^ e));
       Sys.remove tmp);
+
+    test_case "literal block scalar (|) for system_prompt_override" `Quick (fun () ->
+      let tmp = Filename.temp_file "skill_block" ".md" in
+      let oc = Stdlib.open_out tmp in
+      output_string oc "---\nschema_version: 1\nid: bs\nname: BS\ndescription: block scalar test\nsystem_prompt_override: |\n  You are a code reviewer.\n  Always check for null pointers.\ntrigger: Auto\n---\n";
+      close_out oc;
+      (match Skill_loader.parse_skill_file ~path:tmp with
+       | Ok d ->
+         (match d.T.system_prompt_override with
+          | Some (T.Stable_prompt s) ->
+            let expected = "You are a code reviewer.\nAlways check for null pointers.\n" in
+            check string "block scalar content" expected s
+          | _ -> failwith "expected Some StablePrompt")
+       | Error e -> failwith ("expected Ok, got: " ^ e));
+      Sys.remove tmp);
+
+    test_case "folded block scalar (>) for system_prompt_override" `Quick (fun () ->
+      let tmp = Filename.temp_file "skill_fold" ".md" in
+      let oc = Stdlib.open_out tmp in
+      output_string oc "---\nschema_version: 1\nid: fold\nname: Fold\ndescription: folded scalar test\nsystem_prompt_override: >\n  This is a long\n  prompt that should\n  be folded into one line.\ntrigger: Auto\n---\n";
+      close_out oc;
+      (match Skill_loader.parse_skill_file ~path:tmp with
+       | Ok d ->
+         (match d.T.system_prompt_override with
+          | Some (T.Stable_prompt s) ->
+            let expected = "This is a long prompt that should be folded into one line.\n" in
+            check string "folded scalar content" expected s
+          | _ -> failwith "expected Some StablePrompt")
+       | Error e -> failwith ("expected Ok, got: " ^ e));
+      Sys.remove tmp);
   ] in
 
   let discover_tests = [

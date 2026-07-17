@@ -30,8 +30,9 @@ let default_project_skills_dir () =
   Filename.concat (Filename.concat (Sys.getcwd ()) ".par") "skills"
 
 (* --- Minimal YAML frontmatter parser ---
-   Format: text between two --- lines, each line is "key: value".
-   Values can be: null, bare string, [item1, item2], "quoted string". --- *)
+    Format: text between two --- lines, each line is "key: value".
+    Values can be: null, bare string, [item1, item2], "quoted string".
+    Supports YAML block scalars: | (literal), > (folded), with -, + chomping. --- *)
 
 let strip s = String.trim s
 
@@ -66,20 +67,107 @@ let parse_yaml_list s =
             String.sub x 1 (xlen - 2)
           else x)
 
-(* Parse frontmatter text into (key, raw_value) association list *)
+(* --- Block scalar support (YAML | and > indicators) --- *)
+
+let is_block_scalar_indicator v =
+  match v with
+  | "|" | ">" | "|-" | ">-" | "|+" | ">+" -> true
+  | _ -> false
+
+let leading_spaces line =
+  let n = ref 0 in
+  while !n < String.length line && line.[!n] = ' ' do incr n done;
+  !n
+
+let rec take_block_lines lines =
+  match lines with
+  | [] -> ([], [])
+  | line :: rest ->
+    let s = strip line in
+    if s = "" then begin
+      let block, remaining = take_block_lines rest in
+      (line :: block, remaining)
+    end else if String.length line > 0 && line.[0] = ' ' then begin
+      let block, remaining = take_block_lines rest in
+      (line :: block, remaining)
+    end else
+      ([], lines)
+
+let render_block_scalar indicator lines =
+  let style = if String.contains indicator '|' then `Literal else `Folded in
+  let chomp =
+    if String.contains indicator '-' then `Strip
+    else if String.contains indicator '+' then `Keep
+    else `Clip
+  in
+  let min_indent =
+    List.fold_left (fun acc line ->
+      let s = strip line in
+      if s = "" then acc
+      else let ind = leading_spaces line in min acc ind
+    ) max_int lines
+  in
+  let min_indent = if min_indent = max_int then 0 else min_indent in
+  let dedented = List.map (fun line ->
+    let s = strip line in
+    if s = "" then ""
+    else
+      let ind = leading_spaces line in
+      let drop = min ind min_indent in
+      String.sub line drop (String.length line - drop)
+  ) lines in
+  let joined =
+    match style with
+    | `Literal -> String.concat "\n" dedented
+    | `Folded ->
+      List.fold_left (fun acc line ->
+        let s = strip line in
+        match acc, s with
+        | "", _ -> s
+        | prev, "" -> prev ^ "\n"
+        | prev, _ -> prev ^ " " ^ s
+      ) "" dedented
+  in
+  let trim_trailing s =
+    let len = String.length s in
+    let n = ref (len - 1) in
+    while !n >= 0 && (s.[!n] = ' ' || s.[!n] = '\n' || s.[!n] = '\r' || s.[!n] = '\t') do
+      decr n
+    done;
+    String.sub s 0 (!n + 1)
+  in
+  let content = match chomp with
+    | `Strip -> trim_trailing joined
+    | `Clip -> trim_trailing joined ^ "\n"
+    | `Keep -> joined
+  in
+  content
+
+(* Parse frontmatter text into (key, raw_value) association list.
+   Supports YAML block scalars (| > |- >- |+ >+). *)
 let parse_frontmatter_text text =
   let lines = String.split_on_char '\n' text in
-  let lines = List.map strip lines in
-  lines
-  |> List.filter (fun l ->
-       l <> "" && l.[0] <> '#')
-  |> List.filter_map (fun line ->
-       match split_on ':' line with
-       | [key; value] ->
-         let k = strip key in
-         let v = strip value in
-         if k = "" then None else Some (k, v)
-       | _ -> None)
+  let rec parse acc = function
+    | [] -> List.rev acc
+    | line :: rest ->
+      let stripped = strip line in
+      if stripped = "" || stripped.[0] = '#' then
+        parse acc rest
+      else
+        match split_on ':' stripped with
+        | [key; value] ->
+          let k = strip key in
+          let v = strip value in
+          if k = "" then parse acc rest
+          else if is_block_scalar_indicator v then begin
+            let block_lines, remaining = take_block_lines rest in
+            let block_value = render_block_scalar v block_lines in
+            parse ((k, block_value) :: acc) remaining
+          end else
+            parse ((k, v) :: acc) rest
+        | _ -> parse acc rest
+  in
+  parse [] lines
 
 (* Parse tool_filter from raw value string *)
 let parse_tool_filter s =
@@ -126,13 +214,12 @@ let parse_trigger s =
 
 (* Parse a nullable value: "null" → None, other → Some string *)
 let parse_nullable s =
-  let s = strip s in
-  if s = "null" || s = "None" || s = "" then None
+  let stripped = strip s in
+  if stripped = "null" || stripped = "None" || stripped = "" then None
   else
-    (* Strip quotes if present *)
-    let len = String.length s in
-    if len >= 2 && s.[0] = '"' && s.[len - 1] = '"' then
-      Some (String.sub s 1 (len - 2))
+    let len = String.length stripped in
+    if len >= 2 && stripped.[0] = '"' && stripped.[len - 1] = '"' then
+      Some (String.sub stripped 1 (len - 2))
     else Some s
 
 (* Parse expected_output: null → None, other → parse as JSON *)
@@ -157,18 +244,18 @@ let parse_skill_file ~path : (Types.skill_descriptor, string) result =
   | Ok ic ->
     let content = really_input_string ic (in_channel_length ic) in
     close_in ic;
-    (* Split frontmatter from body: first --- ... second --- *)
+    (* Split frontmatter from body: first --- ... second ---.
+       Don't strip lines — indentation is needed for block scalar parsing. *)
     let lines = String.split_on_char '\n' content in
-    let lines = List.map strip lines in
     let rec extract_frontmatter acc state = function
       | [] -> (List.rev acc, None)
       | line :: rest ->
         (match state with
          | `Before ->
-           if line = "---" then extract_frontmatter acc `In_frontmatter rest
+           if strip line = "---" then extract_frontmatter acc `In_frontmatter rest
            else extract_frontmatter acc `Before rest
          | `In_frontmatter ->
-           if line = "---" then (List.rev acc, Some rest)
+           if strip line = "---" then (List.rev acc, Some rest)
            else extract_frontmatter (line :: acc) `In_frontmatter rest)
     in
     let frontmatter_lines, _body = extract_frontmatter [] `Before lines in
