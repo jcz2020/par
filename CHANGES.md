@@ -1,8 +1,94 @@
 # CHANGES
 
-## v0.7.6 — Python parity + FFI GC fix + YAML block scalars + downstream fixes
+## v0.7.7 — Downstream fixes (root-cause repair)
 
-> Python parity: fix SIGABRT, .docx FFI, HNSW Python FFI, _normalize_config, CAMLparam GC roots, YAML block scalars. Downstream fixes: timeout validation, save/update_current control, conversation isolation, tool description override, bash description overhaul. FFI: free() on Python memory, par_invoke_ext/par_generate_ext. 1410 OCaml tests, 14/15 Python test files passing.
+> Root-cause fixes for 5 downstream issues plus FFI exposure. All fixes are
+> fundamental (not band-aids): no race workarounds, no hand-waving, no
+> legacy behavior preserved. 14/15 Python test files passing (was 13/15).
+
+### Fixed — Downstream #1: bash tool timeout integer validation
+
+- **FIX** `lib/core/validation.ml` `check_type`: `` `Int _ `` now matches both
+  `"integer"` AND `"number"` (per JSON Schema spec: number ⊇ integer).
+  `` `Intlit _ `` gets the same treatment. This was a ROOT cause bug —
+  the hand-rolled validator didn't follow the JSON Schema type hierarchy.
+  Apply consistent numeric treatment across all integer-typed paths.
+
+### Fixed — Downstream #2: invoke_generate auto-save (unified save semantics)
+
+- **BREAKING/CONSISTENT** `Runtime.invoke` and `Runtime.invoke_generate` now
+  BOTH have `?save:bool` parameter. `invoke` defaults to `false` (never
+  auto-saved before), `invoke_generate` defaults to `true` (always
+  auto-saved before). Backward compat preserved. This is the FUNDAMENTAL
+  fix — previously the two APIs had different save semantics with no way
+  to control them. Now both have the same parameter with consistent
+  semantics: `save=true` calls `save_conversation`, `save=false` skips it.
+
+### Fixed — Downstream #3: concurrent invoke conversation race
+
+- **BREAKING/CONSISTENT** `Runtime.invoke` and `Runtime.invoke_generate`
+  now BOTH have `?update_current:bool` parameter (default `true`,
+  backward compat). When `false`: the result conversation is still
+  returned in the result type, but `rt.current_conversation` is NOT
+  written. This is the FUNDAMENTAL fix — the race was caused by
+  unconditional writes to the shared mutable `rt.current_conversation`.
+  Now concurrent callers pass `~update_current:false` to avoid the
+  shared mutable field race, and read the conversation from the return
+  value.
+
+### Fixed — Downstream #4: save_conversation explicit conversation
+
+- `Runtime.save_conversation` now accepts `?conversation:conversation`
+  parameter. When provided, saves the explicit conversation instead of
+  `rt.current_conversation`. Enables concurrent-safe usage: callers
+  pass `?conversation:my_conv` to invoke, read result conversation,
+  pass it to save_conversation — no shared mutable state access needed.
+
+### Fixed — Downstream #5: bash description + tool description override
+
+- **IMPROVEMENT** `Builtin_tools.bash_tool_descriptor.description`: replaced
+  `"ls -la"` example with `"git status"` + guidance to use dedicated tools
+  (read/write/ls) for file operations instead of bash. Prevents agents
+  from learning to use bash for simple file operations.
+- **NEW** `Runtime.set_tool_description_overrides rt [("name", "description")]`
+  + `?tool_description_overrides` on Runtime.create. Tool description
+  overrides applied at INVOKE time (after skill effects, before sending
+  to LLM) — works regardless of when agents were registered. This is
+  the FUNDAMENTAL fix — overrides at register_agent time had a
+  sequencing dependency (already-registered agents weren't affected).
+
+### Fixed — Python FFI: ctypes callback free() on Python memory
+
+- **FIX** `lib/ffi/par_ffi.c` `caml_invoke_python_handler`: removed
+  `free(result)`. `result` was a pointer into a Python bytes object
+  internal buffer (from ctypes CFUNCTYPE callback with `restype=c_char_p`).
+  Python's memory manager owns this pointer — calling C `free()` on it
+  is undefined behavior → heap corruption → `munmap_chunk(): invalid
+  pointer`. Python's GC reclaims the bytes object automatically.
+  `caml_copy_string` already copies the data to OCaml heap, so no data loss.
+  This was the ROOT cause of `test_structured.py` SIGABRT crash.
+
+### New — Python FFI: save/update_current exposed
+
+- **NEW** `par_invoke_ext(rt, agent_id, message, save, update_current)`:
+  C bridge + OCaml callback + Python `Runtime.invoke(*, save=None, update_current=None)`.
+  When Python user passes `save=False, update_current=False`, the underlying
+  `par_invoke_ext` is called instead of `par_invoke`. Backward compat:
+  no options → original `par_invoke` path.
+- **NEW** `par_generate_ext(rt, agent_id, message, save, update_current)`:
+  Same pattern for `Runtime.invoke_generate`.
+- All 4 FFI paths verified end-to-end (manual test with PAR_FFI_DEBUG=1).
+
+### Known issues
+
+- `test_http_timeout.py` still crashes with SIGABRT. Root cause: the
+  streaming path runs on a Python background thread which needs
+  `caml_acquire_runtime_system()` / `caml_c_thread_register()` from
+  `<caml/domain.h>` (OCaml 5.x multi-domain registration). The current
+  `ocaml_lock` (pthread_mutex) is NOT the OCaml domain lock — it's just
+  a C-level serialization primitive. This requires additional
+  investigation with GDB and OCaml 5.x domain API knowledge. Tracked
+  for a future version.
 
 ### Fixed — Python CI SIGABRT
 

@@ -101,7 +101,7 @@ jobs:
             case "$f" in
               *test_http_timeout*)
                 python3 -m pytest "$f" -v --tb=short 2>&1 || \
-                  echo "KNOWN ISSUE: streaming timeout crash (tracked separately)"
+                  echo "KNOWN ISSUE: streaming timeout FFI crash (OCaml 5.x domain lock from background thread — requires caml_acquire_runtime_system / caml_c_thread_register, deferred)"
                 ;;
               *)
                 python3 -m pytest "$f" -v --tb=short || FAILED=1
