@@ -52,21 +52,21 @@ let json_to_float = function
 (* -------------------------------------------------------------------------- *)
 
 let check_type expected actual =
-  let actual_kind = match actual with
-    | `String _ -> "string"
-    | `Int _ -> "integer"
-    | `Float f when Float.is_integer f -> "number"
-    | `Float _ -> "number"
-    | `Bool _ -> "boolean"
-    | `Null -> "null"
-    | `List _ -> "array"
-    | `Assoc _ -> "object"
-    | `Intlit _ -> "integer"
-    | `Floatlit _ -> "number"
-    | `Stringlit _ -> "string"
+  let actual_kinds = match actual with
+    | `String _ -> ["string"]
+    | `Int _ -> ["integer"; "number"]
+    | `Float _ -> ["number"]
+    | `Bool _ -> ["boolean"]
+    | `Null -> ["null"]
+    | `List _ -> ["array"]
+    | `Assoc _ -> ["object"]
+    | `Intlit _ -> ["integer"; "number"]
+    | `Floatlit _ -> ["number"]
+    | `Stringlit _ -> ["string"]
   in
-  if actual_kind = expected then Ok ()
-  else Error (Printf.sprintf "expected %s, got %s" expected actual_kind)
+  if List.mem expected actual_kinds then Ok ()
+  else Error (Printf.sprintf "expected %s, got %s" expected
+                (String.concat "/" actual_kinds))
 
 (* -------------------------------------------------------------------------- *)
 (* Numeric and length predicates                                             *)

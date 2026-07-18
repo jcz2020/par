@@ -1504,7 +1504,7 @@ let do_save_conversation (state_id : int) : int =
   | None -> -1
   | Some _ ->
     let result = dispatch state_id (fun rt _env ->
-      match Runtime.save_conversation rt with
+      match Runtime.save_conversation rt () with
       | Ok () -> Obj.repr 0
       | Error _ -> Obj.repr (-1)) in
     match Obj.obj result with

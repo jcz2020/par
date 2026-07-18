@@ -284,6 +284,7 @@ val invoke_generate :
   message:string ->
   ?max_output_tokens:int ->
   ?total_timeout:float ->
+  ?save:bool ->
   ?on_tool_event:(event -> unit) ->
   ?on_chunk:(llm_response_chunk -> unit) ->
   ?system_prompt_appendix:string ->
@@ -471,7 +472,7 @@ val clear_tool_call_hooks : runtime -> unit
 
 val run_tool_call_hooks : runtime -> Hook.tool_call_context -> Hook.chain_result
 
-val save_conversation : runtime -> (unit, error_category) result
+val save_conversation : runtime -> ?conversation:conversation -> unit -> (unit, error_category) result
 
 val load_conversation : runtime -> string -> (Types.conversation option, error_category) result
 

@@ -648,9 +648,13 @@ let per_call_registry ~(rt : runtime) ~(workspace : Workspace.workspace) : Tool_
 let register_file_tools_rebuild rt rebuild =
   rt.file_tools_rebuild <- Some rebuild
 
-let save_conversation rt =
-  match !(rt.session_id), rt.current_conversation with
-  | Some sid, Some conv -> rt.services.persistence.save_conversation_fn sid conv
+let save_conversation rt ?(conversation : Types.conversation option) () =
+  let conv = match conversation with
+    | Some c -> Some c
+    | None -> rt.current_conversation
+  in
+  match !(rt.session_id), conv with
+  | Some sid, Some c -> rt.services.persistence.save_conversation_fn sid c
   | _ -> Ok ()
 
 let load_conversation rt sid =
@@ -837,7 +841,7 @@ let invoke_async rt ~agent_id ~message ?workspace ?cancellation_token ?conversat
       ?enable_handoff ?system_prompt_appendix ?context ())
 
 let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
-    ?on_tool_event ?on_chunk ?system_prompt_appendix () =
+    ?(save = true) ?on_tool_event ?on_chunk ?system_prompt_appendix () =
   let session_id = match !(rt.session_id) with
     | Some sid -> sid
     | None ->
@@ -916,8 +920,9 @@ let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
        | Ok (gen_result, conv) ->
          record_llm_success rt;
          rt.current_conversation <- Some conv;
-         ignore (save_conversation rt : (unit, error_category) result);
-         Result.Ok gen_result
+          if save then
+            ignore (save_conversation rt () : (unit, error_category) result);
+          Result.Ok gen_result
        | Error (err, conv) ->
          record_llm_error rt err;
          rt.current_conversation <- Some conv;
