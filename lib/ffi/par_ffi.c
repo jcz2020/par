@@ -80,7 +80,6 @@ value caml_invoke_python_handler(value v_handler_id, value v_input_json) {
         char* result = python_handler_table[handler_id](handler_id, input);
         if (result != NULL) {
             v_result = caml_copy_string(result);
-            free(result);
             CAMLreturn(v_result);
         }
     }
