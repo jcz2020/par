@@ -165,6 +165,11 @@ jobs:
           cd dist
           cat linux-x86_64/sha512-checksums.txt > sha512-checksums.txt 2>/dev/null || true
           cat macos-arm64/sha512-checksums.txt >> sha512-checksums.txt 2>/dev/null || true
+          # Move wheels to dist/ root so `gh release upload dist/*.whl` finds
+          # them. download-artifact preserves the artifact name as a subdir,
+          # so without this flatten step the glob doesn't match.
+          mv linux-x86_64/*.whl . 2>/dev/null || true
+          mv macos-arm64/*.whl . 2>/dev/null || true
           ls -la
       - name: Wait for release to exist, then upload
         env:
