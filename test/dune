@@ -534,3 +534,8 @@
  (name test_in_memory_vector_store)
  (libraries par eio_main alcotest)
  (modules test_in_memory_vector_store))
+
+(test
+ (name test_engine_assistant_message)
+ (libraries par eio_main alcotest str)
+ (modules test_engine_assistant_message))

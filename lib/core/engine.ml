@@ -584,6 +584,16 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
   let start_time = Unix.gettimeofday () in
   let last_compress_iter = ref (-1_000_000) in
   let reactive_attempts = ref 0 in
+  (* LOOP INVARIANT (root-cause fix for v0.7.8):
+     conv passed around inside [loop] MUST NOT contain the final assistant
+     message derived from the terminal response. Every Ok-bearing terminal
+     branch returns (resp, conv_without_final_append); [run_agent]'s egress
+     (single wrap below) does the one and only [add_assistant_message] for
+     the terminal response. Mid-iteration appends (Tool_calls at L790,
+     Continue sub-chunks at L1009) are NOT terminal — they feed the next
+     LLM call's context and remain inside [loop].
+     This eliminates the "remember-to-call-add_assistant_message" pattern
+     that caused the original bug (Stop/Content_filter path forgot). *)
   let rec loop ~agent ~global_max conv iterations =
     let global_max = max global_max agent.max_iterations in
     let elapsed = Unix.gettimeofday () -. start_time in
@@ -614,8 +624,8 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
         in
         (match run_llm_with_optional_streaming llm agent.model tools_for_provider conv' on_chunk with
          | Ok resp ->
-           let conv'' = add_assistant_message conv' resp in
-           Ok (resp, conv'')
+           (* Loop invariant: do not append — run_agent's egress wrap does it once. *)
+           Ok (resp, conv')
          | Error _ -> Result.Error ((Internal "Max iterations exceeded" : error_category), conv))
     )
     else begin
@@ -970,57 +980,82 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
             (match (resolved_on_max_tokens : Types.on_max_tokens_behavior) with
              | Types.Return_partial ->
                if has_content then begin
-                 let conv = add_assistant_message conv resp in
+                 (* Loop invariant: do not append — run_agent's egress wrap does it once. *)
                  let conv = drain_into_conv conv followup in
                  Ok (resp, conv)
                end else
                  if iterations + 1 >= global_max then Result.Error (Internal "Max iterations exceeded", conv)
                  else loop ~agent ~global_max conv (iterations + 1)
              | Types.Retry ->
-               let conv = add_assistant_message conv resp in
+               (* Loop invariant: do not append the truncated partial here —
+                  if the next iteration succeeds, that response gets appended
+                  by the egress wrap. If next iteration also fails, the error
+                  path discards conv anyway. *)
                let conv = drain_into_conv conv followup in
                if iterations + 1 >= global_max then Result.Error (Internal "Max iterations exceeded with truncated output", conv)
                else loop ~agent ~global_max conv (iterations + 1)
              | Types.Continue when not has_content ->
                if iterations + 1 >= global_max then Result.Error (Internal "Max iterations exceeded", conv)
                else loop ~agent ~global_max conv (iterations + 1)
-             | Types.Continue ->
-               let conv = add_assistant_message conv resp in
-               let initial_text = Option.value resp.text ~default:"" in
-               (* R1 mitigation (plan §2.5): wall-clock sub-cap on the Continue
-                  sub-loop, set to 50% of max_execution_time. Guards against
-                  runaway models that always emit >500 chars per chunk and
-                  would otherwise slip past the diminishing-returns guard. *)
-               let continue_start = Unix.gettimeofday () in
-               let sub_cap = (Option.value agent.max_execution_time ~default:infinity) *. 0.5 in
-               let rec continue_chunks ~start ~cap conv accumulated chunks =
-                 if chunks >= resolved_max_continuation_chunks then
-                   ({ resp with text = Some accumulated; finish_reason = Max_tokens }, conv)
-                 else if Unix.gettimeofday () -. start > cap then
-                   ({ resp with text = Some accumulated; finish_reason = Max_tokens }, conv)
-                 else
-                   let conv = add_user_feedback conv
-                     "Continue from where your previous response stopped. Do not repeat previous content." in
-                   (match run_llm_with_optional_streaming llm agent.model tools_for_provider conv on_chunk with
-                    | Error _ ->
-                      ({ resp with text = Some accumulated; finish_reason = Max_tokens }, conv)
-                    | Ok cont_resp ->
-                      let new_text = Option.value cont_resp.text ~default:"" in
-                      let conv = add_assistant_message conv cont_resp in
-                      let combined = accumulated ^ new_text in
-                      (match cont_resp.finish_reason with
-                       | Stop | Content_filter ->
-                         ({ cont_resp with text = Some combined; finish_reason = Stop }, conv)
-                       | _ ->
-                         if String.length (String.trim new_text) < 500 then
-                           ({ cont_resp with text = Some combined; finish_reason = Max_tokens }, conv)
-                         else
-                           continue_chunks ~start ~cap conv combined (chunks + 1)))
-               in
-               let (final_resp, final_conv) = continue_chunks ~start:continue_start ~cap:sub_cap conv initial_text 1 in
-               let final_conv = drain_into_conv final_conv followup in
-               Ok (final_resp, final_conv)
-            )
+              | Types.Continue ->
+                let conv = add_assistant_message conv resp in
+                (* pre_continue_len includes the initial Max_tokens response just appended.
+                   Branch 6 normalize (root-cause fix for v0.7.8): on termination,
+                   collapse the entire continue-session trail (initial resp + user feedbacks
+                   + intermediate chunk responses) into a single combined Assistant message.
+                   This (a) keeps the loop invariant "conv does not contain the terminal
+                   response" by treating the combined message as the terminal response,
+                   and (b) fixes a pre-existing latent bug where final_resp.text (combined)
+                   disagreed with final_conv.messages' last entry (last chunk only). *)
+                let pre_continue_len = List.length conv.messages in
+                let initial_text = Option.value resp.text ~default:"" in
+                (* R1 mitigation (plan §2.5): wall-clock sub-cap on the Continue
+                   sub-loop, set to 50% of max_execution_time. Guards against
+                   runaway models that always emit >500 chars per chunk and
+                   would otherwise slip past the diminishing-returns guard. *)
+                let continue_start = Unix.gettimeofday () in
+                let sub_cap = (Option.value agent.max_execution_time ~default:infinity) *. 0.5 in
+                let rec continue_chunks ~start ~cap conv accumulated chunks =
+                  if chunks >= resolved_max_continuation_chunks then
+                    ({ resp with text = Some accumulated; finish_reason = Max_tokens }, conv)
+                  else if Unix.gettimeofday () -. start > cap then
+                    ({ resp with text = Some accumulated; finish_reason = Max_tokens }, conv)
+                  else
+                    let conv = add_user_feedback conv
+                      "Continue from where your previous response stopped. Do not repeat previous content." in
+                    (match run_llm_with_optional_streaming llm agent.model tools_for_provider conv on_chunk with
+                     | Error _ ->
+                       ({ resp with text = Some accumulated; finish_reason = Max_tokens }, conv)
+                     | Ok cont_resp ->
+                       let new_text = Option.value cont_resp.text ~default:"" in
+                       let conv = add_assistant_message conv cont_resp in
+                       let combined = accumulated ^ new_text in
+                       (match cont_resp.finish_reason with
+                        | Stop | Content_filter ->
+                          ({ cont_resp with text = Some combined; finish_reason = Stop }, conv)
+                        | _ ->
+                          if String.length (String.trim new_text) < 500 then
+                            ({ cont_resp with text = Some combined; finish_reason = Max_tokens }, conv)
+                          else
+                            continue_chunks ~start ~cap conv combined (chunks + 1)))
+                in
+                let (final_resp, final_conv) = continue_chunks ~start:continue_start ~cap:sub_cap conv initial_text 1 in
+                (* Compact: replace [initial_resp; user_feedback_1; cont_resp_1; ...; user_feedback_N; cont_resp_N]
+                   (everything from index pre_continue_len - 1 onwards) with a single combined Assistant message.
+                   The combined message's text equals final_resp.text, so the egress wrap's
+                   idempotency check will detect it and skip the redundant append. *)
+                let combined_text = Option.value final_resp.text ~default:"" in
+                let pre_msgs =
+                  List.filteri (fun i _ -> i < pre_continue_len - 1) final_conv.messages in
+                let combined_msg =
+                  { role = Assistant;
+                    content_blocks = (if combined_text = "" then []
+                                      else [Text_block { text = combined_text; cache_control = None }]);
+                    tool_calls = None; tool_call_id = None; name = None } in
+                let final_conv = { final_conv with messages = pre_msgs @ [combined_msg] } in
+                let final_conv = drain_into_conv final_conv followup in
+                Ok (final_resp, final_conv)
+             )
           | _ ->
             let conv = drain_into_conv conv followup in
             if Steering_queue.has_items (Option.value followup ~default:(Steering_queue.create ())) then
@@ -1078,7 +1113,30 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
         (String.length sys_prompt_text) (String.length user_message));
       make_conversation sys_prompt_text user_message
   in
-  loop ~agent ~global_max:0 conv 0
+  (* EGRESS WRAP (root-cause fix for v0.7.8): single point of authority for
+     materializing the terminal assistant message into the returned conversation.
+     The loop's contract is "conv does NOT contain the terminal response"; this
+     wrap is the only place that appends it. A new terminal branch added to
+     [loop] cannot cause the original bug (missing assistant message) because
+     [loop] is structurally forbidden from appending — the append happens here
+     regardless of which branch returned.
+     Idempotent check: if the loop's returned conv already ends with an
+     Assistant message whose text matches resp.text, skip the append. This
+     covers the Branch 6 Continue normalize path, which compacts intermediate
+     chunks into a combined message that equals final_resp.text. *)
+  match loop ~agent ~global_max:0 conv 0 with
+  | Result.Error e -> Result.Error e
+  | Result.Ok (resp, conv_pre) ->
+    let needs_append =
+      match List.rev conv_pre.messages with
+      | { role = Assistant; _ } as last :: _ ->
+        let last_text = Message.text_of_message last in
+        let resp_text = Option.value resp.text ~default:"" in
+        not (last_text = resp_text)
+      | _ -> true
+    in
+    let conv_final = if needs_append then add_assistant_message conv_pre resp else conv_pre in
+    Result.Ok (resp, conv_final)
 
 (* Two-phase structured output: ReAct loop with tools, then structured call.
    Composes run_agent (Phase 1) and run_structured (Phase 2).
