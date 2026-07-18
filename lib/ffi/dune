@@ -23,24 +23,16 @@
  (section lib)
  (files (par_ffi.h as include/par_ffi.h)))
 
-; Copy the platform-matched sqlite-vec extension next to the built .so
-; so the path resolution in par_capi.ml finds it next to Sys.executable_name.
-; This is what makes `pip install par-runtime` work: the wheel bundles
-; both par_capi.so and vec0.so into the same directory.
-(rule
- (target vec0.so)
- (enabled_if (= %{system} "linux"))
- (action
-  (copy ../../vendor/sqlite-vec/linux-x86_64/vec0.so vec0.so)))
-
-(rule
- (target vec0.dylib)
- (enabled_if (= %{system} "macosx"))
- (action
-  (copy ../../vendor/sqlite-vec/macos-aarch64/vec0.dylib vec0.dylib)))
-
-(rule
- (target vec0.dll)
- (enabled_if (= %{system} "win32"))
- (action
-  (copy ../../vendor/sqlite-vec/windows-x86_64/vec0.dll vec0.dll)))
+; NOTE (2026-07-19): The vec0.{so,dylib,dll} copy rules that used to live
+; here were removed. They were dead code:
+;   1. No dune stanza depended on them ((deps vec0.*) returned zero matches).
+;   2. Dune does not build orphan targets, so _build/default/lib/ffi/vec0.*
+;      was never materialized.
+;   3. Runtime fallback in par_capi.ml:vec_extension_path hits
+;      cwd/vendor/sqlite-vec/<platform>/vec0.* for OCaml SDK local dev.
+;   4. The Python wheel sources vec0 directly from vendor/ in the
+;      pypi-publish.yml workflow (see "Stage shared library + sqlite-vec
+;      extension" step) — it never relied on the dune rule either.
+;
+; vec0 is a vendored pre-built binary, not a dune build artifact. The
+; correct layer boundary keeps vendored assets out of the dune build graph.

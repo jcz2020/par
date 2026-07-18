@@ -3,6 +3,11 @@ name: PyPI publish
 on:
   push:
     tags: ["v*.*.*"]
+  workflow_dispatch:
+    # Manual trigger for validation without tag push. The publish jobs
+    # (gh-release-upload, pypi-upload) are guarded by `if:` conditions
+    # so a manual run only builds wheels + uploads workflow artifacts,
+    # letting us validate the build matrix before tagging.
 
 permissions:
   contents: write
@@ -21,6 +26,8 @@ jobs:
             python_bin: /opt/python/cp311-cp311/bin/python
             repair_tool: auditwheel
             repair_args: --plat manylinux_2_28_x86_64
+            vendor_dir: linux-x86_64
+            vec0_ext: so
             artifact: wheel-linux-x86_64
           - label: macos-arm64
             runner: macos-15
@@ -28,6 +35,8 @@ jobs:
             python_bin: python3
             repair_tool: delocate
             repair_args: ""
+            vendor_dir: macos-aarch64
+            vec0_ext: dylib
             artifact: wheel-macos-arm64
     container: ${{ matrix.container != '' && matrix.container || null }}
     steps:
@@ -45,10 +54,16 @@ jobs:
           brew update
           brew install gmp sqlite3 pkg-config openssl@3
 
+      # Disable opam sandboxing inside containers — bwrap requires
+      # unshare(CLONE_NEWNS) which is forbidden in unprivileged OCI
+      # containers. This is the canonical fix per setup-ocaml docs:
+      # https://github.com/ocaml/setup-ocaml#opam-disable-sandboxing
+      # We also set it on macOS for parity (no-op there in practice).
       - uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: "5.4.0"
           dune-cache: true
+          opam-disable-sandboxing: true
           opam-local-packages: |
             par.opam
 
@@ -58,18 +73,26 @@ jobs:
       - name: Build C FFI shared library
         run: opam exec -- dune build lib/ffi/par_capi.so
 
-      - name: Copy shared library + sqlite-vec extension for wheel
+      - name: Stage shared library + sqlite-vec extension
         run: |
+          set -euo pipefail
           mkdir -p bindings/python/par_runtime/lib
           cp -f _build/default/lib/ffi/par_capi.so bindings/python/par_runtime/lib/
-          # Copy the platform-matched sqlite-vec extension next to par_capi.so
-          # so the OCaml runtime can load_extension from the wheel directory.
-          if [ -f _build/default/lib/ffi/vec0.so ]; then
-            cp -f _build/default/lib/ffi/vec0.so bindings/python/par_runtime/lib/
-          elif [ -f _build/default/lib/ffi/vec0.dylib ]; then
-            cp -f _build/default/lib/ffi/vec0.dylib bindings/python/par_runtime/lib/
+
+          # vec0 is a vendored pre-built binary under vendor/sqlite-vec/.
+          # Source it directly instead of routing through dune — vec0 is
+          # not a build artifact, and the dune rules that used to copy it
+          # into _build/ were dead code (no stanza depended on them).
+          vec_src="vendor/sqlite-vec/${{ matrix.vendor_dir }}/vec0.${{ matrix.vec0_ext }}"
+          if [ -f "$vec_src" ]; then
+            cp -f "$vec_src" bindings/python/par_runtime/lib/
           else
-            echo "ERROR: sqlite-vec extension not built (vec0.so / vec0.dylib missing)"
+            echo "ERROR: vec0.${{ matrix.vec0_ext }} missing at $vec_src"
+            echo "Vendor directory contents:"
+            ls -la "vendor/sqlite-vec/${{ matrix.vendor_dir }}/" 2>&1 || true
+            echo
+            echo "All vendor dirs:"
+            ls vendor/sqlite-vec/ 2>&1 || true
             exit 1
           fi
           ls -la bindings/python/par_runtime/lib/
@@ -120,6 +143,7 @@ jobs:
   gh-release-upload:
     name: Upload all wheels to GH Release
     needs: build-wheel
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-22.04
     permissions:
       contents: write
@@ -160,6 +184,7 @@ jobs:
   pypi-upload:
     name: Publish all wheels to PyPI (OIDC)
     needs: build-wheel
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-22.04
     environment: pypi
     permissions:
