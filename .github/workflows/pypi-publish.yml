@@ -46,7 +46,10 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           dnf install -y gmp-devel sqlite-devel git perl bubblewrap \
-            libffi-devel openssl-devel
+            libffi-devel openssl-devel rsync
+          # rsync is required by opam 2.x for source copy of file:// URLs
+          # when sandboxing is disabled. manylinux_2_28 is a minimal image
+          # and does not preinstall it. macOS runners have rsync built in.
 
       - name: Install system deps (macOS)
         if: runner.os == 'macOS'
