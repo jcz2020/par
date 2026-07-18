@@ -152,21 +152,12 @@ let make_agent ~id ?(system_prompt = stable_prompt "") ?(system_prompt_template 
   | errs -> Result.Error (Types.Invalid_input (String.concat "; " errs))
 
 let register_agent rt (agent : agent_config) =
-  let tools_with_overrides =
-    if rt.tool_description_overrides = [] then agent.tools
-    else
-      List.map (fun (td : Types.tool_descriptor) ->
-        match List.assoc_opt td.name rt.tool_description_overrides with
-        | Some desc -> { td with description = desc }
-        | None -> td
-      ) agent.tools
-  in
   let validated = make_agent
     ~id:agent.id
     ?system_prompt:(Some agent.system_prompt)
     ?system_prompt_template:(Some agent.system_prompt_template)
     ~model:agent.model
-    ?tools:(Some tools_with_overrides)
+    ?tools:(Some agent.tools)
     ?max_iterations:(Some agent.max_iterations)
     ?middleware:(Some agent.middleware)
     ?retry_policy:(Some agent.retry_policy)
@@ -698,7 +689,8 @@ let load_most_recent_conversation rt =
 
 let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
     ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix
-    ?(context : Invoke_context.invoke_context option) () =
+    ?(context : Invoke_context.invoke_context option)
+    ?(update_current = true) ?(save = false) () =
   let effective_workspace = Option.value workspace ~default:rt.workspace in
   let ctx = match context with
     | Some c -> c
@@ -752,6 +744,16 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
     let composed_effect = compose_skill_effects active_effects in
     let before_tool_count = List.length config.tools in
     let config = apply_skill_effect_to_config composed_effect config in
+    let config =
+      if rt.tool_description_overrides = [] then config
+      else
+        { config with tools =
+          List.map (fun (td : Types.tool_descriptor) ->
+            match List.assoc_opt td.name rt.tool_description_overrides with
+            | Some desc -> { td with Types.description = desc }
+            | None -> td
+          ) config.tools }
+    in
     let after_tool_count = List.length config.tools in
     (match active_effects with
      | [] -> ()
@@ -818,7 +820,8 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
 (match try_with_provider llm_svc with
               | Ok (resp, conv) ->
                 record_llm_success rt;
-                rt.current_conversation <- Some conv;
+                if update_current then rt.current_conversation <- Some conv;
+                if save then ignore (save_conversation rt ~conversation:conv () : (unit, error_category) result);
                 Result.Ok { Types.response = resp; conversation = conv }
               | Error (err, _conv) when should_fallback err && rest <> [] ->
                 record_llm_error rt err;
@@ -832,7 +835,7 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
                 try_providers rest
               | Error (err, conv) ->
                 record_llm_error rt err;
-                rt.current_conversation <- Some conv;
+                if update_current then rt.current_conversation <- Some conv;
                 Result.Error (err, conv)))
     in
     try_providers all_ids
@@ -854,7 +857,7 @@ let invoke_async rt ~agent_id ~message ?workspace ?cancellation_token ?conversat
       ?enable_handoff ?system_prompt_appendix ?context ())
 
 let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
-    ?(save = true) ?on_tool_event ?on_chunk ?system_prompt_appendix () =
+    ?(save = true) ?(update_current = true) ?on_tool_event ?on_chunk ?system_prompt_appendix () =
   let session_id = match !(rt.session_id) with
     | Some sid -> sid
     | None ->
@@ -929,17 +932,17 @@ let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
         ~cancellation_token:token
         ~llm:llm_svc
         () in
-      (match result with
-       | Ok (gen_result, conv) ->
-         record_llm_success rt;
-         rt.current_conversation <- Some conv;
+       (match result with
+        | Ok (gen_result, conv) ->
+          record_llm_success rt;
+          if update_current then rt.current_conversation <- Some conv;
           if save then
-            ignore (save_conversation rt () : (unit, error_category) result);
+            ignore (save_conversation rt ~conversation:conv () : (unit, error_category) result);
           Result.Ok gen_result
-       | Error (err, conv) ->
-         record_llm_error rt err;
-         rt.current_conversation <- Some conv;
-         Result.Error (err, conv)))
+        | Error (err, conv) ->
+          record_llm_error rt err;
+          if update_current then rt.current_conversation <- Some conv;
+          Result.Error (err, conv)))
 
 let invoke_structured rt ~agent_id ~message ~response_schema
     ?(max_repair_attempts = 3) ?cancellation_token ?conversation

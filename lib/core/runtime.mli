@@ -246,6 +246,8 @@ val invoke :
   ?enable_handoff:bool ->
   ?system_prompt_appendix:string ->
   ?context:Invoke_context.invoke_context ->
+  ?update_current:bool ->
+  ?save:bool ->
   unit ->
   (invoke_result, error_category * conversation) result
 
@@ -291,6 +293,7 @@ val invoke_generate :
   ?max_output_tokens:int ->
   ?total_timeout:float ->
   ?save:bool ->
+  ?update_current:bool ->
   ?on_tool_event:(event -> unit) ->
   ?on_chunk:(llm_response_chunk -> unit) ->
   ?system_prompt_appendix:string ->
