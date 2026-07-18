@@ -567,23 +567,19 @@ class Runtime:
             return True
         return None
 
-    def invoke(self, agent_id: str, message: str) -> str:
-        """Invoke an agent synchronously.
-
-        Args:
-            agent_id: The agent's identifier.
-            message: The user message.
-
-        Returns:
-            JSON response string.
-
-        Raises:
-            PARInvokeError: If invocation fails.
-        """
+    def invoke(self, agent_id: str, message: str,
+               *, save: bool = None, update_current: bool = None) -> str:
         self._check_handle()
-        result_ptr = _lib.par_invoke(
-            self._handle, _c_str(agent_id), _c_str(message)
-        )
+        if save is not None or update_current is not None:
+            result_ptr = _lib.par_invoke_ext(
+                self._handle, _c_str(agent_id), _c_str(message),
+                ctypes.c_int(1 if save else 0),
+                ctypes.c_int(1 if update_current else 0),
+            )
+        else:
+            result_ptr = _lib.par_invoke(
+                self._handle, _c_str(agent_id), _c_str(message)
+            )
         result = _py_str(result_ptr)
         if not result:
             raise PARInvokeError(f"Invoke failed for agent: {agent_id}")
@@ -599,28 +595,21 @@ class Runtime:
         self,
         agent_id: str,
         message: str,
+        *,
+        save: bool = None,
+        update_current: bool = None,
     ) -> dict:
-        """Pure generation mode for long-output artifacts.
-
-        Skips the ReAct loop. Auto-continues on Max_tokens truncation.
-        Use for PRDs, HTML mockups, plans, documentation, etc. where no
-        tool calls are needed.
-
-        Args:
-            agent_id: ID of a registered agent (must have tools = []).
-            message: The prompt / user message.
-
-        Returns:
-            Parsed generate_result dict with keys: text, finish_reason,
-            continuations, total_tokens, session_id, elapsed.
-
-        Raises:
-            PARInvokeError: If the agent is unknown or generation fails.
-        """
         self._check_handle()
-        result_ptr = _lib.par_generate(
-            self._handle, _c_str(agent_id), _c_str(message)
-        )
+        if save is not None or update_current is not None:
+            result_ptr = _lib.par_generate_ext(
+                self._handle, _c_str(agent_id), _c_str(message),
+                ctypes.c_int(1 if save else 0),
+                ctypes.c_int(1 if update_current else 0),
+            )
+        else:
+            result_ptr = _lib.par_generate(
+                self._handle, _c_str(agent_id), _c_str(message)
+            )
         result = _py_str(result_ptr)
         if not result:
             raise PARInvokeError(f"Generate failed for agent: {agent_id}")

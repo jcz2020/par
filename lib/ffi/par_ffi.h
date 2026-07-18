@@ -45,11 +45,21 @@ int par_load_conversation(par_runtime_t* rt, const char* session_id);
 char* par_invoke(par_runtime_t* rt, const char* agent_id,
                  const char* message);
 
+/* Extended invocation with save/update_current control.
+   save: 1 = call save_conversation after success, 0 = skip
+   update_current: 1 = write to rt.current_conversation, 0 = skip (concurrent-safe) */
+char* par_invoke_ext(par_runtime_t* rt, const char* agent_id,
+                     const char* message, int save, int update_current);
+
 /* Long-output pure generation — returns JSON envelope with the
    generate_result fields. Skips the ReAct loop; auto-continues on
    Max_tokens. Caller must free() the returned string. */
 char* par_generate(par_runtime_t* rt, const char* agent_id,
                    const char* message);
+
+/* Extended generation with save/update_current control. */
+char* par_generate_ext(par_runtime_t* rt, const char* agent_id,
+                       const char* message, int save, int update_current);
 
 char* par_embed(par_runtime_t* rt, const char* messages_json);
 

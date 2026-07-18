@@ -843,14 +843,16 @@ let do_list_skills (state_id : int) : string =
       Obj.repr (Yojson.Safe.to_string (`List json_items))) in
     Obj.obj result
 
-let do_invoke (state_id : int) (agent_id : string) (message : string) =
+let do_invoke (state_id : int) (agent_id : string) (message : string)
+    ?save ?update_current () =
   match get_state state_id with
   | None -> None
   | Some _ ->
     let result = dispatch state_id (fun rt _env ->
       (try
          let result = Par.Runtime.invoke rt
-           ~agent_id ~message () in
+            ~agent_id ~message
+            ?save ?update_current () in
          let json = match result with
            | Ok { Par.Types.response = resp; conversation = _ } ->
              Printf.sprintf "{\"status\": \"ok\", \"content\": %s}"
@@ -863,13 +865,15 @@ let do_invoke (state_id : int) (agent_id : string) (message : string) =
        with e -> Obj.repr (Some (error_json (Printexc.to_string e))))) in
     (Obj.obj result : string option)
 
-let do_invoke_generate (state_id : int) (agent_id : string) (message : string) =
+let do_invoke_generate (state_id : int) (agent_id : string) (message : string)
+    ?save ?update_current () =
   match get_state state_id with
   | None -> None
   | Some _ ->
     let result = dispatch state_id (fun rt _env ->
       (try
-         let result = Par.Runtime.invoke_generate rt ~agent_id ~message () in
+         let result = Par.Runtime.invoke_generate rt ~agent_id ~message
+            ?save ?update_current () in
          (* Envelope uses "result" key because the response is a structured
             generate_result, not a raw llm_response. Python agent unwraps with
             json.loads(...)["result"]. See long-output-generation-mode-plan §3.1.4. *)
@@ -1588,14 +1592,30 @@ let () =
   Callback.register "par_invoke"
     (fun (state_id_obj : Obj.t) (agent_id : string) (message : string) ->
        let state_id : int = Obj.magic state_id_obj in
-       unwrap (do_invoke state_id agent_id message))
+       unwrap (do_invoke state_id agent_id message ()))
+
+let () =
+  Callback.register "par_invoke_ext"
+    (fun (state_id_obj : Obj.t) (agent_id : string) (message : string)
+         (save_int : int) (update_int : int) ->
+       let state_id : int = Obj.magic state_id_obj in
+       unwrap (do_invoke state_id agent_id message
+                 ~save:(save_int <> 0) ~update_current:(update_int <> 0) ()))
 
 (* Long-output generation mode (plan §3.1.4) *)
 let () =
   Callback.register "par_generate"
     (fun (state_id_obj : Obj.t) (agent_id : string) (message : string) ->
        let state_id : int = Obj.magic state_id_obj in
-       unwrap (do_invoke_generate state_id agent_id message))
+       unwrap (do_invoke_generate state_id agent_id message ()))
+
+let () =
+  Callback.register "par_generate_ext"
+    (fun (state_id_obj : Obj.t) (agent_id : string) (message : string)
+         (save_int : int) (update_int : int) ->
+       let state_id : int = Obj.magic state_id_obj in
+       unwrap (do_invoke_generate state_id agent_id message
+                 ~save:(save_int <> 0) ~update_current:(update_int <> 0) ()))
 
 let () =
   Callback.register "par_embed"

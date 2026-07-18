@@ -336,6 +336,23 @@ char* par_invoke(par_runtime_t* rt, const char* agent_id,
     CAMLreturnT(char*, ret);
 }
 
+char* par_invoke_ext(par_runtime_t* rt, const char* agent_id,
+                     const char* message, int save, int update_current) {
+    CAMLparam0();
+    CAMLlocal2(c_aid, c_msg);
+    c_aid = caml_copy_string(agent_id);
+    c_msg = caml_copy_string(message);
+
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value args[5] = { rt->_ocaml_value, c_aid, c_msg,
+                      Val_int(save), Val_int(update_current) };
+    const value* cb = lookup_cb("par_invoke_ext");
+    value result = caml_callbackN_exn(*cb, 5, args);
+    char* ret = extract_string(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLreturnT(char*, ret);
+}
+
 char* par_generate(par_runtime_t* rt, const char* agent_id,
                    const char* message) {
     CAMLparam0();
@@ -345,6 +362,23 @@ char* par_generate(par_runtime_t* rt, const char* agent_id,
 
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call3_exn("par_generate", rt->_ocaml_value, c_aid, c_msg);
+    char* ret = extract_string(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLreturnT(char*, ret);
+}
+
+char* par_generate_ext(par_runtime_t* rt, const char* agent_id,
+                       const char* message, int save, int update_current) {
+    CAMLparam0();
+    CAMLlocal2(c_aid, c_msg);
+    c_aid = caml_copy_string(agent_id);
+    c_msg = caml_copy_string(message);
+
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value args[5] = { rt->_ocaml_value, c_aid, c_msg,
+                      Val_int(save), Val_int(update_current) };
+    const value* cb = lookup_cb("par_generate_ext");
+    value result = caml_callbackN_exn(*cb, 5, args);
     char* ret = extract_string(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
     CAMLreturnT(char*, ret);
