@@ -1,5 +1,77 @@
 # CHANGES
 
+## v0.7.8 — PyPI wheel pipeline restored
+
+> Fixes the PyPI wheel publish pipeline that had been broken since v0.5.3.
+> Versions v0.5.1 through v0.7.7 were never published to PyPI because the
+> `pypi-publish.yml` workflow failed on every tag push (14 consecutive
+> failures). `pip install par-runtime` will work again starting at v0.7.8.
+> Users on v0.5.0 should upgrade directly to v0.7.8 — the intermediate
+> versions exist only as git tags and GitHub Releases, not on PyPI.
+
+### Fixed — PyPI wheel pipeline (two root causes + one latent dep)
+
+- **FIX** `pypi-publish.yml` Linux job: added `opam-disable-sandboxing: true`
+  to the `ocaml/setup-ocaml@v3` step. `ocaml/setup-ocaml@v3`'s bwrap-based
+  opam sandbox cannot `unshare(CLONE_NEWNS)` inside the
+  `quay.io/pypa/manylinux_2_28_x86_64:latest` container (OCI containers
+  forbid namespace creation by default), causing `opam install par
+  --deps-only` to fail with `bwrap: Creating new namespace failed:
+  Operation not permitted`. This is the canonical fix documented by
+  setup-ocaml for OCI containers (matches patterns in Z3Prover/z3 and
+  BinaryAnalysisPlatform/bap).
+- **FIX** `pypi-publish.yml` Linux deps: added `rsync` to the `dnf install`
+  list. In non-sandbox mode, opam 2.x uses system `rsync` for source copy
+  of `file://` URLs (in sandbox mode bwrap provides its own copy path,
+  which masked this dependency). `manylinux_2_28` is a minimal image and
+  does not preinstall `rsync`, so `opam pin par.dev^file:///...` failed
+  with `Fatal error: "rsync": command not found.` macOS runners ship
+  rsync built in.
+- **FIX** `pypi-publish.yml` wheel packaging: source `vec0.so`/`.dylib`
+  directly from `vendor/sqlite-vec/<dir>/` instead of routing through
+  `_build/default/lib/ffi/vec0.*`. The previous workflow assumed
+  `dune build lib/ffi/par_capi.so` would also emit vec0 alongside the
+  shared library, but the vec0 dune rules were orphan targets with zero
+  consumers — dune does not build orphan targets, so vec0 was never
+  materialized. The workflow now uses matrix variables
+  (`vendor_dir` + `vec0_ext`) to select the right vendor subdirectory,
+  making "add a new platform" a single matrix row instead of a new
+  variant of the same bug.
+
+### Removed — Dead dune rules
+
+- **REMOVED** `lib/ffi/dune`: deleted three `(rule (target vec0.{so,dylib,dll}) ...)`
+  stanzas. They were dead code: no dune stanza had `(deps vec0.*)`,
+  `dune build` never materialized them, and runtime fallback in
+  `par_capi.ml:vec_extension_path` hits `cwd/vendor/sqlite-vec/<platform>/`
+  directly for OCaml SDK local dev. Keeping them created the false
+  impression that `dune build` produced a complete runtime package,
+  which it does not (vec0 is a vendored pre-built binary, not a build
+  artifact).
+
+### Added — Workflow validation trigger
+
+- **NEW** `pypi-publish.yml`: added `workflow_dispatch` trigger so the
+  build matrix can be validated on `main` before tagging.
+  `gh-release-upload` and `pypi-upload` jobs are guarded by
+  `if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')`
+  so a manual run only builds wheels and uploads workflow artifacts —
+  it does not publish to PyPI or GitHub Releases.
+
+### Note — Pre-existing CI failures (not in scope)
+
+The `ci.yml` workflow (separate from `pypi-publish.yml`) currently fails
+on two pre-existing bugs unrelated to this release:
+
+- `test_http_timeout` SIGABRT after test PASS — OCaml 5.x domain lock
+  interacts poorly with the streaming background thread's
+  `ocaml_lock` pthread mutex. Tracked as backlog issue PAR-7be.
+- Windows OCaml install deps exit 31 — pre-existing Windows OCaml
+  setup issue unrelated to this fix.
+
+These do not block v0.7.8 because they exist on v0.7.7 as well and the
+release pipeline (this fix) succeeds independently.
+
 ## v0.7.7 — Downstream fixes (root-cause repair)
 
 > Root-cause fixes for 5 downstream issues plus FFI exposure. All fixes are
