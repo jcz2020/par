@@ -1,8 +1,8 @@
 # CHANGES
 
-## v0.7.6 — Python parity + FFI GC fix + YAML block scalars
+## v0.7.6 — Python parity + FFI GC fix + YAML block scalars + downstream fixes
 
-> Six fixes completing v0.7.5's Python parity promise: (1) fix Python CI SIGABRT (caml_copy_string before caml_startup); (2) fix .docx FFI dispatch table gaps; (3) expose HNSW vector store backend to Python via config JSON; (4) fix _normalize_config missing OCaml config fields; (5) CAMLparam/CAMLlocal GC root registration for all FFI functions; (6) YAML block scalar (| >) support in skill frontmatter parser. 1410 OCaml tests passing, 13/15 Python test files passing.
+> Python parity: fix SIGABRT, .docx FFI, HNSW Python FFI, _normalize_config, CAMLparam GC roots, YAML block scalars. Downstream fixes: timeout validation, save/update_current control, conversation isolation, tool description override, bash description overhaul. FFI: free() on Python memory, par_invoke_ext/par_generate_ext. 1410 OCaml tests, 14/15 Python test files passing.
 
 ### Fixed — Python CI SIGABRT
 

@@ -99,9 +99,9 @@ jobs:
           for f in tests/test_*.py; do
             echo "=== $(basename $f) ==="
             case "$f" in
-              *test_http_timeout*|*test_structured*)
+              *test_http_timeout*)
                 python3 -m pytest "$f" -v --tb=short 2>&1 || \
-                  echo "KNOWN ISSUE: OCaml 5.x domain↔ctypes callback crash (tracked separately)"
+                  echo "KNOWN ISSUE: streaming timeout crash (tracked separately)"
                 ;;
               *)
                 python3 -m pytest "$f" -v --tb=short || FAILED=1
