@@ -178,6 +178,12 @@ val unregister_tool :
     Returns [Error (Invalid_input "Tool not registered: ...")] if no
     handler exists under [name]. *)
 
+val set_tool_description_overrides :
+  runtime -> (string * string) list -> unit
+(** Override tool descriptions by tool name. Pairs of (tool_name, custom_description).
+    Applied at [register_agent] time — existing agents are not affected.
+    Empty list (default) uses built-in descriptions. *)
+
 val replace_tool :
   runtime ->
   name:string ->

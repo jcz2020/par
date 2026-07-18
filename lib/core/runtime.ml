@@ -28,6 +28,7 @@ type runtime = {
   workflows : (Workflow_run_id.t, workflow_status) protected_hashtbl;
   workflow_defs : (string, workflow) protected_hashtbl;
   tool_registry : Tool_registry.t;
+  mutable tool_description_overrides : (string * string) list;
   skills : Skill_registry.t;
   (* User-manually-activated skill ids. Composed with auto-triggered skills
      (last-override-wins for system_prompt, intersection for tool_filter).
@@ -151,12 +152,21 @@ let make_agent ~id ?(system_prompt = stable_prompt "") ?(system_prompt_template 
   | errs -> Result.Error (Types.Invalid_input (String.concat "; " errs))
 
 let register_agent rt (agent : agent_config) =
+  let tools_with_overrides =
+    if rt.tool_description_overrides = [] then agent.tools
+    else
+      List.map (fun (td : Types.tool_descriptor) ->
+        match List.assoc_opt td.name rt.tool_description_overrides with
+        | Some desc -> { td with description = desc }
+        | None -> td
+      ) agent.tools
+  in
   let validated = make_agent
     ~id:agent.id
     ?system_prompt:(Some agent.system_prompt)
     ?system_prompt_template:(Some agent.system_prompt_template)
     ~model:agent.model
-    ?tools:(Some agent.tools)
+    ?tools:(Some tools_with_overrides)
     ?max_iterations:(Some agent.max_iterations)
     ?middleware:(Some agent.middleware)
     ?retry_policy:(Some agent.retry_policy)
@@ -234,10 +244,13 @@ let update_agent_tools rt ~agent_id ~add:(additions : Types.tool_binding list) ~
     Ok ()
 
 let unregister_tool rt ~name =
-  match Tool_registry.unregister rt.tool_registry name with
+   match Tool_registry.unregister rt.tool_registry name with
   | Ok () -> Ok ()
   | Error (`Tool_not_found n) ->
     Result.Error (Types.Invalid_input (Printf.sprintf "Tool not registered: %s" n))
+
+let set_tool_description_overrides rt (overrides : (string * string) list) =
+  rt.tool_description_overrides <- overrides
 
 let replace_tool rt ~name ~(descriptor : Types.tool_descriptor) ~handler =
   (* name and descriptor.name must match — disallow implicit rename
@@ -1577,6 +1590,7 @@ let create ?(persistence = noop_persistence)
       workflows = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
       workflow_defs = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
       tool_registry = Tool_registry.create ();
+      tool_description_overrides = [];
       skills = Skill_registry.create ();
       user_activated_skills = [];
       steering_queue = Steering_queue.create ();

@@ -87,7 +87,9 @@ type url_encode_input = {
 
 let bash_tool_descriptor : Types.tool_descriptor =
   { Types.name = "bash"
-  ; description = "Execute a shell command. Input: {\"argv\": [\"ls\", \"-la\"], \"timeout\": 30, \"cwd\": \"src\"}. \
+  ; description = "Execute a system command (e.g. git, npm, docker, make). \
+                   Use dedicated tools (read, write, ls) for file operations. \
+                   Input: {\"argv\": [\"git\", \"status\"], \"timeout\": 30, \"cwd\": \"src\"}. \
                    Subject to Bash_policy and Bash_blacklist. \
                    Output: {\"stdout\": \"...\", \"stderr\": \"...\", \"exit_code\": 0, \"duration\": 0.12, \"truncated\": false}."
   ; input_schema = `Assoc
