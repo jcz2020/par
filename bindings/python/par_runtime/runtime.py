@@ -848,7 +848,8 @@ class Runtime:
             parsed = json.loads(result)
             if isinstance(parsed, dict) and "status" in parsed:
                 if parsed["status"] == "ok":
-                    return json.loads(parsed["value"])
+                    value = parsed["value"]
+                    return value if isinstance(value, dict) else json.loads(value)
                 if "message" in parsed:
                     raise PARInvokeError(parsed["message"])
             if isinstance(parsed, dict) and "error" in parsed:

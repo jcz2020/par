@@ -243,16 +243,20 @@ class TestInvokeStructuredWithTools(unittest.TestCase):
     def test_invoke_structured_tool_then_structured_json(self):
         """Two-phase flow: LLM requests a tool call, tool executes, then LLM
         returns structured JSON matching the response schema."""
-        # Phase 1 response: assistant asks to use the echo tool
+        # Phase 1 response 1: LLM asks to use the echo tool
         tool_response = _make_tool_call_response(
             "echo", '{"input": "hello"}',
         )
-        # Phase 2 response: assistant returns structured JSON
+        # Phase 1 response 2: LLM returns normal text (ends ReAct loop)
+        phase1_done = _make_chat_completion(
+            "I echoed the input.", "stop",
+        )
+        # Phase 2 response: LLM returns structured JSON
         structured_response = _make_chat_completion(
             '{"echoed": "hello"}', "stop",
         )
 
-        _MockOpenAIHandler.canned_responses = [tool_response, structured_response]
+        _MockOpenAIHandler.canned_responses = [tool_response, phase1_done, structured_response]
 
         rt = Runtime(_test_config_with_provider(self.base_url))
         try:
@@ -324,12 +328,14 @@ class TestInvokeStructuredWithTools(unittest.TestCase):
         tool_resp_1 = _make_tool_call_response("echo", '{"input": "first"}')
         # Phase 1b: second tool call
         tool_resp_2 = _make_tool_call_response("echo", '{"input": "second"}')
+        # Phase 1c: normal text response to end ReAct loop
+        phase1_done = _make_chat_completion("Done echoing.", "stop")
         # Phase 2: structured JSON
         structured_resp = _make_chat_completion(
             '{"echoed": "first and second"}', "stop",
         )
 
-        _MockOpenAIHandler.canned_responses = [tool_resp_1, tool_resp_2, structured_resp]
+        _MockOpenAIHandler.canned_responses = [tool_resp_1, tool_resp_2, phase1_done, structured_resp]
 
         rt = Runtime(_test_config_with_provider(self.base_url))
         try:

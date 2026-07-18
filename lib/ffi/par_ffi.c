@@ -10,6 +10,7 @@
 #include <caml/callback.h>
 #include <caml/alloc.h>
 #include <caml/memory.h>
+#include <caml/threads.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -488,6 +489,7 @@ char* par_invoke_stream(par_runtime_t* rt, const char* agent_id,
 
     g_chunk_callback = NULL;
     g_chunk_user_data = NULL;
+
     CAMLreturnT(char*, ret);
 }
 
