@@ -509,10 +509,16 @@ let terminal_assistant_message_suite =
           | Error (e, _) ->
             Alcotest.fail ("expected Ok, got Error: " ^ error_to_string e)));
 
-    (* ---- Test 11 (P1): Conversation resume ending in Assistant ----
-       Verify that resuming a conversation whose last message is an Assistant
-       (from a prior run_agent call) does NOT cause the egress wrap to
-       skip the new terminal append via idempotency collision. *)
+    (* ---- Test 11 (sanity): Conversation resume ending in Assistant ----
+       Sanity check (NOT a regression test for the egress wrap fix — Test 10
+       is the regression test for the Oracle-identified hole). Verifies that
+       resuming a conversation whose last message is an Assistant (from a
+       prior run_agent call) does not confuse the egress wrap. The two texts
+       ("previous answer" vs "new answer after resume") differ, so the
+       idempotency check short-circuits to needs_append=true before any
+       role/tool_calls matching matters. This test would pass even without
+       the tightened check from commit 10416b8 — it documents correct
+       behavior for the resume use case, not a bug fix. *)
     Alcotest.test_case "Conversation resume ending in Assistant: new turn still appended" `Quick
       (fun () ->
         let prior_assistant_msg : message = {

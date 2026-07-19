@@ -1,15 +1,16 @@
 # CHANGES
 
-## v0.7.8 — PyPI wheel pipeline restored
+## v0.7.9 — Engine.run_agent terminal Assistant message materialization
 
-> Fixes the PyPI wheel publish pipeline that had been broken since v0.5.3.
-> Versions v0.5.1 through v0.7.7 were never published to PyPI because the
-> `pypi-publish.yml` workflow failed on every tag push (14 consecutive
-> failures). `pip install par-runtime` will work again starting at v0.7.8.
-> Users on v0.5.0 should upgrade directly to v0.7.8 — the intermediate
-> versions exist only as git tags and GitHub Releases, not on PyPI.
+> Root-cause fix for a silent data-loss bug: `Runtime.invoke` returned an
+> `invoke_result` whose `response.text` held the final assistant content but
+> whose `conversation.messages` was missing the corresponding
+> `{role = Assistant; ...}` entry. This made conversation resume, audit
+> trails, and downstream structured-output composition silently incorrect.
+> The fix eliminates the bug class (not just this instance) via a loop
+> invariant plus a single egress wrap.
 
-### Fixed — Engine.run_agent terminal Assistant message materialization
+### Fixed — Terminal Assistant message materialization (root-cause)
 
 - **FIX** `lib/core/engine.ml`: `Engine.run_agent` had 7 Ok-bearing terminal
   branches; 6 called `add_assistant_message` inline before returning, 1 (the
@@ -46,12 +47,31 @@
 
 - **BEHAVIOR CHANGE** Error returns from `Engine.run_agent` no longer include
   the partial assistant message in the returned conversation tuple. Pre-fix
-  behavior was inconsistent across error branches (some had partial appends,
-  some didn't); post-fix is unified — no Error path has the terminal append.
-  Blast radius: callers that read `rt.current_conversation` after catching an
-  Error to inspect partial model output will see different content. No test or
-  documented caller depends on the pre-fix behavior; the change makes Error
-  returns semantically consistent.
+  behavior was inconsistent across error branches (the Max_tokens/Retry path
+  had a partial append; other branches did not); post-fix is unified — no
+  Error path has the terminal append. Blast radius: callers that read
+  `rt.current_conversation` after catching an Error to inspect partial model
+  output will see different content. No test or documented caller depends on
+  the pre-fix behavior; the change makes Error returns semantically
+  consistent.
+
+### Added — Regression test matrix
+
+- **NEW** `test/test_engine_assistant_message.ml` — 11 tests covering every
+  terminal path: Stop, Content_filter, Tool_calls→Stop, Max_tokens/Return_partial,
+  Max_tokens/Continue multi-chunk (verifies compact), Stop with empty text,
+  Max_tokens/Retry (verifies partial NOT in conv), Handoff carry_context=true
+  → target Stop, Early-stopping Generate, Handoff + empty-text Stop (the
+  Oracle-identified hole), Conversation resume ending in Assistant.
+
+## v0.7.8 — PyPI wheel pipeline restored
+
+> Fixes the PyPI wheel publish pipeline that had been broken since v0.5.3.
+> Versions v0.5.1 through v0.7.7 were never published to PyPI because the
+> `pypi-publish.yml` workflow failed on every tag push (14 consecutive
+> failures). `pip install par-runtime` will work again starting at v0.7.8.
+> Users on v0.5.0 should upgrade directly to v0.7.8 — the intermediate
+> versions exist only as git tags and GitHub Releases, not on PyPI.
 
 ### Fixed — PyPI wheel pipeline (two root causes + one latent dep)
 
