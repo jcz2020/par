@@ -31,6 +31,16 @@
   `run_structured` saw a conversation missing Phase 1's last assistant turn,
   reducing structured output quality with no error. Post-fix, Phase 2 sees the
   full Phase 1 context.
+- **Handoff + empty-text collision hole closed** (third-round audit fix): the
+  egress wrap's idempotency check originally matched on `role = Assistant`
+  alone. In `Handoff carry_context=true`, the source agent's mid-iteration
+  tool_calls Assistant message survives in carried context with
+  `content_blocks=[]` (so `text_of_message` returns `""`). If the target agent
+  returned a Stop response with `text=None` (real model behavior for
+  restrictive prompts), the naive role-only check false-matched on the empty
+  strings and skipped the target's terminal append. Tightened the check to
+  also require `tool_calls = None AND tool_call_id = None`, restricting the
+  skip path to "terminal-shaped" Assistant messages only.
 
 ### Changed — Error-path conversation content (semantic change)
 
