@@ -208,6 +208,10 @@ jobs:
         with:
           name: wheel-macos-arm64
           path: dist/
+      - name: Strip non-distribution files (checksums, etc.) before PyPI upload
+        # twine rejects sha512-checksums.txt as "Unknown distribution format".
+        # Only *.whl (and *.tar.gz for sdists) are valid PyPI distributions.
+        run: rm -f dist/*.txt
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
