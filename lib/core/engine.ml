@@ -1127,24 +1127,41 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
 
      SCOPE OF THE IDEMPOTENCY CHECK BELOW: it is narrowly scoped to the
      Branch 6 Continue compact case, where the loop legitimately puts the
-     combined message into conv before returning. The check compares text
-     equality to detect that case and skip the redundant append. It is NOT
-     a general violation detector — a future maintainer who appends an
-     Assistant message with DIFFERENT text inside `loop` would produce a
-     silent duplicate that this check cannot catch. The loop's contract is
-     enforced by code review + the structural default (`Ok (resp, conv)`
-     gets the append for free), not by this runtime check. *)
+     combined message into conv before returning. The check compares role +
+     text + tool_calls + tool_call_id to detect that case and skip the
+     redundant append. It is NOT a general violation detector — two failure
+     modes remain by design:
+       (a) Silent DUPLICATE: a future maintainer appends an Assistant with
+           DIFFERENT text inside `loop` → wrap cannot detect, produces two
+           trailing Assistants.
+       (b) Silent SKIP: in Handoff carry_context=true, the source agent's
+           mid-iteration tool_calls Assistant message survives in carried
+           context. If the target agent returns an empty terminal Stop
+           (text=None), a naive role-only check would false-match on
+           text_of_message="" and skip the target's terminal append.
+     The (b) case is closed by also requiring `tool_calls = None` and
+     `tool_call_id = None` — only "terminal-shaped" Assistant messages can
+     trigger the skip. Case (a) is enforced by code review + the structural
+     default (`Ok (resp, conv)` gets the append for free). *)
   match loop ~agent ~global_max:0 conv 0 with
   | Result.Error e -> Result.Error e
   | Result.Ok (resp, conv_pre) ->
-    let needs_append =
-      match List.rev conv_pre.messages with
-      | { role = Assistant; _ } as last :: _ ->
-        let last_text = Message.text_of_message last in
-        let resp_text = Option.value resp.text ~default:"" in
-        not (last_text = resp_text)
-      | _ -> true
-    in
+     let needs_append =
+       match List.rev conv_pre.messages with
+       | { role = Assistant; tool_calls = None; tool_call_id = None; _ } as last :: _ ->
+         (* Only "terminal-shaped" Assistant messages (no tool_calls, no
+            tool_call_id) can match here. Without the tool_calls/tool_call_id
+            filter, a mid-iteration tool_calls-bearing Assistant (e.g. the
+            source agent's handoff tool_call message surviving in carried
+            context) would false-match on empty-text collision: its
+            content_blocks=[] yields text_of_message="" which equals
+            Option.value resp.text ~default:"" when resp.text is None or "".
+            That false-match would silently skip the terminal append. *)
+         let last_text = Message.text_of_message last in
+         let resp_text = Option.value resp.text ~default:"" in
+         not (last_text = resp_text)
+       | _ -> true
+     in
     let conv_final = if needs_append then add_assistant_message conv_pre resp else conv_pre in
     Result.Ok (resp, conv_final)
 

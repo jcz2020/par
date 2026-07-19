@@ -456,6 +456,122 @@ let terminal_assistant_message_suite =
           | Error (e, _) ->
             Alcotest.fail ("expected Ok, got Error: " ^ error_to_string e)));
 
+    (* ---- Test 10 (P0): Handoff + empty-text terminal Stop ----
+       Oracle's third audit found a hole in the egress wrap's idempotency
+       check: in Handoff with carry_context=true, the source agent's
+       mid-iteration tool_calls Assistant message survives in carried context
+       with content_blocks=[] (text_of_message returns ""). If the target
+       agent returns a Stop response with text=None, the naive role-only
+       check would false-match on text_of_message="" and skip the target's
+       terminal append. Verify the tightened check (requires tool_calls=None
+       AND tool_call_id=None) correctly materializes the empty terminal turn. *)
+    Alcotest.test_case "Handoff + empty-text terminal Stop: still materialized" `Quick
+      (fun () ->
+        let handoff_tool = make_handoff_tool "B" in
+        let empty_stop_resp : llm_response =
+          { text = None; tool_calls = None; finish_reason = Stop;
+            usage = dummy_usage; model = "mock" } in
+        let llm = mock_llm_dynamic (fun conv ->
+          match system_prompt_of conv with
+          | Some "You are B" -> empty_stop_resp
+          | _ -> tool_call_response [ handoff_call () ])
+        in
+        let agent_a = make_agent_with_id ~tools:[ handoff_tool ] "A" "You are A" in
+        let agent_b = make_agent_with_id "B" "You are B" in
+        let reg = make_registry_from [ handoff_tool ] in
+        let resolver = function
+          | "B" -> Some agent_b
+          | _ -> None
+        in
+        with_token (fun token ->
+          match Engine.run_agent ~agent_resolver:resolver ~enable_handoff:true
+                  token agent_a "user question" llm reg with
+          | Ok (resp, conv) ->
+            Alcotest.(check (option string)) "resp.text is None"
+              None resp.text;
+            (* Last message MUST be B's empty Stop turn, not A's tool_call *)
+            (match List.rev conv.messages with
+             | last :: _ ->
+               Alcotest.(check string) "last message role is Assistant"
+                 "Assistant"
+                 (match last.role with
+                  | Assistant -> "Assistant"
+                  | _ -> "other");
+               (* Critical assertion: last Assistant must NOT have tool_calls
+                  (it's the terminal Stop, not A's mid-iteration tool_call).
+                  The tightened idempotency check requires tool_calls=None AND
+                  tool_call_id=None for the skip path; without it, A's
+                  tool_call Assistant (text_of_message="") would false-match
+                  B's empty terminal Stop and skip the append. *)
+               Alcotest.(check bool) "last Assistant has no tool_calls"
+                 true (last.tool_calls = None)
+             | [] -> Alcotest.fail "conv empty")
+          | Error (e, _) ->
+            Alcotest.fail ("expected Ok, got Error: " ^ error_to_string e)));
+
+    (* ---- Test 11 (P1): Conversation resume ending in Assistant ----
+       Verify that resuming a conversation whose last message is an Assistant
+       (from a prior run_agent call) does NOT cause the egress wrap to
+       skip the new terminal append via idempotency collision. *)
+    Alcotest.test_case "Conversation resume ending in Assistant: new turn still appended" `Quick
+      (fun () ->
+        let prior_assistant_msg : message = {
+          role = Assistant;
+          content_blocks = [Text_block { text = "previous answer"; cache_control = None }];
+          tool_calls = None; tool_call_id = None; name = None;
+        } in
+        let prior_sys : message = {
+          role = System;
+          content_blocks = [Text_block { text = "you are resumed"; cache_control = None }];
+          tool_calls = None; tool_call_id = None; name = None;
+        } in
+        let prior_user : message = {
+          role = User;
+          content_blocks = [Text_block { text = "previous question"; cache_control = None }];
+          tool_calls = None; tool_call_id = None; name = None;
+        } in
+        let existing_conv : conversation = {
+          messages = [prior_sys; prior_user; prior_assistant_msg];
+          metadata = [];
+        } in
+        let new_user_msg : message = {
+          role = User;
+          content_blocks = [Text_block { text = "follow-up question"; cache_control = None }];
+          tool_calls = None; tool_call_id = None; name = None;
+        } in
+        let resumed_conv = { existing_conv with
+                              messages = existing_conv.messages @ [new_user_msg] } in
+        let llm = mock_llm_dynamic (fun _ ->
+          stop_response "new answer after resume")
+        in
+        let agent = make_agent_with_id "resume-agent" "you are resumed" in
+        let reg = make_registry_from [] in
+        with_token (fun token ->
+          match Engine.run_agent ~conversation:resumed_conv
+                  token agent "follow-up question" llm reg with
+          | Ok (resp, conv) ->
+            Alcotest.(check (option string)) "resp is new answer"
+              (Some "new answer after resume") resp.text;
+            (* The conversation must end with the NEW terminal Assistant, not
+               the prior one. The prior Assistant ("previous answer") must
+               still be present earlier in the message list. *)
+            (match List.rev conv.messages with
+             | last :: _ ->
+               Alcotest.(check string) "last message is new terminal"
+                 "new answer after resume"
+                 (Message.text_of_message last)
+             | [] -> Alcotest.fail "conv empty");
+            let has_prior =
+              List.exists (fun (m : message) ->
+                m.role = Assistant
+                && Message.text_of_message m = "previous answer"
+              ) conv.messages
+            in
+            Alcotest.(check bool) "prior assistant preserved in trail"
+              true has_prior
+          | Error (e, _) ->
+            Alcotest.fail ("expected Ok, got Error: " ^ error_to_string e)));
+
   ])
 
 let () =
