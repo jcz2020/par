@@ -226,7 +226,15 @@ release pipeline (this fix) succeeds independently.
   investigation with GDB and OCaml 5.x domain API knowledge. Tracked
   for a future version.
 
-### Fixed — Python CI SIGABRT
+## v0.7.6 — Python parity + FFI GC fix + YAML block scalars
+
+> Completes v0.7.5's Python parity promise with 6 fixes: HNSW/.docx FFI
+> exposure, FFI GC root registration (CAMLparam/CAMLlocal) for all C
+> bridge functions, Python config normalization for v0.7.5 features,
+> and YAML block scalar support in skill frontmatter parser. 1410
+> OCaml tests + 13/15 Python test files passing.
+
+### Fixed — Python CI SIGABRT (par_set_vec_extension_path before par_init)
 
 - **FIX** `lib/ffi/par_ffi.c` `par_set_vec_extension_path`: Moved `ensure_initialized()` before `caml_copy_string()`. Previously, Python module import called `par_set_vec_extension_path` before `par_init`, which triggered `caml_copy_string` on an uninitialized OCaml GC → SIGABRT. Now `ensure_initialized()` runs `caml_startup` first if needed.
 
