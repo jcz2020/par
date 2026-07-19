@@ -539,3 +539,8 @@
  (name test_engine_assistant_message)
  (libraries par eio_main alcotest str)
  (modules test_engine_assistant_message))
+
+(executable
+ (name manual_qa_assistant)
+ (libraries par eio_main)
+ (modules manual_qa_assistant))

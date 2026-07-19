@@ -998,16 +998,20 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                if iterations + 1 >= global_max then Result.Error (Internal "Max iterations exceeded", conv)
                else loop ~agent ~global_max conv (iterations + 1)
               | Types.Continue ->
+                (* Temporary mid-iteration append — feeds initial chunk into the
+                   continue_chunks sub-loop's LLM context. This message (plus all
+                   user_feedback and chunk_assistant messages added inside
+                   continue_chunks) is collapsed into a single combined_msg by
+                   the compact below before returning. See compact at line ~1048. *)
                 let conv = add_assistant_message conv resp in
-                (* pre_continue_len includes the initial Max_tokens response just appended.
-                   Branch 6 normalize (root-cause fix for v0.7.8): on termination,
-                   collapse the entire continue-session trail (initial resp + user feedbacks
-                   + intermediate chunk responses) into a single combined Assistant message.
-                   This (a) keeps the loop invariant "conv does not contain the terminal
-                   response" by treating the combined message as the terminal response,
-                   and (b) fixes a pre-existing latent bug where final_resp.text (combined)
-                   disagreed with final_conv.messages' last entry (last chunk only). *)
                 let pre_continue_len = List.length conv.messages in
+                (* Branch 6 normalize (root-cause fix for v0.7.8): on termination,
+                   collapse the entire continue-session trail (initial resp above + user
+                   feedbacks + intermediate chunk responses) into a single combined
+                   Assistant message. This (a) keeps the loop invariant by treating the
+                   combined message as the terminal response, and (b) fixes a pre-existing
+                   latent bug where final_resp.text (combined) disagreed with
+                   final_conv.messages' last entry (last chunk only). *)
                 let initial_text = Option.value resp.text ~default:"" in
                 (* R1 mitigation (plan §2.5): wall-clock sub-cap on the Continue
                    sub-loop, set to 50% of max_execution_time. Guards against
@@ -1118,12 +1122,18 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
      The loop's contract is "conv does NOT contain the terminal response"; this
      wrap is the only place that appends it. A new terminal branch added to
      [loop] cannot cause the original bug (missing assistant message) because
-     [loop] is structurally forbidden from appending — the append happens here
-     regardless of which branch returned.
-     Idempotent check: if the loop's returned conv already ends with an
-     Assistant message whose text matches resp.text, skip the append. This
-     covers the Branch 6 Continue normalize path, which compacts intermediate
-     chunks into a combined message that equals final_resp.text. *)
+     the maintainer writes `Ok (resp, conv)` and gets the append for free —
+     no explicit `add_assistant_message` call required.
+
+     SCOPE OF THE IDEMPOTENCY CHECK BELOW: it is narrowly scoped to the
+     Branch 6 Continue compact case, where the loop legitimately puts the
+     combined message into conv before returning. The check compares text
+     equality to detect that case and skip the redundant append. It is NOT
+     a general violation detector — a future maintainer who appends an
+     Assistant message with DIFFERENT text inside `loop` would produce a
+     silent duplicate that this check cannot catch. The loop's contract is
+     enforced by code review + the structural default (`Ok (resp, conv)`
+     gets the append for free), not by this runtime check. *)
   match loop ~agent ~global_max:0 conv 0 with
   | Result.Error e -> Result.Error e
   | Result.Ok (resp, conv_pre) ->

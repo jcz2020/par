@@ -112,6 +112,62 @@ let error_to_string = function
   | Rate_limited -> "Rate_limited"
   | Embedding_unsupported -> "Embedding_unsupported"
 
+let system_prompt_of conv =
+  match conv.messages with
+  | { role = System; content_blocks = [Text_block { text = s; cache_control = None }]; _ } :: _ -> Some s
+  | _ -> None
+
+let mock_llm_dynamic f =
+  let counter = ref 0 in
+  { complete_fn = (fun _model _tools conv ->
+       incr counter;
+       Ok (f conv));
+    stream_fn = (fun _ _tools _ _ _ -> Ok {
+        final_usage = dummy_usage; finish_reason = Stop; chunks_received = 0 });
+    close_fn = (fun () -> ());
+    complete_structured_fn = None;
+    list_models_fn = None;
+    supports_native_tools_fn = None;
+    context_window_fn = None; cache_control_fn = None;
+  }
+
+let handoff_call ?(id = "tc-handoff") ?(name = "handoff") () : tool_call =
+  { id; name; arguments = `Assoc [] }
+
+let make_handoff_tool ?(name = "handoff") target_id =
+  let descriptor =
+    { name; description = "Handoff to target agent";
+      input_schema = `Assoc []; output_schema = None;
+      permission = Allow; timeout = None;
+      concurrency_limit = None; on_update = None; cache_control = None }
+  in
+  let handler _ _ = Handoff { target_agent_id = target_id; carry_context = true; task = None } in
+  { descriptor; handler }
+
+let make_agent_with_id ?(tools = []) ?(max_iterations = 10) ?(early_stopping = Force)
+    ?(on_max_tokens = Some Return_partial) ?(max_continuation_chunks = Some 3)
+    id system_prompt =
+  let descriptors = List.map (fun (tb : tool_binding) -> tb.descriptor) tools in
+  { id;
+    system_prompt = stable_prompt system_prompt;
+    system_prompt_template = None;
+    model = dummy_model; tools = descriptors; max_iterations;
+    middleware = []; retry_policy = None; context_strategy = None;
+    resource_quota = None; max_execution_time = None; tool_timeout = None;
+    early_stopping_method = early_stopping;
+    on_max_tokens; max_continuation_chunks;
+    context_compression_threshold = None;
+    compression_cooldown_messages = None;
+    context_window_override = None;
+    cache_strategy = No_caching }
+
+let make_registry_from tools =
+  let reg = Tool_registry.create () in
+  List.iter (fun (tb : tool_binding) ->
+    ignore (Tool_registry.register reg tb.descriptor tb.handler)
+  ) tools;
+  reg
+
 (* Core invariant assertion: the last message of conv is role=Assistant
    and its text equals Option.value resp.text ~default:"".
    This is the property the egress wrap guarantees. *)
@@ -310,6 +366,93 @@ let terminal_assistant_message_suite =
             in
             Alcotest.(check bool) "partial truncated text not in conv"
               false partial_in_conv
+          | Error (e, _) ->
+            Alcotest.fail ("expected Ok, got Error: " ^ error_to_string e)));
+
+    (* ---- Test 8 (P0): Handoff path — terminal assistant materialized across handoff ----
+       Oracle audit identified this as the highest-risk untested path: A issues a
+       tool_call that returns Handoff → B runs and finishes with Stop. Verify the
+       egress wrap catches the terminal response through the recursive loop call,
+       and the returned conv's last message is B's Stop response (not A's
+       tool_call message). *)
+    Alcotest.test_case "Handoff carry_context=true: terminal is target agent's response" `Quick
+      (fun () ->
+        let handoff_tool = make_handoff_tool "B" in
+        let llm = mock_llm_dynamic (fun conv ->
+          match system_prompt_of conv with
+          | Some "You are B" -> stop_response "B's final answer"
+          | _ -> tool_call_response [ handoff_call () ])
+        in
+        let agent_a = make_agent_with_id ~tools:[ handoff_tool ] "A" "You are A" in
+        let agent_b = make_agent_with_id "B" "You are B" in
+        let reg = make_registry_from [ handoff_tool ] in
+        let resolver = function
+          | "B" -> Some agent_b
+          | _ -> None
+        in
+        with_token (fun token ->
+          match Engine.run_agent ~agent_resolver:resolver ~enable_handoff:true
+                  token agent_a "user question" llm reg with
+          | Ok (resp, conv) ->
+            Alcotest.(check (option string)) "resp is B's Stop"
+              (Some "B's final answer") resp.text;
+            assert_last_message_is_terminal_assistant
+              ~name:"Handoff" resp conv;
+            (* Conversation audit trail: A's tool_calls turn must be present.
+               Note: handoff tool results do NOT generate a Tool-role message
+               (they go into the `handoffs` partition, not `non_handoff`,
+               so add_tool_result_message is not called). *)
+            let has_a_tool_call =
+              List.exists (fun (m : message) ->
+                m.role = Assistant && m.tool_calls <> None) conv.messages
+            in
+            Alcotest.(check bool) "A's tool_call assistant message preserved"
+              true has_a_tool_call
+          | Error (e, _) ->
+            Alcotest.fail ("expected Ok, got Error: " ^ error_to_string e)));
+
+    (* ---- Test 9 (P0): Early-stopping Generate path materializes final Assistant ----
+       When max_iterations is exceeded with Generate policy, the loop makes a
+       final LLM call asking for "best final answer". Verify the egress wrap
+       materializes that final response into conv. Setup: max_iterations=1, first
+       LLM call returns tool_calls (burns iteration), loop recurses to iter=1
+       which exceeds max → Generate fires. *)
+    Alcotest.test_case "Early-stopping Generate: final answer materialized" `Quick
+      (fun () ->
+        let echo_tool =
+          let descriptor =
+            { name = "echo"; description = "Echo tool";
+              input_schema = `Assoc []; output_schema = None;
+              permission = Allow; timeout = None;
+              concurrency_limit = None; on_update = None; cache_control = None }
+          in
+          let handler _ _ = Success (`String "ok") in
+          { descriptor; handler }
+        in
+        let llm = mock_llm_dynamic (fun conv ->
+          (* Heuristic: if the last user message is the "Based on the work..."
+             feedback added by the Generate early-stopping path, this is the
+             final Generate call. Otherwise it's the first iteration. *)
+          match List.rev conv.messages with
+          | { role = User; _ } as last :: _ ->
+            if contains_substring ~needle:"provide your best final answer"
+                 (Message.text_of_message last)
+            then stop_response "final generated answer"
+            else tool_call_response [ { id = "tc-1"; name = "echo"; arguments = `Assoc [] } ]
+          | _ -> stop_response "default")
+        in
+        let agent =
+          make_agent_with_id ~tools:[ echo_tool ] ~max_iterations:1
+            ~early_stopping:Generate "early-stop-agent" "You are a test agent"
+        in
+        let reg = make_registry_from [ echo_tool ] in
+        with_token (fun token ->
+          match Engine.run_agent token agent "hi" llm reg with
+          | Ok (resp, conv) ->
+            Alcotest.(check (option string)) "resp is Generate final answer"
+              (Some "final generated answer") resp.text;
+            assert_last_message_is_terminal_assistant
+              ~name:"EarlyGenerate" resp conv
           | Error (e, _) ->
             Alcotest.fail ("expected Ok, got Error: " ^ error_to_string e)));
 

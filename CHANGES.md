@@ -9,6 +9,40 @@
 > Users on v0.5.0 should upgrade directly to v0.7.8 — the intermediate
 > versions exist only as git tags and GitHub Releases, not on PyPI.
 
+### Fixed — Engine.run_agent terminal Assistant message materialization
+
+- **FIX** `lib/core/engine.ml`: `Engine.run_agent` had 7 Ok-bearing terminal
+  branches; 6 called `add_assistant_message` inline before returning, 1 (the
+  `_` catch-all for `finish_reason = Stop | Content_filter`) forgot. Result:
+  `Runtime.invoke` returned an `invoke_result` whose `response.text` held the
+  final assistant content but whose `conversation.messages` was missing the
+  corresponding `{role = Assistant; ...}` entry.
+- **Root-cause fix** (not minimal patch): eliminated the "remember-to-call"
+  pattern by establishing a loop invariant ("conv inside loop MUST NOT contain
+  the terminal response") and wrapping a single `add_assistant_message` at
+  `run_agent`'s egress. New terminal branches added to `loop` cannot cause the
+  bug — the maintainer writes `Ok (resp, conv)` and gets the append for free.
+- **Latent bug also fixed** (Branch 6 Continue path): pre-fix,
+  `final_resp.text` (combined across continuation chunks) disagreed with
+  `final_conv.messages`' last entry (last chunk only). Post-fix compact
+  collapses intermediate chunks into a single combined message whose text
+  equals `final_resp.text`.
+- **Silent degradation also fixed** (`run_agent_structured`): pre-fix, Phase 2's
+  `run_structured` saw a conversation missing Phase 1's last assistant turn,
+  reducing structured output quality with no error. Post-fix, Phase 2 sees the
+  full Phase 1 context.
+
+### Changed — Error-path conversation content (semantic change)
+
+- **BEHAVIOR CHANGE** Error returns from `Engine.run_agent` no longer include
+  the partial assistant message in the returned conversation tuple. Pre-fix
+  behavior was inconsistent across error branches (some had partial appends,
+  some didn't); post-fix is unified — no Error path has the terminal append.
+  Blast radius: callers that read `rt.current_conversation` after catching an
+  Error to inspect partial model output will see different content. No test or
+  documented caller depends on the pre-fix behavior; the change makes Error
+  returns semantically consistent.
+
 ### Fixed — PyPI wheel pipeline (two root causes + one latent dep)
 
 - **FIX** `pypi-publish.yml` Linux job: added `opam-disable-sandboxing: true`
