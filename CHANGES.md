@@ -1,5 +1,85 @@
 # CHANGES
 
+## v0.7.10 — Streaming architecture overhaul (PAR-7be fundamental fix)
+
+> Eliminates the Python daemon thread that caused SIGABRT/hang under
+> OCaml 5.x domain slot limits. Streaming now uses a C-side per-stream
+> queue with no foreign-thread OCaml runtime access.
+
+### Fixed — PAR-7be: streaming SIGABRT/hang root-cause fix
+
+- **FIX** `lib/ffi/par_ffi.c`, `lib/ffi/par_capi.ml`,
+  `bindings/python/par_runtime/runtime.py`: replaced the Python daemon
+  thread streaming architecture with a C-side per-stream-handle queue
+  bridge. The daemon thread's `caml_callback3_exn` call from an
+  unregistered foreign thread was undefined behavior in OCaml 5.x
+  (SIGABRT). Attempting to register the thread via
+  `caml_c_thread_register` + `caml_acquire_runtime_system` deadlocked
+  because `Domain.recommended_domain_count = 2` and both slots were
+  permanently occupied (D0 = Python main thread via `caml_startup`,
+  D1 = work_loop Domain via `Domain.spawn`).
+- **Root-cause fix** (not minimal patch): the new architecture has NO
+  foreign thread crossing into OCaml. `par_stream_start` enqueues work
+  on the work_loop Domain from the Python main thread (D0, registered)
+  and returns immediately with a handle. Chunks flow back through a
+  C-level per-handle queue (`pthread_cond_t` + linked list).
+  `par_stream_poll` is pure C — it holds NO OCaml domain slot, but
+  calls `caml_release_runtime_system` before parking in
+  `pthread_cond_timedwait` so major-GC STW barriers are not blocked.
+  This `release-before-park` invariant is the key insight: without it,
+  D1's HTTP I/O triggers STW which waits for D0 to acknowledge, but D0
+  is parked and cannot → deadlock.
+
+### Added — Per-stream-handle C API (internal)
+
+- **NEW** `par_stream_start(rt, agent_id, message) → handle` —
+  non-blocking enqueue from main thread.
+- **NEW** `par_stream_poll(handle, timeout_ms) → chunk | DONE | NULL` —
+  pure C blocking poll with `caml_release/acquire_runtime_system`.
+- **NEW** `par_stream_cancel(handle)` — per-handle atomic flag.
+- **NEW** `par_stream_take_final(handle)` — steal final result JSON.
+- **NEW** `par_stream_free(handle)` — free handle + queue.
+- **NEW** OCaml `dispatch_async` — fire-and-forget variant of `dispatch`
+  that enqueues work without `slot_take`. Uses `result_slot option`
+  (`None` for async items) so `work_loop` skips `slot_put`.
+- **NEW** OCaml externs: `caml_dispatch_chunk_to_c_with_handle`,
+  `caml_stream_finish_to_c`, `caml_stream_cancel_state`,
+  `caml_get_pending_stream_handle`.
+
+### Changed — Python API (behavioral, not breaking)
+
+- `Runtime.invoke_stream()` now returns a `_StreamReader` that IS an
+  iterator (has `__iter__` returning `self` + `__next__`). Previously
+  returned a generator wrapping the reader. This change lets callers
+  call `.cancel()` directly on the return value:
+  ```python
+  reader = rt.invoke_stream("agent", "msg")  # _StreamReader
+  for ev in reader:
+      if should_stop(ev): reader.cancel()
+  ```
+- `_StreamReader.cancel()` is now per-handle (atomic flag in C struct),
+  not global. Multiple concurrent streams no longer interfere.
+- `Runtime.cancel_stream()` is **deprecated** (emits
+  `DeprecationWarning`). The old global cancel flag is still set for
+  ABI compatibility but has no effect on streams started via
+  `invoke_stream()`.
+
+### Kept — Backward compatibility
+
+- `par_invoke_stream` C function retained as a wrapper around the new
+  `par_stream_start` + poll loop. Existing C-level callers unaffected.
+- The old global `g_chunk_callback` / `g_stream_cancel_requested` are
+  kept for the sync `do_invoke_stream` path (used by the
+  `par_invoke_stream` wrapper).
+
+### Removed — Dead code from failed v1/v2 attempts
+
+- No `caml_c_thread_register` / `caml_acquire_runtime_system` in
+  `par_invoke_stream` (the v1 attempt that hung due to domain slot
+  exhaustion).
+- No `Eio.Stream` in `work_loop` (the v2 attempt that broke Eio fiber
+  context for `Par.Runtime.invoke`).
+
 ## v0.7.9 — Engine.run_agent terminal Assistant message materialization
 
 > Root-cause fix for a silent data-loss bug: `Runtime.invoke` returned an

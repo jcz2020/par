@@ -170,18 +170,20 @@ def invoke_stream(
 
 - 方法名承载流式语义。`invoke` 上没有 `stream=True` 标志；想要非流式行为的调用方使用 `invoke`，想要流式的使用 `invoke_stream`。两个方法，两种意图，没有布尔陷阱。
 - 返回类型是 `Iterator[Event]`，不是 `List[Event]`。迭代器在 LLM 产出事件时逐个产出。
-- 第一次 `next()` 调用启动一个后台守护线程运行 `par_invoke_stream`。如果调用失败，迭代时抛出 `PARInvokeError`。
-- v0.5.3：chunk 实时增量到达 — 第一个 token 在 LLM 产出后的毫秒内到达调用方，而非在完整响应完成后。（v0.5.1–v0.5.2 使用缓冲交付；v0.5.3 将 FFI 重新连接到后台线程 + 队列模型。）
-- 仅关键字参数的扩展（取消令牌、对话 ID、RAG 选项）将在后续版本中以各自的关键字参数添加。v0.5.3 的签名有意保持最小。
+- v0.7.10：`invoke_stream` 返回的 `_StreamReader` 对象本身是迭代器（`__iter__` 返回 `self` + `__next__`）。调用方可直接在返回值上调用 `.cancel()`。
+- v0.7.10：无后台守护线程。`par_stream_start` 在 OCaml work_loop domain 上排队流式任务并立即返回。chunk 通过 C 层 per-handle 队列传递。这消除了导致 OCaml 5.x domain slot 耗尽下 SIGABRT 的 foreign-thread OCaml acquire（PAR-7be）。
+- v0.5.3：chunk 实时增量到达 — 第一个 token 在 LLM 产出后的毫秒内到达调用方。
+- 仅关键字参数的扩展将在后续版本中添加。
 
-## 增量 chunk 交付（v0.5.3）
+## 增量 chunk 交付（v0.7.10）
 
-`par_invoke_stream` 在后台守护线程中运行。OCaml SSE 解析器在 LLM 产出每个 chunk 时触发 ctypes 回调（`caml_dispatch_chunk_to_c`）。回调将 JSON 编码的 chunk 推入 `queue.Queue`。Python 迭代器的 `__next__` 并发消费队列，因此事件实时交付。
+`par_stream_start` 从 Python 主线程（D0，通过 `caml_startup` 注册）将流式任务排队到 OCaml work_loop domain（D1），立即返回一个不透明的 `par_stream_handle_t*` 句柄。work_loop 处理流并通过 `caml_dispatch_chunk_to_c_with_handle` 将 chunk 写入 per-handle C 层队列（pthread mutex + condvar + 链表）。Python 迭代器调用 `par_stream_poll(handle, timeout_ms)`，这是纯 C 操作 — 不持有 OCaml domain slot，但在 `pthread_cond_timedwait` 停泊前调用 `caml_release_runtime_system`，确保 major-GC STW barrier 不被阻塞。
 
 这意味着：
-- 第一个 token 在 LLM 产出后的毫秒内到达，而非在完整响应完成后。对于 30 秒的生成，感知延迟从"30 秒黑屏"降低到"首个 token < 1 秒"。
-- 后台线程在流的持续时间内持有进程全局的 C `ocaml_lock`。如果调用方提前从迭代器 break，线程会继续运行直到 LLM 流自然完成，在此窗口期间后续的 `par_*` 调用会阻塞。完整注意事项见 `invoke_stream` 文档字符串。
-- 缓冲的 JSON 信封（最终响应中的 `"chunks": [...]`）仍然返回以保持向向后兼容 — 直接读取 `parsed["chunks"]` 的调用方不受影响。
+- 第一个 token 在 LLM 产出后的毫秒内到达。condvar 在 chunk 入队时立即唤醒 poll — 无轮询延迟。
+- Python 主线程在每个 poll 周期中短暂释放 OCaml runtime（`caml_release_runtime_system` → `pthread_cond_timedwait` → `caml_acquire_runtime_system`）。这至关重要：没有它，D1 的 HTTP I/O 触发 major-GC STW 会等待 D0 确认，但 D0 已停泊 → 死锁。
+- 取消是 per-handle 的：`reader.cancel()` 在 C 句柄结构中设置原子标志。OCaml `on_chunk` 回调在每个 chunk 边界轮询 `caml_stream_cancel_state(handle)`，如发现已设置则抛出 `Stream_cancelled`。无全局状态，并发流之间不干扰。
+- 缓冲的 JSON 信封（最终响应中的 `"chunks": [...]`）仍然返回以保持向后兼容 — 直接读取 `parsed["chunks"]` 的调用方不受影响。
 
 ## Provider 支持
 

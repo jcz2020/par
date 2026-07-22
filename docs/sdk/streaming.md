@@ -170,17 +170,19 @@ Notes:
 
 - The method name carries the streaming semantic. There is no `stream=True` flag on `invoke`; callers who want non-streaming behavior use `invoke`, callers who want streaming use `invoke_stream`. Two methods, two intents, no boolean trap.
 - The return type is `Iterator[Event]`, not `List[Event]`. The iterator yields events as the LLM produces them.
-- The first `next()` call starts a background daemon thread that runs `par_invoke_stream`. If the invoke fails, `PARInvokeError` is raised on iteration.
-- v0.5.3: chunks arrive incrementally in real time — the first token reaches the caller within milliseconds of the LLM producing it, not after the full response completes. (v0.5.1–v0.5.2 used buffered delivery; v0.5.3 rewired the FFI to a background-thread + queue model.)
+- v0.7.10: `invoke_stream` returns a `_StreamReader` object that IS an iterator (has `__iter__` returning `self` + `__next__`). Callers can call `.cancel()` directly on the return value.
+- v0.7.10: No background daemon thread. `par_stream_start` enqueues work on the OCaml work_loop domain and returns immediately. Chunks flow through a C-level per-handle queue. This eliminates the foreign-thread OCaml acquire that caused SIGABRT under OCaml 5.x domain slot limits (PAR-7be).
+- v0.5.3: chunks arrive incrementally in real time — the first token reaches the caller within milliseconds of the LLM producing it, not after the full response completes.
 - Keyword-only extensions (cancellation tokens, conversation IDs, RAG options) will be added in later versions under their own keyword arguments. The v0.5.3 signature is intentionally minimal.
 
-## Incremental chunk delivery (v0.5.3)
+## Incremental chunk delivery (v0.7.10)
 
-`par_invoke_stream` runs in a background daemon thread. The OCaml SSE parser fires a ctypes callback (`caml_dispatch_chunk_to_c`) for each chunk as the LLM produces it. The callback pushes the JSON-encoded chunk onto a `queue.Queue`. The Python iterator's `__next__` consumes the queue concurrently, so events are delivered in real time.
+`par_stream_start` enqueues streaming work on the OCaml work_loop domain (D1) from the Python main thread (D0, registered with OCaml via `caml_startup`). It returns immediately with an opaque `par_stream_handle_t*`. The work_loop processes the stream and fires chunks via `caml_dispatch_chunk_to_c_with_handle`, which writes to a per-handle C-level queue (pthread mutex + condvar + linked list). The Python iterator calls `par_stream_poll(handle, timeout_ms)` which is pure C — it holds NO OCaml domain slot, but calls `caml_release_runtime_system` before parking in `pthread_cond_timedwait` so major-GC STW barriers are not blocked.
 
 This means:
-- The first token arrives within milliseconds of the LLM producing it, not after the full response completes. For a 30-second generation, perceived latency drops from "30 s black screen" to "first token < 1 s".
-- The background thread holds the process-global C `ocaml_lock` for the duration of the stream. If the caller breaks early from the iterator, the thread continues until the LLM stream completes naturally, and subsequent `par_*` calls block during that window. See the `invoke_stream` docstring for the full caveat.
+- The first token arrives within milliseconds of the LLM producing it. The condvar wakes the poll immediately on enqueue — no polling latency.
+- The Python main thread briefly releases the OCaml runtime during each poll cycle (`caml_release_runtime_system` → `pthread_cond_timedwait` → `caml_acquire_runtime_system`). This is essential: without it, D1's HTTP I/O triggers major-GC STW which waits for D0 to acknowledge, but D0 is parked → deadlock.
+- Cancel is per-handle: `reader.cancel()` sets an atomic flag in the C handle struct. The OCaml `on_chunk` callback polls `caml_stream_cancel_state(handle)` at each chunk boundary and raises `Stream_cancelled` if set. No global state, no interference between concurrent streams.
 - The buffered JSON envelope (`"chunks": [...]` in the final response) is still returned for backward compatibility — callers reading `parsed["chunks"]` directly are unaffected.
 
 ## Provider support
