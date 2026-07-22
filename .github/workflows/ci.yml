@@ -37,7 +37,9 @@ jobs:
       - name: Install pkg-config (Windows only)
         if: runner.os == 'Windows'
         shell: cmd
-        run: choco install pkgconfiglite -y --no-progress
+        run: |
+          choco install pkgconfiglite -y --no-progress
+          echo C:\ProgramData\chocolatey\bin>> "%GITHUB_PATH%"
       - uses: ocaml/setup-ocaml@v3
         with:
           # Windows uses MinGW-w64 port (broadest package ecosystem).
@@ -52,10 +54,16 @@ jobs:
       - name: Install dependencies
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
+            # conf-pkg-config.5 looks for 'pkgconf' binary, but chocolatey
+            # installs 'pkg-config.exe'. Create the alias so conf-pkg-config
+            # finds it in PATH (GITHUB_PATH was set in the choco step).
+            PC_BIN=$(dirname "$(which pkg-config 2>/dev/null)" 2>/dev/null || echo "")
+            if [ -n "$PC_BIN" ] && [ ! -f "$PC_BIN/pkgconf.exe" ]; then
+              cp "$PC_BIN/pkg-config.exe" "$PC_BIN/pkgconf.exe"
+            fi
             # Windows: skip --with-test. The flag pulls in test deps of ALL
             # transitive dependencies, not just PAR's own tests. On Cygwin/MinGW
             # this drags in ctypes test deps -> conf-pkg-config (no pkgconf on
-            # Cygwin) and eio test deps -> crowbar -> cmdliner build failures
             # (exit 31). PAR's own tests can't run on Windows anyway until the
             # build itself succeeds, so build-only deps are sufficient here.
             opam install . --deps-only --no-depexts
