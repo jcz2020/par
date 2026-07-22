@@ -63,12 +63,10 @@ jobs:
           LDFLAGS: ${{ runner.os == 'Windows' && '-L/cygdrive/c/msys64/mingw64/lib' || '' }}
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
-            # Windows: skip --with-test. The flag pulls in test deps of ALL
-            # transitive dependencies, not just PAR's own tests. On Cygwin/MinGW
-            # this drags in ctypes test deps -> conf-pkg-config and eio test
-            # deps -> crowbar -> cmdliner build failures. PAR's own tests
-            # can't run on Windows anyway until the build itself succeeds.
-            opam install . --deps-only --no-depexts
+            # Windows: let opam depext install system deps (zlib, gmp, sqlite3)
+            # AND use MSYS2 MinGW paths for compiler visibility.
+            # Skip --with-test (test deps of transitive deps fail on Cygwin).
+            opam install . --deps-only
           else
             opam install . --deps-only --with-test --no-depexts
           fi
