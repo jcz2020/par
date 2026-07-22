@@ -14,6 +14,7 @@ from par_runtime._ffi import (
     _free,
     _PYTHON_TOOL_CALLBACK,
     _STREAM_CALLBACK,
+    _PAR_STREAM_DONE,
 )
 from par_runtime._errors import (
     PARError,
@@ -98,192 +99,91 @@ def _decode_event(payload) -> Event:
 class _StreamReader:
     """Iterator over streaming chunks from a single invoke_stream call.
 
-    v0.5.3: True incremental streaming. ``par_invoke_stream`` runs in a
-    background daemon thread; the ctypes closure pushes each JSON chunk
-    onto a ``queue.Queue`` as the OCaml SSE parser produces it. The
-    iterator's ``__next__`` consumes the queue concurrently, so chunks
-    are delivered to the caller in real time — not buffered until the
-    LLM completes. The terminal ``Done`` event signals iteration end.
+    v0.7.10: NO background daemon thread. ``par_stream_start`` enqueues
+    work on the OCaml work_loop domain and returns immediately with a
+    handle. Chunks flow back through a C-level per-handle queue;
+    ``par_stream_poll`` blocks in pure C (pthread_cond_timedwait),
+    holding NO OCaml domain slot. This eliminates the foreign-thread
+    OCaml acquire that caused the v0.5.4 SIGABRT/hang under
+    ``Domain.recommended_domain_count=2``.
 
-    v0.5.4: ``cancel()`` interrupts an in-flight stream. The caller (or
-    the runtime's ``__del__`` when the reader is garbage-collected) sets
-    a process-global atomic flag via ``par_cancel_stream``; the OCaml
-    ``on_chunk`` callback checks it at the next chunk boundary and
-    aborts the stream, releasing ``ocaml_lock`` promptly (typically
-    within 50-300ms).
-
-    Threading model: the background thread holds the C ``ocaml_lock``
-    for the duration of ``par_invoke_stream``. The ctypes closure is
-    fired from the OCaml Eio domain (a separate OCaml Domain) which
-    acquires the GIL to run the Python callback. The callback only
-    does ``queue.put_nowait`` (non-blocking, unbounded) and never
-    re-enters ``par_*``, so no deadlock is possible. ``cancel()`` is
-    safe to call from any thread (it does NOT take ``ocaml_lock`` —
-    it sets a lock-free flag instead).
+    Cancel: per-handle atomic flag set by ``par_stream_cancel``; OCaml's
+    ``on_chunk`` polls via ``caml_stream_cancel_state`` at chunk boundary.
     """
 
-    _DONE_SENTINEL = object()
+    _POLL_TIMEOUT_MS = 100
 
-    def __init__(self, rt_handle: Any, agent_id: str, message: str,
-                 *, queue_timeout: float = 60.0,
-                 _inject_queue: Optional["queue.Queue"] = None,
-                 _inject_error: Optional[BaseException] = None,
-                 _inject_final_result: Optional[str] = None,
-                 cancel_fn: Optional[Callable[[], None]] = None):
+    def __init__(self, rt_handle: Any, agent_id: str, message: str):
+        self._handle = _lib.par_stream_start(
+            rt_handle, _c_str(agent_id), _c_str(message))
+        if not self._handle:
+            raise PARInvokeError("par_stream_start returned NULL")
         self._rt = rt_handle
-        self._agent_id = agent_id
-        self._message = message
-        self._queue: queue.Queue = _inject_queue if _inject_queue is not None else queue.Queue()
-        self._error: Optional[BaseException] = _inject_error
-        self._queue_timeout = queue_timeout
-        self._fetched = _inject_queue is not None
-        self._final_result: Optional[str] = _inject_final_result
-        self._fetch_thread: Optional[threading.Thread] = None
-        self._cancel_fn = cancel_fn
         self._cancel_called = False
-        self._cancelled = False
         self._completed = False
-        self._finished = False
-        if _inject_queue is not None and _inject_error is None:
-            # Injected-queue mode (used by tests): signal done immediately
-            # so iteration terminates naturally without spawning a thread.
-            self._queue.put_nowait(self._DONE_SENTINEL)
 
     def cancel(self) -> None:
-        """Interrupt the in-flight stream, if any.
-
-        Sets a process-global atomic flag read by the OCaml ``on_chunk``
-        callback at the next chunk boundary; the stream then aborts and
-        ``ocaml_lock`` is released. Idempotent: a no-op if there is no
-        stream in flight, no ``cancel_fn`` was supplied, the stream
-        already completed normally, or cancel was already requested.
-        Safe to call from any thread.
-        """
-        if (self._cancel_fn is None or self._cancel_called
-                or self._completed):
+        if self._cancel_called or self._completed or not self._handle:
             return
         self._cancel_called = True
         try:
-            self._cancel_fn()
+            _lib.par_stream_cancel(self._handle)
         except Exception:
-            # Swallow: cancel is best-effort. A failure here (e.g. the
-            # runtime already shut down) must not mask the caller's
-            # original control flow.
             pass
 
     def __del__(self):
-        # GC may run on any thread (e.g. a non-FFI pthread). If the caller
-        # dropped the reader without consuming it fully, cancel the
-        # in-flight stream so ocaml_lock is released rather than held
-        # until the LLM finishes naturally. par_cancel_stream is
-        # signal/thread-safe, so this is safe from __del__.
         try:
             self.cancel()
         except Exception:
             pass
 
-    def _push_chunk(self, json_chunk: bytes, _user_data: Any) -> None:
-        """ctypes callback fired by par_invoke_stream for each chunk.
+    def __iter__(self) -> "_StreamReader":
+        return self
 
-        Runs on the OCaml Eio domain thread (which acquired the GIL via
-        ctypes CFUNCTYPE dispatch). The callback must be non-blocking
-        and must not call back into par_* (would deadlock on ocaml_lock
-        held by the fetch thread).
-        """
-        try:
-            self._queue.put_nowait(json_chunk)
-        except queue.Full:
-            pass
+    def __next__(self) -> Event:
+        return next(self._gen)
 
-    def _do_fetch(self) -> None:
-        """Run par_invoke_stream and push terminal sentinel on completion.
-
-        Runs in a background daemon thread so __iter__ can consume the
-        queue concurrently. Any exception is stashed in self._error and
-        the sentinel is always pushed so __iter__ unblocks.
-        """
-        def _wrapper(json_chunk, user_data):
-            self._push_chunk(json_chunk, user_data)
-
-        cb = _STREAM_CALLBACK(_wrapper)
-        try:
-            result_ptr = _lib.par_invoke_stream(
-                self._rt,
-                _c_str(self._agent_id),
-                _c_str(self._message),
-                cb,
-                None,
-            )
-            raw = _py_str(result_ptr)
-        except BaseException as e:
-            self._error = e
-            self._queue.put_nowait(self._DONE_SENTINEL)
-            return
-
-        if not raw:
-            self._error = PARInvokeError("invoke_stream returned empty result")
-        else:
-            try:
-                parsed = json.loads(raw)
-            except json.JSONDecodeError as e:
-                self._error = PARInvokeError(f"invoke_stream returned invalid JSON: {e}")
-            else:
-                status = parsed.get("status")
-                if status == "ok":
-                    self._final_result = raw
-                elif status == "cancelled":
-                    # Cancellation is an expected outcome (par_cancel_stream),
-                    # not a failure: the stream returned cleanly and released
-                    # ocaml_lock. Surface the partial result and end iteration
-                    # normally rather than raising.
-                    self._cancelled = True
-                    self._final_result = raw
-                else:
-                    err = parsed.get("error", "unknown error")
-                    self._error = PARInvokeError(f"invoke_stream failed: {err}")
-        self._queue.put_nowait(self._DONE_SENTINEL)
-
-    def _start_fetch(self) -> None:
-        if self._fetched:
-            return
-        self._fetched = True
-        self._fetch_thread = threading.Thread(target=self._do_fetch, daemon=True)
-        self._fetch_thread.start()
-
-    def __iter__(self) -> Iterator[Event]:
-        self._start_fetch()
+    def _gen_body(self):
         try:
             while True:
-                try:
-                    item = self._queue.get(timeout=self._queue_timeout)
-                except queue.Empty:
-                    raise PARInvokeError(
-                        f"invoke_stream timed out after {self._queue_timeout}s "
-                        "waiting for next chunk"
-                    )
-                if item is self._DONE_SENTINEL:
-                    if self._fetch_thread is not None:
-                        self._fetch_thread.join(timeout=5.0)
-                    if self._error is not None:
-                        raise self._error
+                ptr = _lib.par_stream_poll(self._handle, self._POLL_TIMEOUT_MS)
+                if ptr == 1:  # PAR_STREAM_DONE sentinel (cffi returns int for c_void_p)
                     self._completed = True
+                    final_raw = _lib.par_stream_take_final(self._handle)
+                    if final_raw:
+                        final = json.loads(_py_str(final_raw))
+                        status = final.get("status")
+                        if status == "cancelled":
+                            return
+                        if status != "ok":
+                            err = final.get("error", "stream failed")
+                            raise PARInvokeError(f"invoke_stream failed: {err}")
                     return
-                try:
-                    payload = json.loads(item) if isinstance(item, (bytes, str)) else item
-                    yield _decode_event(payload)
-                except json.JSONDecodeError as e:
-                    raise PARInvokeError(f"invoke_stream chunk was invalid JSON: {e}")
+                if not ptr:
+                    continue
+                raw = _py_str(ptr)
+                payload = json.loads(raw)
+                yield _decode_event(payload["chunk"] if isinstance(payload, dict) and "chunk" in payload else payload)
         finally:
-            # Covers three exit paths: normal completion (_completed=True,
-            # cancel is a no-op), caller `break`/scope-exit (GeneratorExit
-            # lands here with _completed=False — cancel the in-flight
-            # stream so ocaml_lock is released), and error/timeout. This
-            # is what actually closes the v0.5.3 "break early blocks
-            # subsequent calls" limitation: __del__ alone cannot, because
-            # the background fetch thread holds a reference to the reader
-            # and keeps it alive past the caller's `del`.
-            self._finished = True
-            self.cancel()
+            if self._handle:
+                if not self._completed:
+                    _lib.par_stream_cancel(self._handle)
+                    while _lib.par_stream_poll(self._handle, 1000) != 1:
+                        pass
+                _lib.par_stream_free(self._handle)
+                self._handle = None
+
+    _gen = None
+
+    def __init__(self, rt_handle: Any, agent_id: str, message: str):
+        self._handle = _lib.par_stream_start(
+            rt_handle, _c_str(agent_id), _c_str(message))
+        if not self._handle:
+            raise PARInvokeError("par_stream_start returned NULL")
+        self._rt = rt_handle
+        self._cancel_called = False
+        self._completed = False
+        self._gen = self._gen_body()
 
 
 class Runtime:
@@ -764,28 +664,24 @@ class Runtime:
     def invoke_stream(self, agent_id: str, message: str) -> Iterator[Event]:
         """Invoke an agent and yield each LLM response chunk as an Event.
 
-        v0.5.3: True incremental streaming. ``par_invoke_stream`` runs in
-        a background daemon thread; the OCaml SSE parser fires a ctypes
-        callback for each chunk as the LLM produces it, which pushes onto
-        a ``queue.Queue``. This generator consumes the queue concurrently,
-        so chunks are delivered in real time — the first token arrives
-        within milliseconds of the LLM producing it, not after the full
-        response completes.
+        v0.7.10: No background thread. ``par_stream_start`` enqueues work
+        on the OCaml work_loop domain and returns immediately; chunks flow
+        back through a C-level per-handle queue polled via
+        ``par_stream_poll`` (pure C, no OCaml domain slot held). The
+        per-iterator ``cancel()`` method interrupts via a per-handle
+        atomic flag (no more global cancel-state collisions between
+        concurrent streams).
 
-        .. note::
+        Earlier versions (v0.5.3–v0.7.9) used a Python daemon thread that
+        acquired the OCaml runtime from a foreign thread, which caused
+        PAR-7be (SIGABRT under OCaml 5.x domain slot exhaustion).
+        v0.7.10 eliminates that failure mode by construction.
 
-            v0.5.4: ``break``-ing early from this iterator (or letting it
-            go out of scope) now cancels the in-flight stream via
-            ``par_cancel_stream`` — the background thread's ``ocaml_lock``
-            is released at the next chunk boundary (typically 50-300ms),
-            so subsequent ``par_*`` calls no longer block until the LLM
-            finishes naturally. You can also call ``self.cancel_stream()``
-            explicitly to interrupt a stream started elsewhere. (In
-            v0.5.3, breaking early left the lock held for the whole
-            remaining stream duration.)
+        Breaking early from this iterator cancels the stream and frees
+        the handle (drain-to-completion in ``__del__`` if needed).
 
         Raises:
-            PARInvokeError: if OCaml returns an error or the queue times out.
+            PARInvokeError: if OCaml returns an error.
             PARError: if the runtime has been shut down.
 
         Example:
@@ -794,30 +690,27 @@ class Runtime:
                     print(event.text, end="", flush=True)
         """
         self._check_handle()
-        handle = self._handle
-        return iter(_StreamReader(handle, agent_id, message,
-                                  cancel_fn=lambda: _lib.par_cancel_stream(handle)))
+        return _StreamReader(self._handle, agent_id, message)
 
     def cancel_stream(self) -> None:
-        """Cancel any in-flight ``invoke_stream`` on this runtime.
+        """Deprecated: use the iterator's ``.cancel()`` method instead.
 
-        Sets a process-global atomic flag read by the OCaml ``on_chunk``
-        callback at the next chunk boundary; the stream then aborts and
-        the process-global ``ocaml_lock`` is released, unblocking
-        subsequent ``par_*`` calls.
+        v0.7.10 replaced the global cancel mechanism with per-stream-handle
+        cancel. This method now emits a DeprecationWarning and is a no-op
+        for streams started via ``invoke_stream()`` (which use the new
+        per-handle API). To cancel an in-flight stream, call ``.cancel()``
+        on the iterator returned by ``invoke_stream()``.
 
-        Takes effect at the next chunk boundary (typically 50-300ms for
-        streaming providers, ~1s worst case for slow providers) — NOT
-        immediately, because the LLM stream must reach a chunk boundary
-        for the flag to be observed.
-
-        Safe to call from any thread (including Python's GC-triggered
-        ``__del__`` on a non-FFI pthread): it does NOT acquire
-        ``ocaml_lock`` (which is held by the in-flight stream) — it
-        performs a single lock-free atomic store instead.
-
-        A no-op if no stream is in flight. Idempotent.
+        Kept for ABI compatibility with any C-level callers that still
+        use ``par_cancel_stream`` directly.
         """
+        import warnings
+        warnings.warn(
+            "Runtime.cancel_stream() is deprecated since v0.7.10. "
+            "Use iterator.cancel() on the object returned by invoke_stream().",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._check_handle()
         _lib.par_cancel_stream(self._handle)
 

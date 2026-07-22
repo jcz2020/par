@@ -69,7 +69,7 @@ let slot_take slot =
    downcasting the closure at runtime. *)
 type work_item = {
   work : Obj.t;  (* holds runtime -> env -> Obj.t closure *)
-  result : Obj.t result_slot;
+  result : Obj.t result_slot option;  (* None = fire-and-forget async (v0.7.10 PAR-7be) *)
 }
 
 type runtime_state = {
@@ -110,13 +110,27 @@ let dispatch state_id (work_fn : Par.Runtime.runtime -> 'e -> Obj.t) : Obj.t =
     fd_log "[dispatch] acquiring work_mutex";
     Mutex.lock state.work_mutex;
     fd_log "[dispatch] work_mutex acquired, pushing work";
-    Queue.push { work = Obj.repr work_fn; result = result_slot } state.work_queue;
+    Queue.push { work = Obj.repr work_fn; result = Some result_slot } state.work_queue;
     Condition.signal state.work_cond;
     Mutex.unlock state.work_mutex;
     fd_log "[dispatch] work pushed, taking slot";
     let r = slot_take result_slot in
     fd_log "[dispatch] slot taken";
     r
+
+(* Fire-and-forget variant: enqueue work but do not wait for result.
+   Used by streaming (v0.7.10 PAR-7be) so the caller (Python main thread)
+   can return immediately and poll a C-side queue for chunks. *)
+let dispatch_async state_id (work_fn : Par.Runtime.runtime -> 'e -> Obj.t) : unit =
+  fd_log "[dispatch_async] enter";
+  match get_state state_id with
+  | None -> fd_log "[dispatch_async] state not found"
+  | Some state ->
+    Mutex.lock state.work_mutex;
+    Queue.push { work = Obj.repr work_fn; result = None } state.work_queue;
+    Condition.signal state.work_cond;
+    Mutex.unlock state.work_mutex;
+    fd_log "[dispatch_async] enqueued, returning"
 
 (* Sentinel: when this appears at the front of the queue, the work loop
    shuts down. *)
@@ -140,15 +154,15 @@ let rec work_loop rt env state =
   end else begin
     if Obj.is_int item.work then begin
       fd_log "[work_loop] work item is not a closure (is_int), skipping";
-      slot_put item.result (Obj.repr None)
+      (match item.result with Some s -> slot_put s (Obj.repr None) | None -> ())
     end else
     (try
        let fn : Par.Runtime.runtime -> _ -> Obj.t = Obj.obj item.work in
        let result = fn rt env in
-       slot_put item.result result
+       (match item.result with Some s -> slot_put s result | None -> ())
      with ex ->
        fd_log ("[work_loop] work item raised: " ^ Printexc.to_string ex);
-       slot_put item.result (Obj.repr None));
+       (match item.result with Some s -> slot_put s (Obj.repr None) | None -> ()));
     work_loop rt env state
   end
 
@@ -485,10 +499,10 @@ let do_shutdown (state_id : int) =
       work = Obj.repr (fun rt _env ->
         let _ = Par.Runtime.close rt in
         Obj.repr 0);
-      result = result_slot;
+      result = Some result_slot;
     } state.work_queue;
     (* Sentinel will cause work_loop to exit after processing the close. *)
-    Queue.push { work = shutdown_sentinel; result = create_slot () } state.work_queue;
+    Queue.push { work = shutdown_sentinel; result = Some (create_slot ()) } state.work_queue;
     Condition.signal state.work_cond;
     Condition.signal state.work_cond;
     Mutex.unlock state.work_mutex;
@@ -927,6 +941,18 @@ external caml_dispatch_chunk_to_c : string -> unit = "caml_dispatch_chunk_to_c"
    why it cannot route through ocaml_lock (held by the in-flight stream). *)
 external caml_stream_cancel_requested : unit -> int = "caml_stream_cancel_requested"
 
+(* v0.7.10 PAR-7be: per-stream-handle C bridge. Eliminates the Python daemon
+   thread entirely — chunks flow via a C-side per-handle queue that
+   par_stream_poll reads without entering OCaml runtime. See
+   .sisyphus/plans/v0.7.10-PLAN.md for design. *)
+external caml_dispatch_chunk_to_c_with_handle : nativeint -> string -> unit
+  = "caml_dispatch_chunk_to_c_with_handle"
+external caml_stream_finish : nativeint -> string -> int -> unit
+  = "caml_stream_finish_to_c_byte" "caml_stream_finish_to_c"
+external caml_stream_cancel_state : nativeint -> int = "caml_stream_cancel_state"
+external caml_get_pending_stream_handle : unit -> nativeint
+  = "caml_get_pending_stream_handle"
+
 (* Raised inside the on_chunk closure to abort an in-flight stream. It
    propagates up through llm.stream_fn -> run_llm_with_optional_streaming
    -> Runtime.invoke (which has no surrounding try/with) and is caught by
@@ -986,8 +1012,64 @@ let do_invoke_stream (state_id : int) (agent_id : string) (message : string) =
            |> Yojson.Safe.to_string
          in
          Obj.repr (Printf.sprintf "{\"status\": \"cancelled\", \"chunks\": %s}" chunks_json)
-       | e -> Obj.repr (error_json (Printexc.to_string e)))) in
+        | e -> Obj.repr (error_json (Printexc.to_string e)))) in
     (Obj.obj result : string)
+
+(* v0.7.10 PAR-7be: async variant. Enqueues streaming work via dispatch_async
+   (no slot_take — caller returns immediately and polls C-side queue).
+   Reads its stream handle from the C-side TLS slot set by par_stream_start
+   before invoking this callback. *)
+let do_invoke_stream_start (state_id : int) (agent_id : string) (message : string) =
+  let handle : nativeint = caml_get_pending_stream_handle () in
+  match get_state state_id with
+  | None ->
+    caml_stream_finish handle (error_json "Invalid runtime handle") 1
+  | Some _ ->
+    dispatch_async state_id (fun rt _env ->
+      let cancel_flag = Par.Runtime.cancel_stream_requested rt in
+      cancel_flag := false;
+      let chunk_buf = ref [] in
+      (try
+         let on_chunk chunk =
+           if caml_stream_cancel_state handle = 1 then begin
+             cancel_flag := true;
+             raise Stream_cancelled
+           end else begin
+             let json =
+               Par.Types.llm_response_chunk_to_yojson chunk
+               |> Yojson.Safe.to_string
+             in
+             (try caml_dispatch_chunk_to_c_with_handle handle json with _ -> ());
+             chunk_buf := json :: !chunk_buf
+           end
+         in
+         let result = Par.Runtime.invoke rt
+           ~agent_id ~message ~on_chunk:(Some on_chunk) () in
+         let chunks_json =
+           `List (List.rev_map (fun s -> `Assoc [("chunk", Yojson.Safe.from_string s)]) !chunk_buf)
+           |> Yojson.Safe.to_string
+         in
+         let final = match result with
+           | Ok { Par.Types.response = resp; conversation = _ } ->
+             Printf.sprintf "{\"status\": \"ok\", \"content\": %s, \"chunks\": %s}"
+               (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp)) chunks_json
+           | Error (err, _) ->
+             error_json (Printf.sprintf "Invoke_stream failed: %s"
+               (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
+         in
+         caml_stream_finish handle final 0
+       with
+       | Stream_cancelled ->
+         cancel_flag := false;
+         let chunks_json =
+           `List (List.rev_map (fun s -> `Assoc [("chunk", Yojson.Safe.from_string s)]) !chunk_buf)
+           |> Yojson.Safe.to_string
+         in
+         caml_stream_finish handle
+           (Printf.sprintf "{\"status\": \"cancelled\", \"chunks\": %s}" chunks_json) 0
+       | e ->
+         caml_stream_finish handle (error_json (Printexc.to_string e)) 1);
+      Obj.repr ())
 
 let parse_workflow (json : Yojson.Safe.t) : Par.Types.workflow =
   let open Yojson.Safe.Util in
@@ -1635,6 +1717,12 @@ let () =
     (fun (state_id_obj : Obj.t) (agent_id : string) (message : string) ->
       let state_id : int = Obj.magic state_id_obj in
       do_invoke_stream state_id agent_id message)
+
+let () =
+  Callback.register "par_invoke_stream_start"
+    (fun (state_id_obj : Obj.t) (agent_id : string) (message : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_invoke_stream_start state_id agent_id message)
 
 let () =
   Callback.register "par_submit_workflow"

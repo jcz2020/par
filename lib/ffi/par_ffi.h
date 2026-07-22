@@ -123,6 +123,21 @@ int   par_workflow_cancel(par_runtime_t* rt, const char* run_id);
    design (see par_ffi.c) makes a process-global flag sufficient. */
 void par_cancel_stream(par_runtime_t* rt);
 
+/* v0.7.10+: per-stream-handle async API. Eliminates the Python daemon
+   thread that caused PAR-7be SIGABRT under OCaml 5.x domain slot limits.
+   par_stream_start enqueues work from main thread and returns a handle;
+   par_stream_poll is pure C (no OCaml runtime access, no domain slot);
+   caller drives chunk consumption via repeated polls. */
+typedef struct par_stream_handle par_stream_handle_t;
+par_stream_handle_t* par_stream_start(par_runtime_t* rt, const char* agent_id,
+                                       const char* message);
+/* Returns: malloc'd JSON chunk (caller frees), or (char*)1 sentinel when
+   stream done (then call par_stream_take_final), or NULL on timeout. */
+char* par_stream_poll(par_stream_handle_t* h, int timeout_ms);
+void  par_stream_cancel(par_stream_handle_t* h);
+char* par_stream_take_final(par_stream_handle_t* h);
+void  par_stream_free(par_stream_handle_t* h);
+
 /* Event subscription */
 typedef void (*par_event_callback)(const char* event_type, const char* event_json);
 int par_event_subscribe(par_runtime_t* rt, par_event_callback cb);

@@ -19,6 +19,7 @@
 #include <intrin.h>
 #else
 #include <pthread.h>
+#include <errno.h>
 #endif
 
 /* ---- Portable mutex abstraction ---- */
@@ -95,6 +96,115 @@ value caml_dispatch_chunk_to_c(value v_json_chunk) {
         g_chunk_callback(json, g_chunk_user_data);
     }
     CAMLreturn(Val_unit);
+}
+
+/* ---- v0.7.10 PAR-7be: per-stream-handle queue bridge ----
+   Eliminates the Python daemon thread. par_stream_start enqueues work from
+   the Python main thread (registered, safe); par_stream_poll is pure C
+   (pthread_cond_timedwait), holds NO OCaml domain slot. Chunks flow:
+   OCaml work_loop D1 → caml_dispatch_chunk_to_c_with_handle → C queue →
+   par_stream_poll wakes via condvar. See .sisyphus/plans/v0.7.10-PLAN.md. */
+
+typedef struct chunk_node {
+    char*              json;
+    struct chunk_node* next;
+} chunk_node_t;
+
+#define PAR_STREAM_RUNNING  0
+#define PAR_STREAM_CANCEL   1
+#define PAR_STREAM_DONE_OK  2
+#define PAR_STREAM_DONE_ERR 3
+
+typedef struct par_stream_handle {
+    par_runtime_t*     rt;
+    chunk_node_t*      q_head;
+    chunk_node_t*      q_tail;
+    par_mutex_t        q_mutex;
+#ifndef _WIN32
+    pthread_cond_t     q_cond;
+#else
+    CONDITION_VARIABLE q_cond;
+#endif
+    volatile int       state;
+    char*              final_json;
+} par_stream_handle_t;
+
+/* Single-entry TLS-like slot: par_stream_start sets it before invoking the
+   OCaml callback; do_invoke_stream_start reads it via caml_get_pending_stream_handle.
+   Safe because par_stream_start holds ocaml_lock during the callback —
+   only one stream can start at a time. */
+static par_stream_handle_t* g_pending_stream_handle = NULL;
+
+static void par_stream_enqueue_chunk(par_stream_handle_t* h, const char* json) {
+    chunk_node_t* n = (chunk_node_t*)malloc(sizeof *n);
+    if (!n) return;
+    n->json = strdup(json);
+    n->next = NULL;
+    PAR_MUTEX_LOCK(h->q_mutex);
+    if (h->q_tail) h->q_tail->next = n; else h->q_head = n;
+    h->q_tail = n;
+#ifndef _WIN32
+    pthread_cond_signal(&h->q_cond);
+#else
+    WakeAllConditionVariable(&h->q_cond);
+#endif
+    PAR_MUTEX_UNLOCK(h->q_mutex);
+}
+
+static void par_stream_finish(par_stream_handle_t* h, const char* final_json, int is_error) {
+    PAR_MUTEX_LOCK(h->q_mutex);
+    ATOMIC_STORE_RELEASE(h->state, is_error ? PAR_STREAM_DONE_ERR : PAR_STREAM_DONE_OK);
+    if (final_json) {
+        free(h->final_json);
+        h->final_json = strdup(final_json);
+    }
+#ifndef _WIN32
+    pthread_cond_signal(&h->q_cond);
+#else
+    WakeAllConditionVariable(&h->q_cond);
+#endif
+    PAR_MUTEX_UNLOCK(h->q_mutex);
+}
+
+/* Called from OCaml work_loop (D1). Routes chunk to the correct handle's queue. */
+value caml_dispatch_chunk_to_c_with_handle(value v_handle, value v_json) {
+    CAMLparam2(v_handle, v_json);
+    par_stream_handle_t* h = (par_stream_handle_t*)(Nativeint_val(v_handle));
+    if (h) {
+        const char* json = String_val(v_json);
+        par_stream_enqueue_chunk(h, json);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* Called from OCaml work_loop (D1) on stream completion. */
+value caml_stream_finish_to_c_byte(value v_handle, value v_json, value v_is_err) {
+    CAMLparam3(v_handle, v_json, v_is_err);
+    par_stream_handle_t* h = (par_stream_handle_t*)(Nativeint_val(v_handle));
+    if (h) {
+        const char* json = String_val(v_json);
+        par_stream_finish(h, json, Int_val(v_is_err));
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* Native-nargs-3 variant — used by OCaml when bytecode is not involved. */
+value caml_stream_finish_to_c(value v_handle, value v_json, value v_is_err) {
+    return caml_stream_finish_to_c_byte(v_handle, v_json, v_is_err);
+}
+
+/* Per-handle cancel state, polled by OCaml on_chunk. */
+value caml_stream_cancel_state(value v_handle) {
+    CAMLparam1(v_handle);
+    par_stream_handle_t* h = (par_stream_handle_t*)(Nativeint_val(v_handle));
+    int s = h ? ATOMIC_LOAD_ACQUIRE(h->state) : 0;
+    CAMLreturn(Val_int(s));
+}
+
+/* OCaml reads the pending handle set by C-side par_stream_start. */
+value caml_get_pending_stream_handle(value v_unit) {
+    CAMLparam1(v_unit);
+    CAMLreturn(caml_copy_nativeint((intnat)g_pending_stream_handle));
 }
 
 value caml_stream_cancel_requested(value v_unit) {
@@ -496,6 +606,139 @@ char* par_invoke_stream(par_runtime_t* rt, const char* agent_id,
 void par_cancel_stream(par_runtime_t* rt) {
     (void)rt;
     ATOMIC_STORE_RELEASE(g_stream_cancel_requested, 1);
+}
+
+/* v0.7.10: par_stream_start enqueues streaming work on the work_loop Domain
+   and returns immediately with a handle. The Python main thread is the
+   only caller — registered with OCaml via caml_startup, holds D0. No
+   foreign thread crosses into OCaml. */
+par_stream_handle_t* par_stream_start(par_runtime_t* rt, const char* agent_id,
+                                       const char* message) {
+    if (!rt || !agent_id || !message) return NULL;
+    par_stream_handle_t* h = (par_stream_handle_t*)calloc(1, sizeof *h);
+    if (!h) return NULL;
+    h->rt = rt;
+#ifndef _WIN32
+    pthread_mutex_init(&h->q_mutex, NULL);
+    pthread_cond_init(&h->q_cond, NULL);
+#else
+    h->q_mutex = PAR_MUTEX_INIT;
+    InitializeConditionVariable(&h->q_cond);
+#endif
+    h->state = PAR_STREAM_RUNNING;
+
+    CAMLparam0();
+    CAMLlocal2(c_aid, c_msg);
+    c_aid = caml_copy_string(agent_id);
+    c_msg = caml_copy_string(message);
+
+    PAR_MUTEX_LOCK(ocaml_lock);
+    g_pending_stream_handle = h;
+    value result = call3_exn("par_invoke_stream_start", rt->_ocaml_value,
+                             c_aid, c_msg);
+    g_pending_stream_handle = NULL;
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+
+    if (Is_exception_result(result)) {
+        CAMLdrop;
+        free(h);
+        return NULL;
+    }
+    CAMLdrop;
+    return h;
+}
+
+/* Sentinel returned by par_stream_poll when stream is complete. */
+#define PAR_STREAM_DONE ((char*)(intptr_t)1)
+
+/* Pure C blocking poll. Returns:
+   - chunk JSON string (caller must free) when a chunk is available
+   - PAR_STREAM_DONE when stream completed (then call par_stream_take_final)
+   - NULL when timeout elapsed with nothing available
+
+   CRITICAL: releases the OCaml runtime before parking in
+   pthread_cond_timedwait. Without this, D0 (the caml_startup thread that
+   Python calls poll from) stays "active" from OCaml's perspective. When
+   work_loop (D1) triggers major GC during HTTP I/O, STW waits for D0 to
+   acknowledge — but D0 is parked and cannot. Result: HTTP I/O deadlocks.
+   caml_release_runtime_system marks D0 as "idle" so STW auto-acknowledges. */
+char* par_stream_poll(par_stream_handle_t* h, int timeout_ms) {
+    if (!h) return NULL;
+#ifndef _WIN32
+    struct timespec deadline;
+    clock_gettime(CLOCK_REALTIME, &deadline);
+    deadline.tv_sec += timeout_ms / 1000;
+    deadline.tv_nsec += (timeout_ms % 1000) * 1000000L;
+    if (deadline.tv_nsec >= 1000000000L) { deadline.tv_sec++; deadline.tv_nsec -= 1000000000L; }
+#endif
+    caml_release_runtime_system();
+    PAR_MUTEX_LOCK(h->q_mutex);
+    while (h->q_head == NULL &&
+           ATOMIC_LOAD_ACQUIRE(h->state) == PAR_STREAM_RUNNING) {
+#ifndef _WIN32
+        int rc = pthread_cond_timedwait(&h->q_cond, &h->q_mutex, &deadline);
+        if (rc == ETIMEDOUT) {
+            PAR_MUTEX_UNLOCK(h->q_mutex);
+            caml_acquire_runtime_system();
+            return NULL;
+        }
+#else
+        SleepConditionVariableCS(&h->q_cond, &(h->q_mutex), (DWORD)timeout_ms);
+        if (h->q_head == NULL && ATOMIC_LOAD_ACQUIRE(h->state) == PAR_STREAM_RUNNING) {
+            PAR_MUTEX_UNLOCK(h->q_mutex);
+            caml_acquire_runtime_system();
+            return NULL;
+        }
+#endif
+    }
+    if (h->q_head != NULL) {
+        chunk_node_t* n = h->q_head;
+        h->q_head = n->next;
+        if (h->q_head == NULL) h->q_tail = NULL;
+        char* json = n->json;
+        free(n);
+        PAR_MUTEX_UNLOCK(h->q_mutex);
+        caml_acquire_runtime_system();
+        return json;
+    }
+    PAR_MUTEX_UNLOCK(h->q_mutex);
+    caml_acquire_runtime_system();
+    return PAR_STREAM_DONE;
+}
+
+/* Cancel: atomic store, callable from any thread. */
+void par_stream_cancel(par_stream_handle_t* h) {
+    if (!h) return;
+    ATOMIC_STORE_RELEASE(h->state, PAR_STREAM_CANCEL);
+}
+
+/* Steal the final result JSON (caller must free). Returns NULL if not done
+   or no final was set. */
+char* par_stream_take_final(par_stream_handle_t* h) {
+    if (!h) return NULL;
+    PAR_MUTEX_LOCK(h->q_mutex);
+    char* r = h->final_json;
+    h->final_json = NULL;
+    PAR_MUTEX_UNLOCK(h->q_mutex);
+    return r;
+}
+
+/* Free handle. Caller MUST ensure stream has completed (poll returned DONE). */
+void par_stream_free(par_stream_handle_t* h) {
+    if (!h) return;
+    chunk_node_t* n = h->q_head;
+    while (n) {
+        chunk_node_t* nx = n->next;
+        free(n->json);
+        free(n);
+        n = nx;
+    }
+    free(h->final_json);
+#ifndef _WIN32
+    pthread_mutex_destroy(&h->q_mutex);
+    pthread_cond_destroy(&h->q_cond);
+#endif
+    free(h);
 }
 
 char* par_invoke_structured(par_runtime_t* rt, const char* agent_id,

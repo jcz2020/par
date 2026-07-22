@@ -117,6 +117,22 @@ _lib.par_invoke_stream.restype = ctypes.c_void_p
 _lib.par_cancel_stream.argtypes = [ctypes.c_void_p]
 _lib.par_cancel_stream.restype = None
 
+# v0.7.10+: per-stream-handle async API. Replaces the daemon-thread model.
+# par_stream_start returns an opaque handle (heap pointer); par_stream_poll
+# is pure C and never touches the OCaml runtime — that's the whole point.
+_PAR_STREAM_DONE = ctypes.c_void_p(1)  # sentinel returned by poll on completion
+
+_lib.par_stream_start.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]
+_lib.par_stream_start.restype = ctypes.c_void_p
+_lib.par_stream_poll.argtypes = [ctypes.c_void_p, ctypes.c_int]
+_lib.par_stream_poll.restype = ctypes.c_void_p
+_lib.par_stream_cancel.argtypes = [ctypes.c_void_p]
+_lib.par_stream_cancel.restype = None
+_lib.par_stream_take_final.argtypes = [ctypes.c_void_p]
+_lib.par_stream_take_final.restype = ctypes.c_void_p
+_lib.par_stream_free.argtypes = [ctypes.c_void_p]
+_lib.par_stream_free.restype = None
+
 # int par_register_agent(par_runtime_t* rt, const char* config_json);
 _lib.par_register_agent.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_register_agent.restype = ctypes.c_int
