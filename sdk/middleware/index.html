@@ -1,0 +1,2984 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/sdk/middleware/">
+      
+      
+        <link rel="prev" href="../workflow/">
+      
+      
+        <link rel="next" href="../tools/">
+      
+      
+        
+          <link rel="alternate" href="./" hreflang="en">
+        
+          <link rel="alternate" href="../../zh/sdk/middleware/" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Middleware - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#middleware-api-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Middleware
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../zh/sdk/middleware/" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Tutorial
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  How-to
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorial
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/rag-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build a RAG Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../invoke_context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    invoke_context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#middleware-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Middleware concepts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Middleware concepts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#middleware_hook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        middleware_hook
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#log-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Log contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#retry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Retry
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Retry">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#retry_policy-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        retry_policy type
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rate_limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rate_limit
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rate_limit">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage-example_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timeout
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Timeout">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#behavior_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#behavior_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage-example_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pii_mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pii_mask
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pii_mask">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-detection-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default detection patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#behavior_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage-example_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sanitize_tool_output-v020" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sanitize_tool_output (v0.2.0)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sanitize_tool_output (v0.2.0)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-detection-patterns_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default detection patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#three-handling-strategies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Three handling strategies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#behavior_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage-example_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#composing-middleware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composing middleware
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cancellation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cancellation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cancellation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-cancellation-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The cancellation surface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#timeout-vs-cancellation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timeout vs cancellation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-middleware-interacts-with-cancellation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How middleware interacts with cancellation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#composition-with-eio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composition with Eio
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-middleware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom middleware
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Custom middleware">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#error-handling-middleware-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error handling middleware example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#caveats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Caveats
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generate API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../document_loaders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Loaders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prompt_caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/concurrency-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/persistence-and-durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence and Durability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/rag-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#middleware-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Middleware concepts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Middleware concepts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#middleware_hook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        middleware_hook
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#log-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Log contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#retry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Retry
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Retry">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#retry_policy-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        retry_policy type
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rate_limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rate_limit
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rate_limit">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage-example_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timeout
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Timeout">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#behavior_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#behavior_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage-example_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pii_mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pii_mask
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pii_mask">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-detection-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default detection patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#behavior_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage-example_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sanitize_tool_output-v020" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sanitize_tool_output (v0.2.0)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sanitize_tool_output (v0.2.0)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-detection-patterns_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default detection patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#three-handling-strategies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Three handling strategies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#behavior_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage-example_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#composing-middleware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composing middleware
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cancellation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cancellation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cancellation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-cancellation-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The cancellation surface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#timeout-vs-cancellation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timeout vs cancellation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-middleware-interacts-with-cancellation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How middleware interacts with cancellation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#composition-with-eio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composition with Eio
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-middleware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom middleware
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Custom middleware">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#error-handling-middleware-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error handling middleware example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#caveats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Caveats
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<!-- language: en -->
+
+<p><strong>English</strong> · <a href="../zh/sdk/middleware.md">简体中文</a></p>
+<blockquote>
+<p>Translated to English for v0.3.2. Source-of-truth: the OCaml types in lib/middleware/.</p>
+</blockquote>
+<h1 id="middleware-api-reference">Middleware API Reference<a class="headerlink" href="#middleware-api-reference" title="Permanent link">&para;</a></h1>
+<p>This document describes the middleware pipeline of a runtime created with <code>Runtime.create</code>, including the 7 built-in middleware and a guide for writing custom middleware.</p>
+<h2 id="middleware-concepts">Middleware concepts<a class="headerlink" href="#middleware-concepts" title="Permanent link">&para;</a></h2>
+<p>Middleware is defined through the <code>middleware_hook</code> type, which inserts interceptors for cross-cutting concerns into the agent execution pipeline. The Engine composes the middleware chain using a "Russian Doll" pattern, with <code>List.fold_right</code> guaranteeing that middleware earlier in the list wraps middleware later in the list.</p>
+<h3 id="middleware_hook">middleware_hook<a class="headerlink" href="#middleware_hook" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">type</span> <span class="n">middleware_hook</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  <span class="n">name</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  <span class="n">on_before_llm</span> <span class="o">:</span> <span class="o">(</span><span class="n">conversation</span> <span class="o">-&gt;</span> <span class="n">conversation</span> <span class="n">option</span><span class="o">)</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  <span class="n">on_after_llm</span> <span class="o">:</span> <span class="o">(</span><span class="n">llm_response</span> <span class="o">-&gt;</span> <span class="n">llm_response</span> <span class="n">option</span><span class="o">)</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  <span class="n">on_before_tool</span> <span class="o">:</span> <span class="o">(</span><span class="n">tool_call</span> <span class="o">-&gt;</span> <span class="n">tool_call</span> <span class="n">option</span><span class="o">)</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  <span class="n">on_after_tool</span> <span class="o">:</span> <span class="o">(</span><span class="n">tool_call</span> <span class="o">*</span> <span class="n">handler_result</span> <span class="o">-&gt;</span> <span class="n">handler_result</span> <span class="n">option</span><span class="o">)</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  <span class="n">on_error</span> <span class="o">:</span> <span class="o">(</span><span class="n">error_category</span> <span class="o">-&gt;</span> <span class="n">handler_result</span> <span class="n">option</span><span class="o">)</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="o">}</span>
+</span></code></pre></div>
+<p>Each hook returns <code>Some modified_value</code> to indicate the value was modified, or <code>None</code> to pass it through.</p>
+<p>Middleware is declared in the <code>agent_config.middleware</code> list, wrapping from outer to inner in list order.</p>
+<h2 id="logging">Logging<a class="headerlink" href="#logging" title="Permanent link">&para;</a></h2>
+<p>Logs every LLM and tool call. Zero configuration, works out of the box.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">val</span> <span class="nn">Logging</span><span class="p">.</span><span class="n">logging</span> <span class="o">:</span> <span class="nn">Types</span><span class="p">.</span><span class="n">middleware_hook</span>
+</span></code></pre></div>
+<h3 id="log-contents">Log contents<a class="headerlink" href="#log-contents" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Hook</th>
+<th>Level</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>on_before_llm</code></td>
+<td>info</td>
+<td>message count</td>
+</tr>
+<tr>
+<td><code>on_after_llm</code></td>
+<td>info</td>
+<td>finish_reason, model name</td>
+</tr>
+<tr>
+<td><code>on_before_tool</code></td>
+<td>info</td>
+<td>tool name and arguments</td>
+</tr>
+<tr>
+<td><code>on_after_tool</code></td>
+<td>info/warn</td>
+<td>info on success, warn on failure (with error message)</td>
+</tr>
+<tr>
+<td><code>on_error</code></td>
+<td>err</td>
+<td>error information</td>
+</tr>
+</tbody>
+</table>
+<h3 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">let</span> <span class="n">agent</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  <span class="n">agent</span> <span class="k">with</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  <span class="n">middleware</span> <span class="o">=</span> <span class="o">[</span> <span class="nn">Logging</span><span class="p">.</span><span class="n">logging</span> <span class="o">];</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="o">}</span>
+</span></code></pre></div>
+<h2 id="retry">Retry<a class="headerlink" href="#retry" title="Permanent link">&para;</a></h2>
+<p>Configurable exponential backoff retry middleware that handles transient errors in LLM and tool calls.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">type</span> <span class="n">retry_config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  <span class="n">max_attempts</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>     <span class="c">(* Maximum retry attempts, default 3 *)</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  <span class="n">base_delay</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span>    <span class="c">(* Base delay in seconds, default 2.0 *)</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  <span class="n">max_delay</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span>     <span class="c">(* Maximum delay in seconds, default 30.0 *)</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="o">}</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="k">val</span> <span class="nn">Retry</span><span class="p">.</span><span class="n">default_retry_config</span> <span class="o">:</span> <span class="n">retry_config</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="k">val</span> <span class="nn">Retry</span><span class="p">.</span><span class="n">retry</span> <span class="o">:</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>  <span class="o">?</span><span class="n">config</span><span class="o">:</span><span class="n">retry_config</span> <span class="o">-&gt;</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>  <span class="o">?</span><span class="n">policy</span><span class="o">:</span><span class="nn">Types</span><span class="p">.</span><span class="n">retry_policy</span> <span class="o">-&gt;</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">middleware_hook</span>
+</span></code></pre></div>
+<h3 id="retry_policy-type">retry_policy type<a class="headerlink" href="#retry_policy-type" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">type</span> <span class="n">retry_policy</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>  <span class="n">max_attempts</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>  <span class="n">initial_delay</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>  <span class="n">backoff</span> <span class="o">:</span> <span class="n">backoff_strategy</span><span class="o">;</span>         <span class="c">(* Exponential / Fixed / Linear *)</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>  <span class="n">retry_on</span> <span class="o">:</span> <span class="n">retryable_condition</span> <span class="kt">list</span><span class="o">;</span> <span class="c">(* Timeout / Rate_limited / External_failure / ... *)</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>  <span class="n">jitter</span> <span class="o">:</span> <span class="kt">float</span> <span class="n">option</span><span class="o">;</span>               <span class="c">(* Random jitter factor *)</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="o">}</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="k">type</span> <span class="n">backoff_strategy</span> <span class="o">=</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>  <span class="o">|</span> <span class="nc">Exponential</span> <span class="k">of</span> <span class="o">{</span> <span class="n">base</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span> <span class="n">max_delay</span> <span class="o">:</span> <span class="kt">float</span> <span class="o">}</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>  <span class="o">|</span> <span class="nc">Fixed</span> <span class="k">of</span> <span class="kt">float</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>  <span class="o">|</span> <span class="nc">Linear</span> <span class="k">of</span> <span class="o">{</span> <span class="n">increment</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span> <span class="n">max_delay</span> <span class="o">:</span> <span class="kt">float</span> <span class="o">}</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="k">type</span> <span class="n">retryable_condition</span> <span class="o">=</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>  <span class="o">|</span> <span class="nc">Timeout</span> <span class="o">|</span> <span class="nc">Rate_limited</span> <span class="o">|</span> <span class="nc">External_failure</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>  <span class="o">|</span> <span class="nc">Connection_error</span> <span class="o">|</span> <span class="nc">Any_retryable</span>
+</span></code></pre></div>
+<h3 id="usage-example">Usage example<a class="headerlink" href="#usage-example" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c">(* Use default configuration *)</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">let</span> <span class="n">retry_hook</span> <span class="o">=</span> <span class="nn">Retry</span><span class="p">.</span><span class="n">retry</span> <span class="bp">()</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c">(* Custom configuration *)</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">let</span> <span class="n">retry_hook</span> <span class="o">=</span> <span class="nn">Retry</span><span class="p">.</span><span class="n">retry</span> <span class="o">~</span><span class="n">config</span><span class="o">:{</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>  <span class="n">max_attempts</span> <span class="o">=</span> <span class="mi">5</span><span class="o">;</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>  <span class="n">base_delay</span> <span class="o">=</span> <span class="mi">1</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>  <span class="n">max_delay</span> <span class="o">=</span> <span class="mi">60</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="o">}</span> <span class="bp">()</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="c">(* Use the full retry_policy for finer control *)</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="k">let</span> <span class="n">retry_hook</span> <span class="o">=</span> <span class="nn">Retry</span><span class="p">.</span><span class="n">retry</span> <span class="o">~</span><span class="n">policy</span><span class="o">:{</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>  <span class="n">max_attempts</span> <span class="o">=</span> <span class="mi">4</span><span class="o">;</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>  <span class="n">initial_delay</span> <span class="o">=</span> <span class="mi">1</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>  <span class="n">backoff</span> <span class="o">=</span> <span class="nc">Exponential</span> <span class="o">{</span> <span class="n">base</span> <span class="o">=</span> <span class="mi">2</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span> <span class="n">max_delay</span> <span class="o">=</span> <span class="mi">30</span><span class="o">.</span><span class="mi">0</span> <span class="o">};</span>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>  <span class="n">retry_on</span> <span class="o">=</span> <span class="o">[</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Timeout</span><span class="o">;</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Rate_limited</span> <span class="o">];</span>
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>  <span class="n">jitter</span> <span class="o">=</span> <span class="nc">Some</span> <span class="mi">0</span><span class="o">.</span><span class="mi">1</span><span class="o">;</span>
+</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="o">}</span> <span class="bp">()</span>
+</span></code></pre></div>
+<p>The default <code>retry_config</code> produces an exponential backoff strategy: <code>delay = min(base^attempt, max_delay)</code>.</p>
+<h2 id="rate_limit">Rate_limit<a class="headerlink" href="#rate_limit" title="Permanent link">&para;</a></h2>
+<p>Sliding window rate limit middleware that controls LLM request frequency.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">type</span> <span class="n">rate_limit_config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>  <span class="n">max_requests</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>    <span class="c">(* Max requests per window, default 60 *)</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>  <span class="n">window</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span>       <span class="c">(* Window duration in seconds, default 60.0 *)</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="o">}</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="k">val</span> <span class="nn">Rate_limit</span><span class="p">.</span><span class="n">default_rate_limit_config</span> <span class="o">:</span> <span class="n">rate_limit_config</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="k">val</span> <span class="nn">Rate_limit</span><span class="p">.</span><span class="n">rate_limit</span> <span class="o">:</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>  <span class="o">?</span><span class="n">config</span><span class="o">:</span><span class="n">rate_limit_config</span> <span class="o">-&gt;</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">middleware_hook</span>
+</span></code></pre></div>
+<h3 id="behavior">Behavior<a class="headerlink" href="#behavior" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>on_before_llm</code>: checks the current window's request count, flags the conversation metadata with <code>("rate_limited", true)</code> when the limit is exceeded</li>
+<li><code>on_error</code>: when a <code>Rate_limited</code> error is received, computes <code>retry_after</code> and attaches it to the error metadata</li>
+</ul>
+<h3 id="usage-example_1">Usage example<a class="headerlink" href="#usage-example_1" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c">(* Limit to 30 requests per minute *)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">let</span> <span class="n">rate_hook</span> <span class="o">=</span> <span class="nn">Rate_limit</span><span class="p">.</span><span class="n">rate_limit</span> <span class="o">~</span><span class="n">config</span><span class="o">:{</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>  <span class="n">max_requests</span> <span class="o">=</span> <span class="mi">30</span><span class="o">;</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>  <span class="n">window</span> <span class="o">=</span> <span class="mi">60</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="o">}</span> <span class="bp">()</span>
+</span></code></pre></div>
+<h2 id="timeout">Timeout<a class="headerlink" href="#timeout" title="Permanent link">&para;</a></h2>
+<p>Unifies timeout errors into a standard format.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">val</span> <span class="nn">Timeout</span><span class="p">.</span><span class="n">timeout_middleware</span> <span class="o">:</span> <span class="n">default_timeout</span><span class="o">:</span><span class="kt">float</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">middleware_hook</span>
+</span></code></pre></div>
+<h3 id="behavior_1">Behavior<a class="headerlink" href="#behavior_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>on_before_tool</code>: pass-through (placeholder)</li>
+<li><code>on_error</code>: converts <code>Timeout</code> errors into <code>Error</code> results with a standard message</li>
+</ul>
+<p>Use with <code>Cancellation.with_timeout</code> for actual timeout control:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nn">Cancellation</span><span class="p">.</span><span class="n">with_timeout</span> <span class="mi">30</span><span class="o">.</span><span class="mi">0</span> <span class="n">token</span> <span class="o">(</span><span class="k">fun</span> <span class="n">token</span> <span class="o">-&gt;</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>  <span class="nn">Engine</span><span class="p">.</span><span class="n">run_agent</span> <span class="n">token</span> <span class="n">agent</span> <span class="n">message</span> <span class="n">llm</span> <span class="n">registry</span><span class="o">)</span>
+</span></code></pre></div>
+<h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
+<p>JSON input/output validation middleware that ensures LLM responses and tool arguments have the correct format.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">val</span> <span class="nn">Validation</span><span class="p">.</span><span class="n">validation</span> <span class="o">:</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>  <span class="o">?</span><span class="n">strict</span><span class="o">:</span><span class="kt">bool</span> <span class="o">-&gt;</span>   <span class="c">(* Default false: lenient mode *)</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">middleware_hook</span>
+</span></code></pre></div>
+<h3 id="behavior_2">Behavior<a class="headerlink" href="#behavior_2" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>on_after_llm</th>
+<th>on_before_tool</th>
+<th>on_after_tool</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lenient (<code>strict=false</code>)</td>
+<td>warn and supply an empty string when text and tool_calls are missing</td>
+<td>non-object arguments are auto-replaced with <code>{}</code></td>
+<td>--</td>
+</tr>
+<tr>
+<td>Strict (<code>strict=true</code>)</td>
+<td>same as above, but with err level</td>
+<td>non-object arguments are flagged as invalid, <code>on_after_tool</code> returns an error</td>
+<td>returns an error result when arguments were flagged invalid</td>
+</tr>
+</tbody>
+</table>
+<h3 id="usage-example_2">Usage example<a class="headerlink" href="#usage-example_2" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c">(* Lenient mode for development *)</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="k">let</span> <span class="n">validation_hook</span> <span class="o">=</span> <span class="nn">Validation</span><span class="p">.</span><span class="n">validation</span> <span class="bp">()</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c">(* Strict mode for production *)</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="k">let</span> <span class="n">validation_hook</span> <span class="o">=</span> <span class="nn">Validation</span><span class="p">.</span><span class="n">validation</span> <span class="o">~</span><span class="n">strict</span><span class="o">:</span><span class="bp">true</span> <span class="bp">()</span>
+</span></code></pre></div>
+<h2 id="pii_mask">Pii_mask<a class="headerlink" href="#pii_mask" title="Permanent link">&para;</a></h2>
+<p>Automatically detects and redacts personally identifiable information (PII) in LLM requests, responses, and tool calls.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">val</span> <span class="nn">Pii_mask</span><span class="p">.</span><span class="n">pii_mask</span> <span class="o">:</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>  <span class="o">?</span><span class="n">patterns</span><span class="o">:</span><span class="kt">string</span> <span class="kt">list</span> <span class="o">-&gt;</span>         <span class="c">(* Custom detection patterns, default 4 built-in categories *)</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>  <span class="o">?</span><span class="n">replacement</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>           <span class="c">(* Replacement text, default &quot;[REDACTED]&quot; *)</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">middleware_hook</span>
+</span></code></pre></div>
+<h3 id="default-detection-patterns">Default detection patterns<a class="headerlink" href="#default-detection-patterns" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Pattern</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Email</td>
+<td><code>[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z][a-zA-Z]+</code></td>
+</tr>
+<tr>
+<td>Phone</td>
+<td><code>XXX-XXX-XXXX</code> / <code>XXX.XXX.XXXX</code> / 10 consecutive digits</td>
+</tr>
+<tr>
+<td>SSN</td>
+<td><code>XXX-XX-XXXX</code></td>
+</tr>
+<tr>
+<td>Credit card</td>
+<td><code>XXXX-XXXX-XXXX-XXXX</code> / <code>XXXX XXXX XXXX XXXX</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="behavior_3">Behavior<a class="headerlink" href="#behavior_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>on_before_llm</code>: scans all message content, replaces matched PII</li>
+<li><code>on_after_llm</code>: scans LLM response text (prevents the LLM from echoing PII)</li>
+<li><code>on_before_tool</code>: recursively scans every string value in the tool arguments JSON</li>
+<li><code>on_after_tool</code>: recursively scans tool result JSON and error messages</li>
+</ul>
+<h3 id="usage-example_3">Usage example<a class="headerlink" href="#usage-example_3" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c">(* Use default patterns *)</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="k">let</span> <span class="n">pii_hook</span> <span class="o">=</span> <span class="nn">Pii_mask</span><span class="p">.</span><span class="n">pii_mask</span> <span class="bp">()</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="c">(* Custom patterns and replacement text *)</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="k">let</span> <span class="n">pii_hook</span> <span class="o">=</span> <span class="nn">Pii_mask</span><span class="p">.</span><span class="n">pii_mask</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>  <span class="o">~</span><span class="n">patterns</span><span class="o">:[</span><span class="s2">&quot;my-custom-pattern&quot;</span><span class="o">]</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>  <span class="o">~</span><span class="n">replacement</span><span class="o">:</span><span class="s2">&quot;[DATA REMOVED]&quot;</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>  <span class="bp">()</span>
+</span></code></pre></div>
+<h2 id="sanitize_tool_output-v020">Sanitize_tool_output (v0.2.0)<a class="headerlink" href="#sanitize_tool_output-v020" title="Permanent link">&para;</a></h2>
+<p>Detects and sanitizes prompt injection patterns in tool output to keep a malicious tool response from hijacking the agent.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">type</span> <span class="n">sanitize_action</span> <span class="o">=</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>  <span class="o">[</span> <span class="o">`</span><span class="nc">Replace</span> <span class="k">of</span> <span class="kt">string</span>    <span class="c">(* Replace matched content *)</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>  <span class="o">|</span> <span class="o">`</span><span class="nc">Tag</span>                  <span class="c">(* Wrap output with markers *)</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>  <span class="o">|</span> <span class="o">`</span><span class="nc">Block</span> <span class="o">]</span>              <span class="c">(* Block the output entirely *)</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="k">type</span> <span class="n">sanitize_config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>  <span class="n">patterns</span> <span class="o">:</span> <span class="kt">string</span> <span class="kt">list</span><span class="o">;</span>
+</span><span id="__span-14-8"><a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>  <span class="n">action</span> <span class="o">:</span> <span class="n">sanitize_action</span><span class="o">;</span>
+</span><span id="__span-14-9"><a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="o">}</span>
+</span><span id="__span-14-10"><a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>
+</span><span id="__span-14-11"><a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a><span class="k">val</span> <span class="nn">Sanitize_tool_output</span><span class="p">.</span><span class="n">default_config</span> <span class="o">:</span> <span class="n">sanitize_config</span>
+</span><span id="__span-14-12"><a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>
+</span><span id="__span-14-13"><a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a><span class="k">val</span> <span class="nn">Sanitize_tool_output</span><span class="p">.</span><span class="n">sanitize_tool_output</span> <span class="o">:</span>
+</span><span id="__span-14-14"><a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a>  <span class="o">?</span><span class="n">config</span><span class="o">:</span><span class="n">sanitize_config</span> <span class="o">-&gt;</span>
+</span><span id="__span-14-15"><a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">middleware_hook</span>
+</span></code></pre></div>
+<h3 id="default-detection-patterns_1">Default detection patterns<a class="headerlink" href="#default-detection-patterns_1" title="Permanent link">&para;</a></h3>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>&quot;ignore previous&quot;, &quot;ignore all previous&quot;, &quot;you are now&quot;,
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>&quot;system:&quot;, &quot;new instructions&quot;, &quot;disregard&quot;
+</span></code></pre></div>
+<h3 id="three-handling-strategies">Three handling strategies<a class="headerlink" href="#three-handling-strategies" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Replace text</code></td>
+<td>replaces matched text with the given string (default <code>[SANITIZED]</code>)</td>
+</tr>
+<tr>
+<td><code>Tag</code></td>
+<td>keeps the output but prepends a <code>[SANITIZED-OUTPUT: ...]</code> marker</td>
+</tr>
+<tr>
+<td><code>Block</code></td>
+<td>rejects the entire output, replaces it with <code>[SANITIZED: blocked ...]</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="behavior_4">Behavior<a class="headerlink" href="#behavior_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>only fires in the <code>on_after_tool</code> hook</li>
+<li>recursively scans every string value in the tool result JSON</li>
+<li>also scans error messages</li>
+</ul>
+<h3 id="usage-example_4">Usage example<a class="headerlink" href="#usage-example_4" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c">(* Use default configuration *)</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="k">let</span> <span class="n">sanitize_hook</span> <span class="o">=</span> <span class="nn">Sanitize_tool_output</span><span class="p">.</span><span class="n">sanitize_tool_output</span> <span class="bp">()</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c">(* Strict mode: block any output containing injections *)</span>
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="k">let</span> <span class="n">sanitize_hook</span> <span class="o">=</span> <span class="nn">Sanitize_tool_output</span><span class="p">.</span><span class="n">sanitize_tool_output</span>
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>  <span class="o">~</span><span class="n">config</span><span class="o">:{</span>
+</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>    <span class="n">patterns</span> <span class="o">=</span> <span class="o">[</span>
+</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>      <span class="s2">&quot;ignore previous&quot;</span><span class="o">;</span> <span class="s2">&quot;ignore all previous&quot;</span><span class="o">;</span>
+</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>      <span class="s2">&quot;you are now&quot;</span><span class="o">;</span> <span class="s2">&quot;system:&quot;</span><span class="o">;</span> <span class="s2">&quot;new instructions&quot;</span><span class="o">;</span>
+</span><span id="__span-16-10"><a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>      <span class="s2">&quot;disregard&quot;</span><span class="o">;</span> <span class="s2">&quot;forget everything&quot;</span><span class="o">;</span>
+</span><span id="__span-16-11"><a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a>    <span class="o">];</span>
+</span><span id="__span-16-12"><a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>    <span class="n">action</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Block</span><span class="o">;</span>
+</span><span id="__span-16-13"><a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a>  <span class="o">}</span>
+</span><span id="__span-16-14"><a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>  <span class="bp">()</span>
+</span></code></pre></div>
+<h2 id="composing-middleware">Composing middleware<a class="headerlink" href="#composing-middleware" title="Permanent link">&para;</a></h2>
+<p>Middleware is ordered in the list, with earlier entries wrapping later ones. A typical production configuration:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">let</span> <span class="n">agent</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>  <span class="n">agent</span> <span class="k">with</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>  <span class="n">middleware</span> <span class="o">=</span> <span class="o">[</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>    <span class="nn">Logging</span><span class="p">.</span><span class="n">logging</span><span class="o">;</span>                           <span class="c">(* Outermost: log every request *)</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>    <span class="nn">Pii_mask</span><span class="p">.</span><span class="n">pii_mask</span> <span class="bp">()</span><span class="o">;</span>                      <span class="c">(* Redact user input *)</span>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>    <span class="nn">Rate_limit</span><span class="p">.</span><span class="n">rate_limit</span> <span class="o">~</span><span class="n">config</span><span class="o">:{</span>
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>      <span class="n">max_requests</span> <span class="o">=</span> <span class="mi">30</span><span class="o">;</span> <span class="n">window</span> <span class="o">=</span> <span class="mi">60</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span>
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>    <span class="o">}</span> <span class="bp">()</span><span class="o">;</span>                                     <span class="c">(* Rate limit *)</span>
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>    <span class="nn">Retry</span><span class="p">.</span><span class="n">retry</span> <span class="o">~</span><span class="n">config</span><span class="o">:{</span>
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>      <span class="n">max_attempts</span> <span class="o">=</span> <span class="mi">3</span><span class="o">;</span> <span class="n">base_delay</span> <span class="o">=</span> <span class="mi">2</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span> <span class="n">max_delay</span> <span class="o">=</span> <span class="mi">30</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span>
+</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>    <span class="o">}</span> <span class="bp">()</span><span class="o">;</span>                                     <span class="c">(* Retry *)</span>
+</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a>    <span class="nn">Validation</span><span class="p">.</span><span class="n">validation</span> <span class="o">~</span><span class="n">strict</span><span class="o">:</span><span class="bp">true</span> <span class="bp">()</span><span class="o">;</span>     <span class="c">(* Strict validation *)</span>
+</span><span id="__span-17-13"><a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a>    <span class="nn">Sanitize_tool_output</span><span class="p">.</span><span class="n">sanitize_tool_output</span> <span class="bp">()</span><span class="o">;</span>  <span class="c">(* Output sanitization *)</span>
+</span><span id="__span-17-14"><a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a>  <span class="o">];</span>
+</span><span id="__span-17-15"><a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a><span class="o">}</span>
+</span></code></pre></div>
+<p>Execution flow: request -&gt; Logging -&gt; Pii_mask -&gt; Rate_limit -&gt; Validation -&gt; LLM
+Response -&gt; Validation -&gt; Sanitize -&gt; Retry -&gt; Rate_limit -&gt; Pii_mask -&gt; Logging</p>
+<h2 id="cancellation">Cancellation<a class="headerlink" href="#cancellation" title="Permanent link">&para;</a></h2>
+<p>The <code>Timeout</code> middleware above normalizes timeout errors after the fact. The actual deadline enforcement happens through cancellation tokens, which are the runtime-wide primitive for "stop this work, now." Middleware hooks do not see cancellation tokens directly, but every tool handler receives one, and any code that drives the Engine can request cancellation on a token it created.</p>
+<h3 id="the-cancellation-surface">The cancellation surface<a class="headerlink" href="#the-cancellation-surface" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="k">type</span> <span class="n">cancellation_token</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">create_token</span> <span class="o">:</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span> <span class="n">cancellation_token</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">is_cancelled</span> <span class="o">:</span> <span class="n">cancellation_token</span> <span class="o">-&gt;</span> <span class="kt">bool</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">check_cancel</span>  <span class="o">:</span> <span class="n">cancellation_token</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">request_cancel</span> <span class="o">:</span> <span class="n">cancellation_token</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>
+</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">with_timeout</span> <span class="o">:</span>
+</span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>  <span class="kt">float</span> <span class="o">-&gt;</span>
+</span><span id="__span-18-10"><a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>  <span class="n">cancellation_token</span> <span class="o">-&gt;</span>
+</span><span id="__span-18-11"><a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a>  <span class="o">(</span><span class="n">cancellation_token</span> <span class="o">-&gt;</span> <span class="k">&#39;</span><span class="n">a</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-18-12"><a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a>  <span class="o">(</span><span class="k">&#39;</span><span class="n">a</span><span class="o">,</span> <span class="o">[&gt;</span> <span class="o">`</span><span class="nc">Timeout</span> <span class="o">|</span> <span class="o">`</span><span class="nc">Cancelled</span> <span class="o">])</span> <span class="n">result</span>
+</span><span id="__span-18-13"><a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a>
+</span><span id="__span-18-14"><a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">cancellable_handler</span> <span class="o">:</span>
+</span><span id="__span-18-15"><a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a>  <span class="n">cancellation_token</span> <span class="o">-&gt;</span>
+</span><span id="__span-18-16"><a id="__codelineno-18-16" name="__codelineno-18-16" href="#__codelineno-18-16"></a>  <span class="kt">float</span> <span class="o">-&gt;</span>
+</span><span id="__span-18-17"><a id="__codelineno-18-17" name="__codelineno-18-17" href="#__codelineno-18-17"></a>  <span class="o">(</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">handler_result</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-18-18"><a id="__codelineno-18-18" name="__codelineno-18-18" href="#__codelineno-18-18"></a>  <span class="o">(</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">handler_result</span><span class="o">)</span>
+</span></code></pre></div>
+<p>A token is created on an <code>Eio.Switch.t</code>. That switch owns the token's lifetime: when the switch exits, the token is cancelled along with every fiber running on it. You do not need to call <code>request_cancel</code> to clean up at scope exit.</p>
+<p><code>is_cancelled</code> is the non-throwing probe. Use it when you want to check the flag without committing to raising. <code>check_cancel</code> is the throwing probe: it raises <code>Eio.Cancel.Cancelled</code> immediately if the token is already cancelled. Long-running code should call <code>check_cancel</code> at natural boundaries (between loop iterations, between batch items) so a cancel request propagates promptly instead of waiting for the next blocking call.</p>
+<p><code>request_cancel</code> is how another fiber asks the work to stop. It sets the flag; the cancelled fiber observes it the next time it hits <code>check_cancel</code>, a cancel-aware Eio operation, or the <code>with_timeout</code> boundary.</p>
+<h3 id="timeout-vs-cancellation">Timeout vs cancellation<a class="headerlink" href="#timeout-vs-cancellation" title="Permanent link">&para;</a></h3>
+<p><code>with_timeout</code> composes a deadline with an existing token. It returns either the function's value, <code>`Timeout</code> if the deadline elapsed first, or <code>`Cancelled</code> if someone called <code>request_cancel</code> on the underlying token before the deadline. The two cases are separate because they call for different responses: a timeout usually means "retry with a longer budget or a smaller task," while a cancellation usually means "the caller gave up, stop entirely."</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">match</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">with_timeout</span> <span class="mi">30</span><span class="o">.</span><span class="mi">0</span> <span class="n">token</span> <span class="o">(</span><span class="k">fun</span> <span class="n">token</span> <span class="o">-&gt;</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>  <span class="nn">Engine</span><span class="p">.</span><span class="n">run_agent</span> <span class="n">token</span> <span class="n">agent</span> <span class="n">message</span> <span class="n">llm</span> <span class="n">registry</span><span class="o">)</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="k">with</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">result</span> <span class="o">-&gt;</span> <span class="c">(* proceed *)</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="o">|</span> <span class="nc">Error</span> <span class="o">`</span><span class="nc">Timeout</span> <span class="o">-&gt;</span> <span class="c">(* retry or surface *)</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="o">|</span> <span class="nc">Error</span> <span class="o">`</span><span class="nc">Cancelled</span> <span class="o">-&gt;</span> <span class="c">(* propagate, do not retry *)</span>
+</span></code></pre></div>
+<p>The deadline only triggers if the inner function observes cancellation at some point. Pure CPU work that never yields will run past the deadline. PAR's Engine and tool handlers are written to check cancellation between LLM round trips and before tool dispatch, so agent invocations are deadline-aware.</p>
+<h3 id="how-middleware-interacts-with-cancellation">How middleware interacts with cancellation<a class="headerlink" href="#how-middleware-interacts-with-cancellation" title="Permanent link">&para;</a></h3>
+<p>Middleware hooks receive the conversation, response, tool call, or error, but not the token. The token flows underneath: the Engine threads it through <code>run_agent</code>, and every tool handler gets it as its second argument. A middleware that wants to abort based on a signal it observes has two options:</p>
+<ol>
+<li>Return <code>None</code> from the relevant hook and let the Engine continue. The middleware cannot force the Engine to stop, but it can short-circuit its own contribution.</li>
+<li>Mutate shared state that the next <code>check_cancel</code> boundary will observe. This couples the middleware to the handler's cancellation discipline, so prefer the first option when it fits.</li>
+</ol>
+<p>The <code>cancellable_handler</code> wrapper is the standard way to make a tool handler cancellation-aware without rewriting its body. Pass the token and a per-call timeout, and the wrapper ensures <code>check_cancel</code> fires between the handler's steps.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="k">let</span> <span class="n">handler</span> <span class="n">input</span> <span class="n">token</span> <span class="o">=</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>  <span class="k">let</span> <span class="n">wrapped</span> <span class="o">=</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">cancellable_handler</span> <span class="n">token</span> <span class="mi">10</span><span class="o">.</span><span class="mi">0</span> <span class="n">real_handler</span> <span class="k">in</span>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>  <span class="n">wrapped</span> <span class="n">input</span>
+</span></code></pre></div>
+<p>Here <code>real_handler</code> does not take a token. The wrapper gives it a 10-second budget per invocation and aborts with <code>Error</code> if the token is cancelled or the budget elapses. Use this when wrapping a third-party function you cannot easily thread a token through.</p>
+<h3 id="composition-with-eio">Composition with Eio<a class="headerlink" href="#composition-with-eio" title="Permanent link">&para;</a></h3>
+<p>Cancellation rides on Eio's structured concurrency. A token created on a switch is cancelled when the switch exits, so the common cleanup pattern is "run the agent inside <code>Eio.Switch.run</code>; if anything goes wrong, exit the switch and the agent's fibers are torn down." You rarely need to call <code>request_cancel</code> explicitly for cleanup; you need it for user-initiated cancellation (a "stop" button, a SIGINT handler) where the switch is not otherwise exiting.</p>
+<h2 id="custom-middleware">Custom middleware<a class="headerlink" href="#custom-middleware" title="Permanent link">&para;</a></h2>
+<p>Writing a custom middleware only requires constructing a <code>middleware_hook</code> record. The example below counts LLM calls:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="k">let</span> <span class="n">counter_middleware</span> <span class="bp">()</span> <span class="o">=</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>  <span class="k">let</span> <span class="n">count</span> <span class="o">=</span> <span class="n">ref</span> <span class="mi">0</span> <span class="k">in</span>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>  <span class="o">{</span>
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>    <span class="nn">Types</span><span class="p">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;call_counter&quot;</span><span class="o">;</span>
+</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>    <span class="n">on_before_llm</span> <span class="o">=</span> <span class="nc">Some</span> <span class="o">(</span><span class="k">fun</span> <span class="o">_</span><span class="n">conv</span> <span class="o">-&gt;</span>
+</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>      <span class="n">incr</span> <span class="n">count</span><span class="o">;</span>
+</span><span id="__span-21-7"><a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>      <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;LLM call #%d</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">!</span><span class="n">count</span><span class="o">;</span>
+</span><span id="__span-21-8"><a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>      <span class="nc">None</span><span class="o">);</span>
+</span><span id="__span-21-9"><a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a>    <span class="n">on_after_llm</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-21-10"><a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a>    <span class="n">on_before_tool</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-21-11"><a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a>    <span class="n">on_after_tool</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-21-12"><a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a>    <span class="n">on_error</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-21-13"><a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a>  <span class="o">}</span>
+</span></code></pre></div>
+<h3 id="error-handling-middleware-example">Error handling middleware example<a class="headerlink" href="#error-handling-middleware-example" title="Permanent link">&para;</a></h3>
+<p>Convert specific errors into retryable alternative results:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="k">let</span> <span class="n">fallback_middleware</span> <span class="o">~</span><span class="n">fallback_text</span> <span class="bp">()</span> <span class="o">=</span>
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>  <span class="o">{</span>
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>    <span class="nn">Types</span><span class="p">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;fallback&quot;</span><span class="o">;</span>
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>    <span class="n">on_before_llm</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>    <span class="n">on_after_llm</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-22-6"><a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>    <span class="n">on_before_tool</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-22-7"><a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a>    <span class="n">on_after_tool</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-22-8"><a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a>    <span class="n">on_error</span> <span class="o">=</span> <span class="nc">Some</span> <span class="o">(</span><span class="k">fun</span> <span class="n">err</span> <span class="o">-&gt;</span>
+</span><span id="__span-22-9"><a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a>      <span class="k">match</span> <span class="n">err</span> <span class="k">with</span>
+</span><span id="__span-22-10"><a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a>      <span class="o">|</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">External_failure</span> <span class="o">_</span> <span class="o">-&gt;</span>
+</span><span id="__span-22-11"><a id="__codelineno-22-11" name="__codelineno-22-11" href="#__codelineno-22-11"></a>        <span class="c">(* Convert an external failure into a success result with fallback text *)</span>
+</span><span id="__span-22-12"><a id="__codelineno-22-12" name="__codelineno-22-12" href="#__codelineno-22-12"></a>        <span class="nc">Some</span> <span class="o">(</span><span class="nn">Types</span><span class="p">.</span><span class="nc">Success</span> <span class="o">(`</span><span class="nc">String</span> <span class="n">fallback_text</span><span class="o">))</span>
+</span><span id="__span-22-13"><a id="__codelineno-22-13" name="__codelineno-22-13" href="#__codelineno-22-13"></a>      <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="nc">None</span>  <span class="c">(* Pass through other errors *)</span>
+</span><span id="__span-22-14"><a id="__codelineno-22-14" name="__codelineno-22-14" href="#__codelineno-22-14"></a>    <span class="o">);</span>
+</span><span id="__span-22-15"><a id="__codelineno-22-15" name="__codelineno-22-15" href="#__codelineno-22-15"></a>  <span class="o">}</span>
+</span></code></pre></div>
+<h3 id="caveats">Caveats<a class="headerlink" href="#caveats" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Middleware instances are shared within the same agent configuration, so mind concurrent state isolation</li>
+<li><code>on_error</code> is currently dead code in the Engine layer (the Engine does not call <code>apply_on_error</code>); it will be wired up in a future release</li>
+<li>Returning <code>Some</code> means the value was modified or replaced, <code>None</code> means pass through the original</li>
+</ul>
+<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../overview/">Overview</a>: SDK architecture overview</li>
+<li><a href="../agent/">Agent API</a>: description of the <code>agent_config.middleware</code> field</li>
+<li><a href="../workflow/">Workflow API</a>: middleware propagation in workflows</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

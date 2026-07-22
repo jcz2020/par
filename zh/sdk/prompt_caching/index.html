@@ -1,0 +1,2587 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/zh/sdk/prompt_caching/">
+      
+      
+        <link rel="prev" href="../persistence/">
+      
+      
+        <link rel="next" href="../content_blocks/">
+      
+      
+        
+          <link rel="alternate" href="../../../sdk/prompt_caching/" hreflang="en">
+        
+          <link rel="alternate" href="./" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Prompt Caching - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#prompt" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../" title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Prompt Caching
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="选择当前语言">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../../sdk/prompt_caching/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="分享" aria-label="分享" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  教程
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  实用指南
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  参考
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  解释
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../" title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    教程
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    教程
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    实用指南
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    实用指南
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/rag-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build a RAG Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    参考
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    参考
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../invoke_context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    invoke_context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generate API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../document_loaders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Loaders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Caching
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        概览
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        快速开始
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        稳定 vs 易变系统提示
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="稳定 vs 易变系统提示">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#v064" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        冲突区域硬失败（v0.6.4+）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        模板区域检测
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cache_strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cache_strategy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mark_tool-mark_message" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mark_tool 和 mark_message
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="mark_tool 和 mark_message">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mark_tool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mark_tool
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mark_message" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mark_message
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        优先级和预算管理器
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        预算管理器
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        事件
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="事件">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cache_write" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cache_write
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cache_read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cache_read
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cache_strategy_skipped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cache_strategy_skipped
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cache_breakpoint_dropped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cache_breakpoint_dropped
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cache_invalidated_by_skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cache_invalidated_by_skill
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provider 支持
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ffi-python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FFI / Python 配置
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FFI / Python 配置">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cache_strategy_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cache_strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#system_prompt_zone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        system_prompt_zone
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prompt_cache_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        prompt_cache_key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#skill_prompt_zone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        skill_prompt_zone
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        另请参阅
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    解释
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    解释
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/concurrency-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/persistence-and-durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence and Durability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/rag-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        概览
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        快速开始
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        稳定 vs 易变系统提示
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="稳定 vs 易变系统提示">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#v064" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        冲突区域硬失败（v0.6.4+）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        模板区域检测
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cache_strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cache_strategy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mark_tool-mark_message" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mark_tool 和 mark_message
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="mark_tool 和 mark_message">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mark_tool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mark_tool
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mark_message" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mark_message
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        优先级和预算管理器
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        预算管理器
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        事件
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="事件">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cache_write" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cache_write
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cache_read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cache_read
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cache_strategy_skipped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cache_strategy_skipped
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cache_breakpoint_dropped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cache_breakpoint_dropped
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cache_invalidated_by_skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cache_invalidated_by_skill
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provider 支持
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ffi-python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FFI / Python 配置
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FFI / Python 配置">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cache_strategy_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cache_strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#system_prompt_zone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        system_prompt_zone
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prompt_cache_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        prompt_cache_key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#skill_prompt_zone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        skill_prompt_zone
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        另请参阅
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<!-- language: zh -->
+<p><strong><a href="./">English</a></strong> · 简体中文</p>
+<h1 id="prompt">Prompt 缓存<a class="headerlink" href="#prompt" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>在 v0.6.4-beta 中新增。源真相：<code>lib/core/types.ml</code>（类型）、<code>lib/core/cache_breakpoint.ml</code>（标记 API）、<code>lib/core/engine.ml</code>（预算管理器）。</p>
+</blockquote>
+<p>Prompt 缓存让你避免在 LLM 调用之间重复处理前缀。<code>`Anthropic</code> provider 对 prompt 中的每个 token 收全价，即使相同的系统指令和工具定义在每次请求中逐字出现。使用缓存后，provider 在首次调用后存储前缀，后续调用只收取一小部分费用。对于复用长系统提示或大型工具列表的 agent，节省会快速累积。</p>
+<p>PAR 通过类型化 API 暴露此功能：agent 配置上的 <code>cache_strategy</code> 用于粗粒度控制，<code>mark_tool</code> / <code>mark_message</code> 函数用于细粒度的逐块标记。策略在你通过 <code>Runtime.create</code> 创建 agent 或通过 FFI 注册时设置在 <code>agent_config</code> 上。</p>
+<h2 id="_1">概览<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>不同的 provider 以不同方式处理缓存。</p>
+<p><strong><code>`Anthropic</code></strong> 使用显式 <code>cache_control</code> 标记。你将 <code>cache_control</code> 字段附加到内容块（系统提示段、工具定义、消息块），Anthropic 为指定 TTL 缓存标记的前缀。没有标记则不会缓存任何内容。</p>
+<p><strong><code>`Openai</code></strong> 自动为共享长公共前缀的 prompt 缓存。不需要标记。效果在使用统计中可见：响应中的 <code>cached_tokens</code> 字段指示有多少 prompt token 从缓存提供。</p>
+<p><strong><code>`Ollama</code></strong> 不支持 prompt 缓存。</p>
+<p>PAR 的缓存 API 针对 <code>`Anthropic</code> 的标记系统。当你设置 <code>cache_strategy</code> 或使用 <code>mark_tool</code> / <code>mark_message</code> 时，PAR 在发送到 Anthropic 之前将 <code>cache_control</code> 附加到适当的内容块。在 <code>`Openai</code> 上，这些标记被忽略，自动前缀缓存照常工作。在 <code>`Ollama</code> 上，缓存是空操作。</p>
+<h2 id="_2">快速开始<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>启用缓存最简单的方式：在 agent 上设置 <code>cache_strategy</code> 并使用稳定的系统提示。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="k">let</span> <span class="n">agent</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">id</span> <span class="o">=</span> <span class="s2">&quot;my-agent&quot;</span><span class="o">;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  <span class="n">system_prompt</span> <span class="o">=</span> <span class="n">stable_prompt</span> <span class="s2">&quot;You are a helpful assistant.&quot;</span><span class="o">;</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  <span class="n">cache_strategy</span> <span class="o">=</span> <span class="nc">With_cache_of</span> <span class="o">`</span><span class="nc">Five_min</span><span class="o">;</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  <span class="n">model</span> <span class="o">=</span> <span class="o">{</span> <span class="n">provider</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Anthropic</span><span class="o">;</span> <span class="n">model_name</span> <span class="o">=</span> <span class="s2">&quot;claude-sonnet-4-20250514&quot;</span><span class="o">;</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>            <span class="n">api_base</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span> <span class="n">temperature</span> <span class="o">=</span> <span class="mi">0</span><span class="o">.</span><span class="mi">7</span><span class="o">;</span> <span class="n">max_tokens</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>            <span class="n">top_p</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span> <span class="n">stop_sequences</span> <span class="o">=</span> <span class="nc">None</span> <span class="o">};</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  <span class="n">tools</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  <span class="n">max_iterations</span> <span class="o">=</span> <span class="mi">5</span><span class="o">;</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  <span class="n">middleware</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>  <span class="n">retry_policy</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>  <span class="n">context_strategy</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>  <span class="n">resource_quota</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>  <span class="n">max_execution_time</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>  <span class="n">system_prompt_template</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>  <span class="n">early_stopping_method</span> <span class="o">=</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Force</span><span class="o">;</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>  <span class="n">on_max_tokens</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>  <span class="n">max_continuation_chunks</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>  <span class="n">tool_timeout</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>  <span class="n">context_compression_threshold</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>  <span class="n">compression_cooldown_messages</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>  <span class="n">context_window_override</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="o">}</span>
+</span></code></pre></div>
+<p>通过 FFI 从 Python 使用 <code>Runtime.register_agent</code> 注册启用缓存的 agent：</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">par_runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">Runtime</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="s2">&quot;persistence&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;tag&quot;</span><span class="p">:</span> <span class="s2">&quot;sqlite&quot;</span><span class="p">,</span> <span class="s2">&quot;contents&quot;</span><span class="p">:</span> <span class="s2">&quot;:memory:&quot;</span><span class="p">},</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="s2">&quot;default_quota&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;max_tokens&quot;</span><span class="p">:</span> <span class="mi">4096</span><span class="p">,</span> <span class="s2">&quot;max_iterations&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s2">&quot;timeout_seconds&quot;</span><span class="p">:</span> <span class="mf">30.0</span><span class="p">},</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="s2">&quot;llm_providers&quot;</span><span class="p">:</span> <span class="p">[</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>        <span class="p">[</span><span class="s2">&quot;anthropic&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;api_key&quot;</span><span class="p">:</span> <span class="s2">&quot;sk-ant-...&quot;</span><span class="p">}]</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="p">],</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="p">}</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="k">with</span> <span class="n">Runtime</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">config</span><span class="p">))</span> <span class="k">as</span> <span class="n">rt</span><span class="p">:</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="n">rt</span><span class="o">.</span><span class="n">register_tool</span><span class="p">(</span><span class="s2">&quot;echo&quot;</span><span class="p">,</span> <span class="s2">&quot;Echo tool&quot;</span><span class="p">,</span> <span class="s1">&#39;{&quot;type&quot;: &quot;object&quot;}&#39;</span><span class="p">)</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    <span class="c1"># 通过 JSON 注册 agent</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>    <span class="n">agent_config</span> <span class="o">=</span> <span class="p">{</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;my-agent&quot;</span><span class="p">,</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>        <span class="s2">&quot;system_prompt&quot;</span><span class="p">:</span> <span class="s2">&quot;You are a helpful assistant.&quot;</span><span class="p">,</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>        <span class="s2">&quot;system_prompt_zone&quot;</span><span class="p">:</span> <span class="s2">&quot;stable&quot;</span><span class="p">,</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>        <span class="s2">&quot;cache_strategy&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;With_cache_of&quot;</span><span class="p">,</span> <span class="s2">&quot;Five_min&quot;</span><span class="p">],</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>        <span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;model_name&quot;</span><span class="p">:</span> <span class="s2">&quot;claude-sonnet-4-20250514&quot;</span><span class="p">,</span> <span class="s2">&quot;provider&quot;</span><span class="p">:</span> <span class="s2">&quot;anthropic&quot;</span><span class="p">}</span>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>    <span class="p">}</span>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>    <span class="n">rt</span><span class="o">.</span><span class="n">register_agent</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">agent_config</span><span class="p">))</span>
+</span></code></pre></div>
+<p>就这样。PAR 向 Anthropic 发送 <code>cache_control</code> 标记，provider 缓存前缀 5 分钟。</p>
+<h2 id="vs">稳定 vs 易变系统提示<a class="headerlink" href="#vs" title="Permanent link">&para;</a></h2>
+<p>不是每个系统提示都应该被缓存。PAR 通过 <code>system_prompt</code> 类型区分两个区域：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">type</span> <span class="n">zone_tag</span> <span class="o">=</span> <span class="nc">Zone_stable</span> <span class="o">|</span> <span class="nc">Zone_volatile</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="k">type</span> <span class="n">system_prompt</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  <span class="n">sp_raw</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  <span class="n">sp_zone</span> <span class="o">:</span> <span class="n">zone_tag</span><span class="o">;</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="o">}</span>
+</span></code></pre></div>
+<p><strong><code>stable_prompt</code></strong> 将提示标记为可缓存。文本在调用之间不会改变。当 <code>cache_strategy</code> 请求时，PAR 发送 <code>cache_control</code> 标记。</p>
+<p><strong><code>volatile_prompt</code></strong> 将提示标记为不可缓存。文本每次调用都会改变（例如，包含当前日期或用户特定数据）。PAR 对易变提示跳过 <code>cache_control</code> 标记，无论 <code>cache_strategy</code> 如何。</p>
+<p>构造器：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">val</span> <span class="n">stable_prompt</span> <span class="o">:</span> <span class="kt">string</span> <span class="o">-&gt;</span> <span class="n">system_prompt</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">val</span> <span class="n">volatile_prompt</span> <span class="o">:</span> <span class="kt">string</span> <span class="o">-&gt;</span> <span class="n">system_prompt</span>
+</span></code></pre></div>
+<h3 id="v064">冲突区域硬失败（v0.6.4+）<a class="headerlink" href="#v064" title="Permanent link">&para;</a></h3>
+<p>将 <code>cache_strategy = With_cache_of _</code> 与 <code>volatile_prompt</code> 一起设置是错误。PAR 从 <code>make_agent</code> 返回 <code>Error (Invalid_input _)</code>，而不是静默发送会被 Anthropic 拒绝的标记。</p>
+<p>这是早期版本的软失败。硬失败防止浪费 API 调用，并在 agent 创建时使配置错误显而易见。</p>
+<h3 id="_3">模板区域检测<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<p>当你使用 <code>system_prompt_template</code> 而非普通 <code>system_prompt</code> 时，PAR 从模板变量自动检测区域：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">val</span> <span class="nn">Template</span><span class="p">.</span><span class="n">classify_template_zone</span> <span class="o">:</span> <span class="n">template</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span> <span class="n">zone_tag</span>
+</span></code></pre></div>
+<p>分类逻辑：</p>
+<table>
+<thead>
+<tr>
+<th>变量</th>
+<th>区域</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>{{agent_id}}</code></td>
+<td>稳定</td>
+<td>在 runtime 内的调用间相同</td>
+</tr>
+<tr>
+<td><code>{{runtime_id}}</code></td>
+<td>稳定</td>
+<td>在 runtime 内的调用间相同</td>
+</tr>
+<tr>
+<td><code>{{available_tools}}</code></td>
+<td>稳定</td>
+<td>除非工具集变化否则相同</td>
+</tr>
+<tr>
+<td><code>{{current_time}}</code></td>
+<td>易变</td>
+<td>每秒变化</td>
+</tr>
+<tr>
+<td>任何用户变量</td>
+<td>稳定（默认）</td>
+<td>未知变量默认为稳定</td>
+</tr>
+</tbody>
+</table>
+<p>如果模板中的任何变量是易变的，整个模板被分类为易变。规则是：<code>Zone_volatile</code> 支配。这意味着 <code>{{agent_id}} + {{current_time}}</code> 产生易变模板，而非混合模板。</p>
+<h2 id="cache_strategy">cache_strategy<a class="headerlink" href="#cache_strategy" title="Permanent link">&para;</a></h2>
+<p><code>agent_config</code> 上的 <code>cache_strategy</code> 类型控制 PAR 是否发送 <code>cache_control</code> 标记：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">type</span> <span class="n">cache_strategy</span> <span class="o">=</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>  <span class="o">|</span> <span class="nc">No_caching</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>  <span class="o">|</span> <span class="nc">With_cache_of</span> <span class="k">of</span> <span class="n">cache_ttl</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">type</span> <span class="n">cache_ttl</span> <span class="o">=</span> <span class="o">[</span> <span class="o">`</span><span class="nc">Five_min</span> <span class="o">|</span> <span class="o">`</span><span class="nc">One_hour</span> <span class="o">]</span>
+</span></code></pre></div>
+<p><strong><code>No_caching</code></strong>（默认）：不发送 <code>cache_control</code> 标记。每次调用都从头处理 prompt。当你需要确定性延迟或 provider 不支持缓存时使用。</p>
+<p>**<code>With_cache_of</code>Five_min<code>**：附加 5 分钟 TTL 的</code>cache_control`。适合大多数工作负载。缓存的前缀在窗口内的任何调用中被复用。</p>
+<p>**<code>With_cache_of</code>One_hour<code>**：附加 1 小时 TTL 的</code>cache_control`。更适合长时间运行的 agent，其系统提示和工具定义在较长时间内保持稳定。</p>
+<p>策略统一应用：设置 <code>With_cache_of</code> 时，PAR 标记系统提示、所有工具定义和最后一条用户消息（适当时）用于缓存。要对单个块进行更精细的控制，使用 <code>mark_tool</code> 和 <code>mark_message</code>。</p>
+<h2 id="mark_tool-mark_message">mark_tool 和 mark_message<a class="headerlink" href="#mark_tool-mark_message" title="Permanent link">&para;</a></h2>
+<p>对于你想缓存特定工具或消息而非所有内容的情况，使用 <code>Cache_breakpoint</code> 模块：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">val</span> <span class="nn">Cache_breakpoint</span><span class="p">.</span><span class="n">mark_tool</span> <span class="o">:</span> <span class="n">ttl</span><span class="o">:</span><span class="n">cache_ttl</span> <span class="o">-&gt;</span> <span class="n">tool_descriptor</span> <span class="o">-&gt;</span> <span class="n">tool_descriptor</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">val</span> <span class="nn">Cache_breakpoint</span><span class="p">.</span><span class="n">mark_message</span> <span class="o">:</span> <span class="n">ttl</span><span class="o">:</span><span class="n">cache_ttl</span> <span class="o">-&gt;</span> <span class="n">message</span> <span class="o">-&gt;</span> <span class="n">message</span>
+</span></code></pre></div>
+<h3 id="mark_tool">mark_tool<a class="headerlink" href="#mark_tool" title="Permanent link">&para;</a></h3>
+<p>将 <code>cache_control</code> 附加到通过 <code>Runtime.register_tool</code> 创建的工具描述符。当引擎构建请求时，标记的工具将其 <code>cache_control</code> 携带到线路格式中。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">let</span> <span class="n">my_tool</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">register_tool</span> <span class="n">rt</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>  <span class="o">~</span><span class="n">name</span><span class="o">:</span><span class="s2">&quot;code_search&quot;</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>  <span class="o">~</span><span class="n">description</span><span class="o">:</span><span class="s2">&quot;Search the codebase&quot;</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>  <span class="o">~</span><span class="n">input_schema</span><span class="o">:(`</span><span class="nc">Assoc</span> <span class="o">[(</span><span class="s2">&quot;type&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;object&quot;</span><span class="o">)])</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>  <span class="o">~</span><span class="n">handler</span><span class="o">:(</span><span class="k">fun</span> <span class="o">_</span><span class="n">input</span> <span class="o">_</span><span class="n">token</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Success</span> <span class="o">(`</span><span class="nc">String</span> <span class="s2">&quot;result&quot;</span><span class="o">))</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>  <span class="bp">()</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="c">(* 标记工具用于缓存 *)</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="k">let</span> <span class="n">cached_tool</span> <span class="o">=</span> <span class="nn">Cache_breakpoint</span><span class="p">.</span><span class="n">mark_tool</span> <span class="o">~</span><span class="n">ttl</span><span class="o">:`</span><span class="nc">Five_min</span> <span class="n">my_tool</span><span class="o">.</span><span class="n">descriptor</span>
+</span></code></pre></div>
+<p>当工具定义很长（复杂 JSON Schema、详细描述）且你想避免每次调用都重新处理时，这很有用。</p>
+<h3 id="mark_message">mark_message<a class="headerlink" href="#mark_message" title="Permanent link">&para;</a></h3>
+<p>将 <code>cache_control</code> 附加到消息的<strong>最后</strong>一个内容块。这针对 Anthropic 为缓存目的断开前缀的位置。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">let</span> <span class="n">msg</span> <span class="o">:</span> <span class="nn">Types</span><span class="p">.</span><span class="n">message</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>  <span class="n">role</span> <span class="o">=</span> <span class="o">`</span><span class="nc">User</span><span class="o">;</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>  <span class="n">content_blocks</span> <span class="o">=</span> <span class="o">[</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="nc">Text_block</span> <span class="o">{</span> <span class="n">text</span> <span class="o">=</span> <span class="s2">&quot;Please review this code:&quot;</span><span class="o">;</span> <span class="n">cache_control</span> <span class="o">=</span> <span class="nc">None</span> <span class="o">};</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="nc">Text_block</span> <span class="o">{</span> <span class="n">text</span> <span class="o">=</span> <span class="n">long_code_snippet</span><span class="o">;</span> <span class="n">cache_control</span> <span class="o">=</span> <span class="nc">None</span> <span class="o">};</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>  <span class="o">];</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="o">}</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="k">let</span> <span class="n">marked</span> <span class="o">=</span> <span class="nn">Cache_breakpoint</span><span class="p">.</span><span class="n">mark_message</span> <span class="o">~</span><span class="n">ttl</span><span class="o">:`</span><span class="nc">Five_min</span> <span class="n">msg</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="c">(* 最后一个 Text_block 现在有 cache_control = Some { type_ = `Ephemeral; ttl = Some `Five_min } *)</span>
+</span></code></pre></div>
+<p>如果消息没有内容块，<code>mark_message</code> 是空操作（消息原样传递）。</p>
+<h3 id="_4">优先级和预算管理器<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<p>Anthropic 将每次请求的 <code>cache_control</code> 标记数量上限设为 4。当候选标记超过 provider 允许的数量时，PAR 的预算管理器决定保留哪些。</p>
+<p>每个候选断点携带一个优先级：</p>
+<table>
+<thead>
+<tr>
+<th>来源</th>
+<th>优先级</th>
+<th>出现时机</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>系统提示</td>
+<td>100</td>
+<td>每次 <code>With_cache_of</code> 调用</td>
+</tr>
+<tr>
+<td>用户标记的工具（<code>mark_tool</code>）</td>
+<td>60</td>
+<td>当你显式标记工具时</td>
+</tr>
+<tr>
+<td>最后一条用户消息</td>
+<td>10</td>
+<td>每次 <code>With_cache_of</code> 调用</td>
+</tr>
+</tbody>
+</table>
+<p>预算管理器按优先级排序候选（最高优先），保留前 N 个（N 是 provider 的上限），丢弃其余。被丢弃的断点通过 <code>Cache_breakpoint_dropped</code> 事件报告，以便你调整标记策略。</p>
+<h2 id="_5">预算管理器<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p>预算管理器位于 <code>Cache_breakpoint.plan_breakpoints</code>：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">val</span> <span class="nn">Cache_breakpoint</span><span class="p">.</span><span class="n">plan_breakpoints</span> <span class="o">:</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>  <span class="o">?</span><span class="n">max_override</span><span class="o">:</span><span class="kt">int</span> <span class="o">-&gt;</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">llm_service</span> <span class="o">-&gt;</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">breakpoint</span> <span class="kt">list</span> <span class="o">-&gt;</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">breakpoint_plan</span>
+</span></code></pre></div>
+<p>它分三步工作：</p>
+<ol>
+<li><strong>收集候选</strong>：引擎从系统提示、标记的工具和标记的消息中收集所有 <code>cache_control</code> 标记。</li>
+<li><strong>按优先级排序</strong>：最高优先级优先（系统提示 100，用户工具 60，最后用户消息 10）。</li>
+<li><strong>在上限处拆分</strong>：保留前 <code>max_breakpoints</code> 个条目（来自 provider 的 <code>cache_control_capability</code>），其余标记为 <code>Over_budget</code>。</li>
+</ol>
+<p>如果 provider 完全不支持缓存（<code>cache_control_fn</code> 返回 <code>None</code> 或 <code>max_breakpoints = 0</code>），每个候选以 <code>Unsupported_by_provider</code> 被丢弃。</p>
+<p>你可以用 <code>~max_override:n</code> 覆盖上限用于测试或强制特定限制。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">type</span> <span class="n">breakpoint_plan</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>  <span class="n">used</span> <span class="o">:</span> <span class="n">breakpoint</span> <span class="kt">list</span><span class="o">;</span>                         <span class="c">(* 将被发送的标记 *)</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>  <span class="n">dropped</span> <span class="o">:</span> <span class="o">(</span><span class="n">breakpoint</span> <span class="o">*</span> <span class="n">drop_reason</span><span class="o">)</span> <span class="kt">list</span><span class="o">;</span>       <span class="c">(* 被跳过的标记 *)</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="o">}</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="k">type</span> <span class="n">drop_reason</span> <span class="o">=</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>  <span class="o">|</span> <span class="nc">Over_budget</span>                          <span class="c">(* 超过 provider 上限，最低优先级被丢弃 *)</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>  <span class="o">|</span> <span class="nc">Unsupported_by_provider</span>              <span class="c">(* provider 不支持缓存 *)</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>  <span class="o">|</span> <span class="nc">Lower_priority_than_dropped</span>          <span class="c">(* （保留供未来使用） *)</span>
+</span></code></pre></div>
+<h2 id="_6">事件<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<p>五个事件通过事件总线追踪缓存行为：</p>
+<h3 id="cache_write">Cache_write<a class="headerlink" href="#cache_write" title="Permanent link">&para;</a></h3>
+<p>在 LLM 响应指示新缓存条目被写入后触发。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="o">|</span> <span class="nc">Cache_write</span> <span class="k">of</span> <span class="o">{</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>    <span class="n">tokens_written</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>    <span class="c">(* 存储在缓存中的 token *)</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="n">ttl</span> <span class="o">:</span> <span class="n">cache_ttl</span><span class="o">;</span>         <span class="c">(* 请求的 TTL *)</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>  <span class="o">}</span>
+</span></code></pre></div>
+<h3 id="cache_read">Cache_read<a class="headerlink" href="#cache_read" title="Permanent link">&para;</a></h3>
+<p>在 LLM 响应指示缓存 token 被提供时触发。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="o">|</span> <span class="nc">Cache_read</span> <span class="k">of</span> <span class="o">{</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>    <span class="n">tokens_read</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>              <span class="c">(* 从缓存提供的 token *)</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>    <span class="n">total_prompt_tokens</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>      <span class="c">(* 上下文的总 prompt token *)</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>  <span class="o">}</span>
+</span></code></pre></div>
+<h3 id="cache_strategy_skipped">Cache_strategy_skipped<a class="headerlink" href="#cache_strategy_skipped" title="Permanent link">&para;</a></h3>
+<p>在缓存被整个请求跳过时触发。<code>reason</code> 告诉你原因：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="o">|</span> <span class="nc">Cache_strategy_skipped</span> <span class="k">of</span> <span class="o">{</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>    <span class="n">reason</span> <span class="o">:</span> <span class="o">[</span> <span class="o">`</span><span class="nc">Volatile_system</span>              <span class="c">(* 系统提示是易变的 *)</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>             <span class="o">|</span> <span class="o">`</span><span class="nc">Volatile_builtins</span> <span class="k">of</span> <span class="kt">string</span> <span class="kt">list</span>  <span class="c">(* 易变的内置工具 *)</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>             <span class="o">|</span> <span class="o">`</span><span class="nc">Unsupported_provider</span>          <span class="c">(* provider 没有 cache_control_fn *)</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>             <span class="o">|</span> <span class="o">`</span><span class="nc">No_strategy</span> <span class="o">];</span>                <span class="c">(* cache_strategy = No_caching *)</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>  <span class="o">}</span>
+</span></code></pre></div>
+<h3 id="cache_breakpoint_dropped">Cache_breakpoint_dropped<a class="headerlink" href="#cache_breakpoint_dropped" title="Permanent link">&para;</a></h3>
+<p>在预算管理器丢弃超过 provider 上限的断点时触发：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="o">|</span> <span class="nc">Cache_breakpoint_dropped</span> <span class="k">of</span> <span class="o">{</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>    <span class="n">location</span> <span class="o">:</span> <span class="o">[</span> <span class="o">`</span><span class="nc">System</span> <span class="o">|</span> <span class="o">`</span><span class="nc">Tool</span> <span class="k">of</span> <span class="kt">int</span> <span class="o">|</span> <span class="o">`</span><span class="nc">Message</span> <span class="k">of</span> <span class="kt">int</span> <span class="o">*</span> <span class="kt">int</span> <span class="o">];</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="n">reason</span> <span class="o">:</span> <span class="n">drop_reason</span><span class="o">;</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>  <span class="o">}</span>
+</span></code></pre></div>
+<h3 id="cache_invalidated_by_skill">Cache_invalidated_by_skill<a class="headerlink" href="#cache_invalidated_by_skill" title="Permanent link">&para;</a></h3>
+<p>在 skill 以使缓存前缀失效的方式修改工具列表时触发。事件报告更改了多少工具以及估计浪费的 token：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="o">|</span> <span class="nc">Cache_invalidated_by_skill</span> <span class="k">of</span> <span class="o">{</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="n">skill_id</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="n">before_tool_count</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="n">after_tool_count</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="n">estimated_wasted_tokens</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>  <span class="o">}</span>
+</span></code></pre></div>
+<h2 id="provider">Provider 支持<a class="headerlink" href="#provider" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>缓存机制</th>
+<th><code>cache_control</code> 标记</th>
+<th>自动缓存</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>`Anthropic</code></td>
+<td>内容块上的显式标记</td>
+<td>完全支持</td>
+<td>否</td>
+</tr>
+<tr>
+<td><code>`Openai</code></td>
+<td>自动前缀缓存</td>
+<td>被忽略（无效果）</td>
+<td>是，通过 usage 中的 <code>cached_tokens</code> 可见</td>
+</tr>
+<tr>
+<td><code>`Ollama</code></td>
+<td>无</td>
+<td>被忽略</td>
+<td>否</td>
+</tr>
+</tbody>
+</table>
+<p>对于 <code>`Anthropic</code>，PAR 的整个缓存 API（策略、<code>mark_tool</code>、<code>mark_message</code>、预算管理器）控制发送哪些标记。对于 <code>`Openai</code>，你不需要做任何事情。当 prompt 前缀在调用间稳定时，provider 自动缓存，并在响应的 <code>usage</code> 字段中报告节省。</p>
+<h2 id="ffi-python">FFI / Python 配置<a class="headerlink" href="#ffi-python" title="Permanent link">&para;</a></h2>
+<p>从 Python（通过 <code>par_runtime</code> FFI 层）配置 agent 时，使用这些 JSON 形状：</p>
+<h3 id="cache_strategy_1">cache_strategy<a class="headerlink" href="#cache_strategy_1" title="Permanent link">&para;</a></h3>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="p">{</span><span class="nt">&quot;tag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;No_caching&quot;</span><span class="p">}</span>
+</span></code></pre></div>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="p">{</span><span class="nt">&quot;tag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;With_cache_of&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;contents&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Five_min&quot;</span><span class="p">}</span>
+</span></code></pre></div>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="p">{</span><span class="nt">&quot;tag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;With_cache_of&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;contents&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;One_hour&quot;</span><span class="p">}</span>
+</span></code></pre></div>
+<h3 id="system_prompt_zone">system_prompt_zone<a class="headerlink" href="#system_prompt_zone" title="Permanent link">&para;</a></h3>
+<p>agent 配置上的 <code>system_prompt_zone</code> 字段控制系统提示如何分类：</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nt">&quot;system_prompt_zone&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;stable&quot;</span>
+</span></code></pre></div>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nt">&quot;system_prompt_zone&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;volatile&quot;</span>
+</span></code></pre></div>
+<p>当 JSON 中省略 <code>system_prompt_zone</code> 时，提示默认为稳定。skill 描述符中 <code>system_prompt_override</code> 的裸字符串值也默认为 <code>Stable_prompt</code>。</p>
+<h3 id="prompt_cache_key">prompt_cache_key<a class="headerlink" href="#prompt_cache_key" title="Permanent link">&para;</a></h3>
+<p>在 <code>`Openai</code> provider 配置上，可选的 <code>prompt_cache_key</code> 字段让你为 OpenAI 的前缀缓存提供缓存键：</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="p">{</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="w">    </span><span class="nt">&quot;tag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Openai&quot;</span><span class="p">,</span>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">    </span><span class="nt">&quot;contents&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">        </span><span class="nt">&quot;api_key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sk-...&quot;</span><span class="p">,</span>
+</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">        </span><span class="nt">&quot;base_url&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="w">        </span><span class="nt">&quot;organization&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+</span><span id="__span-21-7"><a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">        </span><span class="nt">&quot;embedding_model&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+</span><span id="__span-21-8"><a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="w">        </span><span class="nt">&quot;prompt_cache_key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;my-agent-cache-v1&quot;</span>
+</span><span id="__span-21-9"><a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-21-10"><a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>此字段是 OpenAI 特有的。<code>`Anthropic</code> 和 <code>`Ollama</code> provider 忽略它。</p>
+<h3 id="skill_prompt_zone">skill_prompt_zone<a class="headerlink" href="#skill_prompt_zone" title="Permanent link">&para;</a></h3>
+<p>Skill prompt 覆盖使用 <code>skill_prompt_zone</code> ADT。在 JSON 中，接受三种形式：</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nt">&quot;system_prompt_override&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;static instructions&quot;</span>
+</span></code></pre></div>
+<p>裸字符串为向后兼容被当作 <code>Stable_prompt</code>。</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="nt">&quot;system_prompt_override&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;zone&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;stable&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;text&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;static instructions&quot;</span><span class="p">}</span>
+</span></code></pre></div>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="nt">&quot;system_prompt_override&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;zone&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;volatile&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;text&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;instructions with {{current_time}}&quot;</span><span class="p">}</span>
+</span></code></pre></div>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="nt">&quot;system_prompt_override&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;zone&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;both&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;stable&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;core rules&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;volatile&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;time-sensitive rules&quot;</span><span class="p">}</span>
+</span></code></pre></div>
+<p><code>both</code> 变体将提示拆分为稳定和易变两部分。PAR 连接它们（<code>stable ^ "\n" ^ volatile</code>）并将结果标记为易变（任何易变组件使整个提示不可缓存）。</p>
+<h2 id="_7">另请参阅<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../agent/">Agent API 参考</a> — <code>agent_config</code> 字段，包括 <code>cache_strategy</code> 和 <code>system_prompt</code></li>
+<li><a href="../skills/">Skills API</a> — skill prompt 区域和 <code>skill_prompt_zone</code> ADT</li>
+<li><a href="../middleware/">中间件 API</a> — 用于请求/响应钩子的中间件管道</li>
+<li><a href="../observability/">可观测性</a> — 缓存事件的事件总线订阅</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

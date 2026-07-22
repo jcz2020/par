@@ -1,0 +1,2523 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/zh/sdk/observability/">
+      
+      
+        <link rel="prev" href="../skills/">
+      
+      
+        <link rel="next" href="../../explanation/architecture/">
+      
+      
+        
+          <link rel="alternate" href="../../../sdk/observability/" hreflang="en">
+        
+          <link rel="alternate" href="./" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Observability - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#_1" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../" title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Observability
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="选择当前语言">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../../sdk/observability/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="分享" aria-label="分享" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  教程
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  实用指南
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  参考
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  解释
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../" title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    教程
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    教程
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    实用指南
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    实用指南
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/rag-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build a RAG Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    参考
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    参考
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../invoke_context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    invoke_context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generate API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../document_loaders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Loaders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prompt_caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#par" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PAR 中的可观测性含义
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        指标
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="指标">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#counters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        counters 类型
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        线程安全
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        递增器
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        快照
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        合并计数器
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        不包含什么
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        事件总线
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="事件总线">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        创建和订阅
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        事件信封
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        事件类型
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        死信队列
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        总线配置
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#python-ffi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python FFI 接口
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Python FFI 接口">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rthealth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rt.health()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rtmetrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rt.metrics()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rtworkflow_statusrun_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rt.workflow_status(run_id)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#par_event_subscribe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        par_event_subscribe
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        示例
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="示例">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ocaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OCaml：订阅工具完成事件
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python：轮询健康和指标
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        限制
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        另请参阅
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    解释
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    解释
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/concurrency-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/persistence-and-durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence and Durability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/rag-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#par" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PAR 中的可观测性含义
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        指标
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="指标">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#counters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        counters 类型
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        线程安全
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        递增器
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        快照
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        合并计数器
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        不包含什么
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        事件总线
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="事件总线">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        创建和订阅
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        事件信封
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        事件类型
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        死信队列
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        总线配置
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#python-ffi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python FFI 接口
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Python FFI 接口">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rthealth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rt.health()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rtmetrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rt.metrics()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rtworkflow_statusrun_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rt.workflow_status(run_id)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#par_event_subscribe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        par_event_subscribe
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        示例
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="示例">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ocaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OCaml：订阅工具完成事件
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python：轮询健康和指标
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        限制
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        另请参阅
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<!-- language: zh -->
+<p><strong><a href="./">English</a></strong> · 简体中文</p>
+<h1 id="_1">可观测性参考<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>源真相：<code>lib/core/metrics.mli</code>、<code>lib/event_bus/event_bus.mli</code>、<code>lib/core/runtime.ml</code> 以及 <code>lib/ffi/par_ffi.h</code> 中的 FFI 接口。覆盖 v0.5.1。Phase B.2（修复 Python FFI 重复调用 <code>health</code>/<code>metrics</code>/<code>workflow_status</code> 的回调句柄 bug）和 C.5（本页面）提供了文档化的接口。</p>
+</blockquote>
+<p>本页面记录 PAR 暴露的可观测性接口，用于监控运行中的 runtime：流量和失败计数器、结构化生命周期信号的事件总线、以及用于存活探测的健康快照。如果你正在将 PAR 接入仪表盘、SLO 告警或 <code>/healthz</code> 端点，从这里开始。</p>
+<h2 id="par">PAR 中的可观测性含义<a class="headerlink" href="#par" title="Permanent link">&para;</a></h2>
+<p>PAR 将可观测性分为三层，每层有不同的延迟和不同的受众。</p>
+<p><strong>指标（Metrics）</strong> 是廉价的、数值型的，在 runtime 生命周期内聚合。它们回答诸如"我们做了多少次 LLM 调用？"和"有任务失败了吗？"这样的问题。定时拉取用于仪表盘。</p>
+<p><strong>事件总线（Event bus）</strong> 是结构化的、按次发生的、支持扇出的。每个任务转换、每次工具调用、每个工作流步骤都会发布事件。当你需要追踪发生了什么（而不仅仅是计数）时，订阅事件。</p>
+<p><strong>健康（Health）</strong> 是"这个 runtime 现在还能用吗？"的单次快照。它捆绑了存活状态、持久化可达性以及最近一次 LLM 调用的结果。从负载均衡器探测它。</p>
+<p>第四层——日志，位于<a href="../middleware/#logging">日志中间件</a>中而非独立模块。它为每个 LLM 和工具边界写入人类可读的行。本地调试用日志；生产信号用指标和事件。</p>
+<h2 id="_2">指标<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p><code>Metrics</code> 模块是一个小型计数器存储。每个 runtime 拥有一个。Engine 运行时递增这些计数器，你通过 <code>Runtime.metrics_snapshot</code> 读取它们。</p>
+<h3 id="counters">counters 类型<a class="headerlink" href="#counters" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">type</span> <span class="n">counters</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="k">val</span> <span class="nn">Metrics</span><span class="p">.</span><span class="n">empty</span> <span class="o">:</span> <span class="kt">unit</span> <span class="o">-&gt;</span> <span class="n">counters</span>
+</span></code></pre></div>
+<p><code>counters</code> 是不透明的。每个字段使用 <code>int Atomic.t</code>，因此递增是无锁且无竞争的。runtime 在 <code>Runtime.create</code> 时分配一个，并将其穿线到 Engine 中。每次调用的累加器使用单独的 <code>counters</code> 值，在 <code>invoke</code> 退出时折叠到 runtime 级别的计数器中。对 <code>counters</code> 值的唯一操作是六个递增器、快照和 <code>merge_into</code>。</p>
+<h3 id="_3">线程安全<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<p>每个计数器都是 <code>Atomic.t</code>。<code>incr_*</code> 调用使用 <code>Atomic.incr</code>（无锁 CAS），因此并发的 <code>Runtime.invoke</code> fiber 永远不会在 mutex 上竞争。<code>snapshot</code> 使用 <code>Atomic.get</code> 读取每个计数器，返回最新值而不阻塞。这意味着指标始终是最终一致的：在递增过程中拍摄的快照可能看到部分更新的计数器集合，但每个单独的计数器值始终是最新的。</p>
+<h3 id="_4">递增器<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<p>这些从 Engine 内部调用。除非你正在扩展 runtime，否则通常不会自己调用它们，但了解哪个在什么时候触发有助于你阅读快照。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">val</span> <span class="nn">Metrics</span><span class="p">.</span><span class="n">incr_llm</span> <span class="o">:</span> <span class="n">counters</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">val</span> <span class="nn">Metrics</span><span class="p">.</span><span class="n">incr_task_completed</span> <span class="o">:</span> <span class="n">counters</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="k">val</span> <span class="nn">Metrics</span><span class="p">.</span><span class="n">incr_task_failed</span> <span class="o">:</span> <span class="n">counters</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="k">val</span> <span class="nn">Metrics</span><span class="p">.</span><span class="n">incr_tool_invocations</span> <span class="o">:</span> <span class="n">counters</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="k">val</span> <span class="nn">Metrics</span><span class="p">.</span><span class="n">incr_events_published</span> <span class="o">:</span> <span class="n">counters</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="k">val</span> <span class="nn">Metrics</span><span class="p">.</span><span class="n">incr_events_dropped</span> <span class="o">:</span> <span class="n">counters</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span></code></pre></div>
+<p><code>incr_llm</code> 在每次 LLM 往返（无论成功或失败）时触发。<code>incr_task_completed</code> 和 <code>incr_task_failed</code> 在任务终止转换时触发。<code>incr_tool_invocations</code> 计数每次处理器调用。两个事件计数器来自事件总线：<code>incr_events_published</code> 用于成功分发，<code>incr_events_dropped</code> 用于事件进入死信队列或溢出时。</p>
+<h3 id="_5">快照<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">val</span> <span class="nn">Metrics</span><span class="p">.</span><span class="n">snapshot</span> <span class="o">:</span> <span class="n">counters</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="kt">string</span> <span class="o">*</span> <span class="kt">int</span><span class="o">)</span> <span class="kt">list</span>
+</span></code></pre></div>
+<p><code>snapshot</code> 返回六个计数器作为稳定的 <code>(key, value)</code> 对列表。键名是 Prometheus 风格的 <code>*_total</code> 名称，与指标抓取器期望的一致。</p>
+<table>
+<thead>
+<tr>
+<th>键名</th>
+<th>递增时机</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>llm_requests_total</code></td>
+<td>每次 LLM provider 往返</td>
+</tr>
+<tr>
+<td><code>task_completed_total</code></td>
+<td>任务达到 <code>Completed</code></td>
+</tr>
+<tr>
+<td><code>task_failed_total</code></td>
+<td>任务达到 <code>Failed</code></td>
+</tr>
+<tr>
+<td><code>tool_invocations_total</code></td>
+<td>任何已注册的工具处理器被调用</td>
+</tr>
+<tr>
+<td><code>events_published_total</code></td>
+<td>事件总线向订阅者分发事件</td>
+</tr>
+<tr>
+<td><code>events_dropped_total</code></td>
+<td>事件进入 DLQ 或因溢出被丢弃</td>
+</tr>
+</tbody>
+</table>
+<p>runtime 暴露快照，无需你直接操作 <code>counters</code> 值：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">val</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">metrics_snapshot</span> <span class="o">:</span> <span class="n">runtime</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="kt">string</span> <span class="o">*</span> <span class="kt">int</span><span class="o">)</span> <span class="kt">list</span>
+</span></code></pre></div>
+<h3 id="_6">合并计数器<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
+<p><code>Runtime.invoke</code> 创建每次调用的 <code>counters</code> 累加器，使并发 invoke 不会在共享原子字段上竞争。invoke 退出时，使用 <code>merge_into</code> 将每次调用的计数器折叠到 runtime 级别的计数器中：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">val</span> <span class="nn">Metrics</span><span class="p">.</span><span class="n">merge_into</span> <span class="o">:</span> <span class="n">target</span><span class="o">:</span><span class="n">counters</span> <span class="o">-&gt;</span> <span class="n">source</span><span class="o">:</span><span class="n">counters</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span></code></pre></div>
+<p><code>merge_into</code> 将 <code>source</code> 中的每个计数器原子地添加到 <code>target</code> 中对应的计数器。两个操作数都使用 <code>Atomic</code> 字段，因此即使多个 invoke 并发退出，合并也是无竞争的。合并后，<code>source</code> 被丢弃。</p>
+<p>你通常不会自己调用 <code>merge_into</code>，除非你正在构建自定义 runtime 或跨多个 runtime 实例聚合指标。标准路径是 <code>Runtime.metrics_snapshot</code>，它读取已经合并的 runtime 级别计数器。</p>
+<h3 id="_7">不包含什么<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h3>
+<p>PAR 的指标表面仅限计数器。没有 gauge（没有"当前队列深度"）和直方图（没有"LLM 延迟 p99"）。延迟和并发今天可通过事件总线观察：<code>Task_completed</code> 携带 <code>duration_ms</code>，<code>Llm_response_received</code> 携带 token <code>usage</code>，等等。如果你的 SLO 需要百分位数，订阅并自行计算。更丰富的指标模块在路线图上，但未安排在 v0.5.x。</p>
+<h2 id="_8">事件总线<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
+<p>事件总线是 runtime 各部分都写入的发布/订阅通道。订阅者恰好收到每个事件一次，包装在携带元数据和重试状态的信封中。失败的投递移动到死信队列而不是消失。</p>
+<h3 id="_9">创建和订阅<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">type</span> <span class="n">t</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">type</span> <span class="n">subscription</span> <span class="o">=</span> <span class="kt">string</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="k">val</span> <span class="nn">Event_bus</span><span class="p">.</span><span class="n">create</span> <span class="o">:</span> <span class="nn">Types</span><span class="p">.</span><span class="n">event_bus_config</span> <span class="o">-&gt;</span> <span class="n">t</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="k">val</span> <span class="nn">Event_bus</span><span class="p">.</span><span class="n">subscribe</span> <span class="o">:</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>  <span class="n">t</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="nn">Types</span><span class="p">.</span><span class="n">event_envelope</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">subscription</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="k">val</span> <span class="nn">Event_bus</span><span class="p">.</span><span class="n">unsubscribe</span> <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="n">subscription</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="k">val</span> <span class="nn">Event_bus</span><span class="p">.</span><span class="n">start_dispatcher</span> <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span></code></pre></div>
+<p>你通常不会自己调用 <code>create</code>。runtime 从 <code>runtime_config.event_bus</code> 构建总线，并在 runtime 生命周期内拥有它。你调用的是 <code>subscribe</code>，它返回一个不透明的 <code>subscription</code> id。如果你想稍后分离，保留它；如果订阅者应与 runtime 同生共存，丢弃它。如果你需要在 runtime 之外使用总线（用于测试，或用于你发布自己事件的嵌入式设置），<code>Event_bus.create</code> 加上在你控制的 switch 上调用 <code>Event_bus.start_dispatcher</code> 是路径。</p>
+<p><code>start_dispatcher</code> 生成排空总线的 fiber。runtime 在 <code>Runtime.create</code> 期间调用它。如果你在 runtime 之外构建总线，你必须在你控制的 switch 上自己启动分发器。</p>
+<p>订阅者是接受 <code>event_envelope</code> 的单参数回调。订阅者内抛出的异常被分发器捕获并计入该投递的重试预算。</p>
+<h3 id="_10">事件信封<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h3>
+<p>每个事件在投递前被包装。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">type</span> <span class="n">event_envelope</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>  <span class="n">id</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>  <span class="n">metadata</span> <span class="o">:</span> <span class="n">event_metadata</span><span class="o">;</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>  <span class="n">payload</span> <span class="o">:</span> <span class="n">event</span><span class="o">;</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>  <span class="n">idempotency_key</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>  <span class="n">delivery_attempt</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="o">}</span>
+</span></code></pre></div>
+<p><code>id</code> 对每个已发布事件唯一。<code>payload</code> 是类型化的事件本身（见下一节）。<code>delivery_attempt</code> 从 1 开始，每次重试递增。<code>idempotency_key</code> 让下游订阅者在从 DLQ 重放时去重。业务逻辑匹配 <code>payload</code>，追踪匹配 <code>metadata</code>。</p>
+<h3 id="_11">事件类型<a class="headerlink" href="#_11" title="Permanent link">&para;</a></h3>
+<p><code>event</code> 变体很大，因为总线覆盖整个 runtime 生命周期。下表按区域分组构造器。字段名称在此缩短；完整记录形状见 <code>Types.event</code> 定义。</p>
+<table>
+<thead>
+<tr>
+<th>分组</th>
+<th>构造器</th>
+<th>值得关注的字段</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>任务生命周期</td>
+<td><code>Task_created</code>、<code>Task_started</code>、<code>Task_completed</code>、<code>Task_failed</code>、<code>Task_cancelled</code>、<code>Task_suspended</code>、<code>Task_resumed</code></td>
+<td><code>task_id</code>、<code>duration_ms</code>（完成时）、<code>error</code>（失败时）、<code>reason</code>（取消时）</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td><code>Llm_request_sent</code>、<code>Llm_response_received</code></td>
+<td><code>model</code>、<code>usage</code></td>
+</tr>
+<tr>
+<td>工具</td>
+<td><code>Tool_invoked</code>、<code>Tool_completed</code>、<code>Tool_failed</code>、<code>Tool_progress</code></td>
+<td><code>tool_name</code>、<code>duration_ms</code>、<code>result_preview</code></td>
+</tr>
+<tr>
+<td>Bash 工具</td>
+<td><code>Bash_invoked</code>、<code>Bash_completed</code></td>
+<td><code>argv</code>、<code>cwd</code>、<code>exit_code</code>、<code>risk</code></td>
+</tr>
+<tr>
+<td>工作流</td>
+<td><code>Workflow_started</code>、<code>Workflow_step_completed</code>、<code>Workflow_completed</code>、<code>Workflow_failed</code></td>
+<td><code>workflow_run_id</code>、<code>step_id</code></td>
+</tr>
+<tr>
+<td>审批</td>
+<td><code>Approval_requested</code>、<code>Approval_granted</code>、<code>Approval_timeout</code></td>
+<td><code>prompt</code>、<code>allowed_roles</code>、<code>approver</code></td>
+</tr>
+<tr>
+<td>关闭</td>
+<td><code>Shutdown_initiated</code>、<code>Shutdown_completed</code></td>
+<td><code>exit_code</code></td>
+</tr>
+<tr>
+<td>MCP</td>
+<td><code>Mcp_server_started</code>、<code>Mcp_server_failed</code>、<code>Mcp_server_stopped</code>、<code>Mcp_tool_invoked</code>、<code>Mcp_tool_completed</code>、<code>Mcp_resource_read</code>、<code>Mcp_prompt_rendered</code></td>
+<td><code>server_id</code>、<code>tool_name</code>、<code>uri</code></td>
+</tr>
+<tr>
+<td>其他</td>
+<td><code>Agent_handoff</code>、<code>Structured_output_completed</code></td>
+<td><code>from_agent</code>/<code>to_agent</code>、<code>schema_valid</code></td>
+</tr>
+</tbody>
+</table>
+<p>如果你只关心一个切片，在回调内按构造器过滤。没有内置的主题过滤。常见模式是一个小的辅助函数进行模式匹配并忽略其他一切。</p>
+<h3 id="_12">死信队列<a class="headerlink" href="#_12" title="Permanent link">&para;</a></h3>
+<p>当订阅者抛出异常，或投递超过配置的尝试预算时，信封移动到死信队列而不是被静默丢弃。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">val</span> <span class="nn">Event_bus</span><span class="p">.</span><span class="n">get_dead_letters</span> <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">dead_letter_entry</span> <span class="kt">list</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">val</span> <span class="nn">Event_bus</span><span class="p">.</span><span class="n">dlq_entries</span> <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">event</span> <span class="kt">list</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="k">val</span> <span class="nn">Event_bus</span><span class="p">.</span><span class="n">push_to_dlq</span> <span class="o">:</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>  <span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">event_envelope</span> <span class="o">-&gt;</span> <span class="kt">string</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">error_category</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span></code></pre></div>
+<p><code>dead_letter_entry</code> 携带原始信封、错误字符串、类型化的 <code>failure_reason</code>、时间戳以及放弃时的尝试次数。<code>dlq_entries</code> 是只返回 payload 的便捷方法。如果你想对毒消息告警，从监控钩子读取这些。</p>
+<p>DLQ 由 <code>event_bus_config.dlq_enabled</code> 控制，由 <code>dlq_max_size</code> 上限。队列满时，新条目挤出旧条目。</p>
+<h3 id="_13">总线配置<a class="headerlink" href="#_13" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">type</span> <span class="n">event_bus_config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>  <span class="n">buffer_capacity</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>  <span class="n">delivery</span> <span class="o">:</span> <span class="n">event_delivery_config</span><span class="o">;</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>  <span class="n">dlq_enabled</span> <span class="o">:</span> <span class="kt">bool</span><span class="o">;</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>  <span class="n">dlq_max_size</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>  <span class="n">critical_event_types</span> <span class="o">:</span> <span class="kt">string</span> <span class="kt">list</span><span class="o">;</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="o">}</span>
+</span></code></pre></div>
+<p><code>buffer_capacity</code> 限制发布者和分发器之间的内存通道。满时发布者阻塞，这向 Engine 施加背压。<code>delivery</code> 调优重试行为：<code>max_delivery_attempts</code>、<code>initial_retry_delay</code>、<code>retry_backoff</code> 和 <code>delivery_timeout</code>。<code>critical_event_types</code> 是绕过缓冲区同步分发的构造器名称列表；用于不能等待积压的关闭信号。</p>
+<p>runtime 提供合理的默认值：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nn">Runtime</span><span class="p">.</span><span class="n">default_event_bus_config</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="c">(* buffer_capacity = 10000, DLQ enabled, exponential backoff *)</span>
+</span></code></pre></div>
+<h2 id="python-ffi">Python FFI 接口<a class="headerlink" href="#python-ffi" title="Permanent link">&para;</a></h2>
+<p>PAR 的 Python 绑定将健康、指标和工作流状态暴露为返回 dict 的普通方法。C 入口点在 <code>lib/ffi/par_ffi.h</code> 中；OCaml 实现在 <code>lib/ffi/par_capi.ml</code> 中。Phase B.2 修复了一个回调句柄 bug，该 bug 之前导致从同一个 <code>Runtime</code> 重复调用这些方法失败；修复由 <code>bindings/python/tests/test_runtime.py::TestCallbackHandleSurvival</code> 验证。</p>
+<h3 id="rthealth"><code>rt.health()</code><a class="headerlink" href="#rthealth" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">health</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span> <span class="o">...</span>
+</span></code></pre></div>
+<p>返回形如以下的 dict：</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="p">{</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="s2">&quot;runtime_alive&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    <span class="s2">&quot;persistence_ok&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    <span class="s2">&quot;last_llm_call_at&quot;</span><span class="p">:</span> <span class="mf">1718230000.123</span><span class="p">,</span>  <span class="c1"># float 或 None</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>    <span class="s2">&quot;last_llm_call_status&quot;</span><span class="p">:</span> <span class="s2">&quot;Success&quot;</span><span class="p">,</span>   <span class="c1"># 见下文</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>runtime_alive</code> 在请求关闭后为 false。<code>persistence_ok</code> 用一个简单的读操作探测配置的后端。<code>last_llm_call_status</code> 是 <code>Success</code>、<code>Never_called</code>、<code>Error.Internal</code>、<code>Error.Timeout</code>、<code>Error.Invalid_input</code>、<code>Error.External_failure</code>、<code>Error.Rate_limited</code>、<code>Error.Permission_denied</code>、<code>Error.Embedding_unsupported</code> 之一。将 <code>runtime_alive and persistence_ok</code> 映射到 200，其他映射到 503，用于 Kubernetes 风格的存活探测。</p>
+<h3 id="rtmetrics"><code>rt.metrics()</code><a class="headerlink" href="#rtmetrics" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">metrics</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span> <span class="o">...</span>
+</span></code></pre></div>
+<p>绑定为你解包快照，所以返回值直接是指标 dict 而不是包装器。键名与 OCaml 快照名称匹配。</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="p">{</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>    <span class="s2">&quot;llm_requests_total&quot;</span><span class="p">:</span> <span class="mi">42</span><span class="p">,</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    <span class="s2">&quot;task_completed_total&quot;</span><span class="p">:</span> <span class="mi">38</span><span class="p">,</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="s2">&quot;task_failed_total&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    <span class="s2">&quot;tool_invocations_total&quot;</span><span class="p">:</span> <span class="mi">17</span><span class="p">,</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>    <span class="s2">&quot;events_published_total&quot;</span><span class="p">:</span> <span class="mi">412</span><span class="p">,</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>    <span class="s2">&quot;events_dropped_total&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>缺失的键为零。按你的抓取器期望的频率轮询；调用开销小且不阻塞 Engine。</p>
+<h3 id="rtworkflow_statusrun_id"><code>rt.workflow_status(run_id)</code><a class="headerlink" href="#rtworkflow_statusrun_id" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">workflow_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span> <span class="o">...</span>
+</span></code></pre></div>
+<p>在 v0.5.1 中对任何 run id 返回 <code>{"run_id": run_id, "status": "unknown"}</code>。工作流状态查找是桩实现：OCaml 端对每次调用返回字面量 <code>"unknown"</code> 状态字符串。这是一个已知的差距。该方法存在以便调用代码可以现在就针对最终形状编写，一旦工作流状态存储被接入，就会开始接收真实状态。将任何非 <code>"unknown"</code> 值视为未来兼容的额外奖励。</p>
+<h3 id="par_event_subscribe"><code>par_event_subscribe</code><a class="headerlink" href="#par_event_subscribe" title="Permanent link">&para;</a></h3>
+<p>C 符号 <code>par_event_subscribe</code> 在 <code>lib/ffi/par_ffi.h</code> 中声明并在 OCaml 端注册，但实现是返回 <code>-1</code> 的桩。从 Python 的事件订阅尚不可用。如果你今天需要从 Python 获取事件级信号，轮询 <code>rt.metrics()</code> 并 diff <code>events_dropped_total</code>。从 Python 的真正事件流式传输作为未来工作跟踪。</p>
+<h2 id="_14">示例<a class="headerlink" href="#_14" title="Permanent link">&para;</a></h2>
+<p>两个端到端模式：一个 OCaml，一个 Python。两者都写成可以直接粘贴到测试或小脚本中的形式。</p>
+<h3 id="ocaml">OCaml：订阅工具完成事件<a class="headerlink" href="#ocaml" title="Permanent link">&para;</a></h3>
+<p>这个代码片段构建一个独立的总线，在 switch 上启动其分发器，订阅一个为每个 <code>Tool_completed</code> 打印一行的回调，并返回 subscription id。<code>match</code> 忽略所有其他构造器，所以回调对 LLM 和工作流流量保持安静。通过 <code>Runtime.create</code> 创建的 runtime 内部拥有自己的总线；你可以用同样的方式订阅该总线，从你的代码持有 runtime 内部的地方获取 <code>Event_bus.t</code>。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="k">let</span> <span class="n">watch_tools</span> <span class="o">~</span><span class="n">switch</span> <span class="o">=</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>  <span class="k">let</span> <span class="n">bus</span> <span class="o">=</span> <span class="nn">Event_bus</span><span class="p">.</span><span class="n">create</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">default_event_bus_config</span> <span class="k">in</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>  <span class="nn">Event_bus</span><span class="p">.</span><span class="n">start_dispatcher</span> <span class="n">bus</span> <span class="n">switch</span><span class="o">;</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>  <span class="k">let</span> <span class="n">sub</span> <span class="o">=</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>    <span class="nn">Event_bus</span><span class="p">.</span><span class="n">subscribe</span> <span class="n">bus</span> <span class="o">(</span><span class="k">fun</span> <span class="n">envelope</span> <span class="o">-&gt;</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>      <span class="k">match</span> <span class="n">envelope</span><span class="o">.</span><span class="nn">Types</span><span class="p">.</span><span class="n">payload</span> <span class="k">with</span>
+</span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>      <span class="o">|</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Tool_completed</span> <span class="o">{</span> <span class="n">tool_name</span><span class="o">;</span> <span class="n">duration_ms</span><span class="o">;</span> <span class="o">_</span> <span class="o">}</span> <span class="o">-&gt;</span>
+</span><span id="__span-15-10"><a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>        <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;[tool] %s in %.0fms</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="n">tool_name</span> <span class="n">duration_ms</span>
+</span><span id="__span-15-11"><a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>      <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="bp">()</span><span class="o">)</span>
+</span><span id="__span-15-12"><a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a>  <span class="k">in</span>
+</span><span id="__span-15-13"><a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a>  <span class="n">sub</span>
+</span></code></pre></div>
+<p>当监视器应停止时，将 <code>sub</code> 传给 <code>Event_bus.unsubscribe bus sub</code>。如果你也想要失败事件，添加一个 <code>Tool_failed</code> 分支。如果你想要完整追踪，记录每个分支。</p>
+<h3 id="python">Python：轮询健康和指标<a class="headerlink" href="#python" title="Permanent link">&para;</a></h3>
+<p>一个循环，每隔几秒调用 <code>health()</code> 和 <code>metrics()</code> 并打印一行摘要。适合将信号发送到现有仪表盘的 sidecar。</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">par_runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">Runtime</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="k">with</span> <span class="n">Runtime</span><span class="p">(</span><span class="n">config_json</span><span class="p">)</span> <span class="k">as</span> <span class="n">rt</span><span class="p">:</span>
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>        <span class="n">h</span> <span class="o">=</span> <span class="n">rt</span><span class="o">.</span><span class="n">health</span><span class="p">()</span>
+</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>        <span class="n">m</span> <span class="o">=</span> <span class="n">rt</span><span class="o">.</span><span class="n">metrics</span><span class="p">()</span>
+</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>        <span class="n">ts</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%H:%M:%S&quot;</span><span class="p">)</span>
+</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>        <span class="nb">print</span><span class="p">(</span>
+</span><span id="__span-16-10"><a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ts</span><span class="si">}</span><span class="s2"> alive=</span><span class="si">{</span><span class="n">h</span><span class="p">[</span><span class="s1">&#39;runtime_alive&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> &quot;</span>
+</span><span id="__span-16-11"><a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a>            <span class="sa">f</span><span class="s2">&quot;persist=</span><span class="si">{</span><span class="n">h</span><span class="p">[</span><span class="s1">&#39;persistence_ok&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> &quot;</span>
+</span><span id="__span-16-12"><a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>            <span class="sa">f</span><span class="s2">&quot;last_llm=</span><span class="si">{</span><span class="n">h</span><span class="p">[</span><span class="s1">&#39;last_llm_call_status&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> &quot;</span>
+</span><span id="__span-16-13"><a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a>            <span class="sa">f</span><span class="s2">&quot;llm_total=</span><span class="si">{</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;llm_requests_total&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> &quot;</span>
+</span><span id="__span-16-14"><a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>            <span class="sa">f</span><span class="s2">&quot;tasks_done=</span><span class="si">{</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;task_completed_total&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> &quot;</span>
+</span><span id="__span-16-15"><a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a>            <span class="sa">f</span><span class="s2">&quot;tasks_failed=</span><span class="si">{</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;task_failed_total&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> &quot;</span>
+</span><span id="__span-16-16"><a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a>            <span class="sa">f</span><span class="s2">&quot;events_dropped=</span><span class="si">{</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;events_dropped_total&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span id="__span-16-17"><a id="__codelineno-16-17" name="__codelineno-16-17" href="#__codelineno-16-17"></a>        <span class="p">)</span>
+</span><span id="__span-16-18"><a id="__codelineno-16-18" name="__codelineno-16-18" href="#__codelineno-16-18"></a>        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+</span></code></pre></div>
+<p><code>events_dropped</code> 是需要告警的计数器。任何大于零的值意味着订阅者失败或总线溢出，两种情况都值得调查。<code>tasks_failed</code> 上升而 <code>tasks_completed</code> 没有相应上升通常指向工具或 provider 回归。</p>
+<h2 id="_15">限制<a class="headerlink" href="#_15" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>仅计数器。</strong> 没有 gauge，没有直方图。如果需要延迟，从事件的 <code>duration_ms</code> 字段派生。</li>
+<li><strong>没有 Prometheus 暴露。</strong> PAR 不提供 <code>/metrics</code>。将 <code>rt.metrics()</code> 的 dict 管道到你自己的 exporter。</li>
+<li><strong>没有分布式追踪 span。</strong> 事件携带 <code>task_id</code> 和 <code>workflow_run_id</code> 用于关联，但没有 OpenTelemetry exporter。如果你想发射 span，钩住事件总线。</li>
+<li><strong><code>par_event_subscribe</code> 是桩。</strong> Python 调用者还不能以推送方式接收事件。同时轮询指标。</li>
+<li><strong><code>workflow_status</code> 始终返回 <code>"unknown"</code>。</strong> 方法形状稳定；实现不稳定。</li>
+<li><strong>单进程范围。</strong> 指标和事件总线存在于创建它们的 runtime 中。一个进程中的两个 <code>Runtime</code> 实例不共享计数器。对于多进程聚合，抓取每个 runtime 并外部合并。</li>
+</ul>
+<h2 id="_16">另请参阅<a class="headerlink" href="#_16" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../agent/">Agent API</a> - <code>agent_config</code>、runtime 创建、runtime 暴露的接口</li>
+<li><a href="../middleware/">中间件 API</a> - 在每个边界写入人类可读行的日志中间件</li>
+<li><a href="../streaming/">Streaming API</a> - 分块输出，有意与事件总线分离</li>
+<li><a href="../../explanation/architecture/">架构</a> - Engine、事件总线和持久化如何配合</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

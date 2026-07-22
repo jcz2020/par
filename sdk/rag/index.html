@@ -1,0 +1,2607 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/sdk/rag/">
+      
+      
+        <link rel="prev" href="../generate/">
+      
+      
+        <link rel="next" href="../document_loaders/">
+      
+      
+        
+          <link rel="alternate" href="./" hreflang="en">
+        
+          <link rel="alternate" href="../../zh/sdk/rag/" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>RAG API - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#rag-api-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              RAG API
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../zh/sdk/rag/" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Tutorial
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  How-to
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorial
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/rag-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build a RAG Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../invoke_context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    invoke_context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generate API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why-the-vector-store-is-embedding-agnostic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why the vector store is embedding-agnostic
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#embedding-provider-support-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embedding provider support matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#python-sdk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python SDK
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Python SDK">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#quick-start-end-to-end-rag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick start: end-to-end RAG
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-document-indexing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-document indexing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#persistence-and-reindexing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Persistence and reindexing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ocaml-sdk-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OCaml SDK reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OCaml SDK reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#embeddings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embeddings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vector-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vector store
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vector-store-backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vector store backends
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chunking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chunking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rag-invocation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RAG invocation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-category-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error category reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Usage examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-1-basic-embedding-sanity-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 1: basic embedding sanity check
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-2-chunk-and-index-a-long-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 2: chunk and index a long document
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-3-rag-question-answering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 3: RAG question answering
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../document_loaders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Loaders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prompt_caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/concurrency-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/persistence-and-durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence and Durability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/rag-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why-the-vector-store-is-embedding-agnostic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why the vector store is embedding-agnostic
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#embedding-provider-support-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embedding provider support matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#python-sdk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python SDK
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Python SDK">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#quick-start-end-to-end-rag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick start: end-to-end RAG
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-document-indexing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-document indexing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#persistence-and-reindexing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Persistence and reindexing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ocaml-sdk-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OCaml SDK reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OCaml SDK reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#embeddings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embeddings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vector-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vector store
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vector-store-backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vector store backends
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chunking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chunking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rag-invocation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RAG invocation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-category-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error category reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Usage examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-1-basic-embedding-sanity-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 1: basic embedding sanity check
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-2-chunk-and-index-a-long-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 2: chunk and index a long document
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-3-rag-question-answering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 3: RAG question answering
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<!-- language: en -->
+
+<h1 id="rag-api-reference">RAG API Reference<a class="headerlink" href="#rag-api-reference" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>Added in v0.5.1. Source-of-truth: the OCaml types in <code>lib/core/types.ml</code>, <code>lib/core/vector_store.mli</code>, and <code>lib/core/chunking.mli</code>. The Python binding ships the same surface via FFI. Phases B.2 (vector store), B.3 (chunking), and C.3 (Python FFI) implement this document.</p>
+</blockquote>
+<p>PAR's RAG (Retrieval-Augmented Generation) pipeline grounds LLM responses in your own documents. You embed text into vectors, store them in a local vector index, and at query time retrieve the chunks most similar to the question. The retrieved chunks go into the prompt as context before the LLM answers.</p>
+<p>This page covers both surfaces. The Python binding (<code>pip install par-runtime</code>) is the faster path for most users and supports the full RAG loop end to end. The OCaml SDK exposes the same loop with direct, type-safe access to the <code>Vector_store</code> and <code>Chunking</code> modules for callers who want to manage indexing themselves.</p>
+<p>The pipeline has four parts: <strong>Embeddings</strong> (convert text to vectors), <strong>Vector Store</strong> (store and search vectors), <strong>Chunking</strong> (split long documents), and <strong>RAG Invocation</strong> (compose all three into a grounded query).</p>
+<h2 id="why-the-vector-store-is-embedding-agnostic">Why the vector store is embedding-agnostic<a class="headerlink" href="#why-the-vector-store-is-embedding-agnostic" title="Permanent link">&para;</a></h2>
+<p>PAR's vector store accepts pre-computed float arrays. It does not know which embedding model produced the vectors, and it does not call the model itself. The caller is responsible for embedding both documents and queries using the same model.</p>
+<p>This is a deliberate choice. The silent-failure mode in RAG is embedding-model drift: you index documents with model A, then query with model B, and retrieval quality collapses with no error surfaced. By forcing the caller to own the embedding step, PAR makes it natural to keep one model name in a single place and route both indexing and querying through it. The tradeoff is one extra line of code at the call site.</p>
+<p>A consequence: if you change embedding models, you must reindex every document. See Persistence and Reindexing below.</p>
+<h2 id="embedding-provider-support-matrix">Embedding provider support matrix<a class="headerlink" href="#embedding-provider-support-matrix" title="Permanent link">&para;</a></h2>
+<p>Embeddings are a separate capability from chat completions. A provider can support chat but not embeddings. The matrix below is the authoritative answer to "can I embed with this provider?" in v0.5.1.</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Embeddings</th>
+<th>Default model</th>
+<th>Dimension</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>`Openai</code></td>
+<td>Yes</td>
+<td><code>text-embedding-3-small</code></td>
+<td>1536</td>
+<td>Full support. Override the model in the provider config. Returns cosine-similar vectors.</td>
+</tr>
+<tr>
+<td><code>`Anthropic</code></td>
+<td>No</td>
+<td>n/a</td>
+<td>n/a</td>
+<td>Anthropic ships no embeddings API. <code>embed</code> returns <code>Error Embedding_unsupported</code> unconditionally. Use OpenAI, Ollama, or Mock for the embedding step; you can still use Anthropic for the chat completion in <code>invoke_with_rag</code>.</td>
+</tr>
+<tr>
+<td><code>`Ollama</code></td>
+<td>Yes</td>
+<td><code>nomic-embed-text</code> (recommended)</td>
+<td>model-dependent</td>
+<td>Works via OpenAI-compatible endpoint (<code>/v1/embeddings</code>). Point the OpenAI provider's <code>base_url</code> at your Ollama instance and pick an embedding model. Dimensions depend on the model; match <code>dimension</code> in <code>Vector_store.create</code> to the model's output.</td>
+</tr>
+<tr>
+<td><code>`Mock</code></td>
+<td>Yes</td>
+<td>deterministic hash vector</td>
+<td>1536</td>
+<td>Deterministic hash-based vectors for tests. Same input string always yields the same vector, so unit tests are reproducible. Not useful for real retrieval.</td>
+</tr>
+</tbody>
+</table>
+<p>If you call <code>embed</code> on a provider that returns <code>Embedding_unsupported</code>, the error surfaces as <code>PARError</code> in Python and as <code>Error Embedding_unsupported</code> in OCaml. The recovery is to configure a provider that supports embeddings.</p>
+<h2 id="python-sdk">Python SDK<a class="headerlink" href="#python-sdk" title="Permanent link">&para;</a></h2>
+<h3 id="quick-start-end-to-end-rag">Quick start: end-to-end RAG<a class="headerlink" href="#quick-start-end-to-end-rag" title="Permanent link">&para;</a></h3>
+<p>This example indexes three short documents, asks a question, and prints the grounded answer. It uses the Mock provider so it runs without an API key. To use real embeddings, swap the provider block for OpenAI (commented inline).</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">par_runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">Runtime</span><span class="p">,</span> <span class="n">PARError</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># One provider configured for BOTH embeddings and chat. The Mock provider</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># needs no credentials and returns deterministic vectors, so the script</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># runs as-is. For real retrieval, use the OpenAI block below.</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">use_mock</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;PAR_PROVIDER&quot;</span><span class="p">,</span> <span class="s2">&quot;mock&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;mock&quot;</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="k">if</span> <span class="n">use_mock</span><span class="p">:</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">provider</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;tag&quot;</span><span class="p">:</span> <span class="s2">&quot;mock&quot;</span><span class="p">}</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="k">else</span><span class="p">:</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">provider</span> <span class="o">=</span> <span class="p">{</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>        <span class="s2">&quot;tag&quot;</span><span class="p">:</span> <span class="s2">&quot;openai&quot;</span><span class="p">,</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>        <span class="s2">&quot;contents&quot;</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>            <span class="s2">&quot;api_key&quot;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;OPENAI_API_KEY&quot;</span><span class="p">],</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>            <span class="c1"># Ollama works too: set base_url to http://localhost:11434/v1</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>            <span class="c1"># and pick an embedding model in the embedding_model field.</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>        <span class="p">},</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    <span class="p">}</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="n">config</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    <span class="s2">&quot;persistence&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;tag&quot;</span><span class="p">:</span> <span class="s2">&quot;sqlite&quot;</span><span class="p">,</span> <span class="s2">&quot;contents&quot;</span><span class="p">:</span> <span class="s2">&quot;:memory:&quot;</span><span class="p">},</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    <span class="s2">&quot;llm_providers&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">provider</span><span class="p">],</span>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="p">})</span>
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="n">agent_config</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span>
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>    <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;rag_agent&quot;</span><span class="p">,</span>
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>    <span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;tag&quot;</span><span class="p">:</span> <span class="s2">&quot;mock&quot;</span><span class="p">},</span>  <span class="c1"># or {&quot;tag&quot;: &quot;openai&quot;, &quot;contents&quot;: {...}}</span>
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>    <span class="s2">&quot;system_prompt&quot;</span><span class="p">:</span> <span class="s2">&quot;Answer the user&#39;s question using only the provided context.&quot;</span><span class="p">,</span>
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="p">})</span>
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a><span class="k">with</span> <span class="n">Runtime</span><span class="p">(</span><span class="n">config</span><span class="p">)</span> <span class="k">as</span> <span class="n">rt</span><span class="p">:</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>    <span class="n">rt</span><span class="o">.</span><span class="n">register_agent</span><span class="p">(</span><span class="n">agent_config</span><span class="p">)</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>    <span class="c1"># Index documents. Pass strings (ids auto-generated) or dicts with</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>    <span class="c1"># id/content/metadata. Embedding happens inside add_documents.</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>    <span class="n">docs</span> <span class="o">=</span> <span class="p">[</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>        <span class="s2">&quot;PAR is an OCaml agent runtime. It handles the ReAct loop, tool dispatch, and multi-provider LLM calls.&quot;</span><span class="p">,</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>        <span class="s2">&quot;PAR&#39;s vector store uses sqlite-vec under the hood and is embedding-agnostic.&quot;</span><span class="p">,</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>        <span class="s2">&quot;PAR ships 20 built-in tools, including a type-safe bash tool that prevents shell injection.&quot;</span><span class="p">,</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>    <span class="p">]</span>
+</span><span id="__span-0-43"><a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>    <span class="n">added</span> <span class="o">=</span> <span class="n">rt</span><span class="o">.</span><span class="n">add_documents</span><span class="p">(</span><span class="n">docs</span><span class="p">)</span>
+</span><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Indexed </span><span class="si">{</span><span class="n">added</span><span class="si">}</span><span class="s2"> documents&quot;</span><span class="p">)</span>
+</span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a>
+</span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a>    <span class="c1"># Ask a question. invoke_with_rag embeds the query, retrieves top-k</span>
+</span><span id="__span-0-47"><a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a>    <span class="c1"># chunks, augments the prompt, and invokes the agent.</span>
+</span><span id="__span-0-48"><a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a>    <span class="n">answer</span> <span class="o">=</span> <span class="n">rt</span><span class="o">.</span><span class="n">invoke_with_rag</span><span class="p">(</span><span class="s2">&quot;rag_agent&quot;</span><span class="p">,</span> <span class="s2">&quot;How many tools does PAR ship?&quot;</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</span><span id="__span-0-49"><a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">answer</span><span class="p">))</span>
+</span></code></pre></div>
+<p>Key points the example demonstrates:</p>
+<ul>
+<li>One provider block handles both embedding and chat. You do not configure them separately.</li>
+<li><code>add_documents</code> takes plain strings for the common case, or dicts when you need stable ids or metadata for filtering.</li>
+<li><code>invoke_with_rag</code> returns the same JSON string shape as <code>invoke</code>. Parse it with <code>json.loads</code> to pull out the assistant message and any tool calls.</li>
+<li><code>k=2</code> retrieves the two most similar chunks. The default is <code>k=4</code>. Higher k means more context but a longer prompt; tune against your document set.</li>
+</ul>
+<h3 id="multi-document-indexing">Multi-document indexing<a class="headerlink" href="#multi-document-indexing" title="Permanent link">&para;</a></h3>
+<p>When you have more than a handful of documents, pass dicts with explicit ids and metadata. The id lets you update or delete a document later without touching the others. The metadata is stored alongside the vector and returned in search results, so you can filter or display provenance.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">documents</span> <span class="o">=</span> <span class="p">[</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="p">{</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;docs/arch-001&quot;</span><span class="p">,</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>        <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;The runtime uses Eio for structured concurrency. Every fiber has a parent; no orphan fibers.&quot;</span><span class="p">,</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>        <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;source&quot;</span><span class="p">:</span> <span class="s2">&quot;architecture.md&quot;</span><span class="p">,</span> <span class="s2">&quot;section&quot;</span><span class="p">:</span> <span class="s2">&quot;concurrency&quot;</span><span class="p">,</span> <span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="s2">&quot;0.5&quot;</span><span class="p">},</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="p">},</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="p">{</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;docs/arch-002&quot;</span><span class="p">,</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>        <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Persistence defaults to SQLite, the only persistent backend.&quot;</span><span class="p">,</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>        <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;source&quot;</span><span class="p">:</span> <span class="s2">&quot;architecture.md&quot;</span><span class="p">,</span> <span class="s2">&quot;section&quot;</span><span class="p">:</span> <span class="s2">&quot;persistence&quot;</span><span class="p">,</span> <span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="s2">&quot;0.5&quot;</span><span class="p">},</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="p">},</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="p">{</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;docs/tools-001&quot;</span><span class="p">,</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>        <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;The bash tool takes a Bash_safe_command ADT. Raw strings are not accepted, so shell injection is unrepresentable.&quot;</span><span class="p">,</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>        <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;source&quot;</span><span class="p">:</span> <span class="s2">&quot;tools.md&quot;</span><span class="p">,</span> <span class="s2">&quot;section&quot;</span><span class="p">:</span> <span class="s2">&quot;bash&quot;</span><span class="p">,</span> <span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="s2">&quot;0.5&quot;</span><span class="p">},</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="p">},</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="p">]</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="k">with</span> <span class="n">Runtime</span><span class="p">(</span><span class="n">config</span><span class="p">)</span> <span class="k">as</span> <span class="n">rt</span><span class="p">:</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>    <span class="n">rt</span><span class="o">.</span><span class="n">register_agent</span><span class="p">(</span><span class="n">agent_config</span><span class="p">)</span>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>    <span class="n">count</span> <span class="o">=</span> <span class="n">rt</span><span class="o">.</span><span class="n">add_documents</span><span class="p">(</span><span class="n">documents</span><span class="p">)</span>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>    <span class="k">assert</span> <span class="n">count</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">documents</span><span class="p">)</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>    <span class="c1"># Retrieval still goes through invoke_with_rag. Metadata is not queried</span>
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>    <span class="c1"># directly from Python in v0.5.1; it rides along on each search result</span>
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>    <span class="c1"># for the OCaml caller and for future filter support.</span>
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>    <span class="n">answer</span> <span class="o">=</span> <span class="n">rt</span><span class="o">.</span><span class="n">invoke_with_rag</span><span class="p">(</span><span class="s2">&quot;rag_agent&quot;</span><span class="p">,</span> <span class="s2">&quot;What concurrency library does PAR use?&quot;</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Two practical notes on indexing at scale. First, embed in batches. The OpenAI embeddings endpoint accepts multiple inputs per request and <code>Runtime.embed</code> already batches; <code>add_documents</code> does the same internally. If you are indexing thousands of documents via the OCaml SDK, chunk your list into batches of 100 to 500 to keep request sizes reasonable. Second, prefer stable ids. If you reindex by adding documents with new ids, the old entries stay behind and dilute retrieval quality. Use the same ids across reindex runs so <code>add</code> upserts in place.</p>
+<h3 id="persistence-and-reindexing">Persistence and reindexing<a class="headerlink" href="#persistence-and-reindexing" title="Permanent link">&para;</a></h3>
+<p>The Python binding's vector store lives in process memory by default (<code>":memory:"</code> SQLite). It does not survive a process restart. To persist across runs in Python today, re-index on startup or serialize your document set to disk and reload.</p>
+<p>The OCaml SDK gives you explicit control. Pass a real file path to <code>Vector_store.create ~db_path:"/var/lib/par/vectors.db"</code>. The sqlite-vec index then persists across process restarts. Reopening the store with the same path and dimension reloads the existing vectors; you do not reindex on every boot.</p>
+<p>When to reindex:</p>
+<ul>
+<li><strong>You changed the embedding model.</strong> Different models produce vectors in different spaces. Cosine similarity across mixed-model vectors is meaningless. Wipe the store (<code>Vector_store.delete</code> by id, or delete the db file) and reembed every document.</li>
+<li><strong>You changed the dimension.</strong> <code>Vector_store.create</code> pins the dimension at creation time. Adding vectors of a different dimension fails. Recreate the store with the new dimension and reindex.</li>
+<li><strong>Your document corpus changed substantially.</strong> If more than ~30 percent of documents are new or removed, a clean reindex often beats incremental adds for retrieval quality. Incremental adds are fine for small appends.</li>
+</ul>
+<p>You do not need to reindex when: you change the chat model (embeddings and chat are decoupled), you change <code>k</code>, or you restart the process against a persistent db file.</p>
+<h2 id="ocaml-sdk-reference">OCaml SDK reference<a class="headerlink" href="#ocaml-sdk-reference" title="Permanent link">&para;</a></h2>
+<p>The OCaml surface is the source of truth. Every Python method maps to an OCaml function via FFI, so the signatures below are what the runtime actually does.</p>
+<h3 id="embeddings">Embeddings<a class="headerlink" href="#embeddings" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">open</span> <span class="nc">Types</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="k">let</span> <span class="n">embed</span> <span class="n">rt</span> <span class="n">messages</span> <span class="o">=</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  <span class="nn">Runtime</span><span class="p">.</span><span class="n">embed</span> <span class="n">rt</span> <span class="n">messages</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="c">(* val embed : Runtime.t -&gt; string list -&gt;</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="c"> *   (float array list, error_category) result *)</span>
+</span></code></pre></div>
+<p><code>Runtime.embed</code> takes a list of strings and returns a list of float arrays (one vector per input), or an <code>error_category</code>. Provider behavior matches the matrix above. On OpenAI, network failures come back as <code>External_failure</code>, request timeouts as <code>Timeout</code>, and a missing API key as <code>Invalid_input</code>.</p>
+<h3 id="vector-store">Vector store<a class="headerlink" href="#vector-store" title="Permanent link">&para;</a></h3>
+<p>The <code>Vector_store</code> module is the persistence layer. It is embedding-agnostic: it stores <code>(document, float array)</code> pairs and returns them ranked by cosine similarity.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">open</span> <span class="nn">Par</span><span class="p">.</span><span class="nc">Vector_store</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c">(* Create an in-memory store. For persistence, use a file path.</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c">   The vec_extension_path is resolved automatically by the FFI layer</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="c">   (par_set_vec_extension_path) for pip-installed users; OCaml SDK</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="c">   callers pass it explicitly. *)</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="k">let</span> <span class="n">store</span> <span class="o">=</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>  <span class="k">match</span> <span class="n">create</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    <span class="o">~</span><span class="n">db_path</span><span class="o">:</span><span class="s2">&quot;:memory:&quot;</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    <span class="o">~</span><span class="n">vec_extension_path</span><span class="o">:</span><span class="s2">&quot;vendor/sqlite-vec/linux-x86_64/vec0.so&quot;</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>    <span class="o">~</span><span class="n">dimension</span><span class="o">:</span><span class="mi">1536</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>    <span class="bp">()</span> <span class="k">with</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>  <span class="o">|</span> <span class="nc">Ok</span> <span class="n">s</span> <span class="o">-&gt;</span> <span class="n">s</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>  <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">failwith</span> <span class="o">(</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="k">let</span> <span class="n">doc</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>  <span class="n">id</span> <span class="o">=</span> <span class="s2">&quot;doc1&quot;</span><span class="o">;</span>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>  <span class="n">content</span> <span class="o">=</span> <span class="s2">&quot;PAR is an OCaml agent runtime&quot;</span><span class="o">;</span>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>  <span class="n">metadata</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>  <span class="c">(* optional Yojson; rides along on search results *)</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="o">}</span>
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="k">let</span> <span class="n">vec</span> <span class="o">=</span> <span class="o">[|</span> <span class="mi">0</span><span class="o">.</span><span class="mi">1</span><span class="o">;</span> <span class="mi">0</span><span class="o">.</span><span class="mi">2</span><span class="o">;</span> <span class="mi">0</span><span class="o">.</span><span class="mi">3</span><span class="o">;</span> <span class="c">(* ...1536 floats... *)</span> <span class="o">|]</span>  <span class="c">(* from Runtime.embed *)</span>
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="k">let</span> <span class="bp">()</span> <span class="o">=</span>
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>  <span class="k">match</span> <span class="n">add</span> <span class="n">store</span> <span class="o">[(</span><span class="n">doc</span><span class="o">,</span> <span class="n">vec</span><span class="o">)]</span> <span class="k">with</span>
+</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>  <span class="o">|</span> <span class="nc">Ok</span> <span class="bp">()</span> <span class="o">-&gt;</span> <span class="bp">()</span>
+</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>  <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>
+</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="k">let</span> <span class="n">results</span> <span class="o">=</span>
+</span><span id="__span-3-28"><a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a>  <span class="k">match</span> <span class="n">search</span> <span class="n">store</span> <span class="o">~</span><span class="n">query</span><span class="o">:</span><span class="n">query_vec</span> <span class="o">~</span><span class="n">k</span><span class="o">:</span><span class="mi">4</span> <span class="k">with</span>
+</span><span id="__span-3-29"><a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a>  <span class="o">|</span> <span class="nc">Ok</span> <span class="n">rs</span> <span class="o">-&gt;</span> <span class="n">rs</span>
+</span><span id="__span-3-30"><a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a>  <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="bp">[]</span>
+</span><span id="__span-3-31"><a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a><span class="c">(* results : search_result list =</span>
+</span><span id="__span-3-32"><a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a><span class="c"> *   [{ doc = { id; content; metadata }; score }] *)</span>
+</span></code></pre></div>
+<p>The full signature:</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Signature</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>create</code></td>
+<td><code>db_path:string -&gt; vec_extension_path:string -&gt; dimension:int -&gt; unit -&gt; (t, error_category) result</code></td>
+<td>Open or create a store. <code>db_path ":memory:"</code> is ephemeral; a file path persists. <code>dimension</code> must match your embedding model.</td>
+</tr>
+<tr>
+<td><code>add</code></td>
+<td><code>t -&gt; (document * float array) list -&gt; (unit, error_category) result</code></td>
+<td>Insert or upsert documents. The <code>document.id</code> is the primary key; adding an existing id replaces the vector.</td>
+</tr>
+<tr>
+<td><code>search</code></td>
+<td><code>t -&gt; query:float array -&gt; k:int -&gt; (search_result list, error_category) result</code></td>
+<td>Return the top-k documents by cosine similarity, highest score first.</td>
+</tr>
+<tr>
+<td><code>delete</code></td>
+<td><code>t -&gt; ids:string list -&gt; (unit, error_category) result</code></td>
+<td>Remove documents by id.</td>
+</tr>
+<tr>
+<td><code>close</code></td>
+<td><code>t -&gt; unit</code></td>
+<td>Close the underlying SQLite handle. Safe to call once at shutdown.</td>
+</tr>
+</tbody>
+</table>
+<p><code>score</code> is cosine similarity in <code>[-1.0, 1.0]</code>; higher means more similar. The <code>document</code> record carries <code>id : string</code>, <code>content : string</code>, and <code>metadata : Yojson.Safe.t option</code>. Metadata is opaque to the store; it rides along on every search result so the caller can filter or display provenance.</p>
+<h3 id="vector-store-backends">Vector store backends<a class="headerlink" href="#vector-store-backends" title="Permanent link">&para;</a></h3>
+<p>Since v0.7.5, PAR supports two vector store backends:</p>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Implementation</th>
+<th>External deps</th>
+<th>Platform</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>sqlite-vec</strong></td>
+<td>SQLite with vec0 extension</td>
+<td>C extension (<code>vec0.so</code>/<code>.dll</code>/<code>.dylib</code>)</td>
+<td>Linux x86_64, macOS arm64</td>
+<td>Production with persistence</td>
+</tr>
+<tr>
+<td><strong>HNSW</strong></td>
+<td>Pure OCaml HNSW graph</td>
+<td>None</td>
+<td>All platforms (including Windows)</td>
+<td>Portability, zero deps</td>
+</tr>
+</tbody>
+</table>
+<p><strong>sqlite-vec</strong> (default) uses SQLite with the vec0 C extension for vector similarity search. It requires the <code>vec0.so</code> (or platform equivalent) shared library. This is the recommended backend for production use on supported platforms.</p>
+<p><strong>HNSW</strong> is a pure OCaml implementation of the Hierarchical Navigable Small World algorithm (Malkov &amp; Yashunin, TPAMI 2020). It requires zero external dependencies and works on all platforms, including Windows where the vec0 extension was problematic. It stores vectors in memory with optional file persistence.</p>
+<p>To use the HNSW backend:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="k">let</span> <span class="n">config</span> <span class="o">:</span> <span class="nn">Types</span><span class="p">.</span><span class="n">vector_store_backend</span> <span class="o">=</span> <span class="nc">Vs_hnsw</span> <span class="o">{</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>  <span class="n">persist_path</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>       <span class="c">(* or Some &quot;/path/to/index.bin&quot; for persistence *)</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>  <span class="n">dimension</span> <span class="o">=</span> <span class="mi">1536</span><span class="o">;</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>  <span class="n">m</span> <span class="o">=</span> <span class="mi">16</span><span class="o">;</span>                    <span class="c">(* max edges per node, default 16 *)</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>  <span class="n">ef_construction</span> <span class="o">=</span> <span class="mi">200</span><span class="o">;</span>     <span class="c">(* insert search width, default 200 *)</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>  <span class="n">ef_search</span> <span class="o">=</span> <span class="mi">50</span><span class="o">;</span>            <span class="c">(* query search width, default 50 *)</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="o">}</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="k">match</span> <span class="nn">Vector_store</span><span class="p">.</span><span class="n">create_for_backend</span> <span class="n">config</span> <span class="k">with</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">store</span> <span class="o">-&gt;</span> <span class="c">(* use store with add/search/delete/close *)</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="c">(* handle error *)</span>
+</span></code></pre></div>
+<p>To use via <code>Runtime.create</code>:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">let</span> <span class="n">backend</span> <span class="o">=</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Vs_hnsw</span> <span class="o">{</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>  <span class="n">persist_path</span> <span class="o">=</span> <span class="nc">Some</span> <span class="s2">&quot;/tmp/my_index.bin&quot;</span><span class="o">;</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>  <span class="n">dimension</span> <span class="o">=</span> <span class="mi">1536</span><span class="o">;</span> <span class="n">m</span> <span class="o">=</span> <span class="mi">16</span><span class="o">;</span> <span class="n">ef_construction</span> <span class="o">=</span> <span class="mi">200</span><span class="o">;</span> <span class="n">ef_search</span> <span class="o">=</span> <span class="mi">50</span><span class="o">;</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="o">}</span> <span class="k">in</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">create</span> <span class="o">~</span><span class="n">vector_store_backend</span><span class="o">:</span><span class="n">backend</span> <span class="o">~</span><span class="n">config</span> <span class="n">switch</span> <span class="k">with</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">rt</span> <span class="o">-&gt;</span> <span class="c">(* rt.services.vector_store is set automatically *)</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="o">...</span>
+</span></code></pre></div>
+<p>When <code>?vector_store_backend</code> is passed to <code>Runtime.create</code>, the vector store is created and stored in the runtime. <code>Runtime.invoke_with_rag</code> will use it automatically when no explicit <code>?vector_store</code> is passed.</p>
+<blockquote>
+<p><strong>Note</strong>: The HNSW backend is available in both OCaml SDK and Python bindings (v0.7.6+). Python users can select it via the <code>vector_store</code> config field: <code>{"vector_store": {"backend": "hnsw", "dimension": 1536}}</code>.</p>
+</blockquote>
+<h3 id="chunking">Chunking<a class="headerlink" href="#chunking" title="Permanent link">&para;</a></h3>
+<p>Long documents should be split before embedding. A 10,000-token PDF fed to the embedder in one piece produces a single vector that averages away every useful signal. Chunking turns one long document into many short ones, each with its own vector, so retrieval can land on the right passage.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">open</span> <span class="nn">Par</span><span class="p">.</span><span class="nc">Chunking</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="k">let</span> <span class="n">chunks</span> <span class="o">=</span> <span class="n">chunk_recursive</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>  <span class="o">~</span><span class="n">text</span><span class="o">:</span><span class="n">long_document</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>  <span class="o">~</span><span class="n">max_size</span><span class="o">:</span><span class="mi">1000</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>  <span class="o">~</span><span class="n">overlap</span><span class="o">:</span><span class="mi">200</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c">(* chunks : chunk list = [{ text; start_pos; end_pos }] *)</span>
+</span></code></pre></div>
+<p>Three strategies, all pure (no I/O, no provider coupling, no tokenizer dependency):</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Strategy</th>
+<th>When to use it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>chunk_by_chars</code></td>
+<td>Fixed-size sliding window over characters, <code>stride = max_size - overlap</code>.</td>
+<td>Uniform documents where character count is a good proxy for semantic unit size. Simple and predictable.</td>
+</tr>
+<tr>
+<td><code>chunk_by_tokens</code></td>
+<td>Whitespace-tokenized sliding window. One word equals one token (approximate; no real tokenizer).</td>
+<td>When you want roughly N words per chunk and do not need exact token counts. For accurate counts, pre-tokenize with the provider's tokenizer and call <code>chunk_by_chars</code> on the result.</td>
+</tr>
+<tr>
+<td><code>chunk_recursive</code></td>
+<td>LangChain <code>RecursiveCharacterTextSplitter</code>. Tries separators <code>["\n\n"; "\n"; " "; ""]</code> in order, falling through to finer splits when a piece exceeds <code>max_size</code>.</td>
+<td>The default choice for prose, markdown, code comments. Respects paragraph and line boundaries first, so chunks stay readable.</td>
+</tr>
+</tbody>
+</table>
+<p>All three raise <code>Invalid_argument</code> if <code>max_size &lt;= 0</code> or <code>overlap &gt;= max_size</code>. The caller must specify <code>max_size</code> and <code>overlap</code>; this module does not inherit LangChain's <code>chunk_size=4000, chunk_overlap=200</code> defaults, because the right values depend on your embedding model's context window.</p>
+<p>Typical values: <code>max_size=1000</code> and <code>overlap=200</code> for <code>text-embedding-3-small</code> (which accepts up to 8191 tokens). The overlap keeps context across chunk boundaries so a retrieval hit near the edge still carries neighboring text.</p>
+<h3 id="rag-invocation">RAG invocation<a class="headerlink" href="#rag-invocation" title="Permanent link">&para;</a></h3>
+<p><code>Runtime.invoke_with_rag</code> is the one-call composition of embed, search, augment, and invoke.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">let</span> <span class="o">(</span><span class="n">answer</span><span class="o">,</span> <span class="n">retrieved_docs</span><span class="o">)</span> <span class="o">=</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>  <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke_with_rag</span> <span class="n">rt</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="o">~</span><span class="n">agent_id</span><span class="o">:</span><span class="s2">&quot;my_agent&quot;</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="o">~</span><span class="n">message</span><span class="o">:</span><span class="s2">&quot;What is PAR?&quot;</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="o">~</span><span class="n">k</span><span class="o">:</span><span class="mi">4</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    <span class="o">~</span><span class="n">vector_store</span><span class="o">:(</span><span class="nc">Some</span> <span class="n">store</span><span class="o">)</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="bp">()</span>
+</span></code></pre></div>
+<p>The pipeline, in order:</p>
+<ol>
+<li>Embed the query message using the runtime's configured embedding provider.</li>
+<li>Search the vector store for the top-k most similar documents.</li>
+<li>Augment the agent's system prompt with the retrieved context, formatted as a context block.</li>
+<li>Invoke the agent with the augmented prompt via the normal <code>Runtime.invoke</code> path.</li>
+<li>Return <code>(answer, retrieved_documents)</code> so the caller can display provenance or log what was retrieved.</li>
+</ol>
+<p>If <code>?vector_store</code> is <code>None</code>, <code>invoke_with_rag</code> falls back to plain <code>Runtime.invoke</code> with no retrieval. This lets you toggle RAG on and off by passing <code>Some store</code> or <code>None</code> without changing the call shape.</p>
+<h2 id="error-category-reference">Error category reference<a class="headerlink" href="#error-category-reference" title="Permanent link">&para;</a></h2>
+<p>Every RAG operation that can fail returns <code>( _, error_category) result</code> in OCaml, or raises <code>PARError</code> in Python. The seven <code>error_category</code> variants cover the full failure surface. Use this table to write recovery logic.</p>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>When it occurs in RAG</th>
+<th>Recovery</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Embedding_unsupported</code></td>
+<td>You called <code>embed</code> or <code>add_documents</code> on a provider with no embeddings API (Anthropic).</td>
+<td>Switch the embedding provider to OpenAI, Ollama, or Mock. You can keep Anthropic for the chat step in <code>invoke_with_rag</code>.</td>
+</tr>
+<tr>
+<td><code>Invalid_input of string</code></td>
+<td>Empty API key, <code>max_size &lt;= 0</code> or <code>overlap &gt;= max_size</code> in chunking, malformed embedding response from the provider, vector dimension mismatch on <code>Vector_store.add</code>.</td>
+<td>The string carries the detail. Fix the input and retry. This is not a transient error; retrying without a change will fail the same way.</td>
+</tr>
+<tr>
+<td><code>External_failure of string</code></td>
+<td>Network error during the embedding HTTP request, provider returned a non-200 status that is not a rate limit or auth error, sqlite-vec extension failed to load.</td>
+<td>Check network connectivity and provider status. For the extension path, verify <code>vec_extension_path</code> points at a file that exists and matches your platform. Transient; retry with backoff is reasonable.</td>
+</tr>
+<tr>
+<td><code>Rate_limited</code></td>
+<td>Provider returned 429.</td>
+<td>Back off and retry. Implement exponential backoff with jitter. PAR's Retry middleware can handle this if the call goes through an agent.</td>
+</tr>
+<tr>
+<td><code>Permission_denied of string</code></td>
+<td>Bad or expired API key (401/403).</td>
+<td>Refresh credentials. Not transient.</td>
+</tr>
+<tr>
+<td><code>Timeout</code></td>
+<td>Embedding request or the LLM call inside <code>invoke_with_rag</code> exceeded the configured timeout.</td>
+<td>Retry once. If it persists, raise the timeout or reduce batch size for embeddings.</td>
+</tr>
+<tr>
+<td><code>Internal of string</code></td>
+<td>Unexpected OCaml exception, network handle not initialized (OpenAI provider <code>set_network</code> not called), or a bug.</td>
+<td>Check that the runtime was created through <code>Runtime.create</code> (which wires the network). If the call path is correct and this persists, it is likely a bug worth filing.</td>
+</tr>
+</tbody>
+</table>
+<p>In Python, all of these surface as <code>PARError</code> with a message string. The variant is not preserved across the FFI boundary in v0.5.1; match on the message text if you need to branch. In OCaml, pattern match on the variant directly.</p>
+<h2 id="usage-examples">Usage examples<a class="headerlink" href="#usage-examples" title="Permanent link">&para;</a></h2>
+<p>Three runnable OCaml examples covering the patterns you will actually need: a basic embedding sanity check, document indexing with chunking, and a full RAG question-answering call.</p>
+<h3 id="example-1-basic-embedding-sanity-check">Example 1: basic embedding sanity check<a class="headerlink" href="#example-1-basic-embedding-sanity-check" title="Permanent link">&para;</a></h3>
+<p>Confirm the embedding provider is wired correctly before building anything larger. One string in, one vector out, print the dimension.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">let</span> <span class="bp">()</span> <span class="o">=</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>  <span class="nn">Eio_main</span><span class="p">.</span><span class="n">run</span> <span class="o">(</span><span class="k">fun</span> <span class="o">_</span><span class="n">env</span> <span class="o">-&gt;</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    <span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">run</span> <span class="o">(</span><span class="k">fun</span> <span class="n">switch</span> <span class="o">-&gt;</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>      <span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">create</span> <span class="o">~</span><span class="n">config</span> <span class="n">switch</span> <span class="k">with</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>      <span class="o">|</span> <span class="nc">Ok</span> <span class="n">rt</span> <span class="o">-&gt;</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>        <span class="o">(</span><span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">embed</span> <span class="n">rt</span> <span class="o">[</span><span class="s2">&quot;hello world&quot;</span><span class="o">]</span> <span class="k">with</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>         <span class="o">|</span> <span class="nc">Ok</span> <span class="o">[</span><span class="n">vec</span><span class="o">]</span> <span class="o">-&gt;</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>           <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Vector has %d dimensions</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">Array</span><span class="p">.</span><span class="n">length</span> <span class="n">vec</span><span class="o">)</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>         <span class="o">|</span> <span class="nc">Ok</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="s2">&quot;embed returned unexpected number of vectors&quot;</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>         <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span>
+</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>           <span class="n">prerr_endline</span> <span class="o">(</span><span class="s2">&quot;embed failed: &quot;</span> <span class="o">^</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">e</span><span class="o">));</span>
+</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>        <span class="n">ignore</span> <span class="o">(</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">close</span> <span class="n">rt</span><span class="o">)</span>
+</span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>      <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">e</span><span class="o">)))</span>
+</span></code></pre></div>
+<p>If this prints <code>Vector has 1536 dimensions</code>, OpenAI or Mock is working. If it prints <code>embed failed: embedding_unsupported</code>, you are pointing at Anthropic; reconfigure. If it prints <code>embed failed: api_key must not be empty</code>, set your API key.</p>
+<h3 id="example-2-chunk-and-index-a-long-document">Example 2: chunk and index a long document<a class="headerlink" href="#example-2-chunk-and-index-a-long-document" title="Permanent link">&para;</a></h3>
+<p>Split a long document with <code>chunk_recursive</code>, embed the chunks, and insert them into the vector store with generated ids. This is the indexing loop you will wrap around every document source.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="k">open</span> <span class="nc">Types</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="k">let</span> <span class="n">index_documents</span> <span class="n">rt</span> <span class="n">store</span> <span class="n">docs</span> <span class="o">=</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>  <span class="c">(* Concatenate, chunk, then embed each chunk. Overlap keeps context</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="c">   * across boundaries so retrieval near a chunk edge still sees the</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="c">   * neighboring text. *)</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>  <span class="k">let</span> <span class="n">full_text</span> <span class="o">=</span> <span class="nn">String</span><span class="p">.</span><span class="n">concat</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span> <span class="n">docs</span> <span class="k">in</span>
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>  <span class="k">let</span> <span class="n">chunks</span> <span class="o">=</span> <span class="nn">Chunking</span><span class="p">.</span><span class="n">chunk_recursive</span>
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>    <span class="o">~</span><span class="n">text</span><span class="o">:</span><span class="n">full_text</span> <span class="o">~</span><span class="n">max_size</span><span class="o">:</span><span class="mi">1000</span> <span class="o">~</span><span class="n">overlap</span><span class="o">:</span><span class="mi">200</span> <span class="k">in</span>
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>  <span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">embed</span> <span class="n">rt</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="o">(</span><span class="k">fun</span> <span class="n">c</span> <span class="o">-&gt;</span> <span class="n">c</span><span class="o">.</span><span class="nn">Chunking</span><span class="p">.</span><span class="n">text</span><span class="o">)</span> <span class="n">chunks</span><span class="o">)</span> <span class="k">with</span>
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>  <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span>
+</span><span id="__span-9-13"><a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>    <span class="n">prerr_endline</span> <span class="o">(</span><span class="s2">&quot;indexing failed: &quot;</span> <span class="o">^</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-9-14"><a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>  <span class="o">|</span> <span class="nc">Ok</span> <span class="n">vecs</span> <span class="o">-&gt;</span>
+</span><span id="__span-9-15"><a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>    <span class="k">let</span> <span class="n">doc_vecs</span> <span class="o">=</span>
+</span><span id="__span-9-16"><a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>      <span class="nn">List</span><span class="p">.</span><span class="n">mapi</span> <span class="o">(</span><span class="k">fun</span> <span class="n">i</span> <span class="n">vec</span> <span class="o">-&gt;</span>
+</span><span id="__span-9-17"><a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>        <span class="o">({</span> <span class="nn">Vector_store</span><span class="p">.</span><span class="n">id</span> <span class="o">=</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;chunk_%04d&quot;</span> <span class="n">i</span><span class="o">;</span>
+</span><span id="__span-9-18"><a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>           <span class="n">content</span> <span class="o">=</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">nth</span> <span class="n">chunks</span> <span class="n">i</span><span class="o">).</span><span class="nn">Chunking</span><span class="p">.</span><span class="n">text</span><span class="o">;</span>
+</span><span id="__span-9-19"><a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a>           <span class="n">metadata</span> <span class="o">=</span> <span class="nc">None</span> <span class="o">},</span> <span class="n">vec</span><span class="o">))</span> <span class="n">vecs</span>
+</span><span id="__span-9-20"><a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>    <span class="k">in</span>
+</span><span id="__span-9-21"><a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a>    <span class="o">(</span><span class="k">match</span> <span class="nn">Vector_store</span><span class="p">.</span><span class="n">add</span> <span class="n">store</span> <span class="n">doc_vecs</span> <span class="k">with</span>
+</span><span id="__span-9-22"><a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a>     <span class="o">|</span> <span class="nc">Ok</span> <span class="bp">()</span> <span class="o">-&gt;</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Indexed %d chunks</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">chunks</span><span class="o">)</span>
+</span><span id="__span-9-23"><a id="__codelineno-9-23" name="__codelineno-9-23" href="#__codelineno-9-23"></a>     <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span>
+</span><span id="__span-9-24"><a id="__codelineno-9-24" name="__codelineno-9-24" href="#__codelineno-9-24"></a>       <span class="n">prerr_endline</span> <span class="o">(</span><span class="s2">&quot;store add failed: &quot;</span> <span class="o">^</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">e</span><span class="o">))</span>
+</span></code></pre></div>
+<p>The generated ids (<code>chunk_0000</code>, <code>chunk_0001</code>, ...) are deterministic for a given input text. If you reindex the same document, the ids match and the store upserts in place rather than duplicating.</p>
+<h3 id="example-3-rag-question-answering">Example 3: RAG question answering<a class="headerlink" href="#example-3-rag-question-answering" title="Permanent link">&para;</a></h3>
+<p>The payoff. With documents indexed, a grounded query is one call.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">let</span> <span class="n">rag_qa</span> <span class="n">rt</span> <span class="n">store</span> <span class="n">question</span> <span class="o">=</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>  <span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke_with_rag</span> <span class="n">rt</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    <span class="o">~</span><span class="n">agent_id</span><span class="o">:</span><span class="s2">&quot;assistant&quot;</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="o">~</span><span class="n">message</span><span class="o">:</span><span class="n">question</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="o">~</span><span class="n">k</span><span class="o">:</span><span class="mi">4</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="o">~</span><span class="n">vector_store</span><span class="o">:(</span><span class="nc">Some</span> <span class="n">store</span><span class="o">)</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="bp">()</span> <span class="k">with</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>  <span class="o">|</span> <span class="nc">Ok</span> <span class="o">(</span><span class="n">answer</span><span class="o">,</span> <span class="n">retrieved</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>    <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Answer: %s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="n">answer</span><span class="o">;</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>    <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Based on %d retrieved documents</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">retrieved</span><span class="o">);</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>    <span class="nn">List</span><span class="p">.</span><span class="n">iteri</span> <span class="o">(</span><span class="k">fun</span> <span class="n">i</span> <span class="n">r</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>      <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;  [%d] id=%s score=%.4f</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>        <span class="o">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="o">)</span> <span class="n">r</span><span class="o">.</span><span class="nn">Vector_store</span><span class="p">.</span><span class="n">doc</span><span class="o">.</span><span class="n">id</span> <span class="n">r</span><span class="o">.</span><span class="nn">Vector_store</span><span class="p">.</span><span class="n">score</span><span class="o">)</span> <span class="n">retrieved</span>
+</span><span id="__span-10-14"><a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>  <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-15"><a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a>    <span class="n">prerr_endline</span> <span class="o">(</span><span class="s2">&quot;RAG failed: &quot;</span> <span class="o">^</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">e</span><span class="o">)</span>
+</span></code></pre></div>
+<p>The retrieved documents come back with their scores so you can show provenance in a UI, log what was retrieved for debugging, or apply a score threshold before trusting the answer.</p>
+<h2 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Python vector store is in-memory.</strong> The Python binding's <code>add_documents</code> creates an ephemeral store. Persistence across process restarts requires the OCaml SDK with a file path, or reindexing on startup. File-backed persistence from Python is a future candidate.</li>
+<li><strong>No metadata filtering from Python.</strong> Metadata is stored and returned on search results, but the Python binding does not expose a filter parameter on <code>invoke_with_rag</code> or <code>add_documents</code>. Filtering lands with the external vector store support in a future version.</li>
+<li><strong>No external vector stores yet.</strong> The store is sqlite-vec only. Qdrant and Milvus support is on the roadmap for workloads that outgrow a single-process SQLite index.</li>
+<li><strong>No streaming RAG.</strong> <code>invoke_with_rag</code> returns the full answer. A streaming variant (<code>invoke_with_rag_streaming</code>) is deferred until the base streaming surface stabilizes; see the Streaming API page.</li>
+<li><strong>Chunking has no real tokenizer.</strong> <code>chunk_by_tokens</code> treats one whitespace-separated word as one token. For accurate token-based chunking, pre-tokenize with the provider's tokenizer and pass the result to <code>chunk_by_chars</code>.</li>
+<li><strong>Dimension is fixed at store creation.</strong> Changing embedding models almost always changes the dimension. You must recreate the store and reindex; see Persistence and Reindexing.</li>
+</ul>
+<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../agent/">Agent API</a> - <code>Runtime.invoke</code>, <code>agent_config</code>, the non-RAG entrypoint</li>
+<li><a href="../streaming/">Streaming API</a> - <code>invoke_stream</code>, Event types, the chunked output surface</li>
+<li><a href="../workflow/">Workflow API</a> - sequential, parallel, conditional orchestration</li>
+<li><a href="../overview/">Overview</a> - SDK architecture and module map</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,3214 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/sdk/agent/">
+      
+      
+        <link rel="prev" href="../overview/">
+      
+      
+        <link rel="next" href="../invoke_context/">
+      
+      
+        
+          <link rel="alternate" href="./" hreflang="en">
+        
+          <link rel="alternate" href="../../zh/sdk/agent/" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Agent API - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#agent-api-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Agent API
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../zh/sdk/agent/" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Tutorial
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  How-to
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorial
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/rag-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build a RAG Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runtime configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#runtime_config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        runtime_config
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#creating-a-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating a runtime
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agent-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Agent configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#agent_config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agent_config
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#auto-context-compression-v063" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto context compression (v0.6.3+)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#model_config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        model_config
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#llm-provider-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LLM provider configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime operations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runtime operations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#registering-an-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registering an agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#invoking-an-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Invoking an agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#structured-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Structured output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#streaming-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Streaming example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#async-invocation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Async invocation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shutting-down-the-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shutting down the runtime
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tool-registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tool registration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tool registration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tool_descriptor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tool_descriptor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#handler-function-signature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Handler function signature
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runtimeregister_tool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime.register_tool
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tool-registration-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tool registration example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#react-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReAct loop
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ReAct loop">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#max_iterations-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        max_iterations behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#on_max_tokens-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        on_max_tokens behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-prompt-design-guidance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System prompt design guidance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-prompt-templates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System prompt templates
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="System prompt templates">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-template-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The template type
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#render_context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        render_context
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rendering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rendering
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use-a-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use a template
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context strategy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Context strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-strategy-variant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The strategy variant
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-the-engine-applies-a-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the Engine applies a strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-v051-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The v0.5.1 default
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cancellation-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cancellation tokens
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../invoke_context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    invoke_context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generate API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../document_loaders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Loaders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prompt_caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/concurrency-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/persistence-and-durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence and Durability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/rag-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runtime configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#runtime_config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        runtime_config
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#creating-a-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating a runtime
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agent-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Agent configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#agent_config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agent_config
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#auto-context-compression-v063" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto context compression (v0.6.3+)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#model_config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        model_config
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#llm-provider-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LLM provider configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime operations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runtime operations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#registering-an-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registering an agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#invoking-an-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Invoking an agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#structured-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Structured output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#streaming-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Streaming example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#async-invocation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Async invocation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shutting-down-the-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shutting down the runtime
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tool-registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tool registration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tool registration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tool_descriptor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tool_descriptor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#handler-function-signature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Handler function signature
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runtimeregister_tool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime.register_tool
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tool-registration-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tool registration example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#react-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReAct loop
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ReAct loop">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#max_iterations-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        max_iterations behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#on_max_tokens-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        on_max_tokens behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-prompt-design-guidance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System prompt design guidance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-prompt-templates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System prompt templates
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="System prompt templates">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-template-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The template type
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#render_context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        render_context
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rendering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rendering
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use-a-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use a template
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context strategy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Context strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-strategy-variant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The strategy variant
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-the-engine-applies-a-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the Engine applies a strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-v051-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The v0.5.1 default
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cancellation-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cancellation tokens
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<!-- language: en -->
+
+<p><strong>English</strong> · <a href="../zh/sdk/agent.md">简体中文</a></p>
+<h1 id="agent-api-reference">Agent API Reference<a class="headerlink" href="#agent-api-reference" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>Translated to English for v0.3.2. Source-of-truth: the OCaml types in <code>lib/core/runtime.mli</code> and <code>lib/core/types.mli</code>.</p>
+</blockquote>
+<p>This document describes the P-A-R SDK's Agent configuration, runtime management, and tool registration API. The <code>Par</code> facade (see <code>lib/par.ml</code>) re-exports every public module, so a single <code>open Par</code> brings the runtime, types, providers, persistence, and middleware into scope.</p>
+<h2 id="runtime-configuration">Runtime configuration<a class="headerlink" href="#runtime-configuration" title="Permanent link">&para;</a></h2>
+<h3 id="runtime_config">runtime_config<a class="headerlink" href="#runtime_config" title="Permanent link">&para;</a></h3>
+<p>A runtime is created through <code>Par.Runtime.create</code> and needs the following configuration:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">type</span> <span class="n">runtime_config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  <span class="n">persistence</span> <span class="o">:</span> <span class="o">[</span> <span class="o">`</span><span class="nc">Sqlite</span> <span class="k">of</span> <span class="kt">string</span> <span class="o">];</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  <span class="n">event_bus</span> <span class="o">:</span> <span class="n">event_bus_config</span><span class="o">;</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  <span class="n">default_quota</span> <span class="o">:</span> <span class="n">resource_quota</span><span class="o">;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  <span class="n">shutdown</span> <span class="o">:</span> <span class="n">shutdown_config</span><span class="o">;</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  <span class="n">llm_providers</span> <span class="o">:</span> <span class="o">(</span><span class="kt">string</span> <span class="o">*</span> <span class="n">llm_provider_config</span><span class="o">)</span> <span class="kt">list</span><span class="o">;</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  <span class="n">eval_limits</span> <span class="o">:</span> <span class="n">eval_limits</span><span class="o">;</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  <span class="n">parallel_tool_execution</span> <span class="o">:</span> <span class="kt">bool</span><span class="o">;</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  <span class="n">bash_confirm</span> <span class="o">:</span> <span class="n">bash_confirm_config</span><span class="o">;</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  <span class="n">event_retention_seconds</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="o">}</span>
+</span></code></pre></div>
+<p>The <code>Par</code> facade (<code>lib/par.ml</code>) re-exports <code>Types</code>, <code>Runtime</code>, and the persistence and event-bus modules. The full source-of-truth <code>runtime_config</code> is in <code>lib/core/types.ml</code>.</p>
+<p><code>Par.Runtime</code> provides these default configuration values that you can use directly:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nn">Runtime</span><span class="p">.</span><span class="n">default_event_bus_config</span>   <span class="c">(* buffer_capacity=10000, DLQ enabled *)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nn">Runtime</span><span class="p">.</span><span class="n">default_quota</span>             <span class="c">(* max_concurrent_tasks=10 *)</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nn">Runtime</span><span class="p">.</span><span class="n">default_shutdown_config</span>   <span class="c">(* drain_timeout=30s *)</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nn">Runtime</span><span class="p">.</span><span class="n">default_bash_confirm</span>      <span class="c">(* Always policy *)</span>
+</span></code></pre></div>
+<h3 id="creating-a-runtime">Creating a runtime<a class="headerlink" href="#creating-a-runtime" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">val</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">create</span> <span class="o">:</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  <span class="o">?</span><span class="n">persistence</span><span class="o">:</span><span class="n">persistence_service</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  <span class="o">?</span><span class="n">event_bus</span><span class="o">:</span><span class="nn">Types</span><span class="p">.</span><span class="n">event_bus_service</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  <span class="o">?</span><span class="n">llm</span><span class="o">:</span><span class="n">llm_service</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  <span class="o">?</span><span class="n">embeddings</span><span class="o">:</span><span class="n">embedding_service</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  <span class="o">?</span><span class="n">memory</span><span class="o">:</span><span class="n">memory_service</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>  <span class="o">?</span><span class="n">bash_policy</span><span class="o">:(</span><span class="k">module</span> <span class="nn">Bash_policy</span><span class="p">.</span><span class="nc">POLICY</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>  <span class="o">?</span><span class="n">workspace</span><span class="o">:</span><span class="nn">Workspace</span><span class="p">.</span><span class="n">workspace</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>  <span class="o">?</span><span class="n">mcp_servers</span><span class="o">:</span><span class="nn">Mcp_types</span><span class="p">.</span><span class="n">server_config</span> <span class="kt">list</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>  <span class="o">?</span><span class="n">mcp_process_mgr</span><span class="o">:_</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Process</span><span class="p">.</span><span class="n">mgr</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>  <span class="o">?</span><span class="n">mcp_net</span><span class="o">:_</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Net</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>  <span class="o">?</span><span class="n">mcp_clock</span><span class="o">:_</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Time</span><span class="p">.</span><span class="n">clock</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>  <span class="o">?</span><span class="n">mcp_startup_policy</span><span class="o">:</span><span class="nn">Mcp_types</span><span class="p">.</span><span class="n">startup_policy</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>  <span class="n">config</span><span class="o">:</span><span class="n">runtime_config</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>  <span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>  <span class="o">(</span><span class="n">runtime</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<p>All optional parameters are <code>None</code> by default. Key optional parameters:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>?persistence</code></td>
+<td>Persistence backend (e.g. <code>Sqlite</code> or <code>Noop</code>).</td>
+</tr>
+<tr>
+<td><code>?event_bus</code></td>
+<td>Custom event bus configuration.</td>
+</tr>
+<tr>
+<td><code>?llm</code></td>
+<td>Primary LLM service provider.</td>
+</tr>
+<tr>
+<td><code>?embeddings</code></td>
+<td>Embedding service for RAG pipelines. See <a href="../rag/">RAG API</a>.</td>
+</tr>
+<tr>
+<td><code>?memory</code></td>
+<td>Memory service for cross-session agent memory (FTS5). See <a href="../memory/">Memory API</a>.</td>
+</tr>
+<tr>
+<td><code>?bash_policy</code></td>
+<td>Bash trust-boundary policy module. Default: <code>Always</code> (allow all).</td>
+</tr>
+<tr>
+<td><code>?workspace</code></td>
+<td>Workspace for file-system sandboxing. Defaults to CWD.</td>
+</tr>
+<tr>
+<td><code>?mcp_servers</code></td>
+<td>MCP server configurations to start on creation.</td>
+</tr>
+<tr>
+<td><code>?mcp_process_mgr</code></td>
+<td>Eio process manager for MCP stdio servers.</td>
+</tr>
+<tr>
+<td><code>?mcp_net</code></td>
+<td>Eio network capability for MCP HTTP/SSE servers.</td>
+</tr>
+<tr>
+<td><code>?mcp_clock</code></td>
+<td>Eio clock for MCP startup timeouts.</td>
+</tr>
+<tr>
+<td><code>?mcp_startup_policy</code></td>
+<td>MCP server startup policy (blocking vs lazy).</td>
+</tr>
+</tbody>
+</table>
+<p>Full example:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="k">let</span> <span class="n">config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  <span class="n">persistence</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Sqlite</span> <span class="s2">&quot;par.db&quot;</span><span class="o">;</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>  <span class="n">event_bus</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">default_event_bus_config</span><span class="o">;</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>  <span class="n">default_quota</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">default_quota</span><span class="o">;</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>  <span class="n">shutdown</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">default_shutdown_config</span><span class="o">;</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>  <span class="n">llm_providers</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>  <span class="n">eval_limits</span> <span class="o">=</span> <span class="o">{</span> <span class="n">max_depth</span> <span class="o">=</span> <span class="mi">10</span><span class="o">;</span> <span class="n">max_node_visits</span> <span class="o">=</span> <span class="mi">1000</span> <span class="o">};</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="o">}</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="k">let</span> <span class="bp">()</span> <span class="o">=</span> <span class="nn">Eio_main</span><span class="p">.</span><span class="n">run</span> <span class="o">(</span><span class="k">fun</span> <span class="o">_</span><span class="n">env</span> <span class="o">-&gt;</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>  <span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">run</span> <span class="o">(</span><span class="k">fun</span> <span class="n">switch</span> <span class="o">-&gt;</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>    <span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">create</span> <span class="o">~</span><span class="n">config</span> <span class="n">switch</span> <span class="k">with</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>    <span class="o">|</span> <span class="nc">Error</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">eprintf</span> <span class="s2">&quot;Runtime creation failed</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>    <span class="o">|</span> <span class="nc">Ok</span> <span class="n">rt</span> <span class="o">-&gt;</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>      <span class="c">(* ... use the runtime ... *)</span>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>      <span class="k">let</span> <span class="n">exit_code</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">close</span> <span class="n">rt</span> <span class="k">in</span>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>      <span class="n">exit</span> <span class="n">exit_code</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>  <span class="o">)</span>
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="o">)</span>
+</span></code></pre></div>
+<h2 id="agent-configuration">Agent configuration<a class="headerlink" href="#agent-configuration" title="Permanent link">&para;</a></h2>
+<h3 id="agent_config">agent_config<a class="headerlink" href="#agent_config" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">type</span> <span class="n">agent_config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>  <span class="n">id</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>                            <span class="c">(* Unique Agent identifier *)</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>  <span class="n">system_prompt</span> <span class="o">:</span> <span class="n">system_prompt</span><span class="o">;</span>          <span class="c">(* Typed record: { sp_raw : string; sp_zone : zone_tag } *)</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>  <span class="n">system_prompt_template</span> <span class="o">:</span> <span class="n">system_prompt_template</span> <span class="n">option</span><span class="o">;</span>  <span class="c">(* Optional templated prompt with variables *)</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>  <span class="n">model</span> <span class="o">:</span> <span class="n">model_config</span><span class="o">;</span>                   <span class="c">(* LLM model configuration *)</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>  <span class="n">tools</span> <span class="o">:</span> <span class="n">tool_descriptor</span> <span class="kt">list</span><span class="o">;</span>           <span class="c">(* Available tool list *)</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>  <span class="n">max_iterations</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>                   <span class="c">(* ReAct loop max iterations *)</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>  <span class="n">middleware</span> <span class="o">:</span> <span class="n">middleware_hook</span> <span class="kt">list</span><span class="o">;</span>       <span class="c">(* Middleware pipeline *)</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>  <span class="n">retry_policy</span> <span class="o">:</span> <span class="n">retry_policy</span> <span class="n">option</span><span class="o">;</span>     <span class="c">(* Optional retry policy *)</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>  <span class="n">context_strategy</span> <span class="o">:</span> <span class="n">context_strategy</span> <span class="n">option</span><span class="o">;</span>  <span class="c">(* Context window management strategy *)</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>  <span class="n">resource_quota</span> <span class="o">:</span> <span class="n">resource_quota</span> <span class="n">option</span><span class="o">;</span>  <span class="c">(* Optional resource quota override *)</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>  <span class="n">max_execution_time</span> <span class="o">:</span> <span class="kt">float</span> <span class="n">option</span><span class="o">;</span>      <span class="c">(* Optional max execution time in seconds *)</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>  <span class="n">early_stopping_method</span> <span class="o">:</span> <span class="n">early_stopping_method</span><span class="o">;</span>  <span class="c">(* Force or Generate on iteration cap *)</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>  <span class="n">on_max_tokens</span> <span class="o">:</span> <span class="n">on_max_tokens_behavior</span> <span class="n">option</span><span class="o">;</span>  <span class="c">(* None=Auto (default), or explicit Retry/Continue/Return_partial *)</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>  <span class="n">max_continuation_chunks</span> <span class="o">:</span> <span class="kt">int</span> <span class="n">option</span><span class="o">;</span>           <span class="c">(* None=Auto (default), or explicit cap *)</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>  <span class="n">tool_timeout</span> <span class="o">:</span> <span class="kt">float</span> <span class="n">option</span><span class="o">;</span>            <span class="c">(* Optional per-tool-call timeout in seconds *)</span>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>  <span class="n">context_compression_threshold</span> <span class="o">:</span> <span class="kt">float</span> <span class="n">option</span><span class="o">;</span>   <span class="c">(* v0.6.3+: auto-compress at ratio. None=manual mode, Some 0.8=default *)</span>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>  <span class="n">compression_cooldown_messages</span> <span class="o">:</span> <span class="kt">int</span> <span class="n">option</span><span class="o">;</span>     <span class="c">(* v0.6.3+: min iterations between auto-compressions. Some 6=default *)</span>
+</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>  <span class="n">context_window_override</span> <span class="o">:</span> <span class="kt">int</span> <span class="n">option</span><span class="o">;</span>           <span class="c">(* v0.6.3+: override context window size; None=use provider capability or static table *)</span>
+</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>  <span class="n">cache_strategy</span> <span class="o">:</span> <span class="n">cache_strategy</span><span class="o">;</span>        <span class="c">(* Prompt caching strategy: No_caching | With_cache_of of cache_ttl *)</span>
+</span><span id="__span-4-21"><a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="o">}</span>
+</span></code></pre></div>
+<h3 id="auto-context-compression-v063">Auto context compression (v0.6.3+)<a class="headerlink" href="#auto-context-compression-v063" title="Permanent link">&para;</a></h3>
+<p>When <code>context_compression_threshold</code> is set (default <code>Some 0.8</code>), the engine checks
+<code>estimated_tokens / context_window</code> before every LLM call. If the ratio crosses the
+threshold AND the cooldown has elapsed, the configured <code>context_strategy</code> is applied
+(or <code>Summarize</code> by default if <code>context_strategy = None</code>).</p>
+<p>The context window size is resolved via a 3-tier resolver:
+1. <code>context_window_override</code> (user-supplied, wins over everything)
+2. <code>llm_service.context_window_fn</code> (provider capability function)
+3. Static lookup table (<code>default_context_window</code>): gpt-4o family=128K, claude-4 family=200K, gpt-3.5-turbo=16385, unknown=8000 (safe default)</p>
+<p>Two observability events fire:
+- <code>Context_compressed { trigger; tokens_before; tokens_after; messages_before; messages_after; strategy_used; elapsed_ms }</code> on successful compression
+- <code>Context_compression_skipped { reason }</code> when skipped, with typed reason: <code>`Below_threshold of float</code>, <code>`Cooldown_active of int</code>, <code>`No_window_size</code>, or <code>`No_strategy</code></p>
+<p><strong>Default change (BREAKING in 0.x)</strong>: <code>make_agent</code> default <code>context_strategy</code> switched from
+<code>Sliding_window { max_messages=100; max_tokens=200000 }</code> to <code>Summarize { max_tokens=8000; summary_model=None }</code>.
+Industry research confirmed every mainstream production agent framework that ships a default
+uses LLM-summarize (Letta, Anthropic, LangChain, CrewAI) — zero default to truncate-drop.
+To restore pre-v0.6.3 behavior, set <code>context_strategy = Some (Sliding_window {...})</code> explicitly.</p>
+<h3 id="model_config">model_config<a class="headerlink" href="#model_config" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">type</span> <span class="n">model_config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>  <span class="n">provider</span> <span class="o">:</span> <span class="o">[</span> <span class="o">`</span><span class="nc">Openai</span> <span class="o">|</span> <span class="o">`</span><span class="nc">Anthropic</span> <span class="o">|</span> <span class="o">`</span><span class="nc">Ollama</span> <span class="o">|</span> <span class="o">`</span><span class="nc">Custom</span> <span class="k">of</span> <span class="kt">string</span> <span class="o">];</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>  <span class="n">model_name</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>  <span class="n">api_base</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>          <span class="c">(* Custom API endpoint *)</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>  <span class="n">temperature</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>  <span class="n">max_tokens</span> <span class="o">:</span> <span class="kt">int</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>  <span class="n">top_p</span> <span class="o">:</span> <span class="kt">float</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>  <span class="n">stop_sequences</span> <span class="o">:</span> <span class="kt">string</span> <span class="kt">list</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="o">}</span>
+</span></code></pre></div>
+<p>Provider examples:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c">(* OpenAI *)</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="o">{</span> <span class="n">provider</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Openai</span><span class="o">;</span> <span class="n">model_name</span> <span class="o">=</span> <span class="s2">&quot;gpt-4&quot;</span><span class="o">;</span> <span class="n">api_base</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>  <span class="n">temperature</span> <span class="o">=</span> <span class="mi">0</span><span class="o">.</span><span class="mi">7</span><span class="o">;</span> <span class="n">max_tokens</span> <span class="o">=</span> <span class="nc">Some</span> <span class="mi">4096</span><span class="o">;</span> <span class="n">top_p</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>  <span class="n">stop_sequences</span> <span class="o">=</span> <span class="nc">None</span> <span class="o">}</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="c">(* Anthropic via ZhipuAI gateway *)</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="o">{</span> <span class="n">provider</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Anthropic</span><span class="o">;</span> <span class="n">model_name</span> <span class="o">=</span> <span class="s2">&quot;claude-sonnet-4-20250514&quot;</span><span class="o">;</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>  <span class="n">api_base</span> <span class="o">=</span> <span class="nc">Some</span> <span class="s2">&quot;https://open.bigmodel.cn/api/paas/v4&quot;</span><span class="o">;</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>  <span class="n">temperature</span> <span class="o">=</span> <span class="mi">0</span><span class="o">.</span><span class="mi">5</span><span class="o">;</span> <span class="n">max_tokens</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span> <span class="n">top_p</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>  <span class="n">stop_sequences</span> <span class="o">=</span> <span class="nc">None</span> <span class="o">}</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="c">(* Ollama local model *)</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="o">{</span> <span class="n">provider</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Ollama</span><span class="o">;</span> <span class="n">model_name</span> <span class="o">=</span> <span class="s2">&quot;llama3&quot;</span><span class="o">;</span> <span class="n">api_base</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>  <span class="n">temperature</span> <span class="o">=</span> <span class="mi">0</span><span class="o">.</span><span class="mi">8</span><span class="o">;</span> <span class="n">max_tokens</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span> <span class="n">top_p</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>  <span class="n">stop_sequences</span> <span class="o">=</span> <span class="nc">None</span> <span class="o">}</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="c">(* Custom endpoint *)</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="o">{</span> <span class="n">provider</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Custom</span> <span class="s2">&quot;my-provider&quot;</span><span class="o">;</span> <span class="n">model_name</span> <span class="o">=</span> <span class="s2">&quot;my-model&quot;</span><span class="o">;</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>  <span class="n">api_base</span> <span class="o">=</span> <span class="nc">Some</span> <span class="s2">&quot;http://localhost:8000/v1&quot;</span><span class="o">;</span>
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>  <span class="n">temperature</span> <span class="o">=</span> <span class="mi">0</span><span class="o">.</span><span class="mi">7</span><span class="o">;</span> <span class="n">max_tokens</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span> <span class="n">top_p</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>  <span class="n">stop_sequences</span> <span class="o">=</span> <span class="nc">None</span> <span class="o">}</span>
+</span></code></pre></div>
+<h3 id="llm-provider-configuration">LLM provider configuration<a class="headerlink" href="#llm-provider-configuration" title="Permanent link">&para;</a></h3>
+<p>Provider instances are created through <code>llm_provider_config</code> and passed to the <code>llm</code> parameter of <code>Runtime.create</code>. The <code>`Mock</code> provider from <code>lib/providers</code> is the deterministic choice for tests; production code reaches for <code>`Openai</code> or <code>`Anthropic</code>.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">type</span> <span class="n">llm_provider_config</span> <span class="o">=</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>  <span class="o">|</span> <span class="nc">Openai</span> <span class="k">of</span> <span class="o">{</span> <span class="n">api_key</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span> <span class="n">base_url</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>                <span class="n">organization</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>                <span class="n">embedding_model</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>                <span class="n">prompt_cache_key</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span> <span class="o">}</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>  <span class="o">|</span> <span class="nc">Anthropic</span> <span class="k">of</span> <span class="o">{</span> <span class="n">api_key</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span> <span class="n">base_url</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span> <span class="o">}</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>  <span class="o">|</span> <span class="nc">Ollama</span> <span class="k">of</span> <span class="o">{</span> <span class="n">base_url</span> <span class="o">:</span> <span class="kt">string</span> <span class="o">}</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>  <span class="o">|</span> <span class="nc">Custom</span> <span class="k">of</span> <span class="o">{</span> <span class="n">base_url</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span> <span class="n">headers</span> <span class="o">:</span> <span class="o">(</span><span class="kt">string</span> <span class="o">*</span> <span class="kt">string</span><span class="o">)</span> <span class="kt">list</span><span class="o">;</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>                <span class="n">request_format</span> <span class="o">:</span> <span class="o">[</span> <span class="o">`</span><span class="nc">Openai_compatible</span> <span class="o">|</span> <span class="o">`</span><span class="nc">Anthropic_compatible</span> <span class="o">]</span> <span class="o">}</span>
+</span></code></pre></div>
+<h2 id="runtime-operations">Runtime operations<a class="headerlink" href="#runtime-operations" title="Permanent link">&para;</a></h2>
+<h3 id="registering-an-agent">Registering an agent<a class="headerlink" href="#registering-an-agent" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">val</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">register_agent</span> <span class="o">:</span> <span class="n">runtime</span> <span class="o">-&gt;</span> <span class="n">agent_config</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="kt">unit</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">let</span> <span class="n">agent</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">id</span> <span class="o">=</span> <span class="s2">&quot;my-agent&quot;</span><span class="o">;</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>  <span class="n">system_prompt</span> <span class="o">=</span> <span class="nn">Types</span><span class="p">.</span><span class="n">stable_prompt</span> <span class="s2">&quot;You are a helpful assistant.&quot;</span><span class="o">;</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>  <span class="n">model</span> <span class="o">=</span> <span class="o">{</span> <span class="n">provider</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Openai</span><span class="o">;</span> <span class="n">model_name</span> <span class="o">=</span> <span class="s2">&quot;gpt-4&quot;</span><span class="o">;</span> <span class="n">api_base</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>            <span class="n">temperature</span> <span class="o">=</span> <span class="mi">0</span><span class="o">.</span><span class="mi">7</span><span class="o">;</span> <span class="n">max_tokens</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span> <span class="n">top_p</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>            <span class="n">stop_sequences</span> <span class="o">=</span> <span class="nc">None</span> <span class="o">};</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>  <span class="n">tools</span> <span class="o">=</span> <span class="o">[</span> <span class="n">tool</span><span class="o">.</span><span class="n">descriptor</span> <span class="o">];</span>   <span class="c">(* from Runtime.register_tool *)</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>  <span class="n">max_iterations</span> <span class="o">=</span> <span class="mi">5</span><span class="o">;</span>
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>  <span class="n">middleware</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>  <span class="n">retry_policy</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>  <span class="n">context_strategy</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>  <span class="n">resource_quota</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-9-13"><a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>  <span class="n">max_execution_time</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-9-14"><a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>  <span class="n">early_stopping_method</span> <span class="o">=</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Force</span><span class="o">;</span>
+</span><span id="__span-9-15"><a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>  <span class="n">on_max_tokens</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>              <span class="c">(* Auto: Return_partial (this agent has tools) *)</span>
+</span><span id="__span-9-16"><a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>  <span class="n">max_continuation_chunks</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>    <span class="c">(* Auto: 3 (tool-bearing agent default) *)</span>
+</span><span id="__span-9-17"><a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>  <span class="n">tool_timeout</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-9-18"><a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="o">}</span> <span class="k">in</span>
+</span><span id="__span-9-19"><a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="n">ignore</span> <span class="o">(</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">register_agent</span> <span class="n">rt</span> <span class="n">agent</span><span class="o">)</span>
+</span></code></pre></div>
+<h3 id="invoking-an-agent">Invoking an agent<a class="headerlink" href="#invoking-an-agent" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">val</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke</span> <span class="o">:</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>  <span class="n">runtime</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>  <span class="n">agent_id</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>  <span class="n">message</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>  <span class="o">?</span><span class="n">workspace</span><span class="o">:</span><span class="nn">Workspace</span><span class="p">.</span><span class="n">workspace</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>  <span class="o">?</span><span class="n">cancellation_token</span><span class="o">:</span><span class="n">cancellation_token</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>  <span class="o">?</span><span class="n">conversation</span><span class="o">:</span><span class="n">conversation</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>  <span class="o">?</span><span class="n">on_tool_event</span><span class="o">:(</span><span class="n">event</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>  <span class="o">?</span><span class="n">on_chunk</span><span class="o">:(</span><span class="n">llm_response_chunk</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="n">option</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>  <span class="o">?</span><span class="n">enable_handoff</span><span class="o">:</span><span class="kt">bool</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>  <span class="o">?</span><span class="n">system_prompt_appendix</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>  <span class="o">?</span><span class="n">context</span><span class="o">:</span><span class="nn">Invoke_context</span><span class="p">.</span><span class="n">invoke_context</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-14"><a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>  <span class="o">(</span><span class="n">invoke_result</span><span class="o">,</span> <span class="n">error_category</span> <span class="o">*</span> <span class="n">conversation</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<p>All optional parameters:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>?workspace</code></td>
+<td><code>Workspace.workspace</code></td>
+<td>Per-call workspace override. Tools use this workspace instead of the runtime's default.</td>
+</tr>
+<tr>
+<td><code>?cancellation_token</code></td>
+<td><code>cancellation_token</code></td>
+<td>Token for cooperative cancellation. See <a href="#cancellation-tokens">Cancellation tokens</a>.</td>
+</tr>
+<tr>
+<td><code>?conversation</code></td>
+<td><code>conversation option</code></td>
+<td>Resumed conversation history. Pass <code>None</code> to start fresh.</td>
+</tr>
+<tr>
+<td><code>?on_tool_event</code></td>
+<td><code>event -&gt; unit</code></td>
+<td>Callback fired for tool-related events (tool_call_sent, tool_result_received, etc.).</td>
+</tr>
+<tr>
+<td><code>?on_chunk</code></td>
+<td><code>(llm_response_chunk -&gt; unit) option</code></td>
+<td>Streaming callback for LLM response chunks. <code>None</code> disables streaming.</td>
+</tr>
+<tr>
+<td><code>?enable_handoff</code></td>
+<td><code>bool</code></td>
+<td>Enable agent-to-agent handoff via the <code>handoff</code> tool. Default: <code>false</code>.</td>
+</tr>
+<tr>
+<td><code>?system_prompt_appendix</code></td>
+<td><code>string</code></td>
+<td>Text appended to the system prompt for this invocation only. See <a href="../invoke_context/">invoke_context</a>.</td>
+</tr>
+<tr>
+<td><code>?context</code></td>
+<td><code>Invoke_context.invoke_context</code></td>
+<td>Pre-built per-call isolation context. When provided, uses this context instead of creating a fresh one. See <a href="../invoke_context/">invoke_context</a>.</td>
+</tr>
+</tbody>
+</table>
+<p>The return type is <code>invoke_result</code> (not <code>llm_response</code>):</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">type</span> <span class="n">invoke_result</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>  <span class="n">response</span> <span class="o">:</span> <span class="n">llm_response</span><span class="o">;</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>  <span class="n">conversation</span> <span class="o">:</span> <span class="n">conversation</span><span class="o">;</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="o">}</span>
+</span></code></pre></div>
+<p>The <code>conversation</code> field in the error tuple carries the conversation state up to the point of failure, enabling error recovery or partial result extraction.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke</span> <span class="n">rt</span> <span class="o">~</span><span class="n">agent_id</span><span class="o">:</span><span class="s2">&quot;my-agent&quot;</span> <span class="o">~</span><span class="n">message</span><span class="o">:</span><span class="s2">&quot;Hello!&quot;</span> <span class="bp">()</span> <span class="k">with</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">result</span> <span class="o">-&gt;</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>  <span class="k">let</span> <span class="n">resp</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">response</span> <span class="k">in</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>  <span class="o">(</span><span class="k">match</span> <span class="n">resp</span><span class="o">.</span><span class="n">text</span> <span class="k">with</span> <span class="nc">Some</span> <span class="n">text</span> <span class="o">-&gt;</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Response: %s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="n">text</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>  <span class="o">|</span> <span class="nc">None</span> <span class="o">-&gt;</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;No text response</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">)</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="o">|</span> <span class="nc">Error</span> <span class="o">(</span><span class="n">err</span><span class="o">,</span> <span class="o">_</span><span class="n">conv</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>  <span class="nn">Printf</span><span class="p">.</span><span class="n">eprintf</span> <span class="s2">&quot;Error: %s</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>    <span class="o">(</span><span class="nn">Types</span><span class="p">.</span><span class="n">error_category_to_yojson</span> <span class="n">err</span> <span class="o">|&gt;</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">to_string</span><span class="o">)</span>
+</span></code></pre></div>
+<h3 id="structured-output">Structured output<a class="headerlink" href="#structured-output" title="Permanent link">&para;</a></h3>
+<p><code>Runtime.invoke_structured</code> returns schema-validated JSON instead of free-form text. The function signature:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">val</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke_structured</span> <span class="o">:</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>  <span class="n">runtime</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>  <span class="n">agent_id</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>  <span class="n">message</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>  <span class="n">response_schema</span><span class="o">:</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>  <span class="o">?</span><span class="n">max_repair_attempts</span><span class="o">:</span><span class="kt">int</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>  <span class="o">?</span><span class="n">cancellation_token</span><span class="o">:</span><span class="n">cancellation_token</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>  <span class="o">?</span><span class="n">conversation</span><span class="o">:</span><span class="n">conversation</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>  <span class="o">?</span><span class="n">system_prompt_appendix</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>  <span class="o">?</span><span class="n">on_tool_event</span><span class="o">:(</span><span class="n">event</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>  <span class="o">?</span><span class="n">on_repair_attempt</span><span class="o">:(</span><span class="kt">int</span> <span class="o">-&gt;</span> <span class="n">error_category</span> <span class="o">-&gt;</span> <span class="n">conversation</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>  <span class="o">(</span><span class="n">structured_invoke_result</span><span class="o">,</span> <span class="n">error_category</span> <span class="o">*</span> <span class="n">conversation</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<p>The return type <code>structured_invoke_result</code> carries the validated JSON plus the raw LLM response, the full conversation, and the repair-loop attempt count:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">type</span> <span class="n">structured_invoke_result</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>  <span class="n">value</span> <span class="o">:</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">;</span>          <span class="c">(* schema-validated JSON *)</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>  <span class="n">raw_response</span> <span class="o">:</span> <span class="n">llm_response</span><span class="o">;</span>   <span class="c">(* original LLM reply (debugging / token accounting) *)</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>  <span class="n">conversation</span> <span class="o">:</span> <span class="n">conversation</span><span class="o">;</span>   <span class="c">(* full conversation history including repair turns *)</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>  <span class="n">attempts</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>                <span class="c">(* 1 = happy path; &gt;1 = repair-loop fired *)</span>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="o">}</span>
+</span></code></pre></div>
+<p>The repair loop fires when <code>Json_extract.extract_json_from_text</code> fails to parse valid JSON from the LLM text, or when the parsed JSON fails schema validation via <code>Validation.validate_tool_input_result</code>. Up to <code>max_repair_attempts</code> (default 3) retries are issued with user-feedback messages appended to the conversation. A cancellation token check at the top of each iteration prevents unbounded LLM calls.</p>
+<p><strong>Tool execution + structured output (v0.7.4+)</strong>: When the agent has registered tools AND you need validated JSON, the runtime automatically routes to <code>Engine.run_agent_structured</code> — a two-phase pattern:</p>
+<ol>
+<li><strong>Phase 1</strong>: Full ReAct loop runs the agent with tools (bash, http, custom) until the LLM produces a final text response.</li>
+<li><strong>Phase 2</strong>: The complete conversation history (including all tool call results) is passed to a separate structured LLM call that extracts and validates JSON against <code>response_schema</code>.</li>
+</ol>
+<p>This pattern matches LangGraph's <code>create_react_agent(response_format=)</code> approach. It works across all LLM providers (OpenAI, Anthropic, Ollama, custom) without requiring provider-specific <code>tools + response_format</code> support (which is unreliable on non-OpenAI providers — see CrewAI issue #5472).</p>
+<p><strong>Native structured output (v0.7.5+)</strong>: OpenAI and Anthropic providers now use their native structured output modes instead of the text-injection fallback. OpenAI sends <code>response_format: {type: json_schema, json_schema: {name, schema, strict: true}}</code> for strict JSON schema enforcement. Anthropic sends <code>output_config: {format: {type: json_schema, schema}}</code>. Ollama and Custom providers continue to use the text-injection fallback (prompt-based JSON extraction with schema validation), as they may not support strict JSON schema mode.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke_structured</span> <span class="n">rt</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="o">~</span><span class="n">agent_id</span><span class="o">:</span><span class="s2">&quot;env-detector&quot;</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="o">~</span><span class="n">message</span><span class="o">:</span><span class="s2">&quot;Inspect the project and report the runtime environment&quot;</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="o">~</span><span class="n">response_schema</span><span class="o">:(`</span><span class="nc">Assoc</span> <span class="o">[</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>      <span class="o">(</span><span class="s2">&quot;language&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;OCaml&quot;</span><span class="o">);</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>      <span class="o">(</span><span class="s2">&quot;ocaml_version&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;5.x.x&quot;</span><span class="o">);</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>      <span class="o">(</span><span class="s2">&quot;dune_version&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;3.x.x&quot;</span><span class="o">);</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>    <span class="o">])</span> <span class="bp">()</span> <span class="k">with</span>
+</span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="o">{</span> <span class="n">value</span><span class="o">;</span> <span class="o">_</span> <span class="o">}</span> <span class="o">-&gt;</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">to_string</span> <span class="n">value</span>
+</span><span id="__span-15-10"><a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="o">|</span> <span class="nc">Error</span> <span class="o">(</span><span class="n">err</span><span class="o">,</span> <span class="o">_</span><span class="n">conv</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">eprintf</span> <span class="s2">&quot;Error: %s&quot;</span> <span class="o">(</span><span class="nn">Types</span><span class="p">.</span><span class="n">error_category_to_string</span> <span class="n">err</span><span class="o">)</span>
+</span></code></pre></div>
+<p>If the agent has no tools (<code>config.tools = []</code>), <code>invoke_structured</code> uses the lightweight <code>run_structured</code> path directly — no ReAct loop, single LLM call. Set <code>?on_tool_event</code> to observe tool calls during the ReAct phase.</p>
+<h3 id="streaming-example">Streaming example<a class="headerlink" href="#streaming-example" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke</span> <span class="n">rt</span> <span class="o">~</span><span class="n">agent_id</span><span class="o">:</span><span class="s2">&quot;my-agent&quot;</span> <span class="o">~</span><span class="n">message</span><span class="o">:</span><span class="s2">&quot;Tell me a story&quot;</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>  <span class="o">~</span><span class="n">on_chunk</span><span class="o">:(</span><span class="k">fun</span> <span class="n">chunk</span> <span class="o">-&gt;</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;%s%!&quot;</span> <span class="n">chunk</span><span class="o">.</span><span class="n">text</span><span class="o">)</span>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>  <span class="bp">()</span>
+</span></code></pre></div>
+<h3 id="async-invocation">Async invocation<a class="headerlink" href="#async-invocation" title="Permanent link">&para;</a></h3>
+<p><code>Runtime.invoke_async</code> runs the invocation in a background fiber and returns immediately with an <code>invoke_handle</code> you can use to await, cancel, or poll the result. See <a href="../invoke_context/">invoke_context</a> for full details.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">val</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke_async</span> <span class="o">:</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>  <span class="n">runtime</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>  <span class="n">agent_id</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>  <span class="n">message</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>  <span class="o">?</span><span class="n">workspace</span><span class="o">:</span><span class="nn">Workspace</span><span class="p">.</span><span class="n">workspace</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>  <span class="o">?</span><span class="n">cancellation_token</span><span class="o">:</span><span class="n">cancellation_token</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>  <span class="o">?</span><span class="n">conversation</span><span class="o">:</span><span class="n">conversation</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>  <span class="o">?</span><span class="n">on_tool_event</span><span class="o">:(</span><span class="n">event</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>  <span class="o">?</span><span class="n">on_chunk</span><span class="o">:(</span><span class="n">llm_response_chunk</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="n">option</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>  <span class="o">?</span><span class="n">enable_handoff</span><span class="o">:</span><span class="kt">bool</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>  <span class="o">?</span><span class="n">system_prompt_appendix</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a>  <span class="o">?</span><span class="n">context</span><span class="o">:</span><span class="nn">Invoke_context</span><span class="p">.</span><span class="n">invoke_context</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-13"><a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-14"><a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a>  <span class="nn">Invoke_context</span><span class="p">.</span><span class="n">invoke_handle</span>
+</span></code></pre></div>
+<p>The handle functions:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="k">val</span> <span class="nn">Invoke_context</span><span class="p">.</span><span class="n">invoke_handle_await</span> <span class="o">:</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>  <span class="n">invoke_handle</span> <span class="o">-&gt;</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>  <span class="o">(</span><span class="n">invoke_result</span><span class="o">,</span> <span class="n">error_category</span> <span class="o">*</span> <span class="n">conversation</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="k">val</span> <span class="nn">Invoke_context</span><span class="p">.</span><span class="n">invoke_handle_cancel</span> <span class="o">:</span> <span class="n">invoke_handle</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="k">val</span> <span class="nn">Invoke_context</span><span class="p">.</span><span class="n">invoke_handle_status</span> <span class="o">:</span> <span class="n">invoke_handle</span> <span class="o">-&gt;</span> <span class="n">invoke_status</span>
+</span></code></pre></div>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">let</span> <span class="n">handle</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke_async</span> <span class="n">rt</span> <span class="o">~</span><span class="n">agent_id</span><span class="o">:</span><span class="s2">&quot;researcher&quot;</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>  <span class="o">~</span><span class="n">message</span><span class="o">:</span><span class="s2">&quot;Find recent papers on OCaml effects&quot;</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="c">(* Do other work while the agent runs in the background ... *)</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="k">match</span> <span class="nn">Invoke_context</span><span class="p">.</span><span class="n">invoke_handle_await</span> <span class="n">handle</span> <span class="k">with</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">result</span> <span class="o">-&gt;</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>  <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Done: %s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="n">result</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">text</span> <span class="o">|&gt;</span> <span class="nn">Option</span><span class="p">.</span><span class="n">value</span> <span class="o">~</span><span class="n">default</span><span class="o">:</span><span class="s2">&quot;&quot;</span><span class="o">)</span>
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="o">|</span> <span class="nc">Error</span> <span class="o">(</span><span class="n">err</span><span class="o">,</span> <span class="o">_)</span> <span class="o">-&gt;</span>
+</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>  <span class="nn">Printf</span><span class="p">.</span><span class="n">eprintf</span> <span class="s2">&quot;Failed: %s</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>    <span class="o">(</span><span class="nn">Types</span><span class="p">.</span><span class="n">error_category_to_yojson</span> <span class="n">err</span> <span class="o">|&gt;</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">to_string</span><span class="o">)</span>
+</span></code></pre></div>
+<h3 id="shutting-down-the-runtime">Shutting down the runtime<a class="headerlink" href="#shutting-down-the-runtime" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="k">val</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">close</span> <span class="o">:</span> <span class="n">runtime</span> <span class="o">-&gt;</span> <span class="kt">int</span>   <span class="c">(* returns exit code *)</span>
+</span></code></pre></div>
+<p><code>Runtime.close</code> also stops every MCP server child spawned through <code>Runtime.mcp_server</code>; the returned integer is the exit code, and a non-zero value means a child process refused to exit cleanly.</p>
+<h2 id="tool-registration">Tool registration<a class="headerlink" href="#tool-registration" title="Permanent link">&para;</a></h2>
+<h3 id="tool_descriptor">tool_descriptor<a class="headerlink" href="#tool_descriptor" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="k">type</span> <span class="n">tool_descriptor</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>  <span class="n">name</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>  <span class="n">description</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>  <span class="n">input_schema</span> <span class="o">:</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">;</span>     <span class="c">(* JSON Schema format *)</span>
+</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>  <span class="n">output_schema</span> <span class="o">:</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="n">option</span><span class="o">;</span>  <span class="c">(* optional JSON Schema for tool output *)</span>
+</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>  <span class="n">permission</span> <span class="o">:</span> <span class="n">tool_permission</span><span class="o">;</span>     <span class="c">(* default Allow *)</span>
+</span><span id="__span-21-7"><a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>  <span class="n">timeout</span> <span class="o">:</span> <span class="kt">float</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-21-8"><a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>  <span class="n">concurrency_limit</span> <span class="o">:</span> <span class="kt">int</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-21-9"><a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a>  <span class="n">on_update</span> <span class="o">:</span> <span class="o">(</span><span class="kt">string</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="n">option</span><span class="o">;</span>  <span class="c">(* optional progress callback *)</span>
+</span><span id="__span-21-10"><a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a>  <span class="n">cache_control</span> <span class="o">:</span> <span class="n">cache_control</span> <span class="n">option</span><span class="o">;</span>  <span class="c">(* optional prompt-caching breakpoint *)</span>
+</span><span id="__span-21-11"><a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a><span class="o">}</span>
+</span></code></pre></div>
+<h3 id="handler-function-signature">Handler function signature<a class="headerlink" href="#handler-function-signature" title="Permanent link">&para;</a></h3>
+<p>A tool handler receives JSON input and a cancellation token and returns a <code>handler_result</code>:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="k">type</span> <span class="n">handler_fn</span> <span class="o">=</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">cancellation_token</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">handler_result</span>
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="k">type</span> <span class="n">handler_result</span> <span class="o">=</span>
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>  <span class="o">|</span> <span class="nc">Success</span> <span class="k">of</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span>
+</span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>  <span class="o">|</span> <span class="nc">Error</span> <span class="k">of</span> <span class="o">{</span>
+</span><span id="__span-22-6"><a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>      <span class="n">category</span> <span class="o">:</span> <span class="n">error_category</span><span class="o">;</span>
+</span><span id="__span-22-7"><a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a>      <span class="n">message</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-22-8"><a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a>      <span class="n">retryable</span> <span class="o">:</span> <span class="kt">bool</span><span class="o">;</span>
+</span><span id="__span-22-9"><a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a>      <span class="n">metadata</span> <span class="o">:</span> <span class="o">(</span><span class="kt">string</span> <span class="o">*</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">)</span> <span class="kt">list</span><span class="o">;</span>
+</span><span id="__span-22-10"><a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a>    <span class="o">}</span>
+</span><span id="__span-22-11"><a id="__codelineno-22-11" name="__codelineno-22-11" href="#__codelineno-22-11"></a>  <span class="o">|</span> <span class="nc">Handoff</span> <span class="k">of</span> <span class="o">{</span>
+</span><span id="__span-22-12"><a id="__codelineno-22-12" name="__codelineno-22-12" href="#__codelineno-22-12"></a>      <span class="n">target_agent_id</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-22-13"><a id="__codelineno-22-13" name="__codelineno-22-13" href="#__codelineno-22-13"></a>      <span class="n">carry_context</span> <span class="o">:</span> <span class="kt">bool</span><span class="o">;</span>
+</span><span id="__span-22-14"><a id="__codelineno-22-14" name="__codelineno-22-14" href="#__codelineno-22-14"></a>      <span class="n">task</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-22-15"><a id="__codelineno-22-15" name="__codelineno-22-15" href="#__codelineno-22-15"></a>    <span class="o">}</span>
+</span></code></pre></div>
+<h3 id="runtimeregister_tool">Runtime.register_tool<a class="headerlink" href="#runtimeregister_tool" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="k">val</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">register_tool</span> <span class="o">:</span>
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>  <span class="n">runtime</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>  <span class="n">name</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>  <span class="n">description</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-5"><a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>  <span class="n">input_schema</span><span class="o">:</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-6"><a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>  <span class="n">handler</span><span class="o">:</span><span class="n">handler_fn</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-7"><a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a>  <span class="o">?</span><span class="n">output_schema</span><span class="o">:</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-8"><a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a>  <span class="o">?</span><span class="n">permission</span><span class="o">:</span><span class="n">tool_permission</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-9"><a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a>  <span class="o">?</span><span class="n">timeout</span><span class="o">:</span><span class="kt">float</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-10"><a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a>  <span class="o">?</span><span class="n">concurrency_limit</span><span class="o">:</span><span class="kt">int</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-11"><a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a>  <span class="o">?</span><span class="n">on_update</span><span class="o">:(</span><span class="kt">string</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="n">option</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-12"><a id="__codelineno-23-12" name="__codelineno-23-12" href="#__codelineno-23-12"></a>  <span class="o">?</span><span class="n">cache_control</span><span class="o">:</span><span class="n">cache_control</span> <span class="n">option</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-13"><a id="__codelineno-23-13" name="__codelineno-23-13" href="#__codelineno-23-13"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-14"><a id="__codelineno-23-14" name="__codelineno-23-14" href="#__codelineno-23-14"></a>  <span class="o">(</span><span class="n">tool_binding</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<p><code>tool_binding</code> contains <code>descriptor</code> (for <code>agent_config.tools</code>) and <code>handler</code> (already registered with the registry):</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="k">type</span> <span class="n">tool_binding</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>  <span class="n">descriptor</span> <span class="o">:</span> <span class="n">tool_descriptor</span><span class="o">;</span>
+</span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>  <span class="n">handler</span> <span class="o">:</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span> <span class="n">cancellation_token</span> <span class="o">-&gt;</span> <span class="n">handler_result</span><span class="o">;</span>
+</span><span id="__span-24-4"><a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="o">}</span>
+</span></code></pre></div>
+<h3 id="tool-registration-example">Tool registration example<a class="headerlink" href="#tool-registration-example" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c">(* Define a calculator tool *)</span>
+</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="k">let</span> <span class="n">calc_tool</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">register_tool</span> <span class="n">rt</span>
+</span><span id="__span-25-3"><a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>  <span class="o">~</span><span class="n">name</span><span class="o">:</span><span class="s2">&quot;calculator&quot;</span>
+</span><span id="__span-25-4"><a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>  <span class="o">~</span><span class="n">description</span><span class="o">:</span><span class="s2">&quot;Evaluate a math expression&quot;</span>
+</span><span id="__span-25-5"><a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a>  <span class="o">~</span><span class="n">input_schema</span><span class="o">:(`</span><span class="nc">Assoc</span> <span class="o">[</span>
+</span><span id="__span-25-6"><a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>    <span class="o">(</span><span class="s2">&quot;type&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;object&quot;</span><span class="o">);</span>
+</span><span id="__span-25-7"><a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a>    <span class="o">(</span><span class="s2">&quot;properties&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">Assoc</span> <span class="o">[</span>
+</span><span id="__span-25-8"><a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a>      <span class="o">(</span><span class="s2">&quot;expression&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">Assoc</span> <span class="o">[</span>
+</span><span id="__span-25-9"><a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a>        <span class="o">(</span><span class="s2">&quot;type&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;string&quot;</span><span class="o">);</span>
+</span><span id="__span-25-10"><a id="__codelineno-25-10" name="__codelineno-25-10" href="#__codelineno-25-10"></a>        <span class="o">(</span><span class="s2">&quot;description&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;The math expression to evaluate&quot;</span><span class="o">);</span>
+</span><span id="__span-25-11"><a id="__codelineno-25-11" name="__codelineno-25-11" href="#__codelineno-25-11"></a>      <span class="o">])</span>
+</span><span id="__span-25-12"><a id="__codelineno-25-12" name="__codelineno-25-12" href="#__codelineno-25-12"></a>    <span class="o">]);</span>
+</span><span id="__span-25-13"><a id="__codelineno-25-13" name="__codelineno-25-13" href="#__codelineno-25-13"></a>    <span class="o">(</span><span class="s2">&quot;required&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">List</span> <span class="o">[`</span><span class="nc">String</span> <span class="s2">&quot;expression&quot;</span><span class="o">]);</span>
+</span><span id="__span-25-14"><a id="__codelineno-25-14" name="__codelineno-25-14" href="#__codelineno-25-14"></a>  <span class="o">])</span>
+</span><span id="__span-25-15"><a id="__codelineno-25-15" name="__codelineno-25-15" href="#__codelineno-25-15"></a>  <span class="o">~</span><span class="n">handler</span><span class="o">:(</span><span class="k">fun</span> <span class="n">input</span> <span class="n">token</span> <span class="o">-&gt;</span>
+</span><span id="__span-25-16"><a id="__codelineno-25-16" name="__codelineno-25-16" href="#__codelineno-25-16"></a>    <span class="k">match</span> <span class="n">input</span> <span class="k">with</span>
+</span><span id="__span-25-17"><a id="__codelineno-25-17" name="__codelineno-25-17" href="#__codelineno-25-17"></a>    <span class="o">|</span> <span class="o">`</span><span class="nc">Assoc</span> <span class="n">fields</span> <span class="o">-&gt;</span>
+</span><span id="__span-25-18"><a id="__codelineno-25-18" name="__codelineno-25-18" href="#__codelineno-25-18"></a>      <span class="o">(</span><span class="k">match</span> <span class="nn">List</span><span class="p">.</span><span class="n">assoc_opt</span> <span class="s2">&quot;expression&quot;</span> <span class="n">fields</span> <span class="k">with</span>
+</span><span id="__span-25-19"><a id="__codelineno-25-19" name="__codelineno-25-19" href="#__codelineno-25-19"></a>       <span class="o">|</span> <span class="nc">Some</span> <span class="o">(`</span><span class="nc">String</span> <span class="n">expr</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-25-20"><a id="__codelineno-25-20" name="__codelineno-25-20" href="#__codelineno-25-20"></a>         <span class="o">(</span><span class="k">try</span>
+</span><span id="__span-25-21"><a id="__codelineno-25-21" name="__codelineno-25-21" href="#__codelineno-25-21"></a>           <span class="k">let</span> <span class="n">result</span> <span class="o">=</span> <span class="n">float_of_string</span> <span class="n">expr</span> <span class="k">in</span>
+</span><span id="__span-25-22"><a id="__codelineno-25-22" name="__codelineno-25-22" href="#__codelineno-25-22"></a>           <span class="nn">Types</span><span class="p">.</span><span class="nc">Success</span> <span class="o">(`</span><span class="nc">Float</span> <span class="n">result</span><span class="o">)</span>
+</span><span id="__span-25-23"><a id="__codelineno-25-23" name="__codelineno-25-23" href="#__codelineno-25-23"></a>         <span class="k">with</span> <span class="o">_</span> <span class="o">-&gt;</span>
+</span><span id="__span-25-24"><a id="__codelineno-25-24" name="__codelineno-25-24" href="#__codelineno-25-24"></a>           <span class="nn">Types</span><span class="p">.</span><span class="nc">Error</span> <span class="o">{</span>
+</span><span id="__span-25-25"><a id="__codelineno-25-25" name="__codelineno-25-25" href="#__codelineno-25-25"></a>             <span class="n">category</span> <span class="o">=</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Invalid_input</span> <span class="s2">&quot;Invalid expression&quot;</span><span class="o">;</span>
+</span><span id="__span-25-26"><a id="__codelineno-25-26" name="__codelineno-25-26" href="#__codelineno-25-26"></a>             <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Could not parse expression&quot;</span><span class="o">;</span>
+</span><span id="__span-25-27"><a id="__codelineno-25-27" name="__codelineno-25-27" href="#__codelineno-25-27"></a>             <span class="n">retryable</span> <span class="o">=</span> <span class="bp">false</span><span class="o">;</span>
+</span><span id="__span-25-28"><a id="__codelineno-25-28" name="__codelineno-25-28" href="#__codelineno-25-28"></a>             <span class="n">metadata</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-25-29"><a id="__codelineno-25-29" name="__codelineno-25-29" href="#__codelineno-25-29"></a>           <span class="o">})</span>
+</span><span id="__span-25-30"><a id="__codelineno-25-30" name="__codelineno-25-30" href="#__codelineno-25-30"></a>       <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Error</span> <span class="o">{</span>
+</span><span id="__span-25-31"><a id="__codelineno-25-31" name="__codelineno-25-31" href="#__codelineno-25-31"></a>           <span class="n">category</span> <span class="o">=</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Invalid_input</span> <span class="s2">&quot;Missing expression&quot;</span><span class="o">;</span>
+</span><span id="__span-25-32"><a id="__codelineno-25-32" name="__codelineno-25-32" href="#__codelineno-25-32"></a>           <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Expression field is required&quot;</span><span class="o">;</span>
+</span><span id="__span-25-33"><a id="__codelineno-25-33" name="__codelineno-25-33" href="#__codelineno-25-33"></a>           <span class="n">retryable</span> <span class="o">=</span> <span class="bp">false</span><span class="o">;</span>
+</span><span id="__span-25-34"><a id="__codelineno-25-34" name="__codelineno-25-34" href="#__codelineno-25-34"></a>           <span class="n">metadata</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-25-35"><a id="__codelineno-25-35" name="__codelineno-25-35" href="#__codelineno-25-35"></a>         <span class="o">})</span>
+</span><span id="__span-25-36"><a id="__codelineno-25-36" name="__codelineno-25-36" href="#__codelineno-25-36"></a>    <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Error</span> <span class="o">{</span>
+</span><span id="__span-25-37"><a id="__codelineno-25-37" name="__codelineno-25-37" href="#__codelineno-25-37"></a>        <span class="n">category</span> <span class="o">=</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Invalid_input</span> <span class="s2">&quot;Invalid input&quot;</span><span class="o">;</span>
+</span><span id="__span-25-38"><a id="__codelineno-25-38" name="__codelineno-25-38" href="#__codelineno-25-38"></a>        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Input must be a JSON object&quot;</span><span class="o">;</span>
+</span><span id="__span-25-39"><a id="__codelineno-25-39" name="__codelineno-25-39" href="#__codelineno-25-39"></a>        <span class="n">retryable</span> <span class="o">=</span> <span class="bp">false</span><span class="o">;</span>
+</span><span id="__span-25-40"><a id="__codelineno-25-40" name="__codelineno-25-40" href="#__codelineno-25-40"></a>        <span class="n">metadata</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-25-41"><a id="__codelineno-25-41" name="__codelineno-25-41" href="#__codelineno-25-41"></a>      <span class="o">})</span>
+</span><span id="__span-25-42"><a id="__codelineno-25-42" name="__codelineno-25-42" href="#__codelineno-25-42"></a>  <span class="bp">()</span>
+</span></code></pre></div>
+<h2 id="react-loop">ReAct loop<a class="headerlink" href="#react-loop" title="Permanent link">&para;</a></h2>
+<p>The agent execution core is <code>Par.Engine.run_agent</code>:</p>
+<ol>
+<li>Build the conversation (system prompt + user message).</li>
+<li>Apply <code>context_strategy</code> (if configured) to manage the context window.</li>
+<li>Send the <code>on_before_llm</code> hook through the middleware chain.</li>
+<li>Call the LLM provider to get a response.</li>
+<li>Send the <code>on_after_llm</code> hook through the middleware chain.</li>
+<li>If the response contains <code>tool_calls</code>, execute each tool in order:</li>
+<li>Look up the tool descriptor.</li>
+<li>Resolve the handler from the <code>Tool_registry</code>.</li>
+<li>Execute the tool (with <code>on_before_tool</code> / <code>on_after_tool</code> hooks).</li>
+<li>Append the tool result to the conversation.</li>
+<li>Recurse until <code>finish_reason</code> is <code>Stop</code> or <code>max_iterations</code> is reached.</li>
+</ol>
+<h3 id="max_iterations-behavior">max_iterations behavior<a class="headerlink" href="#max_iterations-behavior" title="Permanent link">&para;</a></h3>
+<p>When the iteration count reaches <code>max_iterations</code>, <code>run_agent</code> returns <code>Result.Error (Internal "Max iterations exceeded")</code>.</p>
+<h3 id="on_max_tokens-behavior">on_max_tokens behavior<a class="headerlink" href="#on_max_tokens-behavior" title="Permanent link">&para;</a></h3>
+<p><strong>v0.6.x behavior change</strong>: As of v0.6.x, <code>on_max_tokens</code> is an option type. <code>None</code> (the new default) means Auto — the engine resolves the policy at runtime based on the effective tool set: <code>Continue</code> for tool-less agents (long-output generation mode), <code>Return_partial</code> for tool-bearing agents (backwards-compatible default). An explicit <code>Some Return_partial</code> / <code>Some Retry</code> / <code>Some Continue</code> always overrides Auto. The same Auto logic applies to <code>max_continuation_chunks</code>: <code>None</code> means unbounded for tool-less agents and 3 for tool-bearing.</p>
+<p>When the LLM returns <code>finish_reason=Max_tokens</code> (truncated response), the behavior depends on <code>agent.on_max_tokens</code>:</p>
+<ul>
+<li><code>Return_partial</code> (default): If the truncated response has non-empty text, preserve it and return <code>Ok</code> with the partial result. Empty truncations retain error/retry behavior.</li>
+<li><code>Retry</code>: Preserve the truncated message for context, then re-enter the ReAct loop (bounded by <code>max_iterations</code>).</li>
+<li><code>Continue</code>: Inject a "continue from where you stopped" follow-up, concatenate chunks until <code>finish_reason=Stop</code>. Capped by <code>max_continuation_chunks</code> (default 3). A diminishing-returns guard stops if a chunk adds fewer than 500 characters.</li>
+</ul>
+<p>A <code>Llm_response_truncated</code> event is emitted on every truncation for observability.</p>
+<h2 id="system-prompt-design-guidance">System prompt design guidance<a class="headerlink" href="#system-prompt-design-guidance" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Pin the agent's role and capability boundaries up front.</li>
+<li>List the available tools and the scenarios where each one fits.</li>
+<li>Specify the output format requirement (JSON, plain text, and so on).</li>
+<li>For tasks that need multi-step reasoning, prompt the agent to think step by step.</li>
+</ul>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="n">system_prompt</span> <span class="o">=</span> <span class="o">{|</span>
+</span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>  <span class="nc">You</span> <span class="n">are</span> <span class="n">a</span> <span class="n">data</span> <span class="n">analysis</span> <span class="n">assistant</span><span class="o">.</span> <span class="nc">You</span> <span class="n">have</span> <span class="n">access</span> <span class="k">to</span> <span class="n">a</span> <span class="n">calculator</span> <span class="n">tool</span><span class="o">.</span>
+</span><span id="__span-26-3"><a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>  <span class="nc">When</span> <span class="n">asked</span> <span class="k">to</span> <span class="n">compute</span> <span class="n">something</span><span class="o">:</span>
+</span><span id="__span-26-4"><a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a>  <span class="mi">1</span><span class="o">.</span> <span class="nc">Identify</span> <span class="n">the</span> <span class="n">mathematical</span> <span class="n">expression</span>
+</span><span id="__span-26-5"><a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a>  <span class="mi">2</span><span class="o">.</span> <span class="nc">Use</span> <span class="n">the</span> <span class="n">calculator</span> <span class="n">tool</span>
+</span><span id="__span-26-6"><a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a>  <span class="mi">3</span><span class="o">.</span> <span class="nc">Present</span> <span class="n">the</span> <span class="n">result</span> <span class="n">clearly</span>
+</span><span id="__span-26-7"><a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a>
+</span><span id="__span-26-8"><a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a>  <span class="nc">Always</span> <span class="n">show</span> <span class="n">your</span> <span class="n">reasoning</span> <span class="n">step</span> <span class="n">by</span> <span class="n">step</span><span class="o">.</span>
+</span><span id="__span-26-9"><a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a><span class="o">|}</span>
+</span></code></pre></div>
+<h2 id="system-prompt-templates">System prompt templates<a class="headerlink" href="#system-prompt-templates" title="Permanent link">&para;</a></h2>
+<p>When the system prompt needs to vary per invocation (injecting the agent id, the runtime id, the available tool list, or user-supplied variables), reach for <code>system_prompt_template</code> instead of a plain <code>system_prompt</code>. Added as the <code>agent_config.system_prompt_template</code> field, it ships mustache-style <code>{{variable}}</code> substitution without pulling in a templating dependency.</p>
+<h3 id="the-template-type">The template type<a class="headerlink" href="#the-template-type" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="k">type</span> <span class="n">system_prompt_template</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>  <span class="n">template</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>        <span class="c">(* Body text with {{var}} placeholders *)</span>
+</span><span id="__span-27-3"><a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>  <span class="n">variables</span> <span class="o">:</span> <span class="kt">string</span> <span class="kt">list</span><span class="o">;</span>  <span class="c">(* Every placeholder the template may use *)</span>
+</span><span id="__span-27-4"><a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a>  <span class="n">required</span> <span class="o">:</span> <span class="kt">string</span> <span class="kt">list</span><span class="o">;</span>   <span class="c">(* Subset of `variables` that must be supplied *)</span>
+</span><span id="__span-27-5"><a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="o">}</span>
+</span></code></pre></div>
+<p><code>variables</code> is the complete set of names the renderer recognizes. <code>required</code> is the subset that must be present at render time; omitting a required variable returns <code>Error</code> rather than silently substituting an empty string. Keeping the two lists separate lets a template declare optional niceties (a user's locale, a session tag) alongside hard requirements (the agent id).</p>
+<h3 id="render_context">render_context<a class="headerlink" href="#render_context" title="Permanent link">&para;</a></h3>
+<p>The renderer pulls values from a <code>render_context</code> record. The runtime builds one internally; if you call <code>Template.render</code> by hand you construct it yourself.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="k">type</span> <span class="n">render_context</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-28-2"><a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>  <span class="n">agent_id</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-28-3"><a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a>  <span class="n">runtime_id</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-28-4"><a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a>  <span class="n">user_variables</span> <span class="o">:</span> <span class="o">(</span><span class="kt">string</span> <span class="o">*</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">)</span> <span class="kt">list</span><span class="o">;</span>
+</span><span id="__span-28-5"><a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a>  <span class="n">available_tools</span> <span class="o">:</span> <span class="kt">string</span> <span class="kt">list</span><span class="o">;</span>
+</span><span id="__span-28-6"><a id="__codelineno-28-6" name="__codelineno-28-6" href="#__codelineno-28-6"></a><span class="o">}</span>
+</span></code></pre></div>
+<p><code>agent_id</code> and <code>runtime_id</code> are always available. <code>available_tools</code> is the list of tool names registered on the agent. <code>user_variables</code> is where caller-supplied values land. The renderer consults all four when resolving a <code>{{name}}</code>.</p>
+<h3 id="rendering">Rendering<a class="headerlink" href="#rendering" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-29-1"><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="k">val</span> <span class="nn">Template</span><span class="p">.</span><span class="n">render</span> <span class="o">:</span>
+</span><span id="__span-29-2"><a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>  <span class="n">template</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-29-3"><a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>  <span class="n">variables</span><span class="o">:(</span><span class="kt">string</span> <span class="o">*</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">)</span> <span class="kt">list</span> <span class="o">-&gt;</span>
+</span><span id="__span-29-4"><a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a>  <span class="n">required</span><span class="o">:</span><span class="kt">string</span> <span class="kt">list</span> <span class="o">-&gt;</span>
+</span><span id="__span-29-5"><a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a>  <span class="n">context</span><span class="o">:</span><span class="n">render_context</span> <span class="o">-&gt;</span>
+</span><span id="__span-29-6"><a id="__codelineno-29-6" name="__codelineno-29-6" href="#__codelineno-29-6"></a>  <span class="o">(</span><span class="kt">string</span><span class="o">,</span> <span class="nn">Types</span><span class="p">.</span><span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-29-7"><a id="__codelineno-29-7" name="__codelineno-29-7" href="#__codelineno-29-7"></a>
+</span><span id="__span-29-8"><a id="__codelineno-29-8" name="__codelineno-29-8" href="#__codelineno-29-8"></a><span class="k">val</span> <span class="nn">Template</span><span class="p">.</span><span class="n">effective_system_prompt</span> <span class="o">:</span>
+</span><span id="__span-29-9"><a id="__codelineno-29-9" name="__codelineno-29-9" href="#__codelineno-29-9"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">agent_config</span> <span class="o">-&gt;</span>
+</span><span id="__span-29-10"><a id="__codelineno-29-10" name="__codelineno-29-10" href="#__codelineno-29-10"></a>  <span class="n">runtime_id</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-29-11"><a id="__codelineno-29-11" name="__codelineno-29-11" href="#__codelineno-29-11"></a>  <span class="o">(</span><span class="kt">string</span><span class="o">,</span> <span class="nn">Types</span><span class="p">.</span><span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<p><code>Template.render</code> is the low-level entrypoint. <code>effective_system_prompt</code> is the convenience wrapper: pass an <code>agent_config</code> and a <code>runtime_id</code>, and it returns the final string the Engine will send to the LLM. If <code>system_prompt_template</code> is <code>None</code>, it falls back to the plain <code>system_prompt</code> field, so existing agents keep working unchanged.</p>
+<h3 id="when-to-use-a-template">When to use a template<a class="headerlink" href="#when-to-use-a-template" title="Permanent link">&para;</a></h3>
+<p>Use a template when any of these apply:</p>
+<ul>
+<li>The prompt must reference the agent id or runtime id, and you do not want to interpolate by hand.</li>
+<li>The prompt needs per-call variables (user locale, session metadata, dynamic examples) that the caller supplies.</li>
+<li>You want the renderer to enforce required variables at startup rather than discovering a missing value mid-conversation.</li>
+</ul>
+<p>Stick with a plain <code>system_prompt</code> when the text is static. A template with an empty <code>variables</code> list buys nothing and adds a render step.</p>
+<h3 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-30-1"><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="k">let</span> <span class="n">agent</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-30-2"><a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">id</span> <span class="o">=</span> <span class="s2">&quot;support&quot;</span><span class="o">;</span>
+</span><span id="__span-30-3"><a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>  <span class="n">system_prompt</span> <span class="o">=</span> <span class="nn">Types</span><span class="p">.</span><span class="n">stable_prompt</span> <span class="s2">&quot;You are a helpful assistant.&quot;</span><span class="o">;</span>   <span class="c">(* fallback *)</span>
+</span><span id="__span-30-4"><a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a>  <span class="n">system_prompt_template</span> <span class="o">=</span> <span class="nc">Some</span> <span class="o">{</span>
+</span><span id="__span-30-5"><a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a>    <span class="n">template</span> <span class="o">=</span> <span class="o">{|</span>
+</span><span id="__span-30-6"><a id="__codelineno-30-6" name="__codelineno-30-6" href="#__codelineno-30-6"></a>      <span class="nc">You</span> <span class="n">are</span> <span class="o">{{</span><span class="n">role</span><span class="o">}},</span> <span class="n">assisting</span> <span class="n">agent</span> <span class="o">{{</span><span class="n">agent_id</span><span class="o">}}</span> <span class="n">on</span> <span class="n">runtime</span> <span class="o">{{</span><span class="n">runtime_id</span><span class="o">}}.</span>
+</span><span id="__span-30-7"><a id="__codelineno-30-7" name="__codelineno-30-7" href="#__codelineno-30-7"></a>      <span class="nc">Available</span> <span class="n">tools</span><span class="o">:</span> <span class="o">{{</span><span class="n">available_tools</span><span class="o">}}.</span>
+</span><span id="__span-30-8"><a id="__codelineno-30-8" name="__codelineno-30-8" href="#__codelineno-30-8"></a>      <span class="nc">User</span> <span class="n">context</span><span class="o">:</span> <span class="o">{{</span><span class="n">user_locale</span><span class="o">}}.</span>
+</span><span id="__span-30-9"><a id="__codelineno-30-9" name="__codelineno-30-9" href="#__codelineno-30-9"></a>    <span class="o">|};</span>
+</span><span id="__span-30-10"><a id="__codelineno-30-10" name="__codelineno-30-10" href="#__codelineno-30-10"></a>    <span class="n">variables</span> <span class="o">=</span> <span class="o">[</span><span class="s2">&quot;role&quot;</span><span class="o">;</span> <span class="s2">&quot;agent_id&quot;</span><span class="o">;</span> <span class="s2">&quot;runtime_id&quot;</span><span class="o">;</span>
+</span><span id="__span-30-11"><a id="__codelineno-30-11" name="__codelineno-30-11" href="#__codelineno-30-11"></a>                 <span class="s2">&quot;available_tools&quot;</span><span class="o">;</span> <span class="s2">&quot;user_locale&quot;</span><span class="o">];</span>
+</span><span id="__span-30-12"><a id="__codelineno-30-12" name="__codelineno-30-12" href="#__codelineno-30-12"></a>    <span class="n">required</span> <span class="o">=</span> <span class="o">[</span><span class="s2">&quot;role&quot;</span><span class="o">;</span> <span class="s2">&quot;user_locale&quot;</span><span class="o">];</span>
+</span><span id="__span-30-13"><a id="__codelineno-30-13" name="__codelineno-30-13" href="#__codelineno-30-13"></a>  <span class="o">};</span>
+</span><span id="__span-30-14"><a id="__codelineno-30-14" name="__codelineno-30-14" href="#__codelineno-30-14"></a>  <span class="n">model</span> <span class="o">=</span> <span class="c">(* ... *)</span><span class="o">;</span>
+</span><span id="__span-30-15"><a id="__codelineno-30-15" name="__codelineno-30-15" href="#__codelineno-30-15"></a>  <span class="n">tools</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-30-16"><a id="__codelineno-30-16" name="__codelineno-30-16" href="#__codelineno-30-16"></a>  <span class="n">max_iterations</span> <span class="o">=</span> <span class="mi">5</span><span class="o">;</span>
+</span><span id="__span-30-17"><a id="__codelineno-30-17" name="__codelineno-30-17" href="#__codelineno-30-17"></a>  <span class="n">middleware</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-30-18"><a id="__codelineno-30-18" name="__codelineno-30-18" href="#__codelineno-30-18"></a>  <span class="n">retry_policy</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-30-19"><a id="__codelineno-30-19" name="__codelineno-30-19" href="#__codelineno-30-19"></a>  <span class="n">context_strategy</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-30-20"><a id="__codelineno-30-20" name="__codelineno-30-20" href="#__codelineno-30-20"></a>  <span class="n">resource_quota</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-30-21"><a id="__codelineno-30-21" name="__codelineno-30-21" href="#__codelineno-30-21"></a>  <span class="n">max_execution_time</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-30-22"><a id="__codelineno-30-22" name="__codelineno-30-22" href="#__codelineno-30-22"></a>  <span class="n">early_stopping_method</span> <span class="o">=</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Force</span><span class="o">;</span>
+</span><span id="__span-30-23"><a id="__codelineno-30-23" name="__codelineno-30-23" href="#__codelineno-30-23"></a>  <span class="n">on_max_tokens</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>              <span class="c">(* Auto: Continue (this agent has no tools) *)</span>
+</span><span id="__span-30-24"><a id="__codelineno-30-24" name="__codelineno-30-24" href="#__codelineno-30-24"></a>  <span class="n">max_continuation_chunks</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>    <span class="c">(* Auto: unbounded (tool-less long-output mode) *)</span>
+</span><span id="__span-30-25"><a id="__codelineno-30-25" name="__codelineno-30-25" href="#__codelineno-30-25"></a>  <span class="n">tool_timeout</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-30-26"><a id="__codelineno-30-26" name="__codelineno-30-26" href="#__codelineno-30-26"></a><span class="o">}</span>
+</span></code></pre></div>
+<p>At invoke time, the renderer substitutes <code>agent_id</code>, <code>runtime_id</code>, and <code>available_tools</code> from the runtime, and pulls <code>role</code> and <code>user_locale</code> from the per-call <code>user_variables</code>. Because both are <code>required</code>, a caller that forgets <code>user_locale</code> gets an <code>Error</code> before the first LLM round trip, not a garbled prompt.</p>
+<h2 id="context-strategy">Context strategy<a class="headerlink" href="#context-strategy" title="Permanent link">&para;</a></h2>
+<p>Long conversations outgrow the model's context window. The <code>agent_config.context_strategy</code> field decides how PAR trims a conversation before each LLM call. Leave it as <code>None</code> and the runtime applies its default; set it explicitly to override.</p>
+<h3 id="the-strategy-variant">The strategy variant<a class="headerlink" href="#the-strategy-variant" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-31-1"><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a><span class="k">type</span> <span class="n">context_strategy</span> <span class="o">=</span>
+</span><span id="__span-31-2"><a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a>  <span class="o">|</span> <span class="nc">Truncate_oldest</span> <span class="k">of</span> <span class="o">{</span> <span class="n">keep_system</span> <span class="o">:</span> <span class="kt">bool</span><span class="o">;</span> <span class="n">min_messages</span> <span class="o">:</span> <span class="kt">int</span> <span class="o">}</span>
+</span><span id="__span-31-3"><a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a>  <span class="o">|</span> <span class="nc">Summarize</span> <span class="k">of</span> <span class="o">{</span> <span class="n">max_tokens</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span> <span class="n">summary_model</span> <span class="o">:</span> <span class="n">model_config</span> <span class="n">option</span> <span class="o">}</span>
+</span><span id="__span-31-4"><a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a>  <span class="o">|</span> <span class="nc">Sliding_window</span> <span class="k">of</span> <span class="o">{</span> <span class="n">max_messages</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span> <span class="n">max_tokens</span> <span class="o">:</span> <span class="kt">int</span> <span class="o">}</span>
+</span></code></pre></div>
+<p><code>Truncate_oldest</code> drops the oldest non-system messages until the conversation fits. <code>keep_system</code> (default true) pins system messages at the front; <code>min_messages</code> is the floor below which nothing else is dropped even if the token estimate is over budget. Reach for this strategy when the recent turns carry the signal and old turns are noise.</p>
+<p><code>Summarize</code> compresses earlier turns into a summary message using a second LLM call. <code>max_tokens</code> bounds the summary length. <code>summary_model</code> optionally routes the summarization call to a cheaper or faster model than the agent's primary model; <code>None</code> reuses the agent's own <code>model_config</code>. This is the right choice when early context genuinely matters but token budget is tight, at the cost of an extra LLM round trip per summarization.</p>
+<p><code>Sliding_window</code> keeps the most recent <code>max_messages</code> messages and drops everything older, subject to a <code>max_tokens</code> ceiling. It is the cheapest strategy because it never calls another model, and it preserves the tail of the conversation verbatim. Pre-v0.6.3 this was the default; from v0.6.3 onward the default is <code>Summarize</code> (see "Auto context compression" above).</p>
+<h3 id="how-the-engine-applies-a-strategy">How the Engine applies a strategy<a class="headerlink" href="#how-the-engine-applies-a-strategy" title="Permanent link">&para;</a></h3>
+<p>Before each LLM round trip, the Engine calls <code>Context_manager.apply_strategy</code> on the current conversation. The function either returns the (possibly reduced) conversation or an <code>Error</code> if the strategy could not satisfy its constraints (for example, <code>Truncate_oldest</code> hitting <code>min_messages</code> while still over <code>max_tokens</code>).</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-32-1"><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="k">val</span> <span class="nn">Context_manager</span><span class="p">.</span><span class="n">apply_strategy</span> <span class="o">:</span>
+</span><span id="__span-32-2"><a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">context_strategy</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">conversation</span> <span class="o">-&gt;</span>
+</span><span id="__span-32-3"><a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">llm_service</span> <span class="n">option</span> <span class="o">-&gt;</span>
+</span><span id="__span-32-4"><a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a>  <span class="n">on_event</span><span class="o">:(</span><span class="nn">Types</span><span class="p">.</span><span class="n">event</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="n">option</span> <span class="o">-&gt;</span>
+</span><span id="__span-32-5"><a id="__codelineno-32-5" name="__codelineno-32-5" href="#__codelineno-32-5"></a>  <span class="o">(</span><span class="nn">Types</span><span class="p">.</span><span class="n">conversation</span><span class="o">,</span> <span class="nn">Types</span><span class="p">.</span><span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-32-6"><a id="__codelineno-32-6" name="__codelineno-32-6" href="#__codelineno-32-6"></a>
+</span><span id="__span-32-7"><a id="__codelineno-32-7" name="__codelineno-32-7" href="#__codelineno-32-7"></a><span class="k">val</span> <span class="nn">Context_manager</span><span class="p">.</span><span class="n">estimate_tokens</span> <span class="o">:</span> <span class="nn">Types</span><span class="p">.</span><span class="n">conversation</span> <span class="o">-&gt;</span> <span class="kt">int</span>
+</span></code></pre></div>
+<p><code>estimate_tokens</code> is a rough character-divided-by-four heuristic. It is not a tokenizer. Treat the number as advisory when reasoning about budgets.</p>
+<h3 id="the-v051-default">The v0.5.1 default<a class="headerlink" href="#the-v051-default" title="Permanent link">&para;</a></h3>
+<p>As of v0.5.1, a runtime with no explicit <code>context_strategy</code> gets:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-33-1"><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a><span class="nc">Some</span> <span class="o">(</span><span class="nc">Sliding_window</span> <span class="o">{</span> <span class="n">max_messages</span> <span class="o">=</span> <span class="mi">100</span><span class="o">;</span> <span class="n">max_tokens</span> <span class="o">=</span> <span class="mi">200000</span> <span class="o">})</span>
+</span></code></pre></div>
+<p>This is a deliberate change from earlier betas, which left the strategy unset and let conversations grow unbounded until the provider rejected them. The 200K token ceiling matches the largest current production models, and the 100 message ceiling keeps the conversation from sprawling even when individual messages are short. If you previously relied on unbounded growth (for example, summarizing yourself outside the runtime), set <code>context_strategy = None</code> explicitly to restore the old behavior.</p>
+<p>For agents that talk to models with smaller windows, lower both numbers. A 4K-token model paired with <code>max_messages = 100</code> will still trip provider limits, because <code>max_messages</code> is checked before token estimation.</p>
+<h2 id="cancellation-tokens">Cancellation tokens<a class="headerlink" href="#cancellation-tokens" title="Permanent link">&para;</a></h2>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-34-1"><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">create_token</span> <span class="o">:</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span> <span class="n">cancellation_token</span>
+</span><span id="__span-34-2"><a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">request_cancel</span> <span class="o">:</span> <span class="n">cancellation_token</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-34-3"><a id="__codelineno-34-3" name="__codelineno-34-3" href="#__codelineno-34-3"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">check_cancel</span> <span class="o">:</span> <span class="n">cancellation_token</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-34-4"><a id="__codelineno-34-4" name="__codelineno-34-4" href="#__codelineno-34-4"></a>  <span class="c">(* raises Eio.Cancel.Cancelled if already cancelled *)</span>
+</span><span id="__span-34-5"><a id="__codelineno-34-5" name="__codelineno-34-5" href="#__codelineno-34-5"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">with_timeout</span> <span class="o">:</span> <span class="kt">float</span> <span class="o">-&gt;</span> <span class="n">cancellation_token</span> <span class="o">-&gt;</span>
+</span><span id="__span-34-6"><a id="__codelineno-34-6" name="__codelineno-34-6" href="#__codelineno-34-6"></a>  <span class="o">(</span><span class="n">cancellation_token</span> <span class="o">-&gt;</span> <span class="k">&#39;</span><span class="n">a</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="k">&#39;</span><span class="n">a</span><span class="o">,</span> <span class="o">[</span> <span class="o">`</span><span class="nc">Cancelled</span> <span class="o">|</span> <span class="o">`</span><span class="nc">Timeout</span> <span class="o">])</span> <span class="n">result</span>
+</span></code></pre></div>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-35-1"><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a><span class="k">let</span> <span class="n">token</span> <span class="o">=</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">create_token</span> <span class="n">switch</span> <span class="k">in</span>
+</span><span id="__span-35-2"><a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a><span class="c">(* Can be cancelled from another fiber *)</span>
+</span><span id="__span-35-3"><a id="__codelineno-35-3" name="__codelineno-35-3" href="#__codelineno-35-3"></a><span class="nn">Cancellation</span><span class="p">.</span><span class="n">request_cancel</span> <span class="n">token</span>
+</span></code></pre></div>
+<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../overview/">Overview</a> -- SDK architecture overview</li>
+<li><a href="../invoke_context/">invoke_context</a> -- Per-call isolation, <code>invoke_async</code>, dynamic system prompt</li>
+<li><a href="../workflow/">Workflow API</a> -- Workflow orchestration</li>
+<li><a href="../middleware/">Middleware API</a> -- Middleware pipeline</li>
+<li><a href="../memory/">Memory API</a> -- Cross-session agent memory with FTS5 search</li>
+<li><a href="../mcp/">MCP client</a> -- <code>Runtime.mcp_server</code> lifecycle, <code>call_tool</code>, <code>read_resource</code>, <code>get_prompt</code></li>
+<li><a href="../../examples/basic_agent.ml">examples/basic_agent.ml</a> -- Complete runnable example</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

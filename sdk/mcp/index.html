@@ -1,0 +1,3296 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/sdk/mcp/">
+      
+      
+        <link rel="prev" href="../tools/">
+      
+      
+        <link rel="next" href="../streaming/">
+      
+      
+        
+          <link rel="alternate" href="./" hreflang="en">
+        
+          <link rel="alternate" href="../../zh/sdk/mcp/" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>MCP Client - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#mcp-client-api-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              MCP Client
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../zh/sdk/mcp/" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Tutorial
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  How-to
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorial
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/rag-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build a RAG Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../invoke_context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    invoke_context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#three-public-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Three public modules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v031-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.3.1 scope
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runtime Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#construction-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Construction parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#startup-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Startup policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shutdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shutdown
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#accessing-the-server-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing the server table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mcp_client-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mcp_client API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mcp_client API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Type
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connect-and-disconnect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connect and disconnect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#accessors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prompts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prompts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#utility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Utility
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mcp_server-low-level-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mcp_server Low-Level API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mcp_server Low-Level API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spawn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spawn
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#accessors_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generic-rpc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generic RPC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stop
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event Types
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Event Types">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#subscription-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Subscription example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#error-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error events
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#naming-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Naming rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environment-variable-isolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment variable isolation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#type-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Type Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Type Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#capabilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        capabilities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tools-resources-and-prompts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools, resources, and prompts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-public-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other public types
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Best Practices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#choosing-a-startup-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing a startup policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#timeout-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timeout settings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event monitoring
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#do-not-pass-secrets-through-env" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Do not pass secrets through env
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-audit-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security Audit Checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generate API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../document_loaders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Loaders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prompt_caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/concurrency-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/persistence-and-durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence and Durability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/rag-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#three-public-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Three public modules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v031-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.3.1 scope
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runtime Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#construction-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Construction parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#startup-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Startup policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shutdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shutdown
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#accessing-the-server-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing the server table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mcp_client-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mcp_client API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mcp_client API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Type
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#connect-and-disconnect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connect and disconnect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#accessors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prompts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prompts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#utility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Utility
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mcp_server-low-level-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mcp_server Low-Level API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mcp_server Low-Level API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spawn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spawn
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#accessors_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generic-rpc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generic RPC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stop
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event Types
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Event Types">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#subscription-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Subscription example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#error-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error events
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#naming-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Naming rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environment-variable-isolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment variable isolation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#type-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Type Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Type Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#capabilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        capabilities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tools-resources-and-prompts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools, resources, and prompts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-public-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other public types
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Best Practices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#choosing-a-startup-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing a startup policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#timeout-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timeout settings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event monitoring
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#do-not-pass-secrets-through-env" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Do not pass secrets through env
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-audit-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security Audit Checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<!-- language: en -->
+
+<p><strong>English</strong> · <a href="../zh/sdk/mcp.md">简体中文</a></p>
+<blockquote>
+<p>Translated to English for v0.3.2. Source-of-truth: the OCaml modules in lib/mcp/.</p>
+</blockquote>
+<h1 id="mcp-client-api-reference">MCP Client API Reference<a class="headerlink" href="#mcp-client-api-reference" title="Permanent link">&para;</a></h1>
+<p>This document describes the P-A-R SDK's MCP (Model Context Protocol) client (stdio + HTTP/SSE). A PAR agent can connect to any MCP server (filesystem, git, sqlite, github, etc.) and consume the tools, resources, and prompts it exposes.</p>
+<p><strong>Version</strong>: v0.3.1
+<strong>Transports</strong>: stdio + HTTP/SSE (Streamable HTTP, spec 2025-06-18)</p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>MCP is the LLM tool integration protocol proposed by Anthropic. The server side exposes tools, data resources, and prompt templates over stdio as JSON-RPC 2.0. PAR v0.3.1 implements the client side, so any PAR agent can transparently call any server that follows the MCP specification.</p>
+<p>Why stdio first: local process communication removes network dependencies, TLS configuration, and reverse-proxy burden, and covers 90% of existing MCP server scenarios.</p>
+<h3 id="three-public-modules">Three public modules<a class="headerlink" href="#three-public-modules" title="Permanent link">&para;</a></h3>
+<p>Available after <code>open Par</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Par.Mcp_types</code></td>
+<td>Protocol types: config, capabilities, tool/resource/prompt records, JSON-RPC types</td>
+</tr>
+<tr>
+<td><code>Par.Mcp_server</code></td>
+<td>Low-level server lifecycle: spawn, stop, call_method, notify</td>
+</tr>
+<tr>
+<td><code>Par.Mcp_client</code></td>
+<td>High-level typed API: connect, list_tools, call_tool, read_resource, get_prompt</td>
+</tr>
+</tbody>
+</table>
+<p>Most users only need <code>Mcp_client</code>. Reach for <code>Mcp_server</code> when you need to manage the lifecycle yourself (for example, dynamic add/remove of servers). Transports live in <code>Mcp_transport_stdio</code> (local process) and <code>Mcp_transport_http</code> (remote HTTP/SSE); server name validation in <code>Mcp_naming</code>; error mapping in <code>Mcp_errors</code>.</p>
+<h3 id="v031-scope">v0.3.1 scope<a class="headerlink" href="#v031-scope" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>stdio transport</td>
+<td>done</td>
+</tr>
+<tr>
+<td>initialize / initialized handshake</td>
+<td>done</td>
+</tr>
+<tr>
+<td>tools/list, tools/call</td>
+<td>done</td>
+</tr>
+<tr>
+<td>resources/list, resources/read</td>
+<td>done</td>
+</tr>
+<tr>
+<td>prompts/list, prompts/get</td>
+<td>done</td>
+</tr>
+<tr>
+<td>ping</td>
+<td>done</td>
+</tr>
+<tr>
+<td>notifications (list_changed, progress, cancelled)</td>
+<td>done</td>
+</tr>
+<tr>
+<td>Startup policy: fail-fast / log-and-continue</td>
+<td>done</td>
+</tr>
+<tr>
+<td>Graceful shutdown (SIGTERM then SIGKILL fallback)</td>
+<td>done</td>
+</tr>
+<tr>
+<td>HTTP / SSE transport</td>
+<td>done (v0.4.3)</td>
+</tr>
+<tr>
+<td>sampling (server to LLM reverse call)</td>
+<td>not implemented</td>
+</tr>
+<tr>
+<td>roots / elicitation</td>
+<td>not implemented</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
+<p>Minimal example: connect an <code>npx</code>-style MCP filesystem server.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="k">let</span> <span class="n">config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  <span class="n">persistence</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Sqlite</span> <span class="s2">&quot;:memory:&quot;</span><span class="o">;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  <span class="n">event_bus</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">default_event_bus_config</span><span class="o">;</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  <span class="n">default_quota</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">default_quota</span><span class="o">;</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  <span class="n">shutdown</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">default_shutdown_config</span><span class="o">;</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  <span class="n">llm_providers</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  <span class="n">eval_limits</span> <span class="o">=</span> <span class="o">{</span> <span class="n">max_depth</span> <span class="o">=</span> <span class="mi">10</span><span class="o">;</span> <span class="n">max_node_visits</span> <span class="o">=</span> <span class="mi">1000</span> <span class="o">};</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="o">}</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="k">let</span> <span class="n">mcp_fs_config</span> <span class="o">:</span> <span class="nn">Mcp_types</span><span class="p">.</span><span class="n">server_config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>  <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;fs&quot;</span><span class="o">;</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>  <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;npx&quot;</span><span class="o">;</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>  <span class="n">args</span> <span class="o">=</span> <span class="o">[</span> <span class="s2">&quot;-y&quot;</span><span class="o">;</span> <span class="s2">&quot;@modelcontextprotocol/server-filesystem&quot;</span><span class="o">;</span> <span class="s2">&quot;/tmp&quot;</span> <span class="o">];</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>  <span class="n">env</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>  <span class="n">cwd</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>  <span class="n">startup_timeout</span> <span class="o">=</span> <span class="mi">10</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="o">}</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="k">let</span> <span class="bp">()</span> <span class="o">=</span> <span class="nn">Eio_main</span><span class="p">.</span><span class="n">run</span> <span class="o">(</span><span class="k">fun</span> <span class="n">env</span> <span class="o">-&gt;</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>  <span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">run</span> <span class="o">(</span><span class="k">fun</span> <span class="n">sw</span> <span class="o">-&gt;</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    <span class="k">let</span> <span class="n">mgr</span> <span class="o">=</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Stdenv</span><span class="p">.</span><span class="n">process_mgr</span> <span class="n">env</span> <span class="k">in</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    <span class="k">let</span> <span class="n">clock</span> <span class="o">=</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Stdenv</span><span class="p">.</span><span class="n">clock</span> <span class="n">env</span> <span class="k">in</span>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>    <span class="k">match</span>
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>      <span class="nn">Runtime</span><span class="p">.</span><span class="n">create</span>
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>        <span class="o">~</span><span class="n">mcp_servers</span><span class="o">:[</span><span class="n">mcp_fs_config</span><span class="o">]</span>
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>        <span class="o">~</span><span class="n">mcp_process_mgr</span><span class="o">:</span><span class="n">mgr</span>
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>        <span class="o">~</span><span class="n">mcp_clock</span><span class="o">:</span><span class="n">clock</span>
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>        <span class="o">~</span><span class="n">config</span> <span class="n">sw</span>
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>    <span class="k">with</span>
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>    <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>      <span class="nn">Printf</span><span class="p">.</span><span class="n">eprintf</span> <span class="s2">&quot;Runtime create failed: %a</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>        <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">pp</span> <span class="o">(</span><span class="nn">Types</span><span class="p">.</span><span class="n">error_category_to_yojson</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>    <span class="o">|</span> <span class="nc">Ok</span> <span class="n">rt</span> <span class="o">-&gt;</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>      <span class="c">(* Pull the client handle by server_id *)</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>      <span class="o">(</span><span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">mcp_server</span> <span class="n">rt</span> <span class="o">(</span><span class="nn">Mcp_types</span><span class="p">.</span><span class="n">server_id_of_string</span> <span class="s2">&quot;fs&quot;</span> <span class="o">|&gt;</span> <span class="nn">Result</span><span class="p">.</span><span class="n">get_ok</span><span class="o">)</span> <span class="k">with</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>       <span class="o">|</span> <span class="nc">Error</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">eprintf</span> <span class="s2">&quot;Server not found</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>       <span class="o">|</span> <span class="nc">Ok</span> <span class="o">_</span><span class="n">client</span> <span class="o">-&gt;</span> <span class="bp">()</span><span class="o">);</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>      <span class="n">ignore</span> <span class="o">(</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">close</span> <span class="n">rt</span><span class="o">)</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>  <span class="o">)</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a><span class="o">)</span>
+</span></code></pre></div>
+<p><code>Runtime.create</code> internally spawns a child process for every configured server, runs the initialize handshake, and only returns <code>Ok rt</code> once every server has reached the <code>Ready</code> state (under the fail-fast policy).</p>
+<hr />
+<h2 id="runtime-integration">Runtime Integration<a class="headerlink" href="#runtime-integration" title="Permanent link">&para;</a></h2>
+<h3 id="construction-parameters">Construction parameters<a class="headerlink" href="#construction-parameters" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">val</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">create</span> <span class="o">:</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  <span class="o">?</span><span class="n">persistence</span><span class="o">:</span><span class="n">persistence_service</span> <span class="o">-&gt;</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  <span class="o">?</span><span class="n">event_bus</span><span class="o">:</span><span class="nn">Types</span><span class="p">.</span><span class="n">event_bus_service</span> <span class="o">-&gt;</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  <span class="o">?</span><span class="n">llm</span><span class="o">:</span><span class="n">llm_service</span> <span class="o">-&gt;</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  <span class="o">?</span><span class="n">bash_policy</span><span class="o">:(</span><span class="k">module</span> <span class="nn">Bash_policy</span><span class="p">.</span><span class="nc">POLICY</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>  <span class="o">?</span><span class="n">mcp_servers</span><span class="o">:</span><span class="nn">Mcp_types</span><span class="p">.</span><span class="n">server_config</span> <span class="kt">list</span> <span class="o">-&gt;</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>  <span class="o">?</span><span class="n">mcp_process_mgr</span><span class="o">:_</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Process</span><span class="p">.</span><span class="n">mgr</span> <span class="o">-&gt;</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>  <span class="o">?</span><span class="n">mcp_clock</span><span class="o">:_</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Time</span><span class="p">.</span><span class="n">clock</span> <span class="o">-&gt;</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>  <span class="o">?</span><span class="n">mcp_startup_policy</span><span class="o">:</span><span class="nn">Mcp_types</span><span class="p">.</span><span class="n">startup_policy</span> <span class="o">-&gt;</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>  <span class="n">config</span><span class="o">:</span><span class="n">runtime_config</span> <span class="o">-&gt;</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>  <span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>  <span class="o">(</span><span class="n">runtime</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<p>MCP-related parameters:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Required when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>?mcp_servers</code></td>
+<td><code>server_config list</code></td>
+<td><code>[]</code></td>
+<td>no</td>
+</tr>
+<tr>
+<td><code>?mcp_process_mgr</code></td>
+<td><code>Eio.Process.mgr</code></td>
+<td>none</td>
+<td>required if <code>mcp_servers</code> is non-empty</td>
+</tr>
+<tr>
+<td><code>?mcp_clock</code></td>
+<td><code>Eio.Time.clock</code></td>
+<td>none</td>
+<td>required if <code>mcp_servers</code> is non-empty</td>
+</tr>
+<tr>
+<td><code>?mcp_startup_policy</code></td>
+<td><code>startup_policy</code></td>
+<td><code>Fail_fast</code></td>
+<td>no</td>
+</tr>
+</tbody>
+</table>
+<p>The idiomatic call pulls the Eio environment once and threads it through.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nn">Eio_main</span><span class="p">.</span><span class="n">run</span> <span class="o">(</span><span class="k">fun</span> <span class="n">env</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  <span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">run</span> <span class="o">(</span><span class="k">fun</span> <span class="n">sw</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="k">let</span> <span class="n">mgr</span> <span class="o">=</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Stdenv</span><span class="p">.</span><span class="n">process_mgr</span> <span class="n">env</span> <span class="k">in</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="k">let</span> <span class="n">clock</span> <span class="o">=</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Stdenv</span><span class="p">.</span><span class="n">clock</span> <span class="n">env</span> <span class="k">in</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="k">let</span> <span class="n">rt</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">create</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>      <span class="o">~</span><span class="n">mcp_servers</span><span class="o">:[</span><span class="n">fs_cfg</span><span class="o">;</span> <span class="n">git_cfg</span><span class="o">]</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>      <span class="o">~</span><span class="n">mcp_process_mgr</span><span class="o">:</span><span class="n">mgr</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>      <span class="o">~</span><span class="n">mcp_clock</span><span class="o">:</span><span class="n">clock</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>      <span class="o">~</span><span class="n">mcp_startup_policy</span><span class="o">:</span><span class="nn">Mcp_types</span><span class="p">.</span><span class="nc">Log_and_continue</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>      <span class="o">~</span><span class="n">config</span> <span class="n">sw</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>      <span class="o">|&gt;</span> <span class="nn">Result</span><span class="p">.</span><span class="n">get_ok</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    <span class="k">in</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>    <span class="o">...</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>  <span class="o">)</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="o">)</span>
+</span></code></pre></div>
+<h3 id="startup-policy">Startup policy<a class="headerlink" href="#startup-policy" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">type</span> <span class="n">startup_policy</span> <span class="o">=</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  <span class="o">|</span> <span class="nc">Fail_fast</span>          <span class="c">(* Any server failing to start returns Error immediately *)</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  <span class="o">|</span> <span class="nc">Log_and_continue</span>   <span class="c">(* Failed servers are reported on the event bus; the rest keep running *)</span>
+</span></code></pre></div>
+<ul>
+<li><strong><code>Fail_fast</code></strong> (default): right for production, where every server must be available.</li>
+<li><strong><code>Log_and_continue</code></strong>: right for development or optional capabilities (a linter server, for example). Detect failures through the <code>Mcp_server_failed</code> event.</li>
+</ul>
+<h3 id="shutdown">Shutdown<a class="headerlink" href="#shutdown" title="Permanent link">&para;</a></h3>
+<p><code>Runtime.close</code> is the master switch: it closes every MCP server first, then the event bus and persistence layer. Each server emits one <code>Mcp_server_stopped</code> event as it shuts down.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">let</span> <span class="o">_</span><span class="n">exit_code</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">close</span> <span class="n">rt</span>
+</span></code></pre></div>
+<p>You do not need to call <code>Mcp_client.disconnect</code> or <code>Mcp_server.stop</code> manually. <code>Runtime.close</code> owns every derived resource.</p>
+<h3 id="accessing-the-server-table">Accessing the server table<a class="headerlink" href="#accessing-the-server-table" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="o">`</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">mcp_servers</span><span class="o">`</span> <span class="n">returns</span> <span class="n">the</span> <span class="n">set</span> <span class="k">of</span> <span class="n">servers</span> <span class="n">the</span> <span class="n">runtime</span> <span class="n">currently</span> <span class="n">holds</span> <span class="o">(</span><span class="n">a</span> <span class="o">`</span><span class="n">server_id</span> <span class="err">→</span> <span class="n">server</span><span class="o">`</span> <span class="n">map</span><span class="o">).</span> <span class="o">`</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">mcp_server</span><span class="o">`</span> <span class="n">looks</span> <span class="n">up</span> <span class="n">a</span> <span class="n">single</span> <span class="n">server</span> <span class="n">by</span> <span class="n">id</span><span class="o">.</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nc">The</span> <span class="o">`</span><span class="n">server_id</span><span class="o">`</span> <span class="n">defaults</span> <span class="k">to</span> <span class="n">the</span> <span class="o">`</span><span class="n">server_config</span><span class="o">.</span><span class="n">name</span><span class="o">`</span> <span class="n">field</span><span class="o">.</span> <span class="nc">Duplicate</span> <span class="n">names</span> <span class="n">get</span> <span class="n">an</span> <span class="n">automatic</span> <span class="n">suffix</span> <span class="o">(`-</span><span class="mi">1</span><span class="o">`,</span> <span class="o">`-</span><span class="mi">2</span><span class="o">`,</span> <span class="k">and</span> <span class="n">so</span> <span class="n">on</span><span class="o">),</span> <span class="n">implemented</span> <span class="n">by</span> <span class="o">`</span><span class="n">server_id_with_suffix</span><span class="o">`.</span> <span class="o">`</span><span class="n">server_id_compare</span><span class="o">`</span> <span class="n">is</span> <span class="n">used</span> <span class="k">for</span> <span class="n">sorting</span><span class="o">.</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="o">```</span><span class="n">ocaml</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="c">(* Look up by id *)</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="k">let</span> <span class="n">sid</span> <span class="o">=</span> <span class="nn">Mcp_types</span><span class="p">.</span><span class="n">server_id_of_string</span> <span class="s2">&quot;fs&quot;</span> <span class="o">|&gt;</span> <span class="nn">Result</span><span class="p">.</span><span class="n">get_ok</span> <span class="k">in</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">mcp_server</span> <span class="n">rt</span> <span class="n">sid</span> <span class="k">with</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">srv</span> <span class="o">-&gt;</span> <span class="nn">Mcp_server</span><span class="p">.</span><span class="n">status</span> <span class="n">srv</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="o">|</span> <span class="nc">Error</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="o">...</span>
+</span></code></pre></div>
+<p>Server name validation is centralized in <code>Mcp_naming.validate_server_name</code>; the rules are: nonempty, at most 32 characters, and limited to <code>[a-zA-Z0-9_-]</code>.</p>
+<hr />
+<h2 id="mcp_client-api">Mcp_client API<a class="headerlink" href="#mcp_client-api" title="Permanent link">&para;</a></h2>
+<p>The high-level typed API. Most scenarios should use <code>Mcp_client</code> instead of touching <code>Mcp_server</code> directly: JSON parsing and <code>result</code> field extraction are hidden from you.</p>
+<h3 id="type">Type<a class="headerlink" href="#type" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">type</span> <span class="n">t</span>  <span class="c">(* Wraps a ready Mcp_server.t *)</span>
+</span></code></pre></div>
+<h3 id="connect-and-disconnect">Connect and disconnect<a class="headerlink" href="#connect-and-disconnect" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">val</span> <span class="n">connect</span> <span class="o">:</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>  <span class="n">sw</span><span class="o">:</span><span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>  <span class="n">process_mgr</span><span class="o">:_</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Process</span><span class="p">.</span><span class="n">mgr</span> <span class="o">-&gt;</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>  <span class="n">clock</span><span class="o">:_</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Time</span><span class="p">.</span><span class="n">clock</span> <span class="o">-&gt;</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>  <span class="nn">Mcp_types</span><span class="p">.</span><span class="n">server_config</span> <span class="o">-&gt;</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>  <span class="o">(</span><span class="n">t</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="k">val</span> <span class="n">disconnect</span> <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="kt">unit</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<p><code>connect</code> is <code>Mcp_server.spawn</code> plus the client wrapper. <code>disconnect</code> delegates to <code>Mcp_server.stop</code> and is idempotent.</p>
+<h3 id="accessors">Accessors<a class="headerlink" href="#accessors" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">val</span> <span class="n">id</span>           <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Mcp_types</span><span class="p">.</span><span class="n">server_id</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="k">val</span> <span class="n">name</span>         <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="kt">string</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="k">val</span> <span class="n">capabilities</span> <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Mcp_types</span><span class="p">.</span><span class="n">capabilities</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="k">val</span> <span class="n">status</span>       <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Mcp_server</span><span class="p">.</span><span class="n">status</span>
+</span></code></pre></div>
+<p><code>status</code> returns <code>Starting | Ready of capabilities | Failed of error | Stopped</code>. In a healthy run it is always <code>Ready</code>.</p>
+<h3 id="tools">Tools<a class="headerlink" href="#tools" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">val</span> <span class="n">list_tools</span> <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="nn">Mcp_types</span><span class="p">.</span><span class="n">mcp_tool</span> <span class="kt">list</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="k">val</span> <span class="n">call_tool</span>  <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="n">name</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span> <span class="n">arguments</span><span class="o">:</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>                 <span class="o">(</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<p><code>list_tools</code> returns the metadata of every tool the server has registered. The <code>arguments</code> to <code>call_tool</code> is the JSON input that the server's tool requires; the return value is also raw JSON, which the caller parses against <code>input_schema</code>.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">let</span> <span class="n">print_tools</span> <span class="o">(</span><span class="n">client</span> <span class="o">:</span> <span class="nn">Mcp_client</span><span class="p">.</span><span class="n">t</span><span class="o">)</span> <span class="o">=</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>  <span class="k">match</span> <span class="nn">Mcp_client</span><span class="p">.</span><span class="n">list_tools</span> <span class="n">client</span> <span class="k">with</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>  <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="nn">Printf</span><span class="p">.</span><span class="n">eprintf</span> <span class="s2">&quot;list_tools failed: %a</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>      <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">pp</span> <span class="o">(</span><span class="nn">Types</span><span class="p">.</span><span class="n">error_category_to_yojson</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>  <span class="o">|</span> <span class="nc">Ok</span> <span class="n">tools</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="nn">List</span><span class="p">.</span><span class="n">iter</span> <span class="o">(</span><span class="k">fun</span> <span class="n">t</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>      <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;- %s : %s</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>        <span class="n">t</span><span class="o">.</span><span class="nn">Mcp_types</span><span class="p">.</span><span class="n">name</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>        <span class="o">(</span><span class="nn">Option</span><span class="p">.</span><span class="n">value</span> <span class="n">t</span><span class="o">.</span><span class="nn">Mcp_types</span><span class="p">.</span><span class="n">description</span> <span class="o">~</span><span class="n">default</span><span class="o">:</span><span class="s2">&quot;&quot;</span><span class="o">))</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>      <span class="n">tools</span>
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>
+</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="c">(* Invoke *)</span>
+</span><span id="__span-10-14"><a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a><span class="k">let</span> <span class="n">args</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Assoc</span> <span class="o">[</span> <span class="o">(</span><span class="s2">&quot;path&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;/tmp/hello.txt&quot;</span><span class="o">)</span> <span class="o">]</span> <span class="k">in</span>
+</span><span id="__span-10-15"><a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a><span class="k">match</span> <span class="nn">Mcp_client</span><span class="p">.</span><span class="n">call_tool</span> <span class="n">client</span> <span class="o">~</span><span class="n">name</span><span class="o">:</span><span class="s2">&quot;read_file&quot;</span> <span class="o">~</span><span class="n">arguments</span><span class="o">:</span><span class="n">args</span> <span class="k">with</span>
+</span><span id="__span-10-16"><a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">result</span> <span class="o">-&gt;</span> <span class="n">print_endline</span> <span class="o">(</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">to_string</span> <span class="n">result</span><span class="o">)</span>
+</span><span id="__span-10-17"><a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="o">...</span>
+</span></code></pre></div>
+<h3 id="resources">Resources<a class="headerlink" href="#resources" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">val</span> <span class="n">list_resources</span> <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="nn">Mcp_types</span><span class="p">.</span><span class="n">mcp_resource</span> <span class="kt">list</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="k">val</span> <span class="n">read_resource</span>  <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="n">uri</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<p><code>read_resource</code> takes an MCP-style URI (<code>file://...</code>, <code>git://...</code>, and so on); the server parses it.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">match</span> <span class="nn">Mcp_client</span><span class="p">.</span><span class="n">list_resources</span> <span class="n">client</span> <span class="k">with</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">resources</span> <span class="o">-&gt;</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>  <span class="nn">List</span><span class="p">.</span><span class="n">iter</span> <span class="o">(</span><span class="k">fun</span> <span class="n">r</span> <span class="o">-&gt;</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>    <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;  %s (%s)</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="n">r</span><span class="o">.</span><span class="n">uri</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>      <span class="o">(</span><span class="nn">Option</span><span class="p">.</span><span class="n">value</span> <span class="n">r</span><span class="o">.</span><span class="n">mime_type</span> <span class="o">~</span><span class="n">default</span><span class="o">:</span><span class="s2">&quot;?&quot;</span><span class="o">))</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>    <span class="n">resources</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="o">|</span> <span class="nc">Error</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="bp">()</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>
+</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="c">(* Read a resource *)</span>
+</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="k">match</span> <span class="nn">Mcp_client</span><span class="p">.</span><span class="n">read_resource</span> <span class="n">client</span> <span class="o">~</span><span class="n">uri</span><span class="o">:</span><span class="s2">&quot;file:///tmp/x.txt&quot;</span> <span class="k">with</span>
+</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">body</span> <span class="o">-&gt;</span> <span class="n">print_endline</span> <span class="o">(</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">to_string</span> <span class="n">body</span><span class="o">)</span>
+</span><span id="__span-12-12"><a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a><span class="o">|</span> <span class="nc">Error</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="bp">()</span>
+</span></code></pre></div>
+<h3 id="prompts">Prompts<a class="headerlink" href="#prompts" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">val</span> <span class="n">list_prompts</span> <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="nn">Mcp_types</span><span class="p">.</span><span class="n">mcp_prompt</span> <span class="kt">list</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="k">val</span> <span class="n">get_prompt</span>  <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="n">name</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span> <span class="o">?</span><span class="n">arguments</span><span class="o">:(</span><span class="kt">string</span> <span class="o">*</span> <span class="kt">string</span><span class="o">)</span> <span class="kt">list</span> <span class="o">-&gt;</span> <span class="kt">unit</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>                  <span class="o">(</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<p><code>get_prompt</code> returns the server-rendered prompt messages (as a JSON array). <code>?arguments</code> is a list of named parameters; when omitted, the server's defaults are used.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">match</span> <span class="nn">Mcp_client</span><span class="p">.</span><span class="n">get_prompt</span> <span class="n">client</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>        <span class="o">~</span><span class="n">name</span><span class="o">:</span><span class="s2">&quot;commit_message&quot;</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>        <span class="o">~</span><span class="n">arguments</span><span class="o">:[(</span><span class="s2">&quot;diff&quot;</span><span class="o">,</span> <span class="s2">&quot;...&quot;</span><span class="o">);</span> <span class="o">(</span><span class="s2">&quot;style&quot;</span><span class="o">,</span> <span class="s2">&quot;concise&quot;</span><span class="o">)]</span> <span class="bp">()</span> <span class="k">with</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">rendered</span> <span class="o">-&gt;</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>  <span class="c">(* Usually a messages array *)</span>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>  <span class="n">print_endline</span> <span class="o">(</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">pretty_to_string</span> <span class="n">rendered</span><span class="o">)</span>
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="o">|</span> <span class="nc">Error</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="bp">()</span>
+</span></code></pre></div>
+<h3 id="utility">Utility<a class="headerlink" href="#utility" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">val</span> <span class="n">ping</span> <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<p>Health check. Returns the server's <code>pong</code> response.</p>
+<hr />
+<h2 id="mcp_server-low-level-api">Mcp_server Low-Level API<a class="headerlink" href="#mcp_server-low-level-api" title="Permanent link">&para;</a></h2>
+<p>For scenarios that need to control the lifecycle manually: dynamic add/remove of servers, custom RPC methods, injecting extra notifications.</p>
+<p>The stdio transport lives in <code>Mcp_transport_stdio</code>, which spawns the child process and wires stdin/stdout. The HTTP/SSE transport lives in <code>Mcp_transport_http</code> (v0.4.3), which connects to a remote MCP server over Streamable HTTP (spec 2025-06-18). <code>Mcp_server</code> sits one layer above both transports.</p>
+<h3 id="status">Status<a class="headerlink" href="#status" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="k">type</span> <span class="n">status</span> <span class="o">=</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>  <span class="o">|</span> <span class="nc">Starting</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>  <span class="o">|</span> <span class="nc">Ready</span> <span class="k">of</span> <span class="nn">Mcp_types</span><span class="p">.</span><span class="n">capabilities</span>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>  <span class="o">|</span> <span class="nc">Failed</span> <span class="k">of</span> <span class="nn">Types</span><span class="p">.</span><span class="n">error_category</span>
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>  <span class="o">|</span> <span class="nc">Stopped</span>
+</span></code></pre></div>
+<h3 id="spawn">Spawn<a class="headerlink" href="#spawn" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">val</span> <span class="n">spawn</span> <span class="o">:</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>  <span class="n">sw</span><span class="o">:</span><span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>  <span class="n">process_mgr</span><span class="o">:_</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Process</span><span class="p">.</span><span class="n">mgr</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>  <span class="n">clock</span><span class="o">:_</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Time</span><span class="p">.</span><span class="n">clock</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>  <span class="nn">Mcp_types</span><span class="p">.</span><span class="n">server_config</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>  <span class="o">(</span><span class="n">t</span><span class="o">,</span> <span class="nn">Types</span><span class="p">.</span><span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<ul>
+<li><code>sw</code>: parent switch; the child process lifetime is bound to it.</li>
+<li><code>process_mgr</code>: used for <code>Eio.Process.spawn</code>.</li>
+<li><code>clock</code>: used to enforce <code>startup_timeout</code>.</li>
+<li><code>config</code>: see the configuration reference below.</li>
+</ul>
+<p>After a successful spawn the initialize handshake has already completed; status is <code>Ready caps</code>.</p>
+<h3 id="accessors_1">Accessors<a class="headerlink" href="#accessors_1" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="k">val</span> <span class="n">id</span>           <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Mcp_types</span><span class="p">.</span><span class="n">server_id</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="k">val</span> <span class="n">name</span>         <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="kt">string</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="k">val</span> <span class="n">pid</span>          <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="kt">int</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="k">val</span> <span class="n">capabilities</span> <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Mcp_types</span><span class="p">.</span><span class="n">capabilities</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="k">val</span> <span class="n">status</span>       <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="n">status</span>
+</span></code></pre></div>
+<p><code>pid</code> is the child process PID (POSIX), useful for correlating with <code>ps</code> output during operations.</p>
+<h3 id="generic-rpc">Generic RPC<a class="headerlink" href="#generic-rpc" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">val</span> <span class="n">call_method</span> <span class="o">:</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>  <span class="n">t</span> <span class="o">-&gt;</span> <span class="n">method_</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span> <span class="n">params</span><span class="o">:</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>  <span class="o">(</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">,</span> <span class="nn">Types</span><span class="p">.</span><span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="k">val</span> <span class="n">notify</span> <span class="o">:</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>  <span class="n">t</span> <span class="o">-&gt;</span> <span class="n">method_</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span> <span class="n">params</span><span class="o">:</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span>
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>  <span class="o">(</span><span class="kt">unit</span><span class="o">,</span> <span class="nn">Types</span><span class="p">.</span><span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<p><code>call_method</code> sends a JSON-RPC request and blocks waiting for the response. <code>notify</code> sends a notification (no id, the server does not reply).</p>
+<p>Most scenarios should use <code>Mcp_client</code>'s typed methods. <code>call_method</code> is for:</p>
+<ul>
+<li>Calling methods that exist in the MCP specification but are not yet covered by <code>Mcp_client</code> (custom extensions, for example)</li>
+<li>Early experimentation when implementing a newer MCP protocol version</li>
+</ul>
+<h3 id="stop">Stop<a class="headerlink" href="#stop" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="k">val</span> <span class="n">stop</span> <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="kt">unit</span><span class="o">,</span> <span class="nn">Types</span><span class="p">.</span><span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<p>Shutdown timing: first send a <code>shutdown</code> request, wait 2 seconds for a graceful exit, send SIGTERM to the process group (<code>killpg</code>) if it has not exited, wait another 2 seconds, and finally SIGKILL. The function is idempotent; calling it more than once is safe.</p>
+<p><code>Runtime.close</code> calls <code>stop</code> on every server internally.</p>
+<hr />
+<h2 id="event-types">Event Types<a class="headerlink" href="#event-types" title="Permanent link">&para;</a></h2>
+<p>Seven new events, added to the <code>Par.Types.event</code> variant. All events flow out of the event bus and can be observed through <code>Runtime.subscribe</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>When it fires</th>
+<th>Key fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Mcp_server_started</code></td>
+<td>server initialize succeeded</td>
+<td><code>server_id</code>, <code>server_name</code></td>
+</tr>
+<tr>
+<td><code>Mcp_server_failed</code></td>
+<td>spawn failed, handshake failed, or the process crashed</td>
+<td><code>server_id</code>, <code>error</code></td>
+</tr>
+<tr>
+<td><code>Mcp_server_stopped</code></td>
+<td><code>Runtime.close</code> or explicit <code>disconnect</code> completed</td>
+<td><code>server_id</code></td>
+</tr>
+<tr>
+<td><code>Mcp_tool_invoked</code></td>
+<td>entry of <code>call_tool</code></td>
+<td><code>server_id</code>, <code>tool_name</code></td>
+</tr>
+<tr>
+<td><code>Mcp_tool_completed</code></td>
+<td>exit of <code>call_tool</code></td>
+<td><code>server_id</code>, <code>tool_name</code>, <code>duration_ms</code></td>
+</tr>
+<tr>
+<td><code>Mcp_resource_read</code></td>
+<td><code>read_resource</code> succeeded</td>
+<td><code>server_id</code>, <code>uri</code></td>
+</tr>
+<tr>
+<td><code>Mcp_prompt_rendered</code></td>
+<td><code>get_prompt</code> succeeded</td>
+<td><code>server_id</code>, <code>prompt_name</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="subscription-example">Subscription example<a class="headerlink" href="#subscription-example" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="k">let</span> <span class="n">log_mcp_event</span> <span class="o">(</span><span class="n">ev</span> <span class="o">:</span> <span class="nn">Types</span><span class="p">.</span><span class="n">event</span><span class="o">)</span> <span class="o">=</span>
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>  <span class="k">match</span> <span class="n">ev</span> <span class="k">with</span>
+</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>  <span class="o">|</span> <span class="nc">Mcp_server_started</span> <span class="o">{</span> <span class="n">server_id</span><span class="o">;</span> <span class="n">server_name</span> <span class="o">}</span> <span class="o">-&gt;</span>
+</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>    <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;[mcp] started %s (%s)</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="n">server_id</span> <span class="n">server_name</span>
+</span><span id="__span-21-7"><a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>  <span class="o">|</span> <span class="nc">Mcp_server_failed</span> <span class="o">{</span> <span class="n">server_id</span><span class="o">;</span> <span class="n">error</span> <span class="o">}</span> <span class="o">-&gt;</span>
+</span><span id="__span-21-8"><a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>    <span class="nn">Printf</span><span class="p">.</span><span class="n">eprintf</span> <span class="s2">&quot;[mcp] failed %s: %a</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-21-9"><a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a>      <span class="n">server_id</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">pp</span> <span class="o">(</span><span class="nn">Types</span><span class="p">.</span><span class="n">error_category_to_yojson</span> <span class="n">error</span><span class="o">)</span>
+</span><span id="__span-21-10"><a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a>  <span class="o">|</span> <span class="nc">Mcp_tool_invoked</span> <span class="o">{</span> <span class="n">server_id</span><span class="o">;</span> <span class="n">tool_name</span> <span class="o">}</span> <span class="o">-&gt;</span>
+</span><span id="__span-21-11"><a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a>    <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;[mcp] call %s/%s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="n">server_id</span> <span class="n">tool_name</span>
+</span><span id="__span-21-12"><a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a>  <span class="o">|</span> <span class="nc">Mcp_tool_completed</span> <span class="o">{</span> <span class="n">server_id</span><span class="o">;</span> <span class="n">tool_name</span><span class="o">;</span> <span class="n">duration_ms</span> <span class="o">}</span> <span class="o">-&gt;</span>
+</span><span id="__span-21-13"><a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a>    <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;[mcp] done  %s/%s in %.1fms</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-21-14"><a id="__codelineno-21-14" name="__codelineno-21-14" href="#__codelineno-21-14"></a>      <span class="n">server_id</span> <span class="n">tool_name</span> <span class="n">duration_ms</span>
+</span><span id="__span-21-15"><a id="__codelineno-21-15" name="__codelineno-21-15" href="#__codelineno-21-15"></a>  <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="bp">()</span>
+</span><span id="__span-21-16"><a id="__codelineno-21-16" name="__codelineno-21-16" href="#__codelineno-21-16"></a>
+</span><span id="__span-21-17"><a id="__codelineno-21-17" name="__codelineno-21-17" href="#__codelineno-21-17"></a><span class="c">(* In the main loop *)</span>
+</span><span id="__span-21-18"><a id="__codelineno-21-18" name="__codelineno-21-18" href="#__codelineno-21-18"></a><span class="c">(* Event subscription: pass ?on_tool_event:(event -&gt; unit) callback to Runtime.create *)</span>
+</span><span id="__span-21-19"><a id="__codelineno-21-19" name="__codelineno-21-19" href="#__codelineno-21-19"></a><span class="nn">Event_bus</span><span class="p">.</span><span class="n">subscribe</span> <span class="n">bus</span> <span class="n">log_mcp_event</span>
+</span></code></pre></div>
+<h3 id="error-events">Error events<a class="headerlink" href="#error-events" title="Permanent link">&para;</a></h3>
+<p>The <code>error</code> field of <code>Mcp_server_failed</code> is a <code>Types.error_category</code>. Common values:</p>
+<ul>
+<li><code>External_failure "spawn: ..."</code> : the child process failed to launch (executable missing)</li>
+<li><code>Timeout "startup handshake"</code> : the initialize handshake timed out (the server had not replied to <code>initialize</code> by the time <code>startup_timeout</code> elapsed)</li>
+<li><code>Invalid_input "initialize returned error: ..."</code> : the server reported an error (protocol version mismatch, for example)</li>
+<li><code>Internal_error "transport closed"</code> : the child process exited during the handshake</li>
+</ul>
+<p><code>Mcp_server_failed</code> does not make <code>Runtime.create</code> return <code>Error</code> directly (except under fail-fast). Under <code>Log_and_continue</code>, the event fires first, and the runtime keeps running. The mapping from JSON-RPC error codes to <code>error_category</code> lives in <code>Mcp_errors.to_category</code>.</p>
+<hr />
+<h2 id="configuration-reference">Configuration Reference<a class="headerlink" href="#configuration-reference" title="Permanent link">&para;</a></h2>
+<p><code>Mcp_types.server_config</code> fields:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="k">type</span> <span class="n">server_config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>  <span class="n">name</span>            <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>            <span class="c">(* Display name, also the base for server_id *)</span>
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>  <span class="n">command</span>         <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>            <span class="c">(* Executable path *)</span>
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>  <span class="n">args</span>            <span class="o">:</span> <span class="kt">string</span> <span class="kt">list</span><span class="o">;</span>       <span class="c">(* Arguments *)</span>
+</span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>  <span class="n">env</span>             <span class="o">:</span> <span class="o">(</span><span class="kt">string</span> <span class="o">*</span> <span class="kt">string</span><span class="o">)</span> <span class="kt">list</span><span class="o">;</span>  <span class="c">(* Additional environment variables *)</span>
+</span><span id="__span-22-6"><a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>  <span class="n">cwd</span>             <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>     <span class="c">(* Child process working directory *)</span>
+</span><span id="__span-22-7"><a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a>  <span class="n">startup_timeout</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span>             <span class="c">(* Initialize handshake timeout in seconds *)</span>
+</span><span id="__span-22-8"><a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="o">}</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Typical values</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>required. Duplicates get an automatic suffix</td>
+<td><code>"fs"</code>, <code>"git"</code>, <code>"github"</code></td>
+</tr>
+<tr>
+<td><code>command</code></td>
+<td>required. Absolute path or <code>PATH</code>-resolvable executable name</td>
+<td><code>"npx"</code>, <code>"/usr/local/bin/mcp-server-fs"</code></td>
+</tr>
+<tr>
+<td><code>args</code></td>
+<td>default <code>[]</code></td>
+<td><code>[ "-y"; "@modelcontextprotocol/server-filesystem"; "/tmp" ]</code></td>
+</tr>
+<tr>
+<td><code>env</code></td>
+<td>appended to the child process environment; missing keys are not overwritten</td>
+<td><code>[ ("GITHUB_TOKEN", "ghp_...") ]</code></td>
+</tr>
+<tr>
+<td><code>cwd</code></td>
+<td><code>None</code> means use the PAR process's cwd</td>
+<td><code>Some "/var/data"</code></td>
+</tr>
+<tr>
+<td><code>startup_timeout</code></td>
+<td>seconds; handshake timeout returns an error</td>
+<td><code>5.0</code> to <code>30.0</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="naming-rules">Naming rules<a class="headerlink" href="#naming-rules" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>name = "fs"</code> produces <code>server_id = "fs"</code></li>
+<li>A second <code>"fs"</code> automatically gets the suffix <code>"fs-1"</code></li>
+<li>A third gets <code>"fs-2"</code>, and so on</li>
+<li>Comparison semantics are defined in <code>Mcp_types.server_id_compare</code> (lexicographic string order)</li>
+</ul>
+<p>The full validation rules (length cap, allowed character set) live in <code>Mcp_naming.validate_server_name</code>; that module is also responsible for sanitizing server and tool names into the agent-visible tool name via <code>Mcp_naming.mangle_tool_name</code>.</p>
+<h3 id="environment-variable-isolation">Environment variable isolation<a class="headerlink" href="#environment-variable-isolation" title="Permanent link">&para;</a></h3>
+<p>The <code>env</code> field is <strong>appended</strong>, not replaced. The child process inherits the full environment of the PAR parent process, then layers the key/value pairs you provide on top. Safety recommendations:</p>
+<ul>
+<li>Pass secrets through files, not through <code>env</code> (the PAR bash tool sanitizes env, but MCP child processes have no such protection)</li>
+<li>Use <code>env</code> for debug flags only: <code>DEBUG=1</code>, <code>LOG_LEVEL=debug</code>, and similar non-sensitive values</li>
+<li>To clear a variable, write an empty string: <code>("FOO", "")</code></li>
+</ul>
+<hr />
+<h2 id="type-reference">Type Reference<a class="headerlink" href="#type-reference" title="Permanent link">&para;</a></h2>
+<h3 id="capabilities">capabilities<a class="headerlink" href="#capabilities" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="k">type</span> <span class="n">capabilities</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>  <span class="n">tools</span>     <span class="o">:</span> <span class="kt">bool</span><span class="o">;</span>
+</span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>  <span class="n">resources</span> <span class="o">:</span> <span class="kt">bool</span><span class="o">;</span>
+</span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>  <span class="n">prompts</span>   <span class="o">:</span> <span class="kt">bool</span><span class="o">;</span>
+</span><span id="__span-23-5"><a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>  <span class="n">logging</span>   <span class="o">:</span> <span class="kt">bool</span><span class="o">;</span>
+</span><span id="__span-23-6"><a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>  <span class="n">sampling</span>  <span class="o">:</span> <span class="kt">bool</span><span class="o">;</span>
+</span><span id="__span-23-7"><a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="o">}</span>
+</span></code></pre></div>
+<p>Declared by the server in the initialize response. PAR v0.3.1 reads it and stores it on the server state, queryable through <code>Mcp_client.capabilities</code>. PAR does not consume <code>logging</code> or <code>sampling</code>, but keeps them in the struct for protocol compatibility.</p>
+<h3 id="tools-resources-and-prompts">Tools, resources, and prompts<a class="headerlink" href="#tools-resources-and-prompts" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="k">type</span> <span class="n">mcp_tool</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>  <span class="n">name</span>         <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>  <span class="n">description</span>  <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>  <span class="c">(* Human-readable description for the LLM *)</span>
+</span><span id="__span-24-4"><a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a>  <span class="n">title</span>        <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-24-5"><a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a>  <span class="n">input_schema</span> <span class="o">:</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">;</span>  <span class="c">(* JSON Schema *)</span>
+</span><span id="__span-24-6"><a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a><span class="o">}</span>
+</span><span id="__span-24-7"><a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a>
+</span><span id="__span-24-8"><a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a><span class="k">type</span> <span class="n">mcp_resource</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-24-9"><a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a>  <span class="n">uri</span>         <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-24-10"><a id="__codelineno-24-10" name="__codelineno-24-10" href="#__codelineno-24-10"></a>  <span class="n">name</span>        <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-24-11"><a id="__codelineno-24-11" name="__codelineno-24-11" href="#__codelineno-24-11"></a>  <span class="n">description</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-24-12"><a id="__codelineno-24-12" name="__codelineno-24-12" href="#__codelineno-24-12"></a>  <span class="n">mime_type</span>   <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-24-13"><a id="__codelineno-24-13" name="__codelineno-24-13" href="#__codelineno-24-13"></a>  <span class="n">title</span>       <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-24-14"><a id="__codelineno-24-14" name="__codelineno-24-14" href="#__codelineno-24-14"></a><span class="o">}</span>
+</span><span id="__span-24-15"><a id="__codelineno-24-15" name="__codelineno-24-15" href="#__codelineno-24-15"></a>
+</span><span id="__span-24-16"><a id="__codelineno-24-16" name="__codelineno-24-16" href="#__codelineno-24-16"></a><span class="k">type</span> <span class="n">mcp_prompt</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-24-17"><a id="__codelineno-24-17" name="__codelineno-24-17" href="#__codelineno-24-17"></a>  <span class="n">name</span>        <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-24-18"><a id="__codelineno-24-18" name="__codelineno-24-18" href="#__codelineno-24-18"></a>  <span class="n">description</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-24-19"><a id="__codelineno-24-19" name="__codelineno-24-19" href="#__codelineno-24-19"></a>  <span class="n">title</span>       <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-24-20"><a id="__codelineno-24-20" name="__codelineno-24-20" href="#__codelineno-24-20"></a>  <span class="n">arguments</span>   <span class="o">:</span> <span class="n">mcp_prompt_arg</span> <span class="kt">list</span><span class="o">;</span>  <span class="c">(* Argument metadata *)</span>
+</span><span id="__span-24-21"><a id="__codelineno-24-21" name="__codelineno-24-21" href="#__codelineno-24-21"></a><span class="o">}</span>
+</span><span id="__span-24-22"><a id="__codelineno-24-22" name="__codelineno-24-22" href="#__codelineno-24-22"></a>
+</span><span id="__span-24-23"><a id="__codelineno-24-23" name="__codelineno-24-23" href="#__codelineno-24-23"></a><span class="k">type</span> <span class="n">mcp_prompt_arg</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-24-24"><a id="__codelineno-24-24" name="__codelineno-24-24" href="#__codelineno-24-24"></a>  <span class="n">name</span>        <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-24-25"><a id="__codelineno-24-25" name="__codelineno-24-25" href="#__codelineno-24-25"></a>  <span class="n">description</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-24-26"><a id="__codelineno-24-26" name="__codelineno-24-26" href="#__codelineno-24-26"></a>  <span class="n">required</span>    <span class="o">:</span> <span class="kt">bool</span><span class="o">;</span>
+</span><span id="__span-24-27"><a id="__codelineno-24-27" name="__codelineno-24-27" href="#__codelineno-24-27"></a><span class="o">}</span>
+</span></code></pre></div>
+<h3 id="other-public-types">Other public types<a class="headerlink" href="#other-public-types" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="k">type</span> <span class="n">prefix_style</span> <span class="o">=</span>
+</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>  <span class="o">|</span> <span class="nc">Hierarchical</span>
+</span><span id="__span-25-3"><a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>  <span class="o">|</span> <span class="nc">Flat</span>
+</span></code></pre></div>
+<p><code>prefix_style</code> is reserved for the v0.3.2+ tool naming convention. It is defined in v0.3.1 but no configuration knob is exposed yet. The actual mangling logic lives in <code>Mcp_naming.mangle_tool_name</code>.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="k">type</span> <span class="n">server_info</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>  <span class="n">name</span>    <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-26-3"><a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>  <span class="n">version</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-26-4"><a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="o">}</span>
+</span></code></pre></div>
+<p>The identifier the server reports in its initialize response. Available after a successful <code>Mcp_server.spawn</code> through the logs or through a custom RPC.</p>
+<hr />
+<h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
+<h3 id="choosing-a-startup-policy">Choosing a startup policy<a class="headerlink" href="#choosing-a-startup-policy" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Production</strong>: <code>Fail_fast</code>. If any server is unavailable, the runtime should not start successfully.</li>
+<li><strong>Development / local</strong>: <code>Log_and_continue</code>, so an optional server (linter, formatter) can be missing without breaking the main flow.</li>
+<li><strong>CI</strong>: <code>Log_and_continue</code>, so a missing MCP server does not turn the whole test suite red.</li>
+</ul>
+<h3 id="timeout-settings">Timeout settings<a class="headerlink" href="#timeout-settings" title="Permanent link">&para;</a></h3>
+<p><code>startup_timeout</code> that is too short will misclassify slow-starting servers as failed; too long, and a broken server will block <code>Runtime.create</code>:</p>
+<ul>
+<li>Local <code>npx</code> startup: 10s is plenty</li>
+<li>Remote server pulling images: 30s</li>
+<li>Debug first-run (cold start plus dependency download): 60s</li>
+</ul>
+<h3 id="event-monitoring">Event monitoring<a class="headerlink" href="#event-monitoring" title="Permanent link">&para;</a></h3>
+<p>Wire <code>Mcp_server_failed</code> and <code>Mcp_tool_completed</code> into your monitoring system:</p>
+<ul>
+<li>A high rate of <code>Mcp_server_failed</code> means the config or the environment has a problem</li>
+<li>The <code>duration_ms</code> on <code>Mcp_tool_completed</code> feeds a P99 latency alert</li>
+</ul>
+<h3 id="do-not-pass-secrets-through-env">Do not pass secrets through env<a class="headerlink" href="#do-not-pass-secrets-through-env" title="Permanent link">&para;</a></h3>
+<p>MCP child processes do <strong>not</strong> go through PAR's <code>Bash_policy.sanitize_env</code>. The <code>env</code> field is a straight pass-through. If you need a token, write it to a file and let the MCP server read it itself, or pass it through an argument at startup.</p>
+<hr />
+<h2 id="current-limitations">Current Limitations<a class="headerlink" href="#current-limitations" title="Permanent link">&para;</a></h2>
+<p>v0.3.1 is the minimum viable MCP integration. The following capabilities are <strong>not yet implemented</strong>:</p>
+<ul>
+<li>sampling (server to LLM reverse call)</li>
+<li>roots / elicitation</li>
+<li>Multi-session concurrency (same <code>server_id</code> reuse, session pool)</li>
+<li>Streaming tool output</li>
+</ul>
+<p>If any of those is a hard requirement, please file an issue with a scenario description.</p>
+<hr />
+<h2 id="security-audit-checklist">Security Audit Checklist<a class="headerlink" href="#security-audit-checklist" title="Permanent link">&para;</a></h2>
+<p>Before adding a new MCP server config, self-audit:</p>
+<ul>
+<li>[ ] <code>command</code> points at a trusted executable (avoid shell injection)</li>
+<li>[ ] <code>args</code> contains no sensitive information (it shows up in <code>ps</code> output)</li>
+<li>[ ] <code>env</code> does not carry secrets (write to a file or use a config center)</li>
+<li>[ ] <code>cwd</code> is an absolute path, to avoid ambiguity</li>
+<li>[ ] <code>startup_timeout</code> matches the server's real startup time</li>
+<li>[ ] The right <code>startup_policy</code> is chosen for the failure mode</li>
+<li>[ ] The event bus subscribes to <code>Mcp_server_failed</code> to detect anomalies</li>
+<li>[ ] <code>Mcp_tool_completed</code>'s <code>duration_ms</code> is wired into monitoring</li>
+<li>[ ] The child process exit code is audited through the return value of <code>Runtime.close</code></li>
+<li>[ ] Any custom server implementation follows the MCP protocol (use the official SDK or test thoroughly)</li>
+</ul>
+<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../overview/"><code>overview.md</code></a> : SDK architecture overview</li>
+<li><a href="../agent/"><code>agent.md</code></a> : Agent definition, Runtime API, tool registration</li>
+<li><a href="../tools/"><code>tools.md</code></a> : Built-in tools reference</li>
+<li><a href="../middleware/"><code>middleware.md</code></a> : 7 built-in middlewares</li>
+<li><a href="https://modelcontextprotocol.io">MCP protocol specification</a> : server-side implementation reference</li>
+<li><a href="https://github.com/modelcontextprotocol/servers">MCP server list</a> : official and community server collection</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

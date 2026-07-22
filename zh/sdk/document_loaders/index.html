@@ -1,0 +1,2496 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/zh/sdk/document_loaders/">
+      
+      
+        <link rel="prev" href="../rag/">
+      
+      
+        <link rel="next" href="../memory/">
+      
+      
+        
+          <link rel="alternate" href="../../../sdk/document_loaders/" hreflang="en">
+        
+          <link rel="alternate" href="./" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Document Loaders - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#_1" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../" title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Document Loaders
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="选择当前语言">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../../sdk/document_loaders/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="分享" aria-label="分享" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  教程
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  实用指南
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  参考
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  解释
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../" title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    教程
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    教程
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    实用指南
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    实用指南
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/rag-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build a RAG Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    参考
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    参考
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../invoke_context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    invoke_context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generate API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Loaders
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Loaders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#document" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document 类型
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Document 类型">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        元数据辅助函数
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        加载错误
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#make" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        加载器 make 模式
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="加载器 make 模式">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        实现自定义加载器
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        内置加载器
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="内置加载器">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#text_loader-txt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text_loader (.txt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#markdown_loader-md" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Markdown_loader (.md)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#html_loader-html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Html_loader (.html)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#csv_loader-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Csv_loader (.csv)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pdf_loader-pdf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pdf_loader (.pdf)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pdf_loader (.pdf)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        局限性
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#docx_loader-docx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Docx_loader (.docx)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Docx_loader (.docx)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        工作原理
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        局限性
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#directory_loader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Directory_loader
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Directory_loader">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        自定义扩展名映射
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        与 RAG 的组合
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        错误处理
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        另请参阅
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prompt_caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    解释
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    解释
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/concurrency-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/persistence-and-durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence and Durability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/rag-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#document" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document 类型
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Document 类型">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        元数据辅助函数
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        加载错误
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#make" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        加载器 make 模式
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="加载器 make 模式">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        实现自定义加载器
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        内置加载器
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="内置加载器">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#text_loader-txt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text_loader (.txt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#markdown_loader-md" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Markdown_loader (.md)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#html_loader-html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Html_loader (.html)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#csv_loader-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Csv_loader (.csv)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pdf_loader-pdf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pdf_loader (.pdf)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pdf_loader (.pdf)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        局限性
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#docx_loader-docx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Docx_loader (.docx)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Docx_loader (.docx)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        工作原理
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        局限性
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#directory_loader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Directory_loader
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Directory_loader">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        自定义扩展名映射
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        与 RAG 的组合
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        错误处理
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        另请参阅
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<!-- language: zh -->
+<p><a href="./">English</a> · <strong>简体中文</strong></p>
+<h1 id="_1">文档加载器<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>在 v0.7.0 (beta) 中添加。真实来源：<code>lib/documents/document.mli</code>、<code>lib/documents/*_loader.mli</code> 和 <code>lib/documents/directory_loader.mli</code> 中的 OCaml 类型。</p>
+</blockquote>
+<p>PAR 的文档加载器将真实文件（文本、Markdown、HTML、CSV、PDF、Word）转换为 <code>Document.t</code> 记录，直接接入 RAG 管道。加载 PDF，用 <code>Chunking</code> 分块，用 <code>Runtime.embed</code> 嵌入向量，存入 <code>Vector_store</code>，再通过 <code>Runtime.invoke_with_rag</code> 查询。加载器处理文件 I/O、格式解析和元数据提取，让你专注于管道本身。</p>
+<p>完整的 RAG 管道（embeddings、向量存储、分块、检索）见 <a href="../rag/">RAG API</a>。文档加载器产出的 <code>Document.t</code> 值直接馈入该管道。</p>
+<h2 id="document">Document 类型<a class="headerlink" href="#document" title="Permanent link">&para;</a></h2>
+<p>加载后的文档是一个包含三个字段的记录：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">type</span> <span class="n">t</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  <span class="n">content</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>    <span class="c">(** extracted plain text *)</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  <span class="n">metadata</span> <span class="o">:</span> <span class="o">(</span><span class="kt">string</span><span class="o">,</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">)</span> <span class="nn">Hashtbl</span><span class="p">.</span><span class="n">t</span><span class="o">;</span>  <span class="c">(** source-derived fields *)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  <span class="n">source</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>     <span class="c">(** file path or URI *)</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="o">}</span>
+</span></code></pre></div>
+<p><code>content</code> 字段是提取出的纯文本。<code>source</code> 字段是原始文件路径或 URI。<code>metadata</code> 哈希表保存加载器从源文件获取的所有信息：文件名、文件大小、页码、列值、YAML frontmatter 等。</p>
+<p><code>metadata</code> 的类型是 <code>(string, Yojson.Safe.t) Hashtbl.t</code>，与 <code>Vector_store.document</code> 的 metadata 字段类型一致。这意味着加载器输出可以直接传递给 <code>Vector_store.add</code>，无需转换。</p>
+<h3 id="_2">元数据辅助函数<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<p><code>Meta</code> 子模块提供便捷的构造方法：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">open</span> <span class="nn">Par</span><span class="p">.</span><span class="nn">Document</span><span class="p">.</span><span class="nc">Meta</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="k">let</span> <span class="n">m</span> <span class="o">=</span> <span class="n">empty</span> <span class="bp">()</span>                          <span class="c">(* 创建空哈希表 *)</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="k">let</span> <span class="n">m</span> <span class="o">=</span> <span class="n">singleton</span> <span class="s2">&quot;source&quot;</span> <span class="o">(`</span><span class="nc">String</span> <span class="s2">&quot;a.md&quot;</span><span class="o">)</span>  <span class="c">(* 单条目哈希表 *)</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">add</span> <span class="n">m</span> <span class="s2">&quot;page&quot;</span> <span class="o">(`</span><span class="nc">Int</span> <span class="mi">3</span><span class="o">)</span>                     <span class="c">(* 添加 Yojson 值 *)</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">add_string</span> <span class="n">m</span> <span class="s2">&quot;file_type&quot;</span> <span class="s2">&quot;text/markdown&quot;</span>   <span class="c">(* String 的简写 *)</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">add_int</span> <span class="n">m</span> <span class="s2">&quot;file_size&quot;</span> <span class="mi">4096</span>                <span class="c">(* Int 的简写 *)</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="c">(* 在 Yojson 之间往返转换 *)</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="k">let</span> <span class="n">json</span> <span class="o">=</span> <span class="n">to_yojson</span> <span class="n">m</span> <span class="k">in</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="k">let</span> <span class="n">m&#39;</span> <span class="o">=</span> <span class="n">of_yojson</span> <span class="n">json</span>
+</span></code></pre></div>
+<h3 id="_3">加载错误<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<p>加载器失败时返回 <code>Load_error.t</code> 变体：</p>
+<table>
+<thead>
+<tr>
+<th>变体</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>File_not_found of string</code></td>
+<td>文件在给定路径不存在</td>
+</tr>
+<tr>
+<td><code>Permission_denied of string</code></td>
+<td>文件存在但无法读取</td>
+</tr>
+<tr>
+<td><code>Unsupported_format of string</code></td>
+<td>加载器不支持该文件类型</td>
+</tr>
+<tr>
+<td><code>Extraction_failed of string * string</code></td>
+<td>解析或提取失败（消息、异常信息）</td>
+</tr>
+<tr>
+<td><code>Workspace_rejected of Types.error_category</code></td>
+<td>路径被 <code>Workspace.admit</code> 拒绝（安全检查）</td>
+</tr>
+</tbody>
+</table>
+<p>使用 <code>Document.load_error_to_string</code> 获取人类可读的错误消息：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">let</span> <span class="n">print_error</span> <span class="n">err</span> <span class="o">=</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">err</span><span class="o">)</span>
+</span></code></pre></div>
+<h2 id="make">加载器 <code>make</code> 模式<a class="headerlink" href="#make" title="Permanent link">&para;</a></h2>
+<p>每个格式加载器都遵循两阶段构造函数模式：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">module</span> <span class="nc">My_loader</span> <span class="o">:</span> <span class="k">sig</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  <span class="k">val</span> <span class="n">make</span> <span class="o">:</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">workspace</span> <span class="o">-&gt;</span> <span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="o">(</span><span class="kt">unit</span> <span class="o">-&gt;</span> <span class="nn">Document</span><span class="p">.</span><span class="n">t</span> <span class="kt">list</span><span class="o">,</span> <span class="nn">Document</span><span class="p">.</span><span class="n">load_error</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="k">end</span>
+</span></code></pre></div>
+<p><code>make</code> 接受一个 workspace（用于路径安全验证）和文件路径。成功时返回一个 thunk，调用时读取文件并产出 <code>Document.t list</code>。如果路径无效，<code>make</code> 本身立即返回 <code>Error</code>，不读取任何文件。提取过程中的异常会被优雅捕获（记录日志，返回空列表）。</p>
+<h3 id="_4">实现自定义加载器<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<p>要添加新文件格式的支持，编写一个满足加载器构造函数模式的模块。每个内置加载器都遵循这种形状：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">module</span> <span class="nc">My_loader</span> <span class="o">:</span> <span class="k">sig</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>  <span class="k">val</span> <span class="n">make</span> <span class="o">:</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">workspace</span> <span class="o">-&gt;</span> <span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="o">(</span><span class="kt">unit</span> <span class="o">-&gt;</span> <span class="nn">Document</span><span class="p">.</span><span class="n">t</span> <span class="kt">list</span><span class="o">,</span> <span class="nn">Document</span><span class="p">.</span><span class="n">load_error</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="k">end</span>
+</span></code></pre></div>
+<p><code>make</code> 接受一个 workspace（用于路径安全验证）和文件路径。成功时返回一个 thunk，调用时读取文件并产出 <code>Document.t list</code>。失败时返回 <code>load_error</code>。</p>
+<p>一个最小的自定义加载器：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="k">let</span> <span class="n">make</span> <span class="n">ws</span> <span class="n">path</span> <span class="o">=</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>  <span class="k">match</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">admit</span> <span class="n">ws</span> <span class="n">path</span> <span class="k">with</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>  <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="nc">Error</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="nc">Workspace_rejected</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>  <span class="o">|</span> <span class="nc">Ok</span> <span class="n">sandboxed</span> <span class="o">-&gt;</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="k">let</span> <span class="n">full_path</span> <span class="o">=</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">to_string</span> <span class="n">sandboxed</span> <span class="k">in</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="nc">Ok</span> <span class="o">(</span><span class="k">fun</span> <span class="bp">()</span> <span class="o">-&gt;</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>      <span class="k">let</span> <span class="n">ic</span> <span class="o">=</span> <span class="n">open_in</span> <span class="n">full_path</span> <span class="k">in</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>      <span class="nn">Fun</span><span class="p">.</span><span class="n">protect</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>        <span class="o">~</span><span class="n">finally</span><span class="o">:(</span><span class="k">fun</span> <span class="bp">()</span> <span class="o">-&gt;</span> <span class="n">close_in</span> <span class="n">ic</span><span class="o">)</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>        <span class="o">(</span><span class="k">fun</span> <span class="bp">()</span> <span class="o">-&gt;</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>          <span class="k">let</span> <span class="n">content</span> <span class="o">=</span> <span class="n">really_input_string</span> <span class="n">ic</span> <span class="o">(</span><span class="n">in_channel_length</span> <span class="n">ic</span><span class="o">)</span> <span class="k">in</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>          <span class="k">let</span> <span class="n">meta</span> <span class="o">=</span> <span class="nn">Document</span><span class="p">.</span><span class="nn">Meta</span><span class="p">.</span><span class="n">empty</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>          <span class="nn">Document</span><span class="p">.</span><span class="nn">Meta</span><span class="p">.</span><span class="n">add_string</span> <span class="n">meta</span> <span class="s2">&quot;file_type&quot;</span> <span class="s2">&quot;application/x-myformat&quot;</span><span class="o">;</span>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>          <span class="nc">Ok</span> <span class="o">[{</span> <span class="nn">Document</span><span class="p">.</span><span class="n">content</span><span class="o">;</span> <span class="n">metadata</span> <span class="o">=</span> <span class="n">meta</span><span class="o">;</span> <span class="n">source</span> <span class="o">=</span> <span class="n">path</span> <span class="o">}]))</span>
+</span></code></pre></div>
+<h2 id="_5">内置加载器<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p>PAR 提供六个格式加载器。每个从单个文件产出 <code>Document.t list</code>。</p>
+<h3 id="text_loader-txt">Text_loader (.txt)<a class="headerlink" href="#text_loader-txt" title="Permanent link">&para;</a></h3>
+<p>读取纯文本文件，产出一个带标准元数据的 <code>Document.t</code>。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="k">let</span> <span class="n">ws</span> <span class="o">=</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">of_cwd</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="k">match</span> <span class="nn">Text_loader</span><span class="p">.</span><span class="n">make</span> <span class="n">ws</span> <span class="s2">&quot;notes.txt&quot;</span> <span class="k">with</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">load</span> <span class="o">-&gt;</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>  <span class="k">let</span> <span class="n">docs</span> <span class="o">=</span> <span class="n">load</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>  <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Loaded %d document(s)</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">docs</span><span class="o">)</span>
+</span></code></pre></div>
+<p><strong>元数据字段：</strong> <code>file_path</code>、<code>file_name</code>、<code>file_size</code>、<code>file_type = "text/plain"</code>。</p>
+<h3 id="markdown_loader-md">Markdown_loader (.md)<a class="headerlink" href="#markdown_loader-md" title="Permanent link">&para;</a></h3>
+<p>通过 <code>Omd.of_string</code> 解析 Markdown 并遍历 AST 提取纯文本（标题、段落、代码块、列表）。文件开头 <code>---</code> 分隔符之间的 YAML frontmatter 通过 <code>Yaml.of_string</code> 解析，与标准字段合并到元数据中。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="k">let</span> <span class="n">ws</span> <span class="o">=</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">of_cwd</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="k">match</span> <span class="nn">Markdown_loader</span><span class="p">.</span><span class="n">make</span> <span class="n">ws</span> <span class="s2">&quot;README.md&quot;</span> <span class="k">with</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">load</span> <span class="o">-&gt;</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>  <span class="k">let</span> <span class="n">docs</span> <span class="o">=</span> <span class="n">load</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>  <span class="nn">List</span><span class="p">.</span><span class="n">iter</span> <span class="o">(</span><span class="k">fun</span> <span class="n">doc</span> <span class="o">-&gt;</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Source: %s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="n">doc</span><span class="o">.</span><span class="nn">Document</span><span class="p">.</span><span class="n">source</span><span class="o">;</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Content length: %d</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">String</span><span class="p">.</span><span class="n">length</span> <span class="n">doc</span><span class="o">.</span><span class="nn">Document</span><span class="p">.</span><span class="n">content</span><span class="o">)</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>  <span class="o">)</span> <span class="n">docs</span>
+</span></code></pre></div>
+<p><strong>元数据字段：</strong> <code>file_path</code>、<code>file_name</code>、<code>file_size</code>、<code>file_type = "text/markdown"</code>，加上任何 YAML frontmatter 键值对。</p>
+<h3 id="html_loader-html">Html_loader (.html)<a class="headerlink" href="#html_loader-html" title="Permanent link">&para;</a></h3>
+<p>读取 HTML 文件，去除 <code>&lt;script&gt;</code> 和 <code>&lt;style&gt;</code> 元素，通过 lambdasoup 提取可见文本内容。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="k">let</span> <span class="n">ws</span> <span class="o">=</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">of_cwd</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="k">match</span> <span class="nn">Html_loader</span><span class="p">.</span><span class="n">make</span> <span class="n">ws</span> <span class="s2">&quot;page.html&quot;</span> <span class="k">with</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">load</span> <span class="o">-&gt;</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>  <span class="k">let</span> <span class="n">docs</span> <span class="o">=</span> <span class="n">load</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>  <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Extracted %d document(s)</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">docs</span><span class="o">)</span>
+</span></code></pre></div>
+<p><strong>元数据字段：</strong> <code>file_path</code>、<code>file_name</code>、<code>file_size</code>、<code>file_type = "text/html"</code>。</p>
+<h3 id="csv_loader-csv">Csv_loader (.csv)<a class="headerlink" href="#csv_loader-csv" title="Permanent link">&para;</a></h3>
+<p>读取 CSV 文件。表头行定义列名。每行数据（不含表头）产出一个 <code>Document.t</code>：</p>
+<ul>
+<li><code>content</code>：按 <code>"column_name: value\n"</code> 格式排列的键值行。</li>
+<li><code>metadata</code>：每个列名以 <code>csv_</code> 为前缀映射到其值（作为 <code>String</code>），加上 <code>row_index</code>、<code>file_path</code>、<code>file_name</code>、<code>file_size</code>、<code>file_type = "text/csv"</code>。</li>
+<li><code>source</code>：输入文件路径。</li>
+</ul>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="k">let</span> <span class="n">ws</span> <span class="o">=</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">of_cwd</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="k">match</span> <span class="nn">Csv_loader</span><span class="p">.</span><span class="n">make</span> <span class="n">ws</span> <span class="s2">&quot;users.csv&quot;</span> <span class="k">with</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">load</span> <span class="o">-&gt;</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>  <span class="k">let</span> <span class="n">docs</span> <span class="o">=</span> <span class="n">load</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>  <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Loaded %d rows as documents</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">docs</span><span class="o">)</span>
+</span></code></pre></div>
+<h3 id="pdf_loader-pdf">Pdf_loader (.pdf)<a class="headerlink" href="#pdf_loader-pdf" title="Permanent link">&para;</a></h3>
+<p>使用 camlpdf 的简单文本流提取从 PDF 中提取文本。每页产出一个 <code>Document.t</code>，<code>metadata["page"]</code> 设为页码。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="k">let</span> <span class="n">ws</span> <span class="o">=</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">of_cwd</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="k">match</span> <span class="nn">Pdf_loader</span><span class="p">.</span><span class="n">make</span> <span class="n">ws</span> <span class="s2">&quot;paper.pdf&quot;</span> <span class="k">with</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">load</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>  <span class="k">let</span> <span class="n">docs</span> <span class="o">=</span> <span class="n">load</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>  <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Extracted %d pages</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">docs</span><span class="o">)</span>
+</span></code></pre></div>
+<p><strong>元数据字段：</strong> <code>file_path</code>、<code>file_name</code>、<code>file_size</code>、<code>file_type = "application/pdf"</code>、<code>page</code>（int，从 1 开始）。</p>
+<h4 id="_6">局限性<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h4>
+<div class="admonition warning">
+<p class="admonition-title">范围妥协 — 见 ROADMAP v0.7.0 第 2 节 #9</p>
+<p>PDF 加载器使用简单文本流提取，<strong>而非</strong>布局保留提取。这是一个有意的范围妥协，附有退役计划。</p>
+<ul>
+<li><strong>不保留布局：</strong> 多栏 PDF 产出交错文本。列在输出中被混合在一起。</li>
+<li><strong>不支持 OCR：</strong> 扫描件或纯图片 PDF 无法提取任何内容。此加载器背后没有 Tesseract 或 OCR 引擎。</li>
+<li><strong>表格和复杂布局</strong>可能产出质量较差的输出。</li>
+</ul>
+<p>这覆盖了大约 80% 的文本型 PDF（单栏或简单布局的研究论文、文档、报告）。</p>
+<p><strong>布局感知提取的触发条件：</strong> 如果下游集成报告失败率超过 20%，或者 v0.8 规划开始时（以先到者为准）。迁移路径是替换 <code>Pdf_loader.extract_text</code> 的内部实现而不更改公共接口，因为 <code>Document.t -&gt; Document.t</code> 契约保持不变。</p>
+</div>
+<h3 id="docx_loader-docx">Docx_loader (.docx)<a class="headerlink" href="#docx_loader-docx" title="Permanent link">&para;</a></h3>
+<p>从 Word <code>.docx</code> 文件中提取纯文本。<code>.docx</code> 格式是 OOXML ZIP 容器；加载器用 camlzip 打开它，读取 <code>word/document.xml</code>，并用 xmlm 解析 XML，从 <code>&lt;w:t&gt;</code> 元素中恢复可见文本。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="k">let</span> <span class="n">ws</span> <span class="o">=</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">of_cwd</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="k">match</span> <span class="nn">Docx_loader</span><span class="p">.</span><span class="n">make</span> <span class="n">ws</span> <span class="s2">&quot;report.docx&quot;</span> <span class="k">with</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">load</span> <span class="o">-&gt;</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>  <span class="k">let</span> <span class="n">docs</span> <span class="o">=</span> <span class="n">load</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>  <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Extracted %d document(s)</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">docs</span><span class="o">)</span>
+</span></code></pre></div>
+<p><strong>元数据字段：</strong> <code>file_path</code>、<code>file_name</code>、<code>file_size</code>（磁盘上文件的实际大小，而非提取文本的长度）、<code>file_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"</code>。</p>
+<h4 id="_7">工作原理<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h4>
+<p><code>.docx</code> 文件是包含名为 <code>word/document.xml</code> 的 OOXML 部件的 ZIP 归档。加载器：</p>
+<ol>
+<li>用 camlzip（<code>Zip.open_in</code>）打开 ZIP 容器。</li>
+<li>读取 <code>word/document.xml</code> 条目。</li>
+<li>用 xmlm 流式解析 XML，从 <code>&lt;w:t&gt;</code> 元素（WordprocessingML 文本运行）中累积字符数据。</li>
+<li>将结构元素映射为空白：<code>&lt;w:p&gt;</code>（段落）→ 换行，<code>&lt;w:tab&gt;</code> → 制表符，<code>&lt;w:br&gt;</code>（换行符）→ 换行。</li>
+</ol>
+<p>仅捕获 <code>&lt;w:t&gt;</code> 元素内的字符数据，因此域指令（<code>&lt;w:instrText&gt;</code>）和修订删除文本（<code>&lt;w:delText&gt;</code>）被排除。</p>
+<h4 id="_8">局限性<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>不保留格式：</strong> 粗体、斜体、字号、颜色、样式均被丢弃 —— 只有纯文本保留。</li>
+<li><strong>表格被扁平化：</strong> 表格单元格文本按文档顺序提取，不保留行列结构。</li>
+<li><strong>不支持图片：</strong> 嵌入的图片、图表、形状不产出任何内容。</li>
+<li><strong>不支持页眉/页脚：</strong> 仅读取文档正文（<code>word/document.xml</code>）；页眉、页脚、脚注（ZIP 中的独立部件）不被提取。</li>
+<li><strong>不支持 .doc（旧格式）：</strong> 不支持旧的二进制 Word <code>.doc</code> 格式。仅处理 <code>.docx</code>（OOXML，Word 2007+）。</li>
+</ul>
+<h2 id="directory_loader">Directory_loader<a class="headerlink" href="#directory_loader" title="Permanent link">&para;</a></h2>
+<p>目录加载器递归扫描目录树，根据文件扩展名将每个文件分发到对应的格式加载器。循环符号链接会被检测并跳过。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="k">let</span> <span class="n">ws</span> <span class="o">=</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">of_cwd</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="k">match</span> <span class="nn">Directory_loader</span><span class="p">.</span><span class="n">load</span> <span class="n">ws</span> <span class="s2">&quot;docs/&quot;</span> <span class="k">with</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">docs</span> <span class="o">-&gt;</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>  <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Loaded %d documents from directory</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">docs</span><span class="o">)</span>
+</span></code></pre></div>
+<p><strong><code>default_map</code></strong> 覆盖 <code>.txt</code>、<code>.md</code>、<code>.html</code>、<code>.csv</code>、<code>.pdf</code> 和 <code>.docx</code>。未知扩展名通过 <code>Logs.warn</code> 跳过。单个文件的错误会被记录并跳过（扫描不会中止）。</p>
+<h3 id="_9">自定义扩展名映射<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h3>
+<p>你可以覆盖或扩展映射表：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="c">(* 为 .json 文件添加自定义加载器 *)</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="k">let</span> <span class="n">json_loader</span> <span class="n">ws</span> <span class="n">path</span> <span class="o">=</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>  <span class="k">match</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">admit</span> <span class="n">ws</span> <span class="n">path</span> <span class="k">with</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>  <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="nc">Error</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="nc">Workspace_rejected</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>  <span class="o">|</span> <span class="nc">Ok</span> <span class="bp">()</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>    <span class="nc">Ok</span> <span class="o">(</span><span class="k">fun</span> <span class="bp">()</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>      <span class="k">let</span> <span class="n">ic</span> <span class="o">=</span> <span class="n">open_in</span> <span class="n">path</span> <span class="k">in</span>
+</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>      <span class="k">let</span> <span class="n">content</span> <span class="o">=</span> <span class="n">really_input_string</span> <span class="n">ic</span> <span class="o">(</span><span class="n">in_channel_length</span> <span class="n">ic</span><span class="o">)</span> <span class="k">in</span>
+</span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>      <span class="n">close_in</span> <span class="n">ic</span><span class="o">;</span>
+</span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>      <span class="k">let</span> <span class="n">meta</span> <span class="o">=</span> <span class="nn">Document</span><span class="p">.</span><span class="nn">Meta</span><span class="p">.</span><span class="n">empty</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>      <span class="nn">Document</span><span class="p">.</span><span class="nn">Meta</span><span class="p">.</span><span class="n">add_string</span> <span class="n">meta</span> <span class="s2">&quot;file_type&quot;</span> <span class="s2">&quot;application/json&quot;</span><span class="o">;</span>
+</span><span id="__span-13-14"><a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a>      <span class="o">[{</span> <span class="nn">Document</span><span class="p">.</span><span class="n">content</span><span class="o">;</span> <span class="n">metadata</span> <span class="o">=</span> <span class="n">meta</span><span class="o">;</span> <span class="n">source</span> <span class="o">=</span> <span class="n">path</span> <span class="o">}])</span>
+</span><span id="__span-13-15"><a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a>
+</span><span id="__span-13-16"><a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a><span class="k">let</span> <span class="n">my_map</span> <span class="o">=</span> <span class="o">(</span><span class="s2">&quot;.json&quot;</span><span class="o">,</span> <span class="n">json_loader</span><span class="o">)</span> <span class="o">::</span> <span class="nn">Directory_loader</span><span class="p">.</span><span class="n">default_map</span> <span class="k">in</span>
+</span><span id="__span-13-17"><a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a><span class="k">match</span> <span class="nn">Directory_loader</span><span class="p">.</span><span class="n">load</span> <span class="n">ws</span> <span class="o">~</span><span class="n">map</span><span class="o">:</span><span class="n">my_map</span> <span class="s2">&quot;data/&quot;</span> <span class="k">with</span>
+</span><span id="__span-13-18"><a id="__codelineno-13-18" name="__codelineno-13-18" href="#__codelineno-13-18"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-13-19"><a id="__codelineno-13-19" name="__codelineno-13-19" href="#__codelineno-13-19"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">docs</span> <span class="o">-&gt;</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Loaded %d documents</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">docs</span><span class="o">)</span>
+</span></code></pre></div>
+<p><code>loader_fn</code> 的类型是 <code>Workspace.workspace -&gt; string -&gt; (unit -&gt; Document.t list, Document.load_error) result</code>，与每个内置加载器的 <code>make</code> 函数签名一致。</p>
+<h2 id="rag">与 RAG 的组合<a class="headerlink" href="#rag" title="Permanent link">&para;</a></h2>
+<p>完整管道：加载文档，分块，嵌入向量，存储向量，通过 <code>invoke_with_rag</code> 查询。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="k">open</span> <span class="nc">Types</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="k">let</span> <span class="n">ws</span> <span class="o">=</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">of_cwd</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="c">(* 1. 从目录加载文档 *)</span>
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="k">let</span> <span class="n">docs</span> <span class="o">=</span> <span class="nn">Directory_loader</span><span class="p">.</span><span class="n">load</span> <span class="n">ws</span> <span class="o">~</span><span class="n">map</span><span class="o">:</span><span class="nn">Directory_loader</span><span class="p">.</span><span class="n">default_map</span> <span class="s2">&quot;knowledge_base/&quot;</span>
+</span><span id="__span-14-8"><a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>  <span class="o">|&gt;</span> <span class="nn">Result</span><span class="p">.</span><span class="n">get_ok</span> <span class="k">in</span>
+</span><span id="__span-14-9"><a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>
+</span><span id="__span-14-10"><a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="c">(* 2. 对每个文档分块 *)</span>
+</span><span id="__span-14-11"><a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a><span class="k">let</span> <span class="n">all_chunks</span> <span class="o">=</span>
+</span><span id="__span-14-12"><a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>  <span class="nn">List</span><span class="p">.</span><span class="n">concat_map</span> <span class="o">(</span><span class="k">fun</span> <span class="n">doc</span> <span class="o">-&gt;</span>
+</span><span id="__span-14-13"><a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a>    <span class="k">let</span> <span class="n">chunks</span> <span class="o">=</span> <span class="nn">Chunking</span><span class="p">.</span><span class="n">chunk_recursive</span>
+</span><span id="__span-14-14"><a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a>      <span class="o">~</span><span class="n">text</span><span class="o">:</span><span class="n">doc</span><span class="o">.</span><span class="nn">Document</span><span class="p">.</span><span class="n">content</span> <span class="o">~</span><span class="n">max_size</span><span class="o">:</span><span class="mi">1000</span> <span class="o">~</span><span class="n">overlap</span><span class="o">:</span><span class="mi">200</span> <span class="k">in</span>
+</span><span id="__span-14-15"><a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a>    <span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="o">(</span><span class="k">fun</span> <span class="n">c</span> <span class="o">-&gt;</span>
+</span><span id="__span-14-16"><a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a>      <span class="o">({</span> <span class="nn">Vector_store</span><span class="p">.</span><span class="n">id</span> <span class="o">=</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;%s_%04d&quot;</span> <span class="n">doc</span><span class="o">.</span><span class="nn">Document</span><span class="p">.</span><span class="n">source</span> <span class="o">(</span><span class="nn">Random</span><span class="p">.</span><span class="n">int</span> <span class="mi">10000</span><span class="o">);</span>
+</span><span id="__span-14-17"><a id="__codelineno-14-17" name="__codelineno-14-17" href="#__codelineno-14-17"></a>         <span class="n">content</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="nn">Chunking</span><span class="p">.</span><span class="n">text</span><span class="o">;</span>
+</span><span id="__span-14-18"><a id="__codelineno-14-18" name="__codelineno-14-18" href="#__codelineno-14-18"></a>         <span class="n">metadata</span> <span class="o">=</span> <span class="nc">Some</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="nn">Meta</span><span class="p">.</span><span class="n">to_yojson</span> <span class="n">doc</span><span class="o">.</span><span class="nn">Document</span><span class="p">.</span><span class="n">metadata</span><span class="o">)</span> <span class="o">},</span>
+</span><span id="__span-14-19"><a id="__codelineno-14-19" name="__codelineno-14-19" href="#__codelineno-14-19"></a>       <span class="n">c</span><span class="o">.</span><span class="nn">Chunking</span><span class="p">.</span><span class="n">text</span><span class="o">)</span>  <span class="c">(* 将被实际向量替换 *)</span>
+</span><span id="__span-14-20"><a id="__codelineno-14-20" name="__codelineno-14-20" href="#__codelineno-14-20"></a>    <span class="o">)</span> <span class="n">chunks</span>
+</span><span id="__span-14-21"><a id="__codelineno-14-21" name="__codelineno-14-21" href="#__codelineno-14-21"></a>  <span class="o">)</span> <span class="n">docs</span>
+</span><span id="__span-14-22"><a id="__codelineno-14-22" name="__codelineno-14-22" href="#__codelineno-14-22"></a><span class="k">in</span>
+</span><span id="__span-14-23"><a id="__codelineno-14-23" name="__codelineno-14-23" href="#__codelineno-14-23"></a>
+</span><span id="__span-14-24"><a id="__codelineno-14-24" name="__codelineno-14-24" href="#__codelineno-14-24"></a><span class="c">(* 3. 嵌入 chunks *)</span>
+</span><span id="__span-14-25"><a id="__codelineno-14-25" name="__codelineno-14-25" href="#__codelineno-14-25"></a><span class="k">let</span> <span class="n">texts</span> <span class="o">=</span> <span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="n">snd</span> <span class="n">all_chunks</span> <span class="k">in</span>
+</span><span id="__span-14-26"><a id="__codelineno-14-26" name="__codelineno-14-26" href="#__codelineno-14-26"></a><span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">embed</span> <span class="n">rt</span> <span class="n">texts</span> <span class="k">with</span>
+</span><span id="__span-14-27"><a id="__codelineno-14-27" name="__codelineno-14-27" href="#__codelineno-14-27"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span>
+</span><span id="__span-14-28"><a id="__codelineno-14-28" name="__codelineno-14-28" href="#__codelineno-14-28"></a>  <span class="n">prerr_endline</span> <span class="o">(</span><span class="s2">&quot;embed failed: &quot;</span> <span class="o">^</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-14-29"><a id="__codelineno-14-29" name="__codelineno-14-29" href="#__codelineno-14-29"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">vecs</span> <span class="o">-&gt;</span>
+</span><span id="__span-14-30"><a id="__codelineno-14-30" name="__codelineno-14-30" href="#__codelineno-14-30"></a>  <span class="c">(* 4. 存入向量索引 *)</span>
+</span><span id="__span-14-31"><a id="__codelineno-14-31" name="__codelineno-14-31" href="#__codelineno-14-31"></a>  <span class="k">let</span> <span class="n">doc_vecs</span> <span class="o">=</span> <span class="nn">List</span><span class="p">.</span><span class="n">mapi</span> <span class="o">(</span><span class="k">fun</span> <span class="n">i</span> <span class="o">(</span><span class="n">doc</span><span class="o">,</span> <span class="o">_)</span> <span class="o">-&gt;</span>
+</span><span id="__span-14-32"><a id="__codelineno-14-32" name="__codelineno-14-32" href="#__codelineno-14-32"></a>    <span class="o">({</span> <span class="n">doc</span> <span class="k">with</span> <span class="nn">Vector_store</span><span class="p">.</span><span class="n">id</span> <span class="o">=</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;doc_%04d&quot;</span> <span class="n">i</span> <span class="o">},</span> <span class="n">vecs</span><span class="o">.(</span><span class="n">i</span><span class="o">))</span>
+</span><span id="__span-14-33"><a id="__codelineno-14-33" name="__codelineno-14-33" href="#__codelineno-14-33"></a>  <span class="o">)</span> <span class="n">all_chunks</span> <span class="k">in</span>
+</span><span id="__span-14-34"><a id="__codelineno-14-34" name="__codelineno-14-34" href="#__codelineno-14-34"></a>  <span class="o">(</span><span class="k">match</span> <span class="nn">Vector_store</span><span class="p">.</span><span class="n">add</span> <span class="n">store</span> <span class="n">doc_vecs</span> <span class="k">with</span>
+</span><span id="__span-14-35"><a id="__codelineno-14-35" name="__codelineno-14-35" href="#__codelineno-14-35"></a>   <span class="o">|</span> <span class="nc">Ok</span> <span class="bp">()</span> <span class="o">-&gt;</span>
+</span><span id="__span-14-36"><a id="__codelineno-14-36" name="__codelineno-14-36" href="#__codelineno-14-36"></a>     <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Indexed %d chunks</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">doc_vecs</span><span class="o">);</span>
+</span><span id="__span-14-37"><a id="__codelineno-14-37" name="__codelineno-14-37" href="#__codelineno-14-37"></a>     <span class="c">(* 5. 通过 RAG 查询 *)</span>
+</span><span id="__span-14-38"><a id="__codelineno-14-38" name="__codelineno-14-38" href="#__codelineno-14-38"></a>     <span class="k">let</span> <span class="o">(</span><span class="n">answer</span><span class="o">,</span> <span class="o">_)</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke_with_rag</span> <span class="n">rt</span>
+</span><span id="__span-14-39"><a id="__codelineno-14-39" name="__codelineno-14-39" href="#__codelineno-14-39"></a>       <span class="o">~</span><span class="n">agent_id</span><span class="o">:</span><span class="s2">&quot;rag_agent&quot;</span>
+</span><span id="__span-14-40"><a id="__codelineno-14-40" name="__codelineno-14-40" href="#__codelineno-14-40"></a>       <span class="o">~</span><span class="n">message</span><span class="o">:</span><span class="s2">&quot;这个文档说了什么关于 X 的内容？&quot;</span>
+</span><span id="__span-14-41"><a id="__codelineno-14-41" name="__codelineno-14-41" href="#__codelineno-14-41"></a>       <span class="o">~</span><span class="n">k</span><span class="o">:</span><span class="mi">4</span>
+</span><span id="__span-14-42"><a id="__codelineno-14-42" name="__codelineno-14-42" href="#__codelineno-14-42"></a>       <span class="o">~</span><span class="n">vector_store</span><span class="o">:(</span><span class="nc">Some</span> <span class="n">store</span><span class="o">)</span>
+</span><span id="__span-14-43"><a id="__codelineno-14-43" name="__codelineno-14-43" href="#__codelineno-14-43"></a>       <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-14-44"><a id="__codelineno-14-44" name="__codelineno-14-44" href="#__codelineno-14-44"></a>     <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Answer: %s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="n">answer</span>
+</span><span id="__span-14-45"><a id="__codelineno-14-45" name="__codelineno-14-45" href="#__codelineno-14-45"></a>   <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span>
+</span><span id="__span-14-46"><a id="__codelineno-14-46" name="__codelineno-14-46" href="#__codelineno-14-46"></a>     <span class="n">prerr_endline</span> <span class="o">(</span><span class="s2">&quot;store add failed: &quot;</span> <span class="o">^</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">e</span><span class="o">))</span>
+</span></code></pre></div>
+<p>要点：</p>
+<ul>
+<li><code>Document.content</code> 作为 <code>~text</code> 参数传入 <code>Chunking.chunk_recursive</code>。</li>
+<li><code>Document.Metadata.to_yojson</code> 将哈希表转换为 <code>Yojson.Safe.t</code>，用于 <code>Vector_store.document.metadata</code>。</li>
+<li>每个 <code>Document.t</code> 的 <code>source</code> 字段成为向量存储文档 id 的基础。</li>
+<li>加载和分块步骤与 embedding provider 无关。将 Mock 替换为 OpenAI 只需修改运行时配置。</li>
+</ul>
+<h2 id="_10">错误处理<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h2>
+<p>所有加载器返回 <code>(unit -&gt; Document.t list, load_error) result</code>。模式如下：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">match</span> <span class="nn">My_loader</span><span class="p">.</span><span class="n">make</span> <span class="n">ws</span> <span class="n">path</span> <span class="k">with</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>  <span class="c">(* 处理错误：文件不存在、权限不足等 *)</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>  <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">load</span> <span class="o">-&gt;</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>  <span class="k">let</span> <span class="n">docs</span> <span class="o">=</span> <span class="n">load</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>  <span class="c">(* 处理文档 *)</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>  <span class="o">...</span>
+</span></code></pre></div>
+<p>两步模式（make 返回 thunk，调用 thunk 产出文档）将路径验证与 I/O 分离。如果路径无效，会立即收到错误而不读取任何文件。提取过程中的异常会被捕获并记录日志（thunk 返回空列表而非崩溃）。</p>
+<p>对于 <code>Directory_loader</code>，单个文件的错误会被记录并跳过，而不是中止整个扫描。这是有意的设计：知识库中一个损坏的 PDF 不应该阻止旁边的 Markdown 文件被索引。</p>
+<h2 id="_11">另请参阅<a class="headerlink" href="#_11" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../rag/">RAG API</a> — embeddings、向量存储、分块、<code>invoke_with_rag</code></li>
+<li><a href="../streaming/">Streaming API</a> — <code>invoke_stream</code>、token 流式输出</li>
+<li><a href="../agent/">Agent API</a> — <code>Runtime.invoke</code>、agent 配置</li>
+<li><a href="../overview/">SDK 概览</a> — 模块映射与架构</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

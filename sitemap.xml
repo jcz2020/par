@@ -1,0 +1,497 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+    <url>
+        <loc>https://jcz2020.github.io/par/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/RELEASE-TEMPLATE/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/RELEASE-TEMPLATE/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/STRATEGY/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/STRATEGY/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/quickstart/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/quickstart/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/quickstart/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/v0.7.2-ROADMAP/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/v0.7.2-ROADMAP/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/archive/v0.2-roadmap/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/archive/v0.2-roadmap/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/audit/v0.7.x-findings/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/audit/v0.7.x-findings/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/evaluations/mcp-default-env/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/evaluations/mcp-default-env/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/evaluations/mcp-tool-loading/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/evaluations/mcp-tool-loading/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/evaluations/par-sandbox/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/evaluations/par-sandbox/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/explanation/architecture/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/explanation/architecture/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/explanation/architecture/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/explanation/concurrency-model/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/explanation/concurrency-model/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/explanation/concurrency-model/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/explanation/faq/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/explanation/faq/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/explanation/faq/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/explanation/persistence-and-durability/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/explanation/persistence-and-durability/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/explanation/persistence-and-durability/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/explanation/rag-architecture/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/explanation/rag-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/explanation/rag-architecture/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/howto/concurrency/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/howto/concurrency/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/howto/concurrency/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/howto/custom-llm-provider/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/howto/custom-llm-provider/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/howto/custom-llm-provider/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/howto/error-handling/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/howto/error-handling/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/howto/error-handling/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/howto/rag-pipeline/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/howto/rag-pipeline/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/howto/rag-pipeline/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/migration/v0.7.1/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/migration/v0.7.1/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/migration/v0.7.1/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/sdk/agent/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/agent/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/agent/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/sdk/content_blocks/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/content_blocks/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/content_blocks/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/sdk/document_loaders/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/document_loaders/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/document_loaders/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/sdk/generate/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/generate/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/generate/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/sdk/invoke_context/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/invoke_context/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/invoke_context/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/sdk/mcp/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/mcp/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/mcp/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/sdk/memory/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/memory/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/memory/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/sdk/middleware/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/middleware/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/middleware/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/sdk/observability/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/observability/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/observability/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/sdk/overview/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/overview/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/overview/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/sdk/persistence/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/persistence/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/persistence/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/sdk/prompt_caching/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/prompt_caching/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/prompt_caching/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/sdk/rag/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/rag/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/rag/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/sdk/skills/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/skills/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/skills/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/sdk/streaming/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/streaming/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/streaming/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/sdk/tools/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/tools/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/tools/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/sdk/workflow/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/workflow/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/workflow/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/tutorials/01-rag-qa-bot/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/tutorials/01-rag-qa-bot/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/tutorials/01-rag-qa-bot/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/tutorials/02-streaming-ui/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/tutorials/02-streaming-ui/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/tutorials/02-streaming-ui/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/tutorials/04-multi-provider-fallback/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/tutorials/04-multi-provider-fallback/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/tutorials/05-session-resume/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/tutorials/05-session-resume/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/quickstart/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/quickstart/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/quickstart/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/explanation/architecture/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/explanation/architecture/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/explanation/architecture/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/explanation/concurrency-model/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/explanation/concurrency-model/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/explanation/concurrency-model/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/explanation/faq/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/explanation/faq/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/explanation/faq/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/explanation/persistence-and-durability/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/explanation/persistence-and-durability/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/explanation/persistence-and-durability/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/explanation/rag-architecture/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/explanation/rag-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/explanation/rag-architecture/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/howto/concurrency/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/howto/concurrency/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/howto/concurrency/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/howto/custom-llm-provider/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/howto/custom-llm-provider/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/howto/custom-llm-provider/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/howto/error-handling/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/howto/error-handling/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/howto/error-handling/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/howto/rag-pipeline/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/howto/rag-pipeline/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/howto/rag-pipeline/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/migration/v0.7.1/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/migration/v0.7.1/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/migration/v0.7.1/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/sdk/agent/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/agent/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/agent/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/sdk/content_blocks/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/content_blocks/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/content_blocks/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/sdk/document_loaders/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/document_loaders/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/document_loaders/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/sdk/generate/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/generate/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/generate/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/sdk/invoke_context/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/invoke_context/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/invoke_context/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/sdk/mcp/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/mcp/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/mcp/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/sdk/memory/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/memory/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/memory/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/sdk/middleware/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/middleware/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/middleware/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/sdk/observability/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/observability/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/observability/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/sdk/overview/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/overview/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/overview/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/sdk/persistence/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/persistence/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/persistence/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/sdk/prompt_caching/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/prompt_caching/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/prompt_caching/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/sdk/rag/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/rag/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/rag/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/sdk/skills/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/skills/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/skills/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/sdk/streaming/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/streaming/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/streaming/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/sdk/tools/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/tools/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/tools/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/sdk/workflow/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/sdk/workflow/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/sdk/workflow/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/tutorials/01-rag-qa-bot/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/tutorials/01-rag-qa-bot/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/tutorials/01-rag-qa-bot/"/>
+    </url>
+    <url>
+        <loc>https://jcz2020.github.io/par/zh/tutorials/02-streaming-ui/</loc>
+        <lastmod>2026-07-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jcz2020.github.io/par/zh/tutorials/02-streaming-ui/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jcz2020.github.io/par/tutorials/02-streaming-ui/"/>
+    </url>
+</urlset>

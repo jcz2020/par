@@ -1,0 +1,1949 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/zh/explanation/faq/">
+      
+      
+        <link rel="prev" href="../rag-architecture/">
+      
+      
+      
+        
+          <link rel="alternate" href="../../../explanation/faq/" hreflang="en">
+        
+          <link rel="alternate" href="./" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>FAQ - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#faq" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../" title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              FAQ
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="选择当前语言">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../../explanation/faq/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="分享" aria-label="分享" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  教程
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  实用指南
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../sdk/overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  参考
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  解释
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../" title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    教程
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    教程
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    实用指南
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    实用指南
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/rag-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build a RAG Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    参考
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    参考
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/invoke_context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    invoke_context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generate API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/document_loaders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Loaders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/prompt_caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/content_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    解释
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    解释
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concurrency-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../persistence-and-durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence and Durability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rag-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#q1-par-langchain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q1. PAR 和 LangChain 有什么区别？
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q2-ocaml-sdkpython-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q2. 什么时候用 OCaml SDK、Python 绑定还是 CLI？
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q3-token" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q3. 流式输出是增量推送 token 的吗？
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q4. 生产环境如何配置持久化？
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q5-par-provider-x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q5. PAR 能用 provider X 吗？
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q6-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q6. skill 系统是什么？什么时候用？
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        另请参阅
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#q1-par-langchain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q1. PAR 和 LangChain 有什么区别？
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q2-ocaml-sdkpython-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q2. 什么时候用 OCaml SDK、Python 绑定还是 CLI？
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q3-token" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q3. 流式输出是增量推送 token 的吗？
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q4. 生产环境如何配置持久化？
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q5-par-provider-x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q5. PAR 能用 provider X 吗？
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q6-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q6. skill 系统是什么？什么时候用？
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        另请参阅
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<!-- language: zh -->
+
+<p><strong><a href="./">English</a></strong> · 简体中文</p>
+<h1 id="faq">FAQ：常见问题<a class="headerlink" href="#faq" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>Note (v0.6.7):</strong> PAR 的 CLI（<code>par</code>、<code>par ask</code>、<code>par config</code>）已移除；目前支持的入口是 OCaml SDK（<code>opam install par</code>）和 Python 绑定（<code>pip install par-runtime</code>）。如需基于此 SDK 的交互式编码 Agent 体验，请参阅 <a href="https://github.com/jcz2020/par-code">par-code</a>。下方关于 CLI 的问答保留作为历史参考。</p>
+</blockquote>
+<p>本页收集了用户评估 PAR、选择入口、或遇到预期之外行为时最常提出的问题。每个答案都指向更深入的参考页面，方便你继续阅读而无需回头查找。如果这里没有你的问题，<a href="../howto/">How-to 指南</a> 覆盖了具体操作方法，<a href="../architecture/">架构</a> 页面解释了设计原理。</p>
+<h2 id="q1-par-langchain">Q1. PAR 和 LangChain 有什么区别？<a class="headerlink" href="#q1-par-langchain" title="Permanent link">&para;</a></h2>
+<p>PAR 占据与 LangChain 相同的生态位：agent 运行时加编排原语。但设计优先级完全相反。LangChain 优化的是广度和 Python 易用性，PAR 优化的是类型严谨和结构化并发。区别体现在三个具体方面。</p>
+<p><strong>编译期类型安全，不是运行时。</strong> LangChain 工具是 Python callable，背后是一个字典形状的 <code>args_schema</code>。字段名拼错、参数缺失、类型错误，全部在 agent 循环深处以运行时崩溃的形式出现。PAR 工具是 OCaml record，背后是类型化的 <code>tool_descriptor</code>，每个调用点都经过编译器强制你覆盖的模式匹配。bash 工具是最突出的例子。LangChain 暴露的是 <code>subprocess.run</code> 加原始字符串。PAR 有 <code>Bash_safe_command</code> ADT（代数数据类型），没有 <code>Exec_raw_shell</code> 构造器，意味着 shell 注入在类型层不可表示。你写不出这个 bug。这是 PAR 的核心差异化能力，PAR 不可复制的属性。</p>
+<p><strong>结构化并发，不是 asyncio。</strong> LangChain 运行在 Python asyncio 上。每个 async 函数都带着颜色标记，每个 <code>await</code> 都是一个挂起点，工具处理器必须选 <code>async def</code> 或保持同步。PAR 运行在 OCaml 5.4 effect handlers 加 Eio 库之上。函数是直接风格（direct style），没有颜色区分。运行时给每个 <code>Runtime.create</code> 调用一个 <code>Eio.Switch.t</code>，运行时 fork 的每个 fiber 都是该 switch 的子 fiber。switch 退出时，子 fiber 全部被 join。一个泄漏的工具处理器持有数据库连接，不可能比它的运行时活得更久。Go 有 goroutine 和 context 模型，要求子任务协作式取消。asyncio 在 3.11 有 task groups。Eio 从第一天起就强制结构化。</p>
+<p><strong>文件系统原生的 skill 系统。</strong> LangChain 的 prompt 和工具子集定义在代码中。PAR 的 skill 层（v0.5.2 发布）从磁盘 <code>~/.par/skills/&lt;name&gt;/skill.md</code> 发现可复用的行为包。每个 skill 包含 <code>system_prompt_override</code>、类型化 <code>tool_filter</code> ADT（<code>All_tools</code>、<code>Only [...]</code>、<code>Except [...]</code>）和 <code>skill_trigger</code>（<code>Auto</code>、<code>Manual</code>、<code>Keyword [...]</code>）。3 级上下文加载模式（常驻元数据、延迟加载主体、永不加载的支撑文件）让 50+ 个 skill 安装后 token 预算仍然可控。没有 Python 框架能同时提供文件系统发现、类型化工具过滤和预算控制这三项能力。纤维（fiber）相关细节见 <a href="../concurrency-model/">并发模型</a>，skill 接口详情见下方 Q6。</p>
+<p>简短版本：当你需要 Python 生态最大广度时，选 LangChain。当类型保证、可预测并发和持久化的 skill 抽象比 LangChain 的长尾集成更重要时，选 PAR。</p>
+<h2 id="q2-ocaml-sdkpython-cli">Q2. 什么时候用 OCaml SDK、Python 绑定还是 CLI？<a class="headerlink" href="#q2-ocaml-sdkpython-cli" title="Permanent link">&para;</a></h2>
+<p>PAR 提供三个入口，共享同一个运行时。它们不是三个产品，而是同一引擎的三扇门，选哪扇取决于你在构建什么。</p>
+<table>
+<thead>
+<tr>
+<th>入口</th>
+<th>适合场景</th>
+<th>不适合场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OCaml SDK</td>
+<td>你在写生产级 OCaml 代码，需要每个公共 API 的端到端类型覆盖</td>
+<td>你不想在构建中引入 OCaml 工具链</td>
+</tr>
+<tr>
+<td>Python 绑定（PyPI 上的 <code>par_runtime</code>）</td>
+<td>你有现有 Python 服务，想要类型安全的 agent 运行时但不想重写技术栈</td>
+<td>你需要绑定尚未暴露的某些高级配置字段（部分字段仅 SDK 可用）</td>
+</tr>
+</tbody>
+</table>
+<p>决策矩阵主要看谁掌控部署。OCaml SDK 是规范入口。每个公共 API 先在这里定义，每个行为都基于 OCaml 类型文档化，其他入口都是薄封装。如果你在写 OCaml，没有理由选别的。<code>docs/sdk/</code> 下的 SDK 参考是类型签名的权威来源。</p>
+<p>Python 绑定面向 PAR 最初设计的目标用户：想要类型安全 agent 基础设施但不想用 OCaml 重写技术栈的 Python 后端工程师。<code>pip install par-runtime</code>，导入 <code>Runtime</code>，调用 <code>invoke</code> 或 <code>invoke_stream</code>。绑定通过 ctypes FFI 桥接同一个 OCaml 运行时。一个持久化的 OCaml domain 拥有 <code>Runtime</code>，Python 线程把工作闭包分发到它上面。Python 侧线程安全，无需持有全局锁。SDK 和绑定不一致时以 SDK 参考为准，绑定会跟进更新。</p>
+<p>如需交互式编码 Agent 体验（已移除 CLI 的替代品），请参阅 <a href="https://github.com/jcz2020/par-code">par-code</a>，一个基于此 SDK 构建的独立项目。</p>
+<p>合理的演进路径：先用 Python 绑定验证安装和 provider 配置。当你需要完整类型覆盖、OCaml 自定义工具处理器、或绑定尚未暴露的功能时，切换到 OCaml SDK。两边的运行时行为完全一致，后续切换入口是重构而非重写。</p>
+<h2 id="q3-token">Q3. 流式输出是增量推送 token 的吗？<a class="headerlink" href="#q3-token" title="Permanent link">&para;</a></h2>
+<p><strong>是的，从 v0.5.3 开始。</strong> <code>invoke_stream</code> 在后台守护线程中运行 <code>par_invoke_stream</code>；OCaml SSE 解析器在 LLM 产出每个 chunk 时触发 ctypes 回调，推送到 <code>queue.Queue</code>。Python 迭代器并发消费队列，第一个 token 在毫秒级内到达调用方，而非等整个响应完成。30 秒的生成，感知延迟从"30 秒黑屏然后一下子全出来"变成"首个 token &lt; 1 秒，然后持续输出"。</p>
+<p><strong>历史。</strong> v0.5.1–v0.5.2 发布的是<em>缓冲式</em>流：OCaml 工作循环把所有 chunk 收集到 ref list，结束时序列化为 JSON，Python 在首次 <code>__iter__</code> 时解析整个数组。缓冲消除了初始 ctypes 回调设计中的 domain-lock 崩溃，但代价是所有 chunk 在 LLM 完成后一次性到达。v0.5.3 重新设计了 FFI（<code>caml_dispatch_chunk_to_c</code> external + 后台线程 + <code>queue.Queue</code>），在不引入 domain-lock 问题的前提下实现实时 chunk 交付。</p>
+<p><strong>已知限制（v0.5.3）。</strong> 从迭代器提前 break 会留下后台线程持有进程全局的 <code>ocaml_lock</code>，直到 LLM 流自然完成。在此期间后续 <code>par_*</code> 调用会阻塞。如果需要进一步调用，请完全消费迭代器。<code>par_cancel_stream</code> FFI（v0.5.4-beta 发布）通过 flag-check 模式缓解了这个问题，取消在下一个 chunk 边界生效（典型延迟 50–300 ms）。详见 <a href="../../sdk/streaming/">Streaming API 参考</a> 和 CHANGES.md。</p>
+<p><strong>不变的部分。</strong> <code>Event</code> tagged union（<code>TextDelta</code>、<code>ToolCallStart</code>、<code>ToolCallDelta</code>、<code>UsageUpdate</code>、<code>Done</code>）与 OCaml <code>llm_response_chunk</code> ADT 逐字段对应。从缓冲式到增量式，API 形态没有变化，只有交付节奏改进了。</p>
+<h2 id="q4">Q4. 生产环境如何配置持久化？<a class="headerlink" href="#q4" title="Permanent link">&para;</a></h2>
+<p>PAR 提供两个持久化后端，通过 <code>runtime_config</code> 的 <code>persistence</code> 字段选择。选哪个是一次性决策，取决于你是否需要磁盘上的审计轨迹。详细说明见 <a href="../persistence-and-durability/">持久化与持久性</a>。</p>
+<p><strong>SQLite 是唯一的持久化后端。</strong> 默认且唯一的持久化层。磁盘上的单个文件（测试用 <code>:memory:</code>）。零外部依赖。<code>sqlite3</code> 库是 <code>par</code> 包的硬依赖。WAL 模式处理 PAR 典型的读多写少负载。默认保留 TTL 为 7 天，在后端打开时裁剪。按你的审计窗口要求的频率备份 <code>.db</code> 文件即可。单个 SQLite 运行时的批量写入器可以处理每秒数百个事件。LLM provider 几乎总是瓶颈，不是数据库。</p>
+<p><strong>多实例水平扩展（当前）。</strong> SQLite 的文件锁无法跨容器的多进程写入同一文件，所以多个 PAR 运行时不能并发写入同一个 <code>.db</code> 文件。如果你今天需要多个 PAR 进程，在应用层做分片：一个运行时，一个数据库文件，按租户或会话分区。跨实例共享状态在路线图上规划为未来的远程层（bd issue <code>PAR-4dt</code>，目标 v0.6+），SQLite 目前不支持。</p>
+<p><strong>测试用 Noop。</strong> 丢弃所有内容。无事件总线、无写入 fiber、无 I/O。只关心 agent 行为的测试运行更快且不留下文件。持久化为 noop 时运行时完全跳过事件总线的接线，不会有死总线喂给死写入器。</p>
+<p><strong>重要的调优旋钮。</strong> <code>Persistence_writer</code> 在 mutex 保护的列表中缓冲事件，容量 1000，每 50 毫秒刷新一次。缓冲溢出时事件路由到事件总线的死信队列而非静默丢弃。保留裁剪基于时间戳，仅针对 <code>events</code> 表。<code>task_states</code> 和 <code>workflow_states</code> 不自动裁剪，因为它们的行代表可恢复状态。如果在受监管环境中需要长保留期，在 <code>runtime_config</code> 中提高 <code>event_retention_seconds</code>，并按审计窗口要求备份 <code>.db</code> 文件。</p>
+<p><strong>双层架构即将到来。</strong> 当前模型是单层：事件去往一个后端，仅此而已。未来版本计划双层设计：快速本地层（SQLite，低延迟，短保留期）加远程层（对象存储或未来的持久化后端，持久化，长保留期）。本地层吸收突发流量，异步转发到远程层。在它落地之前，通过 <code>event_retention_seconds</code> 选择你的保留窗口，接受目前只有一层的事实。</p>
+<h2 id="q5-par-provider-x">Q5. PAR 能用 provider X 吗？<a class="headerlink" href="#q5-par-provider-x" title="Permanent link">&para;</a></h2>
+<p>大概率可以，只要 provider 支持 OpenAI Chat Completions API。PAR 内置四个 provider，并提供自定义注册路径。</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>文本</th>
+<th>工具调用</th>
+<th>流式输出</th>
+<th>Embeddings (RAG)</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>`Openai</code></td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td>一等公民，参考实现。</td>
+</tr>
+<tr>
+<td><code>`Anthropic</code></td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td><strong>no</strong></td>
+<td>Anthropic 没有 embeddings API。RAG 请用 OpenAI 或本地 embedder。</td>
+</tr>
+<tr>
+<td><code>`Ollama</code></td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td>本地运行。通过 OpenAI 兼容端点访问。</td>
+</tr>
+<tr>
+<td><code>`Mock</code></td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td>测试用。发出所有事件类型。</td>
+</tr>
+<tr>
+<td>自定义</td>
+<td>yes</td>
+<td>yes</td>
+<td>取决于</td>
+<td>取决于</td>
+<td>任何 OpenAI 兼容服务（Cohere、Mistral、vLLM、LM Studio 等）</td>
+</tr>
+</tbody>
+</table>
+<p>有趣的情况是 Anthropic 和自定义 provider。</p>
+<p><strong>Anthropic 和 RAG。</strong> Anthropic 的 API 没有 embeddings 端点。Claude 系列只支持聊天。如果你想用 Anthropic 做聊天模型同时做 RAG，需要单独的 embeddings 来源。常见模式是用 OpenAI 的 embeddings API 或本地 embedder（比如 Ollama 的 <code>nomic-embed-text</code>）做嵌入步骤，然后用 Anthropic 做生成步骤。PAR 的 RAG 管道就是这么设计的，<code>invoke_with_rag</code> 接受聊天 provider 和 embeddings provider 作为独立的配置字段。</p>
+<p><strong>Ollama 和 OpenAI 兼容的本地服务器。</strong> Ollama 在 <code>http://localhost:11434/v1</code> 暴露 OpenAI 兼容端点。把 PAR 的 <code>`Ollama</code> provider 指向它，或注册一个指向相同 URL 的自定义 provider，就能获得同样的接口。同样的技巧适用于 vLLM、LM Studio、LocalAI 以及任何模拟 OpenAI Chat Completions 格式的服务器。流式行为取决于服务器。PAR 的 streaming 参考文档记录了 provider 支持情况；在依赖增量交付（v0.5.3 发布）之前，请先确认你的本地服务器能发出 Server-Sent Events。</p>
+<p><strong>自定义 provider。</strong> 如果你的 provider 不在列表中，按照 <a href="../../howto/custom-llm-provider/">自定义 LLM provider how-to</a> 操作。模式和 Cohere、Mistral、Ollama 用的相同：实现 provider 接口，通过 <code>Runtime.register_agent</code> 或配置注册，PAR 就会把 invoke 路由到它。provider 接口在 <code>docs/sdk/</code> 下有文档。任何支持 OpenAI Chat Completions 的服务，无论是否支持工具调用，都可以无需新代码直接使用。</p>
+<p>PAR 目前不支持的 provider 类别是非 OpenAI 兼容的私有 API（比如 Google Gemini 的原生 API，区别于它的 OpenAI 兼容层）。对于这些，写一个自定义 provider 适配器。抽象层就是为此设计的。</p>
+<h2 id="q6-skill">Q6. skill 系统是什么？什么时候用？<a class="headerlink" href="#q6-skill" title="Permanent link">&para;</a></h2>
+<p>Skill 系统（v0.5.2 Track A 发布）是 PAR 对可复用 agent 行为包的类型化抽象。它解决的是一个反复出现的问题：你有一个 agent 在正常工作，想给它一个专注的能力（PDF 提取、SQL 查询、代码审查）而不重写它的 system prompt 或工具列表。Skill 让你把能力打包成磁盘上的目录，按需加载。</p>
+<p><strong>Skill 是什么。</strong> Skill 是 <code>~/.par/skills/&lt;name&gt;/</code> 下的目录，包含一个带 YAML frontmatter 的 <code>skill.md</code> 文件。Frontmatter 声明：</p>
+<ul>
+<li><code>system_prompt_override</code> 或 <code>system_prompt_append</code>：skill 激活时注入的提示材料。</li>
+<li><code>tool_filter</code>：类型化 ADT，<code>All_tools</code>、<code>Only ["read", "ls"]</code> 或 <code>Except ["bash"]</code>。替代其他框架使用的字符串列表白名单。</li>
+<li><code>trigger</code>：<code>Auto</code>（总是加载描述，LLM 判断）、<code>Manual</code>（仅显式调用）或 <code>Keyword [...]</code>（确定性匹配，可选 LLM 确认）。</li>
+<li><code>expected_output</code>：可选的类型化 JSON schema，定义成功标准。前瞻性设计，v0.5.2 中仅作信息性用途，未来版本由 LLM judge 消费。</li>
+</ul>
+<p><strong>为什么类型化重要。</strong> 其他发布类似 skill 抽象的框架（LangChain Hub、OpenAI Assistants、CrewAI Tasks、Claude Code Skills）都用字符串列表做过滤。PAR 用 ADT。<code>Only</code> 和 <code>Except</code> 在多 skill 同时激活时按交集语义组合：两个 skill 分别声明 <code>Only ["a", "b"]</code> 和 <code>Only ["b", "c"]</code>，同时激活时结果是 <code>Only ["b"]</code>。最严格者胜出，安全失败。这种属性是事后补丁字符串列表 API 拿不回来的。</p>
+<p><strong>什么时候用。</strong> 当你有需要跨 agent 复用的行为，不想复制粘贴 prompt 和工具子集时，用 skill。PDF 提取 skill、SQL 查询 skill、代码审查 skill、安全审计 skill。3 级上下文加载模式在规模上保持 token 预算可控。第 1 级是元数据块，始终驻留在上下文中，每个 skill 大约 100 token。第 2 级是主体，skill 触发时延迟加载。第 3 级是支撑文件，永不加载到上下文中。2048 token 的描述预算（可通过 <code>skill_token_budget</code> 覆盖），安装 20 个 Auto skill 后运行时仍在预算内。溢出优先级是显式匹配优先，然后关键字匹配，最后按声明顺序的 auto。</p>
+<p><strong>什么时候不用。</strong> Skill 不适合一次性 prompt。如果你的 system prompt 只在一个 agent 中使用，直接写在 <code>agent_config</code> 里。Skill 真正发挥作用的场景是：同一行为包组合进多个 agent、非工程师需要添加能力而不想改 OCaml 代码、或你想通过 skills 目录跨项目共享能力。</p>
+<p>v0.5.2 版本发布了数据模型、文件系统发现、YAML frontmatter 格式和类型化 <code>tool_filter</code> 组合。未来版本将添加 <code>expected_output</code> 的 LLM judge、基于 mtime 重扫描的热重载、以及用于列出、安装和验证 skill 的 <code>par skill</code> CLI。路线图在 <code>docs/v0.5.2-ROADMAP.md</code>。Skill 设计研究（包括影响范式选择的 5 框架对比）与路线图一起记录。</p>
+<h2 id="_1">另请参阅<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../architecture/">架构</a> 模块映射以及 skill 如何融入更大的 Runtime 结构</li>
+<li><a href="../concurrency-model/">并发模型</a> skill 组合所用的纤维（fiber）机制</li>
+<li><a href="../persistence-and-durability/">持久化与持久性</a> 持久化后端决策矩阵</li>
+<li><a href="../../sdk/streaming/">Streaming API</a> 增量 chunk 交付路径（v0.5.3）</li>
+<li><a href="../../sdk/agent/">Agent API</a> <code>Runtime.invoke</code>、<code>agent_config</code> 和工具注册</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,2607 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/zh/sdk/rag/">
+      
+      
+        <link rel="prev" href="../generate/">
+      
+      
+        <link rel="next" href="../document_loaders/">
+      
+      
+        
+          <link rel="alternate" href="../../../sdk/rag/" hreflang="en">
+        
+          <link rel="alternate" href="./" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>RAG API - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#rag-api" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../" title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              RAG API
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="选择当前语言">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../../sdk/rag/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="分享" aria-label="分享" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  教程
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  实用指南
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  参考
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  解释
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../" title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    教程
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    教程
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    实用指南
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    实用指南
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/rag-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build a RAG Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    参考
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    参考
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../invoke_context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    invoke_context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generate API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#embedding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        为什么向量存储与 embedding 无关
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#embedding-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embedding Provider 支持矩阵
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#python-sdk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python SDK
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Python SDK">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        快速入门：端到端 RAG
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        多文档索引
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        持久化与重索引
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        向量存储后端
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ocaml-sdk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OCaml SDK 参考
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OCaml SDK 参考">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#embedding_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embedding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        向量存储
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        分块
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rag_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RAG 调用
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        错误类别参考
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使用示例
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="使用示例">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-embedding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        示例 1：基本 embedding 健全性检查
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        示例 2：分块并索引长文档
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3rag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        示例 3：RAG 问答
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        限制
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        另请参阅
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../document_loaders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Loaders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prompt_caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    解释
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    解释
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/concurrency-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/persistence-and-durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence and Durability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/rag-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#embedding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        为什么向量存储与 embedding 无关
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#embedding-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embedding Provider 支持矩阵
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#python-sdk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python SDK
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Python SDK">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        快速入门：端到端 RAG
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        多文档索引
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        持久化与重索引
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        向量存储后端
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ocaml-sdk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OCaml SDK 参考
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OCaml SDK 参考">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#embedding_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embedding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        向量存储
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        分块
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rag_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RAG 调用
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        错误类别参考
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使用示例
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="使用示例">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-embedding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        示例 1：基本 embedding 健全性检查
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        示例 2：分块并索引长文档
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3rag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        示例 3：RAG 问答
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        限制
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        另请参阅
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<!-- language: zh -->
+<p><strong><a href="./">English</a></strong> · 简体中文</p>
+<h1 id="rag-api">RAG API 参考<a class="headerlink" href="#rag-api" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>在 v0.5.1 中添加。真实来源：<code>lib/core/types.ml</code>、<code>lib/core/vector_store.mli</code> 和 <code>lib/core/chunking.mli</code> 中的 OCaml 类型。Python 绑定通过 FFI 提供相同的接口。Phase B.2（向量存储）、B.3（分块）和 C.3（Python FFI）实现本文档。</p>
+</blockquote>
+<p>PAR 的 RAG（Retrieval-Augmented Generation，检索增强生成）管道将 LLM 响应锚定在你自己的文档中。你将文本嵌入（embed）为向量，存储在本地向量索引中，在查询时检索与问题最相似的 chunk。检索到的 chunk 作为上下文注入 prompt，然后 LLM 作答。</p>
+<p>本页面覆盖两个接口。Python 绑定（<code>pip install par-runtime</code>）是大多数用户更快的路径，端到端支持完整的 RAG 循环。OCaml SDK 暴露相同的循环，并提供对 <code>Vector_store</code> 和 <code>Chunking</code> 模块的直接、类型安全访问，适合想要自己管理索引的调用方。</p>
+<p>管道有四个部分：<strong>Embeddings</strong>（将文本转为向量）、<strong>Vector Store</strong>（存储和搜索向量）、<strong>Chunking</strong>（拆分长文档）和 <strong>RAG Invocation</strong>（将三者组合为锚定查询）。</p>
+<h2 id="embedding">为什么向量存储与 embedding 无关<a class="headerlink" href="#embedding" title="Permanent link">&para;</a></h2>
+<p>PAR 的向量存储接受预计算的浮点数组。它不知道是哪个 embedding 模型产出的向量，也不会自己调用模型。调用方负责使用同一个模型对文档和查询进行嵌入。</p>
+<p>这是一个刻意的选择。RAG 中的静默失败模式是 embedding 模型漂移：你用模型 A 索引文档，然后用模型 B 查询，检索质量崩溃但没有错误暴露。通过强制调用方拥有嵌入步骤，PAR 使在一个地方维护一个模型名称并通过它路由索引和查询变得自然。代价是在调用点多一行代码。</p>
+<p>一个后果：如果你更换 embedding 模型，必须重新索引所有文档。见下方"持久化与重索引"。</p>
+<h2 id="embedding-provider">Embedding Provider 支持矩阵<a class="headerlink" href="#embedding-provider" title="Permanent link">&para;</a></h2>
+<p>Embedding 是与 chat completions 分离的能力。一个 provider 可以支持 chat 但不支持 embedding。下面的矩阵是 v0.5.1 中"我能用这个 provider 做 embedding 吗？"的权威回答。</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Embedding</th>
+<th>默认模型</th>
+<th>维度</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>`Openai</code></td>
+<td>是</td>
+<td><code>text-embedding-3-small</code></td>
+<td>1536</td>
+<td>完全支持。在 provider 配置中覆盖模型。返回余弦相似度向量。</td>
+</tr>
+<tr>
+<td><code>`Anthropic</code></td>
+<td>否</td>
+<td>不适用</td>
+<td>不适用</td>
+<td>Anthropic 不提供 embedding API。<code>embed</code> 无条件返回 <code>Error Embedding_unsupported</code>。使用 OpenAI、Ollama 或 Mock 进行嵌入步骤；你仍然可以在 <code>invoke_with_rag</code> 中使用 Anthropic 进行 chat completion。</td>
+</tr>
+<tr>
+<td><code>`Ollama</code></td>
+<td>是</td>
+<td><code>nomic-embed-text</code>（推荐）</td>
+<td>取决于模型</td>
+<td>通过 OpenAI 兼容端点（<code>/v1/embeddings</code>）工作。将 OpenAI provider 的 <code>base_url</code> 指向你的 Ollama 实例并选择一个 embedding 模型。维度取决于模型；在 <code>Vector_store.create</code> 中将 <code>dimension</code> 与模型输出匹配。</td>
+</tr>
+<tr>
+<td><code>`Mock</code></td>
+<td>是</td>
+<td>确定性哈希向量</td>
+<td>1536</td>
+<td>用于测试的确定性哈希向量。相同输入字符串总是产出相同向量，因此单元测试可复现。不适合真实检索。</td>
+</tr>
+</tbody>
+</table>
+<p>如果你对一个返回 <code>Embedding_unsupported</code> 的 provider 调用 <code>embed</code>，错误在 Python 中表现为 <code>PARError</code>，在 OCaml 中表现为 <code>Error Embedding_unsupported</code>。恢复方式是配置一个支持 embedding 的 provider。</p>
+<h2 id="python-sdk">Python SDK<a class="headerlink" href="#python-sdk" title="Permanent link">&para;</a></h2>
+<h3 id="rag">快速入门：端到端 RAG<a class="headerlink" href="#rag" title="Permanent link">&para;</a></h3>
+<p>此示例索引三个短文档，提出一个问题，并打印锚定回答。它使用 Mock provider，因此无需 API key 即可运行。要使用真实嵌入，将 provider 块替换为 OpenAI（注释在代码中）。</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">par_runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">Runtime</span><span class="p">,</span> <span class="n">PARError</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># One provider configured for BOTH embeddings and chat. The Mock provider</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># needs no credentials and returns deterministic vectors, so the script</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># runs as-is. For real retrieval, use the OpenAI block below.</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">use_mock</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;PAR_PROVIDER&quot;</span><span class="p">,</span> <span class="s2">&quot;mock&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;mock&quot;</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="k">if</span> <span class="n">use_mock</span><span class="p">:</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">provider</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;tag&quot;</span><span class="p">:</span> <span class="s2">&quot;mock&quot;</span><span class="p">}</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="k">else</span><span class="p">:</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">provider</span> <span class="o">=</span> <span class="p">{</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>        <span class="s2">&quot;tag&quot;</span><span class="p">:</span> <span class="s2">&quot;openai&quot;</span><span class="p">,</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>        <span class="s2">&quot;contents&quot;</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>            <span class="s2">&quot;api_key&quot;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;OPENAI_API_KEY&quot;</span><span class="p">],</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>            <span class="c1"># Ollama works too: set base_url to http://localhost:11434/v1</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>            <span class="c1"># and pick an embedding model in the embedding_model field.</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>        <span class="p">},</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    <span class="p">}</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="n">config</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    <span class="s2">&quot;persistence&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;tag&quot;</span><span class="p">:</span> <span class="s2">&quot;sqlite&quot;</span><span class="p">,</span> <span class="s2">&quot;contents&quot;</span><span class="p">:</span> <span class="s2">&quot;:memory:&quot;</span><span class="p">},</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    <span class="s2">&quot;llm_providers&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">provider</span><span class="p">],</span>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="p">})</span>
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="n">agent_config</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span>
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>    <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;rag_agent&quot;</span><span class="p">,</span>
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>    <span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;tag&quot;</span><span class="p">:</span> <span class="s2">&quot;mock&quot;</span><span class="p">},</span>  <span class="c1"># or {&quot;tag&quot;: &quot;openai&quot;, &quot;contents&quot;: {...}}</span>
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>    <span class="s2">&quot;system_prompt&quot;</span><span class="p">:</span> <span class="s2">&quot;Answer the user&#39;s question using only the provided context.&quot;</span><span class="p">,</span>
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="p">})</span>
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a><span class="k">with</span> <span class="n">Runtime</span><span class="p">(</span><span class="n">config</span><span class="p">)</span> <span class="k">as</span> <span class="n">rt</span><span class="p">:</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>    <span class="n">rt</span><span class="o">.</span><span class="n">register_agent</span><span class="p">(</span><span class="n">agent_config</span><span class="p">)</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>    <span class="c1"># Index documents. Pass strings (ids auto-generated) or dicts with</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>    <span class="c1"># id/content/metadata. Embedding happens inside add_documents.</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>    <span class="n">docs</span> <span class="o">=</span> <span class="p">[</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>        <span class="s2">&quot;PAR is an OCaml agent runtime. It handles the ReAct loop, tool dispatch, and multi-provider LLM calls.&quot;</span><span class="p">,</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>        <span class="s2">&quot;PAR&#39;s vector store uses sqlite-vec under the hood and is embedding-agnostic.&quot;</span><span class="p">,</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>        <span class="s2">&quot;PAR ships 20 built-in tools, including a type-safe bash tool that prevents shell injection.&quot;</span><span class="p">,</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>    <span class="p">]</span>
+</span><span id="__span-0-43"><a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>    <span class="n">added</span> <span class="o">=</span> <span class="n">rt</span><span class="o">.</span><span class="n">add_documents</span><span class="p">(</span><span class="n">docs</span><span class="p">)</span>
+</span><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Indexed </span><span class="si">{</span><span class="n">added</span><span class="si">}</span><span class="s2"> documents&quot;</span><span class="p">)</span>
+</span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a>
+</span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a>    <span class="c1"># Ask a question. invoke_with_rag embeds the query, retrieves top-k</span>
+</span><span id="__span-0-47"><a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a>    <span class="c1"># chunks, augments the prompt, and invokes the agent.</span>
+</span><span id="__span-0-48"><a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a>    <span class="n">answer</span> <span class="o">=</span> <span class="n">rt</span><span class="o">.</span><span class="n">invoke_with_rag</span><span class="p">(</span><span class="s2">&quot;rag_agent&quot;</span><span class="p">,</span> <span class="s2">&quot;How many tools does PAR ship?&quot;</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</span><span id="__span-0-49"><a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">answer</span><span class="p">))</span>
+</span></code></pre></div>
+<p>示例演示的要点：</p>
+<ul>
+<li>一个 provider 块同时处理 embedding 和 chat。你不需要分别配置它们。</li>
+<li><code>add_documents</code> 接受纯字符串用于常见情况，或字典用于需要稳定 id 或元数据过滤的场景。</li>
+<li><code>invoke_with_rag</code> 返回与 <code>invoke</code> 相同的 JSON 字符串形状。用 <code>json.loads</code> 解析以取出 assistant 消息和任何工具调用。</li>
+<li><code>k=2</code> 检索两个最相似的 chunk。默认是 <code>k=4</code>。更高的 k 意味着更多上下文但更长的 prompt；根据你的文档集调优。</li>
+</ul>
+<h3 id="_1">多文档索引<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
+<p>当你有不止少量文档时，传入带有显式 id 和元数据的字典。id 让你之后可以更新或删除单个文档而不影响其他。元数据存储在向量旁边并在搜索结果中返回，因此你可以过滤或显示来源。</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">documents</span> <span class="o">=</span> <span class="p">[</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="p">{</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;docs/arch-001&quot;</span><span class="p">,</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>        <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;The runtime uses Eio for structured concurrency. Every fiber has a parent; no orphan fibers.&quot;</span><span class="p">,</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>        <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;source&quot;</span><span class="p">:</span> <span class="s2">&quot;architecture.md&quot;</span><span class="p">,</span> <span class="s2">&quot;section&quot;</span><span class="p">:</span> <span class="s2">&quot;concurrency&quot;</span><span class="p">,</span> <span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="s2">&quot;0.5&quot;</span><span class="p">},</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="p">},</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="p">{</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;docs/arch-002&quot;</span><span class="p">,</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>        <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Persistence defaults to SQLite, the only persistent backend.&quot;</span><span class="p">,</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>        <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;source&quot;</span><span class="p">:</span> <span class="s2">&quot;architecture.md&quot;</span><span class="p">,</span> <span class="s2">&quot;section&quot;</span><span class="p">:</span> <span class="s2">&quot;persistence&quot;</span><span class="p">,</span> <span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="s2">&quot;0.5&quot;</span><span class="p">},</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="p">},</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="p">{</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;docs/tools-001&quot;</span><span class="p">,</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>        <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;The bash tool takes a Bash_safe_command ADT. Raw strings are not accepted, so shell injection is unrepresentable.&quot;</span><span class="p">,</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>        <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;source&quot;</span><span class="p">:</span> <span class="s2">&quot;tools.md&quot;</span><span class="p">,</span> <span class="s2">&quot;section&quot;</span><span class="p">:</span> <span class="s2">&quot;bash&quot;</span><span class="p">,</span> <span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="s2">&quot;0.5&quot;</span><span class="p">},</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="p">},</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="p">]</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="k">with</span> <span class="n">Runtime</span><span class="p">(</span><span class="n">config</span><span class="p">)</span> <span class="k">as</span> <span class="n">rt</span><span class="p">:</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>    <span class="n">rt</span><span class="o">.</span><span class="n">register_agent</span><span class="p">(</span><span class="n">agent_config</span><span class="p">)</span>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>    <span class="n">count</span> <span class="o">=</span> <span class="n">rt</span><span class="o">.</span><span class="n">add_documents</span><span class="p">(</span><span class="n">documents</span><span class="p">)</span>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>    <span class="k">assert</span> <span class="n">count</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">documents</span><span class="p">)</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>    <span class="c1"># Retrieval still goes through invoke_with_rag. Metadata is not queried</span>
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>    <span class="c1"># directly from Python in v0.5.1; it rides along on each search result</span>
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>    <span class="c1"># for the OCaml caller and for future filter support.</span>
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>    <span class="n">answer</span> <span class="o">=</span> <span class="n">rt</span><span class="o">.</span><span class="n">invoke_with_rag</span><span class="p">(</span><span class="s2">&quot;rag_agent&quot;</span><span class="p">,</span> <span class="s2">&quot;What concurrency library does PAR use?&quot;</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+</span></code></pre></div>
+<p>关于大规模索引的两个实用说明。第一，批量嵌入。OpenAI embedding 端点每次请求接受多个输入，<code>Runtime.embed</code> 已经做了批处理；<code>add_documents</code> 内部也是如此。如果你通过 OCaml SDK 索引数千个文档，将列表分成 100 到 500 个一批以保持请求大小合理。第二，优先使用稳定 id。如果你通过添加新 id 的文档来重索引，旧条目会留下并稀释检索质量。跨重索引运行使用相同的 id，这样 <code>add</code> 会原地更新。</p>
+<h3 id="_2">持久化与重索引<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<p>Python 绑定的向量存储默认存在于进程内存中（<code>":memory:"</code> SQLite）。它不会跨进程重启存活。要在 Python 中跨运行持久化，目前需要在启动时重新索引或将文档集序列化到磁盘后重新加载。</p>
+<p>OCaml SDK 给你显式控制。传入真实文件路径到 <code>Vector_store.create ~db_path:"/var/lib/par/vectors.db"</code>。sqlite-vec 索引随后跨进程重启持久化。用相同路径和维度重新打开存储会重新加载已有向量；你不需要每次启动都重新索引。</p>
+<p>何时需要重索引：</p>
+<ul>
+<li><strong>你更换了 embedding 模型。</strong> 不同模型在不同空间产出向量。跨混合模型向量的余弦相似度没有意义。清空存储（按 id 调用 <code>Vector_store.delete</code>，或删除 db 文件）并重新嵌入每个文档。</li>
+<li><strong>你更改了维度。</strong> <code>Vector_store.create</code> 在创建时固定维度。添加不同维度的向量会失败。用新维度重新创建存储并重索引。</li>
+<li><strong>你的文档语料库大幅变化。</strong> 如果超过约 30% 的文档是新增或移除的，干净重索引通常比增量添加获得更好的检索质量。增量添加适合小规模追加。</li>
+</ul>
+<p>你不需要重索引的情况：你更换了 chat 模型（embedding 和 chat 是解耦的）、你更改了 <code>k</code>、或者你对持久化 db 文件重启了进程。</p>
+<h3 id="_3">向量存储后端<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<p>从 v0.7.5 起，PAR 支持两种向量存储后端：</p>
+<table>
+<thead>
+<tr>
+<th>后端</th>
+<th>实现</th>
+<th>外部依赖</th>
+<th>平台</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>sqlite-vec</strong></td>
+<td>SQLite + vec0 扩展</td>
+<td>C 扩展（<code>vec0.so</code>/<code>.dll</code>/<code>.dylib</code>）</td>
+<td>Linux x86_64、macOS arm64</td>
+<td>需要持久化的生产环境</td>
+</tr>
+<tr>
+<td><strong>HNSW</strong></td>
+<td>纯 OCaml HNSW 图</td>
+<td>无</td>
+<td>所有平台（包括 Windows）</td>
+<td>可移植、零依赖</td>
+</tr>
+</tbody>
+</table>
+<p><strong>sqlite-vec</strong>（默认）使用 SQLite 和 vec0 C 扩展进行向量相似度搜索。需要 <code>vec0.so</code>（或平台等价文件）共享库。这是支持平台上的推荐生产后端。</p>
+<p><strong>HNSW</strong> 是 Hierarchical Navigable Small World 算法的纯 OCaml 实现（Malkov &amp; Yashunin, TPAMI 2020）。零外部依赖，在所有平台上工作——包括 vec0 扩展有问题的 Windows。向量存储在内存中，可选文件持久化。</p>
+<p>使用 HNSW 后端（仅 OCaml SDK）：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="k">let</span> <span class="n">config</span> <span class="o">:</span> <span class="nn">Types</span><span class="p">.</span><span class="n">vector_store_backend</span> <span class="o">=</span> <span class="nc">Vs_hnsw</span> <span class="o">{</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  <span class="n">persist_path</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>       <span class="c">(* 或 Some &quot;/path/to/index.bin&quot; 用于持久化 *)</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  <span class="n">dimension</span> <span class="o">=</span> <span class="mi">1536</span><span class="o">;</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  <span class="n">m</span> <span class="o">=</span> <span class="mi">16</span><span class="o">;</span>                    <span class="c">(* 每节点最大边数，默认 16 *)</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>  <span class="n">ef_construction</span> <span class="o">=</span> <span class="mi">200</span><span class="o">;</span>     <span class="c">(* 插入搜索宽度，默认 200 *)</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>  <span class="n">ef_search</span> <span class="o">=</span> <span class="mi">50</span><span class="o">;</span>            <span class="c">(* 查询搜索宽度，默认 50 *)</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="o">}</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="k">match</span> <span class="nn">Vector_store</span><span class="p">.</span><span class="n">create_for_backend</span> <span class="n">config</span> <span class="k">with</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">store</span> <span class="o">-&gt;</span> <span class="c">(* 使用 store 进行 add/search/delete/close *)</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="c">(* 处理错误 *)</span>
+</span></code></pre></div>
+<p>通过 <code>Runtime.create</code> 使用：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">let</span> <span class="n">backend</span> <span class="o">=</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Vs_hnsw</span> <span class="o">{</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  <span class="n">persist_path</span> <span class="o">=</span> <span class="nc">Some</span> <span class="s2">&quot;/tmp/my_index.bin&quot;</span><span class="o">;</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  <span class="n">dimension</span> <span class="o">=</span> <span class="mi">1536</span><span class="o">;</span> <span class="n">m</span> <span class="o">=</span> <span class="mi">16</span><span class="o">;</span> <span class="n">ef_construction</span> <span class="o">=</span> <span class="mi">200</span><span class="o">;</span> <span class="n">ef_search</span> <span class="o">=</span> <span class="mi">50</span><span class="o">;</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="o">}</span> <span class="k">in</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">create</span> <span class="o">~</span><span class="n">vector_store_backend</span><span class="o">:</span><span class="n">backend</span> <span class="o">~</span><span class="n">config</span> <span class="n">switch</span> <span class="k">with</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">rt</span> <span class="o">-&gt;</span> <span class="c">(* rt.services.vector_store 自动设置 *)</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="o">...</span>
+</span></code></pre></div>
+<p>当 <code>?vector_store_backend</code> 传入 <code>Runtime.create</code> 时，向量存储会被创建并保存在运行时中。<code>Runtime.invoke_with_rag</code> 在未显式传入 <code>?vector_store</code> 时会自动使用它。</p>
+<blockquote>
+<p><strong>注意</strong>：HNSW 后端在 OCaml SDK 和 Python 绑定中均可使用（v0.7.6+）。Python 用户可通过 <code>vector_store</code> 配置字段选择：<code>{"vector_store": {"backend": "hnsw", "dimension": 1536}}</code>。</p>
+</blockquote>
+<h2 id="ocaml-sdk">OCaml SDK 参考<a class="headerlink" href="#ocaml-sdk" title="Permanent link">&para;</a></h2>
+<p>OCaml 接口是真实来源。每个 Python 方法通过 FFI 映射到一个 OCaml 函数，因此下面的签名是运行时实际执行的。</p>
+<h3 id="embedding_1">Embedding<a class="headerlink" href="#embedding_1" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">open</span> <span class="nc">Types</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="k">let</span> <span class="n">embed</span> <span class="n">rt</span> <span class="n">messages</span> <span class="o">=</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>  <span class="nn">Runtime</span><span class="p">.</span><span class="n">embed</span> <span class="n">rt</span> <span class="n">messages</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="c">(* val embed : Runtime.t -&gt; string list -&gt;</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c"> *   (float array list, error_category) result *)</span>
+</span></code></pre></div>
+<p><code>Runtime.embed</code> 接受字符串列表并返回浮点数组列表（每个输入一个向量），或返回 <code>error_category</code>。Provider 行为匹配上面的矩阵。在 OpenAI 上，网络故障返回为 <code>External_failure</code>，请求超时为 <code>Timeout</code>，缺少 API key 为 <code>Invalid_input</code>。</p>
+<h3 id="_4">向量存储<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<p><code>Vector_store</code> 模块是持久化层。它与 embedding 无关：它存储 <code>(document, float array)</code> 对并按余弦相似度排序返回。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">open</span> <span class="nn">Par</span><span class="p">.</span><span class="nc">Vector_store</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="c">(* Create an in-memory store. For persistence, use a file path.</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c">   The vec_extension_path is resolved automatically by the FFI layer</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c">   (par_set_vec_extension_path) for pip-installed users; OCaml SDK</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="c">   callers pass it explicitly. *)</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="k">let</span> <span class="n">store</span> <span class="o">=</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>  <span class="k">match</span> <span class="n">create</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="o">~</span><span class="n">db_path</span><span class="o">:</span><span class="s2">&quot;:memory:&quot;</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>    <span class="o">~</span><span class="n">vec_extension_path</span><span class="o">:</span><span class="s2">&quot;vendor/sqlite-vec/linux-x86_64/vec0.so&quot;</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    <span class="o">~</span><span class="n">dimension</span><span class="o">:</span><span class="mi">1536</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>    <span class="bp">()</span> <span class="k">with</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>  <span class="o">|</span> <span class="nc">Ok</span> <span class="n">s</span> <span class="o">-&gt;</span> <span class="n">s</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>  <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">failwith</span> <span class="o">(</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="k">let</span> <span class="n">doc</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>  <span class="n">id</span> <span class="o">=</span> <span class="s2">&quot;doc1&quot;</span><span class="o">;</span>
+</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>  <span class="n">content</span> <span class="o">=</span> <span class="s2">&quot;PAR is an OCaml agent runtime&quot;</span><span class="o">;</span>
+</span><span id="__span-5-19"><a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>  <span class="n">metadata</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>  <span class="c">(* optional Yojson; rides along on search results *)</span>
+</span><span id="__span-5-20"><a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="o">}</span>
+</span><span id="__span-5-21"><a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a><span class="k">let</span> <span class="n">vec</span> <span class="o">=</span> <span class="o">[|</span> <span class="mi">0</span><span class="o">.</span><span class="mi">1</span><span class="o">;</span> <span class="mi">0</span><span class="o">.</span><span class="mi">2</span><span class="o">;</span> <span class="mi">0</span><span class="o">.</span><span class="mi">3</span><span class="o">;</span> <span class="c">(* ...1536 floats... *)</span> <span class="o">|]</span>  <span class="c">(* from Runtime.embed *)</span>
+</span><span id="__span-5-22"><a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a><span class="k">let</span> <span class="bp">()</span> <span class="o">=</span>
+</span><span id="__span-5-23"><a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>  <span class="k">match</span> <span class="n">add</span> <span class="n">store</span> <span class="o">[(</span><span class="n">doc</span><span class="o">,</span> <span class="n">vec</span><span class="o">)]</span> <span class="k">with</span>
+</span><span id="__span-5-24"><a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a>  <span class="o">|</span> <span class="nc">Ok</span> <span class="bp">()</span> <span class="o">-&gt;</span> <span class="bp">()</span>
+</span><span id="__span-5-25"><a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a>  <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-5-26"><a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a>
+</span><span id="__span-5-27"><a id="__codelineno-5-27" name="__codelineno-5-27" href="#__codelineno-5-27"></a><span class="k">let</span> <span class="n">results</span> <span class="o">=</span>
+</span><span id="__span-5-28"><a id="__codelineno-5-28" name="__codelineno-5-28" href="#__codelineno-5-28"></a>  <span class="k">match</span> <span class="n">search</span> <span class="n">store</span> <span class="o">~</span><span class="n">query</span><span class="o">:</span><span class="n">query_vec</span> <span class="o">~</span><span class="n">k</span><span class="o">:</span><span class="mi">4</span> <span class="k">with</span>
+</span><span id="__span-5-29"><a id="__codelineno-5-29" name="__codelineno-5-29" href="#__codelineno-5-29"></a>  <span class="o">|</span> <span class="nc">Ok</span> <span class="n">rs</span> <span class="o">-&gt;</span> <span class="n">rs</span>
+</span><span id="__span-5-30"><a id="__codelineno-5-30" name="__codelineno-5-30" href="#__codelineno-5-30"></a>  <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="bp">[]</span>
+</span><span id="__span-5-31"><a id="__codelineno-5-31" name="__codelineno-5-31" href="#__codelineno-5-31"></a><span class="c">(* results : search_result list =</span>
+</span><span id="__span-5-32"><a id="__codelineno-5-32" name="__codelineno-5-32" href="#__codelineno-5-32"></a><span class="c"> *   [{ doc = { id; content; metadata }; score }] *)</span>
+</span></code></pre></div>
+<p>完整签名：</p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>签名</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>create</code></td>
+<td><code>db_path:string -&gt; vec_extension_path:string -&gt; dimension:int -&gt; unit -&gt; (t, error_category) result</code></td>
+<td>打开或创建存储。<code>db_path ":memory:"</code> 是临时的；文件路径则持久化。<code>dimension</code> 必须匹配你的 embedding 模型。</td>
+</tr>
+<tr>
+<td><code>add</code></td>
+<td><code>t -&gt; (document * float array) list -&gt; (unit, error_category) result</code></td>
+<td>插入或更新文档。<code>document.id</code> 是主键；添加已存在的 id 会替换向量。</td>
+</tr>
+<tr>
+<td><code>search</code></td>
+<td><code>t -&gt; query:float array -&gt; k:int -&gt; (search_result list, error_category) result</code></td>
+<td>按余弦相似度返回 top-k 文档，最高分在前。</td>
+</tr>
+<tr>
+<td><code>delete</code></td>
+<td><code>t -&gt; ids:string list -&gt; (unit, error_category) result</code></td>
+<td>按 id 删除文档。</td>
+</tr>
+<tr>
+<td><code>close</code></td>
+<td><code>t -&gt; unit</code></td>
+<td>关闭底层 SQLite 句柄。在关闭时安全调用一次。</td>
+</tr>
+</tbody>
+</table>
+<p><code>score</code> 是 <code>[-1.0, 1.0]</code> 范围内的余弦相似度；越高表示越相似。<code>document</code> 记录携带 <code>id : string</code>、<code>content : string</code> 和 <code>metadata : Yojson.Safe.t option</code>。元数据对存储是不透明的；它随每个搜索结果一起返回，以便调用方过滤或显示来源。</p>
+<h3 id="_5">分块<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
+<p>长文档在嵌入前应该被拆分。一个 10,000 token 的 PDF 整块喂给嵌入器会产出一个平均化掉每个有用信号的向量。分块将一个长文档变成多个短文档，每个有自己的向量，这样检索就能命中正确的段落。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">open</span> <span class="nn">Par</span><span class="p">.</span><span class="nc">Chunking</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="k">let</span> <span class="n">chunks</span> <span class="o">=</span> <span class="n">chunk_recursive</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>  <span class="o">~</span><span class="n">text</span><span class="o">:</span><span class="n">long_document</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>  <span class="o">~</span><span class="n">max_size</span><span class="o">:</span><span class="mi">1000</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>  <span class="o">~</span><span class="n">overlap</span><span class="o">:</span><span class="mi">200</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c">(* chunks : chunk list = [{ text; start_pos; end_pos }] *)</span>
+</span></code></pre></div>
+<p>三种策略，都是纯函数（无 I/O、无 provider 耦合、无分词器依赖）：</p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>策略</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>chunk_by_chars</code></td>
+<td>基于字符的固定大小滑动窗口，<code>stride = max_size - overlap</code>。</td>
+<td>字符数是语义单元大小良好代理的统一文档。简单且可预测。</td>
+</tr>
+<tr>
+<td><code>chunk_by_tokens</code></td>
+<td>基于空白分词的滑动窗口。一个词等于一个 token（近似；没有真正的分词器）。</td>
+<td>当你想要每个 chunk 大约 N 个词且不需要精确 token 计数时。精确计数请用 provider 的分词器预分词，然后对结果调用 <code>chunk_by_chars</code>。</td>
+</tr>
+<tr>
+<td><code>chunk_recursive</code></td>
+<td>LangChain <code>RecursiveCharacterTextSplitter</code>。按顺序尝试分隔符 <code>["\n\n"; "\n"; " "; ""]</code>，当片段超过 <code>max_size</code> 时回退到更细的拆分。</td>
+<td>散文、markdown、代码注释的默认选择。优先尊重段落和行边界，因此 chunk 保持可读。</td>
+</tr>
+</tbody>
+</table>
+<p>如果 <code>max_size &lt;= 0</code> 或 <code>overlap &gt;= max_size</code>，三种策略都会抛出 <code>Invalid_argument</code>。调用方必须指定 <code>max_size</code> 和 <code>overlap</code>；此模块不继承 LangChain 的 <code>chunk_size=4000, chunk_overlap=200</code> 默认值，因为正确的值取决于你的 embedding 模型的上下文窗口。</p>
+<p>典型值：<code>text-embedding-3-small</code>（接受最多 8191 个 token）用 <code>max_size=1000</code> 和 <code>overlap=200</code>。重叠保持跨 chunk 边界的上下文，这样在边缘附近的检索命中仍然携带相邻文本。</p>
+<h3 id="rag_1">RAG 调用<a class="headerlink" href="#rag_1" title="Permanent link">&para;</a></h3>
+<p><code>Runtime.invoke_with_rag</code> 是嵌入、搜索、增强和调用的单次组合。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">let</span> <span class="o">(</span><span class="n">answer</span><span class="o">,</span> <span class="n">retrieved_docs</span><span class="o">)</span> <span class="o">=</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>  <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke_with_rag</span> <span class="n">rt</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="o">~</span><span class="n">agent_id</span><span class="o">:</span><span class="s2">&quot;my_agent&quot;</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="o">~</span><span class="n">message</span><span class="o">:</span><span class="s2">&quot;What is PAR?&quot;</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="o">~</span><span class="n">k</span><span class="o">:</span><span class="mi">4</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    <span class="o">~</span><span class="n">vector_store</span><span class="o">:(</span><span class="nc">Some</span> <span class="n">store</span><span class="o">)</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="bp">()</span>
+</span></code></pre></div>
+<p>管道按顺序执行：</p>
+<ol>
+<li>使用运行时配置的 embedding provider 嵌入查询消息。</li>
+<li>在向量存储中搜索 top-k 最相似的文档。</li>
+<li>用检索到的上下文增强 agent 的系统提示词，格式化为上下文块。</li>
+<li>通过正常的 <code>Runtime.invoke</code> 路径用增强后的 prompt 调用 agent。</li>
+<li>返回 <code>(answer, retrieved_documents)</code>，以便调用方可以显示来源或记录检索到的内容。</li>
+</ol>
+<p>如果 <code>?vector_store</code> 是 <code>None</code>，<code>invoke_with_rag</code> 回退到没有检索的普通 <code>Runtime.invoke</code>。这让你可以通过传入 <code>Some store</code> 或 <code>None</code> 来开关 RAG，而无需改变调用形状。</p>
+<h2 id="_6">错误类别参考<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<p>每个可能失败的 RAG 操作在 OCaml 中返回 <code>( _, error_category) result</code>，在 Python 中抛出 <code>PARError</code>。七个 <code>error_category</code> 变体覆盖完整的失败面。使用此表编写恢复逻辑。</p>
+<table>
+<thead>
+<tr>
+<th>变体</th>
+<th>在 RAG 中何时发生</th>
+<th>恢复方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Embedding_unsupported</code></td>
+<td>你对一个没有 embedding API 的 provider（Anthropic）调用了 <code>embed</code> 或 <code>add_documents</code>。</td>
+<td>将 embedding provider 切换为 OpenAI、Ollama 或 Mock。你可以在 <code>invoke_with_rag</code> 的 chat 步骤中保留 Anthropic。</td>
+</tr>
+<tr>
+<td><code>Invalid_input of string</code></td>
+<td>空 API key、分块中 <code>max_size &lt;= 0</code> 或 <code>overlap &gt;= max_size</code>、provider 返回格式错误的 embedding 响应、<code>Vector_store.add</code> 时向量维度不匹配。</td>
+<td>字符串携带详情。修复输入并重试。这不是瞬态错误；不改变输入重试会以同样方式失败。</td>
+</tr>
+<tr>
+<td><code>External_failure of string</code></td>
+<td>embedding HTTP 请求期间的网络错误、provider 返回非 200 状态（不是限流或认证错误）、sqlite-vec 扩展加载失败。</td>
+<td>检查网络连接和 provider 状态。对于扩展路径，验证 <code>vec_extension_path</code> 指向一个存在的文件且匹配你的平台。瞬态；带退避的重试是合理的。</td>
+</tr>
+<tr>
+<td><code>Rate_limited</code></td>
+<td>Provider 返回 429。</td>
+<td>退避并重试。实现带抖动的指数退避。PAR 的 Retry 中间件可以在调用经过 agent 时处理此情况。</td>
+</tr>
+<tr>
+<td><code>Permission_denied of string</code></td>
+<td>错误或过期的 API key（401/403）。</td>
+<td>刷新凭证。非瞬态。</td>
+</tr>
+<tr>
+<td><code>Timeout</code></td>
+<td>embedding 请求或 <code>invoke_with_rag</code> 内部的 LLM 调用超过了配置的超时。</td>
+<td>重试一次。如果持续发生，提高超时或减小 embedding 的批次大小。</td>
+</tr>
+<tr>
+<td><code>Internal of string</code></td>
+<td>意外的 OCaml 异常、网络句柄未初始化（OpenAI provider <code>set_network</code> 未调用）、或 bug。</td>
+<td>检查运行时是否通过 <code>Runtime.create</code> 创建（它会连接网络）。如果调用路径正确且持续发生，可能是值得提交的 bug。</td>
+</tr>
+</tbody>
+</table>
+<p>在 Python 中，所有这些都表现为带有消息字符串的 <code>PARError</code>。在 v0.5.1 中，变体没有跨 FFI 边界保留；如果需要分支匹配请根据消息文本判断。在 OCaml 中，直接对变体进行模式匹配。</p>
+<h2 id="_7">使用示例<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<p>三个可运行的 OCaml 示例，覆盖你实际需要的模式：基本 embedding 健全性检查、带分块的文档索引、以及完整的 RAG 问答调用。</p>
+<h3 id="1-embedding">示例 1：基本 embedding 健全性检查<a class="headerlink" href="#1-embedding" title="Permanent link">&para;</a></h3>
+<p>在构建更大功能之前确认 embedding provider 连接正确。一个字符串进，一个向量出，打印维度。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">let</span> <span class="bp">()</span> <span class="o">=</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>  <span class="nn">Eio_main</span><span class="p">.</span><span class="n">run</span> <span class="o">(</span><span class="k">fun</span> <span class="o">_</span><span class="n">env</span> <span class="o">-&gt;</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    <span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">run</span> <span class="o">(</span><span class="k">fun</span> <span class="n">switch</span> <span class="o">-&gt;</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>      <span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">create</span> <span class="o">~</span><span class="n">config</span> <span class="n">switch</span> <span class="k">with</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>      <span class="o">|</span> <span class="nc">Ok</span> <span class="n">rt</span> <span class="o">-&gt;</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>        <span class="o">(</span><span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">embed</span> <span class="n">rt</span> <span class="o">[</span><span class="s2">&quot;hello world&quot;</span><span class="o">]</span> <span class="k">with</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>         <span class="o">|</span> <span class="nc">Ok</span> <span class="o">[</span><span class="n">vec</span><span class="o">]</span> <span class="o">-&gt;</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>           <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Vector has %d dimensions</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">Array</span><span class="p">.</span><span class="n">length</span> <span class="n">vec</span><span class="o">)</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>         <span class="o">|</span> <span class="nc">Ok</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="s2">&quot;embed returned unexpected number of vectors&quot;</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>         <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span>
+</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>           <span class="n">prerr_endline</span> <span class="o">(</span><span class="s2">&quot;embed failed: &quot;</span> <span class="o">^</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">e</span><span class="o">));</span>
+</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>        <span class="n">ignore</span> <span class="o">(</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">close</span> <span class="n">rt</span><span class="o">)</span>
+</span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>      <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">e</span><span class="o">)))</span>
+</span></code></pre></div>
+<p>如果打印 <code>Vector has 1536 dimensions</code>，OpenAI 或 Mock 工作正常。如果打印 <code>embed failed: embedding_unsupported</code>，你指向了 Anthropic；请重新配置。如果打印 <code>embed failed: api_key must not be empty</code>，请设置你的 API key。</p>
+<h3 id="2">示例 2：分块并索引长文档<a class="headerlink" href="#2" title="Permanent link">&para;</a></h3>
+<p>用 <code>chunk_recursive</code> 拆分长文档，嵌入 chunk，并用生成的 id 插入向量存储。这是你会围绕每个文档源包装的索引循环。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="k">open</span> <span class="nc">Types</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="k">let</span> <span class="n">index_documents</span> <span class="n">rt</span> <span class="n">store</span> <span class="n">docs</span> <span class="o">=</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>  <span class="c">(* Concatenate, chunk, then embed each chunk. Overlap keeps context</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="c">   * across boundaries so retrieval near a chunk edge still sees the</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="c">   * neighboring text. *)</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>  <span class="k">let</span> <span class="n">full_text</span> <span class="o">=</span> <span class="nn">String</span><span class="p">.</span><span class="n">concat</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span> <span class="n">docs</span> <span class="k">in</span>
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>  <span class="k">let</span> <span class="n">chunks</span> <span class="o">=</span> <span class="nn">Chunking</span><span class="p">.</span><span class="n">chunk_recursive</span>
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>    <span class="o">~</span><span class="n">text</span><span class="o">:</span><span class="n">full_text</span> <span class="o">~</span><span class="n">max_size</span><span class="o">:</span><span class="mi">1000</span> <span class="o">~</span><span class="n">overlap</span><span class="o">:</span><span class="mi">200</span> <span class="k">in</span>
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>  <span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">embed</span> <span class="n">rt</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="o">(</span><span class="k">fun</span> <span class="n">c</span> <span class="o">-&gt;</span> <span class="n">c</span><span class="o">.</span><span class="nn">Chunking</span><span class="p">.</span><span class="n">text</span><span class="o">)</span> <span class="n">chunks</span><span class="o">)</span> <span class="k">with</span>
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>  <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span>
+</span><span id="__span-9-13"><a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>    <span class="n">prerr_endline</span> <span class="o">(</span><span class="s2">&quot;indexing failed: &quot;</span> <span class="o">^</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-9-14"><a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>  <span class="o">|</span> <span class="nc">Ok</span> <span class="n">vecs</span> <span class="o">-&gt;</span>
+</span><span id="__span-9-15"><a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>    <span class="k">let</span> <span class="n">doc_vecs</span> <span class="o">=</span>
+</span><span id="__span-9-16"><a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>      <span class="nn">List</span><span class="p">.</span><span class="n">mapi</span> <span class="o">(</span><span class="k">fun</span> <span class="n">i</span> <span class="n">vec</span> <span class="o">-&gt;</span>
+</span><span id="__span-9-17"><a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>        <span class="o">({</span> <span class="nn">Vector_store</span><span class="p">.</span><span class="n">id</span> <span class="o">=</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;chunk_%04d&quot;</span> <span class="n">i</span><span class="o">;</span>
+</span><span id="__span-9-18"><a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>           <span class="n">content</span> <span class="o">=</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">nth</span> <span class="n">chunks</span> <span class="n">i</span><span class="o">).</span><span class="nn">Chunking</span><span class="p">.</span><span class="n">text</span><span class="o">;</span>
+</span><span id="__span-9-19"><a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a>           <span class="n">metadata</span> <span class="o">=</span> <span class="nc">None</span> <span class="o">},</span> <span class="n">vec</span><span class="o">))</span> <span class="n">vecs</span>
+</span><span id="__span-9-20"><a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>    <span class="k">in</span>
+</span><span id="__span-9-21"><a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a>    <span class="o">(</span><span class="k">match</span> <span class="nn">Vector_store</span><span class="p">.</span><span class="n">add</span> <span class="n">store</span> <span class="n">doc_vecs</span> <span class="k">with</span>
+</span><span id="__span-9-22"><a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a>     <span class="o">|</span> <span class="nc">Ok</span> <span class="bp">()</span> <span class="o">-&gt;</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Indexed %d chunks</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">chunks</span><span class="o">)</span>
+</span><span id="__span-9-23"><a id="__codelineno-9-23" name="__codelineno-9-23" href="#__codelineno-9-23"></a>     <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span>
+</span><span id="__span-9-24"><a id="__codelineno-9-24" name="__codelineno-9-24" href="#__codelineno-9-24"></a>       <span class="n">prerr_endline</span> <span class="o">(</span><span class="s2">&quot;store add failed: &quot;</span> <span class="o">^</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">e</span><span class="o">))</span>
+</span></code></pre></div>
+<p>生成的 id（<code>chunk_0000</code>、<code>chunk_0001</code>、...）对给定输入文本是确定性的。如果你重新索引同一个文档，id 匹配，存储会原地更新而非重复。</p>
+<h3 id="3rag">示例 3：RAG 问答<a class="headerlink" href="#3rag" title="Permanent link">&para;</a></h3>
+<p>收获时刻。文档索引好后，锚定查询只需一次调用。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">let</span> <span class="n">rag_qa</span> <span class="n">rt</span> <span class="n">store</span> <span class="n">question</span> <span class="o">=</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>  <span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke_with_rag</span> <span class="n">rt</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    <span class="o">~</span><span class="n">agent_id</span><span class="o">:</span><span class="s2">&quot;assistant&quot;</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="o">~</span><span class="n">message</span><span class="o">:</span><span class="n">question</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="o">~</span><span class="n">k</span><span class="o">:</span><span class="mi">4</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="o">~</span><span class="n">vector_store</span><span class="o">:(</span><span class="nc">Some</span> <span class="n">store</span><span class="o">)</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="bp">()</span> <span class="k">with</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>  <span class="o">|</span> <span class="nc">Ok</span> <span class="o">(</span><span class="n">answer</span><span class="o">,</span> <span class="n">retrieved</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>    <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Answer: %s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="n">answer</span><span class="o">;</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>    <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Based on %d retrieved documents</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">retrieved</span><span class="o">);</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>    <span class="nn">List</span><span class="p">.</span><span class="n">iteri</span> <span class="o">(</span><span class="k">fun</span> <span class="n">i</span> <span class="n">r</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>      <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;  [%d] id=%s score=%.4f</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>        <span class="o">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="o">)</span> <span class="n">r</span><span class="o">.</span><span class="nn">Vector_store</span><span class="p">.</span><span class="n">doc</span><span class="o">.</span><span class="n">id</span> <span class="n">r</span><span class="o">.</span><span class="nn">Vector_store</span><span class="p">.</span><span class="n">score</span><span class="o">)</span> <span class="n">retrieved</span>
+</span><span id="__span-10-14"><a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>  <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-15"><a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a>    <span class="n">prerr_endline</span> <span class="o">(</span><span class="s2">&quot;RAG failed: &quot;</span> <span class="o">^</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">e</span><span class="o">)</span>
+</span></code></pre></div>
+<p>检索到的文档带着分数返回，这样你可以在 UI 中显示来源、为调试记录检索内容、或在信任回答前应用分数阈值。</p>
+<h2 id="_8">限制<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Python 向量存储是内存中的。</strong> Python 绑定的 <code>add_documents</code> 创建临时存储。跨进程重启持久化需要 OCaml SDK 配合文件路径，或在启动时重新索引。Python 的文件持久化是未来候选。</li>
+<li><strong>Python 不支持元数据过滤。</strong> 元数据被存储并在搜索结果中返回，但 Python 绑定没有在 <code>invoke_with_rag</code> 或 <code>add_documents</code> 上暴露过滤参数。过滤将在未来版本的外部向量存储支持中落地。</li>
+<li><strong>尚无外部向量存储。</strong> 存储仅支持 sqlite-vec。Qdrant 和 Milvus 支持在路线图上，用于超出单进程 SQLite 索引能力的工作负载。</li>
+<li><strong>没有流式 RAG。</strong> <code>invoke_with_rag</code> 返回完整回答。流式变体（<code>invoke_with_rag_streaming</code>）推迟到基础流式接口稳定后；见 Streaming API 页面。</li>
+<li><strong>分块没有真正的分词器。</strong> <code>chunk_by_tokens</code> 将一个空白分隔的词视为一个 token。要进行精确的基于 token 的分块，请用 provider 的分词器预分词，然后将结果传给 <code>chunk_by_chars</code>。</li>
+<li><strong>维度在存储创建时固定。</strong> 更换 embedding 模型几乎总会改变维度。你必须重新创建存储并重索引；见"持久化与重索引"。</li>
+</ul>
+<h2 id="_9">另请参阅<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../agent/">Agent API</a> - <code>Runtime.invoke</code>、<code>agent_config</code>、非 RAG 入口</li>
+<li><a href="../streaming/">Streaming API</a> - <code>invoke_stream</code>、Event 类型、分块输出接口</li>
+<li><a href="../workflow/">工作流 API</a> - 顺序、并行、条件编排</li>
+<li><a href="../overview/">概览</a> - SDK 架构和模块映射</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

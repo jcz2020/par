@@ -1,0 +1,3208 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/zh/sdk/agent/">
+      
+      
+        <link rel="prev" href="../overview/">
+      
+      
+        <link rel="next" href="../invoke_context/">
+      
+      
+        
+          <link rel="alternate" href="../../../sdk/agent/" hreflang="en">
+        
+          <link rel="alternate" href="./" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Agent API - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#agent-api" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../" title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Agent API
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="选择当前语言">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../../sdk/agent/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="分享" aria-label="分享" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  教程
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  实用指南
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  参考
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  解释
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../" title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    教程
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    教程
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    实用指南
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    实用指南
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/rag-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build a RAG Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    参考
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    参考
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        运行时配置
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="运行时配置">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#runtime_config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        runtime_config
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        创建运行时
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent 配置
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Agent 配置">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#agent_config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agent_config
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v063" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        自动上下文压缩（v0.6.3+）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#model_config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        model_config
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#llm-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LLM Provider 配置
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        运行时操作
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="运行时操作">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#agent_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        注册 Agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agent_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        调用 Agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        结构化输出
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        流式示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        异步调用
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        关闭运行时
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        工具注册
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="工具注册">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tool_descriptor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tool_descriptor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#handler" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        handler 函数签名
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runtimeregister_tool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime.register_tool
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        工具注册示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#react" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReAct 循环
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ReAct 循环">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#max_iterations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        max_iterations 行为
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#on_max_tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        on_max_tokens 行为
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-prompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Prompt 设计建议
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-prompt_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Prompt 模板
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="System Prompt 模板">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        模板类型
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#render_context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        render_context
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        渲染
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        何时使用模板
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        上下文策略
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="上下文策略">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        策略变体
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        引擎如何应用策略
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v051" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.5.1 默认值
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        取消令牌
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../invoke_context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    invoke_context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generate API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../document_loaders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Loaders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prompt_caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    解释
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    解释
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/concurrency-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/persistence-and-durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence and Durability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/rag-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        运行时配置
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="运行时配置">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#runtime_config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        runtime_config
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        创建运行时
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent 配置
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Agent 配置">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#agent_config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agent_config
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v063" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        自动上下文压缩（v0.6.3+）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#model_config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        model_config
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#llm-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LLM Provider 配置
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        运行时操作
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="运行时操作">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#agent_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        注册 Agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agent_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        调用 Agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        结构化输出
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        流式示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        异步调用
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        关闭运行时
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        工具注册
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="工具注册">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tool_descriptor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tool_descriptor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#handler" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        handler 函数签名
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runtimeregister_tool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime.register_tool
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        工具注册示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#react" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReAct 循环
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ReAct 循环">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#max_iterations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        max_iterations 行为
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#on_max_tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        on_max_tokens 行为
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-prompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Prompt 设计建议
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-prompt_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Prompt 模板
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="System Prompt 模板">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        模板类型
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#render_context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        render_context
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        渲染
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        何时使用模板
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        上下文策略
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="上下文策略">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        策略变体
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        引擎如何应用策略
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v051" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.5.1 默认值
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        取消令牌
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="agent-api">Agent API 参考<a class="headerlink" href="#agent-api" title="Permanent link">&para;</a></h1>
+<p><a href="./">English</a> · <strong>简体中文</strong></p>
+<p>本文档描述 P-A-R SDK 的 Agent 配置、运行时管理和工具注册 API。</p>
+<h2 id="_1">运行时配置<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<h3 id="runtime_config">runtime_config<a class="headerlink" href="#runtime_config" title="Permanent link">&para;</a></h3>
+<p>运行时通过 <code>Par.Runtime.create</code> 创建，需要以下配置：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">type</span> <span class="n">runtime_config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  <span class="n">persistence</span> <span class="o">:</span> <span class="o">[</span> <span class="o">`</span><span class="nc">Sqlite</span> <span class="k">of</span> <span class="kt">string</span> <span class="o">];</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  <span class="n">event_bus</span> <span class="o">:</span> <span class="n">event_bus_config</span><span class="o">;</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  <span class="n">default_quota</span> <span class="o">:</span> <span class="n">resource_quota</span><span class="o">;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  <span class="n">shutdown</span> <span class="o">:</span> <span class="n">shutdown_config</span><span class="o">;</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  <span class="n">llm_providers</span> <span class="o">:</span> <span class="o">(</span><span class="kt">string</span> <span class="o">*</span> <span class="n">llm_provider_config</span><span class="o">)</span> <span class="kt">list</span><span class="o">;</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  <span class="n">eval_limits</span> <span class="o">:</span> <span class="n">eval_limits</span><span class="o">;</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  <span class="n">parallel_tool_execution</span> <span class="o">:</span> <span class="kt">bool</span><span class="o">;</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  <span class="n">bash_confirm</span> <span class="o">:</span> <span class="n">bash_confirm_config</span><span class="o">;</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  <span class="n">event_retention_seconds</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="o">}</span>
+</span></code></pre></div>
+<p><code>Par.Runtime</code> 提供三个默认配置值，可以直接使用：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nn">Runtime</span><span class="p">.</span><span class="n">default_event_bus_config</span>   <span class="c">(* buffer_capacity=10000, DLQ 开启 *)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nn">Runtime</span><span class="p">.</span><span class="n">default_quota</span>             <span class="c">(* max_concurrent_tasks=10 *)</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nn">Runtime</span><span class="p">.</span><span class="n">default_shutdown_config</span>   <span class="c">(* drain_timeout=30s *)</span>
+</span></code></pre></div>
+<h3 id="_2">创建运行时<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">val</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">create</span> <span class="o">:</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  <span class="o">?</span><span class="n">persistence</span><span class="o">:</span><span class="n">persistence_service</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  <span class="o">?</span><span class="n">event_bus</span><span class="o">:</span><span class="nn">Types</span><span class="p">.</span><span class="n">event_bus_service</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  <span class="o">?</span><span class="n">llm</span><span class="o">:</span><span class="n">llm_service</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  <span class="o">?</span><span class="n">embeddings</span><span class="o">:</span><span class="n">embedding_service</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  <span class="o">?</span><span class="n">memory</span><span class="o">:</span><span class="n">memory_service</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>  <span class="o">?</span><span class="n">bash_policy</span><span class="o">:(</span><span class="k">module</span> <span class="nn">Bash_policy</span><span class="p">.</span><span class="nc">POLICY</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>  <span class="o">?</span><span class="n">workspace</span><span class="o">:</span><span class="nn">Workspace</span><span class="p">.</span><span class="n">workspace</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>  <span class="o">?</span><span class="n">mcp_servers</span><span class="o">:</span><span class="nn">Mcp_types</span><span class="p">.</span><span class="n">server_config</span> <span class="kt">list</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>  <span class="o">?</span><span class="n">mcp_process_mgr</span><span class="o">:_</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Process</span><span class="p">.</span><span class="n">mgr</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>  <span class="o">?</span><span class="n">mcp_net</span><span class="o">:_</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Net</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>  <span class="o">?</span><span class="n">mcp_clock</span><span class="o">:_</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Time</span><span class="p">.</span><span class="n">clock</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>  <span class="o">?</span><span class="n">mcp_startup_policy</span><span class="o">:</span><span class="nn">Mcp_types</span><span class="p">.</span><span class="n">startup_policy</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>  <span class="n">config</span><span class="o">:</span><span class="n">runtime_config</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>  <span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>  <span class="o">(</span><span class="n">runtime</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<p>所有可选参数默认为 <code>None</code>。关键可选参数：</p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>?persistence</code></td>
+<td>持久化后端（如 <code>Sqlite</code> 或 <code>Noop</code>）。</td>
+</tr>
+<tr>
+<td><code>?event_bus</code></td>
+<td>自定义事件总线配置。</td>
+</tr>
+<tr>
+<td><code>?llm</code></td>
+<td>主 LLM 服务 provider。</td>
+</tr>
+<tr>
+<td><code>?embeddings</code></td>
+<td>嵌入服务，用于 RAG 管道。见 <a href="../rag/">RAG API</a>。</td>
+</tr>
+<tr>
+<td><code>?memory</code></td>
+<td>内存服务，用于跨会话 agent 记忆（FTS5）。见 <a href="../memory/">Memory API</a>。</td>
+</tr>
+<tr>
+<td><code>?bash_policy</code></td>
+<td>Bash 信任边界策略模块。默认：<code>Always</code>（允许所有）。</td>
+</tr>
+<tr>
+<td><code>?workspace</code></td>
+<td>文件系统沙箱的 Workspace。默认为 CWD。</td>
+</tr>
+<tr>
+<td><code>?mcp_servers</code></td>
+<td>创建时启动的 MCP 服务器配置。</td>
+</tr>
+<tr>
+<td><code>?mcp_process_mgr</code></td>
+<td>MCP stdio 服务器的 Eio 进程管理器。</td>
+</tr>
+<tr>
+<td><code>?mcp_net</code></td>
+<td>MCP HTTP/SSE 服务器的 Eio 网络能力。</td>
+</tr>
+<tr>
+<td><code>?mcp_clock</code></td>
+<td>MCP 启动超时的 Eio 时钟。</td>
+</tr>
+<tr>
+<td><code>?mcp_startup_policy</code></td>
+<td>MCP 服务器启动策略（阻塞 vs 延迟）。</td>
+</tr>
+</tbody>
+</table>
+<p>完整示例：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="k">let</span> <span class="n">config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  <span class="n">persistence</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Sqlite</span> <span class="s2">&quot;par.db&quot;</span><span class="o">;</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>  <span class="n">event_bus</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">default_event_bus_config</span><span class="o">;</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>  <span class="n">default_quota</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">default_quota</span><span class="o">;</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>  <span class="n">shutdown</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">default_shutdown_config</span><span class="o">;</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>  <span class="n">llm_providers</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>  <span class="n">eval_limits</span> <span class="o">=</span> <span class="o">{</span> <span class="n">max_depth</span> <span class="o">=</span> <span class="mi">10</span><span class="o">;</span> <span class="n">max_node_visits</span> <span class="o">=</span> <span class="mi">1000</span> <span class="o">};</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>  <span class="n">parallel_tool_execution</span> <span class="o">=</span> <span class="bp">true</span><span class="o">;</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>  <span class="n">bash_confirm</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">default_bash_confirm</span><span class="o">;</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>  <span class="n">event_retention_seconds</span> <span class="o">=</span> <span class="mi">604800</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="o">}</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="k">let</span> <span class="bp">()</span> <span class="o">=</span> <span class="nn">Eio_main</span><span class="p">.</span><span class="n">run</span> <span class="o">(</span><span class="k">fun</span> <span class="o">_</span><span class="n">env</span> <span class="o">-&gt;</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>  <span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">run</span> <span class="o">(</span><span class="k">fun</span> <span class="n">switch</span> <span class="o">-&gt;</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>    <span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">create</span> <span class="o">~</span><span class="n">config</span> <span class="n">switch</span> <span class="k">with</span>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>    <span class="o">|</span> <span class="nc">Error</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">eprintf</span> <span class="s2">&quot;Runtime creation failed</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>    <span class="o">|</span> <span class="nc">Ok</span> <span class="n">rt</span> <span class="o">-&gt;</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>      <span class="c">(* ... 使用运行时 ... *)</span>
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>      <span class="k">let</span> <span class="n">exit_code</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">close</span> <span class="n">rt</span> <span class="k">in</span>
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>      <span class="n">exit</span> <span class="n">exit_code</span>
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>  <span class="o">)</span>
+</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="o">)</span>
+</span></code></pre></div>
+<h2 id="agent">Agent 配置<a class="headerlink" href="#agent" title="Permanent link">&para;</a></h2>
+<h3 id="agent_config">agent_config<a class="headerlink" href="#agent_config" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">type</span> <span class="n">agent_config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>  <span class="n">id</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>                            <span class="c">(* Agent 唯一标识 *)</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>  <span class="n">system_prompt</span> <span class="o">:</span> <span class="n">system_prompt</span><span class="o">;</span>          <span class="c">(* 类型化记录：{ sp_raw : string; sp_zone : zone_tag } *)</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>  <span class="n">system_prompt_template</span> <span class="o">:</span> <span class="n">system_prompt_template</span> <span class="n">option</span><span class="o">;</span>  <span class="c">(* 可选模板化提示词（带变量）*)</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>  <span class="n">model</span> <span class="o">:</span> <span class="n">model_config</span><span class="o">;</span>                   <span class="c">(* LLM 模型配置 *)</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>  <span class="n">tools</span> <span class="o">:</span> <span class="n">tool_descriptor</span> <span class="kt">list</span><span class="o">;</span>           <span class="c">(* 可用工具列表 *)</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>  <span class="n">max_iterations</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>                   <span class="c">(* ReAct 循环最大迭代次数 *)</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>  <span class="n">middleware</span> <span class="o">:</span> <span class="n">middleware_hook</span> <span class="kt">list</span><span class="o">;</span>       <span class="c">(* 中间件管道 *)</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>  <span class="n">retry_policy</span> <span class="o">:</span> <span class="n">retry_policy</span> <span class="n">option</span><span class="o">;</span>     <span class="c">(* 可选重试策略 *)</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>  <span class="n">context_strategy</span> <span class="o">:</span> <span class="n">context_strategy</span> <span class="n">option</span><span class="o">;</span>  <span class="c">(* 上下文窗口管理策略 *)</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>  <span class="n">resource_quota</span> <span class="o">:</span> <span class="n">resource_quota</span> <span class="n">option</span><span class="o">;</span>  <span class="c">(* 可选资源配额覆盖 *)</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>  <span class="n">max_execution_time</span> <span class="o">:</span> <span class="kt">float</span> <span class="n">option</span><span class="o">;</span>      <span class="c">(* 可选最大执行时间（秒）*)</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>  <span class="n">early_stopping_method</span> <span class="o">:</span> <span class="n">early_stopping_method</span><span class="o">;</span>  <span class="c">(* 达到迭代上限时：Force 或 Generate *)</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>  <span class="n">on_max_tokens</span> <span class="o">:</span> <span class="n">on_max_tokens_behavior</span> <span class="n">option</span><span class="o">;</span>  <span class="c">(* None=Auto（默认），或显式 Retry/Continue/Return_partial *)</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>  <span class="n">max_continuation_chunks</span> <span class="o">:</span> <span class="kt">int</span> <span class="n">option</span><span class="o">;</span>           <span class="c">(* None=Auto（默认），或显式上限 *)</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>  <span class="n">tool_timeout</span> <span class="o">:</span> <span class="kt">float</span> <span class="n">option</span><span class="o">;</span>            <span class="c">(* 可选单次工具调用超时（秒）*)</span>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>  <span class="n">context_compression_threshold</span> <span class="o">:</span> <span class="kt">float</span> <span class="n">option</span><span class="o">;</span>   <span class="c">(* v0.6.3+：按比例自动压缩。None=手动模式，Some 0.8=默认 *)</span>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>  <span class="n">compression_cooldown_messages</span> <span class="o">:</span> <span class="kt">int</span> <span class="n">option</span><span class="o">;</span>     <span class="c">(* v0.6.3+：两次自动压缩间最小迭代数。Some 6=默认 *)</span>
+</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>  <span class="n">context_window_override</span> <span class="o">:</span> <span class="kt">int</span> <span class="n">option</span><span class="o">;</span>           <span class="c">(* v0.6.3+：覆盖 context window 大小；None=用 provider capability 或静态表 *)</span>
+</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>  <span class="n">cache_strategy</span> <span class="o">:</span> <span class="n">cache_strategy</span><span class="o">;</span>        <span class="c">(* 提示词缓存策略：No_caching | With_cache_of of cache_ttl *)</span>
+</span><span id="__span-4-21"><a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="o">}</span>
+</span></code></pre></div>
+<h3 id="v063">自动上下文压缩（v0.6.3+）<a class="headerlink" href="#v063" title="Permanent link">&para;</a></h3>
+<p>当 <code>context_compression_threshold</code> 设置时（默认 <code>Some 0.8</code>），引擎在每次 LLM 调用前检查
+<code>估算 tokens / context window</code> 比例。如果超过阈值且冷却已过，应用配置的 <code>context_strategy</code>
+（或 <code>context_strategy = None</code> 时默认用 <code>Summarize</code>）。</p>
+<p>Context window 大小通过三层 resolver 解析：
+1. <code>context_window_override</code>（用户 supplied，优先级最高）
+2. <code>llm_service.context_window_fn</code>（provider capability 函数）
+3. 静态查表（<code>default_context_window</code>）：gpt-4o 系列=128K，claude-4 系列=200K，gpt-3.5-turbo=16385，未知=8000（保守默认）</p>
+<p>两个可观测事件：
+- <code>Context_compressed { trigger; tokens_before; tokens_after; messages_before; messages_after; strategy_used; elapsed_ms }</code> 压缩成功时
+- <code>Context_compression_skipped { reason }</code> 跳过时，带类型化 reason：<code>`Below_threshold of float</code>、<code>`Cooldown_active of int</code>、<code>`No_window_size</code>、<code>`No_strategy</code></p>
+<p><strong>默认值变更（0.x 中的 BREAKING）</strong>：<code>make_agent</code> 默认 <code>context_strategy</code> 从
+<code>Sliding_window { max_messages=100; max_tokens=200000 }</code> 改为 <code>Summarize { max_tokens=8000; summary_model=None }</code>。
+业界调研确认所有主流生产 agent 框架的默认值都是 LLM-summarize（Letta、Anthropic、LangChain、CrewAI），
+零个用 truncate-drop。要恢复 v0.6.3 前的行为，显式设置 <code>context_strategy = Some (Sliding_window {...})</code>。</p>
+<h3 id="model_config">model_config<a class="headerlink" href="#model_config" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">type</span> <span class="n">model_config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>  <span class="n">provider</span> <span class="o">:</span> <span class="o">[</span> <span class="o">`</span><span class="nc">Openai</span> <span class="o">|</span> <span class="o">`</span><span class="nc">Anthropic</span> <span class="o">|</span> <span class="o">`</span><span class="nc">Ollama</span> <span class="o">|</span> <span class="o">`</span><span class="nc">Custom</span> <span class="k">of</span> <span class="kt">string</span> <span class="o">];</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>  <span class="n">model_name</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>  <span class="n">api_base</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>          <span class="c">(* 自定义 API 端点 *)</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>  <span class="n">temperature</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>  <span class="n">max_tokens</span> <span class="o">:</span> <span class="kt">int</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>  <span class="n">top_p</span> <span class="o">:</span> <span class="kt">float</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>  <span class="n">stop_sequences</span> <span class="o">:</span> <span class="kt">string</span> <span class="kt">list</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="o">}</span>
+</span></code></pre></div>
+<p>Provider 示例：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c">(* OpenAI *)</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="o">{</span> <span class="n">provider</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Openai</span><span class="o">;</span> <span class="n">model_name</span> <span class="o">=</span> <span class="s2">&quot;gpt-4&quot;</span><span class="o">;</span> <span class="n">api_base</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>  <span class="n">temperature</span> <span class="o">=</span> <span class="mi">0</span><span class="o">.</span><span class="mi">7</span><span class="o">;</span> <span class="n">max_tokens</span> <span class="o">=</span> <span class="nc">Some</span> <span class="mi">4096</span><span class="o">;</span> <span class="n">top_p</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>  <span class="n">stop_sequences</span> <span class="o">=</span> <span class="nc">None</span> <span class="o">}</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="c">(* 通过 ZhipuAI 中转调用 Anthropic *)</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="o">{</span> <span class="n">provider</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Anthropic</span><span class="o">;</span> <span class="n">model_name</span> <span class="o">=</span> <span class="s2">&quot;claude-sonnet-4-20250514&quot;</span><span class="o">;</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>  <span class="n">api_base</span> <span class="o">=</span> <span class="nc">Some</span> <span class="s2">&quot;https://open.bigmodel.cn/api/paas/v4&quot;</span><span class="o">;</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>  <span class="n">temperature</span> <span class="o">=</span> <span class="mi">0</span><span class="o">.</span><span class="mi">5</span><span class="o">;</span> <span class="n">max_tokens</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span> <span class="n">top_p</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>  <span class="n">stop_sequences</span> <span class="o">=</span> <span class="nc">None</span> <span class="o">}</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="c">(* Ollama 本地模型 *)</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="o">{</span> <span class="n">provider</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Ollama</span><span class="o">;</span> <span class="n">model_name</span> <span class="o">=</span> <span class="s2">&quot;llama3&quot;</span><span class="o">;</span> <span class="n">api_base</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>  <span class="n">temperature</span> <span class="o">=</span> <span class="mi">0</span><span class="o">.</span><span class="mi">8</span><span class="o">;</span> <span class="n">max_tokens</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span> <span class="n">top_p</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>  <span class="n">stop_sequences</span> <span class="o">=</span> <span class="nc">None</span> <span class="o">}</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="c">(* 自定义端点 *)</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="o">{</span> <span class="n">provider</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Custom</span> <span class="s2">&quot;my-provider&quot;</span><span class="o">;</span> <span class="n">model_name</span> <span class="o">=</span> <span class="s2">&quot;my-model&quot;</span><span class="o">;</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>  <span class="n">api_base</span> <span class="o">=</span> <span class="nc">Some</span> <span class="s2">&quot;http://localhost:8000/v1&quot;</span><span class="o">;</span>
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>  <span class="n">temperature</span> <span class="o">=</span> <span class="mi">0</span><span class="o">.</span><span class="mi">7</span><span class="o">;</span> <span class="n">max_tokens</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span> <span class="n">top_p</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>  <span class="n">stop_sequences</span> <span class="o">=</span> <span class="nc">None</span> <span class="o">}</span>
+</span></code></pre></div>
+<h3 id="llm-provider">LLM Provider 配置<a class="headerlink" href="#llm-provider" title="Permanent link">&para;</a></h3>
+<p>Provider 实例通过 <code>llm_provider_config</code> 创建，传递给 <code>Runtime.create</code> 的 <code>llm</code> 参数：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">type</span> <span class="n">llm_provider_config</span> <span class="o">=</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>  <span class="o">|</span> <span class="nc">Openai</span> <span class="k">of</span> <span class="o">{</span> <span class="n">api_key</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span> <span class="n">base_url</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>                <span class="n">organization</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>                <span class="n">embedding_model</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>                <span class="n">prompt_cache_key</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span> <span class="o">}</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>  <span class="o">|</span> <span class="nc">Anthropic</span> <span class="k">of</span> <span class="o">{</span> <span class="n">api_key</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span> <span class="n">base_url</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span> <span class="o">}</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>  <span class="o">|</span> <span class="nc">Ollama</span> <span class="k">of</span> <span class="o">{</span> <span class="n">base_url</span> <span class="o">:</span> <span class="kt">string</span> <span class="o">}</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>  <span class="o">|</span> <span class="nc">Custom</span> <span class="k">of</span> <span class="o">{</span> <span class="n">base_url</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span> <span class="n">headers</span> <span class="o">:</span> <span class="o">(</span><span class="kt">string</span> <span class="o">*</span> <span class="kt">string</span><span class="o">)</span> <span class="kt">list</span><span class="o">;</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>                <span class="n">request_format</span> <span class="o">:</span> <span class="o">[</span> <span class="o">`</span><span class="nc">Openai_compatible</span> <span class="o">|</span> <span class="o">`</span><span class="nc">Anthropic_compatible</span> <span class="o">]</span> <span class="o">}</span>
+</span></code></pre></div>
+<h2 id="_3">运行时操作<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h3 id="agent_1">注册 Agent<a class="headerlink" href="#agent_1" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">val</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">register_agent</span> <span class="o">:</span> <span class="n">runtime</span> <span class="o">-&gt;</span> <span class="n">agent_config</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="kt">unit</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">let</span> <span class="n">agent</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">id</span> <span class="o">=</span> <span class="s2">&quot;my-agent&quot;</span><span class="o">;</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>  <span class="n">system_prompt</span> <span class="o">=</span> <span class="nn">Types</span><span class="p">.</span><span class="n">stable_prompt</span> <span class="s2">&quot;You are a helpful assistant.&quot;</span><span class="o">;</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>  <span class="n">model</span> <span class="o">=</span> <span class="o">{</span> <span class="n">provider</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Openai</span><span class="o">;</span> <span class="n">model_name</span> <span class="o">=</span> <span class="s2">&quot;gpt-4&quot;</span><span class="o">;</span> <span class="n">api_base</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>            <span class="n">temperature</span> <span class="o">=</span> <span class="mi">0</span><span class="o">.</span><span class="mi">7</span><span class="o">;</span> <span class="n">max_tokens</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span> <span class="n">top_p</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>            <span class="n">stop_sequences</span> <span class="o">=</span> <span class="nc">None</span> <span class="o">};</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>  <span class="n">tools</span> <span class="o">=</span> <span class="o">[</span> <span class="n">tool</span><span class="o">.</span><span class="n">descriptor</span> <span class="o">];</span>   <span class="c">(* 来自 Runtime.register_tool *)</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>  <span class="n">max_iterations</span> <span class="o">=</span> <span class="mi">5</span><span class="o">;</span>
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>  <span class="n">middleware</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>  <span class="n">retry_policy</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>  <span class="n">context_strategy</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>  <span class="n">resource_quota</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-9-13"><a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>  <span class="n">max_execution_time</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-9-14"><a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>  <span class="n">early_stopping_method</span> <span class="o">=</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Force</span><span class="o">;</span>
+</span><span id="__span-9-15"><a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>  <span class="n">on_max_tokens</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>              <span class="c">(* Auto：Return_partial（此 agent 有工具）*)</span>
+</span><span id="__span-9-16"><a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>  <span class="n">max_continuation_chunks</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>    <span class="c">(* Auto：3（有工具 agent 的默认值）*)</span>
+</span><span id="__span-9-17"><a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>  <span class="n">tool_timeout</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-9-18"><a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="o">}</span> <span class="k">in</span>
+</span><span id="__span-9-19"><a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="n">ignore</span> <span class="o">(</span><span class="nn">Runtime</span><span class="p">.</span><span class="n">register_agent</span> <span class="n">rt</span> <span class="n">agent</span><span class="o">)</span>
+</span></code></pre></div>
+<h3 id="agent_2">调用 Agent<a class="headerlink" href="#agent_2" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">val</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke</span> <span class="o">:</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>  <span class="n">runtime</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>  <span class="n">agent_id</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>  <span class="n">message</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>  <span class="o">?</span><span class="n">workspace</span><span class="o">:</span><span class="nn">Workspace</span><span class="p">.</span><span class="n">workspace</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>  <span class="o">?</span><span class="n">cancellation_token</span><span class="o">:</span><span class="n">cancellation_token</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>  <span class="o">?</span><span class="n">conversation</span><span class="o">:</span><span class="n">conversation</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>  <span class="o">?</span><span class="n">on_tool_event</span><span class="o">:(</span><span class="n">event</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>  <span class="o">?</span><span class="n">on_chunk</span><span class="o">:(</span><span class="n">llm_response_chunk</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="n">option</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>  <span class="o">?</span><span class="n">enable_handoff</span><span class="o">:</span><span class="kt">bool</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>  <span class="o">?</span><span class="n">system_prompt_appendix</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>  <span class="o">?</span><span class="n">context</span><span class="o">:</span><span class="nn">Invoke_context</span><span class="p">.</span><span class="n">invoke_context</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-14"><a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>  <span class="o">(</span><span class="n">invoke_result</span><span class="o">,</span> <span class="n">error_category</span> <span class="o">*</span> <span class="n">conversation</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<p>所有可选参数：</p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>?workspace</code></td>
+<td><code>Workspace.workspace</code></td>
+<td>单次调用 workspace 覆盖。工具使用此 workspace 而非运行时默认值。</td>
+</tr>
+<tr>
+<td><code>?cancellation_token</code></td>
+<td><code>cancellation_token</code></td>
+<td>协作取消令牌。见下方「取消令牌」章节。</td>
+</tr>
+<tr>
+<td><code>?conversation</code></td>
+<td><code>conversation option</code></td>
+<td>恢复的对话历史。传 <code>None</code> 开始新对话。</td>
+</tr>
+<tr>
+<td><code>?on_tool_event</code></td>
+<td><code>event -&gt; unit</code></td>
+<td>工具相关事件回调（tool_call_sent、tool_result_received 等）。</td>
+</tr>
+<tr>
+<td><code>?on_chunk</code></td>
+<td><code>(llm_response_chunk -&gt; unit) option</code></td>
+<td>LLM 响应块的流式回调。<code>None</code> 禁用流式。</td>
+</tr>
+<tr>
+<td><code>?enable_handoff</code></td>
+<td><code>bool</code></td>
+<td>启用 agent 间交接（handoff）工具。默认：<code>false</code>。</td>
+</tr>
+<tr>
+<td><code>?system_prompt_appendix</code></td>
+<td><code>string</code></td>
+<td>仅本次调用追加到 system prompt 的文本。见 <a href="../invoke_context/">invoke_context</a>。</td>
+</tr>
+<tr>
+<td><code>?context</code></td>
+<td><code>Invoke_context.invoke_context</code></td>
+<td>预构建的单次调用隔离上下文。提供时使用此上下文而非创建新的。见 <a href="../invoke_context/">invoke_context</a>。</td>
+</tr>
+</tbody>
+</table>
+<p>返回类型为 <code>invoke_result</code>（不是 <code>llm_response</code>）：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">type</span> <span class="n">invoke_result</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>  <span class="n">response</span> <span class="o">:</span> <span class="n">llm_response</span><span class="o">;</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>  <span class="n">conversation</span> <span class="o">:</span> <span class="n">conversation</span><span class="o">;</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="o">}</span>
+</span></code></pre></div>
+<p>错误元组中的 <code>conversation</code> 字段携带失败时的对话状态，支持错误恢复或部分结果提取。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke</span> <span class="n">rt</span> <span class="o">~</span><span class="n">agent_id</span><span class="o">:</span><span class="s2">&quot;my-agent&quot;</span> <span class="o">~</span><span class="n">message</span><span class="o">:</span><span class="s2">&quot;Hello!&quot;</span> <span class="bp">()</span> <span class="k">with</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">result</span> <span class="o">-&gt;</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>  <span class="k">let</span> <span class="n">resp</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">response</span> <span class="k">in</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>  <span class="o">(</span><span class="k">match</span> <span class="n">resp</span><span class="o">.</span><span class="n">text</span> <span class="k">with</span> <span class="nc">Some</span> <span class="n">text</span> <span class="o">-&gt;</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Response: %s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="n">text</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>  <span class="o">|</span> <span class="nc">None</span> <span class="o">-&gt;</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;No text response</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">)</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="o">|</span> <span class="nc">Error</span> <span class="o">(</span><span class="n">err</span><span class="o">,</span> <span class="o">_</span><span class="n">conv</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>  <span class="nn">Printf</span><span class="p">.</span><span class="n">eprintf</span> <span class="s2">&quot;Error: %s</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>    <span class="o">(</span><span class="nn">Types</span><span class="p">.</span><span class="n">error_category_to_yojson</span> <span class="n">err</span> <span class="o">|&gt;</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">to_string</span><span class="o">)</span>
+</span></code></pre></div>
+<h3 id="_4">结构化输出<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<p><code>Runtime.invoke_structured</code> 返回通过 schema 校验的 JSON，而非自由文本。函数签名：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">val</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke_structured</span> <span class="o">:</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>  <span class="n">runtime</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>  <span class="n">agent_id</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>  <span class="n">message</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>  <span class="n">response_schema</span><span class="o">:</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>  <span class="o">?</span><span class="n">max_repair_attempts</span><span class="o">:</span><span class="kt">int</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>  <span class="o">?</span><span class="n">cancellation_token</span><span class="o">:</span><span class="n">cancellation_token</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>  <span class="o">?</span><span class="n">conversation</span><span class="o">:</span><span class="n">conversation</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>  <span class="o">?</span><span class="n">system_prompt_appendix</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>  <span class="o">?</span><span class="n">on_tool_event</span><span class="o">:(</span><span class="n">event</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>  <span class="o">?</span><span class="n">on_repair_attempt</span><span class="o">:(</span><span class="kt">int</span> <span class="o">-&gt;</span> <span class="n">error_category</span> <span class="o">-&gt;</span> <span class="n">conversation</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>  <span class="o">(</span><span class="n">structured_invoke_result</span><span class="o">,</span> <span class="n">error_category</span> <span class="o">*</span> <span class="n">conversation</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<p>返回类型 <code>structured_invoke_result</code> 携带校验后的 JSON、原始 LLM 响应、完整对话历史和 repair-loop 重试次数：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">type</span> <span class="n">structured_invoke_result</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>  <span class="n">value</span> <span class="o">:</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">;</span>          <span class="c">(* 通过 schema 校验的 JSON *)</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>  <span class="n">raw_response</span> <span class="o">:</span> <span class="n">llm_response</span><span class="o">;</span>   <span class="c">(* 原始 LLM 响应（调试 / token 核算） *)</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>  <span class="n">conversation</span> <span class="o">:</span> <span class="n">conversation</span><span class="o">;</span>   <span class="c">(* 包含所有 repair 轮的完整对话历史 *)</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>  <span class="n">attempts</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>                <span class="c">(* 1 = 一次性成功；&gt;1 = repair-loop 触发 *)</span>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="o">}</span>
+</span></code></pre></div>
+<p>当 <code>Json_extract.extract_json_from_text</code> 无法从 LLM 文本解析出有效 JSON，或解析后的 JSON 无法通过 <code>Validation.validate_tool_input_result</code> 的 schema 校验时，repair loop 会触发。最多重试 <code>max_repair_attempts</code>（默认 3）次，每次都会在对话中追加 user-feedback 消息。每次迭代顶部的 cancellation token 检查防止无限制的 LLM 调用。</p>
+<p><strong>工具执行 + 结构化输出（v0.7.4+）</strong>：当 agent 注册了工具且你需要校验后的 JSON 时，runtime 会自动路由到 <code>Engine.run_agent_structured</code> —— 一种两阶段模式：</p>
+<ol>
+<li><strong>阶段一</strong>：完整 ReAct 循环运行 agent 与工具（bash、http、自定义）交互，直到 LLM 产出最终文本响应。</li>
+<li><strong>阶段二</strong>：完整对话历史（包括所有工具调用结果）传给一个独立的结构化 LLM 调用，提取并对照 <code>response_schema</code> 校验 JSON。</li>
+</ol>
+<p>此模式对齐 LangGraph 的 <code>create_react_agent(response_format=)</code> 方案。它能跨所有 LLM provider（OpenAI、Anthropic、Ollama、自定义）工作，不依赖 provider 原生支持同时传 <code>tools + response_format</code>（在非 OpenAI provider 上不可靠 —— 见 CrewAI issue #5472）。</p>
+<p><strong>原生结构化输出（v0.7.5+）</strong>：OpenAI 和 Anthropic provider 现在使用原生结构化输出模式，而非之前的文本注入回退。OpenAI 发送 <code>response_format: {type: json_schema, json_schema: {name, schema, strict: true}}</code> 以实现严格的 JSON schema 校验。Anthropic 发送 <code>output_config: {format: {type: json_schema, schema}}</code>。Ollama 和 Custom provider 继续使用文本注入回退（基于 prompt 的 JSON 提取 + schema 校验），因为它们可能不支持严格的 JSON schema 模式。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke_structured</span> <span class="n">rt</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="o">~</span><span class="n">agent_id</span><span class="o">:</span><span class="s2">&quot;env-detector&quot;</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="o">~</span><span class="n">message</span><span class="o">:</span><span class="s2">&quot;检查项目并报告运行时环境&quot;</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="o">~</span><span class="n">response_schema</span><span class="o">:(`</span><span class="nc">Assoc</span> <span class="o">[</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>      <span class="o">(</span><span class="s2">&quot;language&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;OCaml&quot;</span><span class="o">);</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>      <span class="o">(</span><span class="s2">&quot;ocaml_version&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;5.x.x&quot;</span><span class="o">);</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>      <span class="o">(</span><span class="s2">&quot;dune_version&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;3.x.x&quot;</span><span class="o">);</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>    <span class="o">])</span> <span class="bp">()</span> <span class="k">with</span>
+</span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="o">{</span> <span class="n">value</span><span class="o">;</span> <span class="o">_</span> <span class="o">}</span> <span class="o">-&gt;</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">to_string</span> <span class="n">value</span>
+</span><span id="__span-15-10"><a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="o">|</span> <span class="nc">Error</span> <span class="o">(</span><span class="n">err</span><span class="o">,</span> <span class="o">_</span><span class="n">conv</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">eprintf</span> <span class="s2">&quot;Error: %s&quot;</span> <span class="o">(</span><span class="nn">Types</span><span class="p">.</span><span class="n">error_category_to_string</span> <span class="n">err</span><span class="o">)</span>
+</span></code></pre></div>
+<p>如果 agent 没有工具（<code>config.tools = []</code>），<code>invoke_structured</code> 直接走轻量级 <code>run_structured</code> 路径 —— 无 ReAct 循环，单次 LLM 调用。设置 <code>?on_tool_event</code> 可在 ReAct 阶段观察工具调用。</p>
+<h3 id="_5">流式示例<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke</span> <span class="n">rt</span> <span class="o">~</span><span class="n">agent_id</span><span class="o">:</span><span class="s2">&quot;my-agent&quot;</span> <span class="o">~</span><span class="n">message</span><span class="o">:</span><span class="s2">&quot;Tell me a story&quot;</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>  <span class="o">~</span><span class="n">on_chunk</span><span class="o">:(</span><span class="k">fun</span> <span class="n">chunk</span> <span class="o">-&gt;</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;%s%!&quot;</span> <span class="n">chunk</span><span class="o">.</span><span class="n">text</span><span class="o">)</span>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>  <span class="bp">()</span>
+</span></code></pre></div>
+<h3 id="_6">异步调用<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
+<p><code>Runtime.invoke_async</code> 在后台 fiber 中运行调用，立即返回一个 <code>invoke_handle</code>，可用于等待、取消或轮询结果。完整详情见 <a href="../invoke_context/">invoke_context</a>。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">val</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke_async</span> <span class="o">:</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>  <span class="n">runtime</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>  <span class="n">agent_id</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>  <span class="n">message</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>  <span class="o">?</span><span class="n">workspace</span><span class="o">:</span><span class="nn">Workspace</span><span class="p">.</span><span class="n">workspace</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>  <span class="o">?</span><span class="n">cancellation_token</span><span class="o">:</span><span class="n">cancellation_token</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>  <span class="o">?</span><span class="n">conversation</span><span class="o">:</span><span class="n">conversation</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>  <span class="o">?</span><span class="n">on_tool_event</span><span class="o">:(</span><span class="n">event</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>  <span class="o">?</span><span class="n">on_chunk</span><span class="o">:(</span><span class="n">llm_response_chunk</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="n">option</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>  <span class="o">?</span><span class="n">enable_handoff</span><span class="o">:</span><span class="kt">bool</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>  <span class="o">?</span><span class="n">system_prompt_appendix</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a>  <span class="o">?</span><span class="n">context</span><span class="o">:</span><span class="nn">Invoke_context</span><span class="p">.</span><span class="n">invoke_context</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-13"><a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span>
+</span><span id="__span-17-14"><a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a>  <span class="nn">Invoke_context</span><span class="p">.</span><span class="n">invoke_handle</span>
+</span></code></pre></div>
+<p>Handle 函数：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="k">val</span> <span class="nn">Invoke_context</span><span class="p">.</span><span class="n">invoke_handle_await</span> <span class="o">:</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>  <span class="n">invoke_handle</span> <span class="o">-&gt;</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>  <span class="o">(</span><span class="n">invoke_result</span><span class="o">,</span> <span class="n">error_category</span> <span class="o">*</span> <span class="n">conversation</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="k">val</span> <span class="nn">Invoke_context</span><span class="p">.</span><span class="n">invoke_handle_cancel</span> <span class="o">:</span> <span class="n">invoke_handle</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="k">val</span> <span class="nn">Invoke_context</span><span class="p">.</span><span class="n">invoke_handle_status</span> <span class="o">:</span> <span class="n">invoke_handle</span> <span class="o">-&gt;</span> <span class="n">invoke_status</span>
+</span></code></pre></div>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">let</span> <span class="n">handle</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke_async</span> <span class="n">rt</span> <span class="o">~</span><span class="n">agent_id</span><span class="o">:</span><span class="s2">&quot;researcher&quot;</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>  <span class="o">~</span><span class="n">message</span><span class="o">:</span><span class="s2">&quot;Find recent papers on OCaml effects&quot;</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="c">(* 在 agent 后台运行时做其他事情 ... *)</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="k">match</span> <span class="nn">Invoke_context</span><span class="p">.</span><span class="n">invoke_handle_await</span> <span class="n">handle</span> <span class="k">with</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">result</span> <span class="o">-&gt;</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>  <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Done: %s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="n">result</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">text</span> <span class="o">|&gt;</span> <span class="nn">Option</span><span class="p">.</span><span class="n">value</span> <span class="o">~</span><span class="n">default</span><span class="o">:</span><span class="s2">&quot;&quot;</span><span class="o">)</span>
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="o">|</span> <span class="nc">Error</span> <span class="o">(</span><span class="n">err</span><span class="o">,</span> <span class="o">_)</span> <span class="o">-&gt;</span>
+</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>  <span class="nn">Printf</span><span class="p">.</span><span class="n">eprintf</span> <span class="s2">&quot;Failed: %s</span><span class="se">\n</span><span class="s2">&quot;</span>
+</span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>    <span class="o">(</span><span class="nn">Types</span><span class="p">.</span><span class="n">error_category_to_yojson</span> <span class="n">err</span> <span class="o">|&gt;</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">to_string</span><span class="o">)</span>
+</span></code></pre></div>
+<h3 id="_7">关闭运行时<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="k">val</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">close</span> <span class="o">:</span> <span class="n">runtime</span> <span class="o">-&gt;</span> <span class="kt">int</span>   <span class="c">(* 返回退出码 *)</span>
+</span></code></pre></div>
+<h2 id="_8">工具注册<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
+<h3 id="tool_descriptor">tool_descriptor<a class="headerlink" href="#tool_descriptor" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="k">type</span> <span class="n">tool_descriptor</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>  <span class="n">name</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>  <span class="n">description</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>  <span class="n">input_schema</span> <span class="o">:</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">;</span>     <span class="c">(* JSON Schema 格式 *)</span>
+</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>  <span class="n">output_schema</span> <span class="o">:</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="n">option</span><span class="o">;</span>  <span class="c">(* 可选的工具输出 JSON Schema *)</span>
+</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>  <span class="n">permission</span> <span class="o">:</span> <span class="n">tool_permission</span><span class="o">;</span>     <span class="c">(* 默认 Allow *)</span>
+</span><span id="__span-21-7"><a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>  <span class="n">timeout</span> <span class="o">:</span> <span class="kt">float</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-21-8"><a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>  <span class="n">concurrency_limit</span> <span class="o">:</span> <span class="kt">int</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-21-9"><a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a>  <span class="n">on_update</span> <span class="o">:</span> <span class="o">(</span><span class="kt">string</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="n">option</span><span class="o">;</span>  <span class="c">(* 可选的进度回调 *)</span>
+</span><span id="__span-21-10"><a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a>  <span class="n">cache_control</span> <span class="o">:</span> <span class="n">cache_control</span> <span class="n">option</span><span class="o">;</span>  <span class="c">(* 可选的提示词缓存断点 *)</span>
+</span><span id="__span-21-11"><a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a><span class="o">}</span>
+</span></code></pre></div>
+<h3 id="handler">handler 函数签名<a class="headerlink" href="#handler" title="Permanent link">&para;</a></h3>
+<p>工具 handler 接收 JSON 输入和取消令牌，返回 <code>handler_result</code>：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="k">type</span> <span class="n">handler_fn</span> <span class="o">=</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">cancellation_token</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">handler_result</span>
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="k">type</span> <span class="n">handler_result</span> <span class="o">=</span>
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>  <span class="o">|</span> <span class="nc">Success</span> <span class="k">of</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span>
+</span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>  <span class="o">|</span> <span class="nc">Error</span> <span class="k">of</span> <span class="o">{</span>
+</span><span id="__span-22-6"><a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>      <span class="n">category</span> <span class="o">:</span> <span class="n">error_category</span><span class="o">;</span>
+</span><span id="__span-22-7"><a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a>      <span class="n">message</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-22-8"><a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a>      <span class="n">retryable</span> <span class="o">:</span> <span class="kt">bool</span><span class="o">;</span>
+</span><span id="__span-22-9"><a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a>      <span class="n">metadata</span> <span class="o">:</span> <span class="o">(</span><span class="kt">string</span> <span class="o">*</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">)</span> <span class="kt">list</span><span class="o">;</span>
+</span><span id="__span-22-10"><a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a>    <span class="o">}</span>
+</span><span id="__span-22-11"><a id="__codelineno-22-11" name="__codelineno-22-11" href="#__codelineno-22-11"></a>  <span class="o">|</span> <span class="nc">Handoff</span> <span class="k">of</span> <span class="o">{</span>
+</span><span id="__span-22-12"><a id="__codelineno-22-12" name="__codelineno-22-12" href="#__codelineno-22-12"></a>      <span class="n">target_agent_id</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-22-13"><a id="__codelineno-22-13" name="__codelineno-22-13" href="#__codelineno-22-13"></a>      <span class="n">carry_context</span> <span class="o">:</span> <span class="kt">bool</span><span class="o">;</span>
+</span><span id="__span-22-14"><a id="__codelineno-22-14" name="__codelineno-22-14" href="#__codelineno-22-14"></a>      <span class="n">task</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-22-15"><a id="__codelineno-22-15" name="__codelineno-22-15" href="#__codelineno-22-15"></a>    <span class="o">}</span>
+</span></code></pre></div>
+<h3 id="runtimeregister_tool">Runtime.register_tool<a class="headerlink" href="#runtimeregister_tool" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="k">val</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">register_tool</span> <span class="o">:</span>
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>  <span class="n">runtime</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>  <span class="n">name</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>  <span class="n">description</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-5"><a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>  <span class="n">input_schema</span><span class="o">:</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-6"><a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>  <span class="n">handler</span><span class="o">:</span><span class="n">handler_fn</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-7"><a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a>  <span class="o">?</span><span class="n">output_schema</span><span class="o">:</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-8"><a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a>  <span class="o">?</span><span class="n">permission</span><span class="o">:</span><span class="n">tool_permission</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-9"><a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a>  <span class="o">?</span><span class="n">timeout</span><span class="o">:</span><span class="kt">float</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-10"><a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a>  <span class="o">?</span><span class="n">concurrency_limit</span><span class="o">:</span><span class="kt">int</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-11"><a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a>  <span class="o">?</span><span class="n">on_update</span><span class="o">:(</span><span class="kt">string</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="n">option</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-12"><a id="__codelineno-23-12" name="__codelineno-23-12" href="#__codelineno-23-12"></a>  <span class="o">?</span><span class="n">cache_control</span><span class="o">:</span><span class="n">cache_control</span> <span class="n">option</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-13"><a id="__codelineno-23-13" name="__codelineno-23-13" href="#__codelineno-23-13"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-14"><a id="__codelineno-23-14" name="__codelineno-23-14" href="#__codelineno-23-14"></a>  <span class="o">(</span><span class="n">tool_binding</span><span class="o">,</span> <span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<p><code>tool_binding</code> 包含 <code>descriptor</code>（用于 <code>agent_config.tools</code>）和 <code>handler</code>（已自动注册到 registry）：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="k">type</span> <span class="n">tool_binding</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>  <span class="n">descriptor</span> <span class="o">:</span> <span class="n">tool_descriptor</span><span class="o">;</span>
+</span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>  <span class="n">handler</span> <span class="o">:</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span> <span class="n">cancellation_token</span> <span class="o">-&gt;</span> <span class="n">handler_result</span><span class="o">;</span>
+</span><span id="__span-24-4"><a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="o">}</span>
+</span></code></pre></div>
+<h3 id="_9">工具注册示例<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c">(* 定义一个计算器工具 *)</span>
+</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="k">let</span> <span class="n">calc_tool</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">register_tool</span> <span class="n">rt</span>
+</span><span id="__span-25-3"><a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>  <span class="o">~</span><span class="n">name</span><span class="o">:</span><span class="s2">&quot;calculator&quot;</span>
+</span><span id="__span-25-4"><a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>  <span class="o">~</span><span class="n">description</span><span class="o">:</span><span class="s2">&quot;Evaluate a math expression&quot;</span>
+</span><span id="__span-25-5"><a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a>  <span class="o">~</span><span class="n">input_schema</span><span class="o">:(`</span><span class="nc">Assoc</span> <span class="o">[</span>
+</span><span id="__span-25-6"><a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>    <span class="o">(</span><span class="s2">&quot;type&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;object&quot;</span><span class="o">);</span>
+</span><span id="__span-25-7"><a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a>    <span class="o">(</span><span class="s2">&quot;properties&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">Assoc</span> <span class="o">[</span>
+</span><span id="__span-25-8"><a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a>      <span class="o">(</span><span class="s2">&quot;expression&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">Assoc</span> <span class="o">[</span>
+</span><span id="__span-25-9"><a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a>        <span class="o">(</span><span class="s2">&quot;type&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;string&quot;</span><span class="o">);</span>
+</span><span id="__span-25-10"><a id="__codelineno-25-10" name="__codelineno-25-10" href="#__codelineno-25-10"></a>        <span class="o">(</span><span class="s2">&quot;description&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">String</span> <span class="s2">&quot;The math expression to evaluate&quot;</span><span class="o">);</span>
+</span><span id="__span-25-11"><a id="__codelineno-25-11" name="__codelineno-25-11" href="#__codelineno-25-11"></a>      <span class="o">])</span>
+</span><span id="__span-25-12"><a id="__codelineno-25-12" name="__codelineno-25-12" href="#__codelineno-25-12"></a>    <span class="o">]);</span>
+</span><span id="__span-25-13"><a id="__codelineno-25-13" name="__codelineno-25-13" href="#__codelineno-25-13"></a>    <span class="o">(</span><span class="s2">&quot;required&quot;</span><span class="o">,</span> <span class="o">`</span><span class="nc">List</span> <span class="o">[`</span><span class="nc">String</span> <span class="s2">&quot;expression&quot;</span><span class="o">]);</span>
+</span><span id="__span-25-14"><a id="__codelineno-25-14" name="__codelineno-25-14" href="#__codelineno-25-14"></a>  <span class="o">])</span>
+</span><span id="__span-25-15"><a id="__codelineno-25-15" name="__codelineno-25-15" href="#__codelineno-25-15"></a>  <span class="o">~</span><span class="n">handler</span><span class="o">:(</span><span class="k">fun</span> <span class="n">input</span> <span class="n">token</span> <span class="o">-&gt;</span>
+</span><span id="__span-25-16"><a id="__codelineno-25-16" name="__codelineno-25-16" href="#__codelineno-25-16"></a>    <span class="k">match</span> <span class="n">input</span> <span class="k">with</span>
+</span><span id="__span-25-17"><a id="__codelineno-25-17" name="__codelineno-25-17" href="#__codelineno-25-17"></a>    <span class="o">|</span> <span class="o">`</span><span class="nc">Assoc</span> <span class="n">fields</span> <span class="o">-&gt;</span>
+</span><span id="__span-25-18"><a id="__codelineno-25-18" name="__codelineno-25-18" href="#__codelineno-25-18"></a>      <span class="o">(</span><span class="k">match</span> <span class="nn">List</span><span class="p">.</span><span class="n">assoc_opt</span> <span class="s2">&quot;expression&quot;</span> <span class="n">fields</span> <span class="k">with</span>
+</span><span id="__span-25-19"><a id="__codelineno-25-19" name="__codelineno-25-19" href="#__codelineno-25-19"></a>       <span class="o">|</span> <span class="nc">Some</span> <span class="o">(`</span><span class="nc">String</span> <span class="n">expr</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-25-20"><a id="__codelineno-25-20" name="__codelineno-25-20" href="#__codelineno-25-20"></a>         <span class="o">(</span><span class="k">try</span>
+</span><span id="__span-25-21"><a id="__codelineno-25-21" name="__codelineno-25-21" href="#__codelineno-25-21"></a>           <span class="k">let</span> <span class="n">result</span> <span class="o">=</span> <span class="n">float_of_string</span> <span class="n">expr</span> <span class="k">in</span>
+</span><span id="__span-25-22"><a id="__codelineno-25-22" name="__codelineno-25-22" href="#__codelineno-25-22"></a>           <span class="nn">Types</span><span class="p">.</span><span class="nc">Success</span> <span class="o">(`</span><span class="nc">Float</span> <span class="n">result</span><span class="o">)</span>
+</span><span id="__span-25-23"><a id="__codelineno-25-23" name="__codelineno-25-23" href="#__codelineno-25-23"></a>         <span class="k">with</span> <span class="o">_</span> <span class="o">-&gt;</span>
+</span><span id="__span-25-24"><a id="__codelineno-25-24" name="__codelineno-25-24" href="#__codelineno-25-24"></a>           <span class="nn">Types</span><span class="p">.</span><span class="nc">Error</span> <span class="o">{</span>
+</span><span id="__span-25-25"><a id="__codelineno-25-25" name="__codelineno-25-25" href="#__codelineno-25-25"></a>             <span class="n">category</span> <span class="o">=</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Invalid_input</span> <span class="s2">&quot;Invalid expression&quot;</span><span class="o">;</span>
+</span><span id="__span-25-26"><a id="__codelineno-25-26" name="__codelineno-25-26" href="#__codelineno-25-26"></a>             <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Could not parse expression&quot;</span><span class="o">;</span>
+</span><span id="__span-25-27"><a id="__codelineno-25-27" name="__codelineno-25-27" href="#__codelineno-25-27"></a>             <span class="n">retryable</span> <span class="o">=</span> <span class="bp">false</span><span class="o">;</span>
+</span><span id="__span-25-28"><a id="__codelineno-25-28" name="__codelineno-25-28" href="#__codelineno-25-28"></a>             <span class="n">metadata</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-25-29"><a id="__codelineno-25-29" name="__codelineno-25-29" href="#__codelineno-25-29"></a>           <span class="o">})</span>
+</span><span id="__span-25-30"><a id="__codelineno-25-30" name="__codelineno-25-30" href="#__codelineno-25-30"></a>       <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Error</span> <span class="o">{</span>
+</span><span id="__span-25-31"><a id="__codelineno-25-31" name="__codelineno-25-31" href="#__codelineno-25-31"></a>           <span class="n">category</span> <span class="o">=</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Invalid_input</span> <span class="s2">&quot;Missing expression&quot;</span><span class="o">;</span>
+</span><span id="__span-25-32"><a id="__codelineno-25-32" name="__codelineno-25-32" href="#__codelineno-25-32"></a>           <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Expression field is required&quot;</span><span class="o">;</span>
+</span><span id="__span-25-33"><a id="__codelineno-25-33" name="__codelineno-25-33" href="#__codelineno-25-33"></a>           <span class="n">retryable</span> <span class="o">=</span> <span class="bp">false</span><span class="o">;</span>
+</span><span id="__span-25-34"><a id="__codelineno-25-34" name="__codelineno-25-34" href="#__codelineno-25-34"></a>           <span class="n">metadata</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-25-35"><a id="__codelineno-25-35" name="__codelineno-25-35" href="#__codelineno-25-35"></a>         <span class="o">})</span>
+</span><span id="__span-25-36"><a id="__codelineno-25-36" name="__codelineno-25-36" href="#__codelineno-25-36"></a>    <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Error</span> <span class="o">{</span>
+</span><span id="__span-25-37"><a id="__codelineno-25-37" name="__codelineno-25-37" href="#__codelineno-25-37"></a>        <span class="n">category</span> <span class="o">=</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Invalid_input</span> <span class="s2">&quot;Invalid input&quot;</span><span class="o">;</span>
+</span><span id="__span-25-38"><a id="__codelineno-25-38" name="__codelineno-25-38" href="#__codelineno-25-38"></a>        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Input must be a JSON object&quot;</span><span class="o">;</span>
+</span><span id="__span-25-39"><a id="__codelineno-25-39" name="__codelineno-25-39" href="#__codelineno-25-39"></a>        <span class="n">retryable</span> <span class="o">=</span> <span class="bp">false</span><span class="o">;</span>
+</span><span id="__span-25-40"><a id="__codelineno-25-40" name="__codelineno-25-40" href="#__codelineno-25-40"></a>        <span class="n">metadata</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-25-41"><a id="__codelineno-25-41" name="__codelineno-25-41" href="#__codelineno-25-41"></a>      <span class="o">})</span>
+</span><span id="__span-25-42"><a id="__codelineno-25-42" name="__codelineno-25-42" href="#__codelineno-25-42"></a>  <span class="bp">()</span>
+</span></code></pre></div>
+<h2 id="react">ReAct 循环<a class="headerlink" href="#react" title="Permanent link">&para;</a></h2>
+<p>Agent 执行核心是 <code>Par.Engine.run_agent</code>：</p>
+<ol>
+<li>构建对话（System prompt + User message）</li>
+<li>应用 <code>context_strategy</code>（如已配置）管理上下文窗口</li>
+<li>通过中间件链发送 <code>on_before_llm</code> 钩子</li>
+<li>调用 LLM Provider 获取响应</li>
+<li>通过中间件链发送 <code>on_after_llm</code> 钩子</li>
+<li>若响应包含 tool_calls，依次执行每个工具：</li>
+<li>查找工具 descriptor</li>
+<li>从 Tool_registry 解析 handler</li>
+<li>执行工具（经过 <code>on_before_tool</code> / <code>on_after_tool</code> 钩子）</li>
+<li>将工具结果追加到对话</li>
+<li>递归调用直到 <code>finish_reason</code> 为 <code>Stop</code> 或达到 <code>max_iterations</code></li>
+</ol>
+<h3 id="max_iterations">max_iterations 行为<a class="headerlink" href="#max_iterations" title="Permanent link">&para;</a></h3>
+<p>当迭代次数达到 <code>max_iterations</code> 时，<code>run_agent</code> 返回：
+<code>Result.Error (Internal "Max iterations exceeded")</code></p>
+<h3 id="on_max_tokens">on_max_tokens 行为<a class="headerlink" href="#on_max_tokens" title="Permanent link">&para;</a></h3>
+<p><strong>v0.6.x 行为变更</strong>:自 v0.6.x 起,<code>on_max_tokens</code> 改为 option 类型。<code>None</code>(新默认值)表示 Auto —— 运行时根据 effective tool 集解析策略:无工具 agent 自动选 <code>Continue</code>(长输出生成模式),有工具 agent 选 <code>Return_partial</code>(向后兼容默认值)。显式 <code>Some Return_partial</code> / <code>Some Retry</code> / <code>Some Continue</code> 总是覆盖 Auto。<code>max_continuation_chunks</code> 同样遵循 Auto 逻辑:<code>None</code> 表示无工具 agent 无上限,有工具 agent 上限为 3。</p>
+<p>当 LLM 返回 <code>finish_reason=Max_tokens</code>（截断响应）时，行为取决于 <code>agent.on_max_tokens</code>：</p>
+<ul>
+<li><code>Return_partial</code>（默认）：若截断响应包含非空文本，保留并返回 <code>Ok</code> 及部分结果。空截断保留错误/重试行为。</li>
+<li><code>Retry</code>：保留截断消息作为上下文，重新进入 ReAct 循环（受 <code>max_iterations</code> 约束）。</li>
+<li><code>Continue</code>：注入"从上次中断处继续"的跟进消息，拼接续写块直到 <code>finish_reason=Stop</code>。受 <code>max_continuation_chunks</code>（默认 3）限制。递减收益保护：若续写块新增少于 500 字符则停止。</li>
+</ul>
+<p>每次截断都会发出 <code>Llm_response_truncated</code> 事件用于可观测性。</p>
+<h2 id="system-prompt">System Prompt 设计建议<a class="headerlink" href="#system-prompt" title="Permanent link">&para;</a></h2>
+<ul>
+<li>明确指定 Agent 的角色和能力边界</li>
+<li>列出可用工具的用途和使用场景</li>
+<li>指定输出格式要求（JSON、纯文本等）</li>
+<li>对需要多步推理的任务，提示 Agent 逐步思考</li>
+</ul>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="n">system_prompt</span> <span class="o">=</span> <span class="o">{|</span>
+</span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>  <span class="nc">You</span> <span class="n">are</span> <span class="n">a</span> <span class="n">data</span> <span class="n">analysis</span> <span class="n">assistant</span><span class="o">.</span> <span class="nc">You</span> <span class="n">have</span> <span class="n">access</span> <span class="k">to</span> <span class="n">a</span> <span class="n">calculator</span> <span class="n">tool</span><span class="o">.</span>
+</span><span id="__span-26-3"><a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>  <span class="nc">When</span> <span class="n">asked</span> <span class="k">to</span> <span class="n">compute</span> <span class="n">something</span><span class="o">:</span>
+</span><span id="__span-26-4"><a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a>  <span class="mi">1</span><span class="o">.</span> <span class="nc">Identify</span> <span class="n">the</span> <span class="n">mathematical</span> <span class="n">expression</span>
+</span><span id="__span-26-5"><a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a>  <span class="mi">2</span><span class="o">.</span> <span class="nc">Use</span> <span class="n">the</span> <span class="n">calculator</span> <span class="n">tool</span>
+</span><span id="__span-26-6"><a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a>  <span class="mi">3</span><span class="o">.</span> <span class="nc">Present</span> <span class="n">the</span> <span class="n">result</span> <span class="n">clearly</span>
+</span><span id="__span-26-7"><a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a>
+</span><span id="__span-26-8"><a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a>  <span class="nc">Always</span> <span class="n">show</span> <span class="n">your</span> <span class="n">reasoning</span> <span class="n">step</span> <span class="n">by</span> <span class="n">step</span><span class="o">.</span>
+</span><span id="__span-26-9"><a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a><span class="o">|}</span>
+</span></code></pre></div>
+<h2 id="system-prompt_1">System Prompt 模板<a class="headerlink" href="#system-prompt_1" title="Permanent link">&para;</a></h2>
+<p>当系统提示词需要在每次调用时变化（注入 agent id、运行时 id、可用工具列表或用户提供的变量），可以使用 <code>system_prompt_template</code> 代替普通 <code>system_prompt</code>。作为 <code>agent_config.system_prompt_template</code> 字段添加，它提供 mustache 风格的 <code>{{variable}}</code> 替换，无需引入额外的模板依赖。</p>
+<h3 id="_10">模板类型<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="k">type</span> <span class="n">system_prompt_template</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>  <span class="n">template</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>        <span class="c">(* 带 {{var}} 占位符的正文 *)</span>
+</span><span id="__span-27-3"><a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>  <span class="n">variables</span> <span class="o">:</span> <span class="kt">string</span> <span class="kt">list</span><span class="o">;</span>  <span class="c">(* 模板可能使用的所有占位符名 *)</span>
+</span><span id="__span-27-4"><a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a>  <span class="n">required</span> <span class="o">:</span> <span class="kt">string</span> <span class="kt">list</span><span class="o">;</span>   <span class="c">(* 必须提供的 `variables` 子集 *)</span>
+</span><span id="__span-27-5"><a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="o">}</span>
+</span></code></pre></div>
+<p><code>variables</code> 是渲染器识别的所有变量名集合。<code>required</code> 是渲染时必须存在的子集；缺少 required 变量会返回 <code>Error</code> 而非静默替换为空字符串。将两个列表分开让模板可以声明可选的辅助变量（用户的 locale、session 标签）和硬性要求（agent id）。</p>
+<h3 id="render_context">render_context<a class="headerlink" href="#render_context" title="Permanent link">&para;</a></h3>
+<p>渲染器从 <code>render_context</code> 记录中提取值。运行时内部构建它；如果你手动调用 <code>Template.render</code>，则需要自己构造。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="k">type</span> <span class="n">render_context</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-28-2"><a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>  <span class="n">agent_id</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-28-3"><a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a>  <span class="n">runtime_id</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-28-4"><a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a>  <span class="n">user_variables</span> <span class="o">:</span> <span class="o">(</span><span class="kt">string</span> <span class="o">*</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">)</span> <span class="kt">list</span><span class="o">;</span>
+</span><span id="__span-28-5"><a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a>  <span class="n">available_tools</span> <span class="o">:</span> <span class="kt">string</span> <span class="kt">list</span><span class="o">;</span>
+</span><span id="__span-28-6"><a id="__codelineno-28-6" name="__codelineno-28-6" href="#__codelineno-28-6"></a><span class="o">}</span>
+</span></code></pre></div>
+<p><code>agent_id</code> 和 <code>runtime_id</code> 始终可用。<code>available_tools</code> 是 agent 上注册的工具名列表。<code>user_variables</code> 是调用方提供的值。渲染器在解析 <code>{{name}}</code> 时查阅这四个字段。</p>
+<h3 id="_11">渲染<a class="headerlink" href="#_11" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-29-1"><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="k">val</span> <span class="nn">Template</span><span class="p">.</span><span class="n">render</span> <span class="o">:</span>
+</span><span id="__span-29-2"><a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>  <span class="n">template</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-29-3"><a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>  <span class="n">variables</span><span class="o">:(</span><span class="kt">string</span> <span class="o">*</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">)</span> <span class="kt">list</span> <span class="o">-&gt;</span>
+</span><span id="__span-29-4"><a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a>  <span class="n">required</span><span class="o">:</span><span class="kt">string</span> <span class="kt">list</span> <span class="o">-&gt;</span>
+</span><span id="__span-29-5"><a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a>  <span class="n">context</span><span class="o">:</span><span class="n">render_context</span> <span class="o">-&gt;</span>
+</span><span id="__span-29-6"><a id="__codelineno-29-6" name="__codelineno-29-6" href="#__codelineno-29-6"></a>  <span class="o">(</span><span class="kt">string</span><span class="o">,</span> <span class="nn">Types</span><span class="p">.</span><span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-29-7"><a id="__codelineno-29-7" name="__codelineno-29-7" href="#__codelineno-29-7"></a>
+</span><span id="__span-29-8"><a id="__codelineno-29-8" name="__codelineno-29-8" href="#__codelineno-29-8"></a><span class="k">val</span> <span class="nn">Template</span><span class="p">.</span><span class="n">effective_system_prompt</span> <span class="o">:</span>
+</span><span id="__span-29-9"><a id="__codelineno-29-9" name="__codelineno-29-9" href="#__codelineno-29-9"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">agent_config</span> <span class="o">-&gt;</span>
+</span><span id="__span-29-10"><a id="__codelineno-29-10" name="__codelineno-29-10" href="#__codelineno-29-10"></a>  <span class="n">runtime_id</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-29-11"><a id="__codelineno-29-11" name="__codelineno-29-11" href="#__codelineno-29-11"></a>  <span class="o">(</span><span class="kt">string</span><span class="o">,</span> <span class="nn">Types</span><span class="p">.</span><span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span></code></pre></div>
+<p><code>Template.render</code> 是低级入口。<code>effective_system_prompt</code> 是便捷包装：传入 <code>agent_config</code> 和 <code>runtime_id</code>，返回引擎将发送给 LLM 的最终字符串。如果 <code>system_prompt_template</code> 为 <code>None</code>，则回退到普通 <code>system_prompt</code> 字段，所以现有 agent 无需改动即可继续工作。</p>
+<h3 id="_12">何时使用模板<a class="headerlink" href="#_12" title="Permanent link">&para;</a></h3>
+<p>当以下任一条件满足时使用模板：</p>
+<ul>
+<li>提示词需要引用 agent id 或运行时 id，且你不想手动插值。</li>
+<li>提示词需要每次调用时的变量（用户 locale、session 元数据、动态示例），由调用方提供。</li>
+<li>你希望渲染器在启动时强制检查 required 变量，而非在对话中途才发现缺失值。</li>
+</ul>
+<p>当文本是静态的时，使用普通 <code>system_prompt</code>。<code>variables</code> 为空列表的模板没有收益，只会增加渲染步骤。</p>
+<h3 id="_13">示例<a class="headerlink" href="#_13" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-30-1"><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="k">let</span> <span class="n">agent</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-30-2"><a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">id</span> <span class="o">=</span> <span class="s2">&quot;support&quot;</span><span class="o">;</span>
+</span><span id="__span-30-3"><a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>  <span class="n">system_prompt</span> <span class="o">=</span> <span class="nn">Types</span><span class="p">.</span><span class="n">stable_prompt</span> <span class="s2">&quot;You are a helpful assistant.&quot;</span><span class="o">;</span>   <span class="c">(* 回退值 *)</span>
+</span><span id="__span-30-4"><a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a>  <span class="n">system_prompt_template</span> <span class="o">=</span> <span class="nc">Some</span> <span class="o">{</span>
+</span><span id="__span-30-5"><a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a>    <span class="n">template</span> <span class="o">=</span> <span class="o">{|</span>
+</span><span id="__span-30-6"><a id="__codelineno-30-6" name="__codelineno-30-6" href="#__codelineno-30-6"></a>      <span class="nc">You</span> <span class="n">are</span> <span class="o">{{</span><span class="n">role</span><span class="o">}},</span> <span class="n">assisting</span> <span class="n">agent</span> <span class="o">{{</span><span class="n">agent_id</span><span class="o">}}</span> <span class="n">on</span> <span class="n">runtime</span> <span class="o">{{</span><span class="n">runtime_id</span><span class="o">}}.</span>
+</span><span id="__span-30-7"><a id="__codelineno-30-7" name="__codelineno-30-7" href="#__codelineno-30-7"></a>      <span class="nc">Available</span> <span class="n">tools</span><span class="o">:</span> <span class="o">{{</span><span class="n">available_tools</span><span class="o">}}.</span>
+</span><span id="__span-30-8"><a id="__codelineno-30-8" name="__codelineno-30-8" href="#__codelineno-30-8"></a>      <span class="nc">User</span> <span class="n">context</span><span class="o">:</span> <span class="o">{{</span><span class="n">user_locale</span><span class="o">}}.</span>
+</span><span id="__span-30-9"><a id="__codelineno-30-9" name="__codelineno-30-9" href="#__codelineno-30-9"></a>    <span class="o">|};</span>
+</span><span id="__span-30-10"><a id="__codelineno-30-10" name="__codelineno-30-10" href="#__codelineno-30-10"></a>    <span class="n">variables</span> <span class="o">=</span> <span class="o">[</span><span class="s2">&quot;role&quot;</span><span class="o">;</span> <span class="s2">&quot;agent_id&quot;</span><span class="o">;</span> <span class="s2">&quot;runtime_id&quot;</span><span class="o">;</span>
+</span><span id="__span-30-11"><a id="__codelineno-30-11" name="__codelineno-30-11" href="#__codelineno-30-11"></a>                 <span class="s2">&quot;available_tools&quot;</span><span class="o">;</span> <span class="s2">&quot;user_locale&quot;</span><span class="o">];</span>
+</span><span id="__span-30-12"><a id="__codelineno-30-12" name="__codelineno-30-12" href="#__codelineno-30-12"></a>    <span class="n">required</span> <span class="o">=</span> <span class="o">[</span><span class="s2">&quot;role&quot;</span><span class="o">;</span> <span class="s2">&quot;user_locale&quot;</span><span class="o">];</span>
+</span><span id="__span-30-13"><a id="__codelineno-30-13" name="__codelineno-30-13" href="#__codelineno-30-13"></a>  <span class="o">};</span>
+</span><span id="__span-30-14"><a id="__codelineno-30-14" name="__codelineno-30-14" href="#__codelineno-30-14"></a>  <span class="n">model</span> <span class="o">=</span> <span class="c">(* ... *)</span><span class="o">;</span>
+</span><span id="__span-30-15"><a id="__codelineno-30-15" name="__codelineno-30-15" href="#__codelineno-30-15"></a>  <span class="n">tools</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-30-16"><a id="__codelineno-30-16" name="__codelineno-30-16" href="#__codelineno-30-16"></a>  <span class="n">max_iterations</span> <span class="o">=</span> <span class="mi">5</span><span class="o">;</span>
+</span><span id="__span-30-17"><a id="__codelineno-30-17" name="__codelineno-30-17" href="#__codelineno-30-17"></a>  <span class="n">middleware</span> <span class="o">=</span> <span class="bp">[]</span><span class="o">;</span>
+</span><span id="__span-30-18"><a id="__codelineno-30-18" name="__codelineno-30-18" href="#__codelineno-30-18"></a>  <span class="n">retry_policy</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-30-19"><a id="__codelineno-30-19" name="__codelineno-30-19" href="#__codelineno-30-19"></a>  <span class="n">context_strategy</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-30-20"><a id="__codelineno-30-20" name="__codelineno-30-20" href="#__codelineno-30-20"></a>  <span class="n">resource_quota</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-30-21"><a id="__codelineno-30-21" name="__codelineno-30-21" href="#__codelineno-30-21"></a>  <span class="n">max_execution_time</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-30-22"><a id="__codelineno-30-22" name="__codelineno-30-22" href="#__codelineno-30-22"></a>  <span class="n">early_stopping_method</span> <span class="o">=</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Force</span><span class="o">;</span>
+</span><span id="__span-30-23"><a id="__codelineno-30-23" name="__codelineno-30-23" href="#__codelineno-30-23"></a>  <span class="n">on_max_tokens</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>              <span class="c">(* Auto：Continue（此 agent 无工具）*)</span>
+</span><span id="__span-30-24"><a id="__codelineno-30-24" name="__codelineno-30-24" href="#__codelineno-30-24"></a>  <span class="n">max_continuation_chunks</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>    <span class="c">(* Auto：无上限（无工具长输出模式）*)</span>
+</span><span id="__span-30-25"><a id="__codelineno-30-25" name="__codelineno-30-25" href="#__codelineno-30-25"></a>  <span class="n">tool_timeout</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-30-26"><a id="__codelineno-30-26" name="__codelineno-30-26" href="#__codelineno-30-26"></a><span class="o">}</span>
+</span></code></pre></div>
+<p>在调用时，渲染器从运行时替换 <code>agent_id</code>、<code>runtime_id</code> 和 <code>available_tools</code>，从每次调用的 <code>user_variables</code> 中提取 <code>role</code> 和 <code>user_locale</code>。因为两者都是 <code>required</code>，忘记 <code>user_locale</code> 的调用方会在第一次 LLM 往返之前收到 <code>Error</code>，而不是一个乱码的提示词。</p>
+<h2 id="_14">上下文策略<a class="headerlink" href="#_14" title="Permanent link">&para;</a></h2>
+<p>长时间对话会超出模型的上下文窗口。<code>agent_config.context_strategy</code> 字段决定 PAR 在每次 LLM 调用前如何裁剪对话。保持为 <code>None</code> 时运行时应用默认值；显式设置可覆盖。</p>
+<h3 id="_15">策略变体<a class="headerlink" href="#_15" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-31-1"><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a><span class="k">type</span> <span class="n">context_strategy</span> <span class="o">=</span>
+</span><span id="__span-31-2"><a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a>  <span class="o">|</span> <span class="nc">Truncate_oldest</span> <span class="k">of</span> <span class="o">{</span> <span class="n">keep_system</span> <span class="o">:</span> <span class="kt">bool</span><span class="o">;</span> <span class="n">min_messages</span> <span class="o">:</span> <span class="kt">int</span> <span class="o">}</span>
+</span><span id="__span-31-3"><a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a>  <span class="o">|</span> <span class="nc">Summarize</span> <span class="k">of</span> <span class="o">{</span> <span class="n">max_tokens</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span> <span class="n">summary_model</span> <span class="o">:</span> <span class="n">model_config</span> <span class="n">option</span> <span class="o">}</span>
+</span><span id="__span-31-4"><a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a>  <span class="o">|</span> <span class="nc">Sliding_window</span> <span class="k">of</span> <span class="o">{</span> <span class="n">max_messages</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span> <span class="n">max_tokens</span> <span class="o">:</span> <span class="kt">int</span> <span class="o">}</span>
+</span></code></pre></div>
+<p><code>Truncate_oldest</code> 丢弃最旧的非系统消息直到对话适合。<code>keep_system</code>（默认 true）将系统消息固定在前面；<code>min_messages</code> 是下限，即使 token 估算超预算也不会丢弃更多消息。当近期对话轮次携带主要信号、旧轮次是噪声时使用此策略。</p>
+<p><code>Summarize</code> 使用第二次 LLM 调用将早期轮次压缩为摘要消息。<code>max_tokens</code> 限定摘要长度。<code>summary_model</code> 可选地将摘要调用路由到比 agent 主模型更便宜或更快的模型；<code>None</code> 复用 agent 自身的 <code>model_config</code>。当早期上下文确实重要但 token 预算紧张时选择此策略，代价是每次摘要多一次 LLM 往返。</p>
+<p><code>Sliding_window</code> 保留最近的 <code>max_messages</code> 条消息，丢弃所有更旧的内容，受 <code>max_tokens</code> 上限约束。它是最便宜的策略，因为从不调用其他模型，并且逐字保留对话尾部。v0.6.3 之前这是默认值；从 v0.6.3 开始默认是 <code>Summarize</code>（见上方"自动上下文压缩"）。</p>
+<h3 id="_16">引擎如何应用策略<a class="headerlink" href="#_16" title="Permanent link">&para;</a></h3>
+<p>每次 LLM 往返前，引擎在当前对话上调用 <code>Context_manager.apply_strategy</code>。函数返回（可能缩减的）对话，或在策略无法满足约束时返回 <code>Error</code>（例如 <code>Truncate_oldest</code> 达到 <code>min_messages</code> 但仍超 <code>max_tokens</code>）。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-32-1"><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="k">val</span> <span class="nn">Context_manager</span><span class="p">.</span><span class="n">apply_strategy</span> <span class="o">:</span>
+</span><span id="__span-32-2"><a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">context_strategy</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">conversation</span> <span class="o">-&gt;</span>
+</span><span id="__span-32-3"><a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a>  <span class="nn">Types</span><span class="p">.</span><span class="n">llm_service</span> <span class="n">option</span> <span class="o">-&gt;</span>
+</span><span id="__span-32-4"><a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a>  <span class="n">on_event</span><span class="o">:(</span><span class="nn">Types</span><span class="p">.</span><span class="n">event</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="n">option</span> <span class="o">-&gt;</span>
+</span><span id="__span-32-5"><a id="__codelineno-32-5" name="__codelineno-32-5" href="#__codelineno-32-5"></a>  <span class="o">(</span><span class="nn">Types</span><span class="p">.</span><span class="n">conversation</span><span class="o">,</span> <span class="nn">Types</span><span class="p">.</span><span class="n">error_category</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-32-6"><a id="__codelineno-32-6" name="__codelineno-32-6" href="#__codelineno-32-6"></a>
+</span><span id="__span-32-7"><a id="__codelineno-32-7" name="__codelineno-32-7" href="#__codelineno-32-7"></a><span class="k">val</span> <span class="nn">Context_manager</span><span class="p">.</span><span class="n">estimate_tokens</span> <span class="o">:</span> <span class="nn">Types</span><span class="p">.</span><span class="n">conversation</span> <span class="o">-&gt;</span> <span class="kt">int</span>
+</span></code></pre></div>
+<p><code>estimate_tokens</code> 是粗略的字符数除以四的启发式方法。它不是分词器。在推理预算时将数字视为参考值。</p>
+<h3 id="v051">v0.5.1 默认值<a class="headerlink" href="#v051" title="Permanent link">&para;</a></h3>
+<p>从 v0.5.1 开始，没有显式 <code>context_strategy</code> 的运行时获得：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-33-1"><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a><span class="nc">Some</span> <span class="o">(</span><span class="nc">Sliding_window</span> <span class="o">{</span> <span class="n">max_messages</span> <span class="o">=</span> <span class="mi">100</span><span class="o">;</span> <span class="n">max_tokens</span> <span class="o">=</span> <span class="mi">200000</span> <span class="o">})</span>
+</span></code></pre></div>
+<p>这是对早期 beta 版本的刻意变更，之前策略未设置让对话无限增长直到 provider 拒绝。200K token 上限匹配当前最大的生产模型，100 条消息上限防止对话在单条消息很短时依然膨胀。如果你之前依赖无限增长（例如在运行时外部自行摘要），显式设置 <code>context_strategy = None</code> 可恢复旧行为。</p>
+<p>对于使用较小窗口的模型，同时降低两个数字。4K token 模型配合 <code>max_messages = 100</code> 仍会触发 provider 限制，因为 <code>max_messages</code> 在 token 估算之前检查。</p>
+<h2 id="_17">取消令牌<a class="headerlink" href="#_17" title="Permanent link">&para;</a></h2>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-34-1"><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">create_token</span> <span class="o">:</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span> <span class="n">cancellation_token</span>
+</span><span id="__span-34-2"><a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">request_cancel</span> <span class="o">:</span> <span class="n">cancellation_token</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-34-3"><a id="__codelineno-34-3" name="__codelineno-34-3" href="#__codelineno-34-3"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">check_cancel</span> <span class="o">:</span> <span class="n">cancellation_token</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-34-4"><a id="__codelineno-34-4" name="__codelineno-34-4" href="#__codelineno-34-4"></a>  <span class="c">(* 抛出 Eio.Cancel.Cancelled 若已取消 *)</span>
+</span><span id="__span-34-5"><a id="__codelineno-34-5" name="__codelineno-34-5" href="#__codelineno-34-5"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">with_timeout</span> <span class="o">:</span> <span class="kt">float</span> <span class="o">-&gt;</span> <span class="n">cancellation_token</span> <span class="o">-&gt;</span>
+</span><span id="__span-34-6"><a id="__codelineno-34-6" name="__codelineno-34-6" href="#__codelineno-34-6"></a>  <span class="o">(</span><span class="n">cancellation_token</span> <span class="o">-&gt;</span> <span class="k">&#39;</span><span class="n">a</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="k">&#39;</span><span class="n">a</span><span class="o">,</span> <span class="o">[</span> <span class="o">`</span><span class="nc">Cancelled</span> <span class="o">|</span> <span class="o">`</span><span class="nc">Timeout</span> <span class="o">])</span> <span class="n">result</span>
+</span></code></pre></div>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-35-1"><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a><span class="k">let</span> <span class="n">token</span> <span class="o">=</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">create_token</span> <span class="n">switch</span> <span class="k">in</span>
+</span><span id="__span-35-2"><a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a><span class="c">(* 在另一个 fiber 中可以取消 *)</span>
+</span><span id="__span-35-3"><a id="__codelineno-35-3" name="__codelineno-35-3" href="#__codelineno-35-3"></a><span class="nn">Cancellation</span><span class="p">.</span><span class="n">request_cancel</span> <span class="n">token</span>
+</span></code></pre></div>
+<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../overview/">Overview</a> -- SDK 架构概览</li>
+<li><a href="../invoke_context/">invoke_context</a> -- 单次调用隔离、<code>invoke_async</code>、动态 system prompt</li>
+<li><a href="../workflow/">Workflow API</a> -- 工作流编排</li>
+<li><a href="../middleware/">Middleware API</a> -- 中间件管道</li>
+<li><a href="../memory/">Memory API</a> -- 跨会话 agent 记忆，FTS5 搜索</li>
+<li><a href="../mcp/">MCP client</a> -- <code>Runtime.mcp_server</code> 生命周期、<code>call_tool</code>、<code>read_resource</code>、<code>get_prompt</code></li>
+<li><a href="../../../examples/basic_agent.ml">examples/basic_agent.ml</a> -- 完整可运行示例</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

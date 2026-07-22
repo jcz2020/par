@@ -1,0 +1,2193 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/audit/v0.7.x-findings/">
+      
+      
+      
+      
+        
+          <link rel="alternate" href="./" hreflang="en">
+        
+          <link rel="alternate" href="/par/zh/" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>v0.7.0–v0.7.2 Audit Findings — Fix List - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#v070v072-audit-findings-fix-list" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              v0.7.0–v0.7.2 Audit Findings — Fix List
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="/par/zh/" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Tutorial
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  How-to
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../sdk/overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorial
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/rag-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build a RAG Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/invoke_context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    invoke_context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generate API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/document_loaders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Loaders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/prompt_caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/content_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/concurrency-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/persistence-and-durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence and Durability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/rag-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#p0-must-fix-10-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P0 — Must Fix (10 issues)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="P0 — Must Fix (10 issues)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-auto-search-mode-is-dead-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Auto search mode is dead code
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-update-never-deletes-the-old-row-data-leak" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. update() never deletes the old row — data leak
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-invoke_structured-bypasses-invoke_context-entirely" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. invoke_structured bypasses Invoke_context entirely
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-run_structured-doesnt-inject-system_prompt_appendix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. run_structured doesn't inject system_prompt_appendix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-pdf-loader-throws-failure-instead-of-returning-typed-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. PDF loader throws Failure instead of returning typed error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-html-loader-no-sysfile_exists-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. HTML loader: no Sys.file_exists check
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-html-loader-no-exception-safety-file-handle-leak" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. HTML loader: no exception safety — file handle leak
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-5-ffi-functions-call-caml_copy_stringcaml_copy_double-inside-lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. 5 FFI functions call caml_copy_string/caml_copy_double INSIDE lock
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-vec_extension_path-override-mechanism-broken" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. vec_extension_path override mechanism broken
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-sqlite_memoryml-missing-windows-vec0-vendor-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. sqlite_memory.ml missing Windows vec0 vendor path
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#p1-should-fix-6-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P1 — Should Fix (6 issues)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="P1 — Should Fix (6 issues)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-double-appendix-on-conversation-resume" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Double-appendix on conversation resume
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-loader-module-type-is-dead-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. LOADER module type is dead code
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-csv-loader-csvload-can-throw-uncaught" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. CSV loader: Csv.load can throw uncaught
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-directory_loaderload-default-map-is-empty-silent-no-op" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Directory_loader.load default map is empty — silent no-op
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15-no-embedding-dimension-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. No embedding dimension validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16-invoke_handle_cancel-toctou-race" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16. invoke_handle_cancel TOCTOU race
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#p2-documentation-mismatches-10-issues-cause-compile-errors-for-sdk-users" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P2 — Documentation Mismatches (10 issues — cause compile errors for SDK users)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="P2 — Documentation Mismatches (10 issues — cause compile errors for SDK users)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#17-agent_configsystem_prompt-wrong-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17. agent_config.system_prompt wrong type
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#18-agent_config-missing-cache_strategy-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        18. agent_config missing cache_strategy field
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#19-runtimeregister_tool-return-type-wrong" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        19. Runtime.register_tool return type wrong
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#20-tool_descriptor-missing-3-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        20. tool_descriptor missing 3 fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#21-handler_result-missing-handoff-variant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        21. handler_result missing Handoff variant
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-llm_provider_configopenai-missing-2-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        22. llm_provider_config.Openai missing 2 fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-context_strategytruncate_oldest-field-name-wrong" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        23. context_strategy.Truncate_oldest field name wrong
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-noop_persistencecreate-signature-completely-wrong" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        24. Noop_persistence.create signature completely wrong
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-sqlite_memorymake_service-return-type-wrong" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        25. Sqlite_memory.make_service return type wrong
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26-changesmd-v072-section-has-duplicate-blocks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        26. CHANGES.md v0.7.2 section has duplicate blocks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#p3-quality-12-selected-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P3 — Quality (12 selected issues)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="v070v072-audit-findings-fix-list">v0.7.0–v0.7.2 Audit Findings — Fix List<a class="headerlink" href="#v070v072-audit-findings-fix-list" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>STATUS: All 38 issues resolved in v0.7.3-beta (2026-07-11).</strong> Verified by 4 parallel explore agents + Oracle spot-check.</p>
+<p>48 issues found across 4 parallel audits. Oracle-verified (8/8 spot-checks confirmed).
+Generated 2026-07-10. All findings reference actual code at HEAD.</p>
+</blockquote>
+<hr />
+<h2 id="p0-must-fix-10-issues">P0 — Must Fix (10 issues)<a class="headerlink" href="#p0-must-fix-10-issues" title="Permanent link">&para;</a></h2>
+<h3 id="1-auto-search-mode-is-dead-code">1. <code>Auto</code> search mode is dead code<a class="headerlink" href="#1-auto-search-mode-is-dead-code" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>lib/memory/sqlite_memory.ml:482-483</code></li>
+<li><strong>Bug</strong>: When <code>Auto</code> is passed explicitly, <code>resolve_mode</code> returns <code>Auto</code> unchanged, and <code>search</code> does <code>search_fts</code> — pure FTS-only. The <code>.mli</code> documents <code>Auto</code> as "Smart default: Hybrid if embedding available, else Keyword_only". The smart resolution only happens when <code>mode=None</code> (not passed).</li>
+<li><strong>Fix</strong>: In <code>resolve_mode</code>, handle <code>Some Auto</code> the same as <code>None</code> — check embedding availability and resolve to <code>Hybrid</code> or <code>Keyword_only</code>.</li>
+</ul>
+<h3 id="2-update-never-deletes-the-old-row-data-leak">2. <code>update()</code> never deletes the old row — data leak<a class="headerlink" href="#2-update-never-deletes-the-old-row-data-leak" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>lib/memory/sqlite_memory.ml:496-529</code></li>
+<li><strong>Bug</strong>: <code>update</code> INSERTs a new row with a new <code>ext_id</code> but never DELETEs the old one. After update: orphaned row persists in <code>memory_entries</code>, orphaned embedding persists in <code>memory_entries_vec</code>, stale FTS entry persists. Data leak grows with every update call.</li>
+<li><strong>Fix</strong>: Before INSERT, <code>DELETE FROM memory_entries WHERE ext_id = ?</code> for the old entry. Or change to a true SQL UPDATE.</li>
+</ul>
+<h3 id="3-invoke_structured-bypasses-invoke_context-entirely">3. <code>invoke_structured</code> bypasses <code>Invoke_context</code> entirely<a class="headerlink" href="#3-invoke_structured-bypasses-invoke_context-entirely" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>lib/core/runtime.ml:925-964</code></li>
+<li><strong>Bug</strong>: No <code>Invoke_context.create</code> or <code>with_context</code> wrapping. Consequences: (a) <code>system_prompt_appendix</code> not accepted as parameter, (b) <code>Invoke_context.get_current()</code> returns <code>None</code> inside <code>run_structured</code>, (c) no per-call metrics isolation, (d) no per-call hooks snapshot.</li>
+<li><strong>Fix</strong>: Add <code>?system_prompt_appendix:string</code> parameter, create <code>Invoke_context.t</code>, wrap the call in <code>Invoke_context.with_context</code>.</li>
+</ul>
+<h3 id="4-run_structured-doesnt-inject-system_prompt_appendix">4. <code>run_structured</code> doesn't inject <code>system_prompt_appendix</code><a class="headerlink" href="#4-run_structured-doesnt-inject-system_prompt_appendix" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>lib/core/engine.ml:282-337</code></li>
+<li><strong>Bug</strong>: Compare <code>run_agent</code> at L554 which appends <code>Invoke_context.appendix_text()</code> to system prompt. <code>run_structured</code> constructs <code>sys_prompt</code> with NO appendix injection.</li>
+<li><strong>Fix</strong>: Add <code>^ Invoke_context.appendix_text ()</code> to the system prompt construction in <code>run_structured</code>.</li>
+</ul>
+<h3 id="5-pdf-loader-throws-failure-instead-of-returning-typed-error">5. PDF loader throws <code>Failure</code> instead of returning typed error<a class="headerlink" href="#5-pdf-loader-throws-failure-instead-of-returning-typed-error" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>lib/documents/pdf_loader.ml:94-96</code></li>
+<li><strong>Bug</strong>: <code>failwith</code> raises <code>Failure</code> exception inside the thunk. When called via <code>Directory_loader.load</code>, the exception propagates uncaught — crashes entire directory scan.</li>
+<li><strong>Fix</strong>: Return <code>Error (Document.Extraction_failed (...))</code> instead of <code>failwith</code>. Wrap <code>thunk ()</code> calls in <code>Directory_loader</code> with exception handling.</li>
+</ul>
+<h3 id="6-html-loader-no-sysfile_exists-check">6. HTML loader: no <code>Sys.file_exists</code> check<a class="headerlink" href="#6-html-loader-no-sysfile_exists-check" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>lib/documents/html_loader.ml:8</code></li>
+<li><strong>Bug</strong>: Unlike ALL other loaders (text:11, markdown:61, csv:11, pdf:85), HTML loader never checks file existence after workspace admission. Missing file → uncaught <code>Sys_error</code>.</li>
+<li><strong>Fix</strong>: Add <code>Sys.file_exists</code> check before <code>open_in</code>, return <code>Error (File_not_found ...)</code>.</li>
+</ul>
+<h3 id="7-html-loader-no-exception-safety-file-handle-leak">7. HTML loader: no exception safety — file handle leak<a class="headerlink" href="#7-html-loader-no-exception-safety-file-handle-leak" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>lib/documents/html_loader.ml:8-10</code></li>
+<li><strong>Bug</strong>: <code>close_in fh</code> is not in <code>Fun.protect ~finally</code>. If <code>really_input_string</code> or <code>Soup.parse</code> throws, FD leaks. Text and Markdown loaders correctly use <code>Fun.protect</code>.</li>
+<li><strong>Fix</strong>: Wrap in <code>Fun.protect ~finally:(fun () -&gt; close_in fh)</code>.</li>
+</ul>
+<h3 id="8-5-ffi-functions-call-caml_copy_stringcaml_copy_double-inside-lock">8. 5 FFI functions call <code>caml_copy_string</code>/<code>caml_copy_double</code> INSIDE lock<a class="headerlink" href="#8-5-ffi-functions-call-caml_copy_stringcaml_copy_double-inside-lock" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>lib/ffi/par_ffi.c:364,380,419-421,641,653</code></li>
+<li><strong>Bug</strong>: File's own comment (L3-5) says "Allocation done OUTSIDE the lock to prevent longjmp from OOM skipping unlock". Violations: <code>par_embed</code> (L364), <code>par_add_documents</code> (L380), <code>par_invoke_with_rag</code> (L419-421), <code>par_set_request_timeout</code> (L641), <code>par_set_vec_extension_path</code> (L653).</li>
+<li><strong>Fix</strong>: Move all <code>caml_copy_string</code>/<code>caml_copy_double</code> calls to BEFORE <code>PAR_MUTEX_LOCK</code>.</li>
+</ul>
+<h3 id="9-vec_extension_path-override-mechanism-broken">9. <code>vec_extension_path</code> override mechanism broken<a class="headerlink" href="#9-vec_extension_path-override-mechanism-broken" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>lib/ffi/par_capi.ml:1164-1165</code></li>
+<li><strong>Bug</strong>: <code>vec_extension_path</code> is a <code>let</code> binding (evaluated once at module init). <code>set_vec_extension_path_override</code> sets a <code>ref</code> AFTER init, but <code>vec_extension_path</code> already read it. Python binding's override NEVER takes effect.</li>
+<li><strong>Fix</strong>: Change <code>vec_extension_path</code> from <code>let</code> binding to a function <code>let vec_extension_path () = ...</code> that reads the ref each time. Update all call sites.</li>
+</ul>
+<h3 id="10-sqlite_memoryml-missing-windows-vec0-vendor-path">10. <code>sqlite_memory.ml</code> missing Windows vec0 vendor path<a class="headerlink" href="#10-sqlite_memoryml-missing-windows-vec0-vendor-path" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>lib/memory/sqlite_memory.ml:34-43</code></li>
+<li><strong>Bug</strong>: <code>resolve_vec_extension_path()</code> candidates include <code>vendor/sqlite-vec/linux-x86_64/</code> and <code>macos-aarch64/</code> but NOT <code>windows-x86_64/</code>. On Windows, <code>vec0.dll</code> is never found. Compare with <code>par_capi.ml:1188</code> which correctly includes it.</li>
+<li><strong>Fix</strong>: Add <code>Filename.concat cwd ("vendor/sqlite-vec/windows-x86_64/" ^ so_name)</code> to candidates.</li>
+</ul>
+<hr />
+<h2 id="p1-should-fix-6-issues">P1 — Should Fix (6 issues)<a class="headerlink" href="#p1-should-fix-6-issues" title="Permanent link">&para;</a></h2>
+<h3 id="11-double-appendix-on-conversation-resume">11. Double-appendix on conversation resume<a class="headerlink" href="#11-double-appendix-on-conversation-resume" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>lib/core/engine.ml:1027-1036</code></li>
+<li><strong>Bug</strong>: When resuming a conversation, the existing system message (already baked with appendix from prior invoke) gets CURRENT invoke's appendix appended again. Multiple resumes → unbounded system message growth.</li>
+<li><strong>Fix</strong>: Strip any existing appendix from the system message before appending new one. Or store "bare" system prompt separately.</li>
+</ul>
+<h3 id="12-loader-module-type-is-dead-code">12. <code>LOADER</code> module type is dead code<a class="headerlink" href="#12-loader-module-type-is-dead-code" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>lib/documents/document.ml:62-65</code></li>
+<li><strong>Bug</strong>: <code>module type LOADER</code> defined with <code>lazy_load : unit -&gt; Seq.t</code> but none of 5 loaders implement it. <code>Seq.t</code> streaming promise completely unfulfilled.</li>
+<li><strong>Fix</strong>: Either implement LOADER in each loader (add <code>lazy_load</code>), or remove the dead module type and document the <code>make</code> pattern as canonical.</li>
+</ul>
+<h3 id="13-csv-loader-csvload-can-throw-uncaught">13. CSV loader: <code>Csv.load</code> can throw uncaught<a class="headerlink" href="#13-csv-loader-csvload-can-throw-uncaught" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>lib/documents/csv_loader.ml:17</code></li>
+<li><strong>Bug</strong>: <code>Csv.load full_path</code> not wrapped in try/with. Malformed CSV → uncaught exception through Directory_loader.</li>
+<li><strong>Fix</strong>: Wrap in <code>try ... with exn -&gt; return Error (Extraction_failed (...))</code>.</li>
+</ul>
+<h3 id="14-directory_loaderload-default-map-is-empty-silent-no-op">14. <code>Directory_loader.load</code> default map is empty — silent no-op<a class="headerlink" href="#14-directory_loaderload-default-map-is-empty-silent-no-op" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>lib/documents/directory_loader.ml:13</code></li>
+<li><strong>Bug</strong>: <code>?(map : extension_map = [])</code> — calling without <code>~map</code> loads ZERO files.</li>
+<li><strong>Fix</strong>: Change default to <code>Directory_loader.default_map</code> instead of <code>[]</code>.</li>
+</ul>
+<h3 id="15-no-embedding-dimension-validation">15. No embedding dimension validation<a class="headerlink" href="#15-no-embedding-dimension-validation" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>lib/memory/sqlite_memory.ml:155-171</code></li>
+<li><strong>Bug</strong>: <code>insert_embedding</code> calls <code>float_array_to_blob vec</code> without checking <code>Array.length vec = dimension</code>. Wrong-dimension vector silently corrupts vec0 index. <code>vector_store.ml:95-100</code> has this check.</li>
+<li><strong>Fix</strong>: Add <code>if Array.length vec &lt;&gt; t.dimension then () (* skip or error *)</code> before blob conversion.</li>
+</ul>
+<h3 id="16-invoke_handle_cancel-toctou-race">16. <code>invoke_handle_cancel</code> TOCTOU race<a class="headerlink" href="#16-invoke_handle_cancel-toctou-race" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>lib/core/invoke_context.ml:69-71</code></li>
+<li><strong>Bug</strong>: Sets <code>Atomic.set h.status Cancelled</code> BEFORE <code>Cancellation.request_cancel</code>. If fiber completes between these two ops, status flips Cancelled→Completed.</li>
+<li><strong>Fix</strong>: Use <code>Atomic.compare_and_set</code> or set status AFTER cancel is observed.</li>
+</ul>
+<hr />
+<h2 id="p2-documentation-mismatches-10-issues-cause-compile-errors-for-sdk-users">P2 — Documentation Mismatches (10 issues — cause compile errors for SDK users)<a class="headerlink" href="#p2-documentation-mismatches-10-issues-cause-compile-errors-for-sdk-users" title="Permanent link">&para;</a></h2>
+<h3 id="17-agent_configsystem_prompt-wrong-type">17. <code>agent_config.system_prompt</code> wrong type<a class="headerlink" href="#17-agent_configsystem_prompt-wrong-type" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>docs/sdk/agent.md:113</code> + <code>docs/zh/sdk/agent.md:108</code></li>
+<li><strong>Bug</strong>: Doc says <code>system_prompt : string</code>, actual is <code>system_prompt : system_prompt</code> (record <code>{sp_raw; sp_zone}</code>).</li>
+<li><strong>Fix</strong>: Document the <code>system_prompt</code> record type.</li>
+</ul>
+<h3 id="18-agent_config-missing-cache_strategy-field">18. <code>agent_config</code> missing <code>cache_strategy</code> field<a class="headerlink" href="#18-agent_config-missing-cache_strategy-field" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>docs/sdk/agent.md:130</code> + ZH</li>
+<li><strong>Fix</strong>: Add <code>cache_strategy : cache_strategy</code> field documentation.</li>
+</ul>
+<h3 id="19-runtimeregister_tool-return-type-wrong">19. <code>Runtime.register_tool</code> return type wrong<a class="headerlink" href="#19-runtimeregister_tool-return-type-wrong" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>docs/sdk/agent.md:389</code> + ZH</li>
+<li><strong>Bug</strong>: Doc says returns <code>tool_binding</code>, actual returns <code>(tool_binding, error_category) result</code>.</li>
+<li><strong>Fix</strong>: Update return type.</li>
+</ul>
+<h3 id="20-tool_descriptor-missing-3-fields">20. <code>tool_descriptor</code> missing 3 fields<a class="headerlink" href="#20-tool_descriptor-missing-3-fields" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>docs/sdk/agent.md:359</code> + ZH</li>
+<li><strong>Bug</strong>: Missing <code>output_schema</code>, <code>on_update</code>, <code>cache_control</code>.</li>
+<li><strong>Fix</strong>: Add all 3 fields.</li>
+</ul>
+<h3 id="21-handler_result-missing-handoff-variant">21. <code>handler_result</code> missing <code>Handoff</code> variant<a class="headerlink" href="#21-handler_result-missing-handoff-variant" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>docs/sdk/agent.md:377</code> + ZH</li>
+<li><strong>Fix</strong>: Add <code>Handoff of {target_agent_id; carry_context; task}</code>.</li>
+</ul>
+<h3 id="22-llm_provider_configopenai-missing-2-fields">22. <code>llm_provider_config.Openai</code> missing 2 fields<a class="headerlink" href="#22-llm_provider_configopenai-missing-2-fields" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>docs/sdk/agent.md:200</code> + ZH</li>
+<li><strong>Bug</strong>: Missing <code>embedding_model</code>, <code>prompt_cache_key</code>.</li>
+<li><strong>Fix</strong>: Add both fields.</li>
+</ul>
+<h3 id="23-context_strategytruncate_oldest-field-name-wrong">23. <code>context_strategy.Truncate_oldest</code> field name wrong<a class="headerlink" href="#23-context_strategytruncate_oldest-field-name-wrong" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>docs/sdk/agent.md:609</code></li>
+<li><strong>Bug</strong>: <code>keepSystem</code> should be <code>keep_system</code> (snake_case).</li>
+<li><strong>Fix</strong>: Rename in docs.</li>
+</ul>
+<h3 id="24-noop_persistencecreate-signature-completely-wrong">24. <code>Noop_persistence.create</code> signature completely wrong<a class="headerlink" href="#24-noop_persistencecreate-signature-completely-wrong" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>docs/sdk/persistence.md:51</code> + ZH</li>
+<li><strong>Bug</strong>: Doc says <code>unit -&gt; t</code>, actual is <code>string -&gt; (t, error_category) result</code>.</li>
+<li><strong>Fix</strong>: Update signature.</li>
+</ul>
+<h3 id="25-sqlite_memorymake_service-return-type-wrong">25. <code>Sqlite_memory.make_service</code> return type wrong<a class="headerlink" href="#25-sqlite_memorymake_service-return-type-wrong" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>docs/sdk/memory.md:240</code></li>
+<li><strong>Bug</strong>: Missing <code>result</code> wrapper.</li>
+<li><strong>Fix</strong>: Add <code>(Memory_service.memory_service, Memory_error.memory_error) result</code>.</li>
+</ul>
+<h3 id="26-changesmd-v072-section-has-duplicate-blocks">26. CHANGES.md v0.7.2 section has duplicate blocks<a class="headerlink" href="#26-changesmd-v072-section-has-duplicate-blocks" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>File</strong>: <code>CHANGES.md:9-83</code></li>
+<li><strong>Bug</strong>: "Added — Vector-Based Semantic Memory Search", "SDK Documentation Completion", and "Tests" sections appear TWICE.</li>
+<li><strong>Fix</strong>: Remove duplicate sections.</li>
+</ul>
+<hr />
+<h2 id="p3-quality-12-selected-issues">P3 — Quality (12 selected issues)<a class="headerlink" href="#p3-quality-12-selected-issues" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>File</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>27</td>
+<td><code>sqlite_memory.ml:91-104</code></td>
+<td>FTS5 sync triggers not atomic with base ops (trigger failure leaves inconsistent index)</td>
+</tr>
+<tr>
+<td>28</td>
+<td><code>sqlite_memory.ml:606</code></td>
+<td><code>close()</code> silently ignores <code>db_close</code> failure</td>
+</tr>
+<tr>
+<td>29</td>
+<td><code>sqlite_memory.ml:242</code></td>
+<td>FTS5 check leaks <code>:memory:</code> database handle</td>
+</tr>
+<tr>
+<td>30</td>
+<td><code>sqlite_memory.ml:312-322</code></td>
+<td><code>bump_usage</code> write inside <code>Eio.Mutex.use_ro</code> (read lock)</td>
+</tr>
+<tr>
+<td>31</td>
+<td><code>markdown_loader.ml:5</code></td>
+<td>Frontmatter parser doesn't handle <code>\r\n</code> (Windows line endings)</td>
+</tr>
+<tr>
+<td>32</td>
+<td><code>pdf_loader.ml</code></td>
+<td>No handling for encrypted/password-protected PDFs</td>
+</tr>
+<tr>
+<td>33</td>
+<td><code>directory_loader.ml:28-36</code></td>
+<td>No circular symlink protection (infinite recursion)</td>
+</tr>
+<tr>
+<td>34</td>
+<td><code>csv_loader.ml:32,43-46</code></td>
+<td>CSV column names can collide with standard metadata keys</td>
+</tr>
+<tr>
+<td>35</td>
+<td><code>html_loader.ml:16</code></td>
+<td><code>file_size</code> reports cleaned text length, not actual file size</td>
+</tr>
+<tr>
+<td>36</td>
+<td><code>docs/sdk/overview.md:17,42</code></td>
+<td>Sub-library count wrong (says 10, actual 11); middleware count wrong (says 7, actual 8); missing <code>lib/documents/</code> and <code>lib/skills/</code> in module map</td>
+</tr>
+<tr>
+<td>37</td>
+<td><code>docs/zh/sdk/agent.md</code></td>
+<td>Missing System prompt templates + Context strategy sections (EN has them)</td>
+</tr>
+<tr>
+<td>38</td>
+<td><code>sqlite_memory.ml:156-157</code></td>
+<td>Embedding errors silently swallowed (no log, no diagnostic)</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

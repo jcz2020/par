@@ -1,0 +1,2523 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/sdk/observability/">
+      
+      
+        <link rel="prev" href="../skills/">
+      
+      
+        <link rel="next" href="../../explanation/architecture/">
+      
+      
+        
+          <link rel="alternate" href="./" hreflang="en">
+        
+          <link rel="alternate" href="../../zh/sdk/observability/" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Observability - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#observability-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Observability
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../zh/sdk/observability/" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Tutorial
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  How-to
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorial
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/rag-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build a RAG Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../invoke_context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    invoke_context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generate API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../document_loaders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Loaders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prompt_caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-observability-means-in-par" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What observability means in PAR
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metrics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Metrics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-counters-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The counters type
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#thread-safety" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thread safety
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#incrementers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Incrementers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#snapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snapshot
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#merging-counters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Merging counters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-not-here" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is not here
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-bus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event bus
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Event bus">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#creating-and-subscribing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating and subscribing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-envelope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event envelope
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dead-letter-queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dead letter queue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bus-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bus configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#python-ffi-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python FFI surface
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Python FFI surface">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rthealth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rt.health()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rtmetrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rt.metrics()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rtworkflow_statusrun_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rt.workflow_status(run_id)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#par_event_subscribe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        par_event_subscribe
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#worked-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Worked examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Worked examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ocaml-subscribe-to-tool-completions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OCaml: subscribe to tool completions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-poll-health-and-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python: poll health and metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/concurrency-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/persistence-and-durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence and Durability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/rag-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-observability-means-in-par" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What observability means in PAR
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metrics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Metrics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-counters-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The counters type
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#thread-safety" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thread safety
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#incrementers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Incrementers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#snapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snapshot
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#merging-counters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Merging counters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-not-here" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is not here
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-bus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event bus
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Event bus">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#creating-and-subscribing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating and subscribing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-envelope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event envelope
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dead-letter-queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dead letter queue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bus-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bus configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#python-ffi-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python FFI surface
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Python FFI surface">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rthealth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rt.health()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rtmetrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rt.metrics()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rtworkflow_statusrun_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rt.workflow_status(run_id)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#par_event_subscribe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        par_event_subscribe
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#worked-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Worked examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Worked examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ocaml-subscribe-to-tool-completions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OCaml: subscribe to tool completions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-poll-health-and-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python: poll health and metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<!-- language: en -->
+<p><strong>English</strong> · <a href="../zh/sdk/observability.md">简体中文</a></p>
+<h1 id="observability-reference">Observability Reference<a class="headerlink" href="#observability-reference" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>Source-of-truth: <code>lib/core/metrics.mli</code>, <code>lib/event_bus/event_bus.mli</code>, <code>lib/core/runtime.ml</code>, and the FFI surface in <code>lib/ffi/par_ffi.h</code>. Covers v0.5.1. Phases B.2 (Python FFI fix for repeated <code>health</code>/<code>metrics</code>/<code>workflow_status</code> calls) and C.5 (this page) ship the documented surface.</p>
+</blockquote>
+<p>This page documents what PAR exposes so you can watch a running runtime: counters for traffic and failures, an event bus for structured lifecycle signals, and a health snapshot for liveness probes. If you are wiring PAR into a dashboard, an SLO alert, or a <code>/healthz</code> endpoint, start here.</p>
+<h2 id="what-observability-means-in-par">What observability means in PAR<a class="headerlink" href="#what-observability-means-in-par" title="Permanent link">&para;</a></h2>
+<p>PAR splits observability into three layers, each with a different latency and a different audience.</p>
+<p><strong>Metrics</strong> are cheap, numeric, and aggregate over the lifetime of a runtime. They answer questions like "how many LLM calls have we made?" and "did any tasks fail?". Pull them on a timer for dashboards.</p>
+<p><strong>The event bus</strong> is structured, per-occurrence, and fan-out. Every task transition, every tool invocation, every workflow step publishes an event. Subscribe when you need a trace of what happened, not just a count.</p>
+<p><strong>Health</strong> is a single snapshot of "is this runtime still usable right now?" It bundles liveness, persistence reachability, and the outcome of the most recent LLM call. Hit it from a load balancer.</p>
+<p>A fourth layer, logging, lives in the <a href="../middleware/#logging">Logging middleware</a> rather than a dedicated module. It writes human-readable lines for every LLM and tool boundary. Use it for local debugging; use metrics and events for production signal.</p>
+<h2 id="metrics">Metrics<a class="headerlink" href="#metrics" title="Permanent link">&para;</a></h2>
+<p>The <code>Metrics</code> module is a small counter store. Each runtime owns one. The Engine bumps these counters as it runs, and you read them through <code>Runtime.metrics_snapshot</code>.</p>
+<h3 id="the-counters-type">The counters type<a class="headerlink" href="#the-counters-type" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">type</span> <span class="n">counters</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="k">val</span> <span class="nn">Metrics</span><span class="p">.</span><span class="n">empty</span> <span class="o">:</span> <span class="kt">unit</span> <span class="o">-&gt;</span> <span class="n">counters</span>
+</span></code></pre></div>
+<p><code>counters</code> is opaque. Each field uses an <code>int Atomic.t</code>, so increments are lock-free and race-free. The runtime allocates one at <code>Runtime.create</code> and threads it through the Engine. Per-call accumulators use separate <code>counters</code> values that get folded into the runtime-wide counters at <code>invoke</code> exit. The only operations on a <code>counters</code> value are the six incrementers, the snapshot, and <code>merge_into</code>.</p>
+<h3 id="thread-safety">Thread safety<a class="headerlink" href="#thread-safety" title="Permanent link">&para;</a></h3>
+<p>Every counter is an <code>Atomic.t</code>. <code>incr_*</code> calls use <code>Atomic.incr</code> (lock-free CAS), so concurrent <code>Runtime.invoke</code> fibers never contend on a mutex. <code>snapshot</code> reads each counter with <code>Atomic.get</code>, which returns the latest value without blocking. This means metrics are always eventually consistent: a snapshot taken mid-increment may see a partially-updated set of counters, but each individual counter value is always current.</p>
+<h3 id="incrementers">Incrementers<a class="headerlink" href="#incrementers" title="Permanent link">&para;</a></h3>
+<p>These are called from inside the Engine. You will not normally invoke them yourself unless you are extending the runtime, but knowing which one fires when helps you read the snapshot.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">val</span> <span class="nn">Metrics</span><span class="p">.</span><span class="n">incr_llm</span> <span class="o">:</span> <span class="n">counters</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">val</span> <span class="nn">Metrics</span><span class="p">.</span><span class="n">incr_task_completed</span> <span class="o">:</span> <span class="n">counters</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="k">val</span> <span class="nn">Metrics</span><span class="p">.</span><span class="n">incr_task_failed</span> <span class="o">:</span> <span class="n">counters</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="k">val</span> <span class="nn">Metrics</span><span class="p">.</span><span class="n">incr_tool_invocations</span> <span class="o">:</span> <span class="n">counters</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="k">val</span> <span class="nn">Metrics</span><span class="p">.</span><span class="n">incr_events_published</span> <span class="o">:</span> <span class="n">counters</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="k">val</span> <span class="nn">Metrics</span><span class="p">.</span><span class="n">incr_events_dropped</span> <span class="o">:</span> <span class="n">counters</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span></code></pre></div>
+<p><code>incr_llm</code> fires on every LLM round trip, success or failure. <code>incr_task_completed</code> and <code>incr_task_failed</code> fire on terminal task transitions. <code>incr_tool_invocations</code> counts every handler call. The two event counters come from the event bus: <code>incr_events_published</code> for a successful dispatch, <code>incr_events_dropped</code> when an event hits the dead letter queue or overflow.</p>
+<h3 id="snapshot">Snapshot<a class="headerlink" href="#snapshot" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">val</span> <span class="nn">Metrics</span><span class="p">.</span><span class="n">snapshot</span> <span class="o">:</span> <span class="n">counters</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="kt">string</span> <span class="o">*</span> <span class="kt">int</span><span class="o">)</span> <span class="kt">list</span>
+</span></code></pre></div>
+<p><code>snapshot</code> returns the six counters as a stable list of <code>(key, value)</code> pairs. The keys are Prometheus-style <code>*_total</code> names so they line up with what a metrics scraper expects.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>When it increments</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>llm_requests_total</code></td>
+<td>Every LLM provider round trip</td>
+</tr>
+<tr>
+<td><code>task_completed_total</code></td>
+<td>Task reaches <code>Completed</code></td>
+</tr>
+<tr>
+<td><code>task_failed_total</code></td>
+<td>Task reaches <code>Failed</code></td>
+</tr>
+<tr>
+<td><code>tool_invocations_total</code></td>
+<td>Any registered tool handler is called</td>
+</tr>
+<tr>
+<td><code>events_published_total</code></td>
+<td>Event bus dispatches an event to subscribers</td>
+</tr>
+<tr>
+<td><code>events_dropped_total</code></td>
+<td>Event lands in the DLQ or is dropped on overflow</td>
+</tr>
+</tbody>
+</table>
+<p>The runtime exposes the snapshot without forcing you to touch the <code>counters</code> value directly:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">val</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">metrics_snapshot</span> <span class="o">:</span> <span class="n">runtime</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="kt">string</span> <span class="o">*</span> <span class="kt">int</span><span class="o">)</span> <span class="kt">list</span>
+</span></code></pre></div>
+<h3 id="merging-counters">Merging counters<a class="headerlink" href="#merging-counters" title="Permanent link">&para;</a></h3>
+<p><code>Runtime.invoke</code> creates a per-call <code>counters</code> accumulator so that concurrent invokes do not contend on shared atomic fields. When the invoke exits, it folds the per-call counters into the runtime-wide counters using <code>merge_into</code>:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">val</span> <span class="nn">Metrics</span><span class="p">.</span><span class="n">merge_into</span> <span class="o">:</span> <span class="n">target</span><span class="o">:</span><span class="n">counters</span> <span class="o">-&gt;</span> <span class="n">source</span><span class="o">:</span><span class="n">counters</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span></code></pre></div>
+<p><code>merge_into</code> atomically adds every counter in <code>source</code> into the corresponding counter in <code>target</code>. Both operands use <code>Atomic</code> fields so the merge is race-free even when multiple invokes exit concurrently. After the merge, <code>source</code> is discarded.</p>
+<p>You will not normally call <code>merge_into</code> yourself unless you are building a custom runtime or aggregating metrics across multiple runtime instances. The standard path is <code>Runtime.metrics_snapshot</code>, which reads the already-merged runtime-wide counters.</p>
+<h3 id="what-is-not-here">What is not here<a class="headerlink" href="#what-is-not-here" title="Permanent link">&para;</a></h3>
+<p>PAR's metrics surface is counters only. There are no gauges (no "current queue depth") and no histograms (no "LLM latency p99"). Latency and concurrency are observable today through the event bus: <code>Task_completed</code> carries <code>duration_ms</code>, <code>Llm_response_received</code> carries token <code>usage</code>, and so on. If your SLO needs percentiles, subscribe and compute them yourself. A richer metrics module is on the roadmap but not scheduled for v0.5.x.</p>
+<h2 id="event-bus">Event bus<a class="headerlink" href="#event-bus" title="Permanent link">&para;</a></h2>
+<p>The event bus is a publish/subscribe channel that every part of the runtime writes to. Subscribers get each event exactly once, wrapped in an envelope that carries metadata and retry state. Failed deliveries move to a dead letter queue instead of disappearing.</p>
+<h3 id="creating-and-subscribing">Creating and subscribing<a class="headerlink" href="#creating-and-subscribing" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">type</span> <span class="n">t</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">type</span> <span class="n">subscription</span> <span class="o">=</span> <span class="kt">string</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="k">val</span> <span class="nn">Event_bus</span><span class="p">.</span><span class="n">create</span> <span class="o">:</span> <span class="nn">Types</span><span class="p">.</span><span class="n">event_bus_config</span> <span class="o">-&gt;</span> <span class="n">t</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="k">val</span> <span class="nn">Event_bus</span><span class="p">.</span><span class="n">subscribe</span> <span class="o">:</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>  <span class="n">t</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="nn">Types</span><span class="p">.</span><span class="n">event_envelope</span> <span class="o">-&gt;</span> <span class="kt">unit</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">subscription</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="k">val</span> <span class="nn">Event_bus</span><span class="p">.</span><span class="n">unsubscribe</span> <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="n">subscription</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="k">val</span> <span class="nn">Event_bus</span><span class="p">.</span><span class="n">start_dispatcher</span> <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span></code></pre></div>
+<p>You usually do not call <code>create</code> yourself. The runtime builds the bus from <code>runtime_config.event_bus</code> and owns it internally for the lifetime of the runtime. What you call is <code>subscribe</code>, which returns an opaque <code>subscription</code> id. Keep it if you want to detach later; drop it if the subscriber should live as long as the runtime. If you need a bus outside a runtime (for tests, or for an embedded setup where you publish your own events), <code>Event_bus.create</code> plus <code>Event_bus.start_dispatcher</code> on a switch you control is the path.</p>
+<p><code>start_dispatcher</code> spawns the fiber that drains the bus. The runtime calls it during <code>Runtime.create</code>. If you build a bus outside the runtime, you must start the dispatcher yourself on a switch you control.</p>
+<p>A subscriber is a single-argument callback that takes an <code>event_envelope</code>. Exceptions raised inside a subscriber are caught by the dispatcher and counted against that delivery's retry budget.</p>
+<h3 id="event-envelope">Event envelope<a class="headerlink" href="#event-envelope" title="Permanent link">&para;</a></h3>
+<p>Every event is wrapped before delivery.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">type</span> <span class="n">event_envelope</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>  <span class="n">id</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>  <span class="n">metadata</span> <span class="o">:</span> <span class="n">event_metadata</span><span class="o">;</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>  <span class="n">payload</span> <span class="o">:</span> <span class="n">event</span><span class="o">;</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>  <span class="n">idempotency_key</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>  <span class="n">delivery_attempt</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="o">}</span>
+</span></code></pre></div>
+<p><code>id</code> is unique per published event. <code>payload</code> is the typed event itself (see the next section). <code>delivery_attempt</code> starts at 1 and climbs on each retry. <code>idempotency_key</code> lets a downstream subscriber dedupe if it is replaying from the DLQ. Match on <code>payload</code> for business logic, on <code>metadata</code> for tracing.</p>
+<h3 id="event-types">Event types<a class="headerlink" href="#event-types" title="Permanent link">&para;</a></h3>
+<p>The <code>event</code> variant is large because the bus covers the whole runtime lifecycle. The table groups the constructors by area. Field names are shortened here; see the <code>Types.event</code> definition for the full record shapes.</p>
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Constructors</th>
+<th>Notable fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Task lifecycle</td>
+<td><code>Task_created</code>, <code>Task_started</code>, <code>Task_completed</code>, <code>Task_failed</code>, <code>Task_cancelled</code>, <code>Task_suspended</code>, <code>Task_resumed</code></td>
+<td><code>task_id</code>, <code>duration_ms</code> (completed), <code>error</code> (failed), <code>reason</code> (cancelled)</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td><code>Llm_request_sent</code>, <code>Llm_response_received</code></td>
+<td><code>model</code>, <code>usage</code></td>
+</tr>
+<tr>
+<td>Tools</td>
+<td><code>Tool_invoked</code>, <code>Tool_completed</code>, <code>Tool_failed</code>, <code>Tool_progress</code></td>
+<td><code>tool_name</code>, <code>duration_ms</code>, <code>result_preview</code></td>
+</tr>
+<tr>
+<td>Bash tool</td>
+<td><code>Bash_invoked</code>, <code>Bash_completed</code></td>
+<td><code>argv</code>, <code>cwd</code>, <code>exit_code</code>, <code>risk</code></td>
+</tr>
+<tr>
+<td>Workflows</td>
+<td><code>Workflow_started</code>, <code>Workflow_step_completed</code>, <code>Workflow_completed</code>, <code>Workflow_failed</code></td>
+<td><code>workflow_run_id</code>, <code>step_id</code></td>
+</tr>
+<tr>
+<td>Approval</td>
+<td><code>Approval_requested</code>, <code>Approval_granted</code>, <code>Approval_timeout</code></td>
+<td><code>prompt</code>, <code>allowed_roles</code>, <code>approver</code></td>
+</tr>
+<tr>
+<td>Shutdown</td>
+<td><code>Shutdown_initiated</code>, <code>Shutdown_completed</code></td>
+<td><code>exit_code</code></td>
+</tr>
+<tr>
+<td>MCP</td>
+<td><code>Mcp_server_started</code>, <code>Mcp_server_failed</code>, <code>Mcp_server_stopped</code>, <code>Mcp_tool_invoked</code>, <code>Mcp_tool_completed</code>, <code>Mcp_resource_read</code>, <code>Mcp_prompt_rendered</code></td>
+<td><code>server_id</code>, <code>tool_name</code>, <code>uri</code></td>
+</tr>
+<tr>
+<td>Other</td>
+<td><code>Agent_handoff</code>, <code>Structured_output_completed</code></td>
+<td><code>from_agent</code>/<code>to_agent</code>, <code>schema_valid</code></td>
+</tr>
+</tbody>
+</table>
+<p>If you only care about one slice, filter on the constructor inside your callback. There is no built-in topic filter. A common pattern is a small helper that pattern-matches and ignores everything else.</p>
+<h3 id="dead-letter-queue">Dead letter queue<a class="headerlink" href="#dead-letter-queue" title="Permanent link">&para;</a></h3>
+<p>When a subscriber throws, or when delivery exceeds the configured attempt budget, the envelope moves to the dead letter queue instead of being silently dropped.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">val</span> <span class="nn">Event_bus</span><span class="p">.</span><span class="n">get_dead_letters</span> <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">dead_letter_entry</span> <span class="kt">list</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">val</span> <span class="nn">Event_bus</span><span class="p">.</span><span class="n">dlq_entries</span> <span class="o">:</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">event</span> <span class="kt">list</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="k">val</span> <span class="nn">Event_bus</span><span class="p">.</span><span class="n">push_to_dlq</span> <span class="o">:</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>  <span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">event_envelope</span> <span class="o">-&gt;</span> <span class="kt">string</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">error_category</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span></code></pre></div>
+<p>A <code>dead_letter_entry</code> carries the original envelope, the error string, the typed <code>failure_reason</code>, the timestamp, and the attempt count at which it gave up. <code>dlq_entries</code> is a convenience that returns just the payloads. Read these from a monitoring hook if you want to alert on poison messages.</p>
+<p>The DLQ is gated by <code>event_bus_config.dlq_enabled</code> and capped by <code>dlq_max_size</code>. When the queue is full, new entries push old ones out.</p>
+<h3 id="bus-configuration">Bus configuration<a class="headerlink" href="#bus-configuration" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">type</span> <span class="n">event_bus_config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>  <span class="n">buffer_capacity</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>  <span class="n">delivery</span> <span class="o">:</span> <span class="n">event_delivery_config</span><span class="o">;</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>  <span class="n">dlq_enabled</span> <span class="o">:</span> <span class="kt">bool</span><span class="o">;</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>  <span class="n">dlq_max_size</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>  <span class="n">critical_event_types</span> <span class="o">:</span> <span class="kt">string</span> <span class="kt">list</span><span class="o">;</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="o">}</span>
+</span></code></pre></div>
+<p><code>buffer_capacity</code> bounds the in-memory channel between publishers and the dispatcher. When full, publishers block, which applies backpressure to the Engine. <code>delivery</code> tunes retry behavior: <code>max_delivery_attempts</code>, <code>initial_retry_delay</code>, <code>retry_backoff</code>, and <code>delivery_timeout</code>. <code>critical_event_types</code> is a list of constructor names that bypass the buffer and dispatch synchronously; use it for shutdown signals that must not wait behind a backlog.</p>
+<p>The runtime ships a sensible default:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nn">Runtime</span><span class="p">.</span><span class="n">default_event_bus_config</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="c">(* buffer_capacity = 10000, DLQ enabled, exponential backoff *)</span>
+</span></code></pre></div>
+<h2 id="python-ffi-surface">Python FFI surface<a class="headerlink" href="#python-ffi-surface" title="Permanent link">&para;</a></h2>
+<p>PAR's Python binding exposes health, metrics, and workflow status as plain dict-returning methods. The C entrypoints live in <code>lib/ffi/par_ffi.h</code>; the OCaml implementations are in <code>lib/ffi/par_capi.ml</code>. Phase B.2 fixed a callback-handle bug that previously broke repeated calls to these methods from the same <code>Runtime</code>; the fix is verified by <code>bindings/python/tests/test_runtime.py::TestCallbackHandleSurvival</code>.</p>
+<h3 id="rthealth"><code>rt.health()</code><a class="headerlink" href="#rthealth" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">health</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span> <span class="o">...</span>
+</span></code></pre></div>
+<p>Returns a dict shaped like:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="p">{</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="s2">&quot;runtime_alive&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    <span class="s2">&quot;persistence_ok&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    <span class="s2">&quot;last_llm_call_at&quot;</span><span class="p">:</span> <span class="mf">1718230000.123</span><span class="p">,</span>  <span class="c1"># float or None</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>    <span class="s2">&quot;last_llm_call_status&quot;</span><span class="p">:</span> <span class="s2">&quot;Success&quot;</span><span class="p">,</span>   <span class="c1"># see below</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>runtime_alive</code> is false once shutdown has been requested. <code>persistence_ok</code> probes the configured backend with a trivial read. <code>last_llm_call_status</code> is one of <code>Success</code>, <code>Never_called</code>, <code>Error.Internal</code>, <code>Error.Timeout</code>, <code>Error.Invalid_input</code>, <code>Error.External_failure</code>, <code>Error.Rate_limited</code>, <code>Error.Permission_denied</code>, <code>Error.Embedding_unsupported</code>. Map <code>runtime_alive and persistence_ok</code> to a 200 and anything else to a 503 for a Kubernetes-style liveness probe.</p>
+<h3 id="rtmetrics"><code>rt.metrics()</code><a class="headerlink" href="#rtmetrics" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">metrics</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span> <span class="o">...</span>
+</span></code></pre></div>
+<p>The binding unpacks the snapshot for you, so the return value is the metrics dict directly rather than a wrapper. Keys match the OCaml snapshot names.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="p">{</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>    <span class="s2">&quot;llm_requests_total&quot;</span><span class="p">:</span> <span class="mi">42</span><span class="p">,</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    <span class="s2">&quot;task_completed_total&quot;</span><span class="p">:</span> <span class="mi">38</span><span class="p">,</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="s2">&quot;task_failed_total&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    <span class="s2">&quot;tool_invocations_total&quot;</span><span class="p">:</span> <span class="mi">17</span><span class="p">,</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>    <span class="s2">&quot;events_published_total&quot;</span><span class="p">:</span> <span class="mi">412</span><span class="p">,</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>    <span class="s2">&quot;events_dropped_total&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Absent keys are zero. Poll on whatever cadence your scraper expects; the call is cheap and does not block the Engine.</p>
+<h3 id="rtworkflow_statusrun_id"><code>rt.workflow_status(run_id)</code><a class="headerlink" href="#rtworkflow_statusrun_id" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">workflow_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span> <span class="o">...</span>
+</span></code></pre></div>
+<p>Returns <code>{"run_id": run_id, "status": "unknown"}</code> for any run id in v0.5.1. The workflow status lookup is stubbed: the OCaml side returns the literal <code>"unknown"</code> status string for every call. This is an acknowledged gap. The method exists so calling code can be written against the final shape now and will start receiving real statuses once the workflow state store is wired through. Treat any non-<code>"unknown"</code> value as a future-compat bonus.</p>
+<h3 id="par_event_subscribe"><code>par_event_subscribe</code><a class="headerlink" href="#par_event_subscribe" title="Permanent link">&para;</a></h3>
+<p>The C symbol <code>par_event_subscribe</code> is declared in <code>lib/ffi/par_ffi.h</code> and registered on the OCaml side, but the implementation is a stub that returns <code>-1</code>. Event subscription from Python is not yet available. If you need event-level signal from Python today, poll <code>rt.metrics()</code> and diff <code>events_dropped_total</code>. Real event streaming from Python is tracked as future work.</p>
+<h2 id="worked-examples">Worked examples<a class="headerlink" href="#worked-examples" title="Permanent link">&para;</a></h2>
+<p>Two end-to-end patterns: one OCaml, one Python. Both are written to be pasted into a test or a small script.</p>
+<h3 id="ocaml-subscribe-to-tool-completions">OCaml: subscribe to tool completions<a class="headerlink" href="#ocaml-subscribe-to-tool-completions" title="Permanent link">&para;</a></h3>
+<p>This snippet builds a standalone bus, starts its dispatcher on a switch, subscribes a callback that prints a line for every <code>Tool_completed</code>, and returns the subscription id. The <code>match</code> ignores every other constructor so the callback stays quiet for LLM and workflow traffic. A runtime you create through <code>Runtime.create</code> owns its own bus internally; you would subscribe to that bus the same way, by obtaining the <code>Event_bus.t</code> from wherever your code holds runtime internals.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="k">let</span> <span class="n">watch_tools</span> <span class="o">~</span><span class="n">switch</span> <span class="o">=</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>  <span class="k">let</span> <span class="n">bus</span> <span class="o">=</span> <span class="nn">Event_bus</span><span class="p">.</span><span class="n">create</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">default_event_bus_config</span> <span class="k">in</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>  <span class="nn">Event_bus</span><span class="p">.</span><span class="n">start_dispatcher</span> <span class="n">bus</span> <span class="n">switch</span><span class="o">;</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>  <span class="k">let</span> <span class="n">sub</span> <span class="o">=</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>    <span class="nn">Event_bus</span><span class="p">.</span><span class="n">subscribe</span> <span class="n">bus</span> <span class="o">(</span><span class="k">fun</span> <span class="n">envelope</span> <span class="o">-&gt;</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>      <span class="k">match</span> <span class="n">envelope</span><span class="o">.</span><span class="nn">Types</span><span class="p">.</span><span class="n">payload</span> <span class="k">with</span>
+</span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>      <span class="o">|</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Tool_completed</span> <span class="o">{</span> <span class="n">tool_name</span><span class="o">;</span> <span class="n">duration_ms</span><span class="o">;</span> <span class="o">_</span> <span class="o">}</span> <span class="o">-&gt;</span>
+</span><span id="__span-15-10"><a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>        <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;[tool] %s in %.0fms</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="n">tool_name</span> <span class="n">duration_ms</span>
+</span><span id="__span-15-11"><a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>      <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="bp">()</span><span class="o">)</span>
+</span><span id="__span-15-12"><a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a>  <span class="k">in</span>
+</span><span id="__span-15-13"><a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a>  <span class="n">sub</span>
+</span></code></pre></div>
+<p>Pass <code>sub</code> to <code>Event_bus.unsubscribe bus sub</code> when the watcher should stop. If you want failures too, add a <code>Tool_failed</code> arm. If you want a full trace, log every arm.</p>
+<h3 id="python-poll-health-and-metrics">Python: poll health and metrics<a class="headerlink" href="#python-poll-health-and-metrics" title="Permanent link">&para;</a></h3>
+<p>A loop that hits <code>health()</code> and <code>metrics()</code> every few seconds and prints a one-line summary. Suitable for a sidecar that ships signal to your existing dashboard.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">par_runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">Runtime</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="k">with</span> <span class="n">Runtime</span><span class="p">(</span><span class="n">config_json</span><span class="p">)</span> <span class="k">as</span> <span class="n">rt</span><span class="p">:</span>
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>        <span class="n">h</span> <span class="o">=</span> <span class="n">rt</span><span class="o">.</span><span class="n">health</span><span class="p">()</span>
+</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>        <span class="n">m</span> <span class="o">=</span> <span class="n">rt</span><span class="o">.</span><span class="n">metrics</span><span class="p">()</span>
+</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>        <span class="n">ts</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%H:%M:%S&quot;</span><span class="p">)</span>
+</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>        <span class="nb">print</span><span class="p">(</span>
+</span><span id="__span-16-10"><a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ts</span><span class="si">}</span><span class="s2"> alive=</span><span class="si">{</span><span class="n">h</span><span class="p">[</span><span class="s1">&#39;runtime_alive&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> &quot;</span>
+</span><span id="__span-16-11"><a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a>            <span class="sa">f</span><span class="s2">&quot;persist=</span><span class="si">{</span><span class="n">h</span><span class="p">[</span><span class="s1">&#39;persistence_ok&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> &quot;</span>
+</span><span id="__span-16-12"><a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>            <span class="sa">f</span><span class="s2">&quot;last_llm=</span><span class="si">{</span><span class="n">h</span><span class="p">[</span><span class="s1">&#39;last_llm_call_status&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> &quot;</span>
+</span><span id="__span-16-13"><a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a>            <span class="sa">f</span><span class="s2">&quot;llm_total=</span><span class="si">{</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;llm_requests_total&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> &quot;</span>
+</span><span id="__span-16-14"><a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>            <span class="sa">f</span><span class="s2">&quot;tasks_done=</span><span class="si">{</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;task_completed_total&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> &quot;</span>
+</span><span id="__span-16-15"><a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a>            <span class="sa">f</span><span class="s2">&quot;tasks_failed=</span><span class="si">{</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;task_failed_total&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> &quot;</span>
+</span><span id="__span-16-16"><a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a>            <span class="sa">f</span><span class="s2">&quot;events_dropped=</span><span class="si">{</span><span class="n">m</span><span class="p">[</span><span class="s1">&#39;events_dropped_total&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span id="__span-16-17"><a id="__codelineno-16-17" name="__codelineno-16-17" href="#__codelineno-16-17"></a>        <span class="p">)</span>
+</span><span id="__span-16-18"><a id="__codelineno-16-18" name="__codelineno-16-18" href="#__codelineno-16-18"></a>        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+</span></code></pre></div>
+<p>The <code>events_dropped</code> counter is the one to alert on. Anything above zero means a subscriber is failing or the bus is overflowing, and either case warrants investigation. <code>tasks_failed</code> climbing without a corresponding <code>tasks_completed</code> climb usually points at a tool or provider regression.</p>
+<h2 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Counters only.</strong> No gauges, no histograms. Derive latency from <code>duration_ms</code> fields on events if you need it.</li>
+<li><strong>No Prometheus exposition.</strong> PAR does not serve <code>/metrics</code>. Pipe the dict from <code>rt.metrics()</code> into your own exporter.</li>
+<li><strong>No distributed tracing spans.</strong> Events carry <code>task_id</code> and <code>workflow_run_id</code> for correlation, but there is no OpenTelemetry exporter. Hook the event bus if you want to emit spans.</li>
+<li><strong><code>par_event_subscribe</code> is a stub.</strong> Python callers cannot yet receive events push-style. Poll metrics in the meantime.</li>
+<li><strong><code>workflow_status</code> always returns <code>"unknown"</code>.</strong> The method shape is stable; the implementation is not.</li>
+<li><strong>Single-process scope.</strong> Metrics and the event bus live in the runtime that created them. Two <code>Runtime</code> instances in one process do not share counters. For multi-process aggregation, scrape each runtime and merge externally.</li>
+</ul>
+<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../agent/">Agent API</a> - <code>agent_config</code>, runtime creation, the surfaces a runtime exposes</li>
+<li><a href="../middleware/">Middleware API</a> - the Logging middleware that writes human-readable lines at every boundary</li>
+<li><a href="../streaming/">Streaming API</a> - chunked output, which is intentionally separate from the event bus</li>
+<li><a href="../../explanation/architecture/">Architecture</a> - how the Engine, event bus, and persistence fit together</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

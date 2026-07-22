@@ -1,0 +1,2296 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/STRATEGY/">
+      
+      
+      
+      
+        
+          <link rel="alternate" href="./" hreflang="en">
+        
+          <link rel="alternate" href="/par/zh/" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>P-A-R 长期战略 - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#p-a-r" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              P-A-R 长期战略
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="/par/zh/" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Tutorial
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  How-to
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../sdk/overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorial
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/rag-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build a RAG Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/invoke_context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    invoke_context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generate API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/document_loaders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Loaders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/prompt_caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/content_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/concurrency-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/persistence-and-durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence and Durability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/rag-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 价值定位
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. 目标用户
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 差异化主张
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. 差异化主张">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#vs-langchain-python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        vs LangChain (Python)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vs-pi-agent-core-typescript" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        vs pi-agent-core (TypeScript)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vs-autogen-openai-agents-sdk-crewai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        vs AutoGen / OpenAI Agents SDK / CrewAI
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 优先级（资源分配）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. 发布策略
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. 借鉴来源（已验证项目）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. 防呆清单（明确不做的）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. 变更日志
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. 相关文档
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-beta-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. 发布策略：Beta-First
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. 发布策略：Beta-First">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        版本号约定
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        工作流
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent 必须遵守
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. 开发原则
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. 开发原则">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#111" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.1 原则表述
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#112" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.2 可操作规则(强制)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#113" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.3 验证检查(每个版本规划阶段必过)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#114-2026-06-30-v064" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11.4 历史教训(2026-06-30 v0.6.4 规划案例)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="p-a-r">P-A-R 长期战略<a class="headerlink" href="#p-a-r" title="Permanent link">&para;</a></h1>
+<p><strong>状态</strong>: 战略定义完成（2026-06-02）
+<strong>维护者</strong>: P-A-R Contributors
+<strong>变更机制</strong>: 战略变更需要新文档 + commit message 明确说明原因</p>
+<hr />
+<h2 id="1">1. 价值定位<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<p><strong>PAR = OCaml 圈的 LangChain + LangGraph 等价物</strong></p>
+<p>覆盖两类场景：
+- <strong>MVP 友好</strong>：问答机器人、翻译工具、基础 RAG
+- <strong>严肃生产</strong>：状态机、Human-in-the-Loop、多 agent 协作（typed handoff）</p>
+<p>核心承诺：
+- 集成组件 + 提示词管理（学 LangChain）
+- 类型化状态保证（学 LangGraph）
+- 不偏向学术研究，也不偏向快速原型</p>
+<hr />
+<h2 id="2">2. 目标用户<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<p><strong>LLM 后端工程师</strong></p>
+<p>特征：
+- 工作中需要构建 agent 系统作为产品一部分
+- 重视部署性（Docker, k8s, opam）
+- 关心 runtime overhead、稳定性、故障恢复
+- 可能从 Python / Go / Rust 后端转来</p>
+<p><strong>非目标用户</strong>（避免做错方向）：
+- 纯学术研究者（要的是 paper，不是 SDK）
+- 终端用户（要的是产品，不是 SDK）
+- 纯前端工程师（agent runtime 跟前端无关）</p>
+<hr />
+<h2 id="3">3. 差异化主张<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<h3 id="vs-langchain-python">vs LangChain (Python)<a class="headerlink" href="#vs-langchain-python" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>类型严谨</strong>："LangChain 能崩的错，PAR 在 build 时就报"</li>
+<li><strong>Eio 轻量</strong>："同负载下 PAR 内存/CPU 仅为 Python 项目的 1/5"</li>
+<li><strong>原生多 provider</strong>：OpenAI / Anthropic / Ollama / Custom 零成本切换</li>
+</ol>
+<h3 id="vs-pi-agent-core-typescript">vs pi-agent-core (TypeScript)<a class="headerlink" href="#vs-pi-agent-core-typescript" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>OCaml 生态唯一选择</strong>：他们不重叠，PAR 是 OCaml 圈唯一选项</li>
+</ol>
+<h3 id="vs-autogen-openai-agents-sdk-crewai">vs AutoGen / OpenAI Agents SDK / CrewAI<a class="headerlink" href="#vs-autogen-openai-agents-sdk-crewai" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>类型化多 Agent 切换</strong>：handoff 通过 typed ADT constructor 实现而非 JSON 约定（v0.4+ 规划）</li>
+</ol>
+<hr />
+<h2 id="4">4. 优先级（资源分配）<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
+<p>按重要性排序的资源分配原则：</p>
+<table>
+<thead>
+<tr>
+<th>优先级</th>
+<th>维度</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1</strong></td>
+<td><strong>类型严谨</strong></td>
+<td>Q3 主张 #1，是 PAR 不可被复制的核心优势</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td><strong>并发性能</strong></td>
+<td>Eio 是 PAR 技术差异化（Q3 主张 #2）</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td><strong>多 provider 适配</strong></td>
+<td>Q3 主张 #3，<strong>变现点</strong>（实际项目用得到）</td>
+</tr>
+<tr>
+<td><strong>4</strong></td>
+<td><strong>OCaml 生态定位</strong></td>
+<td>受众天花板，长期需考虑但不是紧急</td>
+</tr>
+</tbody>
+</table>
+<p><strong>应用规则</strong>：当时间紧张时，砍 4 → 砍 3 → 砍 2 → 砍 1。</p>
+<hr />
+<h2 id="5">5. 发布策略<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<p><strong>opam + PyPI 双发布</strong></p>
+<table>
+<thead>
+<tr>
+<th>包</th>
+<th>渠道</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>par</code></td>
+<td>opam</td>
+<td>OCaml SDK（OCaml 后端）</td>
+</tr>
+<tr>
+<td><code>par_runtime</code></td>
+<td>PyPI</td>
+<td>Python 包，通过 ctypes 调用 par_capi.so（Python 后端）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>不做的发布</strong>：
+- ❌ Docker（v0.x 不做，让用户自己打包）
+- ❌ npm（不是 TS 项目）
+- ❌ Conda（OCaml/Python 都不走 Conda）</p>
+<hr />
+<h2 id="6">6. 借鉴来源（已验证项目）<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>借鉴什么</th>
+<th>不借鉴什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/earendil-works/pi">pi-agent-core</a> (58.9k stars)</td>
+<td>Steering/Follow-up 队列、onUpdate 工具流式、system_prompt 单字符串模式</td>
+<td>Session tree、compaction、thinking levels、custom message types</td>
+</tr>
+<tr>
+<td><a href="https://github.com/langchain-ai/langchain">LangChain</a> / <a href="https://github.com/langchain-ai/langgraph">LangGraph</a></td>
+<td>system_prompt 单字符串模式、集成组件范式、3 表持久化（checkpoints + blobs + writes）</td>
+<td>过度抽象、Python 动态类型</td>
+</tr>
+<tr>
+<td><a href="https://github.com/openai/openai-agents-python">OpenAI Agents SDK</a></td>
+<td>Handoff 合成工具模式（transfer_to_<agent>）、RunContextWrapper DI 容器（不进 LLM）</td>
+<td>无内置持久化、Python-only</td>
+</tr>
+<tr>
+<td><a href="https://github.com/microsoft/autogen">AutoGen</a></td>
+<td>BaseChatMessage/BaseAgentEvent 事件模型、save_state/restore_state 序列化</td>
+<td>Swarm 的隐式 routing</td>
+</tr>
+<tr>
+<td><a href="https://github.com/google/adk-python">Google ADK</a></td>
+<td>EventActions（state_delta/transfer_to_agent）、三级状态前缀（app:/user:/session:）</td>
+<td>过度复杂的状态管理体系</td>
+</tr>
+<tr>
+<td><a href="https://github.com/pydantic/pydantic-ai">PydanticAI</a></td>
+<td>结构化输出 = 合成工具、RunContext 承载 deps</td>
+<td>Python type hints 不适用于 OCaml</td>
+</tr>
+<tr>
+<td><a href="https://docs.anthropic.com">Anthropic Claude</a></td>
+<td>append-only content blocks（text/tool_use/tool_result）、Session Runner 断线恢复</td>
+<td>断线恢复是远程 API 问题，PAR 不需要</td>
+</tr>
+<tr>
+<td><a href="https://github.com/vercel/ai">Vercel AI SDK</a></td>
+<td>system 独立属性设计、provider 抽象</td>
+<td>不需要（Vercel 绑定云）</td>
+</tr>
+<tr>
+<td><a href="https://github.com/BerriAI/litellm">LiteLLM</a></td>
+<td>透传到 provider 模式</td>
+<td>messages 数组风格（我们用单一字符串）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7">7. 防呆清单（明确不做的）<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>不做的理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Session tree + branching（完整版）</td>
+<td>PAR 用户用 workflow + PG 持久化，不是交互式 IDE。窄化：支持单链 handoff（agent A → B），不支持树状分支</td>
+</tr>
+<tr>
+<td>Compaction（LLM 摘要压缩）</td>
+<td>PAR 走显式 <code>context_strategy</code>，不依赖隐式摘要</td>
+</tr>
+<tr>
+<td>Thinking levels</td>
+<td>Provider-specific 概念，PAR 走 provider-agnostic</td>
+</tr>
+<tr>
+<td>Custom message types</td>
+<td>TS declaration merging 是 TS-only 特性</td>
+</tr>
+<tr>
+<td>~~Skills system (SKILL.md)~~</td>
+<td><strong>Removed 2026-06-24</strong> — see §8 changelog. Skill system shipped in v0.5.2 with typed design differentiation.</td>
+</tr>
+<tr>
+<td>Docker 官方镜像</td>
+<td>v0.x 不做，让用户自打包</td>
+</tr>
+<tr>
+<td>学术 paper 投稿</td>
+<td>战略转向工程价值（2026-06-02 决议：删 v1.0 论文）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8">8. 变更日志<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>日期</th>
+<th>变更</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-06-02</td>
+<td>战略首版</td>
+<td>启动 v0.3.0 前的 P0 阻断项讨论结果</td>
+</tr>
+<tr>
+<td>2026-06-02</td>
+<td>删除论文方向</td>
+<td>论文不是 PAR 的核心价值（学术贡献有限，工程价值高）</td>
+</tr>
+<tr>
+<td>2026-06-02</td>
+<td>借鉴 pi-agent-core</td>
+<td>58.9k stars，验证过的设计模式可移植</td>
+</tr>
+<tr>
+<td>2026-06-09</td>
+<td>放弃"不做多 agent 协作"限制</td>
+<td>主流框架研究完成：OpenAI Agents/LangGraph/AutoGen/CrewAI/Google ADK/PydanticAI 均支持 handoff。PAR 窄化为 typed ADT handoff（单链 A→B），不做树状分支</td>
+</tr>
+<tr>
+<td>2026-06-09</td>
+<td>新增 7 个借鉴来源</td>
+<td>LangGraph（3 表持久化）、OpenAI Agents（handoff + DI）、AutoGen（序列化）、Google ADK（EventActions）、PydanticAI（结构化输出）、Anthropic（content blocks）、CrewAI（任务上下文）</td>
+</tr>
+<tr>
+<td>2026-06-09</td>
+<td>发布策略：beta-first</td>
+<td>开发阶段版本号带 <code>-beta</code> 后缀，只有用户明确说"发布正式版"时才执行 release 操作并去掉后缀</td>
+</tr>
+<tr>
+<td>2026-06-21</td>
+<td>v0.4.8 stable 发布</td>
+<td>首个 stable release（Runtime.invoke_structured）。GH Release + opam-repository PR #30086 已提交；PyPI 待上传。<strong>关键里程碑：项目首次进入"用户可安装"状态</strong></td>
+</tr>
+<tr>
+<td>2026-06-21</td>
+<td>分发渠道首次落地</td>
+<td>opam-repository PR 提交（ocaml/opam-repository#30086，含 <code>par</code> + <code>par_cli</code>），GH Release binaries (linux-x64, macos-arm64) 首次提供，install.sh 验证可装。PyPI <code>par-runtime</code> 待用户配置 token 后上传</td>
+</tr>
+<tr>
+<td>2026-06-21</td>
+<td>PyPI 三次 P0 失败 → 转向 v0.5.0 重设计</td>
+<td>v0.4.8 缺 .so（PAR-0qf）、v0.4.9 glibc 2.38 太新（PAR-8cs）、v0.4.10 setuptools&lt;61 UNKNOWN 文件名（PAR-cog）。根因：release pipeline 缺端到端验收测试 + build 环境不固定。<strong>用户决定 B 路径：不再发 v0.4.x hotfix，作为 v0.5.0 Track A 重设（manylinux + auditwheel + 验收门）</strong>。详见 docs/release-pipeline-redesign.md</td>
+</tr>
+<tr>
+<td>2026-06-21</td>
+<td><strong>决定反转：v0.4.11 在 v0.4.x 系列彻底修，不推 v0.5.*</strong></td>
+<td>用户改主意：希望在 v0.4.11 彻底解决（不是 v0.5.*）。<strong>v0.4.11 scope</strong>: setuptools upgrade + ubuntu-22.04 pinning（已 v0.4.10 完成 binary 部分）+ 3 平台 acceptance test workflow（Debian 12/Ubuntu 22.04/Ubuntu 24.04）+ 本地 dry-run script + release.md E2E 程序文档。<strong>v0.5+ stretch</strong>：manylinux glibc 2.17、ARM64、macOS wheel、OIDC auto-upload。准备工作（roadmap + 脚本骨架 + bd 重定向）已完成，下个 session 执行。</td>
+</tr>
+<tr>
+<td>2026-06-21</td>
+<td>战略教训</td>
+<td>"本地编译产物 QA ≠ CI 产物 QA" — install-dev 覆盖本地 binary 掩盖了 GH Release binary 的 glibc 问题。<strong>今后所有 release 验证必须在隔离环境（容器/沙箱 venv）下载实际产物测试</strong></td>
+</tr>
+<tr>
+<td>2026-06-21</td>
+<td><strong>决定反转：v0.4.11 在 v0.4.x 系列彻底修，不推 v0.5.*</strong></td>
+<td>用户改主意：希望在 v0.4.11 彻底解决（不是 v0.5.*）。<strong>v0.4.11 scope</strong>: setuptools upgrade + ubuntu-22.04 pinning（已 v0.4.10 完成 binary 部分）+ 3 平台 acceptance test workflow（Debian 12/Ubuntu 22.04/Ubuntu 24.04）+ 本地 dry-run script + release.md E2E 程序文档。<strong>v0.5+ stretch</strong>：manylinux glibc 2.17、ARM64、macOS wheel、OIDC auto-upload。准备工作（roadmap + 脚本骨架 + bd 重定向）已完成，下个 session 执行。</td>
+</tr>
+<tr>
+<td>2026-06-21</td>
+<td>v0.4.12 scope: 工作流审计 + 新 CI 工作流 + OIDC + manylinux scaffold</td>
+<td>用户决策："直接用 v0.4.12 把这些事做了"，澄清"老的 Linux 我觉得完全可以不必兼容"（即放弃 manylinux2014/CentOS 7）。<strong>v0.4.12 实际 scope</strong>: 修 GH Release 三方竞争（release.yml vs pypi-publish.yml vs opam-publish.yml）；标准化 opam 包列表（弃用 <code>*.opam</code> 通配符）；加 nightly.yml、codeql.yml（仅 Python+Actions，OCaml 不在 CodeQL 支持列表）、dependency-review.yml；加 Python 3.8-3.13 矩阵；加 OIDC PyPI trusted publisher（待用户在 pypi.org 注册）；加 manylinux Dockerfile 作为 v0.4.13+ 的脚手架。<strong>完成于 v0.4.13</strong>: manylinux wheel 已启用并发布（<code>par_runtime-0.4.13-py3-none-manylinux_2_28_x86_64.whl</code>，11.3 MB）。<strong>未使用</strong> dummy <code>_loader.c</code> —— 现代 auditwheel v6+ 默认开启 <code>allow_graft=True</code>，会扫描 wheel 内所有 ELF 文件（包括通过 <code>package_data</code> 提供的 ctypes-loaded <code>.so</code>），无需 dummy ext 制造 DT_NEEDED。<strong>推迟到 v0.5.0 (MINOR)</strong>: ARM64 Linux wheel、macOS universal2 wheel（新增平台 = MINOR per SemVer §7）。</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9">9. 相关文档<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="v0.3-ROADMAP.md"><code>docs/v0.3-ROADMAP.md</code></a> — 当前路线图</li>
+<li><a href="../README.md"><code>README.md</code></a> — 项目入口</li>
+<li><a href="../DESIGN.md"><code>DESIGN.md</code></a> — 实现设计</li>
+<li><a href="../AGENTS.md"><code>AGENTS.md</code></a> — 开发者工作流</li>
+</ul>
+<hr />
+<p><strong>最后更新</strong>: 2026-06-26</p>
+<hr />
+<h2 id="10-beta-first">10. 发布策略：Beta-First<a class="headerlink" href="#10-beta-first" title="Permanent link">&para;</a></h2>
+<p><strong>规则</strong>：开发完成后，<strong>永远先提交 beta 版</strong>。只有在用户明确说"发布正式版"时，才执行 release 相关操作。</p>
+<h3 id="_1">版本号约定<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>版本号格式</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>开发/合并</td>
+<td><code>X.Y.Z-beta-YYYYMMDD</code></td>
+<td><code>0.5.0-beta-20260610</code></td>
+</tr>
+<tr>
+<td>正式发布</td>
+<td><code>X.Y.Z</code></td>
+<td><code>0.5.0</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="_2">工作流<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>开发完成</strong> → 版本号设为 <code>X.Y.Z-beta</code>，合并到 main，<strong>不打 tag、不触发 CI release</strong></li>
+<li><strong>用户说"发布正式版"</strong> → 去掉 <code>-beta</code> 后缀，打 tag <code>vX.Y.Z</code>，推送触发 release pipeline</li>
+</ol>
+<h3 id="agent">Agent 必须遵守<a class="headerlink" href="#agent" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>禁止</strong>在用户说"发布正式版"之前执行以下操作：</li>
+<li>去掉版本号后缀</li>
+<li>打 git tag</li>
+<li>触发 release workflow</li>
+<li>更新 README/CHANGES 中的正式版本号和 test count</li>
+<li>beta 阶段可以更新 CHANGES.md 添加 beta 条目，但版本号必须带 <code>-beta</code></li>
+</ul>
+<p>| 2026-06-21 | <strong>v0.5.0 scope: ARM64 Linux + ARM64 macOS wheels</strong> | 用户决策："那就开搞吧 v0.5.0"。<strong>scope 锁定</strong>: (1) <code>manylinux_2_28_aarch64</code> (新) — <code>ubuntu-22.04-arm64</code> runner + <code>quay.io/pypa/manylinux_2_28_aarch64</code> 容器 + auditwheel。<strong>不</strong>做 universal2 — <code>macos-13</code> (Intel) 2026-06-19 已永久放弃（free tier queue 24h+ 必超时，见 <code>.github/workflows/ci.yml</code> L16），Intel Mac 用户回退到 sdist 源码编译（PyPI 2026 流量 &lt;5%，可接受）。<strong>scope 排除</strong>: musllinux wheels (≥95% PyPI Linux 由 manylinux 覆盖)、Windows wheel (MSVC 编译链过重)、<code>-manylinux_2_17</code> RHEL 7/CentOS 7（用户 2026-06-21 明确拒绝）。<strong>CI 成本</strong>: 3 job matrix, ~$0.18/release (x86_64 $0.08 + aarch64 $0.016 + macos-15 $0.08)。<strong>SemVer</strong>: MINOR (新增平台 = MINOR per SemVer §7，public API 不变)。<strong>验证</strong>: Oracle 终审必须确认 PyPI 3 wheels + GH Release 3 assets + acceptance CI 5 platforms (debian:12/ubuntu:22.04/ubuntu:24.04/debian:bookworm-arm64/macos-15) 全绿。 |</p>
+<p>| 2026-06-21 | <strong>v0.5.0 scope 修订 (实际交付)</strong>: macOS arm64-only; ARM64 Linux 推到 v0.5.1+ | 用户决策："跳过 ARM64 Linux, 只发 x86_64 + macOS-arm64"。<strong>根因</strong>: GitHub Actions 免费 tier ARM64 runner 完全不可用 — <code>ubuntu-22.04-arm64</code> / <code>ubuntu-24.04-arm64</code> 都 queue 45min+ 从未派发；qemu-binfmt 在 <code>ubuntu-22.04</code> host 上跑 <code>quay.io/pypa/manylinux_2_28_aarch64:latest</code> 容器, 容器启动即崩溃 (<code>Error response from daemon: container is not running</code>)。<strong>v0.5.0 实际交付</strong>: 2 wheels — <code>par_runtime-0.5.0-py3-none-manylinux_2_28_x86_64.whl</code> (11.3 MB) + <code>par_runtime-0.5.0-py3-none-macosx_11_0_arm64.whl</code> (6.5 MB)。<strong>v0.5.1+ 待办</strong>: ARM64 Linux wheel — 等 (a) GH Actions ARM quota 改善, (b) 用户自建 self-hosted ARM runner, 或 (c) 切到 cross-compile toolchain。<strong>技术细节</strong>: macOS wheel 平台 tag 通过 <code>wheel tags --platform-tag macosx_11_0_arm64</code> 设置 — 单纯 mv 改文件名会导致 PyPI 400 (内部 WHEEL Tag field 必须匹配)。 |</p>
+<p>| 2026-06-21 | <strong>【待恢复】ARM64 Linux 轮子临时移除</strong> | <strong>范围级变更</strong>: v0.5.0 原计划发布 3 个轮子 (x86_64 Linux + ARM64 Linux + ARM64 macOS)，实际只发布了 2 个 (x86_64 Linux + ARM64 macOS)。<strong>根因</strong>: GitHub Actions 免费 tier ARM64 runner (<code>ubuntu-22.04-arm64</code> / <code>ubuntu-24.04-arm64</code>) 饱和 queue 45min+ 从未派发; qemu-binfmt 在 x86_64 host 上跑 <code>quay.io/pypa/manylinux_2_28_aarch64:latest</code> 容器启动即崩溃 (<code>Error response from daemon: container is not running</code>)。<strong>用户决策 2026-06-21</strong>: 跳过 ARM64 Linux, 推到 v0.5.1+。<strong>【强制恢复条件】</strong>: 项目功能相对完善后 (预计 v0.6-v0.8 区间)，必须恢复 ARM64 Linux 轮子支持。恢复路径优先级: (1) 等待 GH Actions ARM 配额改善 (2) 用户自建 self-hosted ARM runner (3) 切换到 OCaml cross-compile toolchain + aarch64 sysroot。<strong>恢复信号</strong>: 出现以下任一情况时立即排期 — (a) ARM Linux 用户在 issue 报告 <code>pip install</code> 失败 (b) PyPI 下载统计显示 ARM Linux 需求 &gt;5% (c) 项目发布 v1.0 前的 feature freeze 阶段。<strong>技术债务记录</strong>: <code>par_runtime-0.5.0-py3-none-manylinux_2_28_aarch64.whl</code> 的 wheel tag 格式、auditwheel 修复流程、manylinux_2_28_aarch64 容器路径已在 v0.5.0-beta.post1-post5 中验证过 (除 runner 可用性问题外其他都 ready)。恢复时参考 commit 6a12c01 (初始 3-job matrix) 和 90aae3b (qemu 尝试)。 |
+| 2026-06-24 | <strong>v0.5.2 战略反转: skill 系统移出 §7 防呆清单</strong> | <strong>项目成熟度</strong> (runtime / agents / tools / middleware / persistence / RAG / streaming 全部 stable) + 下游项目需求。Skill 系统按 §3 差异化主张做了类型化设计 (typed <code>tool_filter</code> ADT, <code>skill_trigger</code> ADT, <code>expected_output</code> — 比 Claude Code 更类型化, 比 OpenAI 更 filesystem-native, 比 LangChain 更 success-criteria-aware)。<strong>Scope locked in</strong>: <code>docs/v0.5.2-ROADMAP.md</code> Track A. <strong>可逆性</strong>: 若下游需求证明为假, 重新加回 §7 该行 + revert Track A 代码即可。代价: 1 个 PR revert。 |
+| 2026-06-26 | <strong>【范围级变更】PostgreSQL 持久化后端移除 — SQLite only</strong> | <strong>变更前</strong>: 三层持久化 (<code>Sqlite</code> 开发 / <code>Postgresql</code> 生产 / <code>Noop</code> 测试)，独立 <code>par_postgres</code> opam 包，<code>caqti-eio</code> 依赖，公开类型含 <code>`Postgresql of string</code> 变体，CLI <code>--db-uri</code> 指 PostgreSQL 连接串。<strong>变更后</strong>: 两层持久化 (<code>Sqlite</code> 唯一持久化后端 / <code>Noop</code> 测试)，删除 <code>par_postgres</code> opam 包，移除 <code>caqti-eio</code> 依赖，公开类型 <code>persistence : [</code>Sqlite of string ]<code>（``</code>Postgresql <code>变体移除，破坏性变更），CLI `--db-uri` 改指 SQLite 数据库路径。**原因**: (1) SQLite 对当前用户群 (LLM 后端工程师做单进程 agent) 已足够; (2) PG 后端长期受 FFI/CI 可用性困扰 (`postgresql` opam 包不在标准 repo, CI 需特殊排除); (3) 收窄维护面，集中精力到 §4 轴 #1/#2 (类型严谨 + 并发)。**影响范围**: 公开 `persistence` 类型 (对 pattern-match</code> <code>Postgresql `` 的 SDK 用户是破坏性变更)、CLI</code>--db-uri<code>语义、全部持久化相关文档 (EN + ZH)、opam 包面 (</code>par_postgres<code>删除)、构建脚本 (不再需要 pg 客户端库)、</code>docs/rules/docs.md<code>+</code>docs/DOC-MAINTENANCE.md<code>标识符保留清单 (移除</code>par_postgres<code>+ ``</code>Postgresql <code>)。**对多实例水平扩展的影响**: SQLite 文件锁不支持跨容器多进程写同一文件——这是当前已知限制。双层持久化模型 (本地 SQLite + 远程 tier) 在路线图上 (v0.6+, bd issue `PAR-4dt`)，远程 tier 不再特指 Postgres (可能是对象存储或未来后端)。**回退方式**: 从 commit `cb5d795` (移除前) 恢复 `lib/postgres/` + `par_postgres.opam` + caqti-eio 依赖。详见 `CHANGES.md` v0.5.4-beta "Removed — PostgreSQL persistence backend"。 |
+| 2026-06-27 | **【API级变更】v0.6.0: on_max_tokens_behavior ADT + max_continuation_chunks** | **变更前**: `finish_reason=Max_tokens` 时引擎无条件丢弃截断输出并盲目重发相同 prompt (v0.5.5-beta 修复为先检测内容再返回部分结果)。**变更后**: 新增 `type on_max_tokens_behavior = Retry | Continue | Return_partial` 公开 ADT + `on_max_tokens` + `max_continuation_chunks` 两个可选 `agent_config` 字段 + `Llm_response_truncated` 事件变体。默认 `Return_partial` (v0.5.5 Phase 1 行为)。**原因**: 三家头部产品调研发现业界对此无共识 — Claude Code 自动升档+重试3次 (最激进)、Codex CLI 盲目重试 (openai/codex#14753 已知 bug 未修)、MiMo Code 直接返回部分 (最克制)。PAR 的 typed ADT 方案是 §3 差异化主张 #1 (类型严谨) 的直接体现：比 Codex 的通用错误通道更精准，比 Claude Code 的硬编码常量更可配置。**影响范围**: `agent_config` 公开类型 (新增 2 个可选字段，通过 `make_agent` 的可选参数构造，keyword-arg 调用者不受影响)、`event` 类型 (新增 1 个变体，有 `[@@deriving yojson]`)、FFI JSON parser (`par_capi.ml`)、Python binding (零代码改动 — 纯 JSON 透传)。**回退方式**: 移除 `on_max_tokens_behavior` ADT + 2 个字段 + 事件变体，恢复 v0.5.5-beta engine.ml Max_tokens 分支。详见 `CHANGES.md` v0.6.0-beta "Added — Configurable on_max_tokens_behavior policy"。 |
+| 2026-06-30 | **【API级变更】v0.6.3: Auto Context Compression by Window Ratio** | **变更前**: `context_strategy` 三种变体 (Truncate_oldest / Summarize / Sliding_window) 都是绝对阈值触发，无 ratio-based 自动压缩；`make_agent` 默认 `Sliding_window {max_messages=100; max_tokens=200000}`；`context_strategy` 在 FFI 中硬编码不可配置；引擎每次迭代无条件 apply strategy；模型 context window 大小全代码库无任何字段追踪；`Context_compressed` 事件类型不存在。**变更后**: 新增 3 个 `agent_config` 可选字段 (`context_compression_threshold : float option` 默认 `Some 0.8` / `compression_cooldown_messages : int option` 默认 `Some 6` / `context_window_override : int option`)，新增 `llm_service.context_window_fn : (unit -&gt; int) option` capability，新增 `Context_compressed` + `Context_compression_skipped` 两个 event 变体 (后者带 typed</code> <code>Below_threshold |</code>Cooldown_active | <code>No_window_size |</code>No_strategy <code>` 多态变体 reason)，新增</code>Context_manager<code>5 个 pure helpers (</code>default_context_window<code>静态查表 /</code>resolve_context_window<code>三层 resolver /</code>estimated_tokens_with_margin<code>1.2× 余量 /</code>should_compress<code>纯决策函数 /</code>apply_default_summarize<code>)，</code>make_agent<code>默认</code>context_strategy<code>从</code>Sliding_window<code>改为</code>Summarize {max_tokens=8000; summary_model=None}<code>(BREAKING)，引擎</code>engine.ml:517<code>加入 ratio gate + cooldown ref + 事件发射，FFI JSON parser 解析 4 个字段。**原因**: 业界调研 (librarian bg_940617fc) 确认所有有默认的主流生产 agent 框架均用 LLM-summarize (Letta</code>sliding_window<code>mode / Anthropic</code>compact_20260112<code>/ LangChain</code>ConversationSummaryBufferMemory<code>/ CrewAI</code>respect_context_window=True<code>)，零个用 truncate-drop。PAR 80% pre-emptive trigger 优于 Letta/CrewAI 的 reactive-on-error。typed skip-reason ADT 是 §3 差异化主张 #1 (类型严谨) 的直接体现。**影响范围**:</code>agent_config<code>公开类型 (新增 3 个可选字段)、</code>llm_service<code>(新增 capability 字段，所有 3 个构造站点更新)、</code>event<code>类型 (新增 2 个变体 + 1 个 named polymorphic variant type)、</code>Engine.run_agent<code>(ReAct loop 加入 ratio gate + cooldown ref)、</code>Runtime.make_agent<code>(3 个新可选参数 + 默认 strategy 改变)、FFI JSON parser (</code>par_capi.ml<code>)、Python binding (零代码改动 — JSON 透传)。**回退方式**: 移除 3 个 agent_config 字段 + llm_service.capability + 2 个 event 变体 + Context_manager helpers + engine.ml ratio gate；恢复</code>make_agent<code>默认</code>Sliding_window<code>。详见</code>CHANGES.md<code>v0.6.3-beta "Auto Context Compression by Window Ratio"。 |
+| 2026-06-30 | **【战略级变更】新增 §11 开发原则:"一次做对"** | **变更前**: STRATEGY.md 无显式开发原则段;规划决策常以"范围可控/周期短"为由牺牲长期架构正确性,工程妥协与架构决策混为一谈。**变更后**: 新增 §11《开发原则》段,确立"一次做对"为核心原则,要求所有架构决策优先长期正确性,禁止用范围/周期作为架构妥协的借口,工程妥协必须显式标注并附长期替代方案。**原因**: v0.6.4 规划时 agent 提出 4 条决策(message flatten 保留 / Stable-Volatile 仅 template 生效 / Auto-caching 自动标 / 永久 soft-fail),用户挑战"抛开周期与范围是否仍这样决策"后,发现 3 条是工程妥协伪装成架构决策。此为复发模式,必须升级为战略级原则。**影响范围**: 所有版本规划、ROADMAP 编写、架构决策记录、agent 规划行为。AGENTS.md 同步加引用让每次规划可见。**回退方式**: 删除 §11 + AGENTS.md 引用 + 本行变更日志。 |
+| 2026-06-30 | **【API级变更】v0.6.4-beta (partial): content_block list + prompt caching infrastructure** | **变更前**:</code>message.content : string option<code>扁平字符串;</code>usage_stats<code>3 字段;无</code>cache_control<code>/</code>cache_ttl<code>/</code>content_block<code>类型;无</code>cache_strategy<code>ADT;无</code>cache_control_fn<code>capability;无</code>prompt_cache_key<code>;无 cache event 变体。**变更后**(Track A-G+E 完成): 新增</code>content_block<code>ADT(4 变体,each with</code>cache_control option<code>)、</code>cache_control<code>、</code>cache_ttl<code>、</code>image_source<code>类型;</code>message.content<code>→</code>message.content_blocks : content_block list<code>(BREAKING);</code>usage_stats<code>扩展到 6 字段(BREAKING);新增</code>cache_strategy<code>ADT on</code>agent_config<code>(BREAKING);</code>llm_service.cache_control_fn<code>capability(BREAKING);</code>Openai.prompt_cache_key<code>(BREAKING);Anthropic adapter 发射 cache_control wire markers;OpenAI adapter 解析 cached_tokens + 注入 prompt_cache_key;5 个新 cache event 变体;</code>Cache_breakpoint<code>budget manager 模块;</code>Message<code>helper 模块。**未完成**: Track B(Stable/Volatile phantom types — 需要 OCaml existential record field 类型设计)、Track H(新测试文件)。**影响范围**: 43 文件改动,465 insertions,198 deletions。**回退方式**: revert commits b4a721d + b827690。 |
+| 2026-07-02 | **【API级变更+架构级变更】v0.6.5-beta: Workspace 模块 — Sys.getcwd 从安全原语中放逐** | **变更前**:</code>Bash_safe_command.sandboxed_path_of_string<code>以</code>Sys.getcwd()<code>(进程全局 ambient state) 为安全锚点;绝对路径在类型层被硬拒;6 个文件工具 (read/ls/find/grep/write/edit) 各自内联 3-check 但**缺少敏感前缀检查**;</code>sensitive_prefixes()<code>是全局函数 (第二 ambient 权威向量);</code>Runtime.create<code>无 workspace 参数。**变更后**: 新增</code>Workspace<code>模块 (</code>lib/core/workspace.ml<code>) — 不可伪造</code>private<code>值,携带</code>roots : string list<code>(多根,从第一天起) +</code>policy : workspace_policy<code>(敏感前缀随 workspace 走);</code>admit<code>函数替代</code>sandboxed_path_of_string<code>— workspace 参数 mandatory,**绝对路径在 workspace 根下被放行** (核心行为变更);</code>sandboxed_path<code>类型移至 Workspace;</code>sandboxed_path_of_string<code>/</code>_cwd<code>/</code>_to_string<code>全删;</code>make_exec<code>cwd 改 mandatory;</code>Runtime.create<code>新增</code>?workspace:Workspace.workspace<code>可选参数 (下游集成商可注入自定义 workspace 实现多 worktree 隔离);</code>Sys.getcwd()<code>仅剩</code>Workspace.of_cwd<code>一处 bootstrap + 3 个便利定位点 (skill_loader/par_capi/main)。**§11 R1 标注**: 架构正确 (非范围妥协) — workspace 作为唯一路径权威是终态设计,多根从第一天起,无 ambient authority。**§11 R3 评估**: 单步完成 (新模块 + 所有调用点一次迁移),非两步走。**原因**: 下游集成反馈 (worktree-per-task 工作流) 暴露 CWD-anchored sandbox 的结构性冲突 — 一个进程无法服务多个 worktree;与 Claude Code #26262 同源问题。Oracle 架构咨询确认</code>Sys.getcwd()<code>作为安全锚点是 ambient authority 反模式,Option E (workspace 抽象) 是正确的终态。**影响范围**:</code>Bash_safe_command<code>公开 API (类型迁移 + 3 函数删除,8 项破坏性变更 — 见 CHANGES.md 迁移表)、</code>Builtin_tools.builtin_tools<code>(新增</code>~workspace<code>mandatory 参数)、</code>Workflow_engine.exec_context<code>(新增</code>workspace<code>mandatory 字段)、</code>Runtime.create<code>(新增</code>?workspace<code>可选参数)、</code>Runtime.runtime<code>record (新增</code>workspace<code>字段)、6 个文件工具 (路径验证统一走</code>Workspace.admit<code>,获得此前缺失的敏感前缀检查 — 安全提升)。1253 tests passing。**回退方式**: revert commit 8a2b55e + 后续修复 commits。详见</code>CHANGES.md<code>v0.6.5-beta "[UNRELEASED] — Workspace Abstraction"。 |
+| 2026-07-02 | **【API级变更】v0.6.4-beta.2-beta.5: prompt caching 完成版** | **变更前**: v0.6.4-beta (partial) 的 Track B/H 未完成;Anthropic adapter 的</code>extract_system_prompt<code>压扁 system prompt 为裸字符串导致 cache_control 标记丢失;</code>tool_descriptor_to_json<code>不 emit cache_control;</code>build_message_json<code>仅处理 Text_block;FFI</code>parse_cache_strategy<code>bare "with_cache_of" 静默降级为 No_caching;FFI skill_prompt_zone 不可从 Python 达达。**变更后**: (1) Runtime zone_tag 方式落地(commit 6a22c7f)— phantom types 被 OCaml record field 限制排除,runtime</code>zone_tag<code>是架构正确方案。(2)</code>mark_tool<code>/</code>mark_message<code>用户层 API 落地。(3)</code>skill_prompt_zone<code>ADT (Stable_prompt/Volatile_prompt/Both_prompts) 替代</code>string option<code>。(4) B.4 hard-fail 升级(原计划 v0.6.5,用户指令提前到 v0.6.4)。(5) Anthropic adapter</code>emit_block_with_cache<code>全 4 block variants +</code>extract_system_prompt<code>返回</code>content_block list<code>+</code>tool_descriptor_to_json<code>emit cache_control +</code>build_request_body<code>emit system as List。(6) FFI 2 bug 修复(parse_cache_strategy fail-fast + skill_prompt_zone 3-form parser)。(7)</code>apply_breakpoints<code>移除 Tool-location namespace 混淆。(8)</code>Both_prompts<code>语义修正(拼接 stable+volatile)。**影响范围**: 累计 60+ 文件,1228 tests。**回退方式**: revert commits 7016172..cf6ac09。**Oracle 验证**: 两轮 VERIFIED,真实 API 验证通过(MiniMax 端点接受 cache_control 格式)。 |
+| 2026-07-02 | **【API级变更】v0.6.6-beta: per-run workspace override (闭合 v0.6.5 Option E 缺口)** | **变更前**: v0.6.5 落地了</code>Workspace<code>抽象与</code>Runtime.create ?workspace<code>,但</code>invoke<code>/</code>submit_workflow<code>/</code>submit_workflow_async<code>/</code>invoke_workflow_sync<code>四个公共入口的签名里**没有**</code>?workspace<code>参数 — 它们只接收 runtime,workspace 在 runtime 建好时固定。一个 agent-server 进程建一个 runtime → 一个 workspace → 该进程所有 workflow/invoke 共享同一 workspace,无法并发服务 N 个 worktree。Oracle Option E 审计明确指出 "workspace is property of the run, not the process" 未实现。**变更后**: 四个公共入口均接受</code>?workspace:Workspace.workspace<code>可选参数;</code>per_call_registry ~rt ~workspace<code>为每次调用构建 fresh</code>Tool_registry<code>— copy_all 用户工具后,用</code>rt.bash_rebuild<code>重建 bash handler +</code>rt.file_tools_rebuild<code>重建文件工具 (read/ls/find/grep/write/edit),全部绑定到</code>rt' = {rt with workspace}<code>;</code>handler_fn<code>签名**不变** (避免 30+ 文件级联);</code>Tool_registry.copy_all<code>新增;</code>Runtime.register_file_tools_rebuild<code>暴露给注册 builtin 工具的调用方 (bin/main.ml 捕获 Eio switch+net)。**§11 R1 标注**: 架构正确 (per-call registry 比 handler_fn 签名改更干净 — workspace 是 run-scoped 非 call-scoped)。**§11 R3 评估**: 单步完成。**§11 R2 范围妥协 (Decision #4)**: 用户自定义工具 (via</code>register_tool<code>) 的 per-call 覆盖推迟到 v0.7 (register_tool 签名改是 SemVer 破坏,触发条件: v0.7 周期或下游反馈)。**Oracle 验证**: 两轮 (首轮 REJECT 文件工具未覆盖 + 缺 e2e 测试 → 修复 file_tools_rebuild + e2e invoke Mock 测试 → 二轮 VERIFIED)。**影响范围**: runtime.mli/ml (4 API 入口 + per_call_registry + 2 rebuild 字段)、tool_registry.ml/mli (copy_all)、bin/main.ml (register_file_tools_rebuild)、6 个新测试。1260 tests passing。无 breaking change。**回退方式**: revert commits 0a8331e..89ccc77;</code>?workspace<code>参数移除即恢复 v0.6.5 行为。 |
+| 2026-07-03 | **【范围级变更】v0.6.7-beta: 删除 CLI (产品 UX 下沉到独立 PAR Code 仓库)** | **变更前**: PAR 仓库自带 CLI 应用 (</code>bin/main.ml<code>1741 行 — REPL、config 向导、ask/history/stats/工具注册全套)。一个 agent-runtime 仓库自带产品级 UX,造成 (a) 用户困惑: 该用</code>par<code>还是 PAR Code?(b) 维护分心: 引擎团队维护产品级 CLI;(c) 定位模糊: PAR 是引擎还是产品?</code>install.sh<code>175 行从 GH Releases 下载 CLI 二进制。README hero 段以</code>curl | bash → par ask<code>开头;</code>docs/cli.md<code>、</code>par_cli<code>opam 包、4 个 CLI 测试 (</code>test_cli_args<code>/</code>test_cli_dispatch<code>/</code>test_session_resume_cli<code>) 全存在。**变更后**: 删除整个</code>bin/<code>、</code>par_cli<code>opam 包 +</code>par_cli.opam<code>、CLI 测试、</code>docs/cli.md<code>;重写</code>install.sh<code>为交互式 SDK 安装向导 (检测系统 → 选 Python(1) vs OCaml(2) → 验环境 → 用户确认后缺 opam 自动跑官方安装脚本到</code>~/.opam<code>→ 装 → 验证);</code>install-dev<code>改用 Python</code>par_runtime.<strong>version</strong><code>校验;CI 5 个 workflow 全部清</code>par_cli<code>引用 (</code>ci.yml<code>/</code>nightly.yml<code>/</code>opam-publish.yml<code>/</code>pypi-publish.yml<code>改</code>opam install par<code>;</code>release.yml<code>删除 binary build/upload,转为 release notes 引导</code>pip install<code>/</code>opam install par<code>);README hero 段 SDK-first (Python+OCaml),</code>docs/index.md<code>移除 CLI section。</code>par_cli<code>此前**未成功发布**到 opam-repository (v0.4.8 时期提交过 PR,但从未合并),所以删除零外部影响——CHANGES.md 记录这次移除,opam-repository 无需撤包。**§11 R1 标注**: 架构正确——分层清洁化(引擎归引擎、产品归产品);PAR 是 SDK/运行时,不是产品。**§11 R3 评估**: 单步完成(无需两步走,无外部用户)。**§11 R2**: 不适用(无范围妥协,这是分层修正)。**影响范围**:</code>bin/<code>删除 (1741 行+4 个辅助文件)、</code>par_cli<code>包 + 5 个 CI workflow + Makefile install 目标 + AGENTS.md + README +</code>docs/cli.md<code>+</code>docs/index.md<code>+ 4 个测试 + 顶层配置(总计 ~25 文件)。1248 tests pass (1260 - 12 个 CLI 测试用例)。**回退方式**: revert commits 23697fc..c472413;恢复</code>bin/<code>、</code>par_cli<code>包、CI workflow 与 makefile 原状。 |
+| 2026-07-09 | **【API级+架构级+依赖级+范围级变更】v0.7.0-beta: Document Loaders Framework — RAG 前置阶段补齐** | **变更前**: PAR 已有完整 RAG 基础设施(</code>Vector_store<code>sqlite-vec 后端 +</code>Chunking<code>3 策略 +</code>embedding_service<code>+</code>Runtime.invoke_with_rag<code>),但管道只接受裸字符串——用户必须自己把 PDF/HTML/CSV 读成 string 再喂进</code>add_documents<code>。这是 LangChain</code>DocumentLoader<code>占据的位置(81k+ 仓库使用)。**变更后**: 新增</code>lib/documents/<code>子目录(7 模块,14 文件,≤16 上限留余量)—— (1)</code>Document.t<code>record(</code>content:string; metadata:(string,Yojson.Safe.t) Hashtbl.t; source:string<code>)+</code>Meta<code>子模块(empty/singleton/add/add_string/add_int/to_yojson/of_yojson)+</code>module type LOADER<code>(</code>lazy_load:unit -&gt; Document.t Seq.t<code>为 canonical,</code>load:unit -&gt; Document.t list<code>为便利)+</code>load_error<code>ADT(5 变体);(2) 5 个格式 loader(TDD):</code>Text_loader<code>/</code>Markdown_loader<code>(YAML frontmatter via</code>Yaml<code>)/</code>Html_loader<code>(</code>lambdasoup<code>剥离 script/style/nav)/</code>Csv_loader<code>(row-per-Document,列名→metadata)/</code>Pdf_loader<code>(camlpdf</code>Pdftext<code>简单抽取,每页一 Document);(3)</code>Directory_loader<code>扩展名→loader 关联表(LlamaIndex 模式)+</code>default_map<code>;(4) Python FFI 5 层链(</code>par_capi.ml<code>的</code>do_load_document<code>/</code>do_load_directory<code>+</code>Callback.register<code>→</code>par_ffi.h/.c<code>C bridge</code>call2_exn<code>/</code>call3_exn<code>→</code>_ffi.py<code>ctypes →</code>runtime.py<code></code>Runtime.load_document<code>/</code>load_directory<code content_="content," metadata_="metadata," source="source">)返回 JSON list of</code><code>dicts 可直接喂</code>add_documents()<code>;(5) 3 个新 deps(</code>camlpdf<code>/</code>csv<code>/</code>omd<code>,全 LGPL+OCaml-linking-exception 或 ISC,MIT 兼容)。**§11 R1 标注(12 条决策)**: 全部架构正确——</code>lib/documents/<code>新子模块而非</code>lib/core/document_loader.ml<code>单文件(</code>lib/core/<code>已 53 文件超舒适区);</code>Document.t<code>不进</code>types.ml<code>(已 1259 行超 800 静态上限);字段名</code>content<code>而非 LangChain</code>page_content<code>(内部一致性 &gt; Python 历史包袱,与</code>Vector_store.document.content<code>对齐零摩擦);</code>lazy_load<code>canonical(LangChain 现代 API 已 deprecated</code>load_and_split<code>);Chunking 保持独立(LangChain 自己 deprecate</code>load_and_split<code>,组合优于耦合);extension→loader 关联表(OCaml-idiomatic);metadata</code>(string, Yojson.Safe.t) Hashtbl.t<code>(与</code>Vector_store.document.metadata<code>对齐);MINOR bump(SemVer §7,纯新增零破坏)。**§11 R2 范围妥协(2 条,R2 合规)**: (D8)</code>.docx<code>推迟到 v0.7.1——无 maintained OCaml 库存在,DIY(camlzip+xml-light ~200 LOC)是伪装架构的范围妥协,ship 即成永久维护负担,**退役触发**:opam 出现 maintained 库 / downstream &gt;5 reactions / v0.7.1 规划周期,三选一;迁移代价低(独立模块,零现有代码改动)。(D9) PDF 简单 text stream 抽取而非 layout-preserving——多栏/表格/scanned PDF 抽取质量差,**退役触发**:downstream 真实语料抽取失败率 &gt;20% 或 v0.8 周期;迁移路径:替换</code>Pdf_loader.extract_text<code>内部实现为 layout-aware(接口不变);mli docstring + docs/sdk/document_loaders.md EN+ZH 都明示限制。**§11 R3 评估**: 5 loader + 共享</code>Document.t<code>/</code>LOADER<code>契约一次 ship(分批无收益);.docx 推迟属 R3 exception(c)"未知技术验证"(spike-first 决定),非范围妥协伪装。**§11 R4 自问**: 12 条决策全部过"抛开周期与范围,长远用户怎么用更爽"测试;2 处真妥协已附退役计划与触发条件。**原因**: README "Coming next" 已预告 v0.7+ 方向(external vector stores / document loaders / multimodal);连续 5 个 patch(v0.6.5→v0.6.9)打磨引擎本身边际收益递减,需要新能力解锁真实场景。**影响范围**: 新增</code>lib/documents/<code>(14 文件)+</code>lib/par.ml<code>(+8 module re-exports)+</code>lib/ffi/<code>(</code>par_capi.ml<code>+</code>par_ffi.h/.c<code>)+</code>bindings/python/<code>(2 文件 + 1 新测试)+</code>docs/sdk/document_loaders.md<code>EN+ZH +</code>docs/{index,zh/index}.md<code>+</code>mkdocs.yml<code>+</code>README.md<code>+</code>docs/zh/README.md<code>+</code>CHANGES.md<code>+</code>dune-project<code>+</code>par.opam<code>+</code>lib/dune<code>(deps)。1269 OCaml tests + 8 Python tests passing(0 failures)。零破坏性变更。**回退方式**: revert commits c0589b2..f6ce927(6 个原子 commits);</code>lib/documents/<code>整目录删除 +</code>lib/par.ml<code>/</code>test/dune<code>还原 + dune-project deps 行删除,完全恢复 v0.6.9 行为。详见</code>CHANGES.md` v0.7.0-beta "Document Loaders Framework"。 |</p>
+<p>| 2026-07-09 | <strong>【API级+架构级变更】v0.7.1-beta: Concurrency + Memory + Scope + Deprecation + Dynamic Prompt</strong> | <code>invoke_context</code> per-call 隔离(Eio.Fiber carrier)+ <code>invoke_async</code>;<code>Memory_service</code>(FTS5)+ 3 builtin tools;<code>Agent_call response_schema</code>;persistence <code>scope</code> 维度;<code>Deprecation.warn_once</code>;per-turn <code>system_prompt_appendix</code>;Auto-skill override fix;FFI persistence fix。1387 tests。<strong>审计(2026-07-10)</strong>: 17 issues(2 critical: <code>invoke_structured</code> 绕过 Invoke_context + <code>run_structured</code> 不注入 appendix)。详见 <code>docs/audit/v0.7.x-findings.md</code>。 |
+| 2026-07-10 | <strong>【API级+架构级+范围级变更】v0.7.2-beta: Windows Capability + Vector Memory + SDK Docs</strong> | <code>Capability</code> 模块(平台能力检测)+ FFI <code>#ifdef _WIN32</code>(SRWLOCK)+ workspace 路径归一化 + 进程生成门控 + vec0.dll vendor;vec0 虚拟表 + <code>search_mode</code>(Keyword/Vector/Hybrid/Auto)+ RRF hybrid search + sync triggers;SDK 文档全套 EN+ZH。CI: Ubuntu ✅ + macOS ✅。Windows CI 移除(MinGW <code>par_ffi.c:121</code> 指针类型错误,待 v0.7.3)。<strong>审计(2026-07-10)</strong>: 20 issues(2 P0: Auto 死代码 + update 泄漏)。详见 <code>docs/audit/v0.7.x-findings.md</code>。 |
+| 2026-07-10 | <strong>【审计记录】v0.7.0–v0.7.2 全量审计</strong> | 4 agent 并行审计 → 48 去重问题(10 P0 + 6 P1 + 10 P2 + 12 P3)。Oracle 验证 8/8 spot-check。核心: Auto 死代码 + update 不删旧行 + invoke_structured 绕过 Invoke_context + 5 FFI 锁内分配 + 10 文档签名错误。完整在 <code>docs/audit/v0.7.x-findings.md</code>。 |</p>
+<p>| 2026-07-11 | <strong>【依赖级+范围级变更】v0.7.3 stable: 审计清零（38 问题）+ §11 R2 遗留清零</strong> | <strong>变更前</strong>: v0.7.0–v0.7.2 期间累积 48 审计问题未清（含 10 P0 真 bug、6 P1 竞态/死代码、10 P2 文档签名错误、12 P3 质量债）。<code>run_agent_structured</code> 需求悬而未决。<strong>变更后</strong>: 38 问题全部修复（10 P0 + 6 P1 + 10 P2 + 12 P3 全部清零；2 个审计时未识别的小问题 #5+ #32+ #c0 内化到 review 后续修复中）,6 个原子提交（按模块组 A-F）push 到 main。<code>docs/audit/v0.7.x-findings.md</code> 标记"全部已修复于 v0.7.3"。CHANGES.md 加 v0.7.3 section。<strong>§11 R1 标注(38 条)</strong>: 全 P0/P1 为「架构正确」——Auto 模式智能解析、update 真删旧行、invoke_structured 补 Invoke_context、FFI 锁外分配、cancel CAS、double-appendix 元数据追踪——均为原设计意图的执行层修复,无架构重新决策。<strong>§11 R1 标注(12 条 P2 文档)</strong>: 全「架构正确」——SDK 文档与 .mli 签名对齐零摩擦,中英双语同步,<code>mkdocs build --strict</code> 通过。<strong>§11 R2 范围妥协(2 条)</strong>: (D3 评审遗留) <code>LOADER</code> 模块类型删除（用户确认选 a,选项 b 「真实现」需要 R3(a) 破坏 SemVer major,选项 c 「技术未知」R5 不适用）→ 长远方案: 真实现 <code>Seq.t</code> 流式加载需有真实消费端驱动,目前无 RAG 流水线按 Doc 逐个消费——R2 合规,无退役日期,等真实需求出现再启动；（D4 评审遗留）加密 PDF 检测基于 regex 搜 "encrypt|password" 异常消息——功能可用但脆弱（camlpdf 改错误消息文本即失效）→ 长远方案: 捕获 <code>Pdf.PDFError</code> 异常类型并匹配 "Encryption" 前缀——v0.7.4 已部分落实（用类型匹配替 regex）。<strong>§11 R3 两步走合规性</strong>: 38 问题均在 0.7.x 范围内修复（无 SemVer major 破坏,minor 在 0.x 允许含 breaking 符合 §4）。首个 stable tag v0.7.3。1387 tests passing,Oracle 验证通过。 |</p>
+<p>| 2026-07-11 | <strong>【API级+架构级+依赖级变更】v0.7.4 stable: json_extract 顺序修复 + run_agent_structured（两阶段 ReAct + 结构化）</strong> | <strong>变更前</strong>: (a) <code>extract_json_from_text</code> 处理顺序 bug——<code>strip_think_tags</code> 在位置 0 留下空白,<code>strip_markdown_fences</code> 检查 <code>s.[0:3]=="\</code>``"<code>因前导</code>\n<code>而失败（fallback</code>find_balanced_block<code>碰巧兜底,但脆弱）；(b)</code>run_structured<code>把 tools 传给 LLM 但不执行——LLM 返回 tool_calls 被静默忽略,repair loop 失败后报 Invalid_input——agents 需要"工具+结构化"无路径。**变更后**: (a) 重排处理链为</code>strip_think_tags → trim → strip_markdown_fences → trim<code>（去掉首个冗余 trim）;加 2 个测试覆盖 think+fence/reasoning+fence;(b) 新增</code>Engine.run_agent_structured<code>——两阶段模式: Phase 1</code>run_agent<code>跑完整 ReAct 循环（带工具）→ Phase 2</code>run_structured<code>拿完整对话历史做结构化调用（不带工具）;</code>Runtime.invoke_structured<code>和</code>workflow_engine.Agent_call<code>路由:</code>config.tools &lt;&gt; []<code>走</code>run_agent_structured<code>,</code>config.tools = []<code>走</code>run_structured<code>（轻量路径不变）。**§11 R1 标注**: (a) json_extract 处理链重排为「架构正确」——trim 的语义位置（"消除前后空白"）与 think-tag 剥离的副作用（位置 0 留白）天然冲突,trim 必须在 strip 之后才正确;(b) 两阶段为「架构正确」——LangGraph</code>create_react_agent(response_format=)<code>文档原话:"The graph will make a separate call to the LLM to generate the structured response after the agent loop is finished"——与 PAR 设计对齐;</code>run_structured` 保留作为轻量路径（纯结构化输出无需 ReAct 循环开销）——非妥协,是不同 use case。<strong>§11 R1 标注(关键决策)</strong>: 选 LangGraph 两阶段（业界验证,CrewAI v1.9.0→v1.9.1 教训:交错式在 vLLM/非 OpenAI provider 上工具被跳过）而非 OpenAI Agents SDK 交错式（tools + response_format 同发,仅 OpenAI 原生 API 可靠）。<strong>§11 R2 范围妥协</strong>: 无——两阶段是终态设计,R3(a) 不破坏 SemVer(major 破坏仅在 0.x 范围外适用),R3(c) 无未知技术验证,R3(d) 用户明确指示选两阶段。<strong>§11 R5 适用</strong>: 无未知技术——LangGraph/CrewAI/OpenAI Agents SDK 三个生产级框架已有公开模式对比。1387 tests,新增 3 个测试覆盖 run_agent_structured 的三种场景（有工具+schema、无工具 delegation、Phase 1 error propagation）。Engine.mli 导出新函数。 |</p>
+<p>| 2026-07-19 | <strong>【API级+架构级变更】v0.7.9 stable: Engine.run_agent terminal Assistant 消息物化 — egress wrap 根因修复</strong> | <strong>变更前</strong>: <code>Engine.run_agent</code> 有 7 个 Ok 终态分支,6 个 inline 调 <code>add_assistant_message</code> 后 return,1 个（<code>_</code> catch-all for <code>finish_reason = Stop | Content_filter</code>）<strong>漏调</strong>。结果: <code>Runtime.invoke</code> 返回的 <code>invoke_result</code> 中 <code>response.text</code> 持有最终 assistant 内容,但 <code>conversation.messages</code> 缺少对应 <code>{role = Assistant; ...}</code> entry。下游影响: conversation resume / audit trail / <code>run_agent_structured</code> Phase 2 context 静默不完整。<strong>变更后</strong>: 三层架构重构—— (1) <strong>Loop invariant</strong>（docstring at <code>engine.ml:587-596</code>）: conv 在 loop 内 MUST NOT 持有 terminal response; (2) <strong>删除 4 个 inline terminal appends</strong>（lines 617, 973, 980, 988）+ 保留 mid-iteration appends（Tool_calls at L790, Continue sub-chunks at L~1022 — feeds next LLM call's context, different concern）; (3) <strong>单一 egress wrap</strong> at <code>run_agent</code> 出口（<code>engine.ml:1137-1149</code>）: 唯一一次 <code>add_assistant_message</code> 调用,带 idempotency check（仅在 last message 已是 terminal-shaped Assistant 且 text 匹配 resp.text 时 skip,覆盖 Branch 6 Continue compact 路径）。<strong>Branch 6 (Max_tokens/Continue) normalize</strong>: 中间 chunks（initial Max_tokens resp + user_feedbacks + cont_resp_<em>)被 compact 成单个 combined_msg whose text = final_resp.text,顺带修复一个 latent bug（pre-fix <code>final_resp.text</code> combined vs <code>final_conv.messages</code> 末尾 last chunk 不一致）。</em><em>Handoff + empty-text collision hole closed</em><em>（third-round Oracle audit）: idempotency check 原本仅匹配 <code>role = Assistant</code>,在 <code>Handoff carry_context=true</code> 时 source agent 的 mid-iter tool_calls Assistant（content_blocks=[], text_of_message=""）会 survive in carried context,若 target agent 返回空 Stop（text=None,restrictive prompt 下真实模型行为）,naive role-only check false-match 在 "" = "" 上,skip target's terminal append。收紧为 <code>tool_calls = None AND tool_call_id = None</code> 才能进 skip path,structurally 排除 mid-iter tool_call Assistant。</em><em>§11 R1 标注</em><em>: 「架构正确」——loop invariant + 单一 egress 是终态设计,消除"remember-to-call" anti-pattern（已产生一个 missing-branch bug,未来还会产生更多）。Oracle 三轮 audit 一致 VERIFIED。</em><em>§11 R1 最强反驳</em><em>（Oracle 自我 rebut）: "fix replaces one human-memory burden (remember to call) with another (remember NOT to call inside loop)"——但原 bug class 是 under-append（silent missing data,最坏）,新 bug class 是 over-append（visible duplicate,任何 smoke test 抓）。Asymmetry 倾向 fix,net improvement。</em><em>§11 R2 范围妥协</em><em>: OCaml 没法真正 type-enforce（phantom type 才能完全 close）,docstring + 删除 default + idempotency check 三层近似。Future maintainer 在 loop 内 inline append 不同 text 会产生 silent duplicate——code review 是唯一 guard。Acceptable: 新加 terminal branch 的 default 路径是 <code>Ok (resp, conv)</code>,自动正确——这是 structural win。</em><em>§11 R5 不适用</em><em>: bugfix（最小化层面）+ 架构决策（egress wrap 是 root-cause 路径）混合,但 R5 专为 ROADMAP scope,bugfix 走最小化原则已合规。</em><em>Error-path 行为变化</em><em>: pre-fix 不一致（仅 Max_tokens/Retry 路径有 partial append）,post-fix 统一为"no Error path 有 terminal append"——更一致。Blast radius: 无 test/caller 依赖 pre-fix 行为,无 documented dependency。</em><em>影响范围</em><em>: <code>lib/core/engine.ml</code>（loop invariant docstring + 4 处 append 删除 + Branch 6 compact + egress wrap + idempotency check）,<code>test/test_engine_assistant_message.ml</code>（11 tests covering Stop/Content_filter/Tool_calls→Stop/Max_tokens variants/Handoff/Generate/Resume）,<code>test/manual_qa_assistant.ml</code>（dune-built diagnostic executable）,<code>CHANGES.md</code> v0.7.9 section。1418 OCaml tests passing（新增 11）。Oracle三轮 VERIFIED（empirically reproduced hole + green-with-fix）。</em><em>回退方式</em><em>: revert commits 9a1bf26 + 0e835a1 + 10416b8 + 771ed61。</em><em>审计教训</em>*: 第一轮 + 第二轮 audit 都漏了 handoff + empty-text collision hole,第三轮 skeptical verification 才发现——多轮 audit 是必要的,单轮 review 即使 expert 也会漏 edge case。 |</p>
+<p>| 2026-07-17 | <strong>【API级+架构级+依赖级变更】v0.7.5 stable: HNSW + .docx + 原生结构化输出</strong> | <strong>变更前</strong>: (a) RAG 向量存储仅 sqlite-vec 后端（需 vec0.so/.dylib/.dll 外部二进制,Windows 需 vendor DLL）; (b) document loaders 缺 .docx 格式支持（用户需自行提取 Word 文档文本）; (c) 结构化输出走 text-injection fallback（LLM 在 system prompt 里被指示输出 JSON,而非用 provider 原生 json_schema 能力）。<strong>变更后</strong>: (a) <strong>纯 OCaml HNSW 向量库</strong>（<code>lib/core/hnsw.ml</code>,Algorithms 1-4 from Malkov &amp; Yashunin TPAMI 2020）——零外部二进制依赖,跨平台（Windows 不需 vec0.dll）,cosine + L2 distance,configurable M/ef_construction/ef_search,Marshal 二进制持久化;<code>Types.vector_store_backend</code> ADT（<code>Vs_sqlite_vec | Vs_hnsw</code>）runtime-selectable,跟 <code>llm_service</code>/<code>memory_service</code> 模式一致;<code>Runtime.create ?vector_store_backend</code> + <code>Vector_store.create_for_backend</code> 工厂分发; (b) <strong>.docx loader</strong>（<code>lib/documents/docx_loader.ml</code>）——camlzip 解 ZIP + xmlm 流式解析 <code>word/document.xml</code>,提取 <code>&lt;w:t&gt;</code> 文本,段落→换行,tab 保留,field 指令排除;新增 deps camlzip + xmlm; (c) <strong>原生结构化输出</strong>——<code>complete_structured_fn</code> 从 <code>None</code> 改为 <code>Some</code>,OpenAI 用 <code>response_format: json_schema</code>（strict mode）,Anthropic 用 <code>output_config</code>,Ollama/Custom 保持 fallback。<strong>§11 R1 标注</strong>: (a) HNSW 为「架构正确」——用户质疑"OCaml 不能做了吗"后重新评估,纯 OCaml HNSW 比外部服务（Qdrant/Milvus）更符合 PAR "self-contained runtime" 定位;vector_store_backend variant 与 llm_service/memory_service 模式对齐; (b) .docx 选纯 OCaml（camlzip+xmlm）而非 pandoc shell-out,保持 self-contained; (c) 原生模式替代 fallback 是 provider 能力的正确利用。<strong>§11 R2 范围妥协</strong>: vector_store_backend/HNSW/Docx_loader 在此版本仅 OCaml SDK 可用,Python FFI 暴露推迟到 v0.7.6——R2 合规（FFI 暴露是独立工作,不阻塞 OCaml SDK 用户）,退役触发：v0.7.6 周期。<strong>影响范围</strong>: <code>lib/core/hnsw.ml</code>+<code>hnsw.mli</code>（新）+ <code>lib/core/vector_store.ml</code>（variant dispatch）+ <code>lib/core/types.ml</code>（新 ADT）+ <code>lib/core/runtime.ml</code>（<code>?vector_store_backend</code>）+ <code>lib/documents/docx_loader.ml</code>+<code>mli</code>（新）+ <code>lib/ffi/par_capi.ml</code>（<code>complete_structured_fn = Some</code>）+ 10 个新测试。1408 tests。<strong>回退方式</strong>: revert commit ff6d399。 |</p>
+<p>| 2026-07-18 | <strong>【API级+依赖级变更】v0.7.6 stable: Python parity + FFI GC root registration + YAML block scalars</strong> | <strong>变更前</strong>: v0.7.5 的 HNSW/.docx/原生结构化输出仅 OCaml SDK 可用,Python binding 无法使用;<code>par_ffi.c</code> 多个 C bridge 函数缺 CAMLparam/CAMLlocal GC root 注册（OCaml 5.x GC 可能在 C callback 期间移动 OCaml 堆对象）;Python <code>_normalize_config</code> 缺 v0.7.5 新字段（event_bus defaults/persistence format/prompt_cache_key）;skill_loader frontmatter parser 不支持 YAML block scalar（<code>|</code>/<code>&gt;</code>）。<strong>变更后</strong>: (1) <strong>Python FFI SIGABRT fix</strong>——<code>par_set_vec_extension_path</code> 加 <code>ensure_initialized()</code> before <code>caml_copy_string()</code>（Python import 时 <code>par_init</code> 未跑,触发 uninitialized GC → SIGABRT）; (2) <strong>.docx FFI dispatch fix</strong>——<code>par_capi.ml</code> <code>loader_for_extension</code> + <code>parse_loaders_json</code> 加 <code>.docx -&gt; Some Par.Docx_loader.make</code>; (3) <strong>HNSW Python FFI</strong>——<code>do_init</code> 解析 <code>"vector_store"</code> config JSON,<code>ensure_vector_store</code> 优先用 runtime 内部 vector store; (4) <strong>_normalize_config 补全</strong>——event_bus defaults + persistence format coerce + prompt_cache_key 透传; (5) <strong>CAMLparam/CAMLlocal GC root registration</strong>——所有 FFI C 函数加 OCaml GC root 注册,防 OCaml 5.x GC 移动堆对象; (6) <strong>YAML block scalar</strong>——skill_loader frontmatter parser 支持 <code>|</code>（literal）/<code>&gt;</code>（folded）。<strong>§11 R1 标注</strong>: 全 6 项为「架构正确」——FFI GC root registration 是 OCaml 5.x C bridge 的规范要求;YAML block scalar 是 YAML 1.1 spec 标准格式。<strong>§11 R2 范围妥协</strong>: 无。<strong>影响范围</strong>: <code>lib/ffi/par_ffi.c</code>（GC roots + ensure_initialized）+ <code>lib/ffi/par_capi.ml</code>（.docx dispatch + HNSW FFI）+ <code>bindings/python/par_runtime/runtime.py</code>（_normalize_config）+ <code>lib/skills/skill_loader.ml</code>（YAML block scalar）+ <code>bindings/python/tests/test_rag_e2e.py</code>（HNSW integration test）。1410 OCaml tests + 13/15 Python test files（test_http_timeout + test_structured 是 known issues,tracked separately）。<strong>回退方式</strong>: revert commit f76aa0c。<strong>注</strong>: 此版本未打 git tag（只有 release commit）,PyPI 也未发布（pypi-publish.yml workflow 从 v0.5.3 起一直失败,直到 v0.7.8 才修复）。 |</p>
+<p>| 2026-07-18 | <strong>【API级+架构级变更】v0.7.7 stable: downstream root-cause 修复 + FFI save/update_current 暴露</strong> | <strong>变更前</strong>: 5 个 downstream integration issues 未解决——(1) bash tool timeout integer validation 不认 "number" type（JSON Schema spec: number ⊇ integer）; (2) <code>invoke_generate</code> 强制 auto-save,<code>invoke</code> 不 save——两个 API 语义不一致,caller 无法控制; (3) concurrent <code>invoke</code> 写共享 mutable <code>rt.current_conversation</code> 导致 race; (4) <code>save_conversation</code> 只能存 <code>rt.current_conversation</code>,无法存 explicit conversation——concurrent-safe usage 不可能; (5) bash tool description 用 "ls -la" 作 example（误导 agent 用 bash 做文件操作）;tool description overrides 只在 <code>register_agent</code> 时生效（sequencing dependency）。另外 Python FFI 有 <code>free(result)</code> on Python ctypes callback memory → heap corruption → <code>test_structured.py</code> SIGABRT。<strong>变更后</strong>: (1) <code>validation.ml</code> <code>check_type</code>: <code>`Int _</code> 同时匹配 "integer" + "number"; (2) <strong><code>?save:bool</code> 统一</strong>——<code>invoke</code> 默认 false,<code>invoke_generate</code> 默认 true（backward compat）,语义一致; (3) <strong><code>?update_current:bool</code></strong>——default true,当 false 时不写 <code>rt.current_conversation</code>,caller 从 return value 读 conversation——race 消除; (4) <strong><code>save_conversation ?conversation</code></strong>——可存 explicit conversation,concurrent-safe; (5) <strong><code>set_tool_description_overrides</code> + <code>?tool_description_overrides</code> on Runtime.create</strong>——invoke-time 应用（after skill effects,before LLM）,sequencing-independent;bash description 改 "git status" + 文件操作指引。<strong>FFI free() fix</strong>: 移除 <code>caml_invoke_python_handler</code> 的 <code>free(result)</code>（Python bytes 内部 buffer,Python GC 管理）。<strong>FFI exposure</strong>: <code>par_invoke_ext</code> + <code>par_generate_ext</code> C bridge + Python <code>Runtime.invoke(*, save=None, update_current=None)</code>——kwargs 形式 backward compat。<strong>§11 R1 标注</strong>: 全 5 个 downstream issues 为「架构正确」——不是 workaround,是消除 root cause（race 消除从 shared mutable state 改为 return value pattern;save 统一从不一致改为 caller-controlled;tool override 从 sequencing-dependent 改为 invoke-time）。<strong>§11 R2 范围妥协</strong>: 无。<strong>影响范围</strong>: <code>lib/core/validation.ml</code> + <code>lib/core/runtime.ml</code>（?save + ?update_current + save_conversation ?conversation + set_tool_description_overrides）+ <code>lib/core/builtin_tools.ml</code>（bash description）+ <code>lib/ffi/par_ffi.c</code>（free removal）+ <code>lib/ffi/par_capi.ml</code>（par_invoke_ext + par_generate_ext）+ <code>bindings/python/par_runtime/runtime.py</code>（<strong>kwargs）。1410 tests + 14/15 Python test files。</strong>回退方式<strong>: revert commit 2660ede。</strong>已知遗留**: <code>test_http_timeout.py</code> SIGABRT——streaming 跑在 Python background thread,需 OCaml 5.x <code>caml_c_thread_register</code>/<code>caml_acquire_runtime_system</code> domain API,当前 <code>ocaml_lock</code>（pthread_mutex）不是 domain lock。Tracked as PAR-7be。 |</p>
+<p>| 2026-07-19 | <strong>【范围级+依赖级变更】v0.7.8 stable: PyPI wheel pipeline restored</strong> | <strong>变更前</strong>: v0.5.3 起 <code>pypi-publish.yml</code> workflow 连续 14 次失败（v0.5.3 到 v0.7.7 全部 PyPI 缺失）。两个独立 root cause + 一个 latent dependency: (a) macOS job 假设 <code>dune build lib/ffi/par_capi.so</code> 会顺带产出 vec0.dylib,但 vec0 dune rules 是 orphan target（零 consumer）,dune 不构建 orphan; (b) Linux job <code>ocaml/setup-ocaml@v3</code> 默认开 bwrap sandbox,manylinux_2_28 容器内 <code>unshare(CLONE_NEWNS)</code> 被禁; (c) disable-sandboxing 后暴露的隐式依赖——opam 2.x 非 sandbox 模式用系统 <code>rsync</code> 处理 <code>file://</code> URL,manylinux minimal image 没装。<strong>变更后</strong>: (1) 删除 <code>lib/ffi/dune</code> 里 3 个 vec0 死代码 rule（grep <code>(deps vec0.*)</code> 零匹配 + runtime fallback chain 已覆盖 vendor/ 路径）; (2) workflow 直接从 <code>vendor/sqlite-vec/&lt;vendor_dir&gt;/vec0.&lt;ext&gt;</code> 复制到 wheel,用 matrix variables（<code>vendor_dir</code> + <code>vec0_ext</code>）映射 (os, arch) → vendor 目录; (3) <code>opam-disable-sandboxing: true</code>（setup-ocaml 官方容器方案,Z3Prover/bap 同模式）; (4) Linux deps 加 <code>rsync</code>; (5) <code>workflow_dispatch</code> trigger + <code>if:</code> guard 让手动验证不上 PyPI。<strong>§11 R1 标注</strong>: (1) 删 dune 死代码 rule 为「架构正确」——vec0 是 vendored binary 不是 build artifact,runtime fallback 已覆盖 OCaml SDK dev 路径; (2) matrix variables 为「架构正确」——新平台 = 一行 matrix row,不是新 bug variant; (3) disable-sandboxing 为「架构正确」——OCI 容器的标准做法,setup-ocaml action 官方推荐; (4) rsync 为「架构正确」——opam 2.x 文档明确要求。<strong>§11 R2 范围妥协</strong>: 无。<strong>影响范围</strong>: <code>lib/ffi/dune</code>（删 3 rule + 加 NOTE 注释）+ <code>.github/workflows/pypi-publish.yml</code>（matrix variables + disable-sandboxing + rsync + workflow_dispatch + if guard + flatten wheel subdir + strip checksums）。v0.7.8 是 v0.5.0 以来首个在 PyPI 可装的版本。<strong>回退方式</strong>: revert commits bf62079 + daaa768 + 215ac63 + 3de6f54 + 5aa80b7。<strong>注</strong>: v0.7.5/v0.7.6 未打 git tag（只有 release commit）,PyPI 也从未发布——v0.7.8 是 wheel pipeline 修复后的首个 PyPI 可用版本。用户从 v0.5.0 应直接升级到 v0.7.8+。 |</p>
+<hr />
+<h2 id="11">11. 开发原则<a class="headerlink" href="#11" title="Permanent link">&para;</a></h2>
+<p><strong>"一次做对"(Do It Right Once)</strong> —— 本项目规划与架构决策的核心原则,2026-06-30 确立。</p>
+<h3 id="111">11.1 原则表述<a class="headerlink" href="#111" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p>当短期工程妥协与长期架构正确性冲突时,<strong>选长期正确性</strong>。</p>
+<p>不允许"v0.X 妥协 + v0.X+1 重构"的双步走,<strong>除非有强证据证明单步不可行</strong>。</p>
+<p>范围可以扩大,周期可以延长,但<strong>架构不能为范围妥协</strong>。</p>
+</blockquote>
+<h3 id="112">11.2 可操作规则(强制)<a class="headerlink" href="#112" title="Permanent link">&para;</a></h3>
+<p><strong>R1. 决策论证必须区分"技术正确"与"范围妥协"</strong>
+- 提出任何决策时,必须明确标注该决策的性质:
+  - <strong>架构正确</strong>:基于技术客观性的决策。例如"4-cap 是外部 API 合约,不该用类型系统固化"。
+  - <strong>范围妥协</strong>:为控制单版本范围而做的让步。例如"先保留 flatten,v0.7 再引入 content_block list"。
+- <strong>禁止把范围妥协伪装成架构决策</strong>。这是本项目最严重的规划错误。</p>
+<p><strong>R2. 范围妥协必须附长期替代方案 + 触发条件</strong>
+- 如果决定走范围妥协路线,必须记录:
+  - 长期正确的方案是什么
+  - 什么时候触发迁移(版本号、信号、依赖项)
+  - 迁移代价估算
+- 没有"等以后再说"的妥协。每个妥协必须有具体的退役计划。</p>
+<p><strong>R3. "扩大范围做对" vs "分两步走"的判断准则</strong>
+- <strong>默认选"一次做对"</strong>,扩大范围。
+- 仅在以下情况允许分两步:
+  1. 单步会破坏 SemVer 重大约束(如同时改 5+ 个核心公开类型)
+  2. 单步需要未完成的上游依赖(如 native Gemini adapter 还没写)
+  3. 单步需要未知技术验证(用 spike 先验)
+  4. 用户明确指示分步(本条不能由 agent 自决)
+- 即使分步,第一步也必须<strong>为第二步铺路</strong>(API 设计兼容最终形态),不能挖坑。</p>
+<p><strong>R4. agent 主动挑战义务</strong>
+- 规划阶段,agent 必须<strong>主动自我挑战</strong>:</p>
+<blockquote>
+<p>"抛开开发周期和范围,只考虑长远规划和用户怎么用更爽,这个决策还成立吗?"
+- 如果答案是"不成立",必须<strong>主动提出翻盘方案</strong>给用户,而不是等用户挑战。
+- 用户挑战后才发现的妥协,是 agent 规划失职。</p>
+</blockquote>
+<p><strong>R5. 适用范围</strong>
+- 本原则适用于:<strong>架构决策、类型设计、API 设计、公开类型变更、ROADMAP scope 锁定</strong>。
+- 本原则<strong>不适用于</strong>:bugfix(永远最小化改动)、文档微调、CI 配置、依赖升级(这些走各自的标准流程)。</p>
+<h3 id="113">11.3 验证检查(每个版本规划阶段必过)<a class="headerlink" href="#113" title="Permanent link">&para;</a></h3>
+<p>写 ROADMAP 时,对每条关键决策问以下问题:</p>
+<ul>
+<li>[ ] 这是架构正确,还是范围妥协?</li>
+<li>[ ] 如果是范围妥协,长期方案是什么?何时触发迁移?</li>
+<li>[ ] 抛开周期与范围,这个决策还成立吗?</li>
+<li>[ ] 如果不成立,我是否主动提出了翻盘方案?</li>
+</ul>
+<p><strong>未通过此检查的 ROADMAP 不能定稿。</strong></p>
+<h3 id="114-2026-06-30-v064">11.4 历史教训(2026-06-30 v0.6.4 规划案例)<a class="headerlink" href="#114-2026-06-30-v064" title="Permanent link">&para;</a></h3>
+<p>v0.6.4 prompt caching 规划时,agent 提出 4 条决策:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>原"决策"</th>
+<th>性质</th>
+<th>长期正确做法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>保留 <code>message.content : string option</code> 扁平,不引入 <code>content_block list</code></td>
+<td><strong>范围妥协</strong>(伪装架构)</td>
+<td>引入 <code>content_block list</code>,给 multimodal + per-block cache_control 铺路</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Stable/Volatile 仅对 <code>system_prompt_template</code> 生效</td>
+<td><strong>范围妥协</strong>(漏掉主要 bug 来源)</td>
+<td><code>stable</code>/<code>volatile</code> 应是 <code>system_prompt</code> 显式类型属性,所有用户必须声明</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>Auto_caching</code> 策略自动标 last-tool + last-message</td>
+<td><strong>范围妥协</strong>(自作主张)</td>
+<td>用户显式 <code>mark_cache_breakpoint</code>,PAR 不猜</td>
+</tr>
+<tr>
+<td>4</td>
+<td>永久 soft-fail(模板有 volatile builtin 时静默跳过)</td>
+<td><strong>范围妥协</strong>(把类型保证降级成 runtime hint)</td>
+<td>v0.6.4 soft 过渡 → v0.6.5 hard fail(构造期拒绝)</td>
+</tr>
+</tbody>
+</table>
+<p>用户挑战后,4 条全部翻盘,scope 扩大。此案例确立 §11 原则,避免复发。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

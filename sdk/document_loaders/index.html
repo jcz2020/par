@@ -1,0 +1,2496 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/sdk/document_loaders/">
+      
+      
+        <link rel="prev" href="../rag/">
+      
+      
+        <link rel="next" href="../memory/">
+      
+      
+        
+          <link rel="alternate" href="./" hreflang="en">
+        
+          <link rel="alternate" href="../../zh/sdk/document_loaders/" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Document Loaders - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#document-loaders" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Document Loaders
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../zh/sdk/document_loaders/" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Tutorial
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  How-to
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorial
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/rag-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build a RAG Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../invoke_context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    invoke_context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generate API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Loaders
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Loaders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-document-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Document type
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The Document type">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#metadata-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metadata helpers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#load-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Load errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-loader-make-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The loader make pattern
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The loader make pattern">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#implementing-a-custom-loader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementing a custom loader
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#built-in-loaders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built-in loaders
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Built-in loaders">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#text_loader-txt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text_loader (.txt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#markdown_loader-md" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Markdown_loader (.md)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#html_loader-html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Html_loader (.html)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#csv_loader-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Csv_loader (.csv)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pdf_loader-pdf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pdf_loader (.pdf)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pdf_loader (.pdf)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#docx_loader-docx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Docx_loader (.docx)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Docx_loader (.docx)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How it works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#limitations_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#directory_loader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Directory_loader
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Directory_loader">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#custom-extension-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom extension map
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#composition-with-rag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composition with RAG
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error handling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prompt_caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/concurrency-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/persistence-and-durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence and Durability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/rag-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-document-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Document type
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The Document type">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#metadata-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metadata helpers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#load-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Load errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-loader-make-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The loader make pattern
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The loader make pattern">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#implementing-a-custom-loader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementing a custom loader
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#built-in-loaders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built-in loaders
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Built-in loaders">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#text_loader-txt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text_loader (.txt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#markdown_loader-md" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Markdown_loader (.md)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#html_loader-html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Html_loader (.html)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#csv_loader-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Csv_loader (.csv)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pdf_loader-pdf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pdf_loader (.pdf)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pdf_loader (.pdf)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#docx_loader-docx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Docx_loader (.docx)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Docx_loader (.docx)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How it works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#limitations_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#directory_loader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Directory_loader
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Directory_loader">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#custom-extension-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom extension map
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#composition-with-rag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composition with RAG
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error handling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<!-- language: en -->
+<p><strong>English</strong> · <a href="../zh/sdk/document_loaders.md">简体中文</a></p>
+<h1 id="document-loaders">Document Loaders<a class="headerlink" href="#document-loaders" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>Added in v0.7.0 (beta). Source-of-truth: the OCaml types in <code>lib/documents/document.mli</code>, <code>lib/documents/*_loader.mli</code>, and <code>lib/documents/directory_loader.mli</code>.</p>
+</blockquote>
+<p>PAR's document loaders turn real files (text, Markdown, HTML, CSV, PDF, Word) into <code>Document.t</code> records that plug directly into the RAG pipeline. Load a PDF, chunk it with <code>Chunking</code>, embed the chunks with <code>Runtime.embed</code>, store them in a <code>Vector_store</code>, and query with <code>Runtime.invoke_with_rag</code>. The loaders handle file I/O, format parsing, and metadata extraction so you don't have to.</p>
+<p>For the full RAG pipeline (embeddings, vector store, chunking, retrieval), see the <a href="../rag/">RAG API</a>. Document loaders produce the <code>Document.t</code> values that feed into that pipeline.</p>
+<h2 id="the-document-type">The Document type<a class="headerlink" href="#the-document-type" title="Permanent link">&para;</a></h2>
+<p>A loaded document is a record with three fields:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">type</span> <span class="n">t</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  <span class="n">content</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>    <span class="c">(** extracted plain text *)</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  <span class="n">metadata</span> <span class="o">:</span> <span class="o">(</span><span class="kt">string</span><span class="o">,</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">)</span> <span class="nn">Hashtbl</span><span class="p">.</span><span class="n">t</span><span class="o">;</span>  <span class="c">(** source-derived fields *)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  <span class="n">source</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>     <span class="c">(** file path or URI *)</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="o">}</span>
+</span></code></pre></div>
+<p>The <code>content</code> field is the extracted plain text. The <code>source</code> field is the original file path or URI. The <code>metadata</code> hashtable carries whatever the loader knows about the source: file name, file size, page number, column values, YAML frontmatter, and so on.</p>
+<p>The <code>metadata</code> type is <code>(string, Yojson.Safe.t) Hashtbl.t</code>, matching the metadata field on <code>Vector_store.document</code>. This means loader output passes to <code>Vector_store.add</code> without conversion.</p>
+<h3 id="metadata-helpers">Metadata helpers<a class="headerlink" href="#metadata-helpers" title="Permanent link">&para;</a></h3>
+<p>The <code>Meta</code> submodule provides convenience constructors:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">open</span> <span class="nn">Par</span><span class="p">.</span><span class="nn">Document</span><span class="p">.</span><span class="nc">Meta</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="k">let</span> <span class="n">m</span> <span class="o">=</span> <span class="n">empty</span> <span class="bp">()</span>                          <span class="c">(* fresh empty table *)</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="k">let</span> <span class="n">m</span> <span class="o">=</span> <span class="n">singleton</span> <span class="s2">&quot;source&quot;</span> <span class="o">(`</span><span class="nc">String</span> <span class="s2">&quot;a.md&quot;</span><span class="o">)</span>  <span class="c">(* one-entry table *)</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">add</span> <span class="n">m</span> <span class="s2">&quot;page&quot;</span> <span class="o">(`</span><span class="nc">Int</span> <span class="mi">3</span><span class="o">)</span>                     <span class="c">(* add a Yojson value *)</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">add_string</span> <span class="n">m</span> <span class="s2">&quot;file_type&quot;</span> <span class="s2">&quot;text/markdown&quot;</span>   <span class="c">(* shorthand for `String *)</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">add_int</span> <span class="n">m</span> <span class="s2">&quot;file_size&quot;</span> <span class="mi">4096</span>                <span class="c">(* shorthand for `Int *)</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="c">(* Round-trip to/from Yojson *)</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="k">let</span> <span class="n">json</span> <span class="o">=</span> <span class="n">to_yojson</span> <span class="n">m</span> <span class="k">in</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="k">let</span> <span class="n">m&#39;</span> <span class="o">=</span> <span class="n">of_yojson</span> <span class="n">json</span>
+</span></code></pre></div>
+<h3 id="load-errors">Load errors<a class="headerlink" href="#load-errors" title="Permanent link">&para;</a></h3>
+<p>When a loader fails, it returns a <code>Load_error.t</code> variant:</p>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>File_not_found of string</code></td>
+<td>The file does not exist at the given path</td>
+</tr>
+<tr>
+<td><code>Permission_denied of string</code></td>
+<td>The file exists but cannot be read</td>
+</tr>
+<tr>
+<td><code>Unsupported_format of string</code></td>
+<td>The loader does not handle this file type</td>
+</tr>
+<tr>
+<td><code>Extraction_failed of string * string</code></td>
+<td>Parsing or extraction failed (message, exception printout)</td>
+</tr>
+<tr>
+<td><code>Workspace_rejected of Types.error_category</code></td>
+<td>The path was rejected by <code>Workspace.admit</code> (security check)</td>
+</tr>
+</tbody>
+</table>
+<p>Use <code>Document.load_error_to_string</code> to get a human-readable message:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">let</span> <span class="n">print_error</span> <span class="n">err</span> <span class="o">=</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">err</span><span class="o">)</span>
+</span></code></pre></div>
+<h2 id="the-loader-make-pattern">The loader <code>make</code> pattern<a class="headerlink" href="#the-loader-make-pattern" title="Permanent link">&para;</a></h2>
+<p>Every format loader follows a two-phase constructor pattern:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">module</span> <span class="nc">My_loader</span> <span class="o">:</span> <span class="k">sig</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  <span class="k">val</span> <span class="n">make</span> <span class="o">:</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">workspace</span> <span class="o">-&gt;</span> <span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="o">(</span><span class="kt">unit</span> <span class="o">-&gt;</span> <span class="nn">Document</span><span class="p">.</span><span class="n">t</span> <span class="kt">list</span><span class="o">,</span> <span class="nn">Document</span><span class="p">.</span><span class="n">load_error</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="k">end</span>
+</span></code></pre></div>
+<p><code>make</code> takes a workspace (for path security validation) and a file path. On success it returns a thunk that, when called, reads the file and produces <code>Document.t list</code>. If the path is invalid, <code>make</code> itself returns <code>Error</code> immediately without reading any file. Extraction errors inside the thunk are caught gracefully (logged, empty list returned).</p>
+<h3 id="implementing-a-custom-loader">Implementing a custom loader<a class="headerlink" href="#implementing-a-custom-loader" title="Permanent link">&para;</a></h3>
+<p>To add support for a new file format, write a module that satisfies the loader constructor pattern. Every built-in loader follows this shape:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">module</span> <span class="nc">My_loader</span> <span class="o">:</span> <span class="k">sig</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>  <span class="k">val</span> <span class="n">make</span> <span class="o">:</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">workspace</span> <span class="o">-&gt;</span> <span class="kt">string</span> <span class="o">-&gt;</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="o">(</span><span class="kt">unit</span> <span class="o">-&gt;</span> <span class="nn">Document</span><span class="p">.</span><span class="n">t</span> <span class="kt">list</span><span class="o">,</span> <span class="nn">Document</span><span class="p">.</span><span class="n">load_error</span><span class="o">)</span> <span class="n">result</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="k">end</span>
+</span></code></pre></div>
+<p><code>make</code> takes a workspace (for path security validation) and a file path. On success it returns a thunk that, when called, reads the file and produces <code>Document.t list</code>. On failure it returns a <code>load_error</code>.</p>
+<p>Here's a minimal custom loader:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="k">let</span> <span class="n">make</span> <span class="n">ws</span> <span class="n">path</span> <span class="o">=</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>  <span class="k">match</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">admit</span> <span class="n">ws</span> <span class="n">path</span> <span class="k">with</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>  <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="nc">Error</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="nc">Workspace_rejected</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>  <span class="o">|</span> <span class="nc">Ok</span> <span class="n">sandboxed</span> <span class="o">-&gt;</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="k">let</span> <span class="n">full_path</span> <span class="o">=</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">to_string</span> <span class="n">sandboxed</span> <span class="k">in</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="nc">Ok</span> <span class="o">(</span><span class="k">fun</span> <span class="bp">()</span> <span class="o">-&gt;</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>      <span class="k">let</span> <span class="n">ic</span> <span class="o">=</span> <span class="n">open_in</span> <span class="n">full_path</span> <span class="k">in</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>      <span class="nn">Fun</span><span class="p">.</span><span class="n">protect</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>        <span class="o">~</span><span class="n">finally</span><span class="o">:(</span><span class="k">fun</span> <span class="bp">()</span> <span class="o">-&gt;</span> <span class="n">close_in</span> <span class="n">ic</span><span class="o">)</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>        <span class="o">(</span><span class="k">fun</span> <span class="bp">()</span> <span class="o">-&gt;</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>          <span class="k">let</span> <span class="n">content</span> <span class="o">=</span> <span class="n">really_input_string</span> <span class="n">ic</span> <span class="o">(</span><span class="n">in_channel_length</span> <span class="n">ic</span><span class="o">)</span> <span class="k">in</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>          <span class="k">let</span> <span class="n">meta</span> <span class="o">=</span> <span class="nn">Document</span><span class="p">.</span><span class="nn">Meta</span><span class="p">.</span><span class="n">empty</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>          <span class="nn">Document</span><span class="p">.</span><span class="nn">Meta</span><span class="p">.</span><span class="n">add_string</span> <span class="n">meta</span> <span class="s2">&quot;file_type&quot;</span> <span class="s2">&quot;application/x-myformat&quot;</span><span class="o">;</span>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>          <span class="nc">Ok</span> <span class="o">[{</span> <span class="nn">Document</span><span class="p">.</span><span class="n">content</span><span class="o">;</span> <span class="n">metadata</span> <span class="o">=</span> <span class="n">meta</span><span class="o">;</span> <span class="n">source</span> <span class="o">=</span> <span class="n">path</span> <span class="o">}]))</span>
+</span></code></pre></div>
+<h2 id="built-in-loaders">Built-in loaders<a class="headerlink" href="#built-in-loaders" title="Permanent link">&para;</a></h2>
+<p>PAR ships six format loaders. Each one produces <code>Document.t list</code> from a single file.</p>
+<h3 id="text_loader-txt">Text_loader (.txt)<a class="headerlink" href="#text_loader-txt" title="Permanent link">&para;</a></h3>
+<p>Reads a plain text file and produces one <code>Document.t</code> with standard metadata.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="k">let</span> <span class="n">ws</span> <span class="o">=</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">of_cwd</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="k">match</span> <span class="nn">Text_loader</span><span class="p">.</span><span class="n">make</span> <span class="n">ws</span> <span class="s2">&quot;notes.txt&quot;</span> <span class="k">with</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">load</span> <span class="o">-&gt;</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>  <span class="k">let</span> <span class="n">docs</span> <span class="o">=</span> <span class="n">load</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>  <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Loaded %d document(s)</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">docs</span><span class="o">)</span>
+</span></code></pre></div>
+<p><strong>Metadata fields:</strong> <code>file_path</code>, <code>file_name</code>, <code>file_size</code>, <code>file_type = "text/plain"</code>.</p>
+<h3 id="markdown_loader-md">Markdown_loader (.md)<a class="headerlink" href="#markdown_loader-md" title="Permanent link">&para;</a></h3>
+<p>Parses Markdown via <code>Omd.of_string</code> and walks the AST to extract plain text (headings, paragraphs, code blocks, lists). YAML frontmatter (between <code>---</code> delimiters at file start) is parsed via <code>Yaml.of_string</code> and merged into the metadata alongside the standard fields.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="k">let</span> <span class="n">ws</span> <span class="o">=</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">of_cwd</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="k">match</span> <span class="nn">Markdown_loader</span><span class="p">.</span><span class="n">make</span> <span class="n">ws</span> <span class="s2">&quot;README.md&quot;</span> <span class="k">with</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">load</span> <span class="o">-&gt;</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>  <span class="k">let</span> <span class="n">docs</span> <span class="o">=</span> <span class="n">load</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>  <span class="nn">List</span><span class="p">.</span><span class="n">iter</span> <span class="o">(</span><span class="k">fun</span> <span class="n">doc</span> <span class="o">-&gt;</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Source: %s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="n">doc</span><span class="o">.</span><span class="nn">Document</span><span class="p">.</span><span class="n">source</span><span class="o">;</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Content length: %d</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">String</span><span class="p">.</span><span class="n">length</span> <span class="n">doc</span><span class="o">.</span><span class="nn">Document</span><span class="p">.</span><span class="n">content</span><span class="o">)</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>  <span class="o">)</span> <span class="n">docs</span>
+</span></code></pre></div>
+<p><strong>Metadata fields:</strong> <code>file_path</code>, <code>file_name</code>, <code>file_size</code>, <code>file_type = "text/markdown"</code>, plus any YAML frontmatter keys.</p>
+<h3 id="html_loader-html">Html_loader (.html)<a class="headerlink" href="#html_loader-html" title="Permanent link">&para;</a></h3>
+<p>Reads an HTML file, strips <code>&lt;script&gt;</code> and <code>&lt;style&gt;</code> elements, and extracts the visible text content via lambdasoup.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="k">let</span> <span class="n">ws</span> <span class="o">=</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">of_cwd</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="k">match</span> <span class="nn">Html_loader</span><span class="p">.</span><span class="n">make</span> <span class="n">ws</span> <span class="s2">&quot;page.html&quot;</span> <span class="k">with</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">load</span> <span class="o">-&gt;</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>  <span class="k">let</span> <span class="n">docs</span> <span class="o">=</span> <span class="n">load</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>  <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Extracted %d document(s)</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">docs</span><span class="o">)</span>
+</span></code></pre></div>
+<p><strong>Metadata fields:</strong> <code>file_path</code>, <code>file_name</code>, <code>file_size</code>, <code>file_type = "text/html"</code>.</p>
+<h3 id="csv_loader-csv">Csv_loader (.csv)<a class="headerlink" href="#csv_loader-csv" title="Permanent link">&para;</a></h3>
+<p>Reads a CSV file. The header row defines column names. Each data row (excluding the header) produces one <code>Document.t</code>:</p>
+<ul>
+<li><code>content</code>: key-value lines formatted as <code>"column_name: value\n"</code> for each column.</li>
+<li><code>metadata</code>: each column name prefixed with <code>csv_</code> mapped to its value (as <code>String</code>), plus <code>row_index</code>, <code>file_path</code>, <code>file_name</code>, <code>file_size</code>, <code>file_type = "text/csv"</code>.</li>
+<li><code>source</code>: the input file path.</li>
+</ul>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="k">let</span> <span class="n">ws</span> <span class="o">=</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">of_cwd</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="k">match</span> <span class="nn">Csv_loader</span><span class="p">.</span><span class="n">make</span> <span class="n">ws</span> <span class="s2">&quot;users.csv&quot;</span> <span class="k">with</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">load</span> <span class="o">-&gt;</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>  <span class="k">let</span> <span class="n">docs</span> <span class="o">=</span> <span class="n">load</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>  <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Loaded %d rows as documents</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">docs</span><span class="o">)</span>
+</span></code></pre></div>
+<h3 id="pdf_loader-pdf">Pdf_loader (.pdf)<a class="headerlink" href="#pdf_loader-pdf" title="Permanent link">&para;</a></h3>
+<p>Extracts text from a PDF using camlpdf's simple text-stream extraction. Each page produces one <code>Document.t</code> with <code>metadata["page"]</code> set to the page number.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="k">let</span> <span class="n">ws</span> <span class="o">=</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">of_cwd</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="k">match</span> <span class="nn">Pdf_loader</span><span class="p">.</span><span class="n">make</span> <span class="n">ws</span> <span class="s2">&quot;paper.pdf&quot;</span> <span class="k">with</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">load</span> <span class="o">-&gt;</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>  <span class="k">let</span> <span class="n">docs</span> <span class="o">=</span> <span class="n">load</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>  <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Extracted %d pages</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">docs</span><span class="o">)</span>
+</span></code></pre></div>
+<p><strong>Metadata fields:</strong> <code>file_path</code>, <code>file_name</code>, <code>file_size</code>, <code>file_type = "application/pdf"</code>, <code>page</code> (int, 1-indexed).</p>
+<h4 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">&para;</a></h4>
+<div class="admonition warning">
+<p class="admonition-title">Scope compromise — see ROADMAP v0.7.0 section 2 #9</p>
+<p>The PDF loader uses simple text-stream extraction, <strong>not</strong> layout-preserving extraction. This is a deliberate scope compromise with a retirement plan.</p>
+<ul>
+<li><strong>No layout preservation:</strong> Multi-column PDFs produce interleaved text. The columns get mixed together in the output.</li>
+<li><strong>No OCR:</strong> Scanned or image-only PDFs extract nothing. There is no Tesseract or OCR engine behind this loader.</li>
+<li><strong>Tables and complex layouts</strong> may produce poor output.</li>
+</ul>
+<p>This covers roughly 80% of text-type PDFs (research papers, documentation, reports with single-column or simple layouts).</p>
+<p><strong>Trigger for layout-aware extraction:</strong> If downstream integration reports a failure rate greater than 20%, or when v0.8 planning begins, whichever comes first. The migration path is to replace the internals of <code>Pdf_loader.extract_text</code> without changing the public interface, since the <code>Document.t -&gt; Document.t</code> contract stays the same.</p>
+</div>
+<h3 id="docx_loader-docx">Docx_loader (.docx)<a class="headerlink" href="#docx_loader-docx" title="Permanent link">&para;</a></h3>
+<p>Extracts plain text from a Word <code>.docx</code> file. The <code>.docx</code> format is an OOXML ZIP container; the loader opens it with camlzip, reads <code>word/document.xml</code>, and parses the XML with xmlm to recover visible text from <code>&lt;w:t&gt;</code> elements.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="k">let</span> <span class="n">ws</span> <span class="o">=</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">of_cwd</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="k">match</span> <span class="nn">Docx_loader</span><span class="p">.</span><span class="n">make</span> <span class="n">ws</span> <span class="s2">&quot;report.docx&quot;</span> <span class="k">with</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">load</span> <span class="o">-&gt;</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>  <span class="k">let</span> <span class="n">docs</span> <span class="o">=</span> <span class="n">load</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>  <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Extracted %d document(s)</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">docs</span><span class="o">)</span>
+</span></code></pre></div>
+<p><strong>Metadata fields:</strong> <code>file_path</code>, <code>file_name</code>, <code>file_size</code> (the real on-disk file size, not the extracted text length), <code>file_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"</code>.</p>
+<h4 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h4>
+<p>A <code>.docx</code> file is a ZIP archive containing an OOXML part named <code>word/document.xml</code>. The loader:</p>
+<ol>
+<li>Opens the ZIP container with camlzip (<code>Zip.open_in</code>).</li>
+<li>Reads the <code>word/document.xml</code> entry.</li>
+<li>Streams the XML with xmlm, accumulating character data from <code>&lt;w:t&gt;</code> elements (WordprocessingML text runs).</li>
+<li>Maps structural elements to whitespace: <code>&lt;w:p&gt;</code> (paragraph) → newline, <code>&lt;w:tab&gt;</code> → tab, <code>&lt;w:br&gt;</code> (break) → newline.</li>
+</ol>
+<p>Only character data inside <code>&lt;w:t&gt;</code> elements is captured, so field instructions (<code>&lt;w:instrText&gt;</code>) and tracked-deletion text (<code>&lt;w:delText&gt;</code>) are excluded.</p>
+<h4 id="limitations_1">Limitations<a class="headerlink" href="#limitations_1" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>No formatting:</strong> Bold, italic, font size, color, and styles are discarded — only plain text survives.</li>
+<li><strong>Tables are flattened:</strong> Table cell text is extracted in document order, with no row/column structure preserved.</li>
+<li><strong>No images:</strong> Embedded images, charts, and shapes produce no output.</li>
+<li><strong>No headers/footers:</strong> Only the document body (<code>word/document.xml</code>) is read; headers, footers, and footnotes (separate parts in the ZIP) are not extracted.</li>
+<li><strong>No .doc (legacy):</strong> The old binary Word <code>.doc</code> format is not supported. Only <code>.docx</code> (OOXML, Word 2007+) is handled.</li>
+</ul>
+<h2 id="directory_loader">Directory_loader<a class="headerlink" href="#directory_loader" title="Permanent link">&para;</a></h2>
+<p>The directory loader recursively scans a directory tree and dispatches each file to the appropriate format loader based on its extension. Circular symlinks are detected and skipped.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="k">let</span> <span class="n">ws</span> <span class="o">=</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">of_cwd</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="k">match</span> <span class="nn">Directory_loader</span><span class="p">.</span><span class="n">load</span> <span class="n">ws</span> <span class="s2">&quot;docs/&quot;</span> <span class="k">with</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">docs</span> <span class="o">-&gt;</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>  <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Loaded %d documents from directory</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">docs</span><span class="o">)</span>
+</span></code></pre></div>
+<p><strong><code>default_map</code></strong> covers <code>.txt</code>, <code>.md</code>, <code>.html</code>, <code>.csv</code>, <code>.pdf</code>, and <code>.docx</code>. Unknown extensions are skipped with a <code>Logs.warn</code>. Errors in individual files are logged and skipped (the scan does not abort).</p>
+<h3 id="custom-extension-map">Custom extension map<a class="headerlink" href="#custom-extension-map" title="Permanent link">&para;</a></h3>
+<p>You can override or extend the extension map:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="c">(* Add a custom loader for .json files *)</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="k">let</span> <span class="n">json_loader</span> <span class="n">ws</span> <span class="n">path</span> <span class="o">=</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>  <span class="k">match</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">admit</span> <span class="n">ws</span> <span class="n">path</span> <span class="k">with</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>  <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="nc">Error</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="nc">Workspace_rejected</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>  <span class="o">|</span> <span class="nc">Ok</span> <span class="bp">()</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>    <span class="nc">Ok</span> <span class="o">(</span><span class="k">fun</span> <span class="bp">()</span> <span class="o">-&gt;</span>
+</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>      <span class="k">let</span> <span class="n">ic</span> <span class="o">=</span> <span class="n">open_in</span> <span class="n">path</span> <span class="k">in</span>
+</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>      <span class="k">let</span> <span class="n">content</span> <span class="o">=</span> <span class="n">really_input_string</span> <span class="n">ic</span> <span class="o">(</span><span class="n">in_channel_length</span> <span class="n">ic</span><span class="o">)</span> <span class="k">in</span>
+</span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>      <span class="n">close_in</span> <span class="n">ic</span><span class="o">;</span>
+</span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>      <span class="k">let</span> <span class="n">meta</span> <span class="o">=</span> <span class="nn">Document</span><span class="p">.</span><span class="nn">Meta</span><span class="p">.</span><span class="n">empty</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>      <span class="nn">Document</span><span class="p">.</span><span class="nn">Meta</span><span class="p">.</span><span class="n">add_string</span> <span class="n">meta</span> <span class="s2">&quot;file_type&quot;</span> <span class="s2">&quot;application/json&quot;</span><span class="o">;</span>
+</span><span id="__span-13-14"><a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a>      <span class="o">[{</span> <span class="nn">Document</span><span class="p">.</span><span class="n">content</span><span class="o">;</span> <span class="n">metadata</span> <span class="o">=</span> <span class="n">meta</span><span class="o">;</span> <span class="n">source</span> <span class="o">=</span> <span class="n">path</span> <span class="o">}])</span>
+</span><span id="__span-13-15"><a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a>
+</span><span id="__span-13-16"><a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a><span class="k">let</span> <span class="n">my_map</span> <span class="o">=</span> <span class="o">(</span><span class="s2">&quot;.json&quot;</span><span class="o">,</span> <span class="n">json_loader</span><span class="o">)</span> <span class="o">::</span> <span class="nn">Directory_loader</span><span class="p">.</span><span class="n">default_map</span> <span class="k">in</span>
+</span><span id="__span-13-17"><a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a><span class="k">match</span> <span class="nn">Directory_loader</span><span class="p">.</span><span class="n">load</span> <span class="n">ws</span> <span class="o">~</span><span class="n">map</span><span class="o">:</span><span class="n">my_map</span> <span class="s2">&quot;data/&quot;</span> <span class="k">with</span>
+</span><span id="__span-13-18"><a id="__codelineno-13-18" name="__codelineno-13-18" href="#__codelineno-13-18"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span> <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-13-19"><a id="__codelineno-13-19" name="__codelineno-13-19" href="#__codelineno-13-19"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">docs</span> <span class="o">-&gt;</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Loaded %d documents</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">docs</span><span class="o">)</span>
+</span></code></pre></div>
+<p>The <code>loader_fn</code> type is <code>Workspace.workspace -&gt; string -&gt; (unit -&gt; Document.t list, Document.load_error) result</code>, matching the signature of every built-in loader's <code>make</code> function.</p>
+<h2 id="composition-with-rag">Composition with RAG<a class="headerlink" href="#composition-with-rag" title="Permanent link">&para;</a></h2>
+<p>The full pipeline: load documents, chunk them, embed the chunks, store the vectors, and query with <code>invoke_with_rag</code>.</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">open</span> <span class="nc">Par</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="k">open</span> <span class="nc">Types</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="k">let</span> <span class="n">ws</span> <span class="o">=</span> <span class="nn">Workspace</span><span class="p">.</span><span class="n">of_cwd</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="c">(* 1. Load documents from a directory *)</span>
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="k">let</span> <span class="n">docs</span> <span class="o">=</span> <span class="nn">Directory_loader</span><span class="p">.</span><span class="n">load</span> <span class="n">ws</span> <span class="o">~</span><span class="n">map</span><span class="o">:</span><span class="nn">Directory_loader</span><span class="p">.</span><span class="n">default_map</span> <span class="s2">&quot;knowledge_base/&quot;</span>
+</span><span id="__span-14-8"><a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>  <span class="o">|&gt;</span> <span class="nn">Result</span><span class="p">.</span><span class="n">get_ok</span> <span class="k">in</span>
+</span><span id="__span-14-9"><a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>
+</span><span id="__span-14-10"><a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="c">(* 2. Chunk each document *)</span>
+</span><span id="__span-14-11"><a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a><span class="k">let</span> <span class="n">all_chunks</span> <span class="o">=</span>
+</span><span id="__span-14-12"><a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>  <span class="nn">List</span><span class="p">.</span><span class="n">concat_map</span> <span class="o">(</span><span class="k">fun</span> <span class="n">doc</span> <span class="o">-&gt;</span>
+</span><span id="__span-14-13"><a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a>    <span class="k">let</span> <span class="n">chunks</span> <span class="o">=</span> <span class="nn">Chunking</span><span class="p">.</span><span class="n">chunk_recursive</span>
+</span><span id="__span-14-14"><a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a>      <span class="o">~</span><span class="n">text</span><span class="o">:</span><span class="n">doc</span><span class="o">.</span><span class="nn">Document</span><span class="p">.</span><span class="n">content</span> <span class="o">~</span><span class="n">max_size</span><span class="o">:</span><span class="mi">1000</span> <span class="o">~</span><span class="n">overlap</span><span class="o">:</span><span class="mi">200</span> <span class="k">in</span>
+</span><span id="__span-14-15"><a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a>    <span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="o">(</span><span class="k">fun</span> <span class="n">c</span> <span class="o">-&gt;</span>
+</span><span id="__span-14-16"><a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a>      <span class="o">({</span> <span class="nn">Vector_store</span><span class="p">.</span><span class="n">id</span> <span class="o">=</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;%s_%04d&quot;</span> <span class="n">doc</span><span class="o">.</span><span class="nn">Document</span><span class="p">.</span><span class="n">source</span> <span class="o">(</span><span class="nn">Random</span><span class="p">.</span><span class="n">int</span> <span class="mi">10000</span><span class="o">);</span>
+</span><span id="__span-14-17"><a id="__codelineno-14-17" name="__codelineno-14-17" href="#__codelineno-14-17"></a>         <span class="n">content</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="nn">Chunking</span><span class="p">.</span><span class="n">text</span><span class="o">;</span>
+</span><span id="__span-14-18"><a id="__codelineno-14-18" name="__codelineno-14-18" href="#__codelineno-14-18"></a>         <span class="n">metadata</span> <span class="o">=</span> <span class="nc">Some</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="nn">Meta</span><span class="p">.</span><span class="n">to_yojson</span> <span class="n">doc</span><span class="o">.</span><span class="nn">Document</span><span class="p">.</span><span class="n">metadata</span><span class="o">)</span> <span class="o">},</span>
+</span><span id="__span-14-19"><a id="__codelineno-14-19" name="__codelineno-14-19" href="#__codelineno-14-19"></a>       <span class="n">c</span><span class="o">.</span><span class="nn">Chunking</span><span class="p">.</span><span class="n">text</span><span class="o">)</span>  <span class="c">(* will be replaced by actual vectors *)</span>
+</span><span id="__span-14-20"><a id="__codelineno-14-20" name="__codelineno-14-20" href="#__codelineno-14-20"></a>    <span class="o">)</span> <span class="n">chunks</span>
+</span><span id="__span-14-21"><a id="__codelineno-14-21" name="__codelineno-14-21" href="#__codelineno-14-21"></a>  <span class="o">)</span> <span class="n">docs</span>
+</span><span id="__span-14-22"><a id="__codelineno-14-22" name="__codelineno-14-22" href="#__codelineno-14-22"></a><span class="k">in</span>
+</span><span id="__span-14-23"><a id="__codelineno-14-23" name="__codelineno-14-23" href="#__codelineno-14-23"></a>
+</span><span id="__span-14-24"><a id="__codelineno-14-24" name="__codelineno-14-24" href="#__codelineno-14-24"></a><span class="c">(* 3. Embed the chunks *)</span>
+</span><span id="__span-14-25"><a id="__codelineno-14-25" name="__codelineno-14-25" href="#__codelineno-14-25"></a><span class="k">let</span> <span class="n">texts</span> <span class="o">=</span> <span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="n">snd</span> <span class="n">all_chunks</span> <span class="k">in</span>
+</span><span id="__span-14-26"><a id="__codelineno-14-26" name="__codelineno-14-26" href="#__codelineno-14-26"></a><span class="k">match</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">embed</span> <span class="n">rt</span> <span class="n">texts</span> <span class="k">with</span>
+</span><span id="__span-14-27"><a id="__codelineno-14-27" name="__codelineno-14-27" href="#__codelineno-14-27"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span>
+</span><span id="__span-14-28"><a id="__codelineno-14-28" name="__codelineno-14-28" href="#__codelineno-14-28"></a>  <span class="n">prerr_endline</span> <span class="o">(</span><span class="s2">&quot;embed failed: &quot;</span> <span class="o">^</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-14-29"><a id="__codelineno-14-29" name="__codelineno-14-29" href="#__codelineno-14-29"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">vecs</span> <span class="o">-&gt;</span>
+</span><span id="__span-14-30"><a id="__codelineno-14-30" name="__codelineno-14-30" href="#__codelineno-14-30"></a>  <span class="c">(* 4. Store in vector index *)</span>
+</span><span id="__span-14-31"><a id="__codelineno-14-31" name="__codelineno-14-31" href="#__codelineno-14-31"></a>  <span class="k">let</span> <span class="n">doc_vecs</span> <span class="o">=</span> <span class="nn">List</span><span class="p">.</span><span class="n">mapi</span> <span class="o">(</span><span class="k">fun</span> <span class="n">i</span> <span class="o">(</span><span class="n">doc</span><span class="o">,</span> <span class="o">_)</span> <span class="o">-&gt;</span>
+</span><span id="__span-14-32"><a id="__codelineno-14-32" name="__codelineno-14-32" href="#__codelineno-14-32"></a>    <span class="o">({</span> <span class="n">doc</span> <span class="k">with</span> <span class="nn">Vector_store</span><span class="p">.</span><span class="n">id</span> <span class="o">=</span> <span class="nn">Printf</span><span class="p">.</span><span class="n">sprintf</span> <span class="s2">&quot;doc_%04d&quot;</span> <span class="n">i</span> <span class="o">},</span> <span class="n">vecs</span><span class="o">.(</span><span class="n">i</span><span class="o">))</span>
+</span><span id="__span-14-33"><a id="__codelineno-14-33" name="__codelineno-14-33" href="#__codelineno-14-33"></a>  <span class="o">)</span> <span class="n">all_chunks</span> <span class="k">in</span>
+</span><span id="__span-14-34"><a id="__codelineno-14-34" name="__codelineno-14-34" href="#__codelineno-14-34"></a>  <span class="o">(</span><span class="k">match</span> <span class="nn">Vector_store</span><span class="p">.</span><span class="n">add</span> <span class="n">store</span> <span class="n">doc_vecs</span> <span class="k">with</span>
+</span><span id="__span-14-35"><a id="__codelineno-14-35" name="__codelineno-14-35" href="#__codelineno-14-35"></a>   <span class="o">|</span> <span class="nc">Ok</span> <span class="bp">()</span> <span class="o">-&gt;</span>
+</span><span id="__span-14-36"><a id="__codelineno-14-36" name="__codelineno-14-36" href="#__codelineno-14-36"></a>     <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Indexed %d chunks</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">doc_vecs</span><span class="o">);</span>
+</span><span id="__span-14-37"><a id="__codelineno-14-37" name="__codelineno-14-37" href="#__codelineno-14-37"></a>     <span class="c">(* 5. Query with RAG *)</span>
+</span><span id="__span-14-38"><a id="__codelineno-14-38" name="__codelineno-14-38" href="#__codelineno-14-38"></a>     <span class="k">let</span> <span class="o">(</span><span class="n">answer</span><span class="o">,</span> <span class="o">_)</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">invoke_with_rag</span> <span class="n">rt</span>
+</span><span id="__span-14-39"><a id="__codelineno-14-39" name="__codelineno-14-39" href="#__codelineno-14-39"></a>       <span class="o">~</span><span class="n">agent_id</span><span class="o">:</span><span class="s2">&quot;rag_agent&quot;</span>
+</span><span id="__span-14-40"><a id="__codelineno-14-40" name="__codelineno-14-40" href="#__codelineno-14-40"></a>       <span class="o">~</span><span class="n">message</span><span class="o">:</span><span class="s2">&quot;What does this document say about X?&quot;</span>
+</span><span id="__span-14-41"><a id="__codelineno-14-41" name="__codelineno-14-41" href="#__codelineno-14-41"></a>       <span class="o">~</span><span class="n">k</span><span class="o">:</span><span class="mi">4</span>
+</span><span id="__span-14-42"><a id="__codelineno-14-42" name="__codelineno-14-42" href="#__codelineno-14-42"></a>       <span class="o">~</span><span class="n">vector_store</span><span class="o">:(</span><span class="nc">Some</span> <span class="n">store</span><span class="o">)</span>
+</span><span id="__span-14-43"><a id="__codelineno-14-43" name="__codelineno-14-43" href="#__codelineno-14-43"></a>       <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-14-44"><a id="__codelineno-14-44" name="__codelineno-14-44" href="#__codelineno-14-44"></a>     <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;Answer: %s</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="n">answer</span>
+</span><span id="__span-14-45"><a id="__codelineno-14-45" name="__codelineno-14-45" href="#__codelineno-14-45"></a>   <span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span>
+</span><span id="__span-14-46"><a id="__codelineno-14-46" name="__codelineno-14-46" href="#__codelineno-14-46"></a>     <span class="n">prerr_endline</span> <span class="o">(</span><span class="s2">&quot;store add failed: &quot;</span> <span class="o">^</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">string_of_error_category</span> <span class="n">e</span><span class="o">))</span>
+</span></code></pre></div>
+<p>Key points:</p>
+<ul>
+<li><code>Document.content</code> feeds into <code>Chunking.chunk_recursive</code> as the <code>~text</code> parameter.</li>
+<li><code>Document.Metadata.to_yojson</code> converts the hashtable to <code>Yojson.Safe.t</code> for <code>Vector_store.document.metadata</code>.</li>
+<li>The <code>source</code> field on each <code>Document.t</code> becomes the basis for the vector store document id.</li>
+<li>The loader and chunking steps are independent of the embedding provider. Swap Mock for OpenAI by changing the runtime config.</li>
+</ul>
+<h2 id="error-handling">Error handling<a class="headerlink" href="#error-handling" title="Permanent link">&para;</a></h2>
+<p>All loaders return <code>(unit -&gt; Document.t list, load_error) result</code>. The pattern is:</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">match</span> <span class="nn">My_loader</span><span class="p">.</span><span class="n">make</span> <span class="n">ws</span> <span class="n">path</span> <span class="k">with</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="o">|</span> <span class="nc">Error</span> <span class="n">e</span> <span class="o">-&gt;</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>  <span class="c">(* Handle the error: file not found, permission denied, etc. *)</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>  <span class="n">prerr_endline</span> <span class="o">(</span><span class="nn">Document</span><span class="p">.</span><span class="n">load_error_to_string</span> <span class="n">e</span><span class="o">)</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">load</span> <span class="o">-&gt;</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>  <span class="k">let</span> <span class="n">docs</span> <span class="o">=</span> <span class="n">load</span> <span class="bp">()</span> <span class="k">in</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>  <span class="c">(* Process documents *)</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>  <span class="o">...</span>
+</span></code></pre></div>
+<p>The two-step pattern (make returns a thunk, calling the thunk produces documents) separates path validation from I/O. If the path is invalid, you get an error immediately without reading any file. Extraction errors inside the thunk are caught and logged (the thunk returns an empty list rather than crashing).</p>
+<p>For <code>Directory_loader</code>, individual file errors are logged and skipped rather than aborting the entire scan. This is intentional: you want a corrupt PDF in your knowledge base to not prevent the Markdown files next to it from being indexed.</p>
+<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../rag/">RAG API</a> — embeddings, vector store, chunking, <code>invoke_with_rag</code></li>
+<li><a href="../streaming/">Streaming API</a> — <code>invoke_stream</code>, token streaming</li>
+<li><a href="../agent/">Agent API</a> — <code>Runtime.invoke</code>, agent configuration</li>
+<li><a href="../overview/">SDK overview</a> — module map and architecture</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

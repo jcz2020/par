@@ -1,0 +1,1948 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/explanation/faq/">
+      
+      
+        <link rel="prev" href="../rag-architecture/">
+      
+      
+      
+        
+          <link rel="alternate" href="./" hreflang="en">
+        
+          <link rel="alternate" href="../../zh/explanation/faq/" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>FAQ - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#faq-common-questions" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              FAQ
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../zh/explanation/faq/" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Tutorial
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  How-to
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../sdk/overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorial
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/rag-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build a RAG Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/invoke_context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    invoke_context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Middleware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generate API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/document_loaders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Loaders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/prompt_caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/content_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sdk/observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explanation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concurrency-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrency Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../persistence-and-durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Persistence and Durability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rag-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#q1-how-is-par-different-from-langchain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q1. How is PAR different from LangChain?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q2-when-should-i-use-the-ocaml-sdk-vs-the-python-binding-vs-the-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q2. When should I use the OCaml SDK vs the Python binding vs the CLI?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q3-does-streaming-deliver-tokens-incrementally" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q3. Does streaming deliver tokens incrementally?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q4-how-do-i-configure-persistence-for-production" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q4. How do I configure persistence for production?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q5-can-i-use-par-with-provider-x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q5. Can I use PAR with provider X?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q6-what-is-the-skill-system-and-when-should-i-use-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q6. What is the skill system and when should I use it?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#q1-how-is-par-different-from-langchain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q1. How is PAR different from LangChain?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q2-when-should-i-use-the-ocaml-sdk-vs-the-python-binding-vs-the-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q2. When should I use the OCaml SDK vs the Python binding vs the CLI?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q3-does-streaming-deliver-tokens-incrementally" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q3. Does streaming deliver tokens incrementally?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q4-how-do-i-configure-persistence-for-production" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q4. How do I configure persistence for production?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q5-can-i-use-par-with-provider-x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q5. Can I use PAR with provider X?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#q6-what-is-the-skill-system-and-when-should-i-use-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q6. What is the skill system and when should I use it?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<!-- language: en -->
+
+<h1 id="faq-common-questions">FAQ: Common Questions<a class="headerlink" href="#faq-common-questions" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>Note (v0.6.7):</strong> PAR's CLI (<code>par</code>, <code>par ask</code>, <code>par config</code>) was removed; the supported surfaces are the OCaml SDK (<code>opam install par</code>) and Python binding (<code>pip install par-runtime</code>). For an interactive coding-agent experience based on this SDK, see <a href="https://github.com/jcz2020/par-code">par-code</a>. The CLI rows/questions below are kept for historical context.</p>
+</blockquote>
+<p>This page collects the questions that come up most often when someone evaluates PAR, picks a surface to start with, or hits a behavior they did not expect. Each answer points at the deeper reference page so you can keep reading without backtracking. If your question is not here, the <a href="../howto/">How-to guides</a> cover specific recipes and the <a href="../architecture/">Architecture</a> page covers the design rationale.</p>
+<h2 id="q1-how-is-par-different-from-langchain">Q1. How is PAR different from LangChain?<a class="headerlink" href="#q1-how-is-par-different-from-langchain" title="Permanent link">&para;</a></h2>
+<p>PAR occupies the same niche as LangChain, agent runtime plus orchestration primitives, but the design priorities are inverted. LangChain optimizes for breadth and Python ergonomics. PAR optimizes for type rigor and structured concurrency. The differences show up in three concrete places.</p>
+<p><strong>Type safety at compile time, not at runtime.</strong> LangChain tools are Python callables behind a dictionary-shaped <code>args_schema</code>. A typo in a field name, a missing argument, a wrong type, lands as a runtime crash deep inside an agent loop. PAR tools are OCaml records behind a typed <code>tool_descriptor</code>, and every call site goes through pattern matching that the compiler forces you to cover. The bash tool is the loudest example. LangChain exposes <code>subprocess.run</code> with a raw string. PAR has the <code>Bash_safe_command</code> ADT, an algebraic data type with no <code>Exec_raw_shell</code> constructor, which means shell injection is unrepresentable at the type level. You cannot write the bug. This is PAR's core differentiator, the property PAR cannot be copied on.</p>
+<p><strong>Structured concurrency instead of asyncio.</strong> LangChain runs on Python asyncio. Every async function carries a color, every <code>await</code> is a suspension point, and a tool handler has to commit to <code>async def</code> or stay sync. PAR runs on OCaml 5.4 effect handlers plus the Eio library. Functions are direct style. There is no color split. The runtime hands every <code>Runtime.create</code> call one <code>Eio.Switch.t</code>, and every fiber the runtime forks is a child of that switch. When the switch exits, the children are joined. A leaked tool handler holding a database connection cannot outlive its runtime. Go has goroutines and a context model that asks children to cooperate. asyncio has task groups in 3.11. Eio has had structured enforcement from day one.</p>
+<p><strong>A filesystem-native skill system.</strong> LangChain prompts and tool subsets live in code. PAR's skill layer, shipped in v0.5.2, discovers reusable behavior packages from <code>~/.par/skills/&lt;name&gt;/skill.md</code> on disk. Each skill bundles a <code>system_prompt_override</code>, a typed <code>tool_filter</code> ADT (<code>All_tools</code>, <code>Only [...]</code>, <code>Except [...]</code>), and a <code>skill_trigger</code> (<code>Auto</code>, <code>Manual</code>, <code>Keyword [...]</code>). The 3-level context loading pattern, always-resident metadata, lazy body, never-loaded supporting files, keeps token budgets sane with 50+ skills installed. No Python framework ships this combination of filesystem discovery, typed tool filter, and budget enforcement. See <a href="../concurrency-model/">Concurrency Model</a> for the fiber story and Q6 below for the skill surface.</p>
+<p>The short version: LangChain is the right pick when you want maximum ecosystem breadth in Python today. PAR is the right pick when type guarantees, predictable concurrency, and a durable skill abstraction matter more than the long tail of LangChain integrations.</p>
+<h2 id="q2-when-should-i-use-the-ocaml-sdk-vs-the-python-binding-vs-the-cli">Q2. When should I use the OCaml SDK vs the Python binding vs the CLI?<a class="headerlink" href="#q2-when-should-i-use-the-ocaml-sdk-vs-the-python-binding-vs-the-cli" title="Permanent link">&para;</a></h2>
+<p>PAR ships three surfaces over the same runtime. They are not three products. They are three doors into one engine, and the right door depends on what you are building.</p>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Pick it when</th>
+<th>Avoid it when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OCaml SDK</td>
+<td>You are writing production OCaml and need every public API typed end to end</td>
+<td>You do not want an OCaml toolchain in your build</td>
+</tr>
+<tr>
+<td>Python binding (<code>par_runtime</code> on PyPI)</td>
+<td>You have an existing Python service and want a typed agent runtime without rewriting your stack</td>
+<td>You need features the binding has not exposed yet (some advanced config fields are SDK-only)</td>
+</tr>
+</tbody>
+</table>
+<p>The decision matrix is mostly about who owns the deployment. The OCaml SDK is the canonical surface. Every public API exists here first, every behavior is documented against the OCaml types, and every other surface is a thin wrapper. If you are writing OCaml, there is no reason to pick anything else. The SDK reference under <code>docs/sdk/</code> is the source of truth for type signatures.</p>
+<p>The Python binding is for the case PAR was designed for, Python backend engineers who want type-safe agent infrastructure without rewriting their stack in OCaml. You <code>pip install par-runtime</code>, import <code>Runtime</code>, and call <code>invoke</code> or <code>invoke_stream</code>. The binding talks to the same OCaml runtime through a ctypes FFI bridge. A persistent OCaml domain owns the <code>Runtime</code>, and Python threads dispatch work closures onto it. The Python surface is thread-safe without holding a global lock on the Python side. Where the SDK and the binding disagree, the SDK reference wins, and the binding is updated to match.</p>
+<p>For an interactive coding-agent experience (the successor to the removed CLI), see <a href="https://github.com/jcz2020/par-code">par-code</a> — a separate project built on this SDK.</p>
+<p>A reasonable progression looks like this. Start with the Python binding to verify the install and feel out the provider config. Move to the OCaml SDK when you want full type coverage, custom tool handlers in OCaml, or features the binding does not surface yet. The runtime behavior is identical across both, so swapping surfaces later is a refactor, not a rewrite.</p>
+<h2 id="q3-does-streaming-deliver-tokens-incrementally">Q3. Does streaming deliver tokens incrementally?<a class="headerlink" href="#q3-does-streaming-deliver-tokens-incrementally" title="Permanent link">&para;</a></h2>
+<p><strong>Yes, as of v0.5.3.</strong> <code>invoke_stream</code> runs <code>par_invoke_stream</code> in a background daemon thread; the OCaml SSE parser fires a ctypes callback for each chunk as the LLM produces it, pushing onto a <code>queue.Queue</code>. The Python iterator consumes the queue concurrently, so the first token reaches the caller within milliseconds — not after the full response completes. For a 30-second generation, perceived latency drops from "30 s black screen then everything" to "first token &lt; 1 s, then steady drip."</p>
+<p><strong>History.</strong> v0.5.1–v0.5.2 shipped <em>buffered</em> streaming: the OCaml work loop collected all chunks in a ref list, serialized them as JSON at the end, and Python parsed the array on first <code>__iter__</code>. The buffer eliminated a domain-lock crash that affected the initial ctypes-callback design, but it meant all chunks arrived at once after the LLM finished. v0.5.3 rewired the FFI (<code>caml_dispatch_chunk_to_c</code> external + background thread + <code>queue.Queue</code>) to deliver chunks in real time without the domain-lock issue.</p>
+<p><strong>Known limitation (v0.5.3).</strong> Breaking early from the iterator leaves the background thread holding the process-global <code>ocaml_lock</code> until the LLM stream completes naturally. During that window, subsequent <code>par_*</code> calls block. Consume the iterator fully if you need to make further calls. The <code>par_cancel_stream</code> FFI (shipped in v0.5.4-beta) mitigates this with a flag-check pattern — cancel takes effect at the next chunk boundary (~50–300 ms typical). See the <a href="../../sdk/streaming/">Streaming API reference</a> and CHANGES.md for details.</p>
+<p><strong>What stays the same.</strong> The <code>Event</code> tagged union (<code>TextDelta</code>, <code>ToolCallStart</code>, <code>ToolCallDelta</code>, <code>UsageUpdate</code>, <code>Done</code>) matches the OCaml <code>llm_response_chunk</code> ADT field-for-field. The API shape did not change between buffered and incremental — only the delivery cadence improved.</p>
+<h2 id="q4-how-do-i-configure-persistence-for-production">Q4. How do I configure persistence for production?<a class="headerlink" href="#q4-how-do-i-configure-persistence-for-production" title="Permanent link">&para;</a></h2>
+<p>PAR ships two persistence backends, selected by the <code>persistence</code> field in <code>runtime_config</code>. Picking the right one is a one-time decision based on whether you need an audit trail on disk. The deep writeup is in <a href="../persistence-and-durability/">Persistence and Durability</a>.</p>
+<p><strong>SQLite is the only persistent backend.</strong> The default and only persistent tier. A single file on disk (or <code>:memory:</code> for tests). Zero external dependencies. WAL mode handles the read-heavy, write-batched workload PAR generates. The default retention TTL is 7 days, pruned at backend open. Back up the <code>.db</code> file on whatever schedule your audit window requires. A single runtime with SQLite can push hundreds of events per second through the batched writer. The LLM provider is almost always the bottleneck, not the database.</p>
+<p><strong>Multi-instance horizontal scale, today.</strong> SQLite's file locking does not survive multiple processes writing to the same file across containers, so a single <code>.db</code> file cannot be shared by several PAR runtimes writing concurrently. If you need more than one PAR process today, shard at the application level: one runtime, one database file, partitioned by tenant or session. The cross-instance, shared-state story is on the roadmap as a future remote tier (tracked as bd issue <code>PAR-4dt</code>, targeted at v0.6+), not something SQLite gives you now.</p>
+<p><strong>Noop for tests.</strong> Discards everything. No event bus, no writer fiber, no I/O. Tests that only care about agent behavior run faster and do not leave files behind. The runtime skips wiring up the event bus entirely when persistence is noop, so there is no dead bus feeding a dead writer.</p>
+<p><strong>Tuning knobs that matter.</strong> The <code>Persistence_writer</code> buffers events in a mutex-protected list with capacity 1000 and flushes every 50 milliseconds. If the buffer overflows, events route to the event bus dead-letter queue instead of being dropped silently. Retention pruning is timestamp-based, on the <code>events</code> table only. <code>task_states</code> and <code>workflow_states</code> are not pruned automatically because their rows represent resumable state. If you want long retention in a regulated environment, raise <code>event_retention_seconds</code> in <code>runtime_config</code> and back up the <code>.db</code> file on whatever schedule your audit window requires.</p>
+<p><strong>Dual-layer is coming.</strong> The current model is single-tier: events go to one backend, full stop. A future version plans a dual-layer design with a fast local tier (SQLite, low latency, short retention) plus a remote tier (object storage or a future persistence backend, durable, long retention). The local tier absorbs burst traffic and forwards to the remote tier asynchronously. Until it lands, pick your retention window via <code>event_retention_seconds</code> and accept that one tier is what you have.</p>
+<h2 id="q5-can-i-use-par-with-provider-x">Q5. Can I use PAR with provider X?<a class="headerlink" href="#q5-can-i-use-par-with-provider-x" title="Permanent link">&para;</a></h2>
+<p>Probably yes, if the provider speaks the OpenAI Chat Completions API. PAR ships four providers built in and a custom registration path for anything else.</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Text</th>
+<th>Tool calls</th>
+<th>Streaming</th>
+<th>Embeddings (RAG)</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>`Openai</code></td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td>First-class. Reference implementation.</td>
+</tr>
+<tr>
+<td><code>`Anthropic</code></td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td><strong>no</strong></td>
+<td>Anthropic has no embeddings API. Use OpenAI or a local embedder for RAG.</td>
+</tr>
+<tr>
+<td><code>`Ollama</code></td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td>Local. Spoke to via the OpenAI-compatible endpoint.</td>
+</tr>
+<tr>
+<td><code>`Mock</code></td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td>For tests. Emits all event types.</td>
+</tr>
+<tr>
+<td>Custom</td>
+<td>yes</td>
+<td>yes</td>
+<td>varies</td>
+<td>varies</td>
+<td>Anything OpenAI-compatible (Cohere, Mistral, vLLM, LM Studio, etc.)</td>
+</tr>
+</tbody>
+</table>
+<p>The interesting cases are Anthropic and custom providers.</p>
+<p><strong>Anthropic and RAG.</strong> Anthropic's API does not expose an embeddings endpoint. The Claude family is chat-only. If you want RAG with Anthropic as the chat model, you need a separate embeddings source. The common pattern is to use OpenAI's embeddings API or a local embedder (Ollama's <code>nomic-embed-text</code>, for example) for the embedding step, then use Anthropic for the generation step. PAR's RAG pipeline is split that way by design, <code>invoke_with_rag</code> accepts the chat provider and the embeddings provider as separate config fields.</p>
+<p><strong>Ollama and OpenAI-compatible local servers.</strong> Ollama exposes an OpenAI-compatible endpoint at <code>http://localhost:11434/v1</code>. Point PAR's <code>`Ollama</code> provider at it, or register a custom provider pointing at the same URL, and you get the same surface. The same trick works for vLLM, LM Studio, LocalAI, and any other server that mimics the OpenAI Chat Completions shape. Streaming behavior depends on the server. PAR's streaming reference documents provider support; verify your local server emits Server-Sent Events before relying on incremental delivery (shipped in v0.5.3).</p>
+<p><strong>Custom providers.</strong> If your provider is not on the list, follow the <a href="../../howto/custom-llm-provider/">Custom LLM provider how-to</a>. The pattern is the same one used for Cohere, Mistral, and Ollama: implement the provider interface, register it with <code>Runtime.register_agent</code> or via config, and PAR routes invokes to it. The provider interface is documented under <code>docs/sdk/</code>. Anything that speaks OpenAI Chat Completions, with or without tool calls, works without new code.</p>
+<p>The one provider category PAR does not support today is non-OpenAI-compatible proprietary APIs (Google Gemini's native API, for example, distinct from its OpenAI-compatibility layer). For those, write a custom provider adapter. The abstraction is designed for this.</p>
+<h2 id="q6-what-is-the-skill-system-and-when-should-i-use-it">Q6. What is the skill system and when should I use it?<a class="headerlink" href="#q6-what-is-the-skill-system-and-when-should-i-use-it" title="Permanent link">&para;</a></h2>
+<p>The skill system, shipped in v0.5.2 Track A, is PAR's typed abstraction over reusable agent behavior packages. It is the answer to a recurring problem: you have an agent that does good work, you want to give it a focused capability (PDF extraction, SQL querying, code review) without rewriting its system prompt or its tool list. Skills let you package that capability as a directory on disk and load it on demand.</p>
+<p><strong>What a skill is.</strong> A skill is a directory under <code>~/.par/skills/&lt;name&gt;/</code> containing a <code>skill.md</code> file with YAML frontmatter and a markdown body. The frontmatter declares:</p>
+<ul>
+<li><code>system_prompt_override</code> or <code>system_prompt_append</code>: the prompt material to inject when the skill activates.</li>
+<li><code>tool_filter</code>: a typed ADT, <code>All_tools</code>, <code>Only ["read", "ls"]</code>, or <code>Except ["bash"]</code>. Replaces the string-list allowlists every other framework uses.</li>
+<li><code>trigger</code>: <code>Auto</code> (always load description, LLM judges), <code>Manual</code> (explicit invoke only), or <code>Keyword [...]</code> (deterministic match, optional LLM confirm).</li>
+<li><code>expected_output</code>: an optional typed JSON schema for success criteria. Forward-looking, informational in v0.5.2, consumed by an LLM judge in a future version.</li>
+</ul>
+<p><strong>Why typed matters.</strong> Every other framework that ships a skill-like abstraction (LangChain Hub, OpenAI Assistants, CrewAI Tasks, Claude Code Skills) uses string lists for tool filtering. PAR uses an ADT. <code>Only</code> and <code>Except</code> compose under intersection semantics with multi-skill activation: two skills with <code>Only ["a", "b"]</code> and <code>Only ["b", "c"]</code> both active yield <code>Only ["b"]</code>. Most-restrictive-wins fails safe. This is the kind of property you cannot get back by patching a string-list API later.</p>
+<p><strong>When to use it.</strong> Reach for a skill when you have a behavior you want to reuse across agents without copy-pasting prompts and tool subsets. A PDF extractor skill, a SQL query skill, a code review skill, a security audit skill. The 3-level context loading pattern keeps token budgets sane at scale. Level 1 is the metadata block, always resident in context, roughly 100 tokens per skill. Level 2 is the body, lazy-loaded when the skill triggers. Level 3 is supporting files, never loaded into context. With a 2048-token description budget (overridable via <code>skill_token_budget</code>), you can have 20 Auto skills installed and the runtime stays under budget. Overflow prioritization is explicit, then keyword-matched, then auto-declared in declaration order.</p>
+<p><strong>When not to use it.</strong> Skills are not the right tool for one-off prompts. If you have a system prompt you use in exactly one agent, write it in <code>agent_config</code>. Skills earn their keep when the same behavior package is composed into multiple agents, when non-engineers need to add capabilities without touching OCaml code, or when you want to share capabilities across projects via a skills directory.</p>
+<p>The v0.5.2 release ships the data model, the filesystem discovery, the YAML frontmatter format, and the typed <code>tool_filter</code> composition. Future versions will add the LLM judge for <code>expected_output</code>, hot-reload via mtime rescan, and a <code>par skill</code> CLI for listing, installing, and validating skills. The roadmap is in <code>docs/v0.5.2-ROADMAP.md</code>. The skill design research, including the 5-framework comparison that informed the paradigm choice, is documented alongside the roadmap.</p>
+<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../architecture/">Architecture</a> for the module map and how skills fit into the larger Runtime structure</li>
+<li><a href="../concurrency-model/">Concurrency Model</a> for the fiber story that skills compose into</li>
+<li><a href="../persistence-and-durability/">Persistence and Durability</a> for the persistence backend decision matrix</li>
+<li><a href="../../sdk/streaming/">Streaming API</a> for the incremental chunk delivery path (v0.5.3)</li>
+<li><a href="../../sdk/agent/">Agent API</a> for <code>Runtime.invoke</code>, <code>agent_config</code>, and tool registration</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
