@@ -34,6 +34,10 @@ jobs:
         run: |
           make validate-version
           make check-version-sync
+      - name: Install pkg-config (Windows only)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: choco install pkgconfiglite -y --no-progress
       - uses: ocaml/setup-ocaml@v3
         with:
           # Windows uses MinGW-w64 port (broadest package ecosystem).
