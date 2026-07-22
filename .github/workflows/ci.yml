@@ -60,6 +60,7 @@ jobs:
         env:
           C_INCLUDE_PATH: ${{ runner.os == 'Windows' && '/cygdrive/c/msys64/mingw64/include' || '' }}
           LIBRARY_PATH: ${{ runner.os == 'Windows' && '/cygdrive/c/msys64/mingw64/lib' || '' }}
+          LDFLAGS: ${{ runner.os == 'Windows' && '-L/cygdrive/c/msys64/mingw64/lib' || '' }}
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
             # Windows: skip --with-test. The flag pulls in test deps of ALL
