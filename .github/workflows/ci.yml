@@ -76,10 +76,16 @@ jobs:
             for dll in zlib1.dll libgmp-10.dll sqlite3.dll; do
               cp "/cygdrive/c/msys64/mingw64/bin/$dll" "$OCAML_STUBLIBS/" 2>/dev/null || true
             done
-            # camlzip's Makefile passes bare -lz to ocamlmklib, which on
-            # MinGW interprets it as a filename. Override via MAKEOVERRIDES
-            # to use -cclib -lz (correct ocamlmklib syntax).
-            export MAKEOVERRIDES="ZLIB_LIBS=-cclib+-lz"
+            # camlzip's Makefile hardcodes bare -lz which ocamlmklib on MinGW
+            # treats as a literal filename. Install camlzip separately with
+            # a Makefile patch, then install the rest of PAR's deps.
+            opam install camlzip --no-depexts --keep-build-dir -y 2>/dev/null || {
+              CAMLZIP_DIR=$(find "$(opam var prefix)/.opam-switch/build" -maxdepth 1 -name "camlzip*" -type d 2>/dev/null | head -1)
+              if [ -n "$CAMLZIP_DIR" ] && [ -f "$CAMLZIP_DIR/Makefile" ]; then
+                sed -i 's/^ZLIB_LIBS=.*/ZLIB_LIBS=-cclib -lz/' "$CAMLZIP_DIR/Makefile"
+                (cd "$CAMLZIP_DIR" && make all && make install)
+              fi
+            }
             opam install . --deps-only --no-depexts
           else
             opam install . --deps-only --with-test --no-depexts
