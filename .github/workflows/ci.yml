@@ -69,15 +69,17 @@ jobs:
             # Cygwin setup-x86_64.exe (crashes on GitHub Actions runners).
             OCAML_LIB="$(ocamlc -where)"
             OCAML_STUBLIBS="$OCAML_LIB/stublibs"
-            # Static/import libs go to OCaml lib dir (searched by -l)
             for lib in libz.a libz.dll.a libgmp.a libgmp.dll.a libsqlite3.a libsqlite3.dll.a; do
               cp "/cygdrive/c/msys64/mingw64/lib/$lib" "$OCAML_LIB/" 2>/dev/null || true
               cp "/cygdrive/c/msys64/mingw64/lib/$lib" "$OCAML_STUBLIBS/" 2>/dev/null || true
             done
-            # DLLs go to stublibs (searched at runtime)
             for dll in zlib1.dll libgmp-10.dll sqlite3.dll; do
               cp "/cygdrive/c/msys64/mingw64/bin/$dll" "$OCAML_STUBLIBS/" 2>/dev/null || true
             done
+            # camlzip's Makefile passes bare -lz to ocamlmklib, which on
+            # MinGW interprets it as a filename. Override via MAKEOVERRIDES
+            # to use -cclib -lz (correct ocamlmklib syntax).
+            export MAKEOVERRIDES="ZLIB_LIBS=-cclib+-lz"
             opam install . --deps-only --no-depexts
           else
             opam install . --deps-only --with-test --no-depexts
