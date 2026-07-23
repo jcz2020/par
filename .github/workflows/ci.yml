@@ -82,8 +82,7 @@ jobs:
             opam install camlzip --no-depexts --keep-build-dir -y 2>/dev/null || {
               CAMLZIP_DIR=$(find "$(opam var prefix)/.opam-switch/build" -maxdepth 1 -name "camlzip*" -type d 2>/dev/null | head -1)
               if [ -n "$CAMLZIP_DIR" ] && [ -f "$CAMLZIP_DIR/Makefile" ]; then
-                sed -i 's/^ZLIB_LIBS=.*/ZLIB_LIBS=-cclib -lz/' "$CAMLZIP_DIR/Makefile"
-                (cd "$CAMLZIP_DIR" && make all && make install)
+                (cd "$CAMLZIP_DIR" && make all ZLIB_LIBS="-cclib -lz" && make install ZLIB_LIBS="-cclib -lz")
               fi
             }
             opam install . --deps-only --no-depexts
