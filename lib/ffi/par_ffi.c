@@ -683,7 +683,7 @@ char* par_stream_poll(par_stream_handle_t* h, int timeout_ms) {
             return NULL;
         }
 #else
-        SleepConditionVariableSRW(&h->q_cond, &(h->q_mutex), (DWORD)timeout_ms, CONDITION_VARIABLE_LOCKMODE_EXCLUSIVE);
+        SleepConditionVariableSRW(&h->q_cond, &(h->q_mutex), (DWORD)timeout_ms, 0x01);
         if (h->q_head == NULL && ATOMIC_LOAD_ACQUIRE(h->state) == PAR_STREAM_RUNNING) {
             PAR_MUTEX_UNLOCK(h->q_mutex);
             caml_acquire_runtime_system();
