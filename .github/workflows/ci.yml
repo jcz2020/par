@@ -81,22 +81,7 @@ jobs:
             OB="$(opam var bin)"
             if [ -f "$OB/ocamlmklib" ] && [ ! -f "$OB/ocamlmklib.real" ]; then
               mv "$OB/ocamlmklib" "$OB/ocamlmklib.real"
-              cat > "$OB/ocamlmklib" << 'WRAPPER'
-#!/bin/bash
-args=()
-prev=""
-for arg in "$@"; do
-  if [ "$prev" = "-cclib" ]; then
-    args+=("$arg")
-  elif [[ "$arg" == -l* ]]; then
-    args+=("-cclib" "$arg")
-  else
-    args+=("$arg")
-  fi
-  prev="$arg"
-done
-exec "$(dirname "$0")/ocamlmklib.real" "${args[@]}"
-WRAPPER
+              printf '#!/bin/bash\nargs=()\nprev=""\nfor arg in "$@"; do\n  if [ "$prev" = "-cclib" ]; then\n    args+=("$arg")\n  elif [[ "$arg" == -l* ]]; then\n    args+=("-cclib" "$arg")\n  else\n    args+=("$arg")\n  fi\n  prev="$arg"\ndone\nexec "$(dirname "$0")/ocamlmklib.real" "${args[@]}"\n' > "$OB/ocamlmklib"
               chmod +x "$OB/ocamlmklib"
             fi
             opam install . --deps-only --no-depexts
