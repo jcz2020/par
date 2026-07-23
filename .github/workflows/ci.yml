@@ -63,6 +63,7 @@ jobs:
           LDFLAGS: ${{ runner.os == 'Windows' && '-L/cygdrive/c/msys64/mingw64/lib' || '' }}
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
+            eval $(opam env)
             # Copy MinGW system libs into OCaml's stublibs so ocamlmklib
             # finds -lz, -lgmp etc. without needing Cygwin setup-x86_64.exe
             # (which crashes on GitHub Actions windows-latest runners).
