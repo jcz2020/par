@@ -63,10 +63,18 @@ jobs:
           LDFLAGS: ${{ runner.os == 'Windows' && '-L/cygdrive/c/msys64/mingw64/lib' || '' }}
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
-            # Windows: let opam depext install system deps (zlib, gmp, sqlite3)
-            # AND use MSYS2 MinGW paths for compiler visibility.
-            # Skip --with-test (test deps of transitive deps fail on Cygwin).
-            opam install . --deps-only
+            # Copy MinGW system libs into OCaml's stublibs so ocamlmklib
+            # finds -lz, -lgmp etc. without needing Cygwin setup-x86_64.exe
+            # (which crashes on GitHub Actions windows-latest runners).
+            OCAML_STUBLIBS="$(ocamlc -where)/stublibs"
+            for lib in libz.a libz.dll.a libgmp.a libgmp.dll.a libsqlite3.a libsqlite3.dll.a; do
+              cp "/cygdrive/c/msys64/mingw64/lib/$lib" "$OCAML_STUBLIBS/" 2>/dev/null || true
+            done
+            # Also copy DLLs to PATH so runtime linking works
+            for dll in zlib1.dll libgmp-10.dll sqlite3.dll; do
+              cp "/cygdrive/c/msys64/mingw64/bin/$dll" "$(ocamlc -where)/stublibs/" 2>/dev/null || true
+            done
+            opam install . --deps-only --no-depexts
           else
             opam install . --deps-only --with-test --no-depexts
           fi
