@@ -64,26 +64,20 @@ jobs:
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
             eval $(opam env)
-            # Copy MinGW system libs into OCaml's stublibs so ocamlmklib
-            # finds -lz, -lgmp etc. without needing Cygwin setup-x86_64.exe
-            # (which crashes on GitHub Actions windows-latest runners).
-            OCAML_STUBLIBS="$(ocamlc -where)/stublibs"
+            # Copy MinGW system libs into OCaml's standard directories so
+            # the linker finds -lz, -lgmp, -lsqlite3 without needing
+            # Cygwin setup-x86_64.exe (crashes on GitHub Actions runners).
+            OCAML_LIB="$(ocamlc -where)"
+            OCAML_STUBLIBS="$OCAML_LIB/stublibs"
+            # Static/import libs go to OCaml lib dir (searched by -l)
             for lib in libz.a libz.dll.a libgmp.a libgmp.dll.a libsqlite3.a libsqlite3.dll.a; do
+              cp "/cygdrive/c/msys64/mingw64/lib/$lib" "$OCAML_LIB/" 2>/dev/null || true
               cp "/cygdrive/c/msys64/mingw64/lib/$lib" "$OCAML_STUBLIBS/" 2>/dev/null || true
             done
+            # DLLs go to stublibs (searched at runtime)
             for dll in zlib1.dll libgmp-10.dll sqlite3.dll; do
               cp "/cygdrive/c/msys64/mingw64/bin/$dll" "$OCAML_STUBLIBS/" 2>/dev/null || true
             done
-            # Wrap ocamlmklib to translate bare -lX flags into -cclib -lX.
-            # OCaml's ocamlmklib on MinGW interprets -lz as a literal filename
-            # instead of a linker flag, causing "Cannot find file -lz" errors
-            # in camlzip and other C-binding packages.
-            OB="$(opam var bin)"
-            if [ -f "$OB/ocamlmklib" ] && [ ! -f "$OB/ocamlmklib.real" ]; then
-              mv "$OB/ocamlmklib" "$OB/ocamlmklib.real"
-              printf '#!/bin/bash\nargs=()\nprev=""\nfor arg in "$@"; do\n  if [ "$prev" = "-cclib" ]; then\n    args+=("$arg")\n  elif [[ "$arg" == -l* ]]; then\n    args+=("-cclib" "$arg")\n  else\n    args+=("$arg")\n  fi\n  prev="$arg"\ndone\nexec "$(dirname "$0")/ocamlmklib.real" "${args[@]}"\n' > "$OB/ocamlmklib"
-              chmod +x "$OB/ocamlmklib"
-            fi
             opam install . --deps-only --no-depexts
           else
             opam install . --deps-only --with-test --no-depexts
