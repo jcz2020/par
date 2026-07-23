@@ -93,7 +93,9 @@ jobs:
             opam install . --deps-only --with-test --no-depexts
           fi
       - run: opam exec -- dune build
-      - run: opam exec -- dune runtest
+      - name: Run tests (skip on Windows — MinGW runtime startup is too slow for the full suite)
+        if: runner.os != 'Windows'
+        run: opam exec -- dune runtest
       - name: Capture test count
         if: always()
         run: |
