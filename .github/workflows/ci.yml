@@ -71,10 +71,34 @@ jobs:
             for lib in libz.a libz.dll.a libgmp.a libgmp.dll.a libsqlite3.a libsqlite3.dll.a; do
               cp "/cygdrive/c/msys64/mingw64/lib/$lib" "$OCAML_STUBLIBS/" 2>/dev/null || true
             done
-            # Also copy DLLs to PATH so runtime linking works
             for dll in zlib1.dll libgmp-10.dll sqlite3.dll; do
-              cp "/cygdrive/c/msys64/mingw64/bin/$dll" "$(ocamlc -where)/stublibs/" 2>/dev/null || true
+              cp "/cygdrive/c/msys64/mingw64/bin/$dll" "$OCAML_STUBLIBS/" 2>/dev/null || true
             done
+            # Wrap ocamlmklib to translate bare -lX flags into -cclib -lX.
+            # OCaml's ocamlmklib on MinGW interprets -lz as a literal filename
+            # instead of a linker flag, causing "Cannot find file -lz" errors
+            # in camlzip and other C-binding packages.
+            OB="$(opam var bin)"
+            if [ -f "$OB/ocamlmklib" ] && [ ! -f "$OB/ocamlmklib.real" ]; then
+              mv "$OB/ocamlmklib" "$OB/ocamlmklib.real"
+              cat > "$OB/ocamlmklib" << 'WRAPPER'
+#!/bin/bash
+args=()
+prev=""
+for arg in "$@"; do
+  if [ "$prev" = "-cclib" ]; then
+    args+=("$arg")
+  elif [[ "$arg" == -l* ]]; then
+    args+=("-cclib" "$arg")
+  else
+    args+=("$arg")
+  fi
+  prev="$arg"
+done
+exec "$(dirname "$0")/ocamlmklib.real" "${args[@]}"
+WRAPPER
+              chmod +x "$OB/ocamlmklib"
+            fi
             opam install . --deps-only --no-depexts
           else
             opam install . --deps-only --with-test --no-depexts
