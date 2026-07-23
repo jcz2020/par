@@ -85,6 +85,7 @@ jobs:
                 cp /cygdrive/c/msys64/mingw64/lib/libz.a "$CAMLZIP_DIR/" 2>/dev/null || true
                 cp /cygdrive/c/msys64/mingw64/lib/libz.dll.a "$CAMLZIP_DIR/" 2>/dev/null || true
                 (cd "$CAMLZIP_DIR" && make all && make install)
+                opam install camlzip --fake --no-depexts -y
               fi
             }
             opam install . --deps-only --no-depexts
