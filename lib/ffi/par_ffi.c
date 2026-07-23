@@ -22,6 +22,31 @@
 #include <errno.h>
 #endif
 
+#ifdef _WIN32
+/* eio_windows C stubs: the eio_windows opam package's C stubs are not
+   properly linked on MinGW Cygwin (the .o file is missing from the
+   installation). Provide implementations here so the final DLL link
+   succeeds. Uses synchronous ReadFile/WriteFile (not overlapped I/O). */
+CAMLprim value eio_windows_cstruct_read(value v_fd, value v_ba, value v_ofs, value v_len) {
+    CAMLparam4(v_fd, v_ba, v_ofs, v_len);
+    HANDLE h = (HANDLE)(intptr_t)Long_val(v_fd);
+    char *data = (char *)Caml_ba_data_val(v_ba) + Long_val(v_ofs);
+    DWORD n = 0;
+    BOOL ok = ReadFile(h, data, (DWORD)Long_val(v_len), &n, NULL);
+    if (!ok) { CAMLreturn(Val_long(-1)); }
+    CAMLreturn(Val_long(n));
+}
+CAMLprim value eio_windows_cstruct_write(value v_fd, value v_ba, value v_ofs, value v_len) {
+    CAMLparam4(v_fd, v_ba, v_ofs, v_len);
+    HANDLE h = (HANDLE)(intptr_t)Long_val(v_fd);
+    char *data = (char *)Caml_ba_data_val(v_ba) + Long_val(v_ofs);
+    DWORD n = 0;
+    BOOL ok = WriteFile(h, data, (DWORD)Long_val(v_len), &n, NULL);
+    if (!ok) { CAMLreturn(Val_long(-1)); }
+    CAMLreturn(Val_long(n));
+}
+#endif
+
 /* ---- Portable mutex abstraction ---- */
 #ifdef _WIN32
 typedef SRWLOCK par_mutex_t;
