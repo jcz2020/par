@@ -82,7 +82,9 @@ jobs:
             opam install camlzip --no-depexts --keep-build-dir -y 2>/dev/null || {
               CAMLZIP_DIR=$(find "$(opam var prefix)/.opam-switch/build" -maxdepth 1 -name "camlzip*" -type d 2>/dev/null | head -1)
               if [ -n "$CAMLZIP_DIR" ] && [ -f "$CAMLZIP_DIR/Makefile" ]; then
-                (cd "$CAMLZIP_DIR" && make all ZLIB_LIBS="-cclib -lz" && make install ZLIB_LIBS="-cclib -lz")
+                cp /cygdrive/c/msys64/mingw64/lib/libz.a "$CAMLZIP_DIR/" 2>/dev/null || true
+                cp /cygdrive/c/msys64/mingw64/lib/libz.dll.a "$CAMLZIP_DIR/" 2>/dev/null || true
+                (cd "$CAMLZIP_DIR" && make all && make install)
               fi
             }
             opam install . --deps-only --no-depexts
