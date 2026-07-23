@@ -90,7 +90,8 @@ let test_embed_deterministic () =
         (match Runtime.embed rt ["same"; "same"] with
          | Ok [v1; v2] ->
             Alcotest.(check bool) "deterministic: same input → same output"
-              true (Float.Array.equal v1 v2)
+              true (Array.length v1 = Array.length v2
+                    && Array.fold_left2 (fun a b acc -> acc && Float.equal a b) v1 v2 true)
          | _ -> Alcotest.fail "embed returned unexpected shape");
         ignore (Runtime.close rt)))
 
