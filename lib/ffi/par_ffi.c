@@ -10,6 +10,7 @@
 #include <caml/callback.h>
 #include <caml/alloc.h>
 #include <caml/memory.h>
+#include <caml/bigarray.h>
 #include <caml/threads.h>
 #include <stdlib.h>
 #include <string.h>
