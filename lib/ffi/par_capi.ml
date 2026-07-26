@@ -1289,35 +1289,40 @@ let vec_extension_path () : string =
   match !vec_extension_override with
   | Some p -> p
   | None ->
-    let so_name =
-      if Sys.os_type = "Unix"
-      then (match Sys.getenv_opt "PAR_OS" with
-            | Some "macos" | Some "darwin" -> "vec0.dylib"
-            | _ -> "vec0.so")
-      else if Sys.os_type = "Win32"
-      then "vec0.dll"
-      else failwith "vec_extension_path: unsupported Sys.os_type"
-    in
-    let exe_dir = Filename.dirname Sys.executable_name in
-    let cwd = Sys.getcwd () in
-    let candidates = [
-      Filename.concat exe_dir so_name;
-      Filename.concat exe_dir "vec0.so";
-      Filename.concat exe_dir "vec0.dylib";
-      Filename.concat exe_dir "vec0.dll";
-      Filename.concat "/usr/local/lib/par" so_name;
-      Filename.concat "/usr/local/share/par" so_name;
-      Filename.concat cwd ("vendor/sqlite-vec/linux-x86_64/" ^ so_name);
-      Filename.concat cwd ("vendor/sqlite-vec/macos-aarch64/" ^ so_name);
-      Filename.concat cwd ("vendor/sqlite-vec/windows-x86_64/" ^ so_name);
-    ] in
-    match List.find_opt Sys.file_exists candidates with
-    | Some p -> p
-    | None ->
-      failwith ("vec_extension_path: cannot find " ^ so_name ^ " in any known location. \
-                Tried: par_capi's directory, /usr/local/lib/par/, /usr/local/share/par/, \
-                and ./vendor/sqlite-vec/<platform>/. \
-                Call par_set_vec_extension_path() to set an absolute path.")
+    (match Sys.getenv_opt "PAR_VEC_EXTENSION_PATH" with
+     | Some p when Sys.file_exists p -> p
+     | _ ->
+       let so_name =
+         if Sys.os_type = "Unix"
+         then (match Sys.getenv_opt "PAR_OS" with
+               | Some "macos" | Some "darwin" -> "vec0.dylib"
+               | _ -> "vec0.so")
+         else if Sys.os_type = "Win32"
+         then "vec0.dll"
+         else failwith "vec_extension_path: unsupported Sys.os_type"
+       in
+       let exe_dir = Filename.dirname Sys.executable_name in
+       let cwd = Sys.getcwd () in
+       let candidates = [
+         Filename.concat exe_dir so_name;
+         Filename.concat exe_dir "vec0.so";
+         Filename.concat exe_dir "vec0.dylib";
+         Filename.concat exe_dir "vec0.dll";
+         Filename.concat "/usr/local/lib/par" so_name;
+         Filename.concat "/usr/local/share/par" so_name;
+         Filename.concat cwd ("vendor/sqlite-vec/linux-x86_64/" ^ so_name);
+         Filename.concat cwd ("vendor/sqlite-vec/macos-aarch64/" ^ so_name);
+         Filename.concat cwd ("vendor/sqlite-vec/windows-x86_64/" ^ so_name);
+         Filename.concat cwd ("../vendor/sqlite-vec/linux-x86_64/" ^ so_name);
+         Filename.concat cwd ("../../vendor/sqlite-vec/linux-x86_64/" ^ so_name);
+       ] in
+       (match List.find_opt Sys.file_exists candidates with
+        | Some p -> p
+        | None ->
+          failwith ("vec_extension_path: cannot find " ^ so_name ^ " in any known location. \
+                    Tried: par_capi's directory, /usr/local/lib/par/, /usr/local/share/par/, \
+                    and ./vendor/sqlite-vec/<platform>/. \
+                    Call par_set_vec_extension_path() to set an absolute path.")))
 
 let runtime_vector_stores : (int, Par.Vector_store.t) Hashtbl.t = Hashtbl.create 8
 

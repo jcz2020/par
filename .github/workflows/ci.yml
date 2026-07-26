@@ -95,6 +95,8 @@ jobs:
       - run: opam exec -- dune build
       - name: Run tests (skip on Windows — MinGW runtime startup is too slow for the full suite)
         if: runner.os != 'Windows'
+        env:
+          PAR_VEC_EXTENSION_PATH: ${{ runner.os == 'macOS' && format('{0}/vendor/sqlite-vec/macos-aarch64/vec0.dylib', github.workspace) || format('{0}/vendor/sqlite-vec/linux-x86_64/vec0.so', github.workspace) }}
         run: opam exec -- dune runtest
       - name: Capture test count
         if: always()

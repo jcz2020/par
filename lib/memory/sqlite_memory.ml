@@ -24,6 +24,12 @@ let check_fts5 db =
   | Error _ -> Error (FTS5_unavailable "this SQLite build lacks FTS5 support")
 
 let resolve_vec_extension_path () =
+  (match Sys.getenv_opt "PAR_VEC_EXTENSION_PATH" with
+   | Some p when Sys.file_exists p -> Some p
+   | _ -> None)
+  |> function
+  | Some p -> Some p
+  | None ->
   let so_name =
     if Sys.os_type = "Win32" then "vec0.dll"
     else if Sys.file_exists "/System/Library" then "vec0.dylib"
@@ -42,6 +48,9 @@ let resolve_vec_extension_path () =
     Filename.concat cwd ("../vendor/sqlite-vec/linux-x86_64/" ^ so_name);
     Filename.concat cwd ("../vendor/sqlite-vec/macos-aarch64/" ^ so_name);
     Filename.concat cwd ("../vendor/sqlite-vec/windows-x86_64/" ^ so_name);
+    Filename.concat cwd ("../../vendor/sqlite-vec/linux-x86_64/" ^ so_name);
+    Filename.concat cwd ("../../vendor/sqlite-vec/macos-aarch64/" ^ so_name);
+    Filename.concat cwd ("../../vendor/sqlite-vec/windows-x86_64/" ^ so_name);
   ] in
   List.find_opt Sys.file_exists candidates
 
