@@ -20,9 +20,6 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from par_runtime import Runtime
 from par_runtime._ffi import _lib
 
-@unittest.skipUnless(os.environ.get("PAR_RUN_FLAKY_TESTS"), "v0.7.10: timing-sensitive cancel tests, skip on CI")
-class TestCancelStream(unittest.TestCase):
-
 
 def _free_port():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -67,6 +64,7 @@ def _config(base_url):
     })
 
 
+@unittest.skipUnless(os.environ.get("PAR_RUN_FLAKY_TESTS"), "v0.7.10: timing-sensitive cancel tests, skip on CI")
 class TestCancelStream(unittest.TestCase):
     def setUp(self):
         _lib.par_set_request_timeout(10.0)
