@@ -1,6 +1,26 @@
 open Types
 
 (* -------------------------------------------------------------------------- *)
+(* HITL approval pending — Wave 2 stub.
+   Raised by [execute_approval] when an async handler ([Async_callback] /
+   [Webhook]) is configured and the engine cannot resolve the approval
+   synchronously inside the ReAct loop. Wave 3 C3.1 will add the
+   try/with wrapper at the [run_agent] boundary to catch this exception,
+   persist [conv_snapshot] + [pending_payload] for resumption, and expose
+   [Runtime.resume_approval]. No caller exercises this path in Wave 2. *)
+(* -------------------------------------------------------------------------- *)
+
+exception Approval_pending of {
+  run_id : string;
+  agent_id : string;
+  tool_name : string;
+  tool_input : Yojson.Safe.t;
+  conv_snapshot : conversation;
+  pending_payload : Yojson.Safe.t;
+  expires_at : float;
+}
+
+(* -------------------------------------------------------------------------- *)
 (* Middleware chain — Russian Doll composition                           *)
 (* -------------------------------------------------------------------------- *)
 
@@ -898,11 +918,16 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
             else
               List.map invoke_one calls
           in
-          let (non_handoff, handoffs) =
-            List.partition (fun (_, r) ->
-              match r with Handoff _ -> false | _ -> true) results in
+          let (non_special, handoffs, approvals) =
+            List.fold_right
+              (fun (call, r) (ns, hf, ap) ->
+                 match r with
+                 | Handoff _ -> (ns, (call, r) :: hf, ap)
+                 | Approval_required _ -> (ns, hf, (call, r) :: ap)
+                 | _ -> ((call, r) :: ns, hf, ap))
+              results ([], [], []) in
           let conv = List.fold_left (fun conv (c, r) ->
-            add_tool_result_message conv c r) conv non_handoff in
+            add_tool_result_message conv c r) conv non_special in
           let conv = drain_into_conv conv steering in
           let execute_handoff (call : tool_call) target_agent_id carry_context task =
             let resolver = match agent_resolver with
@@ -960,15 +985,131 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                     Result.Error (Invalid_input
                       "Handoff with carry_context=false requires a task", conv)))
           in
+          let execute_approval (call : tool_call) (ar : handler_result) =
+            let fire evt = match on_tool_event with
+              | Some pub -> pub evt
+              | None -> ()
+            in
+            match ar with
+            | Approval_required
+              { tool_name; tool_input; prompt; timeout; allowed_roles } ->
+              (* SECURITY: agent returned Approval_required but no handler
+                 configured. Never execute the tool — abort with Internal
+                 error so the failure is visible to the caller. *)
+              (match agent.approval_handler with
+               | None ->
+                 fire (Approval_handler_missing {
+                   agent_id = agent.id;
+                   tool_name;
+                 });
+                 Result.Error (Internal (Printf.sprintf
+                   "Approval_handler_missing for agent %s on tool %s"
+                   agent.id tool_name), conv)
+               | Some handler ->
+                 let ctx : approval_context = {
+                   agent_id = agent.id;
+                   tool_name;
+                   tool_input;
+                   conversation = conv;
+                   pending_action = `Assoc [
+                     ("tool_call_id", `String call.id);
+                     ("tool_name", `String call.name);
+                     ("tool_input", tool_input);
+                     ("prompt", `String prompt);
+                   ];
+                   metadata = [];
+                 } in
+                 (match handler with
+                  | Sync_local f ->
+                    let approver = "sync_local" in
+                    (match f ctx with
+                     | Approved ->
+                       fire (Approval_granted { approver });
+                       let synth = Success (`Assoc [
+                         ("status", `String "approved");
+                         ("message", `String (Printf.sprintf
+                           "approval granted for %s" tool_name));
+                       ]) in
+                       let conv = add_tool_result_message conv call synth in
+                       loop ~agent ~global_max conv (iterations + 1)
+                     | Rejected { reason } ->
+                       fire (Approval_rejected { reason; approver });
+                       let synth = (Error {
+                         category = Permission_denied "approval rejected";
+                         message = reason;
+                         retryable = false;
+                         metadata = [];
+                       } : handler_result) in
+                       let conv = add_tool_result_message conv call synth in
+                       loop ~agent ~global_max conv (iterations + 1)
+                     | Modified { new_input } ->
+                       fire (Approval_modified { new_input; approver });
+                       let modified_call = { call with arguments = new_input } in
+                       let (_, result) = invoke_one modified_call in
+                       let conv = add_tool_result_message conv modified_call result in
+                       loop ~agent ~global_max conv (iterations + 1)
+                     | Escalated { target } ->
+                       fire (Approval_escalated { target; approver });
+                       execute_handoff call target true None
+                     | Timeout ->
+                       fire Approval_timeout;
+                       let synth = (Error {
+                         category = (Timeout : error_category);
+                         message = "approval timed out";
+                         retryable = false;
+                         metadata = [];
+                       } : handler_result) in
+                       let conv = add_tool_result_message conv call synth in
+                       loop ~agent ~global_max conv (iterations + 1))
+                  | Async_callback _ | Webhook _ ->
+                    let pending_payload = `Assoc [
+                      ("tool_call_id", `String call.id);
+                      ("tool_name", `String tool_name);
+                      ("tool_input", tool_input);
+                      ("prompt", `String prompt);
+                      ("allowed_roles",
+                       `List (List.map (fun r -> `String r) allowed_roles));
+                    ] in
+                    let timeout_secs = Option.value timeout
+                      ~default:Approval.default_timeout in
+                    let expires_at = Unix.gettimeofday () +. timeout_secs in
+                    raise (Approval_pending {
+                      run_id = runtime_id;
+                      agent_id = agent.id;
+                      tool_name;
+                      tool_input;
+                      conv_snapshot = conv;
+                      pending_payload;
+                      expires_at;
+                    })))
+            | _ ->
+              Result.Error (Internal
+                "execute_approval: non-Approval_required input", conv)
+          in
           (match handoffs with
            | [] ->
-             loop ~agent ~global_max conv (iterations + 1)
+             (match approvals with
+              | [] ->
+                loop ~agent ~global_max conv (iterations + 1)
+              | [(call, (Approval_required _ as ar))] ->
+                execute_approval call ar
+              | [_] ->
+                Result.Error (Internal
+                  "Non-Approval_required result in approvals partition", conv)
+              | _ ->
+                Result.Error (Invalid_input
+                  "Multiple approvals in one tool batch not supported in v0.8.0", conv))
            | [(call, Handoff { target_agent_id; carry_context; task })] ->
              if not enable_handoff then
                Result.Error (Invalid_input
                  "Tool returned Handoff but enable_handoff=false", conv)
              else
-               execute_handoff call target_agent_id carry_context task
+               (match approvals with
+               | [] ->
+                 execute_handoff call target_agent_id carry_context task
+               | _ ->
+                 Result.Error (Invalid_input
+                   "Cannot mix Handoff and Approval_required in same batch", conv))
            | [_] ->
              Result.Error (Internal
                "Non-Handoff result in handoffs partition", conv)
