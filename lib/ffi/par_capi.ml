@@ -1268,6 +1268,162 @@ let do_follow_up (state_id : int) (message : string) : int =
     (Obj.obj result : int)
 
 (* -------------------------------------------------------------------------- *)
+(* HITL approval + invoke_parallel (v0.8.0)                                   *)
+(* -------------------------------------------------------------------------- *)
+
+(* Per-runtime global approval handler. When set, agents that were registered
+   without an approval_handler get this one injected at invoke time.
+   Keyed by state_id. *)
+let global_approval_handlers :
+  (int, Par.Types.approval_context Par.Approval.approval_handler) Hashtbl.t =
+  Hashtbl.create 8
+
+let do_register_approval_handler (state_id : int) (config_json : string) =
+  match get_state state_id with
+  | None -> Obj.repr (-1)
+  | Some _ ->
+    dispatch state_id (fun rt _env ->
+      (try
+         let json = Yojson.Safe.from_string config_json in
+         let open Yojson.Safe.Util in
+         let mode = json |> member "mode" |> to_string in
+         let handler : Par.Types.approval_context Par.Approval.approval_handler =
+           match mode with
+           | "sync_callback" ->
+             let handler_id = json |> member "handler_id" |> to_int in
+             Par.Approval.Sync_local (fun (ctx : Par.Types.approval_context) ->
+               (* Serialize approval_context to JSON for the Python callback.
+                  We skip conversation (too large) — the callback receives
+                  the actionable fields only. *)
+               let ctx_json = `Assoc [
+                 ("agent_id", `String ctx.Par.Types.agent_id);
+                 ("tool_name", `String ctx.Par.Types.tool_name);
+                 ("tool_input", ctx.Par.Types.tool_input);
+                 ("pending_action", ctx.Par.Types.pending_action);
+                 ("metadata", `Assoc ctx.Par.Types.metadata);
+               ] in
+               let ctx_str = Yojson.Safe.to_string ctx_json in
+               let result_str = c_invoke_python_handler handler_id ctx_str in
+               if String.length result_str = 0 then
+                 Par.Approval.Timeout
+               else
+                 (match Par.Approval.outcome_of_json
+                         (Yojson.Safe.from_string result_str) with
+                  | Ok outcome -> outcome
+                  | Error _ -> Par.Approval.Timeout))
+           | "webhook" ->
+             let url = json |> member "url" |> to_string in
+             let secret = json |> member "secret" |> to_string_option
+                           |> Option.value ~default:"" in
+             let timeout_sec = json |> member "timeout_sec" |> to_float_option
+                               |> Option.value ~default:300.0 in
+             Par.Approval.Webhook { url; secret; timeout_sec }
+           | other ->
+             failwith (Printf.sprintf
+               "Unknown approval handler mode: %s (expected sync_callback|webhook)" other)
+         in
+         Hashtbl.replace global_approval_handlers state_id handler;
+         (* Patch existing agents that have no approval_handler *)
+         let agents = Par.Runtime.list_agents rt in
+         List.iter (fun (agent : Par.Types.agent_config) ->
+           if agent.Par.Types.approval_handler = None then begin
+             let updated = { agent with Par.Types.approval_handler = Some handler } in
+             ignore (Par.Runtime.register_agent rt updated)
+           end
+         ) agents;
+         Obj.repr 0
+       with exc ->
+         fd_log ("[do_register_approval_handler] EXCEPTION: " ^
+                 Printexc.to_string exc);
+         Obj.repr (-1)))
+
+let do_resume_approval (state_id : int) (run_id : string)
+    (outcome_json : string) =
+  match get_state state_id with
+  | None -> Obj.repr (-1)
+  | Some _ ->
+    dispatch state_id (fun rt _env ->
+      (try
+         let outcome_yojson = Yojson.Safe.from_string outcome_json in
+         match Par.Approval.outcome_of_json outcome_yojson with
+         | Ok outcome ->
+           (match Par.Runtime.resume_approval
+                    ~rt ~run_id ~outcome ~approver:"python" with
+            | Ok () -> Obj.repr 0
+            | Error err ->
+              fd_log ("[do_resume_approval] resume_approval error: " ^
+                      Yojson.Safe.to_string
+                        (Par.Types.error_category_to_yojson err));
+              Obj.repr (-1))
+         | Error msg ->
+           fd_log ("[do_resume_approval] outcome parse error: " ^ msg);
+           Obj.repr (-2)
+       with exc ->
+         fd_log ("[do_resume_approval] EXCEPTION: " ^
+                 Printexc.to_string exc);
+         Obj.repr (-1)))
+
+let do_invoke_parallel (state_id : int) (specs_json : string) =
+  match get_state state_id with
+  | None -> None
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      (try
+         let json = Yojson.Safe.from_string specs_json in
+         let open Yojson.Safe.Util in
+         let specs_list = json |> member "specs" |> to_list in
+         let parallel_limit = json |> member "parallel_limit" |> to_int_option
+                              |> Option.value ~default:4 in
+         let failure_policy_str = json |> member "failure_policy"
+                                  |> to_string_option in
+         let failure_policy = match failure_policy_str with
+           | Some "Fail_fast" -> Par.Types.Fail_fast
+           | Some "Continue_on_failure" -> Par.Types.Continue_on_failure
+           | _ -> Par.Types.Fail_fast
+         in
+         let specs = List.map (fun item ->
+           let agent_id = item |> member "agent_id" |> to_string in
+           let input = item |> member "input" |> to_string_option in
+           let blocking_approval =
+             item |> member "blocking_approval" |> to_bool_option
+             |> Option.value ~default:false in
+           { Par.Runtime.agent_id; input; workspace = None;
+             approval_handler = None; blocking_approval }
+         ) specs_list in
+         match Par.Runtime.invoke_parallel
+                 ~rt ~specs ~parallel_limit ~failure_policy () with
+         | Ok par_result ->
+           let successes_json = List.map
+             (fun (spec, result_json) ->
+                `Assoc [
+                  ("agent_id", `String spec.Par.Runtime.agent_id);
+                  ("result", result_json);
+                ])
+             par_result.Par.Runtime.successes in
+           let failures_json = List.map
+             (fun (spec, err) ->
+                `Assoc [
+                  ("agent_id", `String spec.Par.Runtime.agent_id);
+                  ("error", Par.Types.error_category_to_yojson err);
+                ])
+             par_result.Par.Runtime.failures in
+           let merged_json =
+             Option.value ~default:`Null par_result.Par.Runtime.merged in
+           let response = `Assoc [
+             ("status", `String "ok");
+             ("successes", `List successes_json);
+             ("failures", `List failures_json);
+             ("merged", merged_json);
+           ] in
+           Obj.repr (Some (Yojson.Safe.to_string response))
+         | Error err ->
+           Obj.repr (Some (error_json
+             (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err))))
+       with exc ->
+         Obj.repr (Some (error_json (Printexc.to_string exc))))) in
+    (Obj.obj result : string option)
+
+(* -------------------------------------------------------------------------- *)
 (* Vector store lifecycle (lazy per-runtime)                                  *)
 (* -------------------------------------------------------------------------- *)
 
@@ -1849,3 +2005,21 @@ let () =
       let state_id : int = Obj.magic state_id_obj in
       let loaders_opt = if String.length loaders_json = 0 then None else Some loaders_json in
       do_load_directory state_id dir_path loaders_opt)
+
+let () =
+  Callback.register "par_register_approval_handler"
+    (fun (state_id_obj : Obj.t) (config_json : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_register_approval_handler state_id config_json)
+
+let () =
+  Callback.register "par_resume_approval"
+    (fun (state_id_obj : Obj.t) (run_id : string) (outcome_json : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_resume_approval state_id run_id outcome_json)
+
+let () =
+  Callback.register "par_invoke_parallel"
+    (fun (state_id_obj : Obj.t) (specs_json : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      unwrap (do_invoke_parallel state_id specs_json))

@@ -271,6 +271,22 @@ _lib.par_set_request_timeout.restype = ctypes.c_int
 _lib.par_set_vec_extension_path.argtypes = [ctypes.c_char_p]
 _lib.par_set_vec_extension_path.restype = ctypes.c_int
 
+# HITL approval (v0.8.0)
+# int par_register_approval_handler(par_runtime_t* rt, const char* config_json);
+_lib.par_register_approval_handler.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_register_approval_handler.restype = ctypes.c_int
+
+# int par_resume_approval(par_runtime_t* rt, const char* run_id,
+#                         const char* outcome_json);
+_lib.par_resume_approval.argtypes = [
+    ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p
+]
+_lib.par_resume_approval.restype = ctypes.c_int
+
+# char* par_invoke_parallel(par_runtime_t* rt, const char* specs_json);
+_lib.par_invoke_parallel.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_invoke_parallel.restype = ctypes.c_void_p
+
 # --- Helper: libc free() for strings returned by C ---
 if sys.platform == "darwin":
     _libc = ctypes.CDLL("libc.dylib")

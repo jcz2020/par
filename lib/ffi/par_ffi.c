@@ -963,3 +963,45 @@ int par_set_vec_extension_path(const char* path) {
     PAR_MUTEX_UNLOCK(ocaml_lock);
     CAMLreturnT(int, rc);
 }
+
+int par_register_approval_handler(par_runtime_t* rt, const char* config_json) {
+    CAMLparam0();
+    CAMLlocal1(c_config);
+    c_config = caml_copy_string(config_json);
+
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value result = call2_exn("par_register_approval_handler",
+                             rt->_ocaml_value, c_config);
+    int is_exc = Is_exception_result(result);
+    int rc = is_exc ? -1 : Int_val(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLreturnT(int, rc);
+}
+
+int par_resume_approval(par_runtime_t* rt, const char* run_id,
+                        const char* outcome_json) {
+    CAMLparam0();
+    CAMLlocal2(c_rid, c_outcome);
+    c_rid = caml_copy_string(run_id);
+    c_outcome = caml_copy_string(outcome_json);
+
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value result = call3_exn("par_resume_approval", rt->_ocaml_value,
+                             c_rid, c_outcome);
+    int is_exc = Is_exception_result(result);
+    int rc = is_exc ? -1 : Int_val(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLreturnT(int, rc);
+}
+
+char* par_invoke_parallel(par_runtime_t* rt, const char* specs_json) {
+    CAMLparam0();
+    CAMLlocal1(c_specs);
+    c_specs = caml_copy_string(specs_json);
+
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value result = call2_exn("par_invoke_parallel", rt->_ocaml_value, c_specs);
+    char* ret = extract_string(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLreturnT(char*, ret);
+}

@@ -153,6 +153,12 @@ int   par_set_vec_extension_path(const char* path);
 /* Cleanup */
 void par_result_free(par_result_t* result);
 
+/* HITL approval (v0.8.0) */
+int   par_register_approval_handler(par_runtime_t* rt, const char* config_json);
+int   par_resume_approval(par_runtime_t* rt, const char* run_id,
+                          const char* outcome_json);
+char* par_invoke_parallel(par_runtime_t* rt, const char* specs_json);
+
 #ifdef __cplusplus
 }
 #endif

@@ -751,6 +751,180 @@ class Runtime:
             pass
         raise PARInvokeError(f"Invoke_structured returned unexpected: {result}")
 
+    def register_approval_handler(
+        self,
+        handler: Union[Callable[[dict], Union[dict, str]], str],
+        *,
+        secret: str = "",
+        timeout: float = 300.0,
+    ) -> None:
+        """Register a global approval handler for HITL workflows.
+
+        Sets a default approval handler that applies to all agents that
+        do not have their own handler. Agents registered after this call
+        also inherit the handler.
+
+        Args:
+            handler: A callable ``(ctx: dict) -> dict|str`` for sync mode,
+                or a URL string for webhook mode.
+            secret: HMAC secret for webhook mode (ignored for sync).
+            timeout: Timeout in seconds for webhook mode (ignored for sync).
+
+        Raises:
+            TypeError: If handler is neither callable nor str.
+            PARError: If registration fails.
+
+        .. warning::
+            **Sync approval callbacks run inside the OCaml work_loop context.**
+            The callback **MUST NOT** call back into ``par_*`` functions
+            (``Runtime.invoke``, ``Runtime.resume_approval``, etc.) — doing
+            so will deadlock on ``ocaml_lock``. If the handler needs to
+            interact with PAR, route through an async queue (e.g.
+            ``queue.Queue``) consumed by a separate thread.
+        """
+        self._check_handle()
+        if callable(handler):
+            def _wrapper(_handler_id: int, context_json: bytes) -> bytes:
+                try:
+                    ctx = json.loads(context_json.decode("utf-8"))
+                    result = handler(ctx)
+                    if isinstance(result, str):
+                        return result.encode("utf-8")
+                    return json.dumps(result).encode("utf-8")
+                except Exception as e:
+                    return json.dumps(
+                        {"tag": "Rejected", "reason": str(e)}
+                    ).encode("utf-8")
+
+            c_callback = _PYTHON_TOOL_CALLBACK(_wrapper)
+            handler_id = next(Runtime._callback_counter)
+            Runtime._callbacks[handler_id] = c_callback
+            _lib.par_store_python_handler(handler_id, c_callback)
+            self._callback_ids.add(handler_id)
+            config = json.dumps(
+                {"mode": "sync_callback", "handler_id": handler_id})
+        elif isinstance(handler, str):
+            config = json.dumps({
+                "mode": "webhook",
+                "url": handler,
+                "secret": secret,
+                "timeout_sec": timeout,
+            })
+        else:
+            raise TypeError(
+                "handler must be a callable or URL string, "
+                f"got {type(handler).__name__}")
+
+        rc = _lib.par_register_approval_handler(
+            self._handle, _c_str(config))
+        if rc != 0:
+            raise PARError(
+                f"register_approval_handler failed (code {rc})")
+
+    def resume_approval(
+        self,
+        run_id: str,
+        outcome: Union[dict, str],
+        *,
+        approver: str = "python",
+    ) -> None:
+        """Resume a previously suspended HITL approval.
+
+        Args:
+            run_id: The ``run_id`` from ``invoke_result.approval_pending``.
+            outcome: A dict like ``{"tag": "Approved"}`` or a convenience
+                string: ``"approved"``, ``"rejected"``, ``"timeout"``,
+                ``"modified"``, ``"escalated"``.
+            approver: Identity of the approver (currently unused in FFI,
+                always ``"python"``).
+
+        Raises:
+            ValueError: If outcome string is not recognized.
+            TypeError: If outcome is neither dict nor str.
+            PARError: If the resume fails (e.g. run_id not found or expired).
+        """
+        self._check_handle()
+        if isinstance(outcome, str):
+            tag = outcome.lower()
+            if tag == "approved":
+                outcome_json = '"Approved"'
+            elif tag == "rejected":
+                outcome_json = json.dumps(
+                    {"tag": "Rejected",
+                     "reason": f"Rejected by {approver}"})
+            elif tag == "timeout":
+                outcome_json = '"Timeout"'
+            elif tag == "modified":
+                outcome_json = json.dumps(
+                    {"tag": "Modified", "new_input": {}})
+            elif tag == "escalated":
+                outcome_json = json.dumps(
+                    {"tag": "Escalated", "target": approver})
+            else:
+                raise ValueError(
+                    f"Unknown outcome string: {outcome!r}. "
+                    "Expected: approved|rejected|timeout|modified|escalated")
+        elif isinstance(outcome, dict):
+            outcome_json = json.dumps(outcome)
+        else:
+            raise TypeError(
+                f"outcome must be a dict or str, got {type(outcome).__name__}")
+
+        rc = _lib.par_resume_approval(
+            self._handle, _c_str(run_id), _c_str(outcome_json))
+        if rc == -2:
+            raise PARError(
+                f"resume_approval: invalid outcome JSON for run_id={run_id}")
+        if rc != 0:
+            raise PARError(
+                f"resume_approval failed for run_id={run_id} (code {rc})")
+
+    def invoke_parallel(
+        self,
+        specs: list[dict],
+        *,
+        parallel_limit: int = 4,
+        failure_policy: Optional[str] = None,
+    ) -> dict:
+        """Invoke multiple agents in parallel and collect results.
+
+        Args:
+            specs: List of agent dispatch specs, each a dict with:
+                - ``agent_id`` (str, required)
+                - ``input`` (str, optional)
+                - ``blocking_approval`` (bool, optional, default false)
+            parallel_limit: Max concurrent agents (default 4).
+            failure_policy: ``"Fail_fast"`` or ``"Continue_on_failure"``.
+                Default ``"Fail_fast"``.
+
+        Returns:
+            Dict with keys:
+                - ``successes``: list of ``{"agent_id": ..., "result": ...}``
+                - ``failures``: list of ``{"agent_id": ..., "error": ...}``
+                - ``merged``: merged result (or null)
+
+        Raises:
+            PARError: If invocation fails.
+        """
+        self._check_handle()
+        payload = {
+            "specs": specs,
+            "parallel_limit": parallel_limit,
+            "failure_policy": failure_policy or "Fail_fast",
+        }
+        result_ptr = _lib.par_invoke_parallel(
+            self._handle, _c_str(json.dumps(payload)))
+        result = _py_str(result_ptr)
+        if not result:
+            raise PARError("invoke_parallel returned empty result")
+        try:
+            parsed = json.loads(result)
+            if isinstance(parsed, dict) and "error" in parsed:
+                raise PARError(parsed["error"])
+            return parsed
+        except json.JSONDecodeError as e:
+            raise PARError(f"invoke_parallel returned invalid JSON: {e}")
+
     def submit_workflow(self, workflow_json: str) -> str:
         """Submit a workflow for execution.
 
