@@ -242,6 +242,7 @@ let workflow_engine_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        on_approval_pending = None;
         } in
         let steps : workflow_step = Sequential [
           Tool_call { tool_name = "my_tool"; input = `Assoc [] };
@@ -276,6 +277,7 @@ let workflow_engine_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        on_approval_pending = None;
         } in
         let step : workflow_step = Conditional {
           condition = Greater_than (Variable "x", Literal (`Int 5));
@@ -312,6 +314,7 @@ let workflow_engine_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        on_approval_pending = None;
         } in
         let step : workflow_step = Conditional {
           condition = Greater_than (Variable "x", Literal (`Int 5));
@@ -353,6 +356,7 @@ let workflow_engine_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        on_approval_pending = None;
         } in
         let step : workflow_step = Map_reduce {
           over = "items";
@@ -384,6 +388,7 @@ let workflow_engine_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        on_approval_pending = None;
         } in
         let step : workflow_step =
           Agent_call { agent_id = "nonexistent"; prompt_template = "hi"; response_schema = None }
@@ -422,6 +427,7 @@ let workflow_persistence_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        on_approval_pending = None;
         } in
         let step = Human_approval {
           prompt_template = "Approve this action?";
@@ -465,6 +471,7 @@ let workflow_persistence_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        on_approval_pending = None;
         } in
         let step = Human_approval {
           prompt_template = "Approve?";
@@ -515,6 +522,7 @@ let workflow_persistence_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        on_approval_pending = None;
         } in
         let step = Sub_workflow {
           workflow_id = "child-wf";
@@ -554,6 +562,7 @@ let workflow_persistence_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        on_approval_pending = None;
         } in
         let step = Sub_workflow {
           workflow_id = "nonexistent";
@@ -594,6 +603,7 @@ let workflow_persistence_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        on_approval_pending = None;
         } in
         let step : Types.workflow_step = Sequential [
           Tool_call { tool_name = "test_tool"; input = `Assoc [] };

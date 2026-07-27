@@ -32,6 +32,20 @@ end
 (* Workflow engine — execution context                                  *)
 (* -------------------------------------------------------------------------- *)
 
+(* C3.3: Payload delivered to [on_approval_pending] when a Parallel branch
+   suspends for async/webhook approval. Mirrors the fields of
+   [Engine.Approval_pending] as a named record so the callback signature is
+   stable and does not leak Engine's exception type into [exec_context]. *)
+type approval_suspend_payload = {
+  run_id : string;
+  agent_id : string;
+  tool_name : string;
+  tool_input : Yojson.Safe.t;
+  conv_snapshot : conversation;
+  pending_payload : Yojson.Safe.t;
+  expires_at : float;
+}
+
 type exec_context = {
   variables : (string * Yojson.Safe.t) list;
   token : cancellation_token;
@@ -49,6 +63,8 @@ type exec_context = {
   workspace_overrides : (string * Workspace.workspace) list;
   approval_handler_overrides : (string * approval_context Approval.approval_handler) list;
   per_call_registry_fn : (Workspace.workspace -> Tool_registry.t) option;
+  on_approval_pending :
+    (approval_suspend_payload -> [`Block | `Continue]) option;
 }
 
 exception Workflow_suspended of {
@@ -293,6 +309,15 @@ and execute_sequential ?(path=[]) ?(start_idx=0) ctx steps =
 
 and execute_parallel ?(path=[]) ctx steps =
   let sem = Eio.Semaphore.make ctx.parallel_limit in
+  let suspended_marker ~run_id ~agent_id ~tool_name ~expires_at =
+    `Assoc [
+      ("status", `String "suspended");
+      ("agent_id", `String agent_id);
+      ("tool_name", `String tool_name);
+      ("run_id", `String run_id);
+      ("expires_at", `Float expires_at);
+    ]
+  in
   let promises = List.mapi (fun idx step ->
     let branch_ctx = match step with
       | Agent_call { agent_id; _ } ->
@@ -327,13 +352,53 @@ and execute_parallel ?(path=[]) ctx steps =
       Eio.Semaphore.acquire sem;
       Fun.protect
         ~finally:(fun () -> Eio.Semaphore.release sem)
-        (fun () -> execute_step ~path:(path @ [idx]) branch_ctx step)
+        (fun () ->
+          try execute_step ~path:(path @ [idx]) branch_ctx step
+          with Engine.Approval_pending pl ->
+            let data : approval_suspend_payload = {
+              run_id = pl.run_id;
+              agent_id = pl.agent_id;
+              tool_name = pl.tool_name;
+              tool_input = pl.tool_input;
+              conv_snapshot = pl.conv_snapshot;
+              pending_payload = pl.pending_payload;
+              expires_at = pl.expires_at;
+            } in
+            (match ctx.on_approval_pending with
+             | Some cb ->
+               (match cb data with
+                | `Block ->
+                  let checkpoint =
+                    make_checkpoint ~step_path:(path @ [idx]) branch_ctx in
+                  raise (Workflow_suspended {
+                    prompt =
+                      Printf.sprintf
+                        "Approval required for tool %s on agent %s (blocking parallel branch at %s)"
+                        data.tool_name data.agent_id
+                        (String.concat "."
+                           (List.map string_of_int (path @ [idx])));
+                    allowed_roles = [];
+                    checkpoint;
+                  })
+                | `Continue ->
+                  Ok (suspended_marker ~run_id:data.run_id
+                        ~agent_id:data.agent_id
+                        ~tool_name:data.tool_name
+                        ~expires_at:data.expires_at))
+             | None ->
+               Ok (suspended_marker ~run_id:data.run_id
+                     ~agent_id:data.agent_id
+                     ~tool_name:data.tool_name
+                     ~expires_at:data.expires_at)))
     )
   ) steps in
   let results = List.map (fun p ->
     match Eio.Promise.await p with
     | Ok r -> r
-    | Error ex -> Result.Error (Internal (Printexc.to_string ex))
+    | Error ex ->
+      (match ex with
+       | Workflow_suspended _ -> raise ex
+       | _ -> Result.Error (Internal (Printexc.to_string ex)))
   ) promises in
   let successes = List.filter_map (function Ok v -> Some v | Result.Error _ -> None) results in
   let has_error = List.exists (function Result.Error _ -> true | Ok _ -> false) results in

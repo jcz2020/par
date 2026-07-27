@@ -1397,6 +1397,40 @@ let find_tool_across_agents rt tool_name =
   );
   result.contents
 
+(* C3.3: Callback invoked by Workflow_engine.execute_parallel when a branch
+   agent raises [Engine.Approval_pending]. Persists the approval under a
+   fresh key (so concurrent suspensions don't collide) and emits an
+   [Approval_requested] event. Returns [[`Continue]] — workflow Parallel
+   steps are non-blocking by default; sibling branches finish while the
+   suspended branch records a marker result for [resume_approval]. *)
+let parallel_approval_cb rt (data : Workflow_engine.approval_suspend_payload) =
+  let persist_id = Session_id.to_string (Session_id.create ()) in
+  let stored_payload = `Assoc [
+    ("persist_id", `String persist_id);
+    ("runtime_run_id", `String data.run_id);
+    ("agent_id", `String data.agent_id);
+    ("tool_name", `String data.tool_name);
+    ("tool_input", data.tool_input);
+    ("conv_snapshot", Types.conversation_to_yojson data.conv_snapshot);
+    ("engine_pending_payload", data.pending_payload);
+    ("expires_at", `Float data.expires_at);
+    ("created_at", `Float (Unix.gettimeofday ()));
+  ] in
+  (match rt.services.persistence.save_pending_approval_fn
+     ~run_id:persist_id ~agent_id:data.agent_id
+     ~payload:stored_payload ~expires_at:data.expires_at with
+   | Ok () -> ()
+   | Error e ->
+     Logs.err (fun m -> m
+       "[workflow_parallel] save_pending_approval failed (agent=%s tool=%s): %s"
+       data.agent_id data.tool_name (string_of_error_category e)));
+  publish_event rt (Approval_requested {
+    prompt = Printf.sprintf "Approval required for tool %s on agent %s"
+               data.tool_name data.agent_id;
+    allowed_roles = [];
+  });
+  `Continue
+
 let submit_workflow rt ?workspace ?(inputs = []) wf =
   let effective_workspace = Option.value workspace ~default:rt.workspace in
   let call_registry = per_call_registry ~rt ~workspace:effective_workspace in
@@ -1421,12 +1455,13 @@ let submit_workflow rt ?workspace ?(inputs = []) wf =
                   failure_policy = wf.def.failure_policy;
                  workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
                  on_step_complete = None;
-                  workflow_run_id = Some id;
-                  workflow_id_resolver = (fun () -> Some wf.def.id);
-                   workspace = effective_workspace;
-                   workspace_overrides = [];
-                   approval_handler_overrides = [];
-                   per_call_registry_fn = None;
+    workflow_run_id = Some id;
+    workflow_id_resolver = (fun () -> Some wf.def.id);
+    workspace = effective_workspace;
+    workspace_overrides = [];
+    approval_handler_overrides = [];
+    per_call_registry_fn = None;
+    on_approval_pending = None;
                  }
     in
     (match rt.services.persistence.save_workflow_state_fn id Wf_running (Some cp) with
@@ -1450,6 +1485,7 @@ let submit_workflow rt ?workspace ?(inputs = []) wf =
     workspace_overrides = [];
     approval_handler_overrides = [];
     per_call_registry_fn = None;
+    on_approval_pending = Some (parallel_approval_cb rt);
   } in
   (match Workflow_engine.execute_workflow ctx wf with
    | Ok result ->
@@ -1526,6 +1562,7 @@ let submit_workflow_async rt ?workspace ?(inputs = []) wf =
     workspace_overrides = [];
     approval_handler_overrides = [];
     per_call_registry_fn = None;
+    on_approval_pending = None;
   } in
     (match rt.services.persistence.save_workflow_state_fn id Wf_running (Some cp) with
      | Ok () -> ()
@@ -1548,6 +1585,7 @@ let submit_workflow_async rt ?workspace ?(inputs = []) wf =
     workspace_overrides = [];
     approval_handler_overrides = [];
     per_call_registry_fn = None;
+    on_approval_pending = Some (parallel_approval_cb rt);
   } in
   ignore (Eio.Fiber.fork ~sw:rt.cancellation_root (fun () ->
     (try
@@ -1645,6 +1683,7 @@ let invoke_parallel ~rt ~specs ?(parallel_limit = 4)
       workspace_overrides = [];
       approval_handler_overrides = [];
       per_call_registry_fn = Some (fun ws -> per_call_registry ~rt ~workspace:ws);
+      on_approval_pending = None;
     } in
     let sem = Eio.Semaphore.make parallel_limit in
     let promises = List.map (fun (spec : agent_dispatch_spec) ->
@@ -1763,7 +1802,8 @@ let resume_workflow rt wf_id =
            workspace_overrides = [];
            approval_handler_overrides = [];
            per_call_registry_fn = None;
-         } in
+           on_approval_pending = None;
+          } in
         htbl_set rt.workflows wf_id Wf_running;
        (match rt.services.persistence.save_workflow_state_fn wf_id Wf_running None with
         | Ok () -> ()

@@ -17,6 +17,18 @@ end
 (* Workflow engine — execution context and entry points                 *)
 (* -------------------------------------------------------------------------- *)
 
+(* C3.3: Payload delivered to [on_approval_pending] when a Parallel branch
+   suspends for async/webhook approval. *)
+type approval_suspend_payload = {
+  run_id : string;
+  agent_id : string;
+  tool_name : string;
+  tool_input : Yojson.Safe.t;
+  conv_snapshot : conversation;
+  pending_payload : Yojson.Safe.t;
+  expires_at : float;
+}
+
 type exec_context = {
   variables : (string * Yojson.Safe.t) list;
   token : cancellation_token;
@@ -34,6 +46,16 @@ type exec_context = {
   workspace_overrides : (string * Workspace.workspace) list;
   approval_handler_overrides : (string * approval_context Approval.approval_handler) list;
   per_call_registry_fn : (Workspace.workspace -> Tool_registry.t) option;
+  (** [on_approval_pending], when set, is invoked by [execute_parallel] the
+      moment a branch's agent raises [Engine.Approval_pending]. The callback
+      owns persistence (saving to the [approvals] table) and event emission.
+      It returns [[`Block]] to park the entire Parallel node (re-raises
+      [Workflow_suspended]) or [[`Continue]] to let sibling branches finish
+      while the suspended branch records a marker result. [None] (tests /
+      no-persistence runtimes) means non-blocking with no persistence — the
+      caller must scan results for [("status", "suspended")] markers. *)
+  on_approval_pending :
+    (approval_suspend_payload -> [`Block | `Continue]) option;
 }
 
 exception Workflow_suspended of {
