@@ -56,6 +56,8 @@ The SDK is the canonical surface. Every page below is marked **PRIMARY** because
 |----------|-------------|
 | [SDK overview](sdk/overview.md) | **PRIMARY**: the SDK hub (architecture, five-minute tour, module map) |
 | [Agent API](sdk/agent.md) | **PRIMARY**: Agent config, Runtime API, tool registration, ReAct loop |
+| [HITL API](sdk/hitl.md) | **PRIMARY**: Human-in-the-Loop approval (suspend-resume, persistent, cross-process) |
+| [Parallel Dispatch](sdk/parallel.md) | **PRIMARY**: parallel multi-agent dispatch with typed merge |
 | [Workflow API](sdk/workflow.md) | **PRIMARY**: workflow JSON, 8 step types, checkpoints |
 | [Middleware API](sdk/middleware.md) | **PRIMARY**: 7 built-in middlewares and how to write your own |
 | [Tools API](sdk/tools.md) | **PRIMARY**: all 20 built-in tools including type-safe bash |

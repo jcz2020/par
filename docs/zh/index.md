@@ -36,6 +36,8 @@
 | [CLI 参考 *（v0.6.7 已移除）*](https://github.com/jcz2020/par-code) | 交互式编码 Agent 已迁移到独立的 par-code 项目 |
 | [SDK 概览](sdk/overview.md) | SDK 模块索引与文档导航 |
 | [Agent API](sdk/agent.md) | Agent 配置、Runtime API、工具注册 |
+| [HITL API](sdk/hitl.md) | 人在环路审批（挂起-恢复、持久化、跨进程） |
+| [并行分发](sdk/parallel.md) | 并行多 Agent 分发，类型化合并 |
 | [Workflow API](sdk/workflow.md) | 工作流定义、8 种 step 类型、检查点 |
 | [Middleware API](sdk/middleware.md) | 7 个内置中间件与自定义中间件编写 |
 | [Tools API](sdk/tools.md) | 20 个内置工具（含类型安全 bash） |

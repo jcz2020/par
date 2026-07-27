@@ -11,7 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **状态**: v0.7.10 — 流式架构重构 + Windows CI 变绿。1410+ tests passing。v1.0 前 API 可能变化。
+> **状态**: v0.8.0-beta — HITL 审批 + 并行多 Agent 分发。1480+ tests passing。v1.0 前 API 可能变化。
 
 ---
 
@@ -82,6 +82,8 @@ make install-dev   # 构建库 + 安装 .so + 同步 Python 版本
 
 - [快速入门](quickstart.md) — 30 分钟教程，构建第一个带工具调用的 agent
 - [Agent API](sdk/agent.md) — `agent_config`、`Runtime.invoke`、工具处理器
+- [HITL API](sdk/hitl.md) — 挂起-恢复审批、跨进程持久化
+- [并行分发](sdk/parallel.md) — 并行多 Agent 分发、类型化合并
 - [工作流 API](sdk/workflow.md) — 顺序、并行、条件、map-reduce
 - [中间件](sdk/middleware.md) — Logging、Retry、Rate_limit、Timeout、PII_mask 等
 - [工具](sdk/tools.md) — 23 个内置工具，包括类型安全的 bash
@@ -110,7 +112,9 @@ make install-dev   # 构建库 + 安装 .so + 同步 Python 版本
 - **Agent 记忆** — 跨会话 `Memory_service`（FTS5 关键字搜索）+ 3 个内置工具。通过 `invoke_context` 限定 session scope。像 `llm_service` 一样可插拔。
 - **动态 system prompt** — 通过 `invoke_context` 支持 per-turn `system_prompt_appendix`。在 template + skill overlay + tool suffix 之后追加。覆盖 invoke/generate/handoff 路径。
 - **弃用框架** — `warn_once` 辅助函数 + `Deprecated_api_called` 事件 + `[@@deprecated]` 注解 + 迁移指南。破坏性变更不再无声发生。
-- **1410+ OCaml 测试 + Python 绑定** 全部通过（包括任意工作目录的 RAG 端到端测试）
+- **HITL 审批**（同步 / 异步 / Webhook）— Agent 在执行过程中暂停等待人工审批，将状态持久化到 SQLite，外部解析后恢复。审批跨进程重启存活。
+- **并行多 Agent 分发** — `Runtime.invoke_parallel` 并发运行 N 个 Agent，支持类型化合并、每 Agent 工作空间隔离和每 Agent 审批处理器覆盖。
+- **1480+ OCaml 测试 + Python 绑定** 全部通过（包括任意工作目录的 RAG 端到端测试）
 - **Skill 系统** — 在 `~/.par/skills/<id>/` 放一个 `skill.md`，在 `Runtime.invoke` 时根据触发条件（Auto / Manual / Keyword）自动激活。Auto-trigger skill 不再替换 system prompt。见 [Skills API](sdk/skills.md)。
 
 ## 语言轨道
@@ -143,11 +147,11 @@ let () = Eio_main.run (fun _env ->
 
 ## 状态与路线图
 
-**当前**: v0.7.10 — 流式架构重构（per-stream-handle C 队列，消除 daemon thread）+ Windows CI 变绿（仅 build）。1410+ tests passing。
+**当前**: v0.8.0-beta — HITL 审批（挂起-恢复、持久化）+ 并行多 Agent 分发（类型化合并、每 Agent 工作空间/处理器）。1480+ tests passing。
 
-**下一步**: HITL 补全（register_approval_handler）、并行多 Agent dispatch、opam-repository 提交。
+**下一步**: opam-repository 提交。
 
-**近期发布**: v0.6.5（Workspace 抽象）→ v0.6.6（per-run workspace override）→ v0.6.7（CLI 移除，SDK 安装向导）→ v0.6.8（fresh-switch 编译修复）→ v0.6.9（bash cwd 修复，raw SQLite accessor）→ v0.7.0（文档加载器框架）→ v0.7.1（并发 + 记忆 + scope + 弃用 + 动态 prompt）→ v0.7.2（Windows 能力 + 向量记忆 + SDK 文档）→ v0.7.3（审计修复）→ v0.7.4（json_extract 修复 + run_agent_structured）→ v0.7.5（HNSW + .docx + 原生结构化输出）→ v0.7.6（Python parity + FFI GC 修复）→ v0.7.7（downstream 根因修复）→ v0.7.8（PyPI wheel 管道修复）→ v0.7.9（引擎 egress wrap 修复）→ v0.7.10（流式架构重构）。
+**近期发布**: v0.7.0（文档加载器框架）→ v0.7.1（并发 + 记忆 + scope + 弃用 + 动态 prompt）→ v0.7.2（Windows 能力 + 向量记忆 + SDK 文档）→ v0.7.3（审计修复）→ v0.7.4（json_extract 修复 + run_agent_structured）→ v0.7.5（HNSW + .docx + 原生结构化输出）→ v0.7.6（Python parity + FFI GC 修复）→ v0.7.7（downstream 根因修复）→ v0.7.8（PyPI wheel 管道修复）→ v0.7.9（引擎 egress wrap 修复）→ v0.7.10（流式架构重构）→ v0.8.0-beta（HITL + 并行多 Agent 分发）。
 
 ## 获取帮助
 

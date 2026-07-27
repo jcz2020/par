@@ -11,7 +11,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.7.10 — Streaming architecture overhaul + Windows CI green. 1410+ tests passing. API may change before v1.0.
+> **Status**: v0.8.0-beta — HITL approval + Parallel multi-agent dispatch. 1480+ tests passing. API may change before v1.0.
 
 ---
 
@@ -82,6 +82,8 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 
 - [Quickstart](docs/quickstart.md) — 30-minute tutorial, first agent with tool calls
 - [Agent API](docs/sdk/agent.md) — `agent_config`, `Runtime.invoke`, tool handlers
+- [HITL API](docs/sdk/hitl.md) — suspend-resume approval, cross-process persistence
+- [Parallel Dispatch](docs/sdk/parallel.md) — parallel multi-agent dispatch, typed merge
 - [Workflow API](docs/sdk/workflow.md) — sequential, parallel, conditional, map-reduce
 - [Middleware](docs/sdk/middleware.md) — Logging, Retry, Rate_limit, Timeout, PII_mask, +3
 - [Tools](docs/sdk/tools.md) — 20 built-in tools including type-safe bash
@@ -108,9 +110,11 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - **Structured concurrency** — OCaml 5.4 effects with Eio, no orphan fibers, no callback hell. `invoke_context` per-call isolation via `Eio.Fiber.with_binding` makes `Runtime.invoke` safe for reentrancy, parallelism, and `invoke_async`.
 - **Agent memory** — cross-session `Memory_service` (FTS5 keyword search) + 3 builtin tools. Scoped per-session via `invoke_context`. Pluggable like `llm_service`.
 - **Dynamic system prompt** — per-turn `system_prompt_appendix` via `invoke_context`. Appends after template + skill overlay + tool suffix. Covers invoke/generate/handoff paths.
+- **HITL approval** (Sync / Async / Webhook) — agents pause mid-execution for human approval, persist state to SQLite, and resume after external resolution. Approvals survive process restarts.
+- **Parallel multi-agent dispatch** — `Runtime.invoke_parallel` runs N agents concurrently with typed merge, per-agent workspace isolation, and per-agent approval handler overrides.
 - **Deprecation framework** — `warn_once` helper + `Deprecated_api_called` event + `[@@deprecated]` annotations + migration guides. Breaking changes no longer happen silently.
 - **Python ctypes binding** — `par_runtime` package, thread-safe, no GIL contention with OCaml runtime. Persistent Eio domain per Runtime for full concurrency support.
-- **1410+ OCaml tests + Python bindings** passing (all green, including RAG e2e from any cwd)
+- **1480+ OCaml tests + Python bindings** passing (all green, including RAG e2e from any cwd)
 - **Skill system** — drop a `skill.md` in `~/.par/skills/<id>/` and it auto-activates during `Runtime.invoke` based on trigger conditions (Auto / Manual / Keyword). Auto-trigger skills no longer replace the system prompt. See [Skills API](docs/sdk/skills.md).
 
 ## Language tracks
@@ -143,11 +147,11 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.7.10 — Streaming architecture overhaul (per-stream-handle C queue, no daemon thread) + Windows CI green (build-only). 1410+ tests passing.
+**Current**: v0.8.0-beta — HITL approval (suspend-resume, persistent) + parallel multi-agent dispatch (typed merge, per-agent workspace/handler). 1480+ tests passing.
 
-**Coming next**: HITL completion (register_approval_handler), parallel multi-agent dispatch, opam-repository submission.
+**Coming next**: opam-repository submission.
 
-**Recent releases**: v0.6.5 (Workspace abstraction) → v0.6.6 (per-run workspace override) → v0.6.7 (CLI removed, SDK installer wizard) → v0.6.8 (fresh-switch compilation fix) → v0.6.9 (bash cwd fix, raw SQLite accessor) → v0.7.0 (Document Loaders Framework) → v0.7.1 (Concurrency + Memory + Scope + Deprecation + Dynamic Prompt) → v0.7.2 (Windows Capability + Vector Memory + SDK Docs) → v0.7.3 (Audit Fixes) → v0.7.4 (json_extract fix + run_agent_structured) → v0.7.5 (HNSW + .docx + native structured output) → v0.7.6 (Python parity + FFI GC fix) → v0.7.7 (downstream root-cause fixes) → v0.7.8 (PyPI wheel pipeline restored) → v0.7.9 (engine egress wrap fix) → v0.7.10 (streaming architecture overhaul).
+**Recent releases**: v0.7.0 (Document Loaders Framework) → v0.7.1 (Concurrency + Memory + Scope + Deprecation + Dynamic Prompt) → v0.7.2 (Windows Capability + Vector Memory + SDK Docs) → v0.7.3 (Audit Fixes) → v0.7.4 (json_extract fix + run_agent_structured) → v0.7.5 (HNSW + .docx + native structured output) → v0.7.6 (Python parity + FFI GC fix) → v0.7.7 (downstream root-cause fixes) → v0.7.8 (PyPI wheel pipeline restored) → v0.7.9 (engine egress wrap fix) → v0.7.10 (streaming architecture overhaul) → v0.8.0-beta (HITL + Parallel multi-agent dispatch).
 
 ## Getting help
 

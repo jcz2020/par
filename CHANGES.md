@@ -1,5 +1,38 @@
 # CHANGES
 
+## v0.8.0-beta — HITL + Parallel Multi-Agent Dispatch
+
+> Adds Human-in-the-Loop approval (suspend-resume, persistent) and
+> parallel multi-agent dispatch (typed merge, per-agent workspace/handler).
+
+### Added — HITL Framework
+
+- **NEW** `Approval` module: `approval_outcome` ADT (5 variants) + `approval_handler` ADT (3 variants: `Sync_local` / `Async_callback` / `Webhook`).
+- **NEW** `Types.approval_context`: record passed to handlers with agent_id, tool_name, tool_input, conversation, pending_action, metadata.
+- **NEW** `handler_result.Approval_required` variant: tools signal approval need with prompt, timeout, and allowed_roles.
+- **NEW** `agent_config.approval_handler` field (optional, default `None`).
+- **NEW** `Runtime.resume_approval`: resume suspended agent after external approval (`run_id` + `approval_outcome` + `approver`).
+- **NEW** SQLite `approvals` table + CRUD: persists pending approvals across process restarts.
+- **NEW** 7 `Approval_*` event variants for observability: `Approval_requested`, `Approval_granted`, `Approval_rejected`, `Approval_modified`, `Approval_escalated`, `Approval_timeout`, `Approval_handler_missing`.
+
+### Added — Parallel Multi-Agent Dispatch
+
+- **NEW** `Runtime.invoke_parallel`: parallel agent dispatch with typed merge, per-agent workspace isolation, and per-agent approval handler overrides.
+- **NEW** `Types.agent_dispatch_spec`: per-agent config record (`agent_id`, `input`, `workspace`, `approval_handler`, `blocking_approval`).
+- **NEW** `Types.parallel_invoke_result`: `successes` / `failures` / `merged` record.
+- **NEW** `workflow_engine` Parallel enhancement: per-branch workspace + handler overrides + non-blocking approval suspension.
+
+### Changed — Runtime
+
+- `current_conversation` wrapped in mutex-backed accessor (eliminates reentrancy race; allows concurrent `invoke_parallel`).
+
+### Migration
+
+- **`handler_result` pattern-match**: add `| Approval_required _ -> ...` arm. OCaml compiler warns (not errors) on missing arm.
+- **`persistence_service` record**: 3 new fields (`save_pending_approval`, `load_pending_approval`, `delete_pending_approval`). Noop backend returns `Ok ()` / `None` / `[]`.
+- **`exec_context` record**: new optional `on_approval_pending` callback field. Default `None`.
+- **`invoke_result` record**: new optional `approval_pending` field. Default `None`.
+
 ## v0.7.10 — Streaming architecture overhaul (PAR-7be fundamental fix)
 
 > Eliminates the Python daemon thread that caused SIGABRT/hang under
