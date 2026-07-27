@@ -14,6 +14,7 @@ module Deprecation = Deprecation
 module Capability = Capability
 module Workspace = Workspace
 module Runtime = Runtime
+module Approval = Approval
 module Invoke_context = Invoke_context
 module Engine = Engine
 module Template = Template
