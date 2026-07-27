@@ -809,20 +809,91 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
        })
      | _ -> ());
     let try_with_provider llm_svc =
-      let result = Engine.run_agent ~steering:(Some ctx.steering_queue)
-        ~followup:(Some ctx.followup_queue)
-        ~runtime_id:rt.runtime_id
-        ~tool_call_hooks:(Some ctx.tool_call_hooks_snapshot)
-        ~quota:(Some rt.task_semaphore)
-        ~parallel:rt.parallel_tool_execution
-        ~on_progress:(Some on_tool_progress)
-        ~on_tool_event:(Some combined_tool_event)
-        ?on_chunk
-        ?conversation
-        ~agent_resolver:(fun aid -> htbl_get rt.agents aid)
-        ~enable_handoff:(Option.value enable_handoff ~default:false)
-        token config message llm_svc (per_call_registry ~rt ~workspace:effective_workspace) in
-      result
+      (* Approval_pending catch (v0.8.0 C3.1, ROADMAP A5). Engine raises
+         when an [Async_callback] / [Webhook] approval handler needs
+         external resolution. Catch at the invoke boundary (option b in
+         the C3.1 plan): runtime has [rt.services.persistence] in scope,
+         engine does not. On catch: (1) persist payload to SQLite for
+         [resume_approval], (2) emit [Approval_requested] event so
+         subscribers can route to an approver UI, (3) return [Ok] with
+         the conversation snapshot + [approval_pending] metadata so the
+         caller knows the invoke suspended (not failed).
+
+         [approval_info_ref] threads the suspension metadata out of the
+         exception handler: kept [None] on normal completion, [Some _]
+         on suspension. The returned tuple is unified to
+         (resp, conv, approval_info) at the boundary. *)
+      let approval_info_ref = ref None in
+      let result =
+        (try Engine.run_agent ~steering:(Some ctx.steering_queue)
+            ~followup:(Some ctx.followup_queue)
+            ~runtime_id:rt.runtime_id
+            ~tool_call_hooks:(Some ctx.tool_call_hooks_snapshot)
+            ~quota:(Some rt.task_semaphore)
+            ~parallel:rt.parallel_tool_execution
+            ~on_progress:(Some on_tool_progress)
+            ~on_tool_event:(Some combined_tool_event)
+            ?on_chunk
+            ?conversation
+            ~agent_resolver:(fun aid -> htbl_get rt.agents aid)
+            ~enable_handoff:(Option.value enable_handoff ~default:false)
+            token config message llm_svc (per_call_registry ~rt ~workspace:effective_workspace)
+          with
+          | Engine.Approval_pending payload ->
+            (* Unique persistence key. [payload.run_id] is the runtime's
+               session id, which is shared by all invokes on this runtime;
+               mint a fresh id here so concurrent pending approvals do not
+               collide in the [approvals] table. *)
+            let persist_id = Session_id.to_string (Session_id.create ()) in
+            let stored_payload = `Assoc [
+              ("persist_id", `String persist_id);
+              ("runtime_run_id", `String payload.run_id);
+              ("agent_id", `String payload.agent_id);
+              ("tool_name", `String payload.tool_name);
+              ("tool_input", payload.tool_input);
+              ("conv_snapshot", Types.conversation_to_yojson payload.conv_snapshot);
+              ("engine_pending_payload", payload.pending_payload);
+              ("expires_at", `Float payload.expires_at);
+              ("created_at", `Float (Unix.gettimeofday ()));
+            ] in
+            (match rt.services.persistence.save_pending_approval_fn
+               ~run_id:persist_id ~agent_id:payload.agent_id
+               ~payload:stored_payload ~expires_at:payload.expires_at with
+             | Ok () -> ()
+             | Error e ->
+               Logs.err (fun m -> m
+                 "[invoke] save_pending_approval failed (run_id=%s agent=%s tool=%s): %s"
+                 persist_id payload.agent_id payload.tool_name
+                 (string_of_error_category e)));
+            publish_event rt (Approval_requested {
+              prompt = Printf.sprintf "Approval required for tool %s on agent %s"
+                         payload.tool_name payload.agent_id;
+              allowed_roles = [];
+            });
+            let suspended_resp : Types.llm_response = {
+              text = Some (Printf.sprintf
+                "Approval required for tool %s — awaiting decision (run_id=%s, expires_at=%.0f)"
+                payload.tool_name persist_id payload.expires_at);
+              tool_calls = None;
+              finish_reason = Stop;
+              usage = {
+                prompt_tokens = 0; completion_tokens = 0; total_tokens = 0;
+                cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0;
+              };
+              model = config.model.model_name;
+            } in
+            approval_info_ref := Some {
+              run_id = persist_id;
+              agent_id = payload.agent_id;
+              tool_name = payload.tool_name;
+              expires_at = payload.expires_at;
+            };
+            if update_current then Current_conversation.set rt (Some payload.conv_snapshot);
+            Ok (suspended_resp, payload.conv_snapshot))
+      in
+      match result with
+      | Ok (resp, conv) -> Ok (resp, conv, !approval_info_ref)
+      | Error e -> Error e
     in
     let should_fallback (err : Types.error_category) = match err with
       | Types.Rate_limited | Types.External_failure _ | Types.Timeout -> true
@@ -849,11 +920,11 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
          | Error `Unknown _ -> try_providers rest
          | Ok llm_svc ->
 (match try_with_provider llm_svc with
-              | Ok (resp, conv) ->
+              | Ok (resp, conv, approval_pending) ->
                 record_llm_success rt;
                 if update_current then Current_conversation.set rt (Some conv);
                 if save then ignore (save_conversation rt ~conversation:conv () : (unit, error_category) result);
-                Result.Ok { Types.response = resp; conversation = conv }
+                Result.Ok { Types.response = resp; conversation = conv; approval_pending }
               | Error (err, _conv) when should_fallback err && rest <> [] ->
                 record_llm_error rt err;
                 let evt = Types.Provider_fallback_attempted {
@@ -1173,6 +1244,150 @@ let approve_task rt task_id ~approver:_ =
        | Error e -> Logs.err (fun m -> m "save_task_state failed: %s" (string_of_error_category e)));
       Ok ()
     | _ -> Result.Error (Invalid_input "Task is not waiting for approval")
+
+(* -------------------------------------------------------------------------- *)
+(* HITL resume — v0.8.0 C3.1 (ROADMAP A6)                                    *)
+(* -------------------------------------------------------------------------- *)
+
+(* [resume_approval] applies an external approver's decision to a previously
+   suspended invoke. Suspend state is loaded from the [approvals] SQLite
+   table by [run_id] (the same id returned in [invoke_result.approval_pending]
+   when the invoke suspended).
+
+   Wave 3 simplicity: re-dispatch reconstructs a fresh [Engine.run_agent]
+   call with the persisted conversation snapshot and an agent whose
+   [approval_handler] has been replaced with [Sync_local (fun _ -> outcome)].
+   The engine's ReAct loop will then reach the same tool call and resolve
+   the approval synchronously (no second suspension) — see
+   [lib/core/engine.ml] execute_approval Sync_local branch.
+
+   Known simplifications (tracked for Wave 5 validation):
+   - Re-dispatch appends a synthetic user message ("Approval resolved; please
+     continue.") to the snapshot. The agent sees the suspended conversation
+     plus this nudge. If the agent re-emits a different tool call, the new
+     approval_handler (Sync_local returning the stored outcome) is reused,
+     which may be incorrect for the new tool. Wave 5 tests will surface
+     cases where this matters.
+   - Re-dispatch outcome is NOT reflected in the returned [unit]: callers
+     observe the result via [current_conversation] or events. A future
+     revision may return the resumed invoke_result.
+   - No cross-process resumption validation (snapshot hash check): deferred
+     to Wave 5 per ROADMAP §5 risk #5 mitigation plan. *)
+
+let resume_approval ~rt ~run_id ~outcome ~approver =
+  match rt.services.persistence.load_pending_approval_fn ~run_id with
+  | Error e ->
+    Logs.err (fun m -> m "resume_approval: load failed (run_id=%s): %s"
+                 run_id (string_of_error_category e));
+    Result.Error (Internal (Printf.sprintf
+                   "resume_approval: load_pending_approval failed: %s"
+                   (string_of_error_category e)))
+  | Ok None ->
+    (* Either the run_id was never suspended, or it auto-expired on read. *)
+    Result.Error (Invalid_input
+      (Printf.sprintf "resume_approval: pending approval not found or expired (run_id=%s)"
+         run_id))
+  | Ok (Some stored_payload) ->
+    let open Yojson.Safe.Util in
+    let agent_id = match member "agent_id" stored_payload with
+      | `String s -> s
+      | _ -> "unknown"
+    in
+    let tool_name = match member "tool_name" stored_payload with
+      | `String s -> s
+      | _ -> "unknown"
+    in
+    let conv_snapshot = match member "conv_snapshot" stored_payload with
+      | json ->
+        (match Types.conversation_of_yojson json with
+         | Ok c -> c
+         | Error msg ->
+           Logs.err (fun m -> m "resume_approval: conv_snapshot decode failed: %s" msg);
+           { Types.messages = []; metadata = [] })
+      | exception Yojson.Safe.Util.Type_error _ ->
+        { Types.messages = []; metadata = [] }
+    in
+    (* Look up the agent. If missing, we still emit events + delete the row
+       so the system doesn't leak pending state, but return Error. *)
+    (match htbl_get rt.agents agent_id with
+     | None ->
+       publish_event rt (Approval_handler_missing { agent_id; tool_name });
+       (match rt.services.persistence.delete_pending_approval_fn ~run_id with
+        | Ok () -> ()
+        | Error e -> Logs.err (fun m -> m "resume_approval: delete failed: %s"
+                                  (string_of_error_category e)));
+       Result.Error (Invalid_input
+         (Printf.sprintf "resume_approval: agent '%s' not registered" agent_id))
+     | Some agent ->
+       (* Emit outcome event before re-dispatch so subscribers see the
+          decision even if re-dispatch itself fails. *)
+       (match (outcome : Approval.approval_outcome) with
+        | Approved ->
+          publish_event rt (Approval_granted { approver })
+        | Rejected { reason } ->
+          publish_event rt (Approval_rejected { reason; approver })
+        | Modified { new_input } ->
+          publish_event rt (Approval_modified { new_input; approver })
+        | Escalated { target } ->
+          publish_event rt (Approval_escalated { target; approver })
+        | Timeout ->
+          publish_event rt Approval_timeout);
+       (* Terminal outcomes (Rejected, Timeout) do not re-dispatch: the
+          conversation is left in its suspended state and the pending row
+          is deleted. The caller can inspect [current_conversation] for
+          the suspended snapshot. *)
+       let needs_redispatch = match outcome with
+         | Approved | Modified _ | Escalated _ -> true
+         | Rejected _ | Timeout -> false
+       in
+       (match rt.services.persistence.delete_pending_approval_fn ~run_id with
+        | Ok () -> ()
+        | Error e -> Logs.err (fun m -> m "resume_approval: delete failed: %s"
+                                  (string_of_error_category e)));
+       if not needs_redispatch then Ok ()
+       else begin
+         (* Wave 3 re-dispatch: replace approval_handler with a Sync_local
+            that returns the stored outcome. The engine's execute_approval
+            will resolve synchronously. *)
+         let resumed_handler : Types.approval_context Approval.approval_handler =
+           Approval.Sync_local (fun _ctx -> outcome)
+         in
+         let resumed_agent : Types.agent_config =
+           { agent with approval_handler = Some resumed_handler }
+         in
+         (* The cancellation_token here is a fresh sub-token of the
+            runtime's root. The original invoke's token may have been
+            cancelled (or not) — we cannot recover it from the persisted
+            snapshot without a token id field, so a fresh token is the
+            conservative choice. *)
+         let token = Cancellation.create_token rt.cancellation_root in
+         let registry = per_call_registry ~rt ~workspace:rt.workspace in
+         let result =
+           try Engine.run_agent
+             ~runtime_id:rt.runtime_id
+             ~quota:(Some rt.task_semaphore)
+             ~parallel:rt.parallel_tool_execution
+             ~enable_handoff:false
+             token resumed_agent
+             "Approval resolved; please continue."
+             rt.services.llm registry
+           with exn ->
+             Logs.err (fun m -> m "resume_approval: re-dispatch raised: %s"
+                          (Printexc.to_string exn));
+             Error (Internal (Printf.sprintf
+                      "resume_approval re-dispatch raised: %s"
+                      (Printexc.to_string exn)),
+                    conv_snapshot)
+         in
+         match result with
+         | Ok (_resp, conv) ->
+           Current_conversation.set rt (Some conv);
+           Ok ()
+         | Error (e, _conv) ->
+           Logs.err (fun m -> m "resume_approval: re-dispatch failed: %s"
+                        (string_of_error_category e));
+           Result.Error e
+       end)
 
 let find_tool_across_agents rt tool_name =
   let result = ref None in
@@ -1633,6 +1848,9 @@ let noop_persistence : Types.persistence_service = {
   save_conversation_fn = (fun ?scope:_ _sid _conv -> Ok ());
   load_conversation_fn = (fun _sid -> Ok None);
   load_most_recent_conversation_fn = (fun ?scope:_ () -> Ok None);
+  save_pending_approval_fn = (fun ~run_id:_ ~agent_id:_ ~payload:_ ~expires_at:_ -> Ok ());
+  load_pending_approval_fn = (fun ~run_id:_ -> Ok None);
+  delete_pending_approval_fn = (fun ~run_id:_ -> Ok ());
   close_fn = ignore;
 }
 

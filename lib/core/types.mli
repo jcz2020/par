@@ -173,9 +173,18 @@ and conversation = {
 }
 [@@deriving yojson]
 
+type approval_pending_info = {
+  run_id : string;
+  agent_id : string;
+  tool_name : string;
+  expires_at : float;
+}
+[@@deriving yojson]
+
 type invoke_result = {
   response : llm_response;
   conversation : conversation;
+  approval_pending : approval_pending_info option;
 }
 
 type structured_invoke_result = {
@@ -978,6 +987,13 @@ type persistence_service = {
   save_conversation_fn : ?scope:string -> string -> conversation -> (unit, error_category) result;
   load_conversation_fn : string -> (conversation option, error_category) result;
   load_most_recent_conversation_fn : ?scope:string -> unit -> ((string * conversation) option, error_category) result;
+  save_pending_approval_fn :
+    run_id:string -> agent_id:string -> payload:Yojson.Safe.t -> expires_at:float ->
+    (unit, error_category) result;
+  load_pending_approval_fn :
+    run_id:string -> (Yojson.Safe.t option, error_category) result;
+  delete_pending_approval_fn :
+    run_id:string -> (unit, error_category) result;
   close_fn : unit -> unit;
 }
 

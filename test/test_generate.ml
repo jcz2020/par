@@ -139,6 +139,13 @@ let with_persisted_runtime ~llm ~agent (f : Par.Runtime.runtime -> 'a) : 'a =
             (fun sid -> Sqlite_persistence.load_conversation sqlt sid);
           load_most_recent_conversation_fn =
             (fun ?scope () -> Sqlite_persistence.load_most_recent_conversation ?scope sqlt);
+          save_pending_approval_fn =
+            (fun ~run_id ~agent_id ~payload ~expires_at ->
+              Sqlite_persistence.save_pending_approval sqlt ~run_id ~agent_id ~payload ~expires_at);
+          load_pending_approval_fn =
+            (fun ~run_id -> Sqlite_persistence.load_pending_approval sqlt ~run_id);
+          delete_pending_approval_fn =
+            (fun ~run_id -> Sqlite_persistence.delete_pending_approval sqlt ~run_id);
           close_fn = (fun () -> Sqlite_persistence.close sqlt);
         } in
         (match Runtime.create ~llm ~persistence:persist

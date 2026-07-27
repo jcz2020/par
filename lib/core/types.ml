@@ -200,9 +200,30 @@ and conversation = {
 }
 [@@deriving yojson]
 
+(* HITL suspend metadata returned by [Runtime.invoke] when an async /
+   webhook approval handler suspends the ReAct loop. Carries enough
+   state for the caller to call [Runtime.resume_approval] with the
+   matching [run_id] plus an [Approval.approval_outcome]. The full
+   pending state (conversation snapshot, tool_input, etc.) is persisted
+   in the [approvals] SQLite table keyed by [run_id]; this record is
+   the surface-level handle the caller needs. *)
+type approval_pending_info = {
+  run_id : string;
+  agent_id : string;
+  tool_name : string;
+  expires_at : float;
+}
+[@@deriving yojson]
+
 type invoke_result = {
   response : llm_response;
   conversation : conversation;
+  (* [None] on the normal completion path. [Some _] when the ReAct loop
+     suspended waiting for an external approval decision; the caller
+     resolves via [Runtime.resume_approval]. Default-None keeps the
+     field backwards-compatible with the v0.7.x single-shot invoke
+     semantics — existing call sites pass [approval_pending = None]. *)
+  approval_pending : approval_pending_info option;
 }
 
 type structured_invoke_result = {
@@ -1220,6 +1241,18 @@ type persistence_service = {
   save_conversation_fn : ?scope:string -> string -> conversation -> (unit, error_category) result;
   load_conversation_fn : string -> (conversation option, error_category) result;
   load_most_recent_conversation_fn : ?scope:string -> unit -> ((string * conversation) option, error_category) result;
+  (* HITL pending approvals (v0.8.0 A7). Persistent suspend state for
+     async / webhook approval handlers. Lifecycle: save on suspend, load
+     on resume, delete after outcome applied. Load auto-expires stale
+     rows based on stored expires_at. Noop backend stubs return Ok () /
+     Ok None to keep tests green without SQLite. *)
+  save_pending_approval_fn :
+    run_id:string -> agent_id:string -> payload:Yojson.Safe.t -> expires_at:float ->
+    (unit, error_category) result;
+  load_pending_approval_fn :
+    run_id:string -> (Yojson.Safe.t option, error_category) result;
+  delete_pending_approval_fn :
+    run_id:string -> (unit, error_category) result;
   close_fn : unit -> unit;
 }
 

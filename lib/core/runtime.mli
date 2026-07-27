@@ -356,6 +356,45 @@ val cancel_task : runtime -> Task_id.t -> (unit, error_category) result
 
 val approve_task : runtime -> Task_id.t -> approver:string -> (unit, error_category) result
 
+val resume_approval :
+  rt:runtime ->
+  run_id:string ->
+  outcome:Approval.approval_outcome ->
+  approver:string ->
+  (unit, error_category) result
+(** [resume_approval ~rt ~run_id ~outcome ~approver] applies an external
+    approver's decision to a previously suspended invoke.
+
+    Use the [run_id] from [invoke_result.approval_pending] (populated
+    when [Runtime.invoke] returned Ok with the conversation in a
+    suspended state — i.e. an async / webhook approval handler was
+    triggered and the engine suspended the ReAct loop).
+
+    Outcomes:
+    - [Approved]: re-dispatches the agent; the approval_handler is
+      replaced with a [Sync_local] that returns [Approved], so the
+      engine's ReAct loop resolves synchronously.
+    - [Modified { new_input }]: same re-dispatch path; the modified
+      new_input is the outcome returned by the handler (the engine's
+      execute_approval Modified branch reruns the tool with it).
+    - [Escalated { target }]: same re-dispatch path with the escalated
+      outcome; engine routes to the target agent.
+    - [Rejected { reason }] / [Timeout]: emits the corresponding event,
+      deletes the pending row, returns [Ok ()] WITHOUT re-dispatching.
+      The conversation remains in its suspended snapshot.
+
+    Returns:
+    - [Ok ()] on successful outcome application (including terminal outcomes).
+    - [Error (Invalid_input _)] if [run_id] not found or auto-expired on read.
+    - [Error (Invalid_input _)] if the agent_id stored at suspend time is
+      no longer registered on this runtime.
+    - [Error (Internal _)] if persistence load fails or re-dispatch raises.
+
+    Wave 3 simplification: the re-dispatch appends a synthetic user
+    message and uses a fresh cancellation token; the original invoke's
+    token cannot be recovered from the persisted snapshot. Wave 5 tests
+    will validate end-to-end semantics. *)
+
 val submit_workflow :
   runtime ->
   ?workspace:Workspace.workspace ->

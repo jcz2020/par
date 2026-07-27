@@ -1,5 +1,27 @@
 open Types
 
+(** HITL approval pending exception (v0.8.0 A5).
+
+    Raised by the ReAct loop's [execute_approval] branch when the
+    agent's [approval_handler] is [Async_callback] or [Webhook] and the
+    engine therefore cannot resolve the approval synchronously. Caught
+    at the [Runtime.invoke] boundary (option b in the C3.1 plan) which
+    has access to the persistence layer; the engine itself stays
+    decoupled from storage.
+
+    Carries the conversation snapshot and tool metadata so the runtime
+    can persist them under a fresh [run_id] key for
+    [Runtime.resume_approval] to load. *)
+exception Approval_pending of {
+  run_id : string;
+  agent_id : string;
+  tool_name : string;
+  tool_input : Yojson.Safe.t;
+  conv_snapshot : conversation;
+  pending_payload : Yojson.Safe.t;
+  expires_at : float;
+}
+
 val apply_before_llm :
   middleware_hook list ->
   conversation ->

@@ -340,6 +340,12 @@ let do_init (config_json : string) =
                   save_conversation_fn = (fun ?scope sid conv -> Par.Sqlite_persistence.save_conversation ?scope sqlt sid conv);
                   load_conversation_fn = (fun sid -> Par.Sqlite_persistence.load_conversation sqlt sid);
                   load_most_recent_conversation_fn = (fun ?scope () -> Par.Sqlite_persistence.load_most_recent_conversation ?scope sqlt);
+                  save_pending_approval_fn = (fun ~run_id ~agent_id ~payload ~expires_at ->
+                    Par.Sqlite_persistence.save_pending_approval sqlt ~run_id ~agent_id ~payload ~expires_at);
+                  load_pending_approval_fn = (fun ~run_id ->
+                    Par.Sqlite_persistence.load_pending_approval sqlt ~run_id);
+                  delete_pending_approval_fn = (fun ~run_id ->
+                    Par.Sqlite_persistence.delete_pending_approval sqlt ~run_id);
                   close_fn = (fun () -> Par.Sqlite_persistence.close sqlt);
                 }
              | Error e ->
@@ -869,7 +875,7 @@ let do_invoke (state_id : int) (agent_id : string) (message : string)
             ~agent_id ~message
             ?save ?update_current () in
          let json = match result with
-           | Ok { Par.Types.response = resp; conversation = _ } ->
+           | Ok { Par.Types.response = resp; conversation = _; approval_pending = _ } ->
              Printf.sprintf "{\"status\": \"ok\", \"content\": %s}"
                (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp))
            | Error (err, _) ->
@@ -996,7 +1002,7 @@ let do_invoke_stream (state_id : int) (agent_id : string) (message : string) =
            |> Yojson.Safe.to_string
          in
          let json = match result with
-           | Ok { Par.Types.response = resp; conversation = _ } ->
+           | Ok { Par.Types.response = resp; conversation = _; approval_pending = _ } ->
              Printf.sprintf "{\"status\": \"ok\", \"content\": %s, \"chunks\": %s}"
                (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp))
                chunks_json
@@ -1051,7 +1057,7 @@ let do_invoke_stream_start (state_id : int) (agent_id : string) (message : strin
            |> Yojson.Safe.to_string
          in
          let final = match result with
-           | Ok { Par.Types.response = resp; conversation = _ } ->
+           | Ok { Par.Types.response = resp; conversation = _; approval_pending = _ } ->
              Printf.sprintf "{\"status\": \"ok\", \"content\": %s, \"chunks\": %s}"
                (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp)) chunks_json
            | Error (err, _) ->
