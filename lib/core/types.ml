@@ -680,6 +680,10 @@ type event =
   | Approval_requested of { prompt : string; allowed_roles : string list }
   | Approval_granted of { approver : string }
   | Approval_timeout
+  | Approval_rejected of { reason : string; approver : string }
+  | Approval_modified of { new_input : Yojson.Safe.t; approver : string }
+  | Approval_escalated of { target : string; approver : string }
+  | Approval_handler_missing of { agent_id : string; tool_name : string }
   | Shutdown_initiated
   | Shutdown_completed of { exit_code : int }
   (* MCP server lifecycle events *)
