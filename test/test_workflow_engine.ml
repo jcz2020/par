@@ -104,6 +104,9 @@ let make_ctx ?(variables = []) ?(failure_policy = Fail_fast)
     workflow_run_id;
     workflow_id_resolver;
     workspace = (match Workspace.of_cwd () with Ok w -> w | Error _ -> failwith "test workspace");
+    workspace_overrides = [];
+    approval_handler_overrides = [];
+    per_call_registry_fn = None;
   }
 
 let ok_or_fail msg = function

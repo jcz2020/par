@@ -31,6 +31,9 @@ type exec_context = {
   workflow_run_id : Workflow_run_id.t option;
   workflow_id_resolver : unit -> string option;
   workspace : Workspace.workspace;
+  workspace_overrides : (string * Workspace.workspace) list;
+  approval_handler_overrides : (string * approval_context Approval.approval_handler) list;
+  per_call_registry_fn : (Workspace.workspace -> Tool_registry.t) option;
 }
 
 exception Workflow_suspended of {

@@ -46,6 +46,9 @@ type exec_context = {
   workflow_run_id : Workflow_run_id.t option;
   workflow_id_resolver : unit -> string option;
   workspace : Workspace.workspace;
+  workspace_overrides : (string * Workspace.workspace) list;
+  approval_handler_overrides : (string * approval_context Approval.approval_handler) list;
+  per_call_registry_fn : (Workspace.workspace -> Tool_registry.t) option;
 }
 
 exception Workflow_suspended of {
@@ -291,11 +294,40 @@ and execute_sequential ?(path=[]) ?(start_idx=0) ctx steps =
 and execute_parallel ?(path=[]) ctx steps =
   let sem = Eio.Semaphore.make ctx.parallel_limit in
   let promises = List.mapi (fun idx step ->
+    let branch_ctx = match step with
+      | Agent_call { agent_id; _ } ->
+        let ws_override = List.assoc_opt agent_id ctx.workspace_overrides in
+        let ah_override = List.assoc_opt agent_id ctx.approval_handler_overrides in
+        (match ws_override, ah_override with
+         | None, None -> ctx
+         | _, _ ->
+           let ctx1 = match ws_override with
+             | Some ws ->
+               let registry = match ctx.per_call_registry_fn with
+                 | Some fn -> fn ws
+                 | None -> ctx.registry
+               in
+               { ctx with workspace = ws; registry }
+             | None -> ctx
+           in
+           (match ah_override with
+            | Some ah ->
+              let orig_resolver = ctx1.agent_resolver in
+              { ctx1 with
+                agent_resolver = (fun aid ->
+                  match orig_resolver aid with
+                  | Some agent when agent.id = agent_id ->
+                    Some { agent with approval_handler = Some ah }
+                  | other -> other)
+              }
+            | None -> ctx1))
+      | _ -> ctx
+    in
     Eio.Fiber.fork_promise ~sw:ctx.token.switch (fun () ->
       Eio.Semaphore.acquire sem;
       Fun.protect
         ~finally:(fun () -> Eio.Semaphore.release sem)
-        (fun () -> execute_step ~path:(path @ [idx]) ctx step)
+        (fun () -> execute_step ~path:(path @ [idx]) branch_ctx step)
     )
   ) steps in
   let results = List.map (fun p ->

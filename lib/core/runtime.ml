@@ -2,6 +2,20 @@ open Types
 
 module Provider_registry = Provider_registry
 
+type agent_dispatch_spec = {
+  agent_id : string;
+  input : string option;
+  workspace : Workspace.workspace option;
+  approval_handler : approval_context Approval.approval_handler option;
+  blocking_approval : bool;
+}
+
+type parallel_invoke_result = {
+  successes : (agent_dispatch_spec * Yojson.Safe.t) list;
+  failures : (agent_dispatch_spec * error_category) list;
+  merged : Yojson.Safe.t option;
+}
+
 let string_of_error_category (e : Types.error_category) =
   match e with
   | Types.Timeout -> "Timeout"
@@ -1194,8 +1208,11 @@ let submit_workflow rt ?workspace ?(inputs = []) wf =
                  on_step_complete = None;
                   workflow_run_id = Some id;
                   workflow_id_resolver = (fun () -> Some wf.def.id);
-                  workspace = effective_workspace;
-                }
+                   workspace = effective_workspace;
+                   workspace_overrides = [];
+                   approval_handler_overrides = [];
+                   per_call_registry_fn = None;
+                 }
     in
     (match rt.services.persistence.save_workflow_state_fn id Wf_running (Some cp) with
      | Ok () -> ()
@@ -1215,6 +1232,9 @@ let submit_workflow rt ?workspace ?(inputs = []) wf =
     workflow_run_id = Some id;
     workflow_id_resolver = (fun () -> Some wf.def.id);
     workspace = effective_workspace;
+    workspace_overrides = [];
+    approval_handler_overrides = [];
+    per_call_registry_fn = None;
   } in
   (match Workflow_engine.execute_workflow ctx wf with
    | Ok result ->
@@ -1288,6 +1308,9 @@ let submit_workflow_async rt ?workspace ?(inputs = []) wf =
     workflow_run_id = Some id;
     workflow_id_resolver = (fun () -> Some wf.def.id);
     workspace = effective_workspace;
+    workspace_overrides = [];
+    approval_handler_overrides = [];
+    per_call_registry_fn = None;
   } in
     (match rt.services.persistence.save_workflow_state_fn id Wf_running (Some cp) with
      | Ok () -> ()
@@ -1307,6 +1330,9 @@ let submit_workflow_async rt ?workspace ?(inputs = []) wf =
     workflow_run_id = Some id;
     workflow_id_resolver = (fun () -> Some wf.def.id);
     workspace = effective_workspace;
+    workspace_overrides = [];
+    approval_handler_overrides = [];
+    per_call_registry_fn = None;
   } in
   ignore (Eio.Fiber.fork ~sw:rt.cancellation_root (fun () ->
     (try
@@ -1375,6 +1401,99 @@ let invoke_workflow_sync rt ?workspace ?inputs wf : (workflow_result option, err
      | Some Wf_running -> Error (Internal "workflow state non-terminal")
      | None -> Error (Internal "workflow state missing"))
 
+let invoke_parallel ~rt ~specs ?(parallel_limit = 4)
+    ?(failure_policy = Continue_on_failure)
+    ?merge_fn ?cancellation_token () =
+  if specs = [] then
+    Result.Ok { successes = []; failures = []; merged = None }
+  else
+    let token = match cancellation_token with
+      | Some t -> t
+      | None -> Cancellation.create_token rt.cancellation_root
+    in
+    let default_workspace = rt.workspace in
+    let base_registry = per_call_registry ~rt ~workspace:default_workspace in
+    let base_ctx = {
+      Workflow_engine.variables = [];
+      token;
+      agent_resolver = (fun aid -> htbl_get rt.agents aid);
+      tool_resolver = find_tool_across_agents rt;
+      llm = rt.services.llm;
+      registry = base_registry;
+      parallel_limit;
+      failure_policy;
+      workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
+      on_step_complete = None;
+      workflow_run_id = None;
+      workflow_id_resolver = (fun () -> None);
+      workspace = default_workspace;
+      workspace_overrides = [];
+      approval_handler_overrides = [];
+      per_call_registry_fn = Some (fun ws -> per_call_registry ~rt ~workspace:ws);
+    } in
+    let sem = Eio.Semaphore.make parallel_limit in
+    let promises = List.map (fun (spec : agent_dispatch_spec) ->
+      let step = Agent_call {
+        agent_id = spec.agent_id;
+        prompt_template = Option.value spec.input ~default:"";
+        response_schema = None;
+      } in
+      let branch_ctx = match spec.workspace with
+        | Some ws ->
+          let registry = per_call_registry ~rt ~workspace:ws in
+          { base_ctx with workspace = ws; registry }
+        | None -> base_ctx
+      in
+      let branch_ctx = match spec.approval_handler with
+        | Some ah ->
+          let orig_resolver = branch_ctx.agent_resolver in
+          { branch_ctx with
+            agent_resolver = (fun aid ->
+              match orig_resolver aid with
+              | Some agent when agent.id = spec.agent_id ->
+                Some { agent with approval_handler = Some ah }
+              | other -> other)
+          }
+        | None -> branch_ctx
+      in
+      Eio.Fiber.fork_promise ~sw:token.switch (fun () ->
+        Eio.Semaphore.acquire sem;
+        Fun.protect
+          ~finally:(fun () -> Eio.Semaphore.release sem)
+          (fun () -> Workflow_engine.execute_step branch_ctx step)
+      )
+    ) specs in
+    let results = List.map2 (fun spec promise ->
+      let result : (Yojson.Safe.t, error_category) result =
+        match Eio.Promise.await promise with
+        | Result.Ok (Result.Ok v) -> Result.Ok v
+        | Result.Ok (Result.Error e) -> Result.Error e
+        | Result.Error ex -> Result.Error (Internal (Printexc.to_string ex))
+      in
+      (spec, result)
+    ) specs promises in
+    let successes = List.filter_map (fun (spec, r) ->
+      match r with Result.Ok v -> Some (spec, v) | Result.Error _ -> None
+    ) results in
+    let failures = List.filter_map (fun (spec, r) ->
+      match r with Result.Error e -> Some (spec, e) | Result.Ok _ -> None
+    ) results in
+    let merged = match merge_fn with
+      | Some fn -> Some (fn (List.map snd successes))
+      | None -> None
+    in
+    match failures with
+    | [] -> Result.Ok { successes; failures; merged }
+    | _ ->
+      (match failure_policy with
+       | Fail_fast ->
+         let first_err = snd (List.hd failures) in
+         Result.Error first_err
+       | Continue_on_failure ->
+         Result.Ok { successes; failures; merged }
+       | Conditional _ ->
+         Result.Ok { successes; failures; merged })
+
 let get_workflow_status rt wf_id =
   match htbl_get rt.workflows wf_id with
   | None -> Result.Error (Invalid_input "Workflow not found")
@@ -1425,9 +1544,12 @@ let resume_workflow rt wf_id =
          on_step_complete = None;
           workflow_run_id = Some wf_id;
           workflow_id_resolver = (fun () -> Some wf.def.id);
-          workspace = rt.workspace;
-        } in
-       htbl_set rt.workflows wf_id Wf_running;
+           workspace = rt.workspace;
+           workspace_overrides = [];
+           approval_handler_overrides = [];
+           per_call_registry_fn = None;
+         } in
+        htbl_set rt.workflows wf_id Wf_running;
        (match rt.services.persistence.save_workflow_state_fn wf_id Wf_running None with
         | Ok () -> ()
         | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));

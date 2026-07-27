@@ -2,6 +2,20 @@ open Types
 
 type runtime
 
+type agent_dispatch_spec = {
+  agent_id : string;
+  input : string option;
+  workspace : Workspace.workspace option;
+  approval_handler : approval_context Approval.approval_handler option;
+  blocking_approval : bool;
+}
+
+type parallel_invoke_result = {
+  successes : (agent_dispatch_spec * Yojson.Safe.t) list;
+  failures : (agent_dispatch_spec * error_category) list;
+  merged : Yojson.Safe.t option;
+}
+
 val default_event_bus_config : event_bus_config
 val default_shutdown_config : shutdown_config
 val default_quota : resource_quota
@@ -384,6 +398,16 @@ val invoke_workflow_sync :
     Useful for tests and short workflows. For long-running workflows
     where blocking the caller is undesirable, use [submit_workflow_async]
     and track progress via events or [get_workflow_status]. *)
+
+val invoke_parallel :
+  rt:runtime ->
+  specs:agent_dispatch_spec list ->
+  ?parallel_limit:int ->
+  ?failure_policy:failure_policy ->
+  ?merge_fn:(Yojson.Safe.t list -> Yojson.Safe.t) ->
+  ?cancellation_token:cancellation_token ->
+  unit ->
+  (parallel_invoke_result, error_category) result
 
 val get_workflow_status :
   runtime ->
