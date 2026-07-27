@@ -1,5 +1,8 @@
-(* HITL approval types — outcome ADT, context record, handler variants.
-   Companion to the [Approval_required] variant in [Types.handler_result].
+(* HITL approval types — outcome ADT + parameterized handler.
+   approval_context lives in Types (it references Types.conversation),
+   which keeps this module free of any Types dependency and breaks
+   the otherwise-cyclic .cmi graph.  The ['ctx] parameter on
+   approval_handler is instantiated by the engine to Types.approval_context.
    Phantom type ('sync, 'async) handler deferred to v0.8.1 per ROADMAP §4. *)
 
 (* -------------------------------------------------------------------------- *)
@@ -47,25 +50,12 @@ let outcome_of_json json =
     Error (Printf.sprintf "approval_outcome_of_json: %s" msg)
 
 (* -------------------------------------------------------------------------- *)
-(* Approval context                                                          *)
+(* Approval handler (parameterized — no concrete context type here)          *)
 (* -------------------------------------------------------------------------- *)
 
-type approval_context = {
-  agent_id : string;
-  tool_name : string;
-  tool_input : Yojson.Safe.t;
-  conversation : Types.conversation;
-  pending_action : Yojson.Safe.t;
-  metadata : (string * Yojson.Safe.t) list;
-}
-
-(* -------------------------------------------------------------------------- *)
-(* Approval handler                                                          *)
-(* -------------------------------------------------------------------------- *)
-
-type approval_handler =
-  | Sync_local of (approval_context -> approval_outcome)
-  | Async_callback of (approval_context -> approval_outcome Eio.Promise.t)
+type 'ctx approval_handler =
+  | Sync_local of ('ctx -> approval_outcome)
+  | Async_callback of ('ctx -> approval_outcome Eio.Promise.t)
   | Webhook of { url : string; secret : string; timeout_sec : float }
 
 (* -------------------------------------------------------------------------- *)

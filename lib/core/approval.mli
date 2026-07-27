@@ -1,12 +1,14 @@
 (** HITL approval types.
 
     This module defines the type-level vocabulary for Human-in-the-Loop
-    approval flows.  An [approval_outcome] represents the decision made by
-    an approver; an [approval_context] carries the full context needed to
-    make that decision; and an [approval_handler] describes how approval
-    requests are routed (locally, asynchronously, or via webhook).
+    approval flows.  [approval_outcome] is the decision returned by an
+    approver; [approval_handler] is a parameterized handler type —
+    the ['ctx] parameter is instantiated by the caller (typically
+    [Types.approval_context] in the engine layer) and decouples
+    this module from concrete context representations, breaking what
+    would otherwise be a cyclic [.cmi] dependency between
+    {!Types} and [Approval].
 
-    Companion to the [Approval_required] variant in [Types.handler_result].
     Phantom type [('sync, 'async) handler] is deferred to v0.8.1 per
     ROADMAP §4. *)
 
@@ -36,28 +38,14 @@ val outcome_to_json : approval_outcome -> Yojson.Safe.t
     shape rather than raising. *)
 val outcome_of_json : Yojson.Safe.t -> (approval_outcome, string) result
 
-(** {1 Approval context} *)
+(** {1 Approval handler (parameterized over context type)} *)
 
-(** The context passed to an approval handler. Contains everything
-    an approver needs to make an informed decision. *)
-type approval_context = {
-  agent_id : string;
-      (** The agent requesting approval. *)
-  tool_name : string;
-      (** The tool that triggered the approval gate. *)
-  tool_input : Yojson.Safe.t;
-      (** The arguments the tool would receive. *)
-  conversation : Types.conversation;
-      (** The conversation state at the time of the request. *)
-  pending_action : Yojson.Safe.t;
-      (** A structured description of the action about to be taken. *)
-  metadata : (string * Yojson.Safe.t) list;
-      (** Arbitrary key-value metadata (e.g. risk score, policy tags). *)
-}
-
-(** {1 Approval handler} *)
-
-(** How approval requests are dispatched.
+(** How approval requests are dispatched.  The ['ctx] type parameter
+    represents the context record passed to the handler at runtime;
+    it is instantiated by the engine (typically to
+    [Types.approval_context]).  Parameterizing here keeps this module
+    free of any [{!Types}] reference, which is required to avoid a
+    dependency cycle at the [.cmi] level.
 
     - [Sync_local]: in-process synchronous callback.  Suitable for
       development/testing and simple deployments.
@@ -68,9 +56,9 @@ type approval_context = {
     - [Webhook]: cross-process HTTP webhook.  The engine POSTs the
       approval context to [url] with HMAC-SHA256 signature in
       [secret], and waits up to [timeout_sec] seconds for a response. *)
-type approval_handler =
-  | Sync_local of (approval_context -> approval_outcome)
-  | Async_callback of (approval_context -> approval_outcome Eio.Promise.t)
+type 'ctx approval_handler =
+  | Sync_local of ('ctx -> approval_outcome)
+  | Async_callback of ('ctx -> approval_outcome Eio.Promise.t)
   | Webhook of { url : string; secret : string; timeout_sec : float }
 
 (** {1 Constants} *)
