@@ -33,6 +33,18 @@
 - **`exec_context` record**: new optional `on_approval_pending` callback field. Default `None`.
 - **`invoke_result` record**: new optional `approval_pending` field. Default `None`.
 
+### Known Issues (pre-existing, not introduced by v0.8.0)
+
+- **`mkdocs build --strict` fails with 12 warnings**: all are pre-existing v0.7.x docs infrastructure issues (relative links from `docs/index.md`, `docs/STRATEGY.md`, `docs/RELEASE-TEMPLATE.md` to repo-root files like `CONTRIBUTING.md`/`README.md`/`CHANGES.md`; `zh/README.md` conflicts with `zh/index.md`). v0.8.0's new docs (`docs/sdk/hitl.md`, `docs/sdk/parallel.md`, `docs/zh/sdk/*`) introduce **zero** new broken links. Tracked separately as docs infra debt.
+- **`test_document_loaders_e2e` fails**: pre-existing `vec0.so.so` SQLite extension not found in test environment. Unrelated to v0.8.0.
+- **`types.ml` at 1378 lines** (was 1320 in v0.7.10, +58 from v0.8.0 additions). Exceeds 800-line static-readability guideline. Future refactoring candidate: extract `approval_context`/`agent_dispatch_spec`/`parallel_invoke_result`/`approval_pending_info` into a dedicated `Types_dispatch` or `Types_approval` module.
+
+### Wave 3 Simplifications (documented for future hardening)
+
+- **`resume_approval` re-dispatch**: re-invokes `Engine.run_agent` with `approval_handler` overridden to `Sync_local (fun _ -> outcome)`. This bypasses re-suspension for the resumed tool call. Works for single-approval-per-invoke; may not handle edge cases (agent re-emits different tool call, multiple pending approvals on same agent). Wave 5 e2e tests cover happy path.
+- **`invoke_parallel` does NOT catch `Engine.Approval_pending` per-branch**: only `execute_parallel` (workflow engine) catches it. `invoke_parallel` (runtime convenience API) has the same gap. If an `invoke_parallel` spec triggers async approval, the exception propagates as `Error (Internal "...")`. Fix planned for v0.8.1 patch.
+- **HTTP Webhook not implemented**: `Webhook` handler variant persists + suspends correctly, but actual HTTP POST to `url` is not yet implemented. The handler raises `Approval_pending` like `Async_callback`; external system must call `resume_approval`. Full HTTP webhook client planned for v0.8.1.
+
 ## v0.7.10 — Streaming architecture overhaul (PAR-7be fundamental fix)
 
 > Eliminates the Python daemon thread that caused SIGABRT/hang under
