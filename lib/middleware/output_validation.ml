@@ -33,6 +33,7 @@ let validation ?(strict = false) () : middleware_hook =
  end
  | Error _ -> None
  | Handoff _ -> None
+ | Approval_required _ -> None
  );
 
  on_error = None;

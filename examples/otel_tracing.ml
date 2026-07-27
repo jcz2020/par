@@ -97,7 +97,7 @@ let () =
                 model = { provider = `Openai; model_name = "gpt-4"; api_base = None; temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None };
                 tools = [ echo_desc ]; max_iterations = 5; middleware = [ create_tracing_middleware () ];
                 retry_policy = None; context_strategy = None; resource_quota = None; max_execution_time = None; tool_timeout = None; early_stopping_method = Force; on_max_tokens = Return_partial; max_continuation_chunks = 3;
-                context_compression_threshold = None; compression_cooldown_messages = None; context_window_override = None; cache_strategy = No_caching } in
+                context_compression_threshold = None; compression_cooldown_messages = None; context_window_override = None; cache_strategy = No_caching; approval_handler = None } in
   Eio_main.run (fun _ -> Eio.Switch.run (fun sw ->
     let tok = { Types.switch = sw; cancelled = false } in
     let reg = Tool_registry.create () in

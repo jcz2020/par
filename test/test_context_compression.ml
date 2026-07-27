@@ -52,7 +52,7 @@ let agent_with ?(context_strategy = Some (Summarize { max_tokens = 8000; summary
     max_execution_time = None; tool_timeout = None; early_stopping_method = Force;
     on_max_tokens = None; max_continuation_chunks = None;
     context_compression_threshold; compression_cooldown_messages;
-    context_window_override; cache_strategy = No_caching }
+    context_window_override; cache_strategy = No_caching; approval_handler = None }
 
 let make_registry () = Tool_registry.create ()
 

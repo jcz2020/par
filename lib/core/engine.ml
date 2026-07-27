@@ -143,11 +143,13 @@ let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
          | None -> result)
        | Error _ -> result
        | Handoff _ -> result
+       | Approval_required _ -> result
       in
       (match result with
        | Success _ -> progress (Printf.sprintf "Tool %s succeeded" descriptor.name)
        | Error _ -> progress (Printf.sprintf "Tool %s failed" descriptor.name)
-       | Handoff _ -> progress (Printf.sprintf "Tool %s handoff" descriptor.name));
+       | Handoff _ -> progress (Printf.sprintf "Tool %s handoff" descriptor.name)
+       | Approval_required _ -> progress (Printf.sprintf "Tool %s approval required" descriptor.name));
       apply_after_tool middleware (call', result) (fun ((_:tool_call), res) ->
         res
       )
@@ -221,6 +223,7 @@ let add_tool_result_message conv (call : tool_call) result =
     | Success json -> Yojson.Safe.to_string json
     | Error e -> e.message
     | Handoff _ -> "<handoff>"
+    | Approval_required _ -> "<approval_required>"
   in
   let msg = {
     role = Tool;
@@ -875,6 +878,11 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                                    tool_name = event_tool_name;
                                    error = category })
              | _, Handoff _ ->
+               fire (Tool_completed { task_id = event_task_id;
+                                      tool_name = event_tool_name;
+                                      duration_ms;
+                                      result_preview = None })
+             | _, Approval_required _ ->
                fire (Tool_completed { task_id = event_task_id;
                                       tool_name = event_tool_name;
                                       duration_ms;

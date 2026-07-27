@@ -21,7 +21,8 @@ let logging = {
     (match result with
      | Success _ -> Logs.info (fun m -> m "Tool success: %s" call.name)
      | Error e -> Logs.warn (fun m -> m "Tool error: %s — %s" call.name e.message)
-     | Handoff _ -> Logs.info (fun m -> m "Tool handoff signaled"));
+     | Handoff _ -> Logs.info (fun m -> m "Tool handoff signaled")
+     | Approval_required _ -> Logs.info (fun m -> m "Tool approval required"));
     None
   );
   on_error = Some (fun _conv _err ->

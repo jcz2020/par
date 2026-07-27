@@ -94,7 +94,7 @@ let basic_agent ?(tools = []) ?(middleware = []) ?(max_iterations = 10)
     context_compression_threshold = None;
     compression_cooldown_messages = None;
     context_window_override = None;
-    cache_strategy = No_caching }
+    cache_strategy = No_caching; approval_handler = None }
 
 let make_registry tools =
   let reg = Tool_registry.create () in
@@ -159,7 +159,7 @@ let make_agent_with_id ?(tools = []) ?(max_iterations = 10) ?(early_stopping = F
     context_compression_threshold = None;
     compression_cooldown_messages = None;
     context_window_override = None;
-    cache_strategy = No_caching }
+    cache_strategy = No_caching; approval_handler = None }
 
 let make_registry_from tools =
   let reg = Tool_registry.create () in

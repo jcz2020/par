@@ -88,6 +88,7 @@ val make_agent :
   ?compression_cooldown_messages:int option ->
   ?context_window_override:int option ->
   ?cache_strategy:cache_strategy ->
+  ?approval_handler:Types.approval_context Approval.approval_handler option ->
   unit ->
   (agent_config, error_category) result
 

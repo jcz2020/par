@@ -28,6 +28,7 @@ let dummy_agent ?(id = "test") ?(system_prompt = stable_prompt "hello") ?system_
   resource_quota = None; max_execution_time = None; tool_timeout = None; early_stopping_method = Force;
   on_max_tokens = Some Return_partial; max_continuation_chunks = Some 3;
   context_compression_threshold = None; compression_cooldown_messages = None; context_window_override = None; cache_strategy = No_caching;
+  approval_handler = None;
 }
 
 let ctx ~agent_id ~runtime_id =

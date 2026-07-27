@@ -40,6 +40,7 @@ let mk_agent ?(system_prompt = stable_prompt "fallback") ?template () =
     compression_cooldown_messages = None;
     context_window_override = None;
     cache_strategy = No_caching;
+    approval_handler = None;
   } in
   agent_base
 

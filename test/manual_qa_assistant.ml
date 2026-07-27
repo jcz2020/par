@@ -42,7 +42,7 @@ let agent =
     context_compression_threshold = None;
     compression_cooldown_messages = None;
     context_window_override = None;
-    cache_strategy = No_caching }
+    cache_strategy = No_caching; approval_handler = None }
 
 let () =
   let llm = mock_llm_single (stop_resp "FINAL_ANSWER") in

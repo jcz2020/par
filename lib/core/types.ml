@@ -75,6 +75,13 @@ type handler_result =
       carry_context : bool;
       task : string option;
     }
+  | Approval_required of {
+      tool_name : string;
+      tool_input : Yojson.Safe.t;
+      prompt : string;
+      timeout : float option;
+      allowed_roles : string list;
+    }
 [@@deriving yojson]
 
 (* -------------------------------------------------------------------------- *)
@@ -471,6 +478,19 @@ let volatile_prompt s : system_prompt = { sp_raw = s; sp_zone = Zone_volatile }
 let prompt_text (sp : system_prompt) = sp.sp_raw
 let zone_of (sp : system_prompt) = sp.sp_zone
 
+(** Approval context — passed to {!Approval.approval_handler} at runtime.
+    Lives here (not in [Approval]) because it references [Types.conversation],
+    and the parameterized {!Approval.approval_handler} breaks the cycle by
+    deferring context type to the instantiation site. *)
+type approval_context = {
+  agent_id : string;
+  tool_name : string;
+  tool_input : Yojson.Safe.t;
+  conversation : conversation;
+  pending_action : Yojson.Safe.t;
+  metadata : (string * Yojson.Safe.t) list;
+}
+
 type agent_config = {
   id : string;
   system_prompt : system_prompt;
@@ -506,6 +526,7 @@ type agent_config = {
   compression_cooldown_messages : int option;
   context_window_override : int option;
   cache_strategy : cache_strategy;
+  approval_handler : approval_context Approval.approval_handler option;
 }
 
 (* -------------------------------------------------------------------------- *)

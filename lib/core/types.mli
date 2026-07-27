@@ -61,6 +61,13 @@ type handler_result =
       carry_context : bool;
       task : string option;
     }
+  | Approval_required of {
+      tool_name : string;
+      tool_input : Yojson.Safe.t;
+      prompt : string;
+      timeout : float option;
+      allowed_roles : string list;
+    }
 [@@deriving yojson]
 
 (* -------------------------------------------------------------------------- *)
@@ -432,6 +439,15 @@ val volatile_prompt : string -> system_prompt
 val prompt_text : system_prompt -> string
 val zone_of : system_prompt -> zone_tag
 
+type approval_context = {
+  agent_id : string;
+  tool_name : string;
+  tool_input : Yojson.Safe.t;
+  conversation : conversation;
+  pending_action : Yojson.Safe.t;
+  metadata : (string * Yojson.Safe.t) list;
+}
+
 type agent_config = {
   id : string;
   system_prompt : system_prompt;
@@ -466,6 +482,7 @@ type agent_config = {
   compression_cooldown_messages : int option;
   context_window_override : int option;
   cache_strategy : cache_strategy;
+  approval_handler : approval_context Approval.approval_handler option;
 }
 
 (* -------------------------------------------------------------------------- *)

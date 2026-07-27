@@ -68,9 +68,23 @@ type runtime = {
   cancel_stream_requested : bool ref;
   session_id : string option ref;
   mutable current_conversation : Types.conversation option;
+  cc_mutex : Mutex.t;
   mutable fallback_policy : Types.fallback_policy;
   vector_store : Vector_store.t option;
 } [@@warning "-69"]
+
+module Current_conversation : sig
+  val get : runtime -> Types.conversation option
+  val set : runtime -> Types.conversation option -> unit
+  val update : runtime -> (Types.conversation option -> Types.conversation option) -> unit
+end = struct
+  let with_cc_mutex rt f =
+    Mutex.lock rt.cc_mutex;
+    Fun.protect ~finally:(fun () -> Mutex.unlock rt.cc_mutex) (fun () -> f ())
+  let get rt = with_cc_mutex rt (fun () -> rt.current_conversation)
+  let set rt v = with_cc_mutex rt (fun () -> rt.current_conversation <- v)
+  let update rt f = with_cc_mutex rt (fun () -> rt.current_conversation <- f rt.current_conversation)
+end [@@warning "-32"]
 
 let default_event_bus_config = {
   buffer_capacity = 10000;
@@ -111,7 +125,8 @@ let make_agent ~id ?(system_prompt = stable_prompt "") ?(system_prompt_template 
     ?(context_compression_threshold = Some 0.8)
     ?(compression_cooldown_messages = Some 6)
     ?(context_window_override = None)
-    ?(cache_strategy = Types.No_caching) () =
+    ?(cache_strategy = Types.No_caching)
+    ?(approval_handler = None) () =
   let errors = ref [] in
   if String.length id = 0 then
     errors := "id must not be empty" :: !errors;
@@ -148,6 +163,7 @@ let make_agent ~id ?(system_prompt = stable_prompt "") ?(system_prompt_template 
       context_compression_threshold;
       compression_cooldown_messages;
       context_window_override; cache_strategy;
+      approval_handler;
     }
   | errs -> Result.Error (Types.Invalid_input (String.concat "; " errs))
 
@@ -172,6 +188,7 @@ let register_agent rt (agent : agent_config) =
     ?compression_cooldown_messages:(Some agent.compression_cooldown_messages)
     ?context_window_override:(Some agent.context_window_override)
     ?cache_strategy:(Some agent.cache_strategy)
+    ?approval_handler:(Some agent.approval_handler)
     () in
   match validated with
   | Ok valid_agent ->
@@ -655,7 +672,7 @@ let register_file_tools_rebuild rt rebuild =
 let save_conversation rt ?(conversation : Types.conversation option) () =
   let conv = match conversation with
     | Some c -> Some c
-    | None -> rt.current_conversation
+    | None -> Current_conversation.get rt
   in
   match !(rt.session_id), conv with
   | Some sid, Some c -> rt.services.persistence.save_conversation_fn sid c
@@ -665,7 +682,7 @@ let load_conversation rt sid =
   match rt.services.persistence.load_conversation_fn sid with
   | Ok (Some conv) ->
     rt.session_id := Some sid;
-    rt.current_conversation <- Some conv;
+    Current_conversation.set rt (Some conv);
     (match rt.event_bus_instance with
      | Some bus -> Event_bus.set_session_id bus sid
      | None -> rt.services.event_bus.set_session_id_fn sid);
@@ -679,7 +696,7 @@ let load_most_recent_conversation rt =
   match rt.services.persistence.load_most_recent_conversation_fn () with
   | Ok (Some (sid, conv)) ->
     rt.session_id := Some sid;
-    rt.current_conversation <- Some conv;
+    Current_conversation.set rt (Some conv);
     (match rt.event_bus_instance with
      | Some bus -> Event_bus.set_session_id bus sid
      | None -> rt.services.event_bus.set_session_id_fn sid);
@@ -820,7 +837,7 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
 (match try_with_provider llm_svc with
               | Ok (resp, conv) ->
                 record_llm_success rt;
-                if update_current then rt.current_conversation <- Some conv;
+                if update_current then Current_conversation.set rt (Some conv);
                 if save then ignore (save_conversation rt ~conversation:conv () : (unit, error_category) result);
                 Result.Ok { Types.response = resp; conversation = conv }
               | Error (err, _conv) when should_fallback err && rest <> [] ->
@@ -835,7 +852,7 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
                 try_providers rest
               | Error (err, conv) ->
                 record_llm_error rt err;
-                if update_current then rt.current_conversation <- Some conv;
+                if update_current then Current_conversation.set rt (Some conv);
                 Result.Error (err, conv)))
     in
     try_providers all_ids
@@ -935,13 +952,13 @@ let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
        (match result with
         | Ok (gen_result, conv) ->
           record_llm_success rt;
-          if update_current then rt.current_conversation <- Some conv;
+          if update_current then Current_conversation.set rt (Some conv);
           if save then
             ignore (save_conversation rt ~conversation:conv () : (unit, error_category) result);
           Result.Ok gen_result
         | Error (err, conv) ->
           record_llm_error rt err;
-          if update_current then rt.current_conversation <- Some conv;
+          if update_current then Current_conversation.set rt (Some conv);
           Result.Error (err, conv)))
 
 let invoke_structured rt ~agent_id ~message ~response_schema
@@ -1618,6 +1635,7 @@ let create ?(persistence = noop_persistence)
       cancel_stream_requested = ref false;
       session_id = ref None;
       current_conversation = None;
+      cc_mutex = Mutex.create ();
       fallback_policy = Types.No_fallback;
       vector_store;
     } in

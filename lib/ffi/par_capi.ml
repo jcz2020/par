@@ -739,7 +739,8 @@ let parse_agent_config (json : Yojson.Safe.t) : Par.Types.agent_config =
     max_execution_time; tool_timeout = None; early_stopping_method;
     on_max_tokens; max_continuation_chunks;
     context_compression_threshold; compression_cooldown_messages; context_window_override;
-    cache_strategy = parse_cache_strategy (json |> Yojson.Safe.Util.member "cache_strategy") }
+    cache_strategy = parse_cache_strategy (json |> Yojson.Safe.Util.member "cache_strategy");
+    approval_handler = None }
 
 let do_register_agent (state_id : int) (config_json : string) =
   match get_state state_id with

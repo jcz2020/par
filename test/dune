@@ -1,3 +1,6 @@
+(env
+ (_ (flags (:standard -warn-error -8))))
+
 (test
  (name test_par)
  (libraries par alcotest)
