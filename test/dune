@@ -553,3 +553,33 @@
  (name manual_qa_assistant)
  (libraries par eio_main)
  (modules manual_qa_assistant))
+
+(test
+ (name test_hitl_e2e)
+ (libraries par eio_main alcotest)
+ (modules test_hitl_e2e))
+
+(test
+ (name test_parallel_with_approval_e2e)
+ (libraries par eio_main alcotest)
+ (modules test_parallel_with_approval_e2e))
+
+(test
+ (name test_engine_hitl)
+ (libraries par eio_main alcotest sqlite3)
+ (modules test_engine_hitl))
+
+(test
+ (name test_invoke_parallel)
+ (libraries par eio_main alcotest sqlite3)
+ (modules test_invoke_parallel))
+
+(test
+ (name test_approval)
+ (libraries par eio_main alcotest)
+ (modules test_approval))
+
+(test
+ (name test_current_conversation_mutex)
+ (libraries par eio_main alcotest)
+ (modules test_current_conversation_mutex))
