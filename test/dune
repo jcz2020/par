@@ -280,6 +280,12 @@
  (modules test_noop_persistence))
 
 (test
+ (name test_approvals_persistence)
+ (libraries par alcotest sqlite3)
+ (modules test_approvals_persistence)
+ (action (run %{test})))
+
+(test
  (name test_streaming_tool_call_id)
  (libraries par eio alcotest yojson)
  (modules test_streaming_tool_call_id))

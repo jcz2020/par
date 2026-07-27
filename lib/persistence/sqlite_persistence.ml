@@ -73,6 +73,13 @@ let init_schema db =
          def_json     TEXT NOT NULL,
          updated_at   REAL NOT NULL
        )|};
+    {|CREATE TABLE IF NOT EXISTS approvals (
+         run_id       TEXT PRIMARY KEY,
+         agent_id     TEXT NOT NULL,
+         payload      TEXT NOT NULL,
+         created_at   REAL NOT NULL,
+         expires_at   REAL NOT NULL
+       )|};
   ] in
   (match List.find_map (fun sql ->
      match exec_sql db sql with
@@ -85,13 +92,15 @@ let init_schema db =
      add_column_if_missing db "events" "actions_json" "TEXT";
      add_column_if_missing db "events" "scope" "TEXT";
      add_column_if_missing db "conversations" "scope" "TEXT";
-     let indexes = [
-       {|CREATE INDEX IF NOT EXISTS idx_events_task_id ON events(task_id, timestamp)|};
-       {|CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id, timestamp)|};
-       {|CREATE INDEX IF NOT EXISTS idx_events_scope ON events(scope)|};
-       {|CREATE INDEX IF NOT EXISTS idx_conversations_scope ON conversations(scope)|};
-       {|CREATE INDEX IF NOT EXISTS conv_updated ON conversations(updated_at DESC)|};
-     ] in
+      let indexes = [
+        {|CREATE INDEX IF NOT EXISTS idx_events_task_id ON events(task_id, timestamp)|};
+        {|CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id, timestamp)|};
+        {|CREATE INDEX IF NOT EXISTS idx_events_scope ON events(scope)|};
+        {|CREATE INDEX IF NOT EXISTS idx_conversations_scope ON conversations(scope)|};
+        {|CREATE INDEX IF NOT EXISTS conv_updated ON conversations(updated_at DESC)|};
+        {|CREATE INDEX IF NOT EXISTS idx_approvals_expires ON approvals(expires_at)|};
+        {|CREATE INDEX IF NOT EXISTS idx_approvals_agent ON approvals(agent_id)|};
+      ] in
      List.iter (fun sql -> ignore (exec_sql db sql)) indexes;
      Ok ())
 
@@ -518,6 +527,112 @@ let load_all_workflow_defs t =
         | rc ->
           stop := true;
           error := Some (Result.Error (Internal (Printf.sprintf "Load workflow defs: %s" (Sqlite3.Rc.to_string rc))))
+      done;
+      match !error with
+      | Some e -> e
+      | None -> Ok (List.rev !acc)
+    in
+    let _ = Sqlite3.finalize stmt in
+    result
+  )
+
+(* -------------------------------------------------------------------------- *)
+(* Approval persistence (HITL pending approvals)                             *)
+(* -------------------------------------------------------------------------- *)
+
+let save_pending_approval t ~run_id ~agent_id ~payload ~expires_at =
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
+    let json = Yojson.Safe.to_string payload in
+    let now = Unix.gettimeofday () in
+    let stmt =
+      Sqlite3.prepare t.db
+        "INSERT OR REPLACE INTO approvals (run_id, agent_id, payload, created_at, expires_at) \
+         VALUES (?, ?, ?, ?, ?)"
+    in
+    let _ = Sqlite3.bind_text stmt 1 run_id in
+    let _ = Sqlite3.bind_text stmt 2 agent_id in
+    let _ = Sqlite3.bind_text stmt 3 json in
+    let _ = Sqlite3.bind_double stmt 4 now in
+    let _ = Sqlite3.bind_double stmt 5 expires_at in
+    let step_result = Sqlite3.step stmt in
+    let _ = Sqlite3.finalize stmt in
+    match step_result with
+    | Sqlite3.Rc.DONE | Sqlite3.Rc.ROW -> Ok ()
+    | rc -> Result.Error (Internal (Printf.sprintf "save_pending_approval: %s" (Sqlite3.Rc.to_string rc)))
+  )
+
+(** Load a pending approval by [run_id].
+    Returns [None] if not found OR if expired (auto-expiry on read).
+    Expired rows are cleaned up lazily. *)
+let load_pending_approval t ~run_id =
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
+    let now = Unix.gettimeofday () in
+    let stmt =
+      Sqlite3.prepare t.db
+        "SELECT payload, expires_at FROM approvals WHERE run_id = ?"
+    in
+    let _ = Sqlite3.bind_text stmt 1 run_id in
+    let result =
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.ROW ->
+        let payload_str = Sqlite3.column_text stmt 0 in
+        let expires_at = Sqlite3.column_double stmt 1 in
+        if expires_at < now then begin
+          (* Auto-expire: delete the stale row *)
+          let _ = Sqlite3.finalize stmt in
+          let del_stmt = Sqlite3.prepare t.db "DELETE FROM approvals WHERE run_id = ?" in
+          let _ = Sqlite3.bind_text del_stmt 1 run_id in
+          let _ = Sqlite3.step del_stmt in
+          let _ = Sqlite3.finalize del_stmt in
+          Ok None
+        end else begin
+          let _ = Sqlite3.finalize stmt in
+          (match Yojson.Safe.from_string payload_str with
+           | json -> Ok (Some json)
+           | exception Yojson.Json_error msg ->
+             Result.Error (Internal (Printf.sprintf "load_pending_approval JSON parse: %s" msg)))
+        end
+      | Sqlite3.Rc.DONE ->
+        let _ = Sqlite3.finalize stmt in
+        Ok None
+      | rc ->
+        let _ = Sqlite3.finalize stmt in
+        Result.Error (Internal (Printf.sprintf "load_pending_approval: %s" (Sqlite3.Rc.to_string rc)))
+    in
+    result
+  )
+
+let delete_pending_approval t ~run_id =
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
+    let stmt = Sqlite3.prepare t.db "DELETE FROM approvals WHERE run_id = ?" in
+    let _ = Sqlite3.bind_text stmt 1 run_id in
+    let step_result = Sqlite3.step stmt in
+    let _ = Sqlite3.finalize stmt in
+    match step_result with
+    | Sqlite3.Rc.DONE | Sqlite3.Rc.ROW -> Ok ()
+    | rc -> Result.Error (Internal (Printf.sprintf "delete_pending_approval: %s" (Sqlite3.Rc.to_string rc)))
+  )
+
+let list_expired_approvals t ~cutoff =
+  Eio.Mutex.use_ro t.mutex (fun () ->
+    let stmt =
+      Sqlite3.prepare t.db
+        "SELECT run_id FROM approvals WHERE expires_at < ?"
+    in
+    let _ = Sqlite3.bind_double stmt 1 cutoff in
+    let acc = ref [] in
+    let result =
+      let stop = ref false in
+      let error = ref None in
+      while not !stop do
+        match Sqlite3.step stmt with
+        | Sqlite3.Rc.ROW ->
+          let run_id = Sqlite3.column_text stmt 0 in
+          acc := run_id :: !acc
+        | Sqlite3.Rc.DONE -> stop := true
+        | rc ->
+          stop := true;
+          error := Some (Result.Error (Internal (Printf.sprintf "list_expired_approvals: %s" (Sqlite3.Rc.to_string rc))))
       done;
       match !error with
       | Some e -> e

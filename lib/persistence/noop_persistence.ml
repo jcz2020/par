@@ -40,3 +40,11 @@ let load_most_recent_conversation ?scope:_ t =
     | Some _ -> ()
   ) t.conversations () in
   Ok !acc
+
+let save_pending_approval _t ~run_id:_ ~agent_id:_ ~payload:_ ~expires_at:_ = Ok ()
+
+let load_pending_approval _t ~run_id:_ = Ok None
+
+let delete_pending_approval _t ~run_id:_ = Ok ()
+
+let list_expired_approvals _t ~cutoff:_ = Ok []

@@ -20,6 +20,10 @@ val load_workflow_state : t -> Workflow_run_id.t -> (workflow_checkpoint option,
 val load_all_suspended_workflows : t -> ((Workflow_run_id.t * workflow_status) list, error_category) result
 val save_workflow_def : t -> string -> Yojson.Safe.t -> (unit, error_category) result
 val load_all_workflow_defs : t -> ((string * Yojson.Safe.t) list, error_category) result
+val save_pending_approval : t -> run_id:string -> agent_id:string -> payload:Yojson.Safe.t -> expires_at:float -> (unit, error_category) result
+val load_pending_approval : t -> run_id:string -> (Yojson.Safe.t option, error_category) result
+val delete_pending_approval : t -> run_id:string -> (unit, error_category) result
+val list_expired_approvals : t -> cutoff:float -> (string list, error_category) result
 val save_conversation : ?scope:string -> t -> string -> conversation -> (unit, error_category) result
 val load_conversation : t -> string -> (conversation option, error_category) result
 val load_most_recent_conversation : ?scope:string -> t -> ((string * conversation) option, error_category) result
