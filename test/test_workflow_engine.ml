@@ -108,6 +108,7 @@ let make_ctx ?(variables = []) ?(failure_policy = Fail_fast)
     approval_handler_overrides = [];
     per_call_registry_fn = None;
     on_approval_pending = None;
+        net = None;
   }
 
 let ok_or_fail msg = function

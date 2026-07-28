@@ -56,6 +56,7 @@ type exec_context = {
       caller must scan results for [("status", "suspended")] markers. *)
   on_approval_pending :
     (approval_suspend_payload -> [`Block | `Continue]) option;
+  net : Obj.t option;
 }
 
 exception Workflow_suspended of {

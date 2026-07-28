@@ -1517,6 +1517,7 @@ let submit_workflow rt ?workspace ?(inputs = []) wf =
     approval_handler_overrides = [];
     per_call_registry_fn = None;
     on_approval_pending = None;
+      net = rt.net;
                  }
     in
     (match rt.services.persistence.save_workflow_state_fn id Wf_running (Some cp) with
@@ -1541,6 +1542,7 @@ let submit_workflow rt ?workspace ?(inputs = []) wf =
     approval_handler_overrides = [];
     per_call_registry_fn = None;
     on_approval_pending = Some (parallel_approval_cb rt);
+      net = rt.net;
   } in
   (match Workflow_engine.execute_workflow ctx wf with
    | Ok result ->
@@ -1618,6 +1620,7 @@ let submit_workflow_async rt ?workspace ?(inputs = []) wf =
     approval_handler_overrides = [];
     per_call_registry_fn = None;
     on_approval_pending = None;
+      net = rt.net;
   } in
     (match rt.services.persistence.save_workflow_state_fn id Wf_running (Some cp) with
      | Ok () -> ()
@@ -1641,6 +1644,7 @@ let submit_workflow_async rt ?workspace ?(inputs = []) wf =
     approval_handler_overrides = [];
     per_call_registry_fn = None;
     on_approval_pending = Some (parallel_approval_cb rt);
+      net = rt.net;
   } in
   ignore (Eio.Fiber.fork ~sw:rt.cancellation_root (fun () ->
     (try
@@ -1739,6 +1743,7 @@ let invoke_parallel ~rt ~specs ?(parallel_limit = 4)
       approval_handler_overrides = [];
       per_call_registry_fn = Some (fun ws -> per_call_registry ~rt ~workspace:ws);
       on_approval_pending = Some (parallel_approval_cb rt);
+      net = rt.net;
     } in
     let sem = Eio.Semaphore.make parallel_limit in
     let promises = List.map (fun (spec : agent_dispatch_spec) ->
@@ -1899,6 +1904,7 @@ let resume_workflow rt wf_id =
            approval_handler_overrides = [];
            per_call_registry_fn = None;
            on_approval_pending = None;
+      net = rt.net;
           } in
         htbl_set rt.workflows wf_id Wf_running;
        (match rt.services.persistence.save_workflow_state_fn wf_id Wf_running None with

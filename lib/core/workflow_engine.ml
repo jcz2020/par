@@ -65,6 +65,7 @@ type exec_context = {
   per_call_registry_fn : (Workspace.workspace -> Tool_registry.t) option;
   on_approval_pending :
     (approval_suspend_payload -> [`Block | `Continue]) option;
+  net : Obj.t option;
 }
 
 exception Workflow_suspended of {
@@ -144,7 +145,7 @@ let rec execute_step ?(path=[]) ctx step =
        let prompt = substitute prompt_template ctx.variables in
        (match response_schema with
         | None ->
-          (match Engine.run_agent ctx.token agent prompt ctx.llm ctx.registry with
+           (match Engine.run_agent ?net:(Option.map (fun n -> (Obj.obj n : _ Eio.Net.t)) ctx.net) ctx.token agent prompt ctx.llm ctx.registry with
            | Ok (resp, _) ->
              let text_field = match resp.text with
                | Some t -> ("text", `String t)
@@ -158,6 +159,7 @@ let rec execute_step ?(path=[]) ctx step =
           let run_fn =
             if agent.tools <> [] then
               Engine.run_agent_structured ~response_schema:schema
+                ?net:(Option.map (fun n -> (Obj.obj n : _ Eio.Net.t)) ctx.net)
                 ctx.llm ctx.token agent prompt ctx.registry
             else
               Engine.run_structured ~response_schema:schema
