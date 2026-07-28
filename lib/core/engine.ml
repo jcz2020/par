@@ -536,6 +536,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     ?(tool_call_hooks = None) ?(quota = None) ?(parallel = false)
     ?(on_progress = None) ?(on_tool_event = None) ?(on_chunk = None)
     ?conversation ?agent_resolver ?(enable_handoff = false)
+    ?(net : _ Eio.Net.t option)
     token agent user_message llm registry =
   (* PAR-k38 T3.1: resolve effective tool mode.
      - `Auto (default): consult [llm.supports_native_tools_fn].
@@ -1061,27 +1062,93 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                        } : handler_result) in
                        let conv = add_tool_result_message conv call synth in
                        loop ~agent ~global_max conv (iterations + 1))
-                  | Async_callback _ | Webhook _ ->
-                    let pending_payload = `Assoc [
-                      ("tool_call_id", `String call.id);
-                      ("tool_name", `String tool_name);
-                      ("tool_input", tool_input);
-                      ("prompt", `String prompt);
-                      ("allowed_roles",
-                       `List (List.map (fun r -> `String r) allowed_roles));
-                    ] in
-                    let timeout_secs = Option.value timeout
-                      ~default:Approval.default_timeout in
-                    let expires_at = Unix.gettimeofday () +. timeout_secs in
-                    raise (Approval_pending {
-                      run_id = runtime_id;
-                      agent_id = agent.id;
-                      tool_name;
-                      tool_input;
-                      conv_snapshot = conv;
-                      pending_payload;
-                      expires_at;
-                    })))
+                   | Async_callback _ ->
+                     let pending_payload = `Assoc [
+                       ("tool_call_id", `String call.id);
+                       ("tool_name", `String tool_name);
+                       ("tool_input", tool_input);
+                       ("prompt", `String prompt);
+                       ("allowed_roles",
+                        `List (List.map (fun r -> `String r) allowed_roles));
+                     ] in
+                     let timeout_secs = Option.value timeout
+                       ~default:Approval.default_timeout in
+                     let expires_at = Unix.gettimeofday () +. timeout_secs in
+                     raise (Approval_pending {
+                       run_id = runtime_id;
+                       agent_id = agent.id;
+                       tool_name;
+                       tool_input;
+                       conv_snapshot = conv;
+                       pending_payload;
+                       expires_at;
+                     })
+                   | Webhook { url; secret; timeout_sec } ->
+                     (match net with
+                      | None ->
+                        let pending_payload = `Assoc [
+                          ("tool_call_id", `String call.id);
+                          ("tool_name", `String tool_name);
+                          ("tool_input", tool_input);
+                          ("prompt", `String prompt);
+                          ("allowed_roles",
+                           `List (List.map (fun r -> `String r) allowed_roles));
+                        ] in
+                        let timeout_secs = Option.value timeout
+                          ~default:Approval.default_timeout in
+                        let expires_at = Unix.gettimeofday () +. timeout_secs in
+                        raise (Approval_pending {
+                          run_id = runtime_id;
+                          agent_id = agent.id;
+                          tool_name;
+                          tool_input;
+                          conv_snapshot = conv;
+                          pending_payload;
+                          expires_at;
+                        })
+                      | Some net ->
+                        let approver = "webhook" in
+                        let outcome = Webhook.send_webhook_approval
+                          ~net ~url ~secret ~timeout_sec ~ctx in
+                        (match outcome with
+                         | Approval.Approved ->
+                           fire (Approval_granted { approver });
+                           let synth = Success (`Assoc [
+                             ("status", `String "approved");
+                             ("message", `String (Printf.sprintf
+                               "approval granted for %s" tool_name));
+                           ]) in
+                           let conv = add_tool_result_message conv call synth in
+                           loop ~agent ~global_max conv (iterations + 1)
+                         | Approval.Rejected { reason } ->
+                           fire (Approval_rejected { reason; approver });
+                           let synth = (Error {
+                             category = Permission_denied "approval rejected";
+                             message = reason;
+                             retryable = false;
+                             metadata = [];
+                           } : handler_result) in
+                           let conv = add_tool_result_message conv call synth in
+                           loop ~agent ~global_max conv (iterations + 1)
+                         | Approval.Modified { new_input } ->
+                           fire (Approval_modified { new_input; approver });
+                           let modified_call = { call with arguments = new_input } in
+                           let (_, result) = invoke_one modified_call in
+                           let conv = add_tool_result_message conv modified_call result in
+                           loop ~agent ~global_max conv (iterations + 1)
+                         | Approval.Escalated { target } ->
+                           fire (Approval_escalated { target; approver });
+                           execute_handoff call target true None
+                         | Approval.Timeout ->
+                           fire Approval_timeout;
+                           let synth = (Error {
+                             category = (Timeout : error_category);
+                             message = "webhook approval timed out";
+                             retryable = false;
+                             metadata = [];
+                           } : handler_result) in
+                           let conv = add_tool_result_message conv call synth in
+                           loop ~agent ~global_max conv (iterations + 1)))))
             | _ ->
               Result.Error (Internal
                 "execute_approval: non-Approval_required input", conv)
@@ -1325,6 +1392,7 @@ let run_agent_structured
     ?tool_call_hooks ?quota ?parallel
     ?on_progress ?on_tool_event
     ?conversation ?agent_resolver ?enable_handoff
+    ?net
     ~response_schema
     (llm : llm_service) token (agent : agent_config) message
     (registry : Tool_registry.t) =
@@ -1332,6 +1400,7 @@ let run_agent_structured
     ?tool_call_hooks ?quota ?parallel
     ?on_progress ?on_tool_event
     ?conversation ?agent_resolver ?enable_handoff
+    ?net
     token agent message llm registry with
   | Error (err, conv) -> Result.Error (err, conv)
   | Ok (_resp, conv) ->

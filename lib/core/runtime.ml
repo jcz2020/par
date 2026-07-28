@@ -85,6 +85,7 @@ type runtime = {
   cc_mutex : Mutex.t;
   mutable fallback_policy : Types.fallback_policy;
   vector_store : Vector_store.t option;
+  net : Obj.t option;
 } [@@warning "-69"]
 
 module Current_conversation : sig
@@ -837,6 +838,7 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
             ?conversation
             ~agent_resolver:(fun aid -> htbl_get rt.agents aid)
             ~enable_handoff:(Option.value enable_handoff ~default:false)
+            ?net:(Option.map (fun n -> (Obj.obj n : _ Eio.Net.t)) rt.net)
             token config message llm_svc (per_call_registry ~rt ~workspace:effective_workspace)
           with
           | Engine.Approval_pending payload ->
@@ -1100,6 +1102,7 @@ let invoke_structured rt ~agent_id ~message ~response_schema
             ~parallel:rt.parallel_tool_execution
             ?on_repair_attempt
             ?conversation
+            ?net:(Option.map (fun n -> (Obj.obj n : _ Eio.Net.t)) rt.net)
             ~response_schema
             llm_svc token config message
             call_registry
@@ -1419,6 +1422,7 @@ let resume_approval ~rt ~run_id ~outcome ~approver =
               ~parallel:rt.parallel_tool_execution
               ~enable_handoff:false
               ~conversation:resumed_conv
+              ?net:(Option.map (fun n -> (Obj.obj n : _ Eio.Net.t)) rt.net)
               token resumed_agent
               "Approval resolved; please continue."
               rt.services.llm registry
@@ -2013,6 +2017,7 @@ let create ?(persistence = noop_persistence)
            ?mcp_net
            ?mcp_clock
            ?(mcp_startup_policy = Mcp_types.Log_and_continue)
+           ?net
            ~config switch =
   let validation_result = Validation.validate_runtime_config_result config in
   match validation_result with
@@ -2110,6 +2115,7 @@ let create ?(persistence = noop_persistence)
       cc_mutex = Mutex.create ();
       fallback_policy = Types.No_fallback;
       vector_store;
+      net = Option.map Obj.repr net;
     } in
     (match memory with
      | Some _svc ->

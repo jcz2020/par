@@ -580,6 +580,11 @@
  (modules test_approval))
 
 (test
- (name test_current_conversation_mutex)
- (libraries par eio_main alcotest)
- (modules test_current_conversation_mutex))
+  (name test_current_conversation_mutex)
+  (libraries par eio_main alcotest)
+  (modules test_current_conversation_mutex))
+
+(test
+  (name test_webhook)
+  (libraries par eio_main alcotest)
+  (modules test_webhook))

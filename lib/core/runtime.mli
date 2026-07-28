@@ -35,6 +35,7 @@ val create :
   ?mcp_net:_ Eio.Net.t ->
   ?mcp_clock:_ Eio.Time.clock ->
   ?mcp_startup_policy:Mcp_types.startup_policy ->
+  ?net:_ Eio.Net.t ->
   config:runtime_config ->
   Eio.Switch.t ->
   (runtime, error_category) result

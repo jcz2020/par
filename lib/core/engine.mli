@@ -151,6 +151,7 @@ val run_agent_structured :
   ?conversation:conversation ->
   ?agent_resolver:(string -> agent_config option) ->
   ?enable_handoff:bool ->
+  ?net:_ Eio.Net.t ->
   response_schema:Yojson.Safe.t ->
   llm_service ->
   cancellation_token ->
@@ -177,6 +178,7 @@ val run_agent :
   ?conversation:conversation ->
   ?agent_resolver:(string -> agent_config option) ->
   ?enable_handoff:bool ->
+  ?net:_ Eio.Net.t ->
   cancellation_token ->
   agent_config ->
   string ->
