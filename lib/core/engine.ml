@@ -1,15 +1,13 @@
 open Types
 
 (* -------------------------------------------------------------------------- *)
-(* HITL approval pending — Wave 2 stub.
-   Raised by [execute_approval] when an async handler ([Async_callback] /
-   [Webhook]) is configured and the engine cannot resolve the approval
-   synchronously inside the ReAct loop. Wave 3 C3.1 will add the
-   try/with wrapper at the [run_agent] boundary to catch this exception,
-   persist [conv_snapshot] + [pending_payload] for resumption, and expose
-   [Runtime.resume_approval]. No caller exercises this path in Wave 2. *)
-(* -------------------------------------------------------------------------- *)
-
+(* HITL approval pending exception.
+   Raised by [execute_approval] when an async handler ([Async_callback]) is
+   configured and the engine cannot resolve the approval synchronously.
+   Caught at the [Runtime.invoke] boundary (runtime.ml), [invoke_parallel]
+   fiber body, and [submit_workflow] / [submit_workflow_async] via
+   [parallel_approval_cb]. Persisted to SQLite [approvals] table for
+   cross-process resumption via [Runtime.resume_approval]. *)
 exception Approval_pending of {
   run_id : string;
   agent_id : string;

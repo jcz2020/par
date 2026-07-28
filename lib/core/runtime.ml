@@ -7,7 +7,7 @@ type agent_dispatch_spec = {
   input : string option;
   workspace : Workspace.workspace option;
   approval_handler : approval_context Approval.approval_handler option;
-  blocking_approval : bool;
+  blocking_approval : bool;  (* reserved for v0.8.1: true = block siblings until resolved *)
 }
 
 type parallel_invoke_result = {
