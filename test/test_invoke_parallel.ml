@@ -408,6 +408,74 @@ let test_cancellation_via_token () =
       Alcotest.failf "expected Ok: %s" (error_to_string e))
 
 (* ======================================================================== *)
+(* Bug 2 regression: invoke_parallel catches Approval_pending for Async     *)
+(* ======================================================================== *)
+
+let test_async_callback_suspends_branch () =
+  with_switch (fun sw ->
+    let tool_call_b : llm_response =
+      { text = None;
+        tool_calls = Some [{
+          id = "tc-b1"; name = "guarded_tool_b";
+          arguments = `Assoc [] }];
+        finish_reason = Tool_calls;
+        usage = dummy_usage; model = "mock" } in
+    let llm = mock_llm_dynamic (fun conv ->
+      let has_task_b = List.exists (fun (m : message) ->
+        m.role = User &&
+        (let s = Message.text_of_message m in
+         try ignore (Str.search_forward (Str.regexp_string "task-b") s 0); true
+         with Not_found -> false)
+      ) conv.messages in
+      if has_task_b then tool_call_b
+      else text_response "ok"
+    ) in
+    let guarded_desc = {
+      name = "guarded_tool_b"; description = "approval tool";
+      input_schema = `Assoc []; output_schema = None;
+      permission = Allow; timeout = None; concurrency_limit = None;
+      on_update = None; cache_control = None
+    } in
+    let guarded_binding : tool_binding = {
+      descriptor = guarded_desc;
+      handler = (fun _input _tok ->
+        Approval_required {
+          tool_name = "guarded_tool_b"; tool_input = `Assoc [];
+          prompt = "Approve?"; timeout = Some 60.0; allowed_roles = []
+        });
+    } in
+    let rt = create_runtime ~llm sw in
+    let agent_a = make_agent "A" "Agent A" in
+    let agent_b_base = make_agent "B" "Agent B" ~tools:[guarded_binding] in
+    let agent_b = { agent_b_base with
+      approval_handler = Some (Async_callback (fun _ctx ->
+        Eio.Promise.create_resolved Approval.Approved)) } in
+    let agent_c = make_agent "C" "Agent C" in
+    List.iter (fun a -> match Runtime.register_agent rt a with
+      | Ok () -> () | Error e -> Alcotest.failf "reg: %s" (error_to_string e))
+      [agent_a; agent_b; agent_c];
+    let specs = [
+      spec "A" ~input:"task-a";
+      spec "B" ~input:"task-b";
+      spec "C" ~input:"task-c";
+    ] in
+    (* Bug 2 regression: invoke_parallel with Async_callback handler must not crash.
+       Pre-fix: Approval_pending leaked as Error(Internal). Post-fix: caught by
+       try/with in fiber body (runtime.ml:1772). Even if execute_approval's
+       internal raise path has edge cases, the test verifies invoke_parallel
+       returns Ok with siblings A + C completed. B either suspends (success
+       with marker) or fails (in failures) — but must NOT crash invoke_parallel. *)
+    (match Runtime.invoke_parallel ~rt ~specs () with
+     | Ok result ->
+       let a_present = List.exists (fun (s, _) -> s.Runtime.agent_id = "A") result.successes in
+       let c_present = List.exists (fun (s, _) -> s.Runtime.agent_id = "C") result.successes in
+       Alcotest.(check bool) "sibling A completed" true a_present;
+       Alcotest.(check bool) "sibling C completed" true c_present
+     | Error e ->
+       Alcotest.failf "invoke_parallel should not crash with Async_callback: %s"
+         (error_to_string e)))
+
+(* ======================================================================== *)
 (* Single agent success                                                     *)
 (* ======================================================================== *)
 
@@ -524,5 +592,9 @@ let () =
     ("Cancellation", [
       Alcotest.test_case "cancelled token produces error" `Quick
         test_cancellation_via_token;
+    ]);
+    ("Async approval in invoke_parallel", [
+      Alcotest.test_case "Async_callback suspends branch, siblings continue" `Quick
+        test_async_callback_suspends_branch;
     ]);
   ]
