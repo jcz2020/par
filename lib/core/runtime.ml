@@ -1768,22 +1768,44 @@ let invoke_parallel ~rt ~specs ?(parallel_limit = 4)
           (fun () ->
             try Workflow_engine.execute_step branch_ctx step
             with Engine.Approval_pending pl ->
-              let data : Workflow_engine.approval_suspend_payload = {
-                run_id = pl.run_id;
-                agent_id = pl.agent_id;
-                tool_name = pl.tool_name;
-                tool_input = pl.tool_input;
-                conv_snapshot = pl.conv_snapshot;
-                pending_payload = pl.pending_payload;
-                expires_at = pl.expires_at;
-              } in
-              let _ = parallel_approval_cb rt data in
+              let persist_id =
+                Session_id.to_string (Session_id.create ()) in
+              let stored_payload = `Assoc [
+                ("persist_id", `String persist_id);
+                ("runtime_run_id", `String pl.run_id);
+                ("agent_id", `String pl.agent_id);
+                ("tool_name", `String pl.tool_name);
+                ("tool_input", pl.tool_input);
+                ("conv_snapshot",
+                 Types.conversation_to_yojson pl.conv_snapshot);
+                ("engine_pending_payload", pl.pending_payload);
+                ("expires_at", `Float pl.expires_at);
+                ("created_at", `Float (Unix.gettimeofday ()));
+              ] in
+              (match rt.services.persistence.save_pending_approval_fn
+                       ~run_id:persist_id ~agent_id:pl.agent_id
+                       ~payload:stored_payload
+                       ~expires_at:pl.expires_at with
+               | Ok () -> ()
+               | Error e ->
+                 Logs.err (fun m -> m
+                   "[invoke_parallel] save_pending_approval failed \
+                    (agent=%s tool=%s): %s"
+                   pl.agent_id pl.tool_name
+                   (string_of_error_category e)));
+              publish_event rt (Approval_requested {
+                prompt =
+                  Printf.sprintf
+                    "Approval required for tool %s on agent %s"
+                    pl.tool_name pl.agent_id;
+                allowed_roles = [];
+              });
               Result.Ok (`Assoc [
                 ("status", `String "suspended");
-                ("run_id", `String data.run_id);
-                ("agent_id", `String data.agent_id);
-                ("tool_name", `String data.tool_name);
-                ("expires_at", `Float data.expires_at);
+                ("run_id", `String persist_id);
+                ("agent_id", `String pl.agent_id);
+                ("tool_name", `String pl.tool_name);
+                ("expires_at", `Float pl.expires_at);
               ]))
       )
     ) specs in
