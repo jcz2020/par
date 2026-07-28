@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](../zh/sdk/overview.md)
+**English** · [简体中文](https://github.com/jcz2020/par/blob/main/zh/sdk/overview.md)
 
 # PAR SDK Overview
 
@@ -281,6 +281,6 @@ Tool handlers and runtime internals consult `Capability.detect` rather than scat
 - [`docs/sdk/middleware.md`](middleware.md): all 8 built-in middlewares and the `middleware_hook` shape
 - [`docs/sdk/tools.md`](tools.md): all 23 built-in tools with input/output schemas
 - [`docs/sdk/persistence.md`](persistence.md): persistence service, SQLite backend, scope dimension
-- [`docs/quickstart.md`](../quickstart.md): 30-minute hands-on for new users
-- [`docs/explanation/architecture.md`](../explanation/architecture.md): deep dive on data flow, the Eio model, and event payload schema
-- [`CHANGES.md`](../../CHANGES.md): release notes, including the v0.3.1 bash addition and the current test count
+- [`docs/quickstart.md`](https://github.com/jcz2020/par/blob/main/quickstart.md): 30-minute hands-on for new users
+- [`docs/explanation/architecture.md`](https://github.com/jcz2020/par/blob/main/explanation/architecture.md): deep dive on data flow, the Eio model, and event payload schema
+- [`CHANGES.md`](https://github.com/jcz2020/par/blob/main/../CHANGES.md): release notes, including the v0.3.1 bash addition and the current test count

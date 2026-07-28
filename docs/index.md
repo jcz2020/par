@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](zh/index.md)
+**English** · [简体中文](https://github.com/jcz2020/par/blob/main/docs/zh/index.md)
 
 # PAR Documentation
 
@@ -8,7 +8,7 @@ PAR's docs are SDK-first. PAR is an embeddable runtime — production code uses 
 
 The docs are organized by purpose, not by source-tree layout. Four sections follow: Tutorials walk you through a complete task from scratch, How-to guides solve a specific problem, Reference documents every API, and Explanation discusses the design decisions. Pick the section that matches your question; cross-links inside each page point at related material.
 
-Every page in this tree opens with a `<!-- language: en -->` marker on line 1, ships English only, and preserves OCaml identifiers verbatim (backticks, not code blocks). Contributors should read [CONTRIBUTING.md](../CONTRIBUTING.md) before opening a doc PR — it covers the authoring contract, the identifier list, and the pre-release checklist.
+Every page in this tree opens with a `<!-- language: en -->` marker on line 1, ships English only, and preserves OCaml identifiers verbatim (backticks, not code blocks). Contributors should read [CONTRIBUTING.md](https://github.com/jcz2020/par/blob/main/CONTRIBUTING.md) before opening a doc PR — it covers the authoring contract, the identifier list, and the pre-release checklist.
 
 The audience for this tree is two groups: SDK users who embed `par` in their applications (OCaml or Python), and contributors who extend the runtime with a new provider, tool, or middleware. The four sections below serve both, and each page is written so a fresh reader can act on it without first reading the rest of the tree.
 
@@ -85,15 +85,15 @@ Explanation docs discuss the why behind PAR's design. Read these when you want t
 
 ### Doc internals
 
-Documentation maintenance: identifier preservation, language indicator, CJK check, CI integration — see [CONTRIBUTING.md](../CONTRIBUTING.md).
+Documentation maintenance: identifier preservation, language indicator, CJK check, CI integration — see [CONTRIBUTING.md](https://github.com/jcz2020/par/blob/main/CONTRIBUTING.md).
 
 ## Project links
 
 Project-level documents that live outside the four sections above.
 
-- [`README.md`](../README.md): project overview
-- [`CHANGES.md`](../CHANGES.md): changelog
-- [`CONTRIBUTING.md`](../CONTRIBUTING.md): how to contribute
-- [`SECURITY.md`](../SECURITY.md): security disclosure
+- [`README.md`](https://github.com/jcz2020/par/blob/main/README.md): project overview
+- [`CHANGES.md`](https://github.com/jcz2020/par/blob/main/CHANGES.md): changelog
+- [`CONTRIBUTING.md`](https://github.com/jcz2020/par/blob/main/CONTRIBUTING.md): how to contribute
+- [`SECURITY.md`](https://github.com/jcz2020/par/blob/main/SECURITY.md): security disclosure
 - [GitHub repository](https://github.com/jcz2020/par): source, issues, PRs
 - [opam package `par`](https://opam.ocaml.org/packages/par/): once published

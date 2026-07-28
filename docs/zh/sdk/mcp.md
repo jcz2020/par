@@ -1,5 +1,5 @@
 # MCP 客户端 API 参考
-[English](../sdk/mcp.md) · **简体中文**
+[English](https://github.com/jcz2020/par/blob/main/sdk/mcp.md) · **简体中文**
 
 本文档描述 P-A-R SDK 的 MCP（Model Context Protocol）客户端（stdio + HTTP/SSE）。PAR agent 可以连接到任意 MCP server（filesystem、git、sqlite、github 等），直接消费它们暴露的 tools、resources 和 prompts。
 

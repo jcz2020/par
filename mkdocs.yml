@@ -126,3 +126,19 @@ not_in_nav: |
   RELEASE-TEMPLATE.md
   archive/*
   evaluations/*
+  STRATEGY.md
+  long-output-generation-mode-plan.md
+  react-loop-fixes-competitive-analysis.md
+  release-pipeline-redesign.md
+  release.md
+  v0.*-ROADMAP.md
+  v0.4.11-ROADMAP.md
+  audit/*
+  plans/*
+  rules/*
+  tutorials/*
+  migration/v0.7.1.md
+  zh/tutorials/01-rag-qa-bot.md
+  zh/tutorials/02-streaming-ui.md
+  zh/migration/v0.7.1.md
+  audit/v0.7.x-findings.md

@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](../zh/sdk/tools.md)
+**English** · [简体中文](https://github.com/jcz2020/par/blob/main/zh/sdk/tools.md)
 
 > Translated to English for v0.3.2. Source-of-truth: the OCaml modules in lib/tools/.
 

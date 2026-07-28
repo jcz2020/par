@@ -1,6 +1,6 @@
 <!-- language: zh -->
 
-[English](../sdk/workflow.md) · **简体中文**
+[English](https://github.com/jcz2020/par/blob/main/sdk/workflow.md) · **简体中文**
 
 > 源真相：`lib/core/types.ml` 中的 OCaml 类型和 `lib/core/workflow_engine.ml` 中的引擎。
 
@@ -501,4 +501,4 @@ match Runtime.submit_workflow_async rt wf with
 
 - [Overview](overview.md) — SDK 架构概览
 - [Agent API](agent.md) — Agent 配置和运行时管理
-- [examples/sequential_workflow.json](../../../examples/sequential_workflow.json) — 工作流 JSON 示例
+- [examples/sequential_workflow.json](https://github.com/jcz2020/par/blob/main/../../examples/sequential_workflow.json) — 工作流 JSON 示例

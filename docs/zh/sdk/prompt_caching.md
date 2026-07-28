@@ -1,5 +1,5 @@
 <!-- language: zh -->
-**[English](../sdk/prompt_caching.md)** · 简体中文
+**[English](https://github.com/jcz2020/par/blob/main/sdk/prompt_caching.md)** · 简体中文
 
 # Prompt 缓存
 

@@ -2,7 +2,7 @@
 
 # Generate API 参考
 
-[English](../sdk/generate.md) · **简体中文**
+[English](https://github.com/jcz2020/par/blob/main/sdk/generate.md) · **简体中文**
 
 > v0.6.x 新增。源真相：OCaml 函数 `Runtime.invoke_generate`（`lib/core/runtime.ml`）、`Generate.run`（`lib/core/generate.ml`）、`generate_result` 类型（`lib/core/types.ml`）。
 
@@ -93,7 +93,7 @@ Continue 子循环是让 `invoke_generate` 适合长输出的关键。runtime �
 
 每次成功的续写都会发出一个 `Generate_continuation` 事件，带 chunk 索引（0 基：初始响应后的第一次续写是索引 0）和新增字符数。调用方可以基于这个事件接进度 UI，不必检查文本。
 
-这与 ReAct 路径使用的 `Continue` 语义相同（见 [Agent API](../sdk/agent.md) 中的 `agent_config.on_max_tokens = Continue`），但被抽取成一条专用循环。区别在于：ReAct 路径上 `Continue` 是 per-agent opt-in 且受 `max_continuation_chunks`（默认 3）约束；生成路径上续写是默认行为，cap 被取消，递减收益保护是唯一预算。计划 §1 记录了促成此设计的四家 agent 调研：Claude Code、Codex CLI、OpenCode、a comparable coding agent 没有一家把 `Max_tokens` 当作循环预算事件，PAR 在纯生成场景下对齐了这个不变量。
+这与 ReAct 路径使用的 `Continue` 语义相同（见 [Agent API](https://github.com/jcz2020/par/blob/main/sdk/agent.md) 中的 `agent_config.on_max_tokens = Continue`），但被抽取成一条专用循环。区别在于：ReAct 路径上 `Continue` 是 per-agent opt-in 且受 `max_continuation_chunks`（默认 3）约束；生成路径上续写是默认行为，cap 被取消，递减收益保护是唯一预算。计划 §1 记录了促成此设计的四家 agent 调研：Claude Code、Codex CLI、OpenCode、a comparable coding agent 没有一家把 `Max_tokens` 当作循环预算事件，PAR 在纯生成场景下对齐了这个不变量。
 
 ## 触发的事件
 
@@ -244,5 +244,5 @@ with Runtime(config) as rt:
 ## See also
 
 - [Agent API](agent.md) - `agent_config`、`Runtime.invoke`、ReAct 入口以及与 generate 续写逻辑对应的 `on_max_tokens` 策略
-- [Streaming API](../../sdk/streaming.md) - `invoke_stream`、chunk 化交付，以及 `?on_chunk` 在这里暴露的 `llm_response_chunk` ADT（英文，暂无中文版）
+- [Streaming API](https://github.com/jcz2020/par/blob/main/../sdk/streaming.md) - `invoke_stream`、chunk 化交付，以及 `?on_chunk` 在这里暴露的 `llm_response_chunk` ADT（英文，暂无中文版）
 - [Overview](overview.md) - SDK 架构和模块图

@@ -1,5 +1,5 @@
 <!-- language: en -->
-**English** · [简体中文](../zh/sdk/document_loaders.md)
+**English** · [简体中文](https://github.com/jcz2020/par/blob/main/zh/sdk/document_loaders.md)
 
 # Document Loaders
 

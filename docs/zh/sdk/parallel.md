@@ -1,6 +1,6 @@
 # 并行多 Agent 分发 API 参考
 
-[English](../sdk/parallel.md) · **简体中文**
+[English](https://github.com/jcz2020/par/blob/main/sdk/parallel.md) · **简体中文**
 
 > 源码真相：`lib/core/runtime.ml`、`lib/core/types.ml`、`lib/core/workflow_engine.ml`。
 
@@ -230,7 +230,7 @@ let () = Eio_main.run (fun env ->
 
 ## Python 交叉引用
 
-Python 绑定通过 ctypes 暴露并行分发。详见 [Python FFI 文档](../bindings/python/)：
+Python 绑定通过 ctypes 暴露并行分发。详见 [Python FFI 文档](https://github.com/jcz2020/par/blob/main/bindings/python/)：
 
 - `Runtime.invoke_parallel(specs: list[dict]) -> dict`，每个 spec 字典包含 `agent_id`、`input`、`workspace`、`approval_handler`、`blocking_approval` 键。
 - 每 Agent 的工作空间和审批处理器覆盖与 OCaml API 行为一致。

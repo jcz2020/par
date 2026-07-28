@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](../zh/sdk/persistence.md)
+**English** · [简体中文](https://github.com/jcz2020/par/blob/main/zh/sdk/persistence.md)
 
 # Persistence API
 
@@ -200,4 +200,4 @@ All SQLite operations are serialized through an `Eio.Mutex.t`. Concurrent `Runti
 - [Agent API](agent.md) - `Runtime.create`, `invoke`, and the lifecycle that generates events
 - [Memory API](memory.md) - cross-session knowledge storage with FTS5 search
 - [Observability](observability.md) - metrics counters and event bus for monitoring persistence activity
-- [Architecture](../explanation/architecture.md) - how persistence fits into the overall runtime design
+- [Architecture](https://github.com/jcz2020/par/blob/main/explanation/architecture.md) - how persistence fits into the overall runtime design

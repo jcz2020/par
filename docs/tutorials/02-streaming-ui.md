@@ -3,7 +3,7 @@
 # Tutorial 2: Stream Tokens into a TTY UI
 
 > Follows the Diataxis tutorial form: learning by doing.
-> Pair with the [Streaming API reference](../sdk/streaming.md) for the full event
+> Pair with the [Streaming API reference](https://github.com/jcz2020/par/blob/main/sdk/streaming.md) for the full event
 > contract, threading model, and backpressure notes.
 
 Token streaming cuts perceived latency from "wait eight seconds, then dump five
@@ -378,7 +378,7 @@ to pull next.
 - Combine streaming with retrieval in [Tutorial 1: RAG Q&A Bot](01-rag-qa-bot.md).
   The grounded-answer call there has a streaming sibling planned for a future
   release; the event vocabulary you just learned carries over unchanged.
-- Read the [Streaming API reference](../sdk/streaming.md) for the threading
+- Read the [Streaming API reference](https://github.com/jcz2020/par/blob/main/sdk/streaming.md) for the threading
   model, the three design alternatives PAR considered before settling on the
   generator shape, and the backpressure strategy.
 

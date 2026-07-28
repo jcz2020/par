@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](zh/quickstart.md)
+**English** · [简体中文](https://github.com/jcz2020/par/blob/main/docs/zh/quickstart.md)
 
 > **Note (v0.6.7):** The CLI (`par ask`, `par config`) was removed from this repo; the SDK is the supported surface. For an interactive coding agent based on this SDK, see [par-code](https://github.com/jcz2020/par-code). The `par ask` examples below are kept for historical reference; new users should start with the SDK examples in [SDK overview](sdk/overview.md).
 
@@ -387,4 +387,4 @@ The database file is created automatically at runtime if it doesn't exist. It st
 - [agent.md](sdk/agent.md) — Agent configuration deep dive: `model_config` fields, `context_strategy`, `retry_policy`
 - [workflow.md](sdk/workflow.md) — Workflow orchestration: sequential, parallel, conditional branching, map-reduce
 - [middleware.md](sdk/middleware.md) — Middleware: logging, timeout, retry, rate limiting, PII masking, data validation
-- [examples/](../examples/) — More complete examples (basic_agent.ml, otel_tracing.ml)
+- [examples/](https://github.com/jcz2020/par/blob/main/examples/) — More complete examples (basic_agent.ml, otel_tracing.ml)

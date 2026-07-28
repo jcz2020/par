@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](../zh/howto/error-handling.md)
+**English** · [简体中文](https://github.com/jcz2020/par/blob/main/zh/howto/error-handling.md)
 
 > Translated to English for v0.3.2.
 

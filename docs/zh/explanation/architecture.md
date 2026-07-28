@@ -1,5 +1,5 @@
 # PAR 架构总览
-[English](../explanation/architecture.md) · **简体中文**
+[English](https://github.com/jcz2020/par/blob/main/explanation/architecture.md) · **简体中文**
 
 本文档解释 PAR SDK 的内部结构。面向想理解 PAR 如何工作、或想贡献核心代码的读者。
 
@@ -135,7 +135,7 @@ type event =
 
 ## 下一步
 
-- **新加工具**：看 [docs/sdk/tools.md](../sdk/tools.md) 的 20 个工具，再加一个 `let my_tool = { descriptor; handler } in` 然后 `Runtime.register_tool`。
-- **新加 LLM provider**：看 [docs/howto/custom-llm-provider.md](../howto/custom-llm-provider.md)。
-- **新加中间件**：看 `lib/middleware/` 的 7 个例子，参考 [docs/sdk/middleware.md](../sdk/middleware.md)。
+- **新加工具**：看 [docs/sdk/tools.md](https://github.com/jcz2020/par/blob/main/sdk/tools.md) 的 20 个工具，再加一个 `let my_tool = { descriptor; handler } in` 然后 `Runtime.register_tool`。
+- **新加 LLM provider**：看 [docs/howto/custom-llm-provider.md](https://github.com/jcz2020/par/blob/main/howto/custom-llm-provider.md)。
+- **新加中间件**：看 `lib/middleware/` 的 7 个例子，参考 [docs/sdk/middleware.md](https://github.com/jcz2020/par/blob/main/sdk/middleware.md)。
 - **贡献核心代码**：读 `lib/core/types.ml`（所有公共类型），跟着 `lib/core/runtime.ml` 走一遍 Runtime 生命周期。

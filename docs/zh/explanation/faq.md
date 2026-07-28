@@ -1,12 +1,12 @@
 <!-- language: zh -->
 
-**[English](../explanation/faq.md)** · 简体中文
+**[English](https://github.com/jcz2020/par/blob/main/explanation/faq.md)** · 简体中文
 
 # FAQ：常见问题
 
 > **Note (v0.6.7):** PAR 的 CLI（`par`、`par ask`、`par config`）已移除；目前支持的入口是 OCaml SDK（`opam install par`）和 Python 绑定（`pip install par-runtime`）。如需基于此 SDK 的交互式编码 Agent 体验，请参阅 [par-code](https://github.com/jcz2020/par-code)。下方关于 CLI 的问答保留作为历史参考。
 
-本页收集了用户评估 PAR、选择入口、或遇到预期之外行为时最常提出的问题。每个答案都指向更深入的参考页面，方便你继续阅读而无需回头查找。如果这里没有你的问题，[How-to 指南](../howto/) 覆盖了具体操作方法，[架构](architecture.md) 页面解释了设计原理。
+本页收集了用户评估 PAR、选择入口、或遇到预期之外行为时最常提出的问题。每个答案都指向更深入的参考页面，方便你继续阅读而无需回头查找。如果这里没有你的问题，[How-to 指南](https://github.com/jcz2020/par/blob/main/howto/) 覆盖了具体操作方法，[架构](architecture.md) 页面解释了设计原理。
 
 ## Q1. PAR 和 LangChain 有什么区别？
 
@@ -43,7 +43,7 @@ Python 绑定面向 PAR 最初设计的目标用户：想要类型安全 agent �
 
 **历史。** v0.5.1–v0.5.2 发布的是*缓冲式*流：OCaml 工作循环把所有 chunk 收集到 ref list，结束时序列化为 JSON，Python 在首次 `__iter__` 时解析整个数组。缓冲消除了初始 ctypes 回调设计中的 domain-lock 崩溃，但代价是所有 chunk 在 LLM 完成后一次性到达。v0.5.3 重新设计了 FFI（`caml_dispatch_chunk_to_c` external + 后台线程 + `queue.Queue`），在不引入 domain-lock 问题的前提下实现实时 chunk 交付。
 
-**已知限制（v0.5.3）。** 从迭代器提前 break 会留下后台线程持有进程全局的 `ocaml_lock`，直到 LLM 流自然完成。在此期间后续 `par_*` 调用会阻塞。如果需要进一步调用，请完全消费迭代器。`par_cancel_stream` FFI（v0.5.4-beta 发布）通过 flag-check 模式缓解了这个问题，取消在下一个 chunk 边界生效（典型延迟 50–300 ms）。详见 [Streaming API 参考](../sdk/streaming.md) 和 CHANGES.md。
+**已知限制（v0.5.3）。** 从迭代器提前 break 会留下后台线程持有进程全局的 `ocaml_lock`，直到 LLM 流自然完成。在此期间后续 `par_*` 调用会阻塞。如果需要进一步调用，请完全消费迭代器。`par_cancel_stream` FFI（v0.5.4-beta 发布）通过 flag-check 模式缓解了这个问题，取消在下一个 chunk 边界生效（典型延迟 50–300 ms）。详见 [Streaming API 参考](https://github.com/jcz2020/par/blob/main/sdk/streaming.md) 和 CHANGES.md。
 
 **不变的部分。** `Event` tagged union（`TextDelta`、`ToolCallStart`、`ToolCallDelta`、`UsageUpdate`、`Done`）与 OCaml `llm_response_chunk` ADT 逐字段对应。从缓冲式到增量式，API 形态没有变化，只有交付节奏改进了。
 
@@ -79,7 +79,7 @@ PAR 提供两个持久化后端，通过 `runtime_config` 的 `persistence` 字�
 
 **Ollama 和 OpenAI 兼容的本地服务器。** Ollama 在 `http://localhost:11434/v1` 暴露 OpenAI 兼容端点。把 PAR 的 `` `Ollama `` provider 指向它，或注册一个指向相同 URL 的自定义 provider，就能获得同样的接口。同样的技巧适用于 vLLM、LM Studio、LocalAI 以及任何模拟 OpenAI Chat Completions 格式的服务器。流式行为取决于服务器。PAR 的 streaming 参考文档记录了 provider 支持情况；在依赖增量交付（v0.5.3 发布）之前，请先确认你的本地服务器能发出 Server-Sent Events。
 
-**自定义 provider。** 如果你的 provider 不在列表中，按照 [自定义 LLM provider how-to](../howto/custom-llm-provider.md) 操作。模式和 Cohere、Mistral、Ollama 用的相同：实现 provider 接口，通过 `Runtime.register_agent` 或配置注册，PAR 就会把 invoke 路由到它。provider 接口在 `docs/sdk/` 下有文档。任何支持 OpenAI Chat Completions 的服务，无论是否支持工具调用，都可以无需新代码直接使用。
+**自定义 provider。** 如果你的 provider 不在列表中，按照 [自定义 LLM provider how-to](https://github.com/jcz2020/par/blob/main/howto/custom-llm-provider.md) 操作。模式和 Cohere、Mistral、Ollama 用的相同：实现 provider 接口，通过 `Runtime.register_agent` 或配置注册，PAR 就会把 invoke 路由到它。provider 接口在 `docs/sdk/` 下有文档。任何支持 OpenAI Chat Completions 的服务，无论是否支持工具调用，都可以无需新代码直接使用。
 
 PAR 目前不支持的 provider 类别是非 OpenAI 兼容的私有 API（比如 Google Gemini 的原生 API，区别于它的 OpenAI 兼容层）。对于这些，写一个自定义 provider 适配器。抽象层就是为此设计的。
 
@@ -107,5 +107,5 @@ v0.5.2 版本发布了数据模型、文件系统发现、YAML frontmatter 格�
 - [架构](architecture.md) 模块映射以及 skill 如何融入更大的 Runtime 结构
 - [并发模型](concurrency-model.md) skill 组合所用的纤维（fiber）机制
 - [持久化与持久性](persistence-and-durability.md) 持久化后端决策矩阵
-- [Streaming API](../sdk/streaming.md) 增量 chunk 交付路径（v0.5.3）
-- [Agent API](../sdk/agent.md) `Runtime.invoke`、`agent_config` 和工具注册
+- [Streaming API](https://github.com/jcz2020/par/blob/main/sdk/streaming.md) 增量 chunk 交付路径（v0.5.3）
+- [Agent API](https://github.com/jcz2020/par/blob/main/sdk/agent.md) `Runtime.invoke`、`agent_config` 和工具注册

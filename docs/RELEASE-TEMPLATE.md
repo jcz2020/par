@@ -59,7 +59,7 @@ The Python binding ships as a ctypes wrapper around the C ABI
 (`par_capi.so`). v0.5.0+ ships native wheels for **linux x86_64**
 (`manylinux_2_28`) and **macOS arm64** (Apple Silicon). On other platforms
 (Intel Mac, ARM Linux, Windows), pip falls back to source build — see
-[`CHANGES.md`](../CHANGES.md) for the current platform support matrix.
+[`CHANGES.md`](https://github.com/jcz2020/par/blob/main/CHANGES.md) for the current platform support matrix.
 
 ### Build from source
 
@@ -95,7 +95,7 @@ This release ships binaries, wheels, and a checksum file:
 
 **Note**: Intel Mac binary (`macos-x64`) is not shipped since v0.5.0 — the
 `macos-13` GH Actions runner was permanently abandoned (free-tier queue
-24h+). ARM64 Linux wheel deferred to v0.5.1+. See [`CHANGES.md`](../CHANGES.md).
+24h+). ARM64 Linux wheel deferred to v0.5.1+. See [`CHANGES.md`](https://github.com/jcz2020/par/blob/main/CHANGES.md).
 
 To verify a downloaded binary manually:
 

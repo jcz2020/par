@@ -2,7 +2,7 @@
 
 # Tutorial 5: Session Resume
 
-> **Note (v0.6.7):** This stub still references the CLI (`par ask`), which was removed. Final content (when written) should use the SDK — see [SDK overview](../sdk/overview.md) for `Runtime.invoke` re-entry patterns.
+> **Note (v0.6.7):** This stub still references the CLI (`par ask`), which was removed. Final content (when written) should use the SDK — see [SDK overview](https://github.com/jcz2020/par/blob/main/sdk/overview.md) for `Runtime.invoke` re-entry patterns.
 
 > **Status**: Stub. The full content ships after the `conversations`
 > persistence table, `Runtime.save_conversation` / `load_conversation` API,

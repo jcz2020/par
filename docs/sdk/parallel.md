@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](../zh/sdk/parallel.md)
+**English** · [简体中文](https://github.com/jcz2020/par/blob/main/zh/sdk/parallel.md)
 
 > Source-of-truth: `lib/core/runtime.ml`, `lib/core/types.ml`, `lib/core/workflow_engine.ml`.
 
@@ -232,7 +232,7 @@ let () = Eio_main.run (fun env ->
 
 ## Python cross-reference
 
-The Python bindings expose parallel dispatch through ctypes. See the [Python FFI documentation](../bindings/python/) for:
+The Python bindings expose parallel dispatch through ctypes. See the [Python FFI documentation](https://github.com/jcz2020/par/blob/main/bindings/python/) for:
 
 - `Runtime.invoke_parallel(specs: list[dict]) -> dict` where each spec dict has keys `agent_id`, `input`, `workspace`, `approval_handler`, `blocking_approval`.
 - Per-agent workspace and approval handler overrides work identically to the OCaml API.

@@ -1,10 +1,10 @@
 <!-- language: en -->
 
-**English** · [简体中文](../zh/howto/rag-pipeline.md)
+**English** · [简体中文](https://github.com/jcz2020/par/blob/main/zh/howto/rag-pipeline.md)
 
 # Build a RAG Pipeline
 
-> **Note (v0.6.7):** The `par config` references in this how-to are historical (the CLI was removed). For the SDK equivalents, see the [RAG reference](../sdk/rag.md) — the recommended entry points are `Runtime.invoke_with_rag` (Python/OCaml) or the [par-code](https://github.com/jcz2020/par-code) interactive agent.
+> **Note (v0.6.7):** The `par config` references in this how-to are historical (the CLI was removed). For the SDK equivalents, see the [RAG reference](https://github.com/jcz2020/par/blob/main/sdk/rag.md) — the recommended entry points are `Runtime.invoke_with_rag` (Python/OCaml) or the [par-code](https://github.com/jcz2020/par-code) interactive agent.
 
 > Added in v0.5.2. Fulfills the v0.5.1-ROADMAP B.6 promise of a runnable RAG how-to.
 
@@ -12,7 +12,7 @@
 
 This guide walks through three runnable Python programs that ground LLM answers in your own text using PAR's retrieval-augmented generation pipeline. You will embed text, store it in the runtime's vector index, and ask questions whose answers come from that text rather than the model's training data. Every example runs against a local mock server, so no API key and no network access are required.
 
-If you want the *why* behind the design (embedding-agnostic storage, sqlite-vec, the three-phase retrieval pipeline), read [RAG Architecture](../explanation/rag-architecture.md) first. If you want the function signatures, read the [RAG API reference](../sdk/rag.md). This page is the *how*: copy the code, run it, modify it.
+If you want the *why* behind the design (embedding-agnostic storage, sqlite-vec, the three-phase retrieval pipeline), read [RAG Architecture](https://github.com/jcz2020/par/blob/main/explanation/rag-architecture.md) first. If you want the function signatures, read the [RAG API reference](https://github.com/jcz2020/par/blob/main/sdk/rag.md). This page is the *how*: copy the code, run it, modify it.
 
 ## What you will build
 
@@ -476,7 +476,7 @@ The `metadata` dict on each document is opaque to PAR. The runtime stores it wit
 1. **Maintain separate runtime instances per filter slice.** One runtime for install docs, one for troubleshooting docs. Query the relevant runtime. Simple, but loses cross-slice ranking.
 2. **Retrieve wide and filter narrow.** Call `invoke_with_rag` with a larger `k`, then post-filter the retrieved context by metadata before constructing the final prompt. Requires dropping down to the `embed` plus manual search path, which the OCaml SDK exposes directly via `Vector_store.search` and the Python binding will expose in a later release.
 
-The embedding-agnostic store design documented in [RAG Architecture](../explanation/rag-architecture.md) was built so that hybrid search and metadata filtering can be added later without changing the core signatures. Until then, the metadata you store is primarily for citation and display, not for server-side filtering.
+The embedding-agnostic store design documented in [RAG Architecture](https://github.com/jcz2020/par/blob/main/explanation/rag-architecture.md) was built so that hybrid search and metadata filtering can be added later without changing the core signatures. Until then, the metadata you store is primarily for citation and display, not for server-side filtering.
 
 ## Running the examples
 
@@ -529,7 +529,7 @@ A few things this guide does not cover, and why:
 
 ## See also
 
-- [RAG API reference](../sdk/rag.md) for the full function signatures, provider support table, and OCaml examples
-- [RAG Architecture](../explanation/rag-architecture.md) for the design decisions: embedding-agnostic storage, why sqlite-vec, score semantics, the three-phase pipeline
-- [Streaming API](../sdk/streaming.md) for token-by-token output, which composes with RAG when you want to stream the grounded answer
-- [Agent API](../sdk/agent.md) for `register_agent`, `invoke`, and the non-RAG invocation path that `invoke_with_rag` falls back to when no vector store is configured
+- [RAG API reference](https://github.com/jcz2020/par/blob/main/sdk/rag.md) for the full function signatures, provider support table, and OCaml examples
+- [RAG Architecture](https://github.com/jcz2020/par/blob/main/explanation/rag-architecture.md) for the design decisions: embedding-agnostic storage, why sqlite-vec, score semantics, the three-phase pipeline
+- [Streaming API](https://github.com/jcz2020/par/blob/main/sdk/streaming.md) for token-by-token output, which composes with RAG when you want to stream the grounded answer
+- [Agent API](https://github.com/jcz2020/par/blob/main/sdk/agent.md) for `register_agent`, `invoke`, and the non-RAG invocation path that `invoke_with_rag` falls back to when no vector store is configured

@@ -1,5 +1,5 @@
 # How-to: 注册自定义 LLM Provider
-[English](../howto/custom-llm-provider.md) · **简体中文**
+[English](https://github.com/jcz2020/par/blob/main/howto/custom-llm-provider.md) · **简体中文**
 
 PAR 内置 OpenAI 和 Anthropic 两个 provider。本教程演示如何加一个（比如 Cohere、Mistral、Ollama 自托管等）。
 

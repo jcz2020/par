@@ -1,5 +1,5 @@
 # PAR 文档
-[English](../index.md) · **简体中文**
+[English](https://github.com/jcz2020/par/blob/main/index.md) · **简体中文**
 
 > **v0.6.7 提示：** 本仓库的 CLI 已移除；SDK（OCaml / Python）是受支持的界面。需要交互式编码 Agent 体验请使用 [par-code](https://github.com/jcz2020/par-code)。
 
@@ -59,15 +59,15 @@
 
 ### 文档内部规则
 
-文档维护规则：标识符保留、语言标记、CJK 检查、CI 集成——见 [CONTRIBUTING.md](../../CONTRIBUTING.md)。
+文档维护规则：标识符保留、语言标记、CJK 检查、CI 集成——见 [CONTRIBUTING.md](https://github.com/jcz2020/par/blob/main/../CONTRIBUTING.md)。
 
 ## 项目链接
 
 不在上述四个分类中的项目级文档。
 
-- [`README.md`](../../README.md)：项目概览
-- [`CHANGES.md`](../../CHANGES.md)：版本历史
-- [`CONTRIBUTING.md`](../../CONTRIBUTING.md)：如何贡献
-- [`SECURITY.md`](../../SECURITY.md)：安全披露
+- [`README.md`](https://github.com/jcz2020/par/blob/main/../README.md)：项目概览
+- [`CHANGES.md`](https://github.com/jcz2020/par/blob/main/../CHANGES.md)：版本历史
+- [`CONTRIBUTING.md`](https://github.com/jcz2020/par/blob/main/../CONTRIBUTING.md)：如何贡献
+- [`SECURITY.md`](https://github.com/jcz2020/par/blob/main/../SECURITY.md)：安全披露
 - [GitHub 仓库](https://github.com/jcz2020/par)：源码、Issues、PR
 - [opam 包 `par`](https://opam.ocaml.org/packages/par/)：发布后可用

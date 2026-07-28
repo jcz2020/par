@@ -1,5 +1,5 @@
 # Agent API 参考
-[English](../sdk/agent.md) · **简体中文**
+[English](https://github.com/jcz2020/par/blob/main/sdk/agent.md) · **简体中文**
 
 本文档描述 P-A-R SDK 的 Agent 配置、运行时管理和工具注册 API。
 
@@ -733,4 +733,4 @@ Cancellation.request_cancel token
 - [Middleware API](middleware.md) -- 中间件管道
 - [Memory API](memory.md) -- 跨会话 agent 记忆，FTS5 搜索
 - [MCP client](mcp.md) -- `Runtime.mcp_server` 生命周期、`call_tool`、`read_resource`、`get_prompt`
-- [examples/basic_agent.ml](../../../examples/basic_agent.ml) -- 完整可运行示例
+- [examples/basic_agent.ml](https://github.com/jcz2020/par/blob/main/../../examples/basic_agent.ml) -- 完整可运行示例

@@ -1,7 +1,7 @@
 # PAR 快速入门
 
-> **v0.6.7 提示：** 本仓库的 CLI（`par ask`、`par config`）已移除；SDK 是受支持的界面。交互式 Agent 请使用 [par-code](https://github.com/jcz2020/par-code)。下文的 `par ask` 示例保留作为历史参考，新用户请参考 SDK 部分（见 [SDK 概览](../sdk/overview.md)）。
-[English](../quickstart.md) · **简体中文**
+> **v0.6.7 提示：** 本仓库的 CLI（`par ask`、`par config`）已移除；SDK 是受支持的界面。交互式 Agent 请使用 [par-code](https://github.com/jcz2020/par-code)。下文的 `par ask` 示例保留作为历史参考，新用户请参考 SDK 部分（见 [SDK 概览](https://github.com/jcz2020/par/blob/main/sdk/overview.md)）。
+[English](https://github.com/jcz2020/par/blob/main/quickstart.md) · **简体中文**
 
 > 从零开始，30 分钟内用 OCaml 跑起一个带工具调用的 LLM Agent。
 
@@ -387,4 +387,4 @@ SQLite 是唯一的持久化后端，无需额外配置。
 - [agent.md](sdk/agent.md) -- Agent 配置详解：model_config 字段、context_strategy、retry_policy
 - [workflow.md](sdk/workflow.md) -- 工作流编排：顺序、并行、条件分支、map-reduce
 - [middleware.md](sdk/middleware.md) -- 中间件：日志、超时、重试、限速、PII 掩码、数据校验
-- [examples/](../../examples/) -- 更多完整示例（basic_agent.ml、otel_tracing.ml）
+- [examples/](https://github.com/jcz2020/par/blob/main/../examples/) -- 更多完整示例（basic_agent.ml、otel_tracing.ml）

@@ -1,10 +1,10 @@
 <!-- language: zh -->
 
-**[English](../explanation/persistence-and-durability.md)** · 简体中文
+**[English](https://github.com/jcz2020/par/blob/main/explanation/persistence-and-durability.md)** · 简体中文
 
 # 持久化与持久性
 
-> **Note (v0.6.7):** 本文中对 `par ask` 的引用是历史性的（CLI 已移除）。SQLite 持久化层没有变化，仍是推荐的嵌入式存储——用法见 [SDK 概览](../sdk/overview.md)。
+> **Note (v0.6.7):** 本文中对 `par ask` 的引用是历史性的（CLI 已移除）。SQLite 持久化层没有变化，仍是推荐的嵌入式存储——用法见 [SDK 概览](https://github.com/jcz2020/par/blob/main/sdk/overview.md)。
 
 PAR 可以完全不使用持久化，也可以使用嵌入式 SQLite 数据库。本文解释*为什么*存在两个层级、它们在实践中*如何*不同，以及从运行时发布事件到事件落盘之间发生了什么。这是一篇解释性文章，不是配置参考。配置字段名请阅读 `lib/core/types.ml` 和 `docs/sdk/` 下的 SDK 参考。这里我们追踪写入路径、拆解 schema，并说明何时选择哪个层级。
 
@@ -126,5 +126,5 @@ WAL 加 SQLite 文件锁有一个约束：同一时间只有一个进程应该�
 
 - [架构](architecture.md) 持久化在模块结构中的位置和事件流图
 - [并发模型](concurrency-model.md) drain fiber 如何与运行时 switch 和取消协作
-- [Workflow API](../sdk/workflow.md) 工作流检查点如何与 `workflow_states` 交互
-- [SDK 概览](../sdk/overview.md) 事件总线订阅 API（本写入路径的读取侧配套）
+- [Workflow API](https://github.com/jcz2020/par/blob/main/sdk/workflow.md) 工作流检查点如何与 `workflow_states` 交互
+- [SDK 概览](https://github.com/jcz2020/par/blob/main/sdk/overview.md) 事件总线订阅 API（本写入路径的读取侧配套）

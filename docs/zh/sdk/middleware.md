@@ -1,5 +1,5 @@
 # Middleware API 参考
-[English](../sdk/middleware.md) · **简体中文**
+[English](https://github.com/jcz2020/par/blob/main/sdk/middleware.md) · **简体中文**
 
 本文档描述 P-A-R SDK 的中间件管道，包括 7 个内置中间件和自定义中间件编写指南。
 

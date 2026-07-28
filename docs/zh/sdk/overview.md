@@ -1,7 +1,7 @@
 # P-A-R SDK 概览
 
 > **v0.6.7 提示：** 本仓库的 CLI（`par_cli` / `par ask` / `par config` / `par`）已移除；SDK（OCaml）与 Python 绑定是受支持的界面。架构图中的 CLI 节点已废弃，保留作为历史参考。需要交互式 Agent 体验请使用 [par-code](https://github.com/jcz2020/par-code)。
-[English](../sdk/overview.md) · **简体中文**
+[English](https://github.com/jcz2020/par/blob/main/sdk/overview.md) · **简体中文**
 
 P-A-R (Programmable Agent Runtime) 是一个基于 OCaml 5.4+ 的模块化 Agent 运行时，
 提供 ReAct 推理循环、工作流编排、持久化状态管理和中间件管道。
@@ -154,6 +154,6 @@ let platform = Capability.platform_name ()  (* "Linux"、"macOS"、"Windows" 等
 
 ## See also
 
-- [README.md](../../../README.md) -- 项目概览和 CLI 用法
-- [quickstart.md](../../quickstart.md) -- 快速上手指南
-- [v0.2-ROADMAP.md](../../v0.2-ROADMAP.md) -- 版本路线图
+- [README.md](https://github.com/jcz2020/par/blob/main/../../README.md) -- 项目概览和 CLI 用法
+- [quickstart.md](https://github.com/jcz2020/par/blob/main/../quickstart.md) -- 快速上手指南
+- [v0.2-ROADMAP.md](https://github.com/jcz2020/par/blob/main/../v0.2-ROADMAP.md) -- 版本路线图

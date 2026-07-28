@@ -1,5 +1,5 @@
 <!-- language: zh -->
-**[English](../sdk/content_blocks.md)** · 简体中文
+**[English](https://github.com/jcz2020/par/blob/main/sdk/content_blocks.md)** · 简体中文
 
 # 内容块
 

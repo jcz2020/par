@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](../zh/sdk/hitl.md)
+**English** · [简体中文](https://github.com/jcz2020/par/blob/main/zh/sdk/hitl.md)
 
 > Source-of-truth: `lib/core/approval.ml`, `lib/core/types.ml`, `lib/core/engine.ml`, `lib/core/runtime.ml`.
 
@@ -308,7 +308,7 @@ When the agent triggers approval:
 
 ## Python cross-reference
 
-The Python bindings expose the same HITL capabilities through ctypes. See the [Python FFI documentation](../bindings/python/) for:
+The Python bindings expose the same HITL capabilities through ctypes. See the [Python FFI documentation](https://github.com/jcz2020/par/blob/main/bindings/python/) for:
 
 - `Runtime.register_approval_handler(handler)` where `handler` is a `Callable` (sync) or a `str` (webhook URL).
 - `Runtime.resume_approval(run_id, outcome_dict)` to deliver approval outcomes.

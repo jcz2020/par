@@ -1,12 +1,12 @@
 <!-- language: zh -->
 
-**[English](../tutorials/01-rag-qa-bot.md)** · 简体中文
+**[English](https://github.com/jcz2020/par/blob/main/tutorials/01-rag-qa-bot.md)** · 简体中文
 
 # 教程 1：构建 RAG 问答机器人
 
 > 遵循 Diataxis 教程形式：边做边学，而非参考手册。
-> 需要完整的类型签名时，参阅 [RAG API 参考](../sdk/rag.md)；
-> 需要更广泛的环境搭建说明时，参阅 [快速入门](../quickstart.md)。
+> 需要完整的类型签名时，参阅 [RAG API 参考](https://github.com/jcz2020/par/blob/main/sdk/rag.md)；
+> 需要更广泛的环境搭建说明时，参阅 [快速入门](https://github.com/jcz2020/par/blob/main/quickstart.md)。
 
 本教程带你从空目录开始，在大约三十分钟内构建一个可运行的检索增强生成（RAG, Retrieval-Augmented Generation）问答机器人。你将启动一个 PAR 运行时，把文本转成向量（embedding），存入本地索引，然后提问并从索引上下文中获得回答。完成后，你会理解 RAG 管道的四个组成部分，以及 PAR 如何暴露它们。
 
@@ -32,7 +32,7 @@ pip install par-runtime
 python -c "from par_runtime import Runtime; print('ok')"
 ```
 
-如果第二条命令输出 `ok`，说明环境就绪。如果报 `ImportError`，说明缺少对应平台的 wheel，需要从源码构建：`make install`（参见[快速入门](../quickstart.md)）。
+如果第二条命令输出 `ok`，说明环境就绪。如果报 `ImportError`，说明缺少对应平台的 wheel，需要从源码构建：`make install`（参见[快速入门](https://github.com/jcz2020/par/blob/main/quickstart.md)）。
 
 嵌入和索引步骤不需要 OpenAI 或 Anthropic 的 key。key 仅用于最终的检索增强回答步骤，且需要它的代码块在缺失 key 时会优雅降级。
 
@@ -279,7 +279,7 @@ finally:
 
 `add_documents` 的返回值是 FFI 层传递回来的计数。使用 mock 服务器时显示 `0`；使用真实 provider 时则反映实际索引的数量。把这次调用视为"文档已交付"的确认依据，而通过检索查询来验证质量，而不是检查计数。
 
-当文档数量较多时，应传入带显式 id 和 metadata 的字典。id 允许在重新索引时原地更新（upsert）而非重复插入，metadata 会附在每条搜索结果上，方便 UI 展示来源。在 embedding 之前对长文档进行分块（chunking）是一个独立话题，参见 [RAG API 参考](../sdk/rag.md) 中的 `Chunking` 模块和重新索引规则。
+当文档数量较多时，应传入带显式 id 和 metadata 的字典。id 允许在重新索引时原地更新（upsert）而非重复插入，metadata 会附在每条搜索结果上，方便 UI 展示来源。在 embedding 之前对长文档进行分块（chunking）是一个独立话题，参见 [RAG API 参考](https://github.com/jcz2020/par/blob/main/sdk/rag.md) 中的 `Chunking` 模块和重新索引规则。
 
 ## 第 4 步：提问并获得有依据的回答
 
@@ -359,7 +359,7 @@ with Runtime(config) as rt:
 | `PARInitError: Failed to initialize PAR runtime` | 配置中缺少必填字段或字段类型错误。 | 对照第 1 步的配置块。`event_bus`、`default_quota` 和 `shutdown` 都需要完整的嵌套字段。 |
 | `embed` 报 `Embedding_unsupported` | 你指向了一个不支持 embedding API 的 provider（目前只有 Anthropic）。 | 嵌入步骤请使用 OpenAI、Ollama 或 Mock。Anthropic 仍可用于 `invoke_with_rag` 中的 chat 步骤。 |
 | `External_failure` 提到 `vec0.so` 或 `sqlite-vec` | sqlite-vec 扩展加载失败，通常是平台不匹配或路径缺失。 | Python wheel 会自动解析扩展路径。如果从源码构建，请为你的平台传入正确的 `vec_extension_path`。 |
-| 检索返回垃圾内容或空结果 | Embedding 模型漂移。用一个模型建索引，用另一个模型查询，或者改变了维度。 | 用同一个模型重新索引所有文档。参见 [RAG API 参考](../sdk/rag.md) 中的持久化和重新索引。 |
+| 检索返回垃圾内容或空结果 | Embedding 模型漂移。用一个模型建索引，用另一个模型查询，或者改变了维度。 | 用同一个模型重新索引所有文档。参见 [RAG API 参考](https://github.com/jcz2020/par/blob/main/sdk/rag.md) 中的持久化和重新索引。 |
 | `invoke_with_rag` 对手写 mock 返回 `Internal` Yojson 错误 | Mock 的 chat completion 响应缺少 provider 解析器期望的字段。 | 回答步骤请使用真实 provider，或者参照真实的 OpenAI chat completion 载荷来构建 mock。 |
 | 大 PDF 内存溢出 | 将整篇文档作为一个向量嵌入，信号被平均掉且 prompt 膨胀。 | 先用 `Chunking.chunk_recursive` 分块，再对每个块进行嵌入和索引。 |
 
@@ -368,6 +368,6 @@ with Runtime(config) as rt:
 你现在拥有了完整的 RAG 循环：嵌入、索引、检索、回答。两个自然的后续方向：
 
 - 在[教程 2：流式 UI](02-streaming-ui.md) 中查看 token 逐个生成的过程。回答你问题的同一个运行时，可以逐 token 流式输出回复。
-- 阅读 [RAG API 参考](../sdk/rag.md) 了解分块策略、OCaml `Vector_store` 和 `Chunking` 模块签名，以及重新索引规则。
+- 阅读 [RAG API 参考](https://github.com/jcz2020/par/blob/main/sdk/rag.md) 了解分块策略、OCaml `Vector_store` 和 `Chunking` 模块签名，以及重新索引规则。
 
-另有两个教程将在依赖就绪后发布。多 provider 故障转移（[教程 4](../../tutorials/04-multi-provider-fallback.md)）展示在 OpenAI 触发速率限制时自动切换到 Anthropic。会话恢复（[教程 5](../../tutorials/05-session-resume.md)）展示对话在进程重启后恢复。两者目前均为占位。
+另有两个教程将在依赖就绪后发布。多 provider 故障转移（[教程 4](https://github.com/jcz2020/par/blob/main/../tutorials/04-multi-provider-fallback.md)）展示在 OpenAI 触发速率限制时自动切换到 Anthropic。会话恢复（[教程 5](https://github.com/jcz2020/par/blob/main/../tutorials/05-session-resume.md)）展示对话在进程重启后恢复。两者目前均为占位。

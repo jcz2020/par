@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](../zh/sdk/content_blocks.md)
+**English** · [简体中文](https://github.com/jcz2020/par/blob/main/zh/sdk/content_blocks.md)
 
 # Content Blocks
 

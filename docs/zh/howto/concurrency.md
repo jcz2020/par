@@ -1,5 +1,5 @@
 # How-to: 并发模式
-[English](../howto/concurrency.md) · **简体中文**
+[English](https://github.com/jcz2020/par/blob/main/howto/concurrency.md) · **简体中文**
 
 PAR 的并发有 3 个层次，由外到内：
 
@@ -118,7 +118,7 @@ let workflow = {
 }
 ```
 
-`Parallel` 并发跑，`Map_reduce` 串行 reduce。详细看 [docs/sdk/workflow.md](../sdk/workflow.md)。
+`Parallel` 并发跑，`Map_reduce` 串行 reduce。详细看 [docs/sdk/workflow.md](https://github.com/jcz2020/par/blob/main/sdk/workflow.md)。
 
 ## 反模式
 

@@ -1,5 +1,5 @@
 <!-- language: zh -->
-**[English](../sdk/observability.md)** · 简体中文
+**[English](https://github.com/jcz2020/par/blob/main/sdk/observability.md)** · 简体中文
 
 # 可观测性参考
 
@@ -311,4 +311,4 @@ with Runtime(config_json) as rt:
 - [Agent API](agent.md) - `agent_config`、runtime 创建、runtime 暴露的接口
 - [中间件 API](middleware.md) - 在每个边界写入人类可读行的日志中间件
 - [Streaming API](streaming.md) - 分块输出，有意与事件总线分离
-- [架构](../explanation/architecture.md) - Engine、事件总线和持久化如何配合
+- [架构](https://github.com/jcz2020/par/blob/main/explanation/architecture.md) - Engine、事件总线和持久化如何配合

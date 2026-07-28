@@ -1,6 +1,6 @@
 <!-- language: zh -->
 
-[English](../../sdk/invoke_context.md) · **简体中文**
+[English](https://github.com/jcz2020/par/blob/main/../sdk/invoke_context.md) · **简体中文**
 
 # invoke_context — 每次调用隔离
 
@@ -273,5 +273,5 @@ val Invoke_context.appendix_text : unit -> string
 
 - [Agent API](agent.md) — `Runtime.invoke`、agent 配置、工具注册
 - [Memory API](memory.md) — 记忆工具使用 `Invoke_context.get_current_exn().session_id` 做范围隔离
-- [并发模型](../../explanation/concurrency-model.md) — Eio 结构化并发在 PAR 中的工作原理
-- [How-to: 并发](../../howto/concurrency.md) — 实用并发模式
+- [并发模型](https://github.com/jcz2020/par/blob/main/../explanation/concurrency-model.md) — Eio 结构化并发在 PAR 中的工作原理
+- [How-to: 并发](https://github.com/jcz2020/par/blob/main/../howto/concurrency.md) — 实用并发模式

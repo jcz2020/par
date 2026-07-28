@@ -1,6 +1,6 @@
 # Human-in-the-Loop (HITL) API 参考
 
-[English](../sdk/hitl.md) · **简体中文**
+[English](https://github.com/jcz2020/par/blob/main/sdk/hitl.md) · **简体中文**
 
 > 源码真相：`lib/core/approval.ml`、`lib/core/types.ml`、`lib/core/engine.ml`、`lib/core/runtime.ml`。
 
@@ -306,7 +306,7 @@ let agent =
 
 ## Python 交叉引用
 
-Python 绑定通过 ctypes 暴露相同的 HITL 能力。详见 [Python FFI 文档](../bindings/python/)：
+Python 绑定通过 ctypes 暴露相同的 HITL 能力。详见 [Python FFI 文档](https://github.com/jcz2020/par/blob/main/bindings/python/)：
 
 - `Runtime.register_approval_handler(handler)`，`handler` 为 `Callable`（同步）或 `str`（webhook URL）。
 - `Runtime.resume_approval(run_id, outcome_dict)` 传递审批结果。

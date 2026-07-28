@@ -1,5 +1,5 @@
 <!-- language: en -->
-**English** · [简体中文](../zh/sdk/observability.md)
+**English** · [简体中文](https://github.com/jcz2020/par/blob/main/zh/sdk/observability.md)
 
 # Observability Reference
 
@@ -311,4 +311,4 @@ The `events_dropped` counter is the one to alert on. Anything above zero means a
 - [Agent API](agent.md) - `agent_config`, runtime creation, the surfaces a runtime exposes
 - [Middleware API](middleware.md) - the Logging middleware that writes human-readable lines at every boundary
 - [Streaming API](streaming.md) - chunked output, which is intentionally separate from the event bus
-- [Architecture](../explanation/architecture.md) - how the Engine, event bus, and persistence fit together
+- [Architecture](https://github.com/jcz2020/par/blob/main/explanation/architecture.md) - how the Engine, event bus, and persistence fit together

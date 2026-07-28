@@ -1,10 +1,10 @@
 <!-- language: zh -->
-**[English](../tutorials/02-streaming-ui.md)** · 简体中文
+**[English](https://github.com/jcz2020/par/blob/main/tutorials/02-streaming-ui.md)** · 简体中文
 
 # 教程 2：将 Token 流式输出到 TTY 终端界面
 
 > 本教程遵循 Diataxis 教程形式：边做边学。
-> 配合 [Streaming API 参考](../sdk/streaming.md) 阅读，可获取完整的事件契约、线程模型和背压说明。
+> 配合 [Streaming API 参考](https://github.com/jcz2020/par/blob/main/sdk/streaming.md) 阅读，可获取完整的事件契约、线程模型和背压说明。
 
 Token 流式输出把感知延迟从"等八秒，然后一股脑吐出五百字"变成了"两百毫秒出第一个 token，然后稳定持续输出"。本教程教你如何消费 PAR 的 `invoke_stream` 生成器，区分不同事件类型，用彩色 ANSI 转义码渲染到终端，以及处理用户按下 Ctrl-C 时不泄漏底层流。
 
@@ -315,6 +315,6 @@ with Runtime(config) as rt:
 你现在可以消费流、渲染流并干净地关闭它。接下来有两条线可以探索。
 
 - 在 [教程 1：RAG 问答机器人](01-rag-qa-bot.md) 中结合流式输出与检索。那里基于回答的调用在未来版本中会有流式对应版本；你刚学会的事件词表将原样复用。
-- 阅读 [Streaming API 参考](../sdk/streaming.md)，了解线程模型、PAR 在确定生成器形态前考虑的三种设计替代方案，以及背压策略。
+- 阅读 [Streaming API 参考](https://github.com/jcz2020/par/blob/main/sdk/streaming.md)，了解线程模型、PAR 在确定生成器形态前考虑的三种设计替代方案，以及背压策略。
 
 当 skill 作为 CLI 功能落地后，后续教程会展示一个包装流式工具的 skill。它在 skill CLI 工作完成后发布，因此上面的目录索引尚未链接到它。

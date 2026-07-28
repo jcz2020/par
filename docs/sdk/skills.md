@@ -1,5 +1,5 @@
 <!-- language: en -->
-**English** · [简体中文](../zh/sdk/skills.md)
+**English** · [简体中文](https://github.com/jcz2020/par/blob/main/zh/sdk/skills.md)
 
 # Skills API
 
@@ -417,4 +417,4 @@ When PAR adds new frontmatter fields in v0.6+, skills with `schema_version: 1` w
 - [Agent API](agent.md) — agents, `Runtime.invoke`, tool handlers
 - [Tools](tools.md) — 20 builtin tools, custom registration
 - [RAG API](rag.md) — embeddings, vector store, retrieval (used by `rag-assistant` skill)
-- [Architecture](../explanation/architecture.md) — how PAR works internally
+- [Architecture](https://github.com/jcz2020/par/blob/main/explanation/architecture.md) — how PAR works internally

@@ -1,5 +1,5 @@
 # How-to: 错误处理模式
-[English](../howto/error-handling.md) · **简体中文**
+[English](https://github.com/jcz2020/par/blob/main/howto/error-handling.md) · **简体中文**
 
 PAR 的所有错误最终是 `Types.error_category` 之一：
 

@@ -1,6 +1,6 @@
 <!-- language: zh -->
 
-[English](../sdk/persistence.md) · **简体中文**
+[English](https://github.com/jcz2020/par/blob/main/sdk/persistence.md) · **简体中文**
 
 # Persistence API
 
@@ -200,4 +200,4 @@ with Runtime(config) as rt:
 - [Agent API](agent.md) - `Runtime.create`、`invoke` 以及生成事件的生命周期
 - [Memory API](memory.md) - 带 FTS5 搜索的跨会话知识存储
 - [可观测性](observability.md) - 用于监控持久化活动的指标计数器和事件总线
-- [架构](../explanation/architecture.md) - 持久化如何融入整体 runtime 设计
+- [架构](https://github.com/jcz2020/par/blob/main/explanation/architecture.md) - 持久化如何融入整体 runtime 设计

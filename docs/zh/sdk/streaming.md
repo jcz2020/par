@@ -1,5 +1,5 @@
 <!-- language: zh -->
-**[English](../sdk/streaming.md)** · 简体中文
+**[English](https://github.com/jcz2020/par/blob/main/sdk/streaming.md)** · 简体中文
 
 # Streaming API 参考
 

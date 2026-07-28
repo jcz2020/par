@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](../zh/sdk/agent.md)
+**English** · [简体中文](https://github.com/jcz2020/par/blob/main/zh/sdk/agent.md)
 
 # Agent API Reference
 
@@ -741,4 +741,4 @@ Cancellation.request_cancel token
 - [Middleware API](middleware.md) -- Middleware pipeline
 - [Memory API](memory.md) -- Cross-session agent memory with FTS5 search
 - [MCP client](mcp.md) -- `Runtime.mcp_server` lifecycle, `call_tool`, `read_resource`, `get_prompt`
-- [examples/basic_agent.ml](../../examples/basic_agent.ml) -- Complete runnable example
+- [examples/basic_agent.ml](https://github.com/jcz2020/par/blob/main/../examples/basic_agent.ml) -- Complete runnable example

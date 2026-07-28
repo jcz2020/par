@@ -1,12 +1,12 @@
 <!-- language: zh -->
 
-**[English](../explanation/rag-architecture.md)** · 简体中文
+**[English](https://github.com/jcz2020/par/blob/main/explanation/rag-architecture.md)** · 简体中文
 
 # RAG 架构
 
-> **Note (v0.6.7):** 本文前部对 `par ask` 的引用是历史性的（CLI 已移除）。RAG 管道（embeddings、向量存储、检索）没有变化，通过 `Runtime.invoke_with_rag` 暴露。见 [RAG 参考](../sdk/rag.md)。
+> **Note (v0.6.7):** 本文前部对 `par ask` 的引用是历史性的（CLI 已移除）。RAG 管道（embeddings、向量存储、检索）没有变化，通过 `Runtime.invoke_with_rag` 暴露。见 [RAG 参考](https://github.com/jcz2020/par/blob/main/sdk/rag.md)。
 
-RAG（检索增强生成，Retrieval-Augmented Generation）是让 LLM 的回答基于你自己的文档：把文档嵌入为向量，存储起来，搜索与查询最接近的向量，把检索到的上下文作为提示的一部分交给 LLM。PAR 在 v0.5.1 发布了 RAG 基础设施。本文解释这背后的设计决策：为什么向量存储是 embedding 无关的，为什么 sqlite-vec 是第一个后端，三阶段检索管道是如何接线的。API 签名请阅读 [RAG 参考](../sdk/rag.md)。这里我们讲*为什么*。
+RAG（检索增强生成，Retrieval-Augmented Generation）是让 LLM 的回答基于你自己的文档：把文档嵌入为向量，存储起来，搜索与查询最接近的向量，把检索到的上下文作为提示的一部分交给 LLM。PAR 在 v0.5.1 发布了 RAG 基础设施。本文解释这背后的设计决策：为什么向量存储是 embedding 无关的，为什么 sqlite-vec 是第一个后端，三阶段检索管道是如何接线的。API 签名请阅读 [RAG 参考](https://github.com/jcz2020/par/blob/main/sdk/rag.md)。这里我们讲*为什么*。
 
 ## 塑造一切的决策：embedding 无关的存储
 
@@ -108,6 +108,6 @@ PAR 的 RAG 基础设施是刻意限定范围的。三件事在路线图上但�
 
 ## 另请参阅
 
-- [RAG API 参考](../sdk/rag.md) 函数签名和 provider 支持表
+- [RAG API 参考](https://github.com/jcz2020/par/blob/main/sdk/rag.md) 函数签名和 provider 支持表
 - [架构](architecture.md) RAG 服务如何融入 `Runtime.services` 注册表，与 LLM、持久化和事件总线并列
 - [并发模型](concurrency-model.md) embedding API 调用（网络 I/O）如何与运行时的 fiber 协作

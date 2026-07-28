@@ -21,6 +21,6 @@ The planned walkthrough:
 
 **Until A.3 ships**: PAR holds one active provider per runtime. Switching is
 manual via the CLI or the registry API. See the provider integration material in
-the [how-to guides](../howto/custom-llm-provider.md) for current single-provider
+the [how-to guides](https://github.com/jcz2020/par/blob/main/howto/custom-llm-provider.md) for current single-provider
 usage, and [Tutorial 1: RAG Q&A Bot](01-rag-qa-bot.md) for a runnable end-to-end
 example against one provider.

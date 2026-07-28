@@ -1,6 +1,6 @@
 <!-- language: zh -->
 
-[English](../../sdk/memory.md) · **简体中文**
+[English](https://github.com/jcz2020/par/blob/main/../sdk/memory.md) · **简体中文**
 
 # Memory API
 

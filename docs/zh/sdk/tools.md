@@ -1,5 +1,5 @@
 # 工具 API 参考
-[English](../sdk/tools.md) · **简体中文**
+[English](https://github.com/jcz2020/par/blob/main/sdk/tools.md) · **简体中文**
 
 本文档描述 P-A-R SDK 提供的 23 个内置工具。新增工具通过 `Runtime.register_tool` 注册，工具描述会被注入 LLM 的 system prompt，让 LLM 知道何时调用哪个工具。
 

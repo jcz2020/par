@@ -4,7 +4,7 @@
 
 > **Note (v0.6.7):** PAR's CLI (`par`, `par ask`, `par config`) was removed; the supported surfaces are the OCaml SDK (`opam install par`) and Python binding (`pip install par-runtime`). For an interactive coding-agent experience based on this SDK, see [par-code](https://github.com/jcz2020/par-code). The CLI rows/questions below are kept for historical context.
 
-This page collects the questions that come up most often when someone evaluates PAR, picks a surface to start with, or hits a behavior they did not expect. Each answer points at the deeper reference page so you can keep reading without backtracking. If your question is not here, the [How-to guides](../howto/) cover specific recipes and the [Architecture](architecture.md) page covers the design rationale.
+This page collects the questions that come up most often when someone evaluates PAR, picks a surface to start with, or hits a behavior they did not expect. Each answer points at the deeper reference page so you can keep reading without backtracking. If your question is not here, the [How-to guides](https://github.com/jcz2020/par/blob/main/howto/) cover specific recipes and the [Architecture](architecture.md) page covers the design rationale.
 
 ## Q1. How is PAR different from LangChain?
 
@@ -41,7 +41,7 @@ A reasonable progression looks like this. Start with the Python binding to verif
 
 **History.** v0.5.1–v0.5.2 shipped *buffered* streaming: the OCaml work loop collected all chunks in a ref list, serialized them as JSON at the end, and Python parsed the array on first `__iter__`. The buffer eliminated a domain-lock crash that affected the initial ctypes-callback design, but it meant all chunks arrived at once after the LLM finished. v0.5.3 rewired the FFI (`caml_dispatch_chunk_to_c` external + background thread + `queue.Queue`) to deliver chunks in real time without the domain-lock issue.
 
-**Known limitation (v0.5.3).** Breaking early from the iterator leaves the background thread holding the process-global `ocaml_lock` until the LLM stream completes naturally. During that window, subsequent `par_*` calls block. Consume the iterator fully if you need to make further calls. The `par_cancel_stream` FFI (shipped in v0.5.4-beta) mitigates this with a flag-check pattern — cancel takes effect at the next chunk boundary (~50–300 ms typical). See the [Streaming API reference](../sdk/streaming.md) and CHANGES.md for details.
+**Known limitation (v0.5.3).** Breaking early from the iterator leaves the background thread holding the process-global `ocaml_lock` until the LLM stream completes naturally. During that window, subsequent `par_*` calls block. Consume the iterator fully if you need to make further calls. The `par_cancel_stream` FFI (shipped in v0.5.4-beta) mitigates this with a flag-check pattern — cancel takes effect at the next chunk boundary (~50–300 ms typical). See the [Streaming API reference](https://github.com/jcz2020/par/blob/main/sdk/streaming.md) and CHANGES.md for details.
 
 **What stays the same.** The `Event` tagged union (`TextDelta`, `ToolCallStart`, `ToolCallDelta`, `UsageUpdate`, `Done`) matches the OCaml `llm_response_chunk` ADT field-for-field. The API shape did not change between buffered and incremental — only the delivery cadence improved.
 
@@ -77,7 +77,7 @@ The interesting cases are Anthropic and custom providers.
 
 **Ollama and OpenAI-compatible local servers.** Ollama exposes an OpenAI-compatible endpoint at `http://localhost:11434/v1`. Point PAR's `` `Ollama `` provider at it, or register a custom provider pointing at the same URL, and you get the same surface. The same trick works for vLLM, LM Studio, LocalAI, and any other server that mimics the OpenAI Chat Completions shape. Streaming behavior depends on the server. PAR's streaming reference documents provider support; verify your local server emits Server-Sent Events before relying on incremental delivery (shipped in v0.5.3).
 
-**Custom providers.** If your provider is not on the list, follow the [Custom LLM provider how-to](../howto/custom-llm-provider.md). The pattern is the same one used for Cohere, Mistral, and Ollama: implement the provider interface, register it with `Runtime.register_agent` or via config, and PAR routes invokes to it. The provider interface is documented under `docs/sdk/`. Anything that speaks OpenAI Chat Completions, with or without tool calls, works without new code.
+**Custom providers.** If your provider is not on the list, follow the [Custom LLM provider how-to](https://github.com/jcz2020/par/blob/main/howto/custom-llm-provider.md). The pattern is the same one used for Cohere, Mistral, and Ollama: implement the provider interface, register it with `Runtime.register_agent` or via config, and PAR routes invokes to it. The provider interface is documented under `docs/sdk/`. Anything that speaks OpenAI Chat Completions, with or without tool calls, works without new code.
 
 The one provider category PAR does not support today is non-OpenAI-compatible proprietary APIs (Google Gemini's native API, for example, distinct from its OpenAI-compatibility layer). For those, write a custom provider adapter. The abstraction is designed for this.
 
@@ -105,5 +105,5 @@ The v0.5.2 release ships the data model, the filesystem discovery, the YAML fron
 - [Architecture](architecture.md) for the module map and how skills fit into the larger Runtime structure
 - [Concurrency Model](concurrency-model.md) for the fiber story that skills compose into
 - [Persistence and Durability](persistence-and-durability.md) for the persistence backend decision matrix
-- [Streaming API](../sdk/streaming.md) for the incremental chunk delivery path (v0.5.3)
-- [Agent API](../sdk/agent.md) for `Runtime.invoke`, `agent_config`, and tool registration
+- [Streaming API](https://github.com/jcz2020/par/blob/main/sdk/streaming.md) for the incremental chunk delivery path (v0.5.3)
+- [Agent API](https://github.com/jcz2020/par/blob/main/sdk/agent.md) for `Runtime.invoke`, `agent_config`, and tool registration

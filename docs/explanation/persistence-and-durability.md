@@ -2,7 +2,7 @@
 
 # Persistence and Durability
 
-> **Note (v0.6.7):** References to `par ask` in this article are historical (the CLI was removed). The SQLite persistence layer is unchanged and is the recommended embedded store — see [SDK overview](../sdk/overview.md) for current usage.
+> **Note (v0.6.7):** References to `par ask` in this article are historical (the CLI was removed). The SQLite persistence layer is unchanged and is the recommended embedded store — see [SDK overview](https://github.com/jcz2020/par/blob/main/sdk/overview.md) for current usage.
 
 PAR can run with no persistence at all, or with an embedded SQLite database. This document explains *why* two tiers exist, *how* they differ in practice, and what happens to your events between the moment the runtime publishes them and the moment they land on disk. It is an explanation article, not a config reference. For the config field names, read `lib/core/types.ml` and the SDK reference under `docs/sdk/`. Here we trace the write path, unpack the schema, and lay out when to reach for each tier.
 
@@ -124,5 +124,5 @@ The dual-layer design is on the roadmap (tracked as bd issue `PAR-4dt`, targeted
 
 - [Architecture](architecture.md) for where persistence sits in the module structure and the event flow diagram
 - [Concurrency Model](concurrency-model.md) for how the drain fiber cooperates with the runtime switch and cancellation
-- [Workflow API](../sdk/workflow.md) for how workflow checkpoints interact with `workflow_states`
-- [SDK overview](../sdk/overview.md) for the event-bus subscribe API (the read-side companion to this write path)
+- [Workflow API](https://github.com/jcz2020/par/blob/main/sdk/workflow.md) for how workflow checkpoints interact with `workflow_states`
+- [SDK overview](https://github.com/jcz2020/par/blob/main/sdk/overview.md) for the event-bus subscribe API (the read-side companion to this write path)

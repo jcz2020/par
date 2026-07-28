@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](../zh/sdk/invoke_context.md)
+**English** · [简体中文](https://github.com/jcz2020/par/blob/main/zh/sdk/invoke_context.md)
 
 # invoke_context — Per-Call Isolation
 
@@ -273,5 +273,5 @@ Returns the `system_prompt_appendix` from the current invoke context, prefixed w
 
 - [Agent API](agent.md) -- `Runtime.invoke`, agent configuration, tool registration
 - [Memory API](memory.md) -- Memory tools use `Invoke_context.get_current_exn().session_id` for scope isolation
-- [Concurrency Model](../explanation/concurrency-model.md) -- How Eio structured concurrency works in PAR
-- [How-to: Concurrency](../howto/concurrency.md) -- Practical concurrency patterns
+- [Concurrency Model](https://github.com/jcz2020/par/blob/main/explanation/concurrency-model.md) -- How Eio structured concurrency works in PAR
+- [How-to: Concurrency](https://github.com/jcz2020/par/blob/main/howto/concurrency.md) -- Practical concurrency patterns

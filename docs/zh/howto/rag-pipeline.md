@@ -1,10 +1,10 @@
 <!-- language: zh -->
 
-[English](../../howto/rag-pipeline.md) · **简体中文**
+[English](https://github.com/jcz2020/par/blob/main/../howto/rag-pipeline.md) · **简体中文**
 
 # 构建 RAG 管道
 
-> **注意（v0.6.7）：** 本指南中的 `par config` 引用是历史遗留（CLI 已移除）。SDK 等价用法见 [RAG 参考文档](../sdk/rag.md)——推荐入口是 `Runtime.invoke_with_rag`（Python/OCaml）或 [par-code](https://github.com/jcz2020/par-code) 交互式 agent。
+> **注意（v0.6.7）：** 本指南中的 `par config` 引用是历史遗留（CLI 已移除）。SDK 等价用法见 [RAG 参考文档](https://github.com/jcz2020/par/blob/main/sdk/rag.md)——推荐入口是 `Runtime.invoke_with_rag`（Python/OCaml）或 [par-code](https://github.com/jcz2020/par-code) 交互式 agent。
 
 > v0.5.2 新增。兑现 v0.5.1-ROADMAP B.6 关于可运行 RAG how-to 的承诺。
 
@@ -12,7 +12,7 @@
 
 本指南通过三个可运行的 Python 程序，演示如何使用 PAR 的检索增强生成（RAG）管道将 LLM 回答建立在你自己的文本之上。你将嵌入文本、存入 runtime 的向量索引，然后提出答案来自该文本（而非模型训练数据）的问题。每个示例都运行在本地 mock 服务器上，无需 API 密钥和网络访问。
 
-如果你想了解设计背后的*原理*（embedding 无关存储、sqlite-vec、三阶段检索管道），请先阅读 [RAG 架构](../explanation/rag-architecture.md)。如果你想查看函数签名，请阅读 [RAG API 参考](../sdk/rag.md)。本页是*操作指南*：复制代码、运行、修改。
+如果你想了解设计背后的*原理*（embedding 无关存储、sqlite-vec、三阶段检索管道），请先阅读 [RAG 架构](https://github.com/jcz2020/par/blob/main/explanation/rag-architecture.md)。如果你想查看函数签名，请阅读 [RAG API 参考](https://github.com/jcz2020/par/blob/main/sdk/rag.md)。本页是*操作指南*：复制代码、运行、修改。
 
 ## 你将构建什么
 
@@ -473,7 +473,7 @@ A: [mock answer grounded in 530 chars of context] Question was: What does par co
 1. **为每个过滤切片维护独立的 runtime 实例。** 一个 runtime 用于 install 文档，一个用于 troubleshoot 文档。查询相关 runtime。简单，但丢失跨切片排名。
 2. **宽检索窄过滤。** 用较大的 `k` 调用 `invoke_with_rag`，然后在构建最终提示词之前按元数据后过滤检索到的上下文。需要下降到 `embed` 加手动搜索路径，OCaml SDK 通过 `Vector_store.search` 直接暴露，Python 绑定将在后续版本中暴露。
 
-[RAG 架构](../explanation/rag-architecture.md)中记录的 embedding 无关存储设计是为了让混合搜索和元数据过滤可以在不改变核心签名的情况下后续添加。在此之前，你存储的元数据主要用于引用和展示，而非服务端过滤。
+[RAG 架构](https://github.com/jcz2020/par/blob/main/explanation/rag-architecture.md)中记录的 embedding 无关存储设计是为了让混合搜索和元数据过滤可以在不改变核心签名的情况下后续添加。在此之前，你存储的元数据主要用于引用和展示，而非服务端过滤。
 
 ## 运行示例
 
@@ -526,7 +526,7 @@ Ollama 暴露 OpenAI 兼容的 embeddings 端点，因此通过同一检索管�
 
 ## 另请参阅
 
-- [RAG API 参考](../sdk/rag.md) — 完整函数签名、provider 支持表和 OCaml 示例
-- [RAG 架构](../explanation/rag-architecture.md) — 设计决策：embedding 无关存储、为什么选 sqlite-vec、分数语义、三阶段管道
-- [Streaming API](../sdk/streaming.md) — 逐 token 输出，与 RAG 组合使用时可流式输出有依据的回答
-- [Agent API](../sdk/agent.md) — `register_agent`、`invoke`，以及未配置向量库时 `invoke_with_rag` 回退到的非 RAG 调用路径
+- [RAG API 参考](https://github.com/jcz2020/par/blob/main/sdk/rag.md) — 完整函数签名、provider 支持表和 OCaml 示例
+- [RAG 架构](https://github.com/jcz2020/par/blob/main/explanation/rag-architecture.md) — 设计决策：embedding 无关存储、为什么选 sqlite-vec、分数语义、三阶段管道
+- [Streaming API](https://github.com/jcz2020/par/blob/main/sdk/streaming.md) — 逐 token 输出，与 RAG 组合使用时可流式输出有依据的回答
+- [Agent API](https://github.com/jcz2020/par/blob/main/sdk/agent.md) — `register_agent`、`invoke`，以及未配置向量库时 `invoke_with_rag` 回退到的非 RAG 调用路径

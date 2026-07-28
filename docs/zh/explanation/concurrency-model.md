@@ -1,6 +1,6 @@
 <!-- language: zh -->
 
-**[English](../explanation/concurrency-model.md)** · 简体中文
+**[English](https://github.com/jcz2020/par/blob/main/explanation/concurrency-model.md)** · 简体中文
 
 # 并发模型
 
@@ -97,5 +97,5 @@ par_invoke("agent", "hi")
 
 - [架构](architecture.md) 模块映射以及并发如何融入更大的 Runtime 结构
 - [持久化与持久性](persistence-and-durability.md) 持久化写入器的 drain fiber 如何与取消协作
-- [Streaming API](../sdk/streaming.md) 增量 chunk 交付路径（v0.5.3 后台线程 + 队列模型）
-- [并发 how-to](../howto/concurrency.md) 实用模式：超时、并行工具、取消
+- [Streaming API](https://github.com/jcz2020/par/blob/main/sdk/streaming.md) 增量 chunk 交付路径（v0.5.3 后台线程 + 队列模型）
+- [并发 how-to](https://github.com/jcz2020/par/blob/main/howto/concurrency.md) 实用模式：超时、并行工具、取消

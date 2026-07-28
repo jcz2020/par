@@ -1,5 +1,5 @@
 <!-- language: zh -->
-**[English](../sdk/rag.md)** · 简体中文
+**[English](https://github.com/jcz2020/par/blob/main/sdk/rag.md)** · 简体中文
 
 # RAG API 参考
 

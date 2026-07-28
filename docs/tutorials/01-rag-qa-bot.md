@@ -3,8 +3,8 @@
 # Tutorial 1: Build a RAG Q&A Bot
 
 > Follows the Diataxis tutorial form: learning by doing, not a reference page.
-> Pair with the [RAG API reference](../sdk/rag.md) when you want the full type
-> signatures, and with the [Quickstart](../quickstart.md) for the broader setup.
+> Pair with the [RAG API reference](https://github.com/jcz2020/par/blob/main/sdk/rag.md) when you want the full type
+> signatures, and with the [Quickstart](https://github.com/jcz2020/par/blob/main/quickstart.md) for the broader setup.
 
 This tutorial walks you from an empty directory to a working retrieval-augmented
 generation bot in roughly thirty minutes. You will start a PAR runtime, turn text
@@ -42,7 +42,7 @@ python -c "from par_runtime import Runtime; print('ok')"
 
 If the second command prints `ok`, you are ready. If it raises
 `ImportError`, the wheel for your platform is missing; fall back to building
-from source with `make install` (see the [Quickstart](../quickstart.md)).
+from source with `make install` (see the [Quickstart](https://github.com/jcz2020/par/blob/main/quickstart.md)).
 
 You do not need an OpenAI or Anthropic key to follow the embedding and indexing
 steps. A key only unlocks the final grounded-answer step, and the block that
@@ -321,7 +321,7 @@ verify retrieval quality by querying, not by inspecting the count.
 For more than a handful of documents, pass dicts with explicit ids and metadata.
 The id lets you upsert in place on reindex instead of duplicating, and metadata
 rides along on every search result so a UI can show provenance. Chunking long
-documents before embedding is its own topic; see the [RAG API reference](../sdk/rag.md)
+documents before embedding is its own topic; see the [RAG API reference](https://github.com/jcz2020/par/blob/main/sdk/rag.md)
 for the `Chunking` module and the reindexing rules.
 
 ## Step 4: Ask a grounded question
@@ -416,7 +416,7 @@ same way.
 | `PARInitError: Failed to initialize PAR runtime` | A required config field is missing or has the wrong shape. | Compare your config block against Step 1. The `event_bus`, `default_quota`, and `shutdown` blocks all need their nested fields. |
 | `embed` raises with `Embedding_unsupported` | You pointed `embed` at a provider with no embeddings API, which today means Anthropic. | Use OpenAI, Ollama, or Mock for the embedding step. Anthropic still works for the chat step inside `invoke_with_rag`. |
 | `External_failure` mentioning `vec0.so` or `sqlite-vec` | The sqlite-vec extension failed to load, usually a platform mismatch or a missing path. | The Python wheel resolves the extension path automatically. If you build from source, pass the correct `vec_extension_path` for your platform. |
-| Retrieval returns junk or nothing | Embedding model drift. You indexed with one model and queried with another, or you changed the dimension. | Reindex every document with one model. See Persistence and Reindexing in the [RAG API reference](../sdk/rag.md). |
+| Retrieval returns junk or nothing | Embedding model drift. You indexed with one model and queried with another, or you changed the dimension. | Reindex every document with one model. See Persistence and Reindexing in the [RAG API reference](https://github.com/jcz2020/par/blob/main/sdk/rag.md). |
 | `invoke_with_rag` returns an `Internal` Yojson error against a hand-rolled mock | The mock's chat completion response is missing a field the provider parser expects. | Use a real provider for the answer step, or model your mock on a real OpenAI chat completion payload. |
 | Out of memory on a large PDF | You embedded the whole document as one vector, averaging away every signal and bloating the prompt. | Chunk first with `Chunking.chunk_recursive`, then embed and index the chunks. |
 
@@ -427,7 +427,7 @@ steps.
 
 - See tokens arrive as the model produces them in [Tutorial 2: Streaming UI](02-streaming-ui.md).
   The same runtime that answered your question can stream its reply token by token.
-- Read the [RAG API reference](../sdk/rag.md) for the chunking strategies, the
+- Read the [RAG API reference](https://github.com/jcz2020/par/blob/main/sdk/rag.md) for the chunking strategies, the
   OCaml `Vector_store` and `Chunking` module signatures, and the reindexing rules.
 
 Two further tutorials ship once their dependencies land. Multi-provider fallback

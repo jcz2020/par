@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](../zh/sdk/workflow.md)
+**English** · [简体中文](https://github.com/jcz2020/par/blob/main/zh/sdk/workflow.md)
 
 > Source-of-truth: the OCaml types in lib/core/types.ml and the engine in lib/core/workflow_engine.ml.
 
@@ -504,4 +504,4 @@ A step is serialized as `["StepType", arguments]`. The argument shape depends on
 
 - [Overview](overview.md) -- SDK architecture overview
 - [Agent API](agent.md) -- Agent configuration and runtime management
-- [examples/sequential_workflow.json](../../examples/sequential_workflow.json) -- Workflow JSON example
+- [examples/sequential_workflow.json](https://github.com/jcz2020/par/blob/main/../examples/sequential_workflow.json) -- Workflow JSON example

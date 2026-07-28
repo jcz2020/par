@@ -1,5 +1,5 @@
 <!-- language: zh -->
-**[English](../sdk/skills.md)** · 简体中文
+**[English](https://github.com/jcz2020/par/blob/main/sdk/skills.md)** · 简体中文
 
 # Skills API
 
@@ -417,4 +417,4 @@ PAR 使用受 Anthropic Agent Skills 启发的 2 级上下文加载模型：
 - [Agent API](agent.md) — Agent、`Runtime.invoke`、工具处理器
 - [工具](tools.md) — 20 个内置工具、自定义注册
 - [RAG API](rag.md) — embedding、向量存储、检索（被 `rag-assistant` Skill 使用）
-- [架构](../explanation/architecture.md) — PAR 内部工作原理
+- [架构](https://github.com/jcz2020/par/blob/main/explanation/architecture.md) — PAR 内部工作原理

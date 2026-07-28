@@ -137,9 +137,9 @@
 ## 9. 相关文档
 
 - [`docs/v0.3-ROADMAP.md`](v0.3-ROADMAP.md) — 当前路线图
-- [`README.md`](../README.md) — 项目入口
-- [`DESIGN.md`](../DESIGN.md) — 实现设计
-- [`AGENTS.md`](../AGENTS.md) — 开发者工作流
+- [`README.md`](https://github.com/jcz2020/par/blob/main/README.md) — 项目入口
+- [`DESIGN.md`](https://github.com/jcz2020/par/blob/main/DESIGN.md) — 实现设计
+- [`AGENTS.md`](https://github.com/jcz2020/par/blob/main/AGENTS.md) — 开发者工作流
 
 ---
 

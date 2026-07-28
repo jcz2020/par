@@ -1,6 +1,6 @@
 <!-- language: en -->
 
-**English** · [简体中文](../zh/howto/concurrency.md)
+**English** · [简体中文](https://github.com/jcz2020/par/blob/main/zh/howto/concurrency.md)
 
 > Translated to English for v0.3.2.
 
@@ -123,7 +123,7 @@ let workflow = {
 }
 ```
 
-`Parallel` runs concurrently, `Map_reduce` reduces serially. See [docs/sdk/workflow.md](../sdk/workflow.md) for details.
+`Parallel` runs concurrently, `Map_reduce` reduces serially. See [docs/sdk/workflow.md](https://github.com/jcz2020/par/blob/main/sdk/workflow.md) for details.
 
 ## Anti-patterns
 
