@@ -1355,30 +1355,81 @@ let resume_approval ~rt ~run_id ~outcome ~approver =
          let resumed_agent : Types.agent_config =
            { agent with approval_handler = Some resumed_handler }
          in
-         (* The cancellation_token here is a fresh sub-token of the
-            runtime's root. The original invoke's token may have been
-            cancelled (or not) — we cannot recover it from the persisted
-            snapshot without a token id field, so a fresh token is the
-            conservative choice. *)
-         let token = Cancellation.create_token rt.cancellation_root in
-         let registry = per_call_registry ~rt ~workspace:rt.workspace in
-         let result =
-           try Engine.run_agent
-             ~runtime_id:rt.runtime_id
-             ~quota:(Some rt.task_semaphore)
-             ~parallel:rt.parallel_tool_execution
-             ~enable_handoff:false
-             token resumed_agent
-             "Approval resolved; please continue."
-             rt.services.llm registry
-           with exn ->
-             Logs.err (fun m -> m "resume_approval: re-dispatch raised: %s"
-                          (Printexc.to_string exn));
-             Error (Internal (Printf.sprintf
-                      "resume_approval re-dispatch raised: %s"
-                      (Printexc.to_string exn)),
-                    conv_snapshot)
-         in
+          (* The cancellation_token here is a fresh sub-token of the
+             runtime's root. The original invoke's token may have been
+             cancelled (or not) — we cannot recover it from the persisted
+             snapshot without a token id field, so a fresh token is the
+             conservative choice. *)
+          let token = Cancellation.create_token rt.cancellation_root in
+          let registry = per_call_registry ~rt ~workspace:rt.workspace in
+          (* Bug 1 fix: preserve conv_snapshot across suspend/resume.
+             The snapshot has [system; user(orig_request); assistant(tool_call)]
+             but NO tool_result message (the engine raises Approval_pending
+             before adding one). We inject a synthetic tool_result whose
+             content mirrors what execute_approval would have produced for a
+             synchronous outcome. Without this, the LLM loses ALL original
+             context (user request, prior tool calls) because Engine.run_agent
+             would start a fresh conversation with only the continue message. *)
+          let resumed_conv =
+            (* Extract the orphaned tool_call id + name from the snapshot's
+               last assistant message. Approval_pending is only raised for a
+               single approval in a batch, so there is exactly one tool_call. *)
+            let tool_call_id, tool_name_from_snapshot =
+              match List.rev conv_snapshot.messages with
+              | { role = Assistant; tool_calls = Some (tc :: _); _ } :: _ ->
+                tc.id, tc.name
+              | _ -> "unknown", tool_name
+            in
+            let synth_content = match (outcome : Approval.approval_outcome) with
+              | Approved ->
+                Yojson.Safe.to_string (`Assoc [
+                  ("status", `String "approved");
+                  ("message", `String (Printf.sprintf
+                                       "approval granted for %s" tool_name));
+                ])
+              | Modified { new_input } ->
+                Yojson.Safe.to_string (`Assoc [
+                  ("status", `String "approved_with_modifications");
+                  ("new_input", new_input);
+                ])
+              | Escalated { target } ->
+                Yojson.Safe.to_string (`Assoc [
+                  ("status", `String "escalated");
+                  ("target", `String target);
+                ])
+              (* Rejected / Timeout do not reach re-dispatch, but handle
+                 defensively in case the dispatch tree changes later. *)
+              | Rejected { reason } -> reason
+              | Timeout -> "approval timed out"
+            in
+            let tool_msg : message = {
+              role = Tool;
+              content_blocks = Message.content_of_string synth_content;
+              tool_calls = None;
+              tool_call_id = Some tool_call_id;
+              name = Some tool_name_from_snapshot;
+            } in
+            { conv_snapshot with
+              messages = conv_snapshot.messages @ [ tool_msg ] }
+          in
+          let result =
+            try Engine.run_agent
+              ~runtime_id:rt.runtime_id
+              ~quota:(Some rt.task_semaphore)
+              ~parallel:rt.parallel_tool_execution
+              ~enable_handoff:false
+              ~conversation:resumed_conv
+              token resumed_agent
+              "Approval resolved; please continue."
+              rt.services.llm registry
+            with exn ->
+              Logs.err (fun m -> m "resume_approval: re-dispatch raised: %s"
+                           (Printexc.to_string exn));
+              Error (Internal (Printf.sprintf
+                       "resume_approval re-dispatch raised: %s"
+                       (Printexc.to_string exn)),
+                     conv_snapshot)
+          in
          match result with
          | Ok (_resp, conv) ->
            Current_conversation.set rt (Some conv);
@@ -1683,7 +1734,7 @@ let invoke_parallel ~rt ~specs ?(parallel_limit = 4)
       workspace_overrides = [];
       approval_handler_overrides = [];
       per_call_registry_fn = Some (fun ws -> per_call_registry ~rt ~workspace:ws);
-      on_approval_pending = None;
+      on_approval_pending = Some (parallel_approval_cb rt);
     } in
     let sem = Eio.Semaphore.make parallel_limit in
     let promises = List.map (fun (spec : agent_dispatch_spec) ->
@@ -1714,7 +1765,26 @@ let invoke_parallel ~rt ~specs ?(parallel_limit = 4)
         Eio.Semaphore.acquire sem;
         Fun.protect
           ~finally:(fun () -> Eio.Semaphore.release sem)
-          (fun () -> Workflow_engine.execute_step branch_ctx step)
+          (fun () ->
+            try Workflow_engine.execute_step branch_ctx step
+            with Engine.Approval_pending pl ->
+              let data : Workflow_engine.approval_suspend_payload = {
+                run_id = pl.run_id;
+                agent_id = pl.agent_id;
+                tool_name = pl.tool_name;
+                tool_input = pl.tool_input;
+                conv_snapshot = pl.conv_snapshot;
+                pending_payload = pl.pending_payload;
+                expires_at = pl.expires_at;
+              } in
+              let _ = parallel_approval_cb rt data in
+              Result.Ok (`Assoc [
+                ("status", `String "suspended");
+                ("run_id", `String data.run_id);
+                ("agent_id", `String data.agent_id);
+                ("tool_name", `String data.tool_name);
+                ("expires_at", `Float data.expires_at);
+              ]))
       )
     ) specs in
     let results = List.map2 (fun spec promise ->
