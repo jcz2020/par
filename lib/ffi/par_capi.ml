@@ -447,14 +447,14 @@ let do_init (config_json : string) =
         Eio.Switch.run (fun sw ->
           let create_result =
             match persistence_svc, memory_svc, vector_store_backend with
-            | Some p, Some m, Some v -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~persistence:p ~memory:m ~vector_store_backend:v sw
-            | Some p, Some m, None  -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~persistence:p ~memory:m sw
-            | Some p, None,  Some v -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~persistence:p ~vector_store_backend:v sw
-            | Some p, None,  None  -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~persistence:p sw
-            | None,  Some m, Some v -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~memory:m ~vector_store_backend:v sw
-            | None,  Some m, None  -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~memory:m sw
-            | None,  None,  Some v -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt ~vector_store_backend:v sw
-            | None,  None,  None  -> Par.Runtime.create ~config ~llm ?embeddings:embed_opt sw
+            | Some p, Some m, Some v -> Par.Runtime.create ~net ~config ~llm ?embeddings:embed_opt ~persistence:p ~memory:m ~vector_store_backend:v sw
+            | Some p, Some m, None  -> Par.Runtime.create ~net ~config ~llm ?embeddings:embed_opt ~persistence:p ~memory:m sw
+            | Some p, None,  Some v -> Par.Runtime.create ~net ~config ~llm ?embeddings:embed_opt ~persistence:p ~vector_store_backend:v sw
+            | Some p, None,  None  -> Par.Runtime.create ~net ~config ~llm ?embeddings:embed_opt ~persistence:p sw
+            | None,  Some m, Some v -> Par.Runtime.create ~net ~config ~llm ?embeddings:embed_opt ~memory:m ~vector_store_backend:v sw
+            | None,  Some m, None  -> Par.Runtime.create ~net ~config ~llm ?embeddings:embed_opt ~memory:m sw
+            | None,  None,  Some v -> Par.Runtime.create ~net ~config ~llm ?embeddings:embed_opt ~vector_store_backend:v sw
+            | None,  None,  None  -> Par.Runtime.create ~net ~config ~llm ?embeddings:embed_opt sw
           in
           match create_result with
           | Ok rt ->
