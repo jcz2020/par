@@ -454,6 +454,14 @@ let test_async_callback_suspends_branch () =
     List.iter (fun a -> match Runtime.register_agent rt a with
       | Ok () -> () | Error e -> Alcotest.failf "reg: %s" (error_to_string e))
       [agent_a; agent_b; agent_c];
+    (match Runtime.register_tool rt ~name:"guarded_tool_b"
+            ~description:"approval tool" ~input_schema:(`Assoc [])
+            ~handler:(fun _input _tok ->
+              Approval_required {
+                tool_name = "guarded_tool_b"; tool_input = `Assoc [];
+                prompt = "Approve?"; timeout = Some 60.0; allowed_roles = []
+              }) () with
+     | Ok _ -> () | Error e -> Alcotest.failf "reg_tool: %s" (error_to_string e));
     let specs = [
       spec "A" ~input:"task-a";
       spec "B" ~input:"task-b";
@@ -470,7 +478,9 @@ let test_async_callback_suspends_branch () =
        let a_present = List.exists (fun (s, _) -> s.Runtime.agent_id = "A") result.successes in
        let c_present = List.exists (fun (s, _) -> s.Runtime.agent_id = "C") result.successes in
        Alcotest.(check bool) "sibling A completed" true a_present;
-       Alcotest.(check bool) "sibling C completed" true c_present
+       Alcotest.(check bool) "sibling C completed" true c_present;
+       Alcotest.(check int) "no failures — B should suspend not fail" 0
+         (List.length result.failures)
      | Error e ->
        Alcotest.failf "invoke_parallel should not crash with Async_callback: %s"
          (error_to_string e)))
