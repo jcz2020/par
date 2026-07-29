@@ -127,6 +127,7 @@ not_in_nav: |
   archive/*
   evaluations/*
   STRATEGY.md
+  DECISIONS.md
   long-output-generation-mode-plan.md
   react-loop-fixes-competitive-analysis.md
   release-pipeline-redesign.md
