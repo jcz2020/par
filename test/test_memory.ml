@@ -192,6 +192,86 @@ let test_usage_bump_on_search () =
          Alcotest.(check bool) "last_used_at is set" true (updated.last_used_at <> None));
     Sqlite_memory.close t
 
+let test_get_by_id () =
+  match Sqlite_memory.create db_path with
+  | Error e -> Alcotest.failf "create: %s" (Memory_error.to_string e)
+  | Ok t ->
+    let m = match Sqlite_memory.add t ~content:"test content" ~scope:"s" () with
+      | Error e -> Alcotest.failf "add: %s" (Memory_error.to_string e)
+      | Ok m -> m
+    in
+    (match Sqlite_memory.get t m.id with
+     | Error e -> Alcotest.failf "get: %s" (Memory_error.to_string e)
+     | Ok None -> Alcotest.fail "get returned None for existing id"
+     | Ok (Some found) ->
+       Alcotest.(check string) "get content" m.content found.content);
+    (match Sqlite_memory.get t "nonexistent-id" with
+     | Ok None -> ()
+     | _ -> Alcotest.fail "get should return None for nonexistent id");
+    Sqlite_memory.close t
+
+let test_upsert_stable_id () =
+  match Sqlite_memory.create db_path with
+  | Error e -> Alcotest.failf "create: %s" (Memory_error.to_string e)
+  | Ok t ->
+    let m = { Memory_object.id = "fixed-plan-id"; content = "v1";
+              summary = None; scope = Some "plan"; metadata = [];
+              categories = ["plan"]; created_at = 0.0; updated_at = 0.0;
+              last_used_at = None; usage_count = 0; source = "test" } in
+    (match Sqlite_memory.upsert t m with
+     | Error e -> Alcotest.failf "upsert create: %s" (Memory_error.to_string e)
+     | Ok created ->
+       Alcotest.(check string) "stable id on create" "fixed-plan-id" created.id);
+    let m2 = { m with content = "v2" } in
+    (match Sqlite_memory.upsert t m2 with
+     | Error e -> Alcotest.failf "upsert update: %s" (Memory_error.to_string e)
+     | Ok updated ->
+       Alcotest.(check string) "id preserved on update" "fixed-plan-id" updated.id;
+       Alcotest.(check string) "content updated" "v2" updated.content);
+    (match Sqlite_memory.list_all t ~scope:"plan" () with
+     | Ok results -> Alcotest.(check int) "single entry after upsert" 1 (List.length results)
+     | _ -> Alcotest.fail "list_all failed");
+    Sqlite_memory.close t
+
+let test_upsert_preserves_usage_stats () =
+  match Sqlite_memory.create db_path with
+  | Error e -> Alcotest.failf "create: %s" (Memory_error.to_string e)
+  | Ok t ->
+    let m = { Memory_object.id = "stats-test"; content = "content";
+              summary = None; scope = Some "s"; metadata = [];
+              categories = []; created_at = 0.0; updated_at = 0.0;
+              last_used_at = Some 12345.6; usage_count = 42; source = "test" } in
+    (match Sqlite_memory.upsert t m with
+     | Error e -> Alcotest.failf "upsert: %s" (Memory_error.to_string e)
+     | Ok _ ->
+       (match Sqlite_memory.get t "stats-test" with
+        | Ok (Some found) ->
+          Alcotest.(check int) "usage_count preserved" 42 found.usage_count;
+          Alcotest.(check bool) "last_used_at preserved" true (found.last_used_at = Some 12345.6)
+        | _ -> Alcotest.fail "get failed"));
+    Sqlite_memory.close t
+
+let test_fts5_works_after_upsert () =
+  match Sqlite_memory.create db_path with
+  | Error e -> Alcotest.failf "create: %s" (Memory_error.to_string e)
+  | Ok t ->
+    let m = { Memory_object.id = "fts-test"; content = "searchable content here";
+              summary = None; scope = Some "s"; metadata = [];
+              categories = []; created_at = 0.0; updated_at = 0.0;
+              last_used_at = None; usage_count = 0; source = "test" } in
+    let _ = Sqlite_memory.upsert t m in
+    let m2 = { m with content = "completely different text" } in
+    let _ = Sqlite_memory.upsert t m2 in
+    (match Sqlite_memory.search t ~scope:"s" "different" with
+     | Ok [] -> Alcotest.fail "FTS5 should find upserted content"
+     | Ok (found :: _) ->
+       Alcotest.(check string) "FTS5 finds new content" "completely different text" found.content
+     | Error e -> Alcotest.failf "search: %s" (Memory_error.to_string e));
+    (match Sqlite_memory.search t ~scope:"s" "searchable" with
+     | Ok results -> Alcotest.(check int) "old content gone from FTS5" 0 (List.length results)
+     | Error _ -> ());
+    Sqlite_memory.close t
+
 let test_search_no_scope_returns_all_matches () =
   match Sqlite_memory.create db_path with
   | Error e -> Alcotest.failf "create: %s" (Memory_error.to_string e)
@@ -238,5 +318,11 @@ let () =
        ]);
       ("usage", [
          Alcotest.test_case "bump on search" `Quick test_usage_bump_on_search;
+       ]);
+      ("get-upsert", [
+         Alcotest.test_case "get by id" `Quick test_get_by_id;
+         Alcotest.test_case "upsert stable id" `Quick test_upsert_stable_id;
+         Alcotest.test_case "upsert preserves usage stats" `Quick test_upsert_preserves_usage_stats;
+         Alcotest.test_case "fts5 works after upsert" `Quick test_fts5_works_after_upsert;
        ]);
     ])

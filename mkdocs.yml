@@ -95,6 +95,7 @@ nav:
       - Custom LLM Provider: howto/custom-llm-provider.md
       - Error Handling: howto/error-handling.md
       - Build a RAG Pipeline: howto/rag-pipeline.md
+      - Plan-then-Execute: howto/plan-then-execute.md
   - Reference:
       - SDK Overview: sdk/overview.md
       - Agent API: sdk/agent.md

@@ -50,6 +50,16 @@ module type MEMORY_SERVICE = sig
     unit ->
     (Memory_object.memory_object list, Memory_error.memory_error) result
 
+  val get :
+    t ->
+    string ->
+    (Memory_object.memory_object option, Memory_error.memory_error) result
+
+  val upsert :
+    t ->
+    Memory_object.memory_object ->
+    (Memory_object.memory_object, Memory_error.memory_error) result
+
   val close : t -> unit
 
   val render_index :
@@ -87,6 +97,12 @@ type memory_service = {
     ?limit:int ->
     unit ->
     (Memory_object.memory_object list, Memory_error.memory_error) result;
+  get_fn :
+    string ->
+    (Memory_object.memory_object option, Memory_error.memory_error) result;
+  upsert_fn :
+    Memory_object.memory_object ->
+    (Memory_object.memory_object, Memory_error.memory_error) result;
   close_fn : unit -> unit;
   render_index_fn :
     ?max_entries:int ->

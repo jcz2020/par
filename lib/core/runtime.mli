@@ -484,6 +484,12 @@ val workspace : runtime -> Workspace.workspace
     [create] time. Used to thread path-admission into tools that
     need it (e.g. [Builtin_tools.builtin_tools]). *)
 
+val memory_service : runtime -> Types.memory_service option
+(** The memory service if configured at [create] time. Use this to
+    build app-layer tools that read/write structured data (e.g.
+    plan_read / plan_write). Returns [None] when no memory backend
+    is configured. *)
+
 val cancellation_root : runtime -> Eio.Switch.t
 (** The root switch passed to [create]. Useful for spawning
     cancellation tokens in tests and external tools. *)

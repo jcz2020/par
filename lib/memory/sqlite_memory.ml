@@ -574,6 +574,61 @@ let delete t ext_id =
           raise (Sqlite3.Error "not found")
       | _ -> raise (Sqlite3.Error (Sqlite3.Rc.to_string rc))))
 
+let get t ext_id =
+  Eio.Mutex.use_ro t.mutex (fun () ->
+    wrap_db_error (fun () ->
+      let sql = Printf.sprintf "SELECT %s FROM memory_entries WHERE ext_id = ?" select_cols in
+      let stmt = Sqlite3.prepare t.db sql in
+      let _ = Sqlite3.bind stmt 1 (Sqlite3.Data.TEXT ext_id) in
+      let result = match Sqlite3.step stmt with
+        | Sqlite3.Rc.ROW -> Some (row_to_memory stmt)
+        | Sqlite3.Rc.DONE -> None
+        | rc -> raise (Sqlite3.Error (Sqlite3.Rc.to_string rc))
+      in
+      let _ = Sqlite3.finalize stmt in
+      result))
+
+let upsert t (m : memory_object) =
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
+    wrap_db_error (fun () ->
+      let del = Sqlite3.prepare t.db "DELETE FROM memory_entries WHERE ext_id = ?" in
+      let _ = Sqlite3.bind del 1 (Sqlite3.Data.TEXT m.id) in
+      let _ = Sqlite3.step del in
+      let _ = Sqlite3.finalize del in
+      let now = Unix.gettimeofday () in
+      let metadata_json = Yojson.Safe.to_string (`Assoc m.metadata) in
+      let categories_json =
+        Yojson.Safe.to_string (`List (List.map (fun s -> `String s) m.categories)) in
+      let stmt = Sqlite3.prepare t.db
+        ("INSERT INTO memory_entries \
+          (ext_id, content, summary, scope, metadata, categories, \
+           created_at, updated_at, last_used_at, usage_count, source) \
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)") in
+      let _ = Sqlite3.bind stmt 1 (Sqlite3.Data.TEXT m.id) in
+      let _ = Sqlite3.bind stmt 2 (Sqlite3.Data.TEXT m.content) in
+      let _ = Sqlite3.bind stmt 3 (match m.summary with
+        | None -> Sqlite3.Data.NULL | Some s -> Sqlite3.Data.TEXT s) in
+      let _ = Sqlite3.bind stmt 4 (match m.scope with
+        | None -> Sqlite3.Data.NULL | Some s -> Sqlite3.Data.TEXT s) in
+      let _ = Sqlite3.bind stmt 5 (Sqlite3.Data.TEXT metadata_json) in
+      let _ = Sqlite3.bind stmt 6 (Sqlite3.Data.TEXT categories_json) in
+      let _ = Sqlite3.bind stmt 7 (Sqlite3.Data.FLOAT m.created_at) in
+      let _ = Sqlite3.bind stmt 8 (Sqlite3.Data.FLOAT now) in
+      let _ = Sqlite3.bind stmt 9 (match m.last_used_at with
+        | None -> Sqlite3.Data.NULL | Some f -> Sqlite3.Data.FLOAT f) in
+      let _ = Sqlite3.bind stmt 10 (Sqlite3.Data.INT (Int64.of_int m.usage_count)) in
+      let _ = Sqlite3.bind stmt 11 (Sqlite3.Data.TEXT m.source) in
+      let rc = Sqlite3.step stmt in
+      let _ = Sqlite3.finalize stmt in
+      (match rc with
+       | Sqlite3.Rc.DONE -> ()
+       | _ -> raise (Sqlite3.Error (Sqlite3.Rc.to_string rc)));
+      let rowid = Int64.to_int (Sqlite3.last_insert_rowid t.db) in
+      (match t.embedding with
+       | Some embed_fn -> insert_embedding t.db ~rowid ~dimension:t.dimension ~embedding_fn:embed_fn ~content:m.content
+       | None -> ());
+      { m with updated_at = now }))
+
 let list_all t ?scope ?(limit=50) () =
   Eio.Mutex.use_ro t.mutex (fun () ->
     match scope with
@@ -654,6 +709,8 @@ let make_service ?(dimension=1536) ?embedding_fn db_path =
       delete_fn = (fun id -> delete t id);
       list_all_fn = (fun ?scope ?limit () ->
         list_all t ?scope ?limit ());
+      get_fn = (fun ext_id -> get t ext_id);
+      upsert_fn = (fun m -> upsert t m);
       close_fn = (fun () -> close t);
       render_index_fn = (fun ?max_entries ?scope () ->
         render_index t ?max_entries ?scope ());

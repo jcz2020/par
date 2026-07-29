@@ -2260,6 +2260,8 @@ let bash_policy rt = rt.bash_policy
 
 let workspace rt = rt.workspace
 
+let memory_service rt = rt.services.Types.memory
+
 let cancellation_root rt = rt.cancellation_root
 
 let vector_store rt = rt.vector_store

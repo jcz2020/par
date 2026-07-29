@@ -1284,6 +1284,12 @@ type memory_service = {
     ?limit:int ->
     unit ->
     (Yojson.Safe.t list, error_category) result;
+  get_fn :
+    string ->
+    (Yojson.Safe.t option, error_category) result;
+  upsert_fn :
+    Yojson.Safe.t ->
+    (Yojson.Safe.t, error_category) result;
   close_fn : unit -> unit;
   render_index_fn :
     ?max_entries:int ->

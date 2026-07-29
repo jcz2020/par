@@ -389,11 +389,23 @@ let do_init (config_json : string) =
                      match svc.Memory_service.delete_fn id with
                      | Ok () -> Ok ()
                      | Error e -> Error (Par.Types.Internal (Memory_error.to_string e)));
-                   list_all_fn = (fun ?scope ?limit () ->
-                     match svc.Memory_service.list_all_fn ?scope ?limit () with
-                     | Ok objs -> Ok (List.map Memory_object.to_yojson objs)
-                     | Error e -> Error (Par.Types.Internal (Memory_error.to_string e)));
-                   close_fn = svc.Memory_service.close_fn;
+                    list_all_fn = (fun ?scope ?limit () ->
+                      match svc.Memory_service.list_all_fn ?scope ?limit () with
+                      | Ok objs -> Ok (List.map Memory_object.to_yojson objs)
+                      | Error e -> Error (Par.Types.Internal (Memory_error.to_string e)));
+                    get_fn = (fun ext_id ->
+                      match svc.Memory_service.get_fn ext_id with
+                      | Ok None -> Ok None
+                      | Ok (Some obj) -> Ok (Some (Memory_object.to_yojson obj))
+                      | Error e -> Error (Par.Types.Internal (Memory_error.to_string e)));
+                    upsert_fn = (fun json ->
+                      match Memory_object.of_yojson json with
+                      | Ok obj ->
+                        (match svc.Memory_service.upsert_fn obj with
+                         | Ok updated -> Ok (Memory_object.to_yojson updated)
+                         | Error e -> Error (Par.Types.Internal (Memory_error.to_string e)))
+                      | Error msg -> Error (Par.Types.Internal msg));
+                    close_fn = svc.Memory_service.close_fn;
                    render_index_fn = svc.Memory_service.render_index_fn;
                  })
                | Error e ->
