@@ -769,12 +769,14 @@ type event =
      stale-API usage to operators (e.g. an audit log entry naming the
      function, the version it was deprecated in, the version that will
      remove it, and the one-line migration). Idempotent per [fn_name]. *)
-  | Deprecated_api_called of {
-      fn_name : string;
-      since : string;
-      removed_in : string;
-      migration : string;
-    }
+   | Deprecated_api_called of {
+       fn_name : string;
+       since : string;
+       removed_in : string;
+       migration : string;
+     }
+  | Skill_activated of { skill_id : string }
+  | Skill_deactivated of { skill_id : string }
     [@@deriving yojson]
 
  and cache_skip_reason =

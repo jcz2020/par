@@ -412,6 +412,53 @@ When PAR adds new frontmatter fields in v0.6+, skills with `schema_version: 1` w
 
 ---
 
+## Skills as behavioral modes
+
+A common agent pattern is switching the same agent between plan / build / review / debug behaviors with different tool sets and prompts. PAR implements this via **Skills**, not a separate Mode type.
+
+### Why not a separate Mode type?
+
+Skill's data model is a strict superset of what "Mode" typically means:
+
+| Mode concept | Skill equivalent |
+|---|---|
+| `allowed_tools` | `tool_filter` (`All_tools \| Only \| Except`) |
+| `prompt_fragment` | `system_prompt_override` (`Stable_prompt \| Volatile_prompt \| Both_prompts`) |
+| `register_mode(id, ...)` | `register_skill(descriptor)` |
+| `set_mode("plan")` | `set_user_activated_skills(["plan"])` or `invoke(..., skills=["plan"])` |
+
+Adding a parallel Mode type would create two systems doing the same thing — a type-rigor violation (STRATEGY.md §3). See [DECISIONS.md](../DECISIONS.md) #2 for the full rationale and escalation trigger.
+
+### Per-call mode switching
+
+Use the `?skills` parameter on `Runtime.invoke` / `invoke_async` for race-free per-call activation:
+
+```ocaml
+(* Activate "plan-mode" skill for this invoke only *)
+Runtime.invoke rt ~agent_id:"coder" ~message:"implement X" ~skills:["plan-mode"] ()
+```
+
+The `?skills` parameter does NOT modify `rt.user_activated_skills` — it overrides the skill snapshot for this single invoke only. This is safe for concurrent `invoke` calls on the same runtime.
+
+### Skill activation events
+
+v0.9.0 adds two event variants for observability:
+
+- `Skill_activated of { skill_id : string }` — emitted at invoke entry for each active skill
+- `Skill_deactivated of { skill_id : string }` — reserved for future use (when skills gain explicit deactivation)
+
+Subscribe via the event bus to audit mode transitions.
+
+### Python API
+
+```python
+rt.set_user_activated_skills(["plan-mode", "debug-mode"])
+rt.invoke("coder", "implement X")
+rt.clear_user_activated_skills()
+```
+
+---
+
 ## See also
 
 - [Agent API](agent.md) — agents, `Runtime.invoke`, tool handlers

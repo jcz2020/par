@@ -30,6 +30,7 @@ void par_store_python_handler(int handler_id, par_tool_callback fn);
 int par_register_agent(par_runtime_t* rt, const char* config_json);
 int par_register_skill(par_runtime_t* rt, const char* json);
 char* par_list_skills(par_runtime_t* rt);
+int par_set_user_activated_skills(par_runtime_t* rt, const char* skills_json);
 
 /* LLM provider registry (v0.5.4 PAR-tiu) */
 char* par_list_llm_providers(par_runtime_t* rt);

@@ -398,6 +398,19 @@ char* par_list_skills(par_runtime_t* rt) {
     return ret;
 }
 
+int par_set_user_activated_skills(par_runtime_t* rt, const char* skills_json) {
+    CAMLparam0();
+    CAMLlocal1(c_json);
+    c_json = caml_copy_string(skills_json);
+
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value result = call2_exn("par_set_user_activated_skills", rt->_ocaml_value, c_json);
+    int is_exc = Is_exception_result(result);
+    int rc = is_exc ? -1 : Int_val(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLreturnT(int, rc);
+}
+
 char* par_list_llm_providers(par_runtime_t* rt) {
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call1_exn("par_list_llm_providers", rt->_ocaml_value);

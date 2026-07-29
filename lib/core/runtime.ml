@@ -721,6 +721,7 @@ let load_most_recent_conversation rt =
 
 let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
     ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix
+    ?(skills : string list option)
     ?(context : Invoke_context.invoke_context option)
     ?(update_current = true) ?(save = false) () =
   let effective_workspace = Option.value workspace ~default:rt.workspace in
@@ -738,7 +739,7 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
         ~session_id
         ~metrics:(Metrics.empty ())
         ~hooks:rt.tool_call_hooks
-        ~skills:rt.user_activated_skills
+        ~skills:(Option.value skills ~default:rt.user_activated_skills)
         ?system_prompt_appendix
         ()
   in
@@ -773,6 +774,12 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
     let active_effects =
       compute_active_skill_effects ~user_skills:ctx.user_activated_skills_snapshot rt message
     in
+    let active_skill_ids =
+      get_active_skill_ids ~user_skills:ctx.user_activated_skills_snapshot rt message
+    in
+    List.iter (fun sid ->
+      publish_event rt (Skill_activated { skill_id = sid })
+    ) active_skill_ids;
     let composed_effect = compose_skill_effects active_effects in
     let before_tool_count = List.length config.tools in
     let config = apply_skill_effect_to_config composed_effect config in
@@ -950,7 +957,7 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
  
 
 let invoke_async rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
-    ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix ?context () =
+    ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix ?skills ?context () =
   let token = match cancellation_token with
     | Some t -> t
     | None -> Cancellation.create_token rt.cancellation_root
@@ -958,7 +965,7 @@ let invoke_async rt ~agent_id ~message ?workspace ?cancellation_token ?conversat
   Invoke_context.fork_invoke ~sw:rt.cancellation_root ~token (fun () ->
     invoke rt ~agent_id ~message ?workspace
       ~cancellation_token:token ?conversation ?on_tool_event ?on_chunk
-      ?enable_handoff ?system_prompt_appendix ?context ())
+      ?enable_handoff ?system_prompt_appendix ?skills ?context ())
 
 let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
     ?(save = true) ?(update_current = true) ?on_tool_event ?on_chunk ?system_prompt_appendix () =

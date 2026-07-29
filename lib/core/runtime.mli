@@ -261,6 +261,7 @@ val invoke :
   ?on_chunk:(llm_response_chunk -> unit) option ->
   ?enable_handoff:bool ->
   ?system_prompt_appendix:string ->
+  ?skills:string list ->
   ?context:Invoke_context.invoke_context ->
   ?update_current:bool ->
   ?save:bool ->
@@ -282,6 +283,7 @@ val invoke_async :
   ?on_chunk:(llm_response_chunk -> unit) option ->
   ?enable_handoff:bool ->
   ?system_prompt_appendix:string ->
+  ?skills:string list ->
   ?context:Invoke_context.invoke_context ->
   unit ->
   Invoke_context.invoke_handle

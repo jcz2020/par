@@ -161,5 +161,30 @@ let () =
         Runtime.set_user_activated_skills rt ["s2"];
         check (list string) "replaced not appended" ["s2"]
           (Runtime.get_user_activated_skills rt)));
+
+    test_case "?skills param activates per-call without polluting rt state" `Quick (fun () ->
+      with_runtime (fun rt history ->
+        let sk = match Runtime.make_skill ~id:"per-call" ~description:"d"
+                   ~system_prompt_override:(Stable_prompt "PER_CALL") ~trigger:Manual () with
+          | Ok s -> s | Error _ -> failwith "make_skill" in
+        ignore (Runtime.register_skill rt sk);
+        (match Runtime.invoke rt ~agent_id:"t" ~message:"hi" ~skills:["per-call"] () with
+         | Error _ -> failwith "invoke with ?skills failed"
+         | Ok _ ->
+           match Mock_provider.last_complete_call history with
+           | None -> failwith "no call recorded"
+           | Some r ->
+             check string "per-call skill override applied" "PER_CALL"
+               (first_message_content r.Mock_provider.conversation));
+        check (list string) "rt state not polluted by ?skills" []
+          (Runtime.get_user_activated_skills rt);
+        (match Runtime.invoke rt ~agent_id:"t" ~message:"hi" () with
+         | Error _ -> failwith "invoke 2 failed"
+         | Ok _ ->
+           match Mock_provider.last_complete_call history with
+           | None -> failwith "no second call"
+           | Some r ->
+             check string "no skill effect without ?skills" "ORIGINAL"
+               (first_message_content r.Mock_provider.conversation))));
   ] in
   run "skill_user_activation" [ "skill_user_activation", tests ]

@@ -412,6 +412,53 @@ PAR 使用受 Anthropic Agent Skills 启发的 2 级上下文加载模型：
 
 ---
 
+## Skill 作为行为模式
+
+常见的 Agent 模式是让同一个 Agent 在 plan / build / review / debug 等行为间切换，使用不同的工具集和提示词。PAR 通过 **Skill** 实现这一点，而非独立的 Mode 类型。
+
+### 为什么没有独立的 Mode 类型？
+
+Skill 的数据模型是 "Mode" 概念的严格超集：
+
+| Mode 概念 | Skill 等价 |
+|---|---|
+| `allowed_tools` | `tool_filter`（`All_tools \| Only \| Except`） |
+| `prompt_fragment` | `system_prompt_override`（`Stable_prompt \| Volatile_prompt \| Both_prompts`） |
+| `register_mode(id, ...)` | `register_skill(descriptor)` |
+| `set_mode("plan")` | `set_user_activated_skills(["plan"])` 或 `invoke(..., skills=["plan"])` |
+
+新增并行的 Mode 类型会造成两套系统做同一件事——违反类型严谨原则（STRATEGY.md §3）。详见 DECISIONS.md #2 的完整理由和 escalation trigger。
+
+### 按调用切换模式
+
+使用 `Runtime.invoke` / `invoke_async` 的 `?skills` 参数实现无竞态的按调用激活：
+
+```ocaml
+(* 仅本次 invoke 激活 "plan-mode" Skill *)
+Runtime.invoke rt ~agent_id:"coder" ~message:"实现 X" ~skills:["plan-mode"] ()
+```
+
+`?skills` 参数**不会**修改 `rt.user_activated_skills`——它仅覆盖本次 invoke 的 Skill 快照。同一 runtime 上的并发 `invoke` 调用是安全的。
+
+### Skill 激活事件
+
+v0.9.0 新增两个事件变体用于可观测性：
+
+- `Skill_activated of { skill_id : string }` — 在 invoke 入口对每个激活的 Skill 发射
+- `Skill_deactivated of { skill_id : string }` — 为未来保留（当 Skill 获得显式停用能力时使用）
+
+通过事件总线订阅以审计模式切换。
+
+### Python API
+
+```python
+rt.set_user_activated_skills(["plan-mode", "debug-mode"])
+rt.invoke("coder", "实现 X")
+rt.clear_user_activated_skills()
+```
+
+---
+
 ## 另请参阅
 
 - [Agent API](agent.md) — Agent、`Runtime.invoke`、工具处理器

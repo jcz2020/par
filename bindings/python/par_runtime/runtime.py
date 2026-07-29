@@ -413,6 +413,16 @@ class Runtime:
         finally:
             _free(ptr)
 
+    def set_user_activated_skills(self, skills: list[str]) -> None:
+        self._check_handle()
+        rc = _lib.par_set_user_activated_skills(
+            self._handle, json.dumps(skills).encode("utf-8"))
+        if rc != 0:
+            raise PARError(f"set_user_activated_skills failed (code {rc})")
+
+    def clear_user_activated_skills(self) -> None:
+        self.set_user_activated_skills([])
+
     def list_llm_providers(self) -> list[str]:
         """List registered LLM provider ids (v0.5.4 PAR-tiu)."""
         self._check_handle()

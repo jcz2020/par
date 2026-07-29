@@ -145,6 +145,10 @@ _lib.par_register_skill.restype = ctypes.c_int
 _lib.par_list_skills.argtypes = [ctypes.c_void_p]
 _lib.par_list_skills.restype = ctypes.c_void_p
 
+# int par_set_user_activated_skills(par_runtime_t* rt, const char* skills_json);
+_lib.par_set_user_activated_skills.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_set_user_activated_skills.restype = ctypes.c_int
+
 # v0.5.4 PAR-tiu: LLM provider registry surface
 # char* par_list_llm_providers(par_runtime_t* rt);
 _lib.par_list_llm_providers.argtypes = [ctypes.c_void_p]

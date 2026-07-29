@@ -673,6 +673,8 @@ type event =
       removed_in : string;
       migration : string;
     }
+  | Skill_activated of { skill_id : string }
+  | Skill_deactivated of { skill_id : string }
     [@@deriving yojson]
 
  and cache_skip_reason =
