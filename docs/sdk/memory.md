@@ -149,6 +149,8 @@ Each memory is a `memory_object` record:
 | `categories` | `string list` | Category tags |
 | `created_at` | `float` | Unix timestamp |
 | `updated_at` | `float` | Unix timestamp |
+| `last_used_at` | `float option` | Last retrieval timestamp; `None` until first search hit. Auto-maintained |
+| `usage_count` | `int` | Retrieval count, auto-incremented on each search/list_all hit. Affects `list_all` ordering |
 | `source` | `string` | Origin label (`"manual"`, `"agent"`, `"tool"`, `"import"`) |
 
 ## Default backend: SQLite + FTS5

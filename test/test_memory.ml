@@ -177,6 +177,8 @@ let test_usage_bump_on_search () =
       | Error e -> Alcotest.failf "add: %s" (Memory_error.to_string e)
       | Ok m -> m
     in
+    Alcotest.(check int) "initial usage_count is 0" 0 m.usage_count;
+    Alcotest.(check bool) "initial last_used_at is None" true (m.last_used_at = None);
     let _ = Sqlite_memory.search t ~scope:"proj" "tracked" in
     (match Sqlite_memory.list_all t ~scope:"proj" () with
      | Error e -> Alcotest.failf "list_all: %s" (Memory_error.to_string e)
@@ -185,10 +187,9 @@ let test_usage_bump_on_search () =
          x.id = m.id) results in
        match found with
        | None -> Alcotest.fail "memory not found after search"
-        | Some _updated ->
-          (* Usage bump is internal; verify memory is still findable *)
-          Alcotest.(check int) "list_all returns at least 1" 1
-            (List.length results));
+       | Some updated ->
+         Alcotest.(check int) "usage_count bumped to 1" 1 updated.usage_count;
+         Alcotest.(check bool) "last_used_at is set" true (updated.last_used_at <> None));
     Sqlite_memory.close t
 
 let test_search_no_scope_returns_all_matches () =

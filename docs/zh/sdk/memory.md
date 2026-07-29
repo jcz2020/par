@@ -149,6 +149,8 @@ type embedding_fn = string list -> (float array list, string) result
 | `categories` | `string list` | 分类标签 |
 | `created_at` | `float` | Unix 时间戳 |
 | `updated_at` | `float` | Unix 时间戳 |
+| `last_used_at` | `float option` | 最后检索时间；首次搜索命中前为 `None`。自动维护 |
+| `usage_count` | `int` | 检索次数，每次 search/list_all 命中自动递增。影响 `list_all` 排序 |
 | `source` | `string` | 来源标签（`"manual"`、`"agent"`、`"tool"`、`"import"`） |
 
 ## 默认后端：SQLite + FTS5

@@ -214,11 +214,11 @@ let row_to_memory (stmt : Sqlite3.stmt) : memory_object =
   let categories_json = Sqlite3.column_text stmt 5 in
   let created_at = Sqlite3.column_double stmt 6 in
   let updated_at = Sqlite3.column_double stmt 7 in
-  let _last_used_at =
+  let last_used_at =
     if Sqlite3.column_is_null stmt 8 then None
     else Some (Sqlite3.column_double stmt 8)
   in
-  let _usage_count = Sqlite3.column_int stmt 9 in
+  let usage_count = Sqlite3.column_int stmt 9 in
   let source = Sqlite3.column_text stmt 10 in
   let metadata =
     match Yojson.Safe.from_string metadata_json with
@@ -233,7 +233,7 @@ let row_to_memory (stmt : Sqlite3.stmt) : memory_object =
     | exception _ -> []
   in
   { id = ext_id; content; summary; scope; metadata; categories;
-    created_at; updated_at; source; }
+    created_at; updated_at; last_used_at; usage_count; source; }
 
 let collect_rows db sql bind_fn =
   let stmt = Sqlite3.prepare db sql in
@@ -317,7 +317,8 @@ let add t ~content ?summary ?scope ?(metadata=[]) ?(categories=[]) ?(source="") 
         | Some embed_fn -> insert_embedding t.db ~rowid ~dimension:t.dimension ~embedding_fn:embed_fn ~content
         | None -> ());
       { id = ext_id; content; summary; scope; metadata; categories;
-        created_at = now; updated_at = now; source }))
+        created_at = now; updated_at = now;
+        last_used_at = None; usage_count = 0; source }))
 
 let sanitize_fts_query (query : string) : string =
   let tokens = Str.split (Str.regexp "[ \t]+") (String.trim query) in
