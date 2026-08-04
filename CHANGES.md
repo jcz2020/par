@@ -1,5 +1,24 @@
 # CHANGES
 
+## v0.8.1 — Memory enhancements + Skill UX + Plan/Mode decision
+
+### Added — Memory service
+- **NEW** `memory_service.get_fn`: exact-match lookup by ext_id (`SELECT WHERE ext_id = ?`).
+- **NEW** `memory_service.upsert_fn`: stable-ID update (DELETE+INSERT, preserves `usage_count`/`last_used_at`).
+- **NEW** `memory_object.last_used_at` and `usage_count` fields exposed on public type (were internal-only, maintained by `bump_usage`, affected `list_all` ordering).
+- **NEW** `Runtime.memory_service : runtime -> Types.memory_service option` public accessor.
+- **NEW** `docs/howto/plan-then-execute.md` (EN+ZH): complete guide for building plan_read/plan_write tools.
+
+### Added — Skill UX (per-call mode switching)
+- **NEW** `Runtime.invoke ?skills:string list`: per-call skill activation — race-free, does not pollute `rt.user_activated_skills`.
+- **NEW** `Runtime.invoke_async ?skills:string list`: same, for the async invoke path.
+- **NEW** `Skill_activated` / `Skill_deactivated` event variants for observability.
+- **NEW** Python FFI: `Runtime.set_user_activated_skills(list[str])` + `clear_user_activated_skills()`.
+- **NEW** `docs/sdk/skills.md` "Skills as behavioral modes" section (EN+ZH).
+
+### Added — Decision record
+- **NEW** `docs/DECISIONS.md`: 4 architectural decisions from downstream integration feedback evaluation (reject Plan first-class, reject Mode first-class, accept memory field exposure, reject duplicate scope field) with §11 R1 labels and escalation triggers.
+
 ## v0.8.0-beta — HITL + Parallel Multi-Agent Dispatch
 
 > Adds Human-in-the-Loop approval (suspend-resume, persistent) and
