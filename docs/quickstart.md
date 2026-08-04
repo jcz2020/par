@@ -2,10 +2,6 @@
 
 **English** · [简体中文](https://github.com/jcz2020/par/blob/main/docs/zh/quickstart.md)
 
-> **Note (v0.6.7):** The CLI (`par ask`, `par config`) was removed from this repo; the SDK is the supported surface. For an interactive coding agent based on this SDK, see [par-code](https://github.com/jcz2020/par-code). The `par ask` examples below are kept for historical reference; new users should start with the SDK examples in [SDK overview](sdk/overview.md).
-
-> Translated to English for v0.3.2. Source-of-truth: the OCaml modules in lib/ and the README.
-
 # PAR Quickstart
 
 > From scratch to a working LLM agent with tool calls in 30 minutes using OCaml.
@@ -14,7 +10,7 @@
 
 PAR (Programmable Agent Runtime) is a modular, type-safe agent runtime for OCaml 5.4+.
 It includes a ReAct reasoning engine, OpenAI and Anthropic LLM providers (plus any OpenAI-compatible endpoint),
-20 built-in tools (including a type-safe bash tool), an MCP client (stdio + HTTP/SSE), workflow orchestration, and SQLite persistence.
+23 built-in tools (including a type-safe bash tool and 3 memory tools), an MCP client (stdio + HTTP/SSE), workflow orchestration, and SQLite persistence.
 
 ## Prerequisites
 
@@ -36,7 +32,25 @@ eval $(opam env)
 
 ## Install
 
-Build from source (recommended):
+**Python binding** (Linux x86_64 + macOS arm64):
+
+```bash
+pip install par-runtime
+```
+
+**OCaml SDK**:
+
+```bash
+opam pin add par https://github.com/jcz2020/par.git
+```
+
+**Interactive SDK wizard** (detects system, picks Python or OCaml):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jcz2020/par/main/install.sh | bash
+```
+
+**Build from source**:
 
 ```bash
 git clone https://github.com/jcz2020/par.git
@@ -49,8 +63,6 @@ dune install                   # install into opam environment
 After installation you get one opam package and one PyPI package:
 - `par` — the SDK library (OCaml)
 - `par-runtime` — the Python binding (PyPI)
-
-> The `par_cli` CLI package was removed in v0.6.7; for an interactive coding agent built on this SDK, see [par-code](https://github.com/jcz2020/par-code).
 
 ## Project setup
 
@@ -91,66 +103,53 @@ dune exec ./main.exe   # output: Hello PAR
 
 ## Configure an LLM provider
 
-PAR's CLI uses a JSON configuration file stored at `~/.par/config.json`.
-The easiest way to create it is through the guided wizard:
+PAR is configured through the SDK. You need an API key and a persistence backend.
 
-```bash
-par config
-```
+### API key
 
-The wizard prompts for provider, API key, model name, and other fields.
-If you edit the config file manually, the format is:
-
-**OpenAI (including any OpenAI-compatible endpoint)**:
-
-```json
-{
-  "provider": "openai",
-  "api_key": "sk-...",
-  "api_base": null,
-  "model": "gpt-4",
-  "persistence": "sqlite",
-  "db_uri": null,
-  "temperature": 0.7,
-  "system_prompt": "You are a helpful assistant."
-}
-```
-
-**OpenAI-compatible endpoint (e.g. local vLLM, llama.cpp server)**:
-
-```json
-{
-  "provider": "openai",
-  "api_key": "your-api-key",
-  "api_base": "http://localhost:8000/v1",
-  "model": "my-model",
-  "persistence": "sqlite",
-  "db_uri": null,
-  "temperature": 0.7,
-  "system_prompt": "You are a helpful assistant."
-}
-```
-
-**Anthropic**:
-
-```json
-{
-  "provider": "anthropic",
-  "api_key": "sk-ant-...",
-  "api_base": null,
-  "model": "claude-sonnet-4-20250514",
-  "persistence": "sqlite",
-  "db_uri": null,
-  "temperature": 0.7,
-  "system_prompt": "You are a helpful assistant."
-}
-```
-
-You can also pass the API key via environment variables (useful for SDK usage):
+Set your API key as an environment variable:
 
 ```bash
 export OPENAI_API_KEY="sk-..."
 export ANTHROPIC_API_KEY="sk-ant-..."
+```
+
+### Persistence
+
+When creating a `runtime_config`, specify the persistence backend using the object form:
+
+```json
+{"persistence": {"tag": "sqlite", "contents": ":memory:"}}
+```
+
+The `":memory:"` value uses an in-memory database (handy for testing). For persistent storage, swap in a file path like `"par.db"`.
+
+### OCaml SDK
+
+Configure providers directly in the `runtime_config` record. The typed record gives you compile-time safety on every field:
+
+```ocaml
+let config = {
+  Types.persistence = `Sqlite ":memory:";  (* or `Sqlite "par.db"` for file-based *)
+  (* ... other fields use defaults ... *)
+} in
+```
+
+### Python binding
+
+Pass a JSON configuration string when creating the runtime:
+
+```python
+from par_runtime import Runtime
+import json
+
+config = json.dumps({
+    "persistence": {"tag": "sqlite", "contents": ":memory:"},
+    "default_quota": {"max_tokens": 4096, "max_iterations": 10, "timeout_seconds": 30.0},
+})
+
+with Runtime(config) as rt:
+    agent = rt.make_agent(id="assistant", model="openai/gpt-4o-mini")
 ```
 
 ## Write your first agent
@@ -254,40 +253,6 @@ with
 | Error e -> Printf.eprintf "Error: %s\n" (Printexc.to_string (Failure ""))
 ```
 
-## Using the CLI
-
-PAR ships an interactive REPL for zero-code experimentation.
-
-**Configuration**:
-
-```bash
-par config
-# follow the prompts for provider, API key, model, etc.
-```
-
-**Interactive conversation**:
-
-```bash
-par
-# > What is 2 + 3?
-# Agent: 2 + 3 = 5
-# > ^D (Ctrl+D to exit)
-```
-
-**Single-shot query**:
-
-```bash
-par ask "What is the capital of France?"
-# Agent: The capital of France is Paris.
-```
-
-The CLI automatically registers all 20 built-in tools and supports command-line overrides:
-
-```bash
-par ask --provider anthropic --model claude-sonnet-4-20250514 "Hello"
-par ask --temperature 0.3 "Explain quantum computing"
-```
-
 ## Using built-in tools
 
 In the SDK, access all built-in tool bindings via `Par.Builtin_tools`:
@@ -353,7 +318,8 @@ let () =
 Built-in tools include: `calculator`, `get_time`, `echo`, `generate_uuid`,
 `hash_text`, `generate_password`, `string_stats`, `json_format`,
 `convert_temperature`, `url_encode`, `fetch_url`, `read_webpage`, `web_search`,
-`read`, `ls`, `find`, `grep`, `write`, `edit`, `bash`.
+`read`, `ls`, `find`, `grep`, `write`, `edit`, `bash`,
+`recall_memory`, `remember_memory`, `search_history`.
 
 ## Persistence: SQLite
 
@@ -374,17 +340,36 @@ The database file is created automatically at runtime if it doesn't exist. It st
 |---------|-------|----------|
 | `Unbound module Types` | Missing `open Par` | Add `open Par` at the top of the file |
 | `Unbound module Par` | par library not found | Confirm `(libraries par ...)` is declared in dune-project |
-| `Connection refused` | Missing API key or network issue | Check `~/.par/config.json` or environment variables |
-| `LLM not initialized` | SDK mode without `~llm` parameter | Use CLI mode (`par ask`) which handles LLM init automatically |
+| `Connection refused` | Missing API key or network issue | Verify environment variables (`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`) are set correctly |
+| `LLM not initialized` | No LLM provider configured | Ensure `llm_providers` is set in `runtime_config`, or pass `~llm` when calling `Runtime.invoke` |
 | `Error creating OpenAI provider` | API key format error | Confirm key starts with `sk-` (OpenAI) or `sk-ant-` (Anthropic) |
 | `dune build` fails | Dependencies not installed | Run `opam install --deps-only .` |
 | `ppx_deriving_yojson` error | Missing preprocessor | Add `(preprocess (pps ppx_deriving_yojson))` to the dune file |
 
+## What's new in v0.8.x
+
+PAR has added several capabilities since v0.7. Here's a quick tour.
+
+**HITL approval** (v0.8.0) lets agents pause mid-execution for human approval. Approval state persists to SQLite, so it survives process restarts. External systems can resolve approvals via webhook. See [HITL API](sdk/hitl.md).
+
+**Parallel multi-agent dispatch** (v0.8.0) runs N agents concurrently with typed merge, per-agent workspace isolation, and per-agent approval handler overrides. Call `Runtime.invoke_parallel` to fan out work and collect merged results. See [Parallel Dispatch](sdk/parallel.md).
+
+**Memory service** (v0.7.1, enhanced v0.8.1) provides cross-session agent memory with FTS5 keyword search. Three builtin tools (`recall_memory`, `remember_memory`, `search_history`) give agents direct access. Scoped per-session via `invoke_context`. See [Memory API](sdk/memory.md).
+
+**Skills system** (v0.8.1) lets you drop a `skill.md` in `~/.par/skills/<id>/` and have it auto-activate during `Runtime.invoke` based on trigger conditions (Auto / Manual / Keyword). Per-call mode switching via the `?skills` parameter. See [Skills API](sdk/skills.md).
+
+**Think_tag_strip middleware** (v0.8.2) automatically cleans reasoning model tags from LLM output. Useful with models that emit `<think>` blocks or similar thinking markers. See [Middleware](sdk/middleware.md).
+
 ## Next steps
 
+- [HITL API](sdk/hitl.md) — suspend-resume approval, cross-process persistence
+- [Parallel Dispatch](sdk/parallel.md) — parallel multi-agent dispatch, typed merge
+- [Memory API](sdk/memory.md) — cross-session agent memory with FTS5 search
+- [Skills API](sdk/skills.md) — reusable prompt + tool bundles with triggers
+- [Streaming API](sdk/streaming.md) — token streaming, tool call events
+- [Agent API](sdk/agent.md) — `agent_config`, `Runtime.invoke`, tool handlers deep dive
+- [Workflow API](sdk/workflow.md) — sequential, parallel, conditional, map-reduce
+- [Middleware](sdk/middleware.md) — Logging, Retry, Rate_limit, Timeout, PII_mask, Think_tag_strip
 - [Tutorial 01: RAG Q&A Bot](tutorials/01-rag-qa-bot.md) — add a knowledge base to your agent
 - [Tutorial 02: Streaming UI](tutorials/02-streaming-ui.md) — see tokens stream live into a TTY UI
-- [agent.md](sdk/agent.md) — Agent configuration deep dive: `model_config` fields, `context_strategy`, `retry_policy`
-- [workflow.md](sdk/workflow.md) — Workflow orchestration: sequential, parallel, conditional branching, map-reduce
-- [middleware.md](sdk/middleware.md) — Middleware: logging, timeout, retry, rate limiting, PII masking, data validation
-- [examples/](https://github.com/jcz2020/par/blob/main/examples/) — More complete examples (basic_agent.ml, otel_tracing.ml)
+- [examples/](https://github.com/jcz2020/par/blob/main/examples/) — complete example code
