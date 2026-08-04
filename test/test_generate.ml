@@ -309,7 +309,7 @@ let test_invoke_generate_session_persisted () =
     | Error (e, _) ->
       Alcotest.failf "invoke_generate failed: %s" (error_to_string e)
     | Ok _ ->
-      match Runtime.load_most_recent_conversation rt with
+      match Runtime.load_most_recent_conversation rt () with
       | Ok None ->
         Alcotest.fail "load_most_recent_conversation returned None after invoke_generate"
       | Ok (Some (_sid, conv)) ->
