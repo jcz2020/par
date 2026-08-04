@@ -51,6 +51,7 @@ let user_only_conv : conversation =
         ; tool_calls = None
         ; tool_call_id = None
         ; name = None
+        ; reasoning_content = None
         } ]
   ; metadata = []
   }
@@ -365,6 +366,137 @@ let test_openai_request_body_with_tools () =
   let fn = first |> member "function" in
   Alcotest.(check string) "tool name" "get_time" (fn |> member "name" |> to_string)
 
+(* Bug 2 (streaming usage) regression — request side: the streaming request
+   body must carry stream_options.include_usage = true so OpenAI emits a
+   final usage chunk. Direct test of the exposed build_request_body. *)
+let test_openai_streaming_request_body_has_include_usage () =
+  let conv : conversation = { messages = []; metadata = [] } in
+  let body =
+    Openai_provider.build_request_body
+      ~model_config:openai_model
+      ~tools:[]
+      ~conversation:conv
+      ~stream:true
+      ()
+  in
+  let parsed = Yojson.Safe.from_string body in
+  let open Yojson.Safe.Util in
+  Alcotest.(check bool) "stream flag true" true (parsed |> member "stream" |> to_bool);
+  let stream_options = parsed |> member "stream_options" in
+  Alcotest.(check bool) "include_usage true" true
+    (stream_options |> member "include_usage" |> to_bool)
+
+(* Bug 2 (streaming usage) regression — parser side, THE ROOT CAUSE TEST.
+   When the SSE chunk has empty "choices": [], parse_stream_delta must still
+   surface usage_opt. Before the Wave 2 fix, the empty-choices branch dropped
+   usage_opt and returned None — making the final usage chunk invisible. *)
+let test_openai_parse_stream_delta_propagates_usage_on_empty_choices () =
+  let json : Yojson.Safe.t =
+    `Assoc
+      [ "choices", `List []
+      ; "usage", `Assoc
+          [ "prompt_tokens", `Int 100
+          ; "completion_tokens", `Int 50
+          ; "total_tokens", `Int 150
+          ]
+      ]
+  in
+  let text_chunk, reasoning_chunk, tool_chunks, finish_opt, usage_opt =
+    Openai_provider.parse_stream_delta json
+  in
+  Alcotest.(check bool) "text_chunk None on empty choices"
+    true (Option.is_none text_chunk);
+  Alcotest.(check bool) "reasoning_chunk None on empty choices"
+    true (Option.is_none reasoning_chunk);
+  Alcotest.(check int) "no tool_chunks on empty choices" 0 (List.length tool_chunks);
+  Alcotest.(check bool) "finish_opt None on empty choices"
+    true (Option.is_none finish_opt);
+  match usage_opt with
+  | None ->
+    Alcotest.fail
+      "expected usage_opt = Some _ on empty-choices chunk (Bug 2 regression: final usage chunk would be dropped)"
+  | Some u ->
+    Alcotest.(check int) "prompt_tokens" 100 u.prompt_tokens;
+    Alcotest.(check int) "completion_tokens" 50 u.completion_tokens;
+    Alcotest.(check int) "total_tokens" 150 u.total_tokens
+
+(* Bug 3 (reasoning_content) regression — non-streaming side: assistant
+   message carrying both content and reasoning_content must populate both
+   fields in the parsed llm_response. Direct test of the exposed
+   parse_llm_response. *)
+let test_openai_parse_llm_response_extracts_reasoning_content () =
+  let body =
+    {|{"choices":[{"message":{"role":"assistant","content":"answer","reasoning_content":"thinking..."},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15},"model":"gpt-4o-mini"}|}
+  in
+  match Openai_provider.parse_llm_response (Yojson.Safe.from_string body) with
+  | Error e -> Alcotest.failf "expected Ok, got error"
+  | Ok resp ->
+    Alcotest.(check string) "text extracted" "answer"
+      (Option.value resp.text ~default:"<none>");
+    Alcotest.(check string) "reasoning_content extracted" "thinking..."
+      (Option.value resp.reasoning_content ~default:"<none>")
+
+(* Bug 3 (reasoning_content) regression — streaming side: a delta containing
+   only reasoning_content (no content) must emit a Reasoning_delta chunk and
+   NO Text_delta. Before Wave 2 there was no reasoning branch at all.
+   This is a direct test of the exposed parse_stream_delta function. *)
+let test_openai_parse_stream_delta_emits_reasoning_delta () =
+  let json : Yojson.Safe.t =
+    `Assoc
+      [ "choices", `List
+          [ `Assoc
+              [ "index", `Int 0
+              ; "delta", `Assoc [ "reasoning_content", `String "thinking..." ]
+              ; "finish_reason", `Null
+              ]
+          ]
+      ]
+  in
+  let text_chunk, reasoning_chunk, tool_chunks, _finish_opt, _usage_opt =
+    Openai_provider.parse_stream_delta json
+  in
+  Alcotest.(check bool) "no text_chunk when delta has only reasoning"
+    true (Option.is_none text_chunk);
+  Alcotest.(check int) "no tool_chunks" 0 (List.length tool_chunks);
+  match reasoning_chunk with
+  | Some (Reasoning_delta { text }) ->
+    Alcotest.(check string) "reasoning text preserved" "thinking..." text
+  | other ->
+    Alcotest.failf "expected Some (Reasoning_delta {text=\"thinking...\"}), got %s"
+      (match other with
+       | None -> "None"
+       | Some (Reasoning_delta { text = t }) -> "Reasoning_delta " ^ t
+       | Some (Text_delta { text = t }) -> "Text_delta " ^ t
+       | Some _ -> "<other chunk>")
+
+(* Bug 3 (reasoning_content) regression — request side: even if a message has
+   reasoning_content set (e.g. an assistant turn we recorded), it MUST NOT be
+   serialized into the outbound request — OpenAI rejects reasoning_content on
+   input. Direct test of the exposed build_message_json. *)
+let test_openai_build_message_json_excludes_reasoning_content () =
+  let msg : message =
+    { role = Assistant
+    ; content_blocks = [Text_block { text = "answer"; cache_control = None }]
+    ; tool_calls = None
+    ; tool_call_id = None
+    ; name = None
+    ; reasoning_content = Some "thinking..."
+    }
+  in
+  let json = Openai_provider.build_message_json msg in
+  let parsed = json in  (* already Yojson.Safe.t, no round-trip needed *)
+  let open Yojson.Safe.Util in
+  (* Yojson.Util.member returns `Null for absent keys — exactly what we want. *)
+  (match parsed |> member "reasoning_content" with
+   | `Null -> ()
+   | other ->
+     Alcotest.failf "expected reasoning_content ABSENT in serialized message, got %s"
+       (Yojson.Safe.to_string other));
+  Alcotest.(check string) "content still present" "answer"
+    (parsed |> member "content" |> to_string);
+  Alcotest.(check string) "role still present" "assistant"
+    (parsed |> member "role" |> to_string)
+
 let test_openai_close_is_safe () =
   match
     Openai_provider.create
@@ -499,12 +631,14 @@ let test_anthropic_request_body_extracts_system_prompt () =
           ; tool_calls = None
           ; tool_call_id = None
           ; name = None
+          ; reasoning_content = None
           }
         ; { role = User
           ; content_blocks = [Text_block { text = "Hello"; cache_control = None }]
           ; tool_calls = None
           ; tool_call_id = None
           ; name = None
+          ; reasoning_content = None
           }
         ]
     ; metadata = []
@@ -582,6 +716,7 @@ let test_edge_openai_unicode_in_message () =
           ; tool_calls = None
           ; tool_call_id = None
           ; name = None
+          ; reasoning_content = None
           } ]
     ; metadata = []
     }
@@ -720,6 +855,16 @@ let () =
       Alcotest.test_case "Authorization Bearer header shape" `Quick test_openai_request_includes_authorization_bearer;
       Alcotest.test_case "request body has model/temp/stream fields" `Quick test_openai_request_body_has_model_field;
       Alcotest.test_case "request body with tools array" `Quick test_openai_request_body_with_tools;
+      Alcotest.test_case "streaming body carries stream_options.include_usage" `Quick
+        test_openai_streaming_request_body_has_include_usage;
+      Alcotest.test_case "parse_stream_delta surfaces usage on empty choices (Bug 2)" `Quick
+        test_openai_parse_stream_delta_propagates_usage_on_empty_choices;
+      Alcotest.test_case "parse_llm_response extracts reasoning_content (Bug 3)" `Quick
+        test_openai_parse_llm_response_extracts_reasoning_content;
+      Alcotest.test_case "parse_stream_delta emits Reasoning_delta (Bug 3)" `Quick
+        test_openai_parse_stream_delta_emits_reasoning_delta;
+      Alcotest.test_case "build_message_json excludes reasoning_content (Bug 3)" `Quick
+        test_openai_build_message_json_excludes_reasoning_content;
       Alcotest.test_case "close is safe" `Quick test_openai_close_is_safe;
     ];
     "anthropic_provider", [

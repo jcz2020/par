@@ -38,7 +38,7 @@ let test_openai_streaming_preserves_real_id () =
           ]
       ]
   in
-  let _text, tool_chunks, _finish, _usage =
+  let _text, _reasoning, tool_chunks, _finish, _usage =
     Openai_provider.parse_stream_delta json
   in
   Alcotest.(check int) "exactly 2 tool_chunks (start + delta)"
@@ -85,7 +85,7 @@ let test_openai_streaming_falls_back_to_index_when_id_absent () =
           ]
       ]
   in
-  let _text, tool_chunks, _finish, _usage =
+  let _text, _reasoning, tool_chunks, _finish, _usage =
     Openai_provider.parse_stream_delta json
   in
   Alcotest.(check int) "1 tool_chunk (delta only)"

@@ -17,7 +17,7 @@ let make_chunk ?usage () =
     ) (match json with `Assoc l -> l | _ -> []) @ [ "usage", u_json ])
 
 let get_usage chunk =
-  let (_, _, _, usage_opt) = Openai_provider.parse_stream_delta chunk in
+  let (_, _, _, _, usage_opt) = Openai_provider.parse_stream_delta chunk in
   usage_opt
 
 let check_field label expected actual =
