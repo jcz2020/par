@@ -51,6 +51,7 @@ plugins:
   - i18n:
       docs_structure: folder
       fallback_to_default: false
+      reconfigure_material: true
       languages:
         - locale: en
           default: true
@@ -61,10 +62,56 @@ plugins:
           name: 简体中文
           build: true
           nav_translations:
+            Home: 首页
             Tutorial: 教程
             How-to: 实用指南
             Reference: 参考
             Explanation: 解释
+            Quickstart: 快速上手
+            Concurrency: 并发模式
+            Custom LLM Provider: 自定义 LLM Provider
+            Error Handling: 错误处理
+            Build a RAG Pipeline: 构建 RAG 管道
+            Plan-then-Execute: 计划-执行模式
+            SDK Overview: SDK 概览
+            Agent API: Agent API
+            HITL API: HITL API
+            Parallel Dispatch: 并行分发
+            invoke_context: invoke_context
+            Workflow API: Workflow API
+            Middleware: 中间件
+            Tools: 工具
+            MCP Client: MCP 客户端
+            Streaming API: Streaming API
+            Generate API: Generate API
+            RAG API: RAG API
+            Document Loaders: 文档加载器
+            Memory API: Memory API
+            Persistence API: 持久化 API
+            Prompt Caching: Prompt 缓存
+            Content Blocks: 内容块
+            Skills API: Skills API
+            Observability: 可观测性
+            Architecture: 架构
+            Concurrency Model: 并发模型
+            Persistence and Durability: 持久化与可靠性
+            RAG Architecture: RAG 架构
+            FAQ: 常见问题
+          admonition_translations:
+            note: 注
+            tip: 提示
+            warning: 警告
+            danger: 危险
+            info: 信息
+            example: 示例
+            quote: 引用
+            abstract: 摘要
+            success: 成功
+            failure: 失败
+            question: 问题
+            bug: Bug
+            footnote: 脚注
+            title: 标题
 
 markdown_extensions:
   - admonition

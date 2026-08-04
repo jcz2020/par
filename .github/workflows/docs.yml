@@ -29,13 +29,11 @@ jobs:
       - name: Install mkdocs + plugins
         run: pip install -r requirements-docs.txt
 
-      - name: Check translation sync
-        run: bash scripts/check_translation_sync.sh
-        continue-on-error: true
+      - name: Check translation sync (strict)
+        run: bash scripts/check_translation_sync.sh --strict
 
-      - name: Build site (strict, non-blocking)
+      - name: Build site (strict)
         run: mkdocs build --strict
-        continue-on-error: true
 
       - name: Build and deploy
         run: mkdocs gh-deploy --force --no-history

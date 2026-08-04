@@ -27,6 +27,7 @@ done
 EXCLUDE_PATTERNS=(
   "zh/"
   "archive/"
+  "audit/"
   "v*-ROADMAP.md"
   "STRATEGY.md"
   "DOC-MAINTENANCE.md"
