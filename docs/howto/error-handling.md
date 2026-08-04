@@ -16,6 +16,7 @@ type error_category =
   | Rate_limited
   | Permission_denied of string
   | Internal of string
+  | Embedding_unsupported
 [@@deriving yojson]
 ```
 
@@ -34,6 +35,18 @@ type handler_result =
       retryable : bool;
       metadata : (string * Yojson.Safe.t) list;
     }
+  | Handoff of {
+      target_agent_id : string;
+      carry_context : bool;
+      task : string option;
+    }
+  | Approval_required of {
+      tool_name : string;
+      tool_input : Yojson.Safe.t;
+      prompt : string;
+      timeout : float option;
+      allowed_roles : string list;
+    }
 ```
 
 **Decide whether to retry** based on the `retryable` field or `category`:
@@ -46,6 +59,7 @@ type handler_result =
 | `Invalid_input` | **false** | **Do not retry** — the schema is wrong, retrying won't help |
 | `Permission_denied` | **false** | **Do not retry** — policy rejection, retrying is still rejection |
 | `Internal` | depends | Check `message`; retry if transient |
+| `Embedding_unsupported` | **false** | **Do not retry** — the configured provider has no embedding endpoint; switch provider or skip embeddings |
 
 ## Pattern 2: LLM errors — backoff
 
@@ -122,10 +136,10 @@ match Runtime.invoke rt "agent" input with
   | Timeout -> retry_with_backoff ()
   | Rate_limited -> sleep 60.0; retry ()
   | Invalid_input msg -> log_input_error msg; fail ()
-  | _ -> failwith (Printf.sprintf "unhandled: %s" (error_to_string e))
+  | _ -> failwith (Printf.sprintf "unhandled: %s" (Runtime.string_of_error_category e))
 ```
 
-The 6 `error_category` variants in `lib/core/types.ml` are **exhaustive** — missing one produces an OCaml warning. **Use exhaustiveness as a safety net**:
+The 7 `error_category` variants in `lib/core/types.ml` are **exhaustive** — missing one produces an OCaml warning. **Use exhaustiveness as a safety net**:
 
 ```ocaml
 | _ -> failwith "unreachable"  (* but add a [WARNING] log to help debug *)

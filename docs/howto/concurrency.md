@@ -17,9 +17,9 @@ Eio.Switch.run (fun sw ->
   let rt = Runtime.create ~config ... sw in
   (* Launch 3 independent agents *)
   let results = Eio.Fiber.all [
-    fun () -> Runtime.invoke rt "agent-a" "task 1";
-    fun () -> Runtime.invoke rt "agent-b" "task 2";
-    fun () -> Runtime.invoke rt "agent-c" "task 3";
+    fun () -> Runtime.invoke rt ~agent_id:"agent-a" ~message:"task 1" ();
+    fun () -> Runtime.invoke rt ~agent_id:"agent-b" ~message:"task 2" ();
+    fun () -> Runtime.invoke rt ~agent_id:"agent-c" ~message:"task 3" ();
   ] in
   (* results is [(result_a, error_b, result_c) ...] *)
   List.iter (function
@@ -37,7 +37,7 @@ If the same agent receives multiple independent questions (e.g. batch processing
 ```ocaml
 let inputs = ["question 1"; "question 2"; ...; "question N"] in
 let tasks = List.map (fun input ->
-  fun () -> Runtime.invoke rt agent_id input
+  fun () -> Runtime.invoke rt ~agent_id ~message:input ()
 ) inputs in
 let results = Eio.Fiber.all tasks in
 ```
@@ -88,7 +88,7 @@ The bash tool defaults to `concurrency_limit = Some 4` (max 4 concurrent bash ca
 (* Global: max 60 LLM calls per second *)
 let config = {
   ...
-  middleware = [Par_middleware.rate_limit ~max_requests:60 ~window_seconds:1.0 ()];
+  middleware = [Rate_limit.rate_limit ~config:{max_requests = 60; window = 1.0} ()];
 }
 ```
 
@@ -97,13 +97,13 @@ Or per-agent:
 ```ocaml
 let agent = {
   ...
-  middleware = [Par_middleware.rate_limit ~max_requests:10 ~window_seconds:1.0 ()];
+  middleware = [Rate_limit.rate_limit ~config:{max_requests = 10; window = 1.0} ()];
 }
 ```
 
 ## 6. Concurrency inside workflows
 
-`lib/core/workflow.ml` supports sequential / parallel / map-reduce steps:
+`lib/core/workflow_engine.ml` supports sequential / parallel / map-reduce steps:
 
 ```ocaml
 let workflow = {

@@ -55,9 +55,8 @@ let plan_write_tool rt =
          last_used_at = None;
          usage_count = 0;
          source = "agent";
-       } in
-       let json = Memory_object.to_yojson m in
-       (match mem.Types.upsert_fn json with
+        } in
+       (match mem.Types.upsert_fn m with
         | Ok _ -> Types.Success (`Assoc [("status", `String "ok")])
         | Error e -> Types.Error { category = e; message = "upsert failed";
                                    retryable = false; metadata = [] }))
@@ -84,9 +83,8 @@ let plan_read_tool rt =
      | Some mem ->
        (match mem.Types.get_fn "plan:current" with
         | Ok None -> Types.Success `Null
-        | Ok (Some json) ->
-          let m = Memory_object.of_yojson json |> Result.get_ok in
-          Types.Success (Yojson.Safe.from_string m.content)
+        | Ok (Some m) ->
+          Types.Success (`String m.content)
         | Error e -> Types.Error { category = e; message = "get failed";
                                    retryable = false; metadata = [] }))
   in

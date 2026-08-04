@@ -12,9 +12,9 @@ Eio.Switch.run (fun sw ->
   let rt = Runtime.create ~config ... sw in
   (* 启动 3 个独立 agent *)
   let results = Eio.Fiber.all [
-    fun () -> Runtime.invoke rt "agent-a" "task 1";
-    fun () -> Runtime.invoke rt "agent-b" "task 2";
-    fun () -> Runtime.invoke rt "agent-c" "task 3";
+    fun () -> Runtime.invoke rt ~agent_id:"agent-a" ~message:"task 1" ();
+    fun () -> Runtime.invoke rt ~agent_id:"agent-b" ~message:"task 2" ();
+    fun () -> Runtime.invoke rt ~agent_id:"agent-c" ~message:"task 3" ();
   ] in
   (* results 是 [(result_a, error_b, result_c) ...] *)
   List.iter (function
@@ -32,7 +32,7 @@ Eio.Switch.run (fun sw ->
 ```ocaml
 let inputs = ["问题 1"; "问题 2"; ...; "问题 N"] in
 let tasks = List.map (fun input ->
-  fun () -> Runtime.invoke rt agent_id input
+  fun () -> Runtime.invoke rt ~agent_id ~message:input ()
 ) inputs in
 let results = Eio.Fiber.all tasks in
 ```
@@ -83,7 +83,7 @@ bash 工具默认 `concurrency_limit = Some 4`（同 agent 最多 4 个 bash 并
 (* 全局：每秒最多 60 次 LLM 调用 *)
 let config = {
   ...
-  middleware = [Par_middleware.rate_limit ~max_requests:60 ~window_seconds:1.0 ()];
+  middleware = [Rate_limit.rate_limit ~config:{max_requests = 60; window = 1.0} ()];
 }
 ```
 
@@ -92,13 +92,13 @@ let config = {
 ```ocaml
 let agent = {
   ...
-  middleware = [Par_middleware.rate_limit ~max_requests:10 ~window_seconds:1.0 ()];
+  middleware = [Rate_limit.rate_limit ~config:{max_requests = 10; window = 1.0} ()];
 }
 ```
 
 ## 6. Workflow 内的并发
 
-`lib/core/workflow.ml` 支持 sequential / parallel / map-reduce：
+`lib/core/workflow_engine.ml` 支持 sequential / parallel / map-reduce：
 
 ```ocaml
 let workflow = {

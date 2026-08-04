@@ -11,6 +11,7 @@ type error_category =
   | Rate_limited
   | Permission_denied of string
   | Internal of string
+  | Embedding_unsupported
 [@@deriving yojson]
 ```
 
@@ -29,6 +30,18 @@ type handler_result =
       retryable : bool;
       metadata : (string * Yojson.Safe.t) list;
     }
+  | Handoff of {
+      target_agent_id : string;
+      carry_context : bool;
+      task : string option;
+    }
+  | Approval_required of {
+      tool_name : string;
+      tool_input : Yojson.Safe.t;
+      prompt : string;
+      timeout : float option;
+      allowed_roles : string list;
+    }
 ```
 
 **判断重试**：看 `retryable` 字段或 `category`：
@@ -41,6 +54,7 @@ type handler_result =
 | `Invalid_input` | **false** | **不重试**——schema 错，再试也是错 |
 | `Permission_denied` | **false** | **不重试**——policy 拒绝，重试也是拒绝 |
 | `Internal` | 看情况 | 看 `message`；如果是 transient 可重试 |
+| `Embedding_unsupported` | **false** | **不重试**——当前 provider 没有嵌入端点，需换 provider 或跳过嵌入 |
 
 ## 模式 2: LLM 错误——退避
 
@@ -117,10 +131,10 @@ match Runtime.invoke rt "agent" input with
   | Timeout -> retry_with_backoff ()
   | Rate_limited -> sleep 60.0; retry ()
   | Invalid_input msg -> log_input_error msg; fail ()
-  | _ -> failwith (Printf.sprintf "unhandled: %s" (error_to_string e))
+  | _ -> failwith (Printf.sprintf "unhandled: %s" (Runtime.string_of_error_category e))
 ```
 
-`lib/core/types.ml` 的 6 个 error_category 变体是**穷尽**的——match 漏一个会 OCaml warning。**用 exhaustiveness 做兜底**：
+`lib/core/types.ml` 的 7 个 error_category 变体是**穷尽**的——match 漏一个会 OCaml warning。**用 exhaustiveness 做兜底**：
 
 ```ocaml
 | _ -> failwith "unreachable"  (* 但加个 [ WARNING ] log 帮你 debug *)
