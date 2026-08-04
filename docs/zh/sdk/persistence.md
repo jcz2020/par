@@ -132,6 +132,26 @@ type session_summary = {
 | `load_conversation_fn` | 无 | 按 session id 加载对话 |
 | `load_most_recent_conversation_fn` | `?scope:string` | 加载最近更新的对话，可按 scope 过滤 |
 
+公共 Runtime API 将这些暴露为：
+
+```ocaml
+val Runtime.save_conversation :
+  runtime -> ?conversation:conversation -> ?scope:string ->
+  unit -> (unit, error_category) result
+
+val Runtime.load_most_recent_conversation :
+  runtime -> ?scope:string ->
+  unit -> ((string * Types.conversation) option, error_category) result
+```
+
+```python
+# Python 绑定
+rt.save_conversation(scope="workspace-123")
+rt.load_most_recent_conversation(scope="workspace-123")
+```
+
+设置 `scope` 时，对话存储在该分区下，只能通过相同 scope 的查询检索。省略时，对话存储为无 scope，对无 scope 的加载可见。scope 值对 runtime 来说是不透明的；使用一致的值（workspace id、tenant id、部署环境等）是应用层的职责。
+
 ## 配置持久化
 
 ### OCaml SDK

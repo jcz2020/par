@@ -279,7 +279,20 @@ val Runtime.invoke :
 | `?update_current` | `bool` | 为 `true` 时，将本次调用产生的对话回写到 agent 当前的 conversation handle（v0.7.7+）。默认遵循 runtime 的持久化策略。 |
 | `?save` | `bool` | 为 `true` 时，将产生的对话持久化到持久化后端（v0.7.7+）。为 `false` 时，对话仅保留在内存中。默认遵循 runtime 的持久化策略。 |
 
-返回类型为 `invoke_result`（不是 `llm_response`）：
+返回类型为 `invoke_result`，它包裹 `llm_response`：
+
+```ocaml
+type llm_response = {
+  text : string option;
+  reasoning_content : string option;
+  tool_calls : tool_call list option;
+  finish_reason : finish_reason;
+  usage : usage_stats;
+  model : string;
+}
+```
+
+`reasoning_content` 仅由推理模型（OpenAI o1/o3、DeepSeek-R1 通过 OpenAI 兼容 API）填充。当 provider 以独立字段返回推理内容时，它持有模型的思维链文本。对于非推理模型，此字段为 `None`。设置时，模型的实际回答仍在 `text`（或 `tool_calls`）中，因此两个字段可以同时携带数据。
 
 ```ocaml
 type invoke_result = {

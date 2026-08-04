@@ -54,6 +54,12 @@ type content_block =
 
 **Image_block** 持有图像数据，可以是 URL 引用或 base64 编码的字节。`media_type` 是 MIME 类型（如 `"image/png"`）。
 
+### 关于 reasoning_content
+
+`reasoning_content : string option` 是 `llm_response` 和 `message` 上的顶层字段，而非 `content_block` 变体。推理模型（o1、o3、DeepSeek-R1）通过此字段返回思维链文本，与主要的 `text` 和 `tool_calls` 分离。当上游 API 返回 `message.reasoning_content`（非流式）或 `delta.reasoning_content`（流式）时，此字段由 OpenAI provider 填充。
+
+这是范围妥协。当 Anthropic extended-thinking 支持落地后，`reasoning_content` 将迁移到 `content_block` 中的 `Reasoning_block` 变体，让推理获得与文本和工具使用同等的一等公民待遇。在此之前，直接在 response 或 message record 上检查 `reasoning_content`。
+
 ## 构造
 
 用记录语法手动构造每个变体：
