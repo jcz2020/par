@@ -239,7 +239,7 @@ let parse_llm_response json : (llm_response, error_category) result =
   let tool_calls =
     match tool_parts with [] -> None | tcs -> Some (List.rev tcs)
   in
-  Ok { text; tool_calls; finish_reason = stop_reason; usage; model }
+  Ok { text; reasoning_content = None; tool_calls; finish_reason = stop_reason; usage; model }
 
 (* -------------------------------------------------------------------------- *)
 (* SSE parsing                                                           *)

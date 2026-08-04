@@ -883,6 +883,7 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
               text = Some (Printf.sprintf
                 "Approval required for tool %s — awaiting decision (run_id=%s, expires_at=%.0f)"
                 payload.tool_name persist_id payload.expires_at);
+              reasoning_content = None;
               tool_calls = None;
               finish_reason = Stop;
               usage = {
@@ -1418,6 +1419,7 @@ let resume_approval ~rt ~run_id ~outcome ~approver =
               tool_calls = None;
               tool_call_id = Some tool_call_id;
               name = Some tool_name_from_snapshot;
+              reasoning_content = None;
             } in
             { conv_snapshot with
               messages = conv_snapshot.messages @ [ tool_msg ] }
