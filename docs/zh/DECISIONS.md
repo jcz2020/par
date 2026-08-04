@@ -5,7 +5,7 @@
 
 **目的**: 记录影响公共 API、类型设计、模块结构、ROADMAP scope 的重大决策。每条决策含背景、理由、§11 R1 标注、escalation trigger、回退方式。防止未来重复讨论已决事项。
 
-**关联**: [STRATEGY.md](https://github.com/jcz2020/par/blob/main/docs/STRATEGY.md) §11 开发原则 | [v0.9-ROADMAP.md](https://github.com/jcz2020/par/blob/main/docs/v0.9-ROADMAP.md)
+**关联**: [STRATEGY.md](https://github.com/jcz2020/par/blob/main/docs/STRATEGY.md) §11 开发原则 | v0.9-ROADMAP.md（内部文档）
 
 ---
 
