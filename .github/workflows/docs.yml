@@ -32,6 +32,9 @@ jobs:
       - name: Check translation sync (strict)
         run: bash scripts/check_translation_sync.sh --strict
 
+      - name: Check CJK anchor links
+        run: bash scripts/check_cjk_anchors.sh --strict
+
       - name: Build site (strict)
         run: mkdocs build --strict
 
