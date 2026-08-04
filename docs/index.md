@@ -1,7 +1,5 @@
 <!-- language: en -->
 
-**English** · [简体中文](https://github.com/jcz2020/par/blob/main/docs/zh/index.md)
-
 # PAR Documentation
 
 PAR's docs are SDK-first. PAR is an embeddable runtime — production code uses the OCaml SDK directly, and Python code calls the same runtime via ctypes bindings. If you're building an agent, start with the SDK overview and the agent API reference.
@@ -21,8 +19,8 @@ Tutorials walk you through a complete task from scratch. Start here if you're ne
 | [Quickstart](quickstart.md) | 30 min | An agent with one tool, run end-to-end |
 | [01: RAG Q&A Bot](tutorials/01-rag-qa-bot.md) | 30 min | A PDF-style Q&A bot: embed, index, retrieve, answer |
 | [02: Streaming UI](tutorials/02-streaming-ui.md) | 25 min | Consume `invoke_stream` into a live-updating TTY UI |
-| [04: Multi-Provider Fallback](tutorials/04-multi-provider-fallback.md) | — | *stub, ships after v0.5.4 Track A Phase A.3* |
-| [05: Session Resume](tutorials/05-session-resume.md) | — | *stub, ships after v0.5.4 Track B Phase B.2* |
+| [04: Multi-Provider Fallback](tutorials/04-multi-provider-fallback.md) | — | *stub* |
+| [05: Session Resume](tutorials/05-session-resume.md) | — | *stub* |
 
 ## How-to guides
 
@@ -58,13 +56,16 @@ The SDK is the canonical surface. Every page below is marked **PRIMARY** because
 | [Agent API](sdk/agent.md) | **PRIMARY**: Agent config, Runtime API, tool registration, ReAct loop |
 | [HITL API](sdk/hitl.md) | **PRIMARY**: Human-in-the-Loop approval (suspend-resume, persistent, cross-process) |
 | [Parallel Dispatch](sdk/parallel.md) | **PRIMARY**: parallel multi-agent dispatch with typed merge |
+| [Invoke Context](sdk/invoke_context.md) | **PRIMARY**: per-call isolation via `Fiber.key` binding |
 | [Workflow API](sdk/workflow.md) | **PRIMARY**: workflow JSON, 8 step types, checkpoints |
-| [Middleware API](sdk/middleware.md) | **PRIMARY**: 7 built-in middlewares and how to write your own |
-| [Tools API](sdk/tools.md) | **PRIMARY**: all 20 built-in tools including type-safe bash |
+| [Middleware API](sdk/middleware.md) | **PRIMARY**: 9 built-in middlewares and how to write your own |
+| [Tools API](sdk/tools.md) | **PRIMARY**: all 23 built-in tools including type-safe bash |
 | [Streaming API](sdk/streaming.md) | **PRIMARY**: `invoke_stream`, 5-event tagged union, backpressure, 3 runnable examples |
 | [Generate API](sdk/generate.md) | **PRIMARY**: `invoke_generate`, long-output generation mode, auto-continue on truncation |
 | [RAG API](sdk/rag.md) | Embeddings, vector store, chunking, `invoke_with_rag` |
 | [Document Loaders](sdk/document_loaders.md) | **PRIMARY**: load text, Markdown, HTML, CSV, PDF into `Document.t` for RAG |
+| [Memory API](sdk/memory.md) | **PRIMARY**: cross-session memory with FTS5 + 3 builtin tools |
+| [Persistence API](sdk/persistence.md) | **PRIMARY**: SQLite + Noop backends |
 | [MCP Client API](sdk/mcp.md) | **PRIMARY**: MCP client (stdio + HTTP/SSE), 7 event types, server lifecycle |
 | [Skills API](sdk/skills.md) | Reusable prompt + tool bundles with trigger conditions |
 | [Observability](sdk/observability.md) | Metrics, health endpoints, event bus, structured logging |
