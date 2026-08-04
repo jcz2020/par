@@ -246,4 +246,39 @@ type memory_object = {
 
 ---
 
-**最后更新**: 2026-07-29
+## Phase 2 / Deferred Items
+
+以下项目在 v0.8.1/v0.8.2 中明确标注为延后，记录于此防止遗忘。每项含退役触发条件。
+
+### P2-1: Python FFI for `get_fn` / `upsert_fn`
+
+**状态**：延后。OCaml SDK 路径已验证（`Runtime.memory_service` + `get_fn`/`upsert_fn`），Python 路径缺 4 层 FFI bridge。
+**影响**：Python 用户无法精确查询/稳定更新 memory entry（只能用 FTS5 search 或 list_all + filter）。
+**工作量**：~1h（照抄 `set_user_activated_skills` 的 5 层 FFI 模式）。
+**触发**：下游 Python 用户明确需要 plan_read/plan_write 工具时。
+
+### P2-2: `user_activated_skills` 持久化（原 E4）
+
+**状态**：延后（§11 R2 范围妥协，合规）。
+**影响**：进程重启后 skill 激活态丢失（conversation 持久化了但 skill overlay 没有）。
+**依赖**：session 一等公民化（当前 session 是隐式 string tag，无 session 表）。
+**触发**：session 一等公民化启动时。
+
+### P2-3: Plan lifecycle 事件（`Memory_upserted`）
+
+**状态**：延后。
+**影响**：下游想订阅 plan 变更事件（实时 UI 显示 plan 进度）当前做不到——upsert 不发射 event_bus 事件。
+**设计决策待定**：(a) 是否所有 upsert 都发事件（可能嘈杂），(b) 是否只对 `scope = "plan:*"` 发，(c) 是否需要 throttle。
+**工作量**：~10 LOC（event 变体 + 发射），但需先确认设计。
+**触发**：下游明确需要 plan 变更订阅时。
+
+### P2-4: opam-repository 正式审核
+
+**状态**：等待外部审核（不可控）。
+**影响**：用户不能 `opam install par` 直接安装（需 `opam pin add`）。
+**bd issue**：PAR-hbt（P3）。
+**触发**：ocaml/opam-repository 维护者 merge PR 后自动解决。
+
+---
+
+**最后更新**: 2026-08-04
