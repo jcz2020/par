@@ -27,40 +27,40 @@ PAR 把 LLM agent 抽象为三层：
 
 ```
 lib/
-├── core/           类型 + Runtime + Engine + SDK 入口
+├── core/           类型 + Runtime + Engine + Workflow + 持久化 writer
 │   ├── types.ml         所有公共类型（agent_config、tool_descriptor、handler_result、...）
-│   ├── runtime.ml       Runtime.create / make_agent / register_tool / invoke
+│   ├── runtime.ml       Runtime.create / make_agent / register_tool / invoke（SDK facade，公共 API 在 runtime.mli）
 │   ├── engine.ml        ReAct 循环实现
-│   ├── sdk.ml           公共 SDK API
 │   ├── tool_registry.ml 工具去重注册
 │   ├── cancellation.ml  协程取消语义
 │   ├── context_manager.ml 对话上下文管理
 │   ├── expression.ml    表达式求值（Workflow 用）
 │   ├── state_machine.ml  8 状态机
-│   └── workflow.ml      Workflow 引擎（sequential / parallel / conditional / map-reduce）
+│   ├── workflow_engine.ml  Workflow 引擎（sequential / parallel / conditional / map-reduce）
+│   └── persistence_writer.ml  (v0.4.1 事件持久化 writer)
 │
 ├── providers/      LLM provider
 │   ├── openai_provider.ml
 │   ├── anthropic_provider.ml
 │   └── mock_provider.ml  (测试用)
 │
-├── tools/          内置工具（v0.3.1 起 20 个）
+├── tools/          内置工具（v0.7.1 起 23 个，含 3 个 memory 工具）
 │   ├── builtin_tools.ml
 │   ├── bash_safe_command.ml  (v0.3.1 bash ADT)
 │   ├── bash_policy.ml        (v0.3.1 安全策略)
 │   └── bash_blacklist.ml     (v0.3.1 黑名单)
 │
-├── persistence/    持久化
+├── persistence/    持久化后端
 │   └── sqlite_persistence.ml
 │
 ├── event_bus/      事件总线（带 DLQ）
 │
-├── middleware/     7 个中间件
-│   ├── logging / retry / rate_limit / timeout / validation / pii_mask / sanitize_tool_output
+├── middleware/     9 个内置中间件
+│   ├── logging / retry / rate_limit / timeout / arg_validation / output_validation / validation / pii_mask / sanitize_tool_output / think_tag_strip
 │
 ├── ffi/            C FFI（par_capi.so + par_ffi.h + par_ffi.c）
 │
-└── par.ml          公共入口（re-export 所有子模块）
+└── par.ml          顶层 facade（re-export 所有子模块，89 行）
 ```
 
 ## 数据流：一次 invoke
@@ -135,7 +135,7 @@ type event =
 
 ## 下一步
 
-- **新加工具**：看 [docs/sdk/tools.md](https://github.com/jcz2020/par/blob/main/sdk/tools.md) 的 20 个工具，再加一个 `let my_tool = { descriptor; handler } in` 然后 `Runtime.register_tool`。
+- **新加工具**：看 [docs/sdk/tools.md](https://github.com/jcz2020/par/blob/main/sdk/tools.md) 的 23 个工具，再加一个 `let my_tool = { descriptor; handler } in` 然后 `Runtime.register_tool`。
 - **新加 LLM provider**：看 [docs/howto/custom-llm-provider.md](https://github.com/jcz2020/par/blob/main/howto/custom-llm-provider.md)。
-- **新加中间件**：看 `lib/middleware/` 的 7 个例子，参考 [docs/sdk/middleware.md](https://github.com/jcz2020/par/blob/main/sdk/middleware.md)。
+- **新加中间件**：看 `lib/middleware/` 的 9 个例子（Logging、Retry、Rate_limit、Timeout、Arg_validation、Output_validation、Validation、Pii_mask、Sanitize_tool_output，外加 v0.8.2 加入的 Think_tag_strip 中间件），参考 [docs/sdk/middleware.md](https://github.com/jcz2020/par/blob/main/sdk/middleware.md)。
 - **贡献核心代码**：读 `lib/core/types.ml`（所有公共类型），跟着 `lib/core/runtime.ml` 走一遍 Runtime 生命周期。

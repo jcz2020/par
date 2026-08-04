@@ -32,41 +32,40 @@ Each layer has its own type boundary, ensuring that errors are caught at compile
 
 ```
 lib/
-├── core/           Types + Runtime + Engine + SDK entry point
+├── core/           Types + Runtime + Engine + Workflow + Persistence writer
 │   ├── types.ml         All public types (agent_config, tool_descriptor, handler_result, ...)
-│   ├── runtime.ml       Runtime.create / make_agent / register_tool / invoke
+│   ├── runtime.ml       Runtime.create / make_agent / register_tool / invoke (SDK facade; public API in runtime.mli)
 │   ├── engine.ml        ReAct loop implementation
-│   ├── sdk.ml           Public SDK API
 │   ├── tool_registry.ml Tool deduplication and registration
 │   ├── cancellation.ml  Cooperative cancellation semantics
 │   ├── context_manager.ml Conversation context management
 │   ├── expression.ml    Expression evaluation (used by Workflow)
 │   ├── state_machine.ml 8-state machine
-│   └── workflow.ml      Workflow engine (sequential / parallel / conditional / map-reduce)
+│   ├── workflow_engine.ml  Workflow engine (sequential / parallel / conditional / map-reduce)
+│   └── persistence_writer.ml  (v0.4.1 event persistence writer)
 │
 ├── providers/      LLM providers
 │   ├── openai_provider.ml
 │   ├── anthropic_provider.ml
 │   └── mock_provider.ml  (for testing)
 │
-├── tools/          Built-in tools (20 since v0.3.1)
+├── tools/          Built-in tools (23 since v0.7.1, including 3 memory tools)
 │   ├── builtin_tools.ml
 │   ├── bash_safe_command.ml  (v0.3.1 bash ADT)
 │   ├── bash_policy.ml        (v0.3.1 safety policy)
 │   └── bash_blacklist.ml     (v0.3.1 blacklist)
 │
 ├── persistence/    Persistence backends
-│   ├── sqlite_persistence.ml
-│   └── persistence_writer.ml    (v0.4.1 event persistence writer)
+│   └── sqlite_persistence.ml
 │
 ├── event_bus/      Event bus (with DLQ)
 │
-├── middleware/     7 built-in middleware
-│   ├── logging / retry / rate_limit / timeout / validation / pii_mask / sanitize_tool_output
+├── middleware/     9 built-in middleware
+│   ├── logging / retry / rate_limit / timeout / arg_validation / output_validation / validation / pii_mask / sanitize_tool_output / think_tag_strip
 │
 ├── ffi/            C FFI (par_capi.so + par_ffi.h + par_ffi.c)
 │
-└── par.ml          Public entry point (re-exports all sub-modules)
+└── par.ml          Top-level facade (re-exports all sub-modules; 89 lines)
 ```
 
 ## Data flow: a single invoke
@@ -141,7 +140,7 @@ Events are emitted by the Runtime via `rt.publish_event_fn`, and subscribers rec
 
 ## Next steps
 
-- **Add a tool**: see the 20 tools in [docs/sdk/tools.md](https://github.com/jcz2020/par/blob/main/sdk/tools.md), then add one with `let my_tool = { descriptor; handler } in` and `Runtime.register_tool`.
+- **Add a tool**: see the 23 tools in [docs/sdk/tools.md](https://github.com/jcz2020/par/blob/main/sdk/tools.md), then add one with `let my_tool = { descriptor; handler } in` and `Runtime.register_tool`.
 - **Add an LLM provider**: see [docs/howto/custom-llm-provider.md](https://github.com/jcz2020/par/blob/main/howto/custom-llm-provider.md).
-- **Add middleware**: see the 7 examples in `lib/middleware/` and the reference at [docs/sdk/middleware.md](https://github.com/jcz2020/par/blob/main/sdk/middleware.md).
+- **Add middleware**: see the 9 examples in `lib/middleware/` (Logging, Retry, Rate_limit, Timeout, Arg_validation, Output_validation, Validation, Pii_mask, Sanitize_tool_output, plus Think_tag_strip middleware added in v0.8.2) and the reference at [docs/sdk/middleware.md](https://github.com/jcz2020/par/blob/main/sdk/middleware.md).
 - **Contribute to core**: read `lib/core/types.ml` (all public types), then follow the Runtime lifecycle through `lib/core/runtime.ml`.
