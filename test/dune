@@ -585,6 +585,12 @@
   (modules test_current_conversation_mutex))
 
 (test
+  (name test_runtime_scope)
+  (libraries par eio_main alcotest)
+  (modules test_runtime_scope)
+  (action (run %{test})))
+
+(test
   (name test_webhook)
   (libraries par eio_main alcotest)
   (modules test_webhook))
