@@ -182,6 +182,7 @@ let run_llm_with_optional_streaming llm agent_model agent_tools conv user_cb =
   | None -> llm.complete_fn agent_model agent_tools conv
   | Some user_chunk ->
     let text_buf = Buffer.create 256 in
+    let reasoning_buf = Buffer.create 256 in
     let tc_state : (string, (string * Buffer.t)) Hashtbl.t = Hashtbl.create 4 in
     let acc chunk =
       user_chunk chunk;
@@ -198,6 +199,7 @@ let run_llm_with_optional_streaming llm agent_model agent_tools conv user_cb =
              Hashtbl.iter (fun _ (_, b) -> buf := b) tc_state;
              Buffer.add_string !buf args_json
            end)
+      | Reasoning_delta { text } -> Buffer.add_string reasoning_buf text
       | Usage_update _ | Done _ -> ()
     in
     let stream_cfg : stream_config = { chunk_timeout = 30.0; total_timeout = None; buffer_size = 4096 } in
@@ -211,12 +213,15 @@ let run_llm_with_optional_streaming llm agent_model agent_tools conv user_cb =
           let arguments = try Yojson.Safe.from_string args_str with _ -> `Null in
           { id; name; arguments }) entries) in
       let text = if Buffer.length text_buf = 0 then None else Some (Buffer.contents text_buf) in
-      Ok { text; tool_calls; finish_reason = stream_complete.finish_reason;
+      let reasoning_content =
+        if Buffer.length reasoning_buf = 0 then None
+        else Some (Buffer.contents reasoning_buf) in
+      Ok { text; reasoning_content; tool_calls; finish_reason = stream_complete.finish_reason;
            usage = stream_complete.final_usage; model = agent_model.model_name }
 
 let make_conversation system_prompt user_message =
-  let sys = { role = System; content_blocks = Message.content_of_string system_prompt; tool_calls = None; tool_call_id = None; name = None } in
-  let usr = { role = User; content_blocks = Message.content_of_string user_message; tool_calls = None; tool_call_id = None; name = None } in
+  let sys = { role = System; content_blocks = Message.content_of_string system_prompt; tool_calls = None; tool_call_id = None; name = None; reasoning_content = None } in
+  let usr = { role = User; content_blocks = Message.content_of_string user_message; tool_calls = None; tool_call_id = None; name = None; reasoning_content = None } in
   let appendix = Invoke_context.appendix_text () in
   let metadata =
     if appendix = "" then []
@@ -233,6 +238,7 @@ let add_assistant_message conv (resp : llm_response) =
     tool_calls = resp.tool_calls;
     tool_call_id = None;
     name = None;
+    reasoning_content = resp.reasoning_content;
   } in
   { conv with messages = conv.messages @ [ msg ] }
 
@@ -249,6 +255,7 @@ let add_tool_result_message conv (call : tool_call) result =
     tool_calls = None;
     tool_call_id = Some call.id;
     name = Some call.name;
+    reasoning_content = None;
   } in
   { conv with messages = conv.messages @ [ msg ] }
 
@@ -282,6 +289,7 @@ let add_user_feedback conv feedback_message =
     tool_calls = None;
     tool_call_id = None;
     name = None;
+    reasoning_content = None;
   } in
   { conv with messages = conv.messages @ [ msg ] }
 
@@ -333,7 +341,7 @@ let run_structured
   let conv0 = match conversation with
     | Some existing ->
       let usr = { role = User; content_blocks = Message.content_of_string user_message; tool_calls = None;
-                  tool_call_id = None; name = None } in
+                  tool_call_id = None; name = None; reasoning_content = None } in
       { existing with messages = existing.messages @ [ usr ] }
     | None -> make_conversation sys_prompt user_message
   in
@@ -590,7 +598,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
       let msgs = Steering_queue.drain_all q in
       List.fold_left (fun c msg ->
         let usr = { role = User; content_blocks = Message.content_of_string msg; tool_calls = None;
-                    tool_call_id = None; name = None } in
+                    tool_call_id = None; name = None; reasoning_content = None } in
         { c with messages = c.messages @ [usr] }
       ) conv msgs
   in
@@ -963,7 +971,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                    (fun (m : message) -> m.role <> System) conv.messages in
                  let sys_msg = {
                    role = System; content_blocks = Message.content_of_string target_sys_prompt;
-                   tool_calls = None; tool_call_id = None; name = None
+                   tool_calls = None; tool_call_id = None; name = None; reasoning_content = None
                  } in
                  let new_conv = { conv with messages = sys_msg :: non_sys } in
                  loop ~agent:target_agent ~global_max new_conv (iterations + 1)
@@ -972,11 +980,11 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                   | Some t ->
                     let sys_msg = {
                       role = System; content_blocks = Message.content_of_string target_sys_prompt;
-                      tool_calls = None; tool_call_id = None; name = None
+                      tool_calls = None; tool_call_id = None; name = None; reasoning_content = None
                     } in
                     let user_msg = {
                       role = User; content_blocks = Message.content_of_string t;
-                      tool_calls = None; tool_call_id = None; name = None
+                      tool_calls = None; tool_call_id = None; name = None; reasoning_content = None
                     } in
                     let new_conv = { messages = [sys_msg; user_msg]; metadata = [] } in
                     loop ~agent:target_agent ~global_max new_conv (iterations + 1)
@@ -1269,7 +1277,12 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                   { role = Assistant;
                     content_blocks = (if combined_text = "" then []
                                       else [Text_block { text = combined_text; cache_control = None }]);
-                    tool_calls = None; tool_call_id = None; name = None } in
+                    tool_calls = None; tool_call_id = None; name = None;
+                    (* reasoning_content = None: cross-continuation reasoning is incoherent
+                       (each continuation produces fresh reasoning unrelated to prior).
+                       This is a 范围妥协 — long-term migration to Reasoning_block content
+                       variant (next major) will revisit. See CHANGES.md. *)
+                    reasoning_content = None } in
                 let final_conv = { final_conv with messages = pre_msgs @ [combined_msg] } in
                 let final_conv = drain_into_conv final_conv followup in
                 Ok (final_resp, final_conv)
@@ -1324,7 +1337,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
         (List.filter (fun (k, _) -> k <> key) existing.metadata)
       in
       let usr = { role = User; content_blocks = Message.content_of_string user_message; tool_calls = None;
-                  tool_call_id = None; name = None } in
+                  tool_call_id = None; name = None; reasoning_content = None } in
       { messages = messages @ [ usr ]; metadata = updated_metadata }
     | None ->
       Logs.info (fun m -> m "[engine] New conversation: system_prompt=%d chars, user_message=%d chars"

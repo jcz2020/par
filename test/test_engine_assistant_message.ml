@@ -32,19 +32,19 @@ let dummy_usage : usage_stats =
     cache_read_input_tokens = 0 }
 
 let stop_response text : llm_response =
-  { text = Some text; tool_calls = None; finish_reason = Stop;
+  { text = Some text; reasoning_content = None; tool_calls = None; finish_reason = Stop;
     usage = dummy_usage; model = "mock" }
 
 let content_filter_response text : llm_response =
-  { text = Some text; tool_calls = None; finish_reason = Content_filter;
+  { text = Some text; reasoning_content = None; tool_calls = None; finish_reason = Content_filter;
     usage = dummy_usage; model = "mock" }
 
 let max_tokens_response text : llm_response =
-  { text = Some text; tool_calls = None; finish_reason = Max_tokens;
+  { text = Some text; reasoning_content = None; tool_calls = None; finish_reason = Max_tokens;
     usage = dummy_usage; model = "mock" }
 
 let tool_call_response calls : llm_response =
-  { text = None; tool_calls = Some calls; finish_reason = Tool_calls;
+  { text = None; reasoning_content = None; tool_calls = Some calls; finish_reason = Tool_calls;
     usage = dummy_usage; model = "mock" }
 
 let mock_llm responses =
@@ -314,7 +314,7 @@ let terminal_assistant_message_suite =
     Alcotest.test_case "Stop with empty text still adds Assistant turn" `Quick
       (fun () ->
         let empty_resp : llm_response =
-          { text = None; tool_calls = None; finish_reason = Stop;
+          { text = None; reasoning_content = None; tool_calls = None; finish_reason = Stop;
             usage = dummy_usage; model = "mock" } in
         let llm = mock_llm [ empty_resp ] in
         let agent = basic_agent () in
@@ -469,7 +469,7 @@ let terminal_assistant_message_suite =
       (fun () ->
         let handoff_tool = make_handoff_tool "B" in
         let empty_stop_resp : llm_response =
-          { text = None; tool_calls = None; finish_reason = Stop;
+          { text = None; reasoning_content = None; tool_calls = None; finish_reason = Stop;
             usage = dummy_usage; model = "mock" } in
         let llm = mock_llm_dynamic (fun conv ->
           match system_prompt_of conv with
@@ -525,16 +525,19 @@ let terminal_assistant_message_suite =
           role = Assistant;
           content_blocks = [Text_block { text = "previous answer"; cache_control = None }];
           tool_calls = None; tool_call_id = None; name = None;
+          reasoning_content = None;
         } in
         let prior_sys : message = {
           role = System;
           content_blocks = [Text_block { text = "you are resumed"; cache_control = None }];
           tool_calls = None; tool_call_id = None; name = None;
+          reasoning_content = None;
         } in
         let prior_user : message = {
           role = User;
           content_blocks = [Text_block { text = "previous question"; cache_control = None }];
           tool_calls = None; tool_call_id = None; name = None;
+          reasoning_content = None;
         } in
         let existing_conv : conversation = {
           messages = [prior_sys; prior_user; prior_assistant_msg];
@@ -544,6 +547,7 @@ let terminal_assistant_message_suite =
           role = User;
           content_blocks = [Text_block { text = "follow-up question"; cache_control = None }];
           tool_calls = None; tool_call_id = None; name = None;
+          reasoning_content = None;
         } in
         let resumed_conv = { existing_conv with
                               messages = existing_conv.messages @ [new_user_msg] } in
@@ -575,6 +579,62 @@ let terminal_assistant_message_suite =
             in
             Alcotest.(check bool) "prior assistant preserved in trail"
               true has_prior
+          | Error (e, _) ->
+            Alcotest.fail ("expected Ok, got Error: " ^ error_to_string e)));
+
+    (* ---- Test 12: Streaming aggregator accumulates Reasoning_delta ----
+       Verifies that run_llm_with_optional_streaming (via run_agent with
+       on_chunk) correctly accumulates Reasoning_delta chunks into
+       resp.reasoning_content. *)
+    Alcotest.test_case "Streaming aggregator accumulates Reasoning_delta" `Quick
+      (fun () ->
+        let stream_llm = {
+          complete_fn = (fun _ _ _ -> Ok (stop_response "unused"));
+          stream_fn = (fun _model _tools _conv _cfg acc ->
+            acc (Reasoning_delta { text = "thinking" });
+            acc (Text_delta { text = "answer" });
+            acc (Done { finish_reason = Stop });
+            Ok { final_usage = dummy_usage; finish_reason = Stop; chunks_received = 3 });
+          close_fn = (fun () -> ());
+          complete_structured_fn = None;
+          list_models_fn = None;
+          supports_native_tools_fn = None;
+          context_window_fn = None; cache_control_fn = None;
+        } in
+        let agent = basic_agent () in
+        let reg = make_registry [] in
+        with_token (fun token ->
+          match Engine.run_agent ~on_chunk:(Some (fun _ -> ()))
+                  token agent "hi" stream_llm reg with
+          | Ok (resp, _conv) ->
+            Alcotest.(check (option string)) "reasoning_content accumulated"
+              (Some "thinking") resp.reasoning_content;
+            Alcotest.(check (option string)) "text accumulated"
+              (Some "answer") resp.text
+          | Error (e, _) ->
+            Alcotest.fail ("expected Ok, got Error: " ^ error_to_string e)));
+
+    (* ---- Test 13: add_assistant_message propagates reasoning_content ----
+       Verifies that when the LLM returns reasoning_content, the engine's
+       egress wrap (add_assistant_message) propagates it into the
+       conversation's terminal Assistant message. *)
+    Alcotest.test_case "add_assistant_message propagates reasoning_content" `Quick
+      (fun () ->
+        let reasoning_llm = mock_llm_dynamic (fun _conv ->
+          { text = Some "response"; reasoning_content = Some "thoughts";
+            tool_calls = None; finish_reason = Stop;
+            usage = dummy_usage; model = "mock" })
+        in
+        let agent = basic_agent () in
+        let reg = make_registry [] in
+        with_token (fun token ->
+          match Engine.run_agent token agent "hi" reasoning_llm reg with
+          | Ok (_resp, conv) ->
+            (match List.rev conv.messages with
+             | last :: _ ->
+               Alcotest.(check (option string)) "last message has reasoning_content"
+                 (Some "thoughts") last.reasoning_content
+             | [] -> Alcotest.fail "conv empty")
           | Error (e, _) ->
             Alcotest.fail ("expected Ok, got Error: " ^ error_to_string e)));
 
