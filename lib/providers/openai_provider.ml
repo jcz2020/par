@@ -192,6 +192,10 @@ let role_to_string = function
   | Tool -> "tool"
 
 let build_message_json msg =
+  (* NOTE: msg.reasoning_content is intentionally NOT serialized into the
+     outbound request body. OpenAI o1/o3 and most OpenAI-compatible APIs
+     reject reasoning_content on input. Reasoning is captured on response
+     but not echoed back. *)
   let fields = [ ("role", `String (role_to_string msg.role)) ] in
   let fields =
     let content_str = Message.text_of_message msg in
@@ -256,7 +260,11 @@ let build_request_body ~model_config ~tools ~conversation ~stream ?response_sche
     | Some ss -> ("stop", `List (List.map (fun s -> `String s) ss)) :: fields
     | None -> fields
   in
-  let fields = if stream then ("stream", `Bool true) :: fields else fields in
+  let fields = if stream then
+    ("stream", `Bool true)
+    :: ("stream_options", `Assoc [("include_usage", `Bool true)])
+    :: fields
+  else fields in
   let fields = if tools <> [] then
     ("tools", `List (List.map tool_descriptor_to_json tools)) :: fields
   else fields
@@ -350,10 +358,16 @@ let parse_llm_response json : (llm_response, error_category) result =
       try match message |> member "content" with `String s -> Some s | _ -> None
       with _ -> None
     in
+    let reasoning_content =
+      try match message |> member "reasoning_content" with
+        | `String s -> Some s
+        | _ -> None
+      with _ -> None
+    in
     let tool_calls =
       try Some (parse_tool_calls (message |> member "tool_calls")) with _ -> None
     in
-    Ok { text; tool_calls; finish_reason = finish; usage; model }
+    Ok { text; reasoning_content; tool_calls; finish_reason = finish; usage; model }
   | [] -> Result.Error (External_failure "No choices in OpenAI response")
 
 (* -------------------------------------------------------------------------- *)
@@ -389,6 +403,13 @@ let parse_stream_delta json =
         | _ -> None
       with exn -> log_exn "content" exn; None
     in
+    let reasoning_chunk =
+      try
+        match delta |> member "reasoning_content" with
+        | `String s -> Some (Reasoning_delta { text = s })
+        | _ -> None
+      with exn -> log_exn "reasoning_content" exn; None
+    in
     let tool_chunks =
       try
         let tcs = delta |> member "tool_calls" |> to_list in
@@ -417,8 +438,8 @@ let parse_stream_delta json =
         | [] -> [] )
       with exn -> log_exn "tool_calls" exn; []
     in
-    (text_chunk, tool_chunks, finish_opt, usage_opt)
-  | [] -> (None, [], None, None)
+    (text_chunk, reasoning_chunk, tool_chunks, finish_opt, usage_opt)
+  | [] -> (None, None, [], None, usage_opt)
 
 (* -------------------------------------------------------------------------- *)
 (* LLM_SERVICE implementation                                            *)
@@ -523,15 +544,20 @@ let stream t model_config tools conversation _stream_config callback =
                      else begin
                        try
                          let json = Yojson.Safe.from_string data in
-                         let text_c, tool_c, finish_opt, usage_opt =
-                           parse_stream_delta json
-                         in
-                         ( match text_c with
-                         | Some chunk ->
-                           callback chunk;
-                           incr chunks
-                         | None -> () );
-                         ( match tool_c with
+                          let text_c, reasoning_c, tool_c, finish_opt, usage_opt =
+                            parse_stream_delta json
+                          in
+                          ( match text_c with
+                          | Some chunk ->
+                            callback chunk;
+                            incr chunks
+                          | None -> () );
+                          ( match reasoning_c with
+                          | Some chunk ->
+                            callback chunk;
+                            incr chunks
+                          | None -> () );
+                          ( match tool_c with
                          | chunk :: rest ->
                            List.iter (fun c -> callback c; incr chunks) (chunk :: rest)
                          | [] -> () );
