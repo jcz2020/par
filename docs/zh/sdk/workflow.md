@@ -121,7 +121,7 @@ Agent_call {
 }
 ```
 
-`Agent_call` 的结果是形如 `` `Assoc [("text", `String _); ("tool_calls", `List _)] `` 的结构化 JSON 值。Sequential 中的下游步骤可以分别引用各部分，例如 `{{result.text}}` 获取助手文本，`{{result.tool_calls}}` 获取工具调用数组。当 `response_schema` 为 `Some _` 时，会增加第三个键 `output`（包含 schema 校验后的 JSON 对象），`Conditional` 步骤可通过点路径引用嵌套字段（如 `result.output.sentiment`）。完整绑定规则见[变量与上下文传播](#变量与上下文传播)。
+`Agent_call` 的结果是形如 `` `Assoc [("text", `String _); ("tool_calls", `List _)] `` 的结构化 JSON 值。Sequential 中的下游步骤可以分别引用各部分，例如 `{{result.text}}` 获取助手文本，`{{result.tool_calls}}` 获取工具调用数组。当 `response_schema` 为 `Some _` 时，会增加第三个键 `output`（包含 schema 校验后的 JSON 对象），`Conditional` 步骤可通过点路径引用嵌套字段（如 `result.output.sentiment`）。完整绑定规则见「变量与上下文传播」。
 
 ### Tool_call
 
@@ -145,7 +145,7 @@ Tool_call {
 
 ### Sequential
 
-按顺序执行多个步骤。每个完成的步骤将其结果传播给同一 Sequential 中所有后续兄弟步骤（见[变量与上下文传播](#变量与上下文传播)）：
+按顺序执行多个步骤。每个完成的步骤将其结果传播给同一 Sequential 中所有后续兄弟步骤（见「变量与上下文传播」）：
 
 ```ocaml
 Sequential [

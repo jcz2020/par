@@ -133,5 +133,5 @@ let agent = Runtime.make_agent
 ## 另请参阅
 
 - [Memory API](../sdk/memory.md) — `memory_service` 完整参考
-- [Skill 作为行为模式](../sdk/skills.md#skill-作为行为模式) — 按调用切换模式
+- 「Skill 作为行为模式」（见 `sdk/skills.md`）— 按调用切换模式
 - DECISIONS.md — 为什么 PAR 用 app 层工具而非 runtime Plan 类型
