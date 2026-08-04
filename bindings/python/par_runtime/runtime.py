@@ -463,10 +463,20 @@ class Runtime:
         finally:
             _free(ptr)
 
-    def save_conversation(self) -> int:
-        """Persist the current conversation. Returns 0 on success."""
+    def save_conversation(self, *, scope: Optional[str] = None) -> int:
+        """Persist the current conversation. Returns 0 on success.
+
+        Args:
+            scope: Optional scope string (e.g., workspace_id, tenant_id).
+                When set, the conversation is stored with this scope and
+                only visible to load_most_recent_conversation calls with
+                the same scope. When omitted, the conversation is stored
+                without a scope (visible to unscoped loads).
+        """
         self._check_handle()
-        return _lib.par_save_conversation(self._handle)
+        # ctypes.c_char_p marshals Python None to C NULL → OCaml None.
+        scope_bytes = _c_str(scope) if scope is not None else None
+        return _lib.par_save_conversation(self._handle, scope_bytes)
 
     def load_conversation(self, session_id: str):
         """Load a conversation by session id. Returns None if not found."""

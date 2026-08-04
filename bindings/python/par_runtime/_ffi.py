@@ -164,8 +164,8 @@ _lib.par_set_session_id.restype = None
 # char* par_get_session_id(par_runtime_t* rt);
 _lib.par_get_session_id.argtypes = [ctypes.c_void_p]
 _lib.par_get_session_id.restype = ctypes.c_void_p
-# int par_save_conversation(par_runtime_t* rt);
-_lib.par_save_conversation.argtypes = [ctypes.c_void_p]
+# int par_save_conversation(par_runtime_t* rt, const char* scope);
+_lib.par_save_conversation.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_save_conversation.restype = ctypes.c_int
 # int par_load_conversation(par_runtime_t* rt, const char* session_id);
 _lib.par_load_conversation.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
