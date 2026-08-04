@@ -554,11 +554,11 @@ val clear_tool_call_hooks : runtime -> unit
 
 val run_tool_call_hooks : runtime -> Hook.tool_call_context -> Hook.chain_result
 
-val save_conversation : runtime -> ?conversation:conversation -> unit -> (unit, error_category) result
+val save_conversation : runtime -> ?conversation:conversation -> ?scope:string -> unit -> (unit, error_category) result
 
 val load_conversation : runtime -> string -> (Types.conversation option, error_category) result
 
-val load_most_recent_conversation : runtime -> ((string * Types.conversation) option, error_category) result
+val load_most_recent_conversation : runtime -> ?scope:string -> unit -> ((string * Types.conversation) option, error_category) result
 
 val register_llm_provider : runtime -> string -> llm_service -> (unit, error_category) result
 (** Add a provider under [id] to the runtime's provider registry. If [id]

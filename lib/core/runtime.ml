@@ -684,13 +684,13 @@ let per_call_registry ~(rt : runtime) ~(workspace : Workspace.workspace) : Tool_
 let register_file_tools_rebuild rt rebuild =
   rt.file_tools_rebuild <- Some rebuild
 
-let save_conversation rt ?(conversation : Types.conversation option) () =
+let save_conversation rt ?(conversation : Types.conversation option) ?scope () =
   let conv = match conversation with
     | Some c -> Some c
     | None -> Current_conversation.get rt
   in
   match !(rt.session_id), conv with
-  | Some sid, Some c -> rt.services.persistence.save_conversation_fn sid c
+  | Some sid, Some c -> rt.services.persistence.save_conversation_fn ?scope sid c
   | _ -> Ok ()
 
 let load_conversation rt sid =
@@ -707,8 +707,8 @@ let load_conversation rt sid =
   | Ok None -> Ok None
   | Error _ as e -> e
 
-let load_most_recent_conversation rt =
-  match rt.services.persistence.load_most_recent_conversation_fn () with
+let load_most_recent_conversation rt ?scope () =
+  match rt.services.persistence.load_most_recent_conversation_fn ?scope () with
   | Ok (Some (sid, conv)) ->
     rt.session_id := Some sid;
     Current_conversation.set rt (Some conv);
