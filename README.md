@@ -11,7 +11,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.8.0-beta — HITL approval + Parallel multi-agent dispatch. 1480+ tests passing. API may change before v1.0.
+> **Status**: v0.8.2 — Streaming observability + Think_tag_strip middleware. 1500+ tests passing.
 
 ---
 
@@ -114,7 +114,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - **Parallel multi-agent dispatch** — `Runtime.invoke_parallel` runs N agents concurrently with typed merge, per-agent workspace isolation, and per-agent approval handler overrides.
 - **Deprecation framework** — `warn_once` helper + `Deprecated_api_called` event + `[@@deprecated]` annotations + migration guides. Breaking changes no longer happen silently.
 - **Python ctypes binding** — `par_runtime` package, thread-safe, no GIL contention with OCaml runtime. Persistent Eio domain per Runtime for full concurrency support.
-- **1480+ OCaml tests + Python bindings** passing (all green, including RAG e2e from any cwd)
+- **1500+ OCaml tests + Python bindings** passing (all green, including RAG e2e from any cwd)
 - **Skill system** — drop a `skill.md` in `~/.par/skills/<id>/` and it auto-activates during `Runtime.invoke` based on trigger conditions (Auto / Manual / Keyword). Auto-trigger skills no longer replace the system prompt. See [Skills API](docs/sdk/skills.md).
 
 ## Language tracks
@@ -147,11 +147,11 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.8.0-beta — HITL approval (suspend-resume, persistent) + parallel multi-agent dispatch (typed merge, per-agent workspace/handler). 1480+ tests passing.
+**Current**: v0.8.2 — Streaming observability (15 silent exception handlers now log) + Think_tag_strip middleware (reasoning model tag cleanup). Memory service enhancements (`get_fn`/`upsert_fn`/`memory_service` accessor) and Skill per-call mode switching (`?skills`) in v0.8.1.
 
 **Coming next**: opam-repository submission.
 
-**Recent releases**: v0.7.0 (Document Loaders Framework) → v0.7.1 (Concurrency + Memory + Scope + Deprecation + Dynamic Prompt) → v0.7.2 (Windows Capability + Vector Memory + SDK Docs) → v0.7.3 (Audit Fixes) → v0.7.4 (json_extract fix + run_agent_structured) → v0.7.5 (HNSW + .docx + native structured output) → v0.7.6 (Python parity + FFI GC fix) → v0.7.7 (downstream root-cause fixes) → v0.7.8 (PyPI wheel pipeline restored) → v0.7.9 (engine egress wrap fix) → v0.7.10 (streaming architecture overhaul) → v0.8.0-beta (HITL + Parallel multi-agent dispatch).
+**Recent releases**: v0.7.10 (Streaming Architecture Overhaul) → v0.8.0-beta (HITL + Parallel multi-agent dispatch) → v0.8.1 (Memory `get_fn`/`upsert_fn` + Skill `?skills` + DECISIONS.md) → v0.8.2 (Streaming observability + Think_tag_strip middleware).
 
 ## Getting help
 
