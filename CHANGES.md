@@ -1,5 +1,19 @@
 # CHANGES
 
+## v0.8.2 — Streaming observability + Think_tag_strip middleware
+
+### Fixed — streaming silent data loss
+- **FIX** OpenAI provider `parse_stream_delta`: 8 silent `with _ ->` exception handlers now log via `Logs.warn` with field name + exception. Previously, malformed SSE chunks were silently dropped — provider appeared connected but response content vanished.
+- **FIX** Anthropic provider `process_stream_event`: 9 silent handlers — same treatment. Affects Ollama/Custom providers transitively (they share the OpenAI streaming path).
+
+### Added — Think_tag_strip middleware
+- **NEW** `Think_tag_strip.create ()`: opt-in middleware that strips `<think>`/`<reasoning>` tags from LLM responses via `on_after_llm` hook. For reasoning models (DeepSeek R1, QwQ) whose chain-of-thought pollutes conversation history and user-visible output.
+- **NEW** `Json_extract.strip_think_tags` exported (was internal-only, used by `extract_json_from_text`).
+
+### Added — Documentation
+- **NEW** CONTRIBUTING.md: downstream version pin guidance ("pin specific version, not git HEAD").
+- **NEW** docs/sdk/middleware.md: Think_tag_strip section with usage example.
+
 ## v0.8.1 — Memory enhancements + Skill UX + Plan/Mode decision
 
 ### Added — Memory service
