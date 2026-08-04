@@ -25,7 +25,7 @@ val Runtime.invoke_parallel :
 > **关于 `cancellation_token`**：这是 record 类型
 > `Types.cancellation_token = { switch : Eio.Switch.t; mutable cancelled : bool }`，
 > **不是**裸的 `Eio.Switch.t`。运行时读取 `cancelled` 字段，并在请求取消时停止内嵌的
-> `switch`。详见下文 [取消](#取消) 一节。
+> `switch`。详见下文「取消」一节。
 
 ## `agent_dispatch_spec`
 

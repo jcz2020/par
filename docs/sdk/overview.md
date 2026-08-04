@@ -40,7 +40,7 @@ graph TD
   PROV --> PROV_API["Openai_provider / Anthropic_provider / Mock_provider"]
   PERS --> PERS_API["Sqlite_persistence / Noop_persistence"]
   EVB --> EVB_API["Event_bus with DLQ + Eio.Stream"]
-  MID --> MID_API["Logging / Retry / Rate_limit / Timeout / Arg_validation / Validation / Pii_mask / Sanitize_tool_output / Think_tag_strip"]
+  MID --> MID_API["Logging / Retry / Rate_limit / Timeout / Arg_validation / Output_validation / Pii_mask / Sanitize_tool_output / Think_tag_strip"]
   TOOL --> TOOL_API["Builtin_tools (23 incl. bash) + Bash_safe_command + Bash_policy + Bash_blacklist"]
   DOC --> DOC_API["Document / Text_loader / Markdown_loader / Html_loader / Csv_loader / Pdf_loader / Directory_loader"]
   SKILL --> SKILL_API["Skill_loader / Builtin_skills"]
@@ -216,7 +216,7 @@ Every public module lives under one of the 9 sub-libraries below, plus the facad
 | `lib/providers` | `Par.Openai_provider`, `Par.Anthropic_provider`, `Par.Mock_provider` | LLM provider implementations |
 | `lib/persistence` | `Par.Sqlite_persistence`, `Par.Noop_persistence` | Sqlite backend (dev), no-op (tests) |
 | `lib/event_bus` | `Par.Event_bus` | Eio-based event bus with DLQ |
-| `lib/middleware` | `Par.Logging`, `Par.Retry`, `Par.Rate_limit`, `Par.Timeout`, `Par.Arg_validation`, `Par.Validation`, `Par.Pii_mask`, `Par.Sanitize_tool_output`, `Par.Think_tag_strip` | 9 built-in middlewares |
+| `lib/middleware` | `Par.Logging`, `Par.Retry`, `Par.Rate_limit`, `Par.Timeout`, `Par.Arg_validation`, `Par.Output_validation`, `Par.Pii_mask`, `Par.Sanitize_tool_output`, `Par.Think_tag_strip` | 9 built-in middlewares |
 | `lib/tools` | `Par.Builtin_tools`, `Par.Bash_safe_command`, `Par.Bash_policy`, `Par.Bash_blacklist` | 23 built-in tools including type-safe bash and 3 memory tools |
 | `lib/documents` | `Par.Document`, `Par.Text_loader`, `Par.Markdown_loader`, `Par.Html_loader`, `Par.Csv_loader`, `Par.Pdf_loader`, `Par.Directory_loader` | Document loaders for RAG (text, Markdown, HTML, CSV, PDF) |
 | `lib/memory` | `Par.Memory_service`, `Par.Sqlite_memory`, `Par.Memory_error`, `Par.Memory_object` | Agent memory with FTS5 keyword search |

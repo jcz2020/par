@@ -172,12 +172,12 @@ Cancellation.with_timeout 30.0 token (fun token ->
   Engine.run_agent token agent message llm registry)
 ```
 
-## Validation
+## Output_validation
 
 JSON 输入/输出校验中间件，确保 LLM 响应和工具参数格式正确。
 
 ```ocaml
-val Validation.validation :
+val Output_validation.validation :
   ?strict:bool ->   (* 默认 false：宽松模式 *)
   unit -> Types.middleware_hook
 ```
@@ -193,10 +193,10 @@ val Validation.validation :
 
 ```ocaml
 (* 开发环境用宽松模式 *)
-let validation_hook = Validation.validation ()
+let validation_hook = Output_validation.validation ()
 
 (* 生产环境用严格模式 *)
-let validation_hook = Validation.validation ~strict:true ()
+let validation_hook = Output_validation.validation ~strict:true ()
 ```
 
 ## Pii_mask
@@ -330,15 +330,15 @@ let agent = {
     Retry.retry ~config:{
       max_attempts = 3; base_delay = 2.0; max_delay = 30.0;
     } ();                                     (* 重试 *)
-    Validation.validation ~strict:true ();     (* 严格校验 *)
+    Output_validation.validation ~strict:true ();     (* 严格校验 *)
     Sanitize_tool_output.sanitize_tool_output ();  (* 输出清洗 *)
     Think_tag_strip.create ();                 (* 可选：清洗 reasoning 模型的 <think>/<reasoning> 标签 *)
   ];
 }
 ```
 
-执行流程：请求 -> Logging -> Pii_mask -> Rate_limit -> Validation -> LLM
-响应 -> Validation -> Sanitize -> Retry -> Rate_limit -> Pii_mask -> Logging
+执行流程：请求 -> Logging -> Pii_mask -> Rate_limit -> Output_validation -> LLM
+响应 -> Output_validation -> Sanitize -> Retry -> Rate_limit -> Pii_mask -> Logging
 
 ## Cancellation（取消）
 

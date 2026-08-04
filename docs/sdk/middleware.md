@@ -173,12 +173,12 @@ Cancellation.with_timeout 30.0 token (fun token ->
   Engine.run_agent token agent message llm registry)
 ```
 
-## Validation
+## Output_validation
 
 JSON input/output validation middleware that ensures LLM responses and tool arguments have the correct format.
 
 ```ocaml
-val Validation.validation :
+val Output_validation.validation :
   ?strict:bool ->   (* Default false: lenient mode *)
   unit -> Types.middleware_hook
 ```
@@ -194,10 +194,10 @@ val Validation.validation :
 
 ```ocaml
 (* Lenient mode for development *)
-let validation_hook = Validation.validation ()
+let validation_hook = Output_validation.validation ()
 
 (* Strict mode for production *)
-let validation_hook = Validation.validation ~strict:true ()
+let validation_hook = Output_validation.validation ~strict:true ()
 ```
 
 ## Pii_mask
@@ -331,15 +331,15 @@ let agent = {
     Retry.retry ~config:{
       max_attempts = 3; base_delay = 2.0; max_delay = 30.0;
     } ();                                     (* Retry *)
-    Validation.validation ~strict:true ();     (* Strict validation *)
+    Output_validation.validation ~strict:true ();     (* Strict validation *)
     Sanitize_tool_output.sanitize_tool_output ();  (* Output sanitization *)
     Think_tag_strip.create ();                 (* Optional: strip <think>/<reasoning> for reasoning models *)
   ];
 }
 ```
 
-Execution flow: request -> Logging -> Pii_mask -> Rate_limit -> Validation -> LLM
-Response -> Validation -> Sanitize -> Retry -> Rate_limit -> Pii_mask -> Logging
+Execution flow: request -> Logging -> Pii_mask -> Rate_limit -> Output_validation -> LLM
+Response -> Output_validation -> Sanitize -> Retry -> Rate_limit -> Pii_mask -> Logging
 
 ## Cancellation
 

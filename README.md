@@ -85,7 +85,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - [HITL API](docs/sdk/hitl.md) — suspend-resume approval, cross-process persistence
 - [Parallel Dispatch](docs/sdk/parallel.md) — parallel multi-agent dispatch, typed merge
 - [Workflow API](docs/sdk/workflow.md) — sequential, parallel, conditional, map-reduce
-- [Middleware](docs/sdk/middleware.md) — Logging, Retry, Rate_limit, Timeout, Arg_validation, Validation, PII_mask, Think_tag_strip
+- [Middleware](docs/sdk/middleware.md) — Logging, Retry, Rate_limit, Timeout, Arg_validation, Output_validation, PII_mask, Think_tag_strip
 - [Tools](docs/sdk/tools.md) — 23 built-in tools including type-safe bash
 - [MCP Client](docs/sdk/mcp.md) — connect any Model Context Protocol server
 - [Streaming API](docs/sdk/streaming.md) — token streaming, tool call events
@@ -105,7 +105,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - **Multi-provider LLM** — OpenAI, Anthropic, Ollama (local), Mock (tests), + custom registration for any OpenAI-compatible endpoint
 - **MCP client** (stdio + HTTP/SSE) — connect any Model Context Protocol server for tools, resources, prompts
 - **23 built-in tools** including type-safe bash (`Bash_safe_command` ADT), memory tools (`recall_memory`, `remember_memory`, `search_history`)
-- **9 middleware** — Logging, Retry, Rate_limit, Timeout, Arg_validation, Validation, PII_mask, Sanitize_tool_output, Think_tag_strip
+- **9 middleware** — Logging, Retry, Rate_limit, Timeout, Arg_validation, Output_validation, PII_mask, Sanitize_tool_output, Think_tag_strip
 - **SQLite persistence** — embedded audit log with generic `scope` dimension for session grouping (workspace/user/tenant); Noop backend for tests
 - **Structured concurrency** — OCaml 5.4 effects with Eio, no orphan fibers, no callback hell. `invoke_context` per-call isolation via `Eio.Fiber.with_binding` makes `Runtime.invoke` safe for reentrancy, parallelism, and `invoke_async`.
 - **Agent memory** — cross-session `Memory_service` (FTS5 keyword search) + 3 builtin tools. Scoped per-session via `invoke_context`. Pluggable like `llm_service`.
