@@ -189,7 +189,7 @@ install_ocaml() {
 
 verify_python() {
   head "Verifying par-runtime import"
-  python3 -c "from par_runtime import Runtime; r = Runtime('{\"persistence\": [\"Sqlite\", \":memory:\"]}'); r.close(); print('OK')"
+  python3 -c "from par_runtime import Runtime; r = Runtime('{\"persistence\": {\"tag\": \"sqlite\", \"contents\": \":memory:\"}}'); r.close(); print('OK')"
 }
 
 verify_ocaml() {
@@ -241,7 +241,7 @@ EOF
       cat <<'EOF' >&2
   Python:
     >>> from par_runtime import Runtime
-    >>> rt = Runtime('{"persistence": ["Sqlite", ":memory:"]}')
+    >>> rt = Runtime('{"persistence": {"tag": "sqlite", "contents": ":memory:"}}')
 EOF
       ;;
     ocaml)
