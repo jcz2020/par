@@ -429,7 +429,7 @@ let test_openai_parse_llm_response_extracts_reasoning_content () =
     {|{"choices":[{"message":{"role":"assistant","content":"answer","reasoning_content":"thinking..."},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15},"model":"gpt-4o-mini"}|}
   in
   match Openai_provider.parse_llm_response (Yojson.Safe.from_string body) with
-  | Error e -> Alcotest.failf "expected Ok, got error"
+  | Error _ -> Alcotest.failf "expected Ok, got error"
   | Ok resp ->
     Alcotest.(check string) "text extracted" "answer"
       (Option.value resp.text ~default:"<none>");
