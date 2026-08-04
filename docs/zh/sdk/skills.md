@@ -17,7 +17,7 @@ PAR 有四个抽象层。Skill 与工具、Agent 和中间件并列：
 |------|----------|------|
 | **工具（Tool）** | LLM 可调用的单个函数 | `read`、`web_search`、`bash` |
 | **Skill** | 系统提示词 + 工具子集 + 触发条件 | "代码审查员"（审查 prompt + 仅 read/grep 工具） |
-| **Agent** | 完整配置：模型、工具、中间件、重试策略 | 使用 GPT-4 + 20 个工具的默认 agent |
+| **Agent** | 完整配置：模型、工具、中间件、重试策略 | 使用 GPT-4 + 23 个工具的默认 agent |
 | **中间件（Middleware）** | 横切钩子（日志、重试、限流） | 带指数退避的重试 |
 
 **何时创建 Skill** 而非 Agent：
@@ -442,7 +442,7 @@ Runtime.invoke rt ~agent_id:"coder" ~message:"实现 X" ~skills:["plan-mode"] ()
 
 ### Skill 激活事件
 
-v0.9.0 新增两个事件变体用于可观测性：
+`Skill_activated` 与 `Skill_deactivated` 两个事件变体于 v0.8.1 加入，用于可观测性：
 
 - `Skill_activated of { skill_id : string }` — 在 invoke 入口对每个激活的 Skill 发射
 - `Skill_deactivated of { skill_id : string }` — 为未来保留（当 Skill 获得显式停用能力时使用）
@@ -462,6 +462,6 @@ rt.clear_user_activated_skills()
 ## 另请参阅
 
 - [Agent API](agent.md) — Agent、`Runtime.invoke`、工具处理器
-- [工具](tools.md) — 20 个内置工具、自定义注册
+- [工具](tools.md) — 23 个内置工具、自定义注册
 - [RAG API](rag.md) — embedding、向量存储、检索（被 `rag-assistant` Skill 使用）
 - [架构](https://github.com/jcz2020/par/blob/main/explanation/architecture.md) — PAR 内部工作原理

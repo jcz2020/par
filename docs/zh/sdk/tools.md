@@ -15,10 +15,12 @@ type tool_descriptor = {
   name : string;                         (* 工具名，agent 调用时引用 *)
   description : string;                  (* 描述，注入 LLM system prompt *)
   input_schema : Yojson.Safe.t;          (* JSON Schema *)
+  output_schema : Yojson.Safe.t option;  (* 可选 JSON Schema，用于结构化输出 *)
   permission : tool_permission;          (* Allow / Confirm / Deny / ... *)
   timeout : float option;                (* 秒；None 表示无超时 *)
   concurrency_limit : int option;        (* 最大并发调用数 *)
   on_update : (string -> unit) option;   (* v0.3+ 进度回调 *)
+  cache_control : cache_control option;  (* 可选的 provider 端缓存提示，例如 Anthropic prompt caching *)
 }
 ```
 

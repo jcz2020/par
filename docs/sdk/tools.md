@@ -20,10 +20,12 @@ type tool_descriptor = {
   name : string;                         (* tool name, referenced by the agent call *)
   description : string;                  (* description, injected into the LLM system prompt *)
   input_schema : Yojson.Safe.t;          (* JSON Schema *)
+  output_schema : Yojson.Safe.t option;  (* optional JSON Schema for structured output *)
   permission : tool_permission;          (* Allow / Confirm / Deny / ... *)
   timeout : float option;                (* seconds; None means no timeout *)
   concurrency_limit : int option;        (* max concurrent invocations *)
   on_update : (string -> unit) option;   (* v0.3+ progress callback *)
+  cache_control : cache_control option;  (* optional provider-side cache hint, e.g. Anthropic prompt caching *)
 }
 ```
 

@@ -17,7 +17,7 @@ PAR has four abstraction layers. Skills sit alongside tools, agents, and middlew
 |-------|------------------|---------|
 | **Tool** | A single function callable by the LLM | `read`, `web_search`, `bash` |
 | **Skill** | System prompt + tool subset + trigger conditions | "Code reviewer" (review prompt + read/grep tools only) |
-| **Agent** | Full config: model, tools, middleware, retry policy | Default agent with GPT-4 + 20 tools |
+| **Agent** | Full config: model, tools, middleware, retry policy | Default agent with GPT-4 + 23 tools |
 | **Middleware** | Cross-cutting hook (logging, retry, rate limit) | Retry with exponential backoff |
 
 **When to create a skill** vs an agent:
@@ -442,7 +442,7 @@ The `?skills` parameter does NOT modify `rt.user_activated_skills` — it overri
 
 ### Skill activation events
 
-v0.9.0 adds two event variants for observability:
+v0.8.1 adds two event variants for observability (`Skill_activated`, `Skill_deactivated`):
 
 - `Skill_activated of { skill_id : string }` — emitted at invoke entry for each active skill
 - `Skill_deactivated of { skill_id : string }` — reserved for future use (when skills gain explicit deactivation)
@@ -462,6 +462,6 @@ rt.clear_user_activated_skills()
 ## See also
 
 - [Agent API](agent.md) — agents, `Runtime.invoke`, tool handlers
-- [Tools](tools.md) — 20 builtin tools, custom registration
+- [Tools](tools.md) — 23 builtin tools, custom registration
 - [RAG API](rag.md) — embeddings, vector store, retrieval (used by `rag-assistant` skill)
 - [Architecture](https://github.com/jcz2020/par/blob/main/explanation/architecture.md) — how PAR works internally

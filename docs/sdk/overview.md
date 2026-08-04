@@ -6,7 +6,7 @@
 
 > **Note (v0.6.7):** PAR's CLI was removed; the SDK and Python binding are the two supported surfaces. The table row "Trying PAR for the first time" historically pointed at `par config`; new users should install the Python binding (`pip install par-runtime`) or the OCaml SDK (`opam install par`) — or, for an interactive coding-agent experience, use [par-code](https://github.com/jcz2020/par-code).
 
-The PAR SDK is an OCaml 5.4+ library for building LLM-powered agents. It provides a ReAct reasoning loop, multi-provider LLM abstraction, type-safe shell execution, MCP client integration (stdio + HTTP/SSE), and an 8-middleware pipeline. This overview is the deep dive; the README is the landing.
+The PAR SDK is an OCaml 5.4+ library for building LLM-powered agents. It provides a ReAct reasoning loop, multi-provider LLM abstraction, type-safe shell execution, MCP client integration (stdio + HTTP/SSE), and a 9-middleware pipeline. This overview is the deep dive; the README is the landing.
 
 ## What is the PAR SDK?
 
@@ -16,9 +16,9 @@ PAR (Programmable Agent Runtime) ships as one opam package (`par`) plus a PyPI P
 - One PyPI package: `par_runtime` (Python ctypes binding)
 - 11 sub-libraries under `lib/` plus a facade module `Par` (re-exports all sub-modules)
 - 23 built-in tools including the type-safe `bash` tool and 3 memory tools
-- 8 built-in middlewares (logging, retry, rate-limit, timeout, input validation, PII mask, tool-output sanitization)
+- 9 built-in middlewares (logging, retry, rate-limit, timeout, input validation, PII mask, tool-output sanitization, Think_tag_strip)
 - Multi-provider: OpenAI compatible + Anthropic Messages API + custom registration
-- 1408 OCaml tests + Python bindings passing
+- 1505 OCaml tests + Python bindings passing
 
 ## Architecture at a glance
 
@@ -40,8 +40,8 @@ graph TD
   PROV --> PROV_API["Openai_provider / Anthropic_provider / Mock_provider"]
   PERS --> PERS_API["Sqlite_persistence / Noop_persistence"]
   EVB --> EVB_API["Event_bus with DLQ + Eio.Stream"]
-  MID --> MID_API["Logging / Retry / Rate_limit / Timeout / Arg_validation / Validation / Pii_mask / Sanitize_tool_output"]
-  TOOL --> TOOL_API["Builtin_tools (20 incl. bash) + Bash_safe_command + Bash_policy + Bash_blacklist"]
+  MID --> MID_API["Logging / Retry / Rate_limit / Timeout / Arg_validation / Validation / Pii_mask / Sanitize_tool_output / Think_tag_strip"]
+  TOOL --> TOOL_API["Builtin_tools (23 incl. bash) + Bash_safe_command + Bash_policy + Bash_blacklist"]
   DOC --> DOC_API["Document / Text_loader / Markdown_loader / Html_loader / Csv_loader / Pdf_loader / Directory_loader"]
   SKILL --> SKILL_API["Skill_loader / Builtin_skills"]
   MCP --> MCP_API["Mcp_types / Mcp_server / Mcp_client / Mcp_transport_stdio / Mcp_transport_http / Mcp_naming / Mcp_errors"]
@@ -216,7 +216,7 @@ Every public module lives under one of the 9 sub-libraries below, plus the facad
 | `lib/providers` | `Par.Openai_provider`, `Par.Anthropic_provider`, `Par.Mock_provider` | LLM provider implementations |
 | `lib/persistence` | `Par.Sqlite_persistence`, `Par.Noop_persistence` | Sqlite backend (dev), no-op (tests) |
 | `lib/event_bus` | `Par.Event_bus` | Eio-based event bus with DLQ |
-| `lib/middleware` | `Par.Logging`, `Par.Retry`, `Par.Rate_limit`, `Par.Timeout`, `Par.Arg_validation`, `Par.Validation`, `Par.Pii_mask`, `Par.Sanitize_tool_output` | 8 built-in middlewares |
+| `lib/middleware` | `Par.Logging`, `Par.Retry`, `Par.Rate_limit`, `Par.Timeout`, `Par.Arg_validation`, `Par.Validation`, `Par.Pii_mask`, `Par.Sanitize_tool_output`, `Par.Think_tag_strip` | 9 built-in middlewares |
 | `lib/tools` | `Par.Builtin_tools`, `Par.Bash_safe_command`, `Par.Bash_policy`, `Par.Bash_blacklist` | 23 built-in tools including type-safe bash and 3 memory tools |
 | `lib/documents` | `Par.Document`, `Par.Text_loader`, `Par.Markdown_loader`, `Par.Html_loader`, `Par.Csv_loader`, `Par.Pdf_loader`, `Par.Directory_loader` | Document loaders for RAG (text, Markdown, HTML, CSV, PDF) |
 | `lib/memory` | `Par.Memory_service`, `Par.Sqlite_memory`, `Par.Memory_error`, `Par.Memory_object` | Agent memory with FTS5 keyword search |
@@ -278,7 +278,7 @@ Tool handlers and runtime internals consult `Capability.detect` rather than scat
 - [`docs/sdk/agent.md`](agent.md): primary reference, covers `Runtime.create`, `register_agent`, `register_tool`, the ReAct loop
 - [`docs/sdk/workflow.md`](workflow.md): step taxonomy, checkpointing, human approval, JSON workflow format
 - [`docs/sdk/mcp.md`](mcp.md): MCP client lifecycle, event types, server naming and isolation
-- [`docs/sdk/middleware.md`](middleware.md): all 8 built-in middlewares and the `middleware_hook` shape
+- [`docs/sdk/middleware.md`](middleware.md): all 9 built-in middlewares and the `middleware_hook` shape
 - [`docs/sdk/tools.md`](tools.md): all 23 built-in tools with input/output schemas
 - [`docs/sdk/persistence.md`](persistence.md): persistence service, SQLite backend, scope dimension
 - [`docs/quickstart.md`](https://github.com/jcz2020/par/blob/main/quickstart.md): 30-minute hands-on for new users

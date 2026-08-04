@@ -14,7 +14,7 @@ P-A-R (Programmable Agent Runtime) 是一个基于 OCaml 5.4+ 的模块化 Agent
 | 工作流引擎 | 顺序、并行、条件分支、Map-Reduce、人工审批、子工作流 |
 | 多 Provider 支持 | OpenAI 兼容接口、Anthropic Messages API、Ollama、自定义端点 |
 | MCP 客户端 | 连接任意 MCP server（stdio / HTTP/SSE），自动发现工具/资源/提示词 |
-| 中间件管道 | 日志、重试、限速、超时、输入校验、PII 掩码、输出清洗 (7 个内置) |
+| 中间件管道 | 日志、重试、限速、超时、输入校验、PII 掩码、输出清洗、Think_tag_strip (9 个内置) |
 | 持久化 | SQLite（唯一的持久化后端），事件溯源 + 任务状态持久化；Noop 用于测试 |
 | FFI / Python 绑定 | C ABI (`par_capi.so`) + ctypes Python 包 (`par_runtime`) |
 
@@ -79,6 +79,7 @@ P-A-R (Programmable Agent Runtime) 是一个基于 OCaml 5.4+ 的模块化 Agent
 | Middleware | `Par.Validation` | 输入/输出 JSON 校验 |
 | Middleware | `Par.Pii_mask` | PII 数据脱敏 |
 | Middleware | `Par.Sanitize_tool_output` | 工具输出注入模式清洗 |
+| Middleware | `Par.Think_tag_strip` | 推理模型标签清洗（v0.8.2 新增） |
 
 ## 快速开始
 
@@ -114,8 +115,8 @@ let () = Eio_main.run (fun _env ->
 |------|------|
 | [Agent API](agent.md) | Agent 配置、运行时创建、工具注册、ReAct 循环 |
 | [Workflow API](workflow.md) | 工作流定义、步骤类型、条件分支、审批、检查点 |
-| [Middleware API](middleware.md) | 中间件概念、7 个内置中间件、自定义中间件编写 |
-| [Tools API](tools.md) | 20 个内置工具（含 bash 安全工具） |
+| [Middleware API](middleware.md) | 中间件概念、9 个内置中间件（含 v0.8.2 新增 Think_tag_strip）、自定义中间件编写 |
+| [Tools API](tools.md) | 23 个内置工具（含 bash 安全工具） |
 | [Persistence API](persistence.md) | 持久化服务、SQLite 后端、scope 维度 |
 | [MCP Client API](mcp.md) | MCP 客户端（stdio + HTTP/SSE）：连接外部 MCP server |
 

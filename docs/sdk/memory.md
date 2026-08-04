@@ -90,7 +90,13 @@ type memory_service = {
     ?limit:int ->
     string ->
     (Memory_object.memory_object list, Memory_error.memory_error) result;
+  get_fn :                                              (* v0.8.1: exact-match by ext_id *)
+    string ->
+    (Memory_object.memory_object option, Memory_error.memory_error) result;
   update_fn :
+    Memory_object.memory_object ->
+    (Memory_object.memory_object, Memory_error.memory_error) result;
+  upsert_fn :                                           (* v0.8.1: stable-ID update via DELETE+INSERT *)
     Memory_object.memory_object ->
     (Memory_object.memory_object, Memory_error.memory_error) result;
   delete_fn :
@@ -109,6 +115,22 @@ type memory_service = {
     string;
 }
 ```
+
+### v0.8.1 additions: `get_fn` and `upsert_fn`
+
+Two fields were added in v0.8.1 to support the **plan-then-execute** pattern used by coding agents (read the current plan, mutate it in place, write it back):
+
+- **`get_fn ext_id`** — exact-match lookup by `memory_object.ext_id` (the stable external ID, e.g. `"plan:current"`). Returns `Ok (Some obj)` if an entry matches, `Ok None` otherwise. Use this to fetch "the current plan" or "the running summary" without a keyword search.
+- **`upsert_fn obj`** — stable-ID update via `DELETE + INSERT` keyed on `ext_id`. If an entry with the same `ext_id` exists, it is replaced; otherwise a new row is inserted. **Preserves `usage_count` and `last_used_at`** from the prior row, so analytic counters survive the update.
+
+#### `update_fn` vs `upsert_fn`
+
+| Operation | Identity | Behavior | Use case |
+|-----------|----------|----------|----------|
+| `update_fn obj` | new UUID every call | Always inserts a new row; existing content is never mutated | Audit history, event log, append-only memory |
+| `upsert_fn obj` | stable `ext_id` | `DELETE + INSERT` keyed on `ext_id`; preserves `usage_count` / `last_used_at` | "Current plan", "running summary", "active TODO list" |
+
+Choose `update_fn` when every snapshot matters (audit). Choose `upsert_fn` when you want a logical "current value" identified by a stable external ID.
 
 ## Types
 
@@ -183,8 +205,9 @@ CREATE VIRTUAL TABLE memory_entries_fts USING fts5(
 
 ### Lifecycle
 
-- **ADD-only**: `update` creates a new row with a new UUID. Existing content is never mutated in place. This preserves audit history.
-- **Usage tracking**: `search` bumps `usage_count` and `last_used_at` on matched entries. `render_index` sorts by `last_used_at DESC, usage_count DESC`.
+- **ADD-only by default**: `update_fn` always creates a new row with a new UUID. Existing content is never mutated in place. This preserves audit history.
+- **Stable-ID updates via `upsert_fn`** (v0.8.1): when you want a logical "current plan" or "running summary" identified by a stable `ext_id`, use `upsert_fn` — it performs `DELETE + INSERT` keyed on `ext_id` and preserves `usage_count` / `last_used_at` from the prior row.
+- **Usage tracking**: `search_fn` bumps `usage_count` and `last_used_at` on matched entries. `render_index` sorts by `last_used_at DESC, usage_count DESC`.
 
 ### Hybrid search with RRF
 
@@ -263,6 +286,15 @@ When memory is configured, 3 builtin tools are auto-registered:
 | `search_history` | `{"query": "...", "limit": N}` | Search conversation history across sessions |
 
 All tools read the per-call scope from `Invoke_context.get_current_exn().session_id` — memories are automatically isolated by session.
+
+### App-layer API: `get_fn` / `upsert_fn` (v0.8.1)
+
+The three builtin tools above are LLM-facing. Application code that needs **deterministic access** to memory — e.g. the plan-then-execute pattern ("read the current plan, mutate it, write it back") — should call `get_fn` and `upsert_fn` directly on the `memory_service` record rather than going through the LLM-facing tools.
+
+- `get_fn "plan:current"` returns `Ok (Some obj)` if a memory with `ext_id = "plan:current"` exists, `Ok None` otherwise.
+- `upsert_fn obj` keys on `obj.ext_id`: if an entry with the same `ext_id` exists, it is replaced (`DELETE + INSERT`) with `usage_count` and `last_used_at` preserved; otherwise a new row is inserted.
+
+This is the right API for "current state" patterns (current plan, running summary, active TODO list). For audit-style "every snapshot matters" patterns, use `update_fn` instead.
 
 ## Scope isolation
 

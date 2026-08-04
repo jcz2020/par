@@ -90,7 +90,13 @@ type memory_service = {
     ?limit:int ->
     string ->
     (Memory_object.memory_object list, Memory_error.memory_error) result;
+  get_fn :                                              (* v0.8.1：按 ext_id 精确匹配 *)
+    string ->
+    (Memory_object.memory_object option, Memory_error.memory_error) result;
   update_fn :
+    Memory_object.memory_object ->
+    (Memory_object.memory_object, Memory_error.memory_error) result;
+  upsert_fn :                                           (* v0.8.1：基于稳定 ID 的更新（DELETE+INSERT）*)
     Memory_object.memory_object ->
     (Memory_object.memory_object, Memory_error.memory_error) result;
   delete_fn :
@@ -109,6 +115,22 @@ type memory_service = {
     string;
 }
 ```
+
+### v0.8.1 新增字段：`get_fn` 与 `upsert_fn`
+
+v0.8.1 新增两个字段，用于支持编码 agent 的 **plan-then-execute**（先规划后执行）模式——读取当前 plan，原地修改，再写回：
+
+- **`get_fn ext_id`** —— 按 `memory_object.ext_id`（稳定的外部 ID，例如 `"plan:current"`）做精确匹配查找。命中返回 `Ok (Some obj)`，未命中返回 `Ok None`。用于直接取"当前 plan"或"运行中摘要"，无需关键词搜索。
+- **`upsert_fn obj`** —— 基于稳定 ID 的更新，通过对 `ext_id` 执行 `DELETE + INSERT` 实现。若相同 `ext_id` 的条目已存在则替换；否则插入新行。**保留之前行的 `usage_count` 与 `last_used_at`**，分析计数在更新后仍然有效。
+
+#### `update_fn` 与 `upsert_fn` 的区别
+
+| 操作 | 身份标识 | 行为 | 适用场景 |
+|------|----------|------|----------|
+| `update_fn obj` | 每次调用都生成新 UUID | 始终插入新行，已有内容永不原地修改 | 审计历史、事件日志、append-only 记忆 |
+| `upsert_fn obj` | 稳定的 `ext_id` | 按 `ext_id` 执行 `DELETE + INSERT`；保留 `usage_count` / `last_used_at` | "当前 plan"、"运行中摘要"、"活动 TODO 列表" |
+
+每个快照都重要（审计场景）选 `update_fn`；需要按稳定外部 ID 标识的"当前值"选 `upsert_fn`。
 
 ## 类型
 
@@ -183,8 +205,9 @@ CREATE VIRTUAL TABLE memory_entries_fts USING fts5(
 
 ### 生命周期
 
-- **只增不改（ADD-only）**：`update` 会创建带新 UUID 的新行，不会原地修改已有内容。这保留了审计历史。
-- **使用追踪**：`search` 会提升匹配条目的 `usage_count` 和 `last_used_at`。`render_index` 按 `last_used_at DESC, usage_count DESC` 排序。
+- **默认 ADD-only**：`update_fn` 始终创建带新 UUID 的新行，不会原地修改已有内容。这保留了审计历史。
+- **基于稳定 ID 的更新 `upsert_fn`**（v0.8.1）：当你需要按稳定 `ext_id` 标识的"当前 plan"或"运行中摘要"时，使用 `upsert_fn`——它按 `ext_id` 执行 `DELETE + INSERT`，并保留之前行的 `usage_count` / `last_used_at`。
+- **使用追踪**：`search_fn` 提升匹配条目的 `usage_count` 和 `last_used_at`。`render_index` 按 `last_used_at DESC, usage_count DESC` 排序。
 
 ### 混合搜索与 RRF
 
@@ -263,6 +286,15 @@ with Runtime(config) as rt:
 | `search_history` | `{"query": "...", "limit": N}` | 搜索跨会话的对话历史 |
 
 所有工具从 `Invoke_context.get_current_exn().session_id` 读取每次调用的分区——记忆自动按会话隔离。
+
+### 应用层 API：`get_fn` / `upsert_fn`（v0.8.1）
+
+上面三个内置工具是 LLM 调用的。需要**确定性访问**记忆的应用层代码——例如 plan-then-execute 模式（"读取当前 plan，修改，再写回"）——应直接在 `memory_service` 记录上调用 `get_fn` 和 `upsert_fn`，而非走 LLM 调用工具。
+
+- `get_fn "plan:current"`：当 `ext_id = "plan:current"` 的记忆存在时返回 `Ok (Some obj)`，否则返回 `Ok None`。
+- `upsert_fn obj`：按 `obj.ext_id` 匹配——若相同 `ext_id` 的条目已存在则替换（`DELETE + INSERT`），并保留 `usage_count` 与 `last_used_at`；否则插入新行。
+
+"当前状态"类模式（当前 plan、运行中摘要、活动 TODO 列表）适用此 API。审计类"每个快照都重要"的模式仍用 `update_fn`。
 
 ## 分区隔离
 
