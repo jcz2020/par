@@ -457,7 +457,7 @@ let fallback_middleware ~fallback_text () =
 - `on_error` 在 Engine 层被调用（位于 `lib/core/engine.ml:787` 的 `apply_on_error` 中），当工具返回 `Error` 时触发。此钩子可用于重试/自定义错误处理中间件。注意：`conversation` 是失败发生时的实时对话快照
 - 返回 `Some` 表示修改/替换值，`None` 表示透传原始值
 
-## See also
+## 另请参阅
 
 - [Overview](overview.md) -- SDK 架构概览
 - [Agent API](agent.md) -- agent_config.middleware 字段说明

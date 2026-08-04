@@ -6,7 +6,7 @@
 **版本**: v0.7.1
 **工具总数**: 23（v0.3.0 的 19 个 + v0.3.1 新增的 `bash` + v0.7.1 新增的 3 个 memory 工具）
 
-## 概述
+## 概览
 
 每个工具在注册时携带以下元数据：
 
@@ -635,7 +635,7 @@ Tool_registry.register rt.tool_registry descriptor handler
 - [ ] 危险工具走 `Bash_policy`（如适用）
 - [ ] `description` 包含 input 示例（让 LLM 知道怎么调用）
 
-## See also
+## 另请参阅
 
 - [`agent.md`](agent.md) -- Agent 定义、Runtime API、工具注册
 - [`overview.md`](overview.md) -- SDK 架构概览

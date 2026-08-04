@@ -6,7 +6,7 @@
 
 本文档涵盖 `Runtime.invoke_parallel`，这是在单个 Runtime 内并发分发多个 Agent 的便捷 API。每个 Agent 在独立的 Eio fiber 中运行，拥有隔离的工具注册表，结果会被收集并可选择性合并。
 
-## 概述
+## 概览
 
 并行分发解决了"扇出-扇入"模式：对 N 个 Agent 运行不同输入（或相同输入不同配置），收集结果，合并为单一输出。这是 LangGraph `Send` 或 CrewAI `and_()` 的 OCaml 等价物。
 

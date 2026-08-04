@@ -6,7 +6,7 @@
 **版本**: v0.3.1
 **传输层**: stdio + HTTP/SSE
 
-## 概述
+## 概览
 
 MCP 是 Anthropic 提出的 LLM 工具集成协议，server 端把工具（tools）、数据资源（resources）、提示词模板（prompts）以 JSON-RPC 2.0 形式暴露在 stdio 上。PAR v0.3.1 实现 client 侧，让 PAR agent 可以透明地调用任何符合 MCP 规范的 server。
 
@@ -595,7 +595,7 @@ v0.3.1 是 MCP 集成的最小可用版本。下列能力**尚未实现**：
 - [ ] 子进程退出码通过 `Runtime.close` 的返回值审计
 - [ ] 自定义 server 实现遵循 MCP 协议（用官方 SDK 或充分测试）
 
-## See also
+## 另请参阅
 
 - [`overview.md`](overview.md) ：SDK 架构总览
 - [`agent.md`](agent.md) ：Agent 定义、Runtime API、工具注册

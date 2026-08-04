@@ -241,7 +241,7 @@ with Runtime(config) as rt:
 - **LLM 边界没有中间件。** `agent_config.middleware` 管道不在生成路径上触发。你在 `invoke` 上依赖的日志、重试、限流中间件在这里不会跑。需要等价行为请在调用点自己接。
 - **`max_iterations` 和 `max_execution_time` 被忽略。** 它们存在于 `agent_config` 是为了 ReAct 兼容。生成路径用 `?total_timeout` 替代它们。续写次数没有固定 cap，递减收益保护是唯一上限。
 
-## See also
+## 另请参阅
 
 - [Agent API](agent.md) - `agent_config`、`Runtime.invoke`、ReAct 入口以及与 generate 续写逻辑对应的 `on_max_tokens` 策略
 - [Streaming API](https://github.com/jcz2020/par/blob/main/../sdk/streaming.md) - `invoke_stream`、chunk 化交付，以及 `?on_chunk` 在这里暴露的 `llm_response_chunk` ADT（英文，暂无中文版）

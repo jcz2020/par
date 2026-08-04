@@ -347,13 +347,13 @@ trigger: Auto
 # Tech Summarizer
 
 Format summaries as:
-## TL;DR
+## 摘要
 [one sentence]
 
-## Key Points
+## 关键要点
 - bullet points
 
-## Technical Details
+## 技术细节
 [code blocks, configs, commands]
 ```
 

@@ -43,6 +43,11 @@ This section is the most important one for new contributors. Read it before open
 
 **CLI identifiers (v0.6.7).** The old CLI commands (`par`, `par config`, `par ask`, `par update`, `par history`, `par stats`, `par --version`) and the `par_cli` package name no longer exist in this repo. They should NOT appear in doc identifiers (the registry above already excludes them). For the interactive Agent product based on this SDK, see [par-code](https://github.com/jcz2020/par-code).
 
+**ZH documentation conventions.** When editing Chinese docs under `docs/zh/`:
+
+1. **Headings must be Chinese, not English.** Use the standard translations: Overview → 概览 (not 概述), See also → 另请参阅 (not "See also"), Next steps → 下一步, Summary → 摘要, etc. The only exception is when the heading IS an OCaml identifier (e.g., `` ## `Deprecation` 模块 `` — identifier in backticks + Chinese description).
+2. **Never use CJK characters in markdown anchor links.** The pattern `](#中文)` is forbidden — mkdocs-material's slugifier strips CJK characters, producing dead links that `mkdocs build --strict` does NOT catch (logged as INFO, not WARNING). Use plain-text corner-bracket references like `「标题」` instead. The CI check `scripts/check_cjk_anchors.sh --strict` enforces this.
+
 **Pre-release checklist.** Before tagging a release, walk through these seven checks. The full fourteen-item checklist is maintained internally for release managers.
 
 1. `make docs-check` passes.

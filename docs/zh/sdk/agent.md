@@ -745,7 +745,7 @@ let token = Cancellation.create_token switch in
 Cancellation.request_cancel token
 ```
 
-## See also
+## 另请参阅
 
 - [Overview](overview.md) -- SDK 架构概览
 - [invoke_context](invoke_context.md) -- 单次调用隔离、`invoke_async`、动态 system prompt
