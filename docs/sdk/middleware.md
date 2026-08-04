@@ -302,6 +302,19 @@ let sanitize_hook = Sanitize_tool_output.sanitize_tool_output
   ()
 ```
 
+## Think_tag_strip
+
+Strips `<think>` and `<reasoning>` tags from LLM responses. Reasoning models (DeepSeek R1, QwQ) embed chain-of-thought in these tags; this middleware prevents them from polluting conversation history and user-visible output.
+
+Opt-in — only affects agents that include this middleware:
+
+```ocaml
+let agent = Runtime.make_agent
+  ~id:"my-agent"
+  ~middleware:[Think_tag_strip.create ()]
+  ~model ~tools:[] ()
+```
+
 ## Composing middleware
 
 Middleware is ordered in the list, with earlier entries wrapping later ones. A typical production configuration:

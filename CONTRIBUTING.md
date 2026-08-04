@@ -65,6 +65,18 @@ Rebase your branch onto the latest main before requesting review. We do not acce
 
 If a bead issue exists for the change, reference it in the PR description. This repository uses the `bd` CLI for issue tracking, so contributors who work in a beads-enabled environment can link issues automatically.
 
+## Downstream version pinning
+
+Downstream projects should pin to a specific PAR version, not to `git HEAD`. PAR follows semantic versioning and may introduce breaking changes at any version bump.
+
+```bash
+# Recommended — pin to a specific version
+opam pin add par 0.8.1
+
+# Avoid — tracks HEAD, breaks on any upstream breaking change
+opam pin add par https://github.com/jcz2020/par.git
+```
+
 ## Issue Templates
 
 **Bug report.** Describe what you did, what you expected, what happened. Include OCaml version, PAR version, OS, and a minimal repro.

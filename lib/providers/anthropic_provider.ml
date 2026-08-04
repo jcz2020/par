@@ -247,12 +247,15 @@ let parse_llm_response json : (llm_response, error_category) result =
 
 let process_stream_event (evt_type, data_str) callback usage finish chunks current_tc_id =
   let open Yojson.Safe.Util in
+  let log_exn ctx exn =
+    Logs.warn (fun m -> m "anthropic_provider: stream %s parse error: %s" ctx (Printexc.to_string exn))
+  in
   try
     let json = Yojson.Safe.from_string data_str in
     match evt_type with
     | "message_start" ->
       let msg = json |> member "message" in
-      let u = try parse_usage (msg |> member "usage") with _ -> !usage in
+      let u = try parse_usage (msg |> member "usage") with exn -> log_exn "message_start.usage" exn; !usage in
       usage := u
     | "content_block_start" ->
       let block = json |> member "content_block" in
@@ -261,12 +264,12 @@ let process_stream_event (evt_type, data_str) callback usage finish chunks curre
          if typ = "tool_use" then begin
            let tc_id = block |> member "id" |> to_string in
            let name = block |> member "name" |> to_string in
-           let _idx = try json |> member "index" |> to_int with _ -> 0 in
+           let _idx = try json |> member "index" |> to_int with exn -> log_exn "block_start.index" exn; 0 in
            current_tc_id := tc_id;
            callback (Tool_call_start { tool_call_id = tc_id; name });
            incr chunks
          end
-       with _ -> ())
+       with exn -> log_exn "content_block_start" exn)
     | "content_block_delta" ->
       let delta = json |> member "delta" in
       (try
@@ -276,24 +279,24 @@ let process_stream_event (evt_type, data_str) callback usage finish chunks curre
            callback (Text_delta { text = txt });
            incr chunks
          end
-       with _ -> ());
+       with exn -> log_exn "text_delta" exn);
       (try
          let typ = delta |> member "type" |> to_string in
          if typ = "input_json_delta" then begin
            let args = delta |> member "partial_json" |> to_string in
-           let idx = try json |> member "index" |> to_int with _ -> 0 in
+           let idx = try json |> member "index" |> to_int with exn -> log_exn "json_delta.index" exn; 0 in
            let key = if !current_tc_id <> "" then !current_tc_id
                      else string_of_int idx in
            callback (Tool_call_delta { tool_call_id = key; args_json = args });
            incr chunks
          end
-       with _ -> ())
+       with exn -> log_exn "input_json_delta" exn)
     | "message_delta" ->
       let delta = json |> member "delta" in
       (try
          let sr = delta |> member "stop_reason" |> to_string in
          finish := parse_stop_reason sr
-       with _ -> ());
+       with exn -> log_exn "stop_reason" exn);
       (try
          let u = parse_usage (json |> member "usage") in
          usage :=
@@ -301,12 +304,15 @@ let process_stream_event (evt_type, data_str) callback usage finish chunks curre
            ; completion_tokens = !usage.completion_tokens + u.completion_tokens
            ; total_tokens = !usage.total_tokens + u.total_tokens; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0
            }
-       with _ -> ())
+       with exn -> log_exn "message_delta.usage" exn)
     | "message_stop" ->
       callback (Done { finish_reason = !finish });
       incr chunks
     | _ -> ()
-  with _ -> ()
+  with exn ->
+    let preview = String.sub data_str 0 (min 200 (String.length data_str)) in
+    Logs.warn (fun m -> m "anthropic_provider: stream event dropped: %s — type: %s data: %s"
+      (Printexc.to_string exn) evt_type preview)
 
 (* -------------------------------------------------------------------------- *)
 (* LLM_SERVICE implementation                                            *)

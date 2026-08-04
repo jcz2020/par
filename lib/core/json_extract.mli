@@ -7,3 +7,8 @@
 
     Returns [Error msg] if no valid JSON can be extracted. *)
 val extract_json_from_text : string -> (Yojson.Safe.t, string) result
+
+(** Strip [<think>] and [<reasoning>] tags from a string.
+    Used by [Think_tag_strip] middleware for reasoning models
+    (DeepSeek R1, QwQ) whose responses embed chain-of-thought in these tags. *)
+val strip_think_tags : string -> string

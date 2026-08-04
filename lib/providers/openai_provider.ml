@@ -362,10 +362,16 @@ let parse_llm_response json : (llm_response, error_category) result =
 
 let parse_stream_delta json =
   let open Yojson.Safe.Util in
-  let choices = json |> member "choices" |> to_list in
+  let log_exn ctx exn =
+    Logs.warn (fun m -> m "openai_provider: stream %s parse error: %s" ctx (Printexc.to_string exn))
+  in
+  let choices =
+    try json |> member "choices" |> to_list
+    with exn -> log_exn "choices" exn; []
+  in
   let usage_opt =
     try Some (parse_usage (json |> member "usage"))
-    with _ -> None
+    with exn -> log_exn "usage" exn; None
   in
   match choices with
   | first :: _ ->
@@ -374,14 +380,14 @@ let parse_stream_delta json =
       try
         let fr = first |> member "finish_reason" |> to_string_option in
         Option.map parse_finish_reason fr
-      with _ -> None
+      with exn -> log_exn "finish_reason" exn; None
     in
     let text_chunk =
       try
         match delta |> member "content" with
         | `String s -> Some (Text_delta { text = s })
         | _ -> None
-      with _ -> None
+      with exn -> log_exn "content" exn; None
     in
     let tool_chunks =
       try
@@ -394,11 +400,11 @@ let parse_stream_delta json =
             try
               let id = tc |> member "id" |> to_string in
               if id = "" || id = "null" then None else Some id
-            with _ -> None
+            with exn -> log_exn "tool_id" exn; None
           in
           let key = match real_id with Some id -> id | None -> string_of_int idx in
-          let name = try fn |> member "name" |> to_string with _ -> "" in
-          let args = try fn |> member "arguments" |> to_string with _ -> "" in
+          let name = try fn |> member "name" |> to_string with exn -> log_exn "tool_name" exn; "" in
+          let args = try fn |> member "arguments" |> to_string with exn -> log_exn "tool_args" exn; "" in
           if name <> "" then begin
             let start = Tool_call_start { tool_call_id = key; name } in
             if args <> "" && args <> "null" then
@@ -409,7 +415,7 @@ let parse_stream_delta json =
             [ Tool_call_delta { tool_call_id = key; args_json = args } ]
           else []
         | [] -> [] )
-      with _ -> []
+      with exn -> log_exn "tool_calls" exn; []
     in
     (text_chunk, tool_chunks, finish_opt, usage_opt)
   | [] -> (None, [], None, None)
@@ -535,7 +541,10 @@ let stream t model_config tools conversation _stream_config callback =
                          ( match usage_opt with
                          | Some u -> usage := u
                          | None -> () )
-                       with _ -> ()
+                        with exn ->
+                          let preview = String.sub data 0 (min 200 (String.length data)) in
+                          Logs.warn (fun m -> m "openai_provider: stream chunk dropped: %s — data: %s"
+                            (Printexc.to_string exn) preview)
                      end
                    end;
                    process_lines ()
