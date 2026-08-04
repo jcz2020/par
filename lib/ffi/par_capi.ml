@@ -1790,12 +1790,12 @@ let do_get_session_id (state_id : int) : string =
       Obj.repr (Runtime.get_session_id rt)) in
     Obj.obj result
 
-let do_save_conversation (state_id : int) : int =
+let do_save_conversation (state_id : int) ?(scope : string option) () : int =
   match get_state state_id with
   | None -> -1
   | Some _ ->
     let result = dispatch state_id (fun rt _env ->
-      match Runtime.save_conversation rt () with
+      match Runtime.save_conversation rt ?scope () with
       | Ok () -> Obj.repr 0
       | Error _ -> Obj.repr (-1)) in
     match Obj.obj result with
@@ -1853,9 +1853,10 @@ let () =
 
 let () =
   Callback.register "par_save_conversation"
-    (fun (state_id_obj : Obj.t) ->
+    (fun (state_id_obj : Obj.t) (scope_opt : Obj.t) ->
       let state_id : int = Obj.magic state_id_obj in
-      do_save_conversation state_id)
+      let scope : string option = Obj.magic scope_opt in
+      do_save_conversation state_id ?scope ())
 
 let () =
   Callback.register "par_load_conversation"

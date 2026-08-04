@@ -450,13 +450,24 @@ char* par_get_session_id(par_runtime_t* rt) {
     return ret;
 }
 
-int par_save_conversation(par_runtime_t* rt) {
+int par_save_conversation(par_runtime_t* rt, const char* scope) {
+    CAMLparam0();
+    CAMLlocal1(c_scope);
+
+    /* Build OCaml string option: NULL -> None | non-NULL -> Some scope */
+    if (scope != NULL) {
+        c_scope = caml_alloc_small(1, 0);    /* Some tag = 0 */
+        Store_field(c_scope, 0, caml_copy_string(scope));
+    } else {
+        c_scope = Val_unit;                    /* None */
+    }
+
     PAR_MUTEX_LOCK(ocaml_lock);
-    value result = call1_exn("par_save_conversation", rt->_ocaml_value);
+    value result = call2_exn("par_save_conversation", rt->_ocaml_value, c_scope);
     int is_exc = Is_exception_result(result);
     int rc = is_exc ? -1 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
-    return rc;
+    CAMLreturnT(int, rc);
 }
 
 int par_load_conversation(par_runtime_t* rt, const char* session_id) {
