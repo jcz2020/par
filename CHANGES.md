@@ -1,5 +1,57 @@
 # CHANGES
 
+## vX.Y.Z — Reasoning model support + scope plumbing + streaming usage fix
+
+### Fixed — Runtime persistence
+- **FIX** `Runtime.save_conversation` / `Runtime.load_most_recent_conversation`: previously accepted `?scope:string` in their OCaml signatures but silently dropped the parameter at the persistence_service functor boundary. The underlying `Sqlite_persistence` layer always honored scope. Now plumbed end-to-end through the public Runtime API, the C FFI bridge (new nullable-string FFI pattern: `NULL` -> OCaml `None`), and the Python binding.
+
+### Fixed — OpenAI streaming usage
+- **FIX** `Openai_provider.parse_stream_delta`: empty-choices branch (the final usage-only chunk sent by OpenAI when stream_options.include_usage is set) was computing `usage_opt` and then discarding it. Now propagated.
+- **FIX** `Openai_provider.build_request_body`: when `stream:true`, request body now includes `stream_options: {include_usage: true}`. Without this, OpenAI does not send usage in any streamed chunk.
+
+### Added — Reasoning model support
+- **NEW** `Types.llm_response.reasoning_content`: string option field, populated by reasoning models (o1, o3, etc. via the `message.reasoning_content` API field). Non-reasoning models return None.
+- **NEW** `Types.message.reasoning_content`: string option field on assistant messages, propagated from llm_response via `Engine.add_assistant_message`.
+- **NEW** `Types.llm_response_chunk.Reasoning_delta`: streaming chunk variant carrying reasoning text deltas, emitted BEFORE Text_delta chunks (matches upstream OpenAI/Anthropic emission ordering).
+- **NEW** `Openai_provider.parse_llm_response` / `parse_stream_delta` / `build_message_json`: extract `reasoning_content` from responses; emit `Reasoning_delta` chunks during streaming; deliberately do NOT serialize `reasoning_content` into outbound requests (o1/o3 reject it on input).
+- **NEW** `Openai_provider.{build_request_body, parse_llm_response, build_message_json}`: exposed in `openai_provider.mli` for direct unit testing of request/response contracts. Joins the existing `parse_stream_delta` / `normalize_for_openai_strict` "exposed for unit testing" surface area.
+
+### Changed — Engine
+- `Engine.run_llm_with_optional_streaming`: accumulates `Reasoning_delta` chunks into a reasoning buffer, populates `llm_response.reasoning_content`.
+- `Engine.add_assistant_message`: propagates `resp.reasoning_content` into the assistant message record.
+- `Engine.combined_msg` (Continue path): `reasoning_content = None`. Cross-continuation reasoning is incoherent, see Known Limitations.
+
+### Fixed — Mock provider
+- **FIX** `Mock_provider`: now supports optional `?reasoning` configuration for testing reasoning-aware code paths. Emits `Reasoning_delta` chunks in the stream path BEFORE Text_delta (mirrors upstream ordering).
+
+### Added — Test coverage
+- 5 new OpenAI provider regression tests (test_providers.ml) covering Bug 2 (request + parser) and Bug 3 (non-streaming + streaming + request exclusion).
+- 2 new engine aggregator tests (test_engine_assistant_message.ml): streaming accumulation of Reasoning_delta, propagation via add_assistant_message.
+- 1 new mock provider test (test_mock_provider.ml): mock-with-reasoning exercising both complete_fn and stream_fn.
+- 3 new Runtime scope tests (test_runtime_scope.ml): within-scope roundtrip, scope isolation, default no-scope roundtrip preserved.
+
+### Known Limitations
+
+- **Anthropic extended thinking**: out of scope. Anthropic uses `thinking` content blocks (different wire format), `thinking_delta` SSE events, and requires API parameter `thinking: {type: "enabled", budget_tokens: N}` which PAR does not yet expose. Will be addressed in a future release.
+
+- **`reasoning_content` field placement is a scope compromise**: the architecturally-correct shape would be a `Reasoning_block` variant in `content_block`, not a top-level field on `llm_response` / `message`. Field-on-record was chosen to keep the blast radius small (every content_block pattern match would need a new case otherwise). Migration plan: when Anthropic extended-thinking support lands (forcing the content_block refactor anyway), migrate reasoning_content into Reasoning_block. Trigger: next SemVer major or first downstream request for thinking-block round-tripping.
+
+- **`combined_msg.reasoning_content = None` on Continue path**: a deliberate scope compromise. Cross-continuation reasoning is incoherent -- each continuation produces fresh reasoning unrelated to prior turns. Same migration trigger as above.
+
+- **Think_tag_strip middleware remains opt-in**: PAR still does NOT strip `<think>` tags from the `content` field by default. Models that embed `<think>...</think>` inside `content` (e.g., DeepSeek-R1 open-source direct) require explicit `Think_tag_strip.create ()` middleware. The new `reasoning_content` field is unrelated -- it captures the separate API field returned by OpenAI-compatible reasoning model APIs. They are not mutually exclusive.
+
+- **`load_most_recent_conversation` not exposed via FFI**: the C FFI for `par_load_most_recent_conversation` does not exist (no prior FFI surface). Adding it is a separate decision; the Runtime OCaml API does accept `?scope` (verified by `test_runtime_scope.ml`).
+
+### Migration
+
+- **`llm_response` record construction**: any external consumer constructing `llm_response` records must add `reasoning_content = None` (or `Some "..."`). Most consumers only destructure; they are unaffected.
+
+- **`message` record construction**: any external consumer constructing `message` records must add `reasoning_content = None` (or `Some "..."`).
+
+- **`llm_response_chunk` pattern matches**: any external consumer matching on `llm_response_chunk` must add a `Reasoning_delta` arm (or be folded into an existing wildcard). Engine and generate paths already updated.
+
+- **`Runtime.load_most_recent_conversation` callsite**: now requires a terminating `unit` argument. Old: `load_most_recent_conversation rt`. New: `load_most_recent_conversation rt ()` or `load_most_recent_conversation ~scope:"..." rt ()`.
+
 ## v0.8.2 — Streaming observability + Think_tag_strip middleware
 
 ### Fixed — streaming silent data loss
