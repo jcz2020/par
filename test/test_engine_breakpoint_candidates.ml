@@ -10,9 +10,9 @@ let mk_tool ?(cache_control = None) name : tool_descriptor = {
 let dummy_conv : conversation = {
   messages = [
     { role = System; content_blocks = [Text_block { text = "sys"; cache_control = None }];
-      tool_calls = None; tool_call_id = None; name = None };
+      tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
     { role = User; content_blocks = [Text_block { text = "hi"; cache_control = None }];
-      tool_calls = None; tool_call_id = None; name = None };
+      tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
   ];
   metadata = [];
 }

@@ -28,7 +28,7 @@ let error_category_testable = Alcotest.testable error_category_pp (=)
 let empty_conv : conversation = { messages = []; metadata = [] }
 let dummy_usage : usage_stats = { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
 let dummy_response ?text ?tool_calls () : llm_response =
-  { text; tool_calls; finish_reason = Stop;
+  { text; reasoning_content = None; tool_calls; finish_reason = Stop;
     usage = dummy_usage; model = "mock" }
 
 let find_metadata key (meta : (string * Yojson.Safe.t) list) : Yojson.Safe.t option =
@@ -758,7 +758,7 @@ let test_pii_mask_on_before_llm_masks_email () =
   let f = Option.get hook.on_before_llm in
   let conv = { empty_conv with messages = [
     { role = User; content_blocks = [Text_block { text = "Contact me at user@example.com"; cache_control = None }];
-      tool_calls = None; tool_call_id = None; name = None };
+      tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
   ] } in
   match f conv with
   | Some masked ->
@@ -786,7 +786,7 @@ let test_pii_mask_on_before_llm_masks_phone () =
   let f = Option.get hook.on_before_llm in
   let conv = { empty_conv with messages = [
     { role = User; content_blocks = [Text_block { text = "Call 555-123-4567 now"; cache_control = None }];
-      tool_calls = None; tool_call_id = None; name = None };
+      tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
   ] } in
   match f conv with
   | Some masked ->
@@ -807,7 +807,7 @@ let test_pii_mask_on_before_llm_masks_ssn () =
   let f = Option.get hook.on_before_llm in
   let conv = { empty_conv with messages = [
     { role = User; content_blocks = [Text_block { text = "SSN 123-45-6789"; cache_control = None }];
-      tool_calls = None; tool_call_id = None; name = None };
+      tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
   ] } in
   match f conv with
   | Some masked ->
@@ -829,7 +829,7 @@ let test_pii_mask_on_before_llm_multiple_pii () =
   let conv = { empty_conv with messages = [
     { role = User;
       content_blocks = [Text_block { text = "Email alice@x.com or bob@y.com, phone 555-111-2222, SSN 111-22-3333"; cache_control = None }];
-      tool_calls = None; tool_call_id = None; name = None };
+      tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
   ] } in
   match f conv with
   | Some masked ->
@@ -857,7 +857,7 @@ let test_pii_mask_on_before_llm_no_pii_passes () =
   let f = Option.get hook.on_before_llm in
   let conv = { empty_conv with messages = [
     { role = User; content_blocks = [Text_block { text = "Hello, world! No PII here."; cache_control = None }];
-      tool_calls = None; tool_call_id = None; name = None };
+      tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
   ] } in
   match f conv with
   | Some masked_conv ->
@@ -982,7 +982,7 @@ let test_pii_mask_custom_replacement () =
   let f = Option.get hook.on_before_llm in
   let conv = { empty_conv with messages = [
     { role = User; content_blocks = [Text_block { text = "user@example.com"; cache_control = None }];
-      tool_calls = None; tool_call_id = None; name = None };
+      tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
   ] } in
   match f conv with
   | Some masked ->
@@ -1005,7 +1005,7 @@ let test_pii_mask_custom_patterns () =
   let f = Option.get hook.on_before_llm in
   let conv = { empty_conv with messages = [
     { role = User; content_blocks = [Text_block { text = "My code is SECRET-1234"; cache_control = None }];
-      tool_calls = None; tool_call_id = None; name = None };
+      tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
   ] } in
   match f conv with
   | Some masked ->

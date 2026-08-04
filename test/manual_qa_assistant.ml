@@ -12,7 +12,7 @@ let dummy_usage : usage_stats =
     cache_read_input_tokens = 0 }
 
 let stop_resp text : llm_response =
-  { text = Some text; tool_calls = None; finish_reason = Stop;
+  { text = Some text; reasoning_content = None; tool_calls = None; finish_reason = Stop;
     usage = dummy_usage; model = "mock" }
 
 let mock_llm_single resp =

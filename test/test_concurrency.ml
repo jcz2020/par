@@ -280,13 +280,13 @@ let test_system_prompt_appendix_resume () =
           Par.Types.messages = [
             { role = System;
               content_blocks = Par.Message.content_of_string "original system";
-              tool_calls = None; tool_call_id = None; name = None };
+              tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
             { role = User;
               content_blocks = Par.Message.content_of_string "first msg";
-              tool_calls = None; tool_call_id = None; name = None };
+              tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
             { role = Assistant;
               content_blocks = Par.Message.content_of_string "first reply";
-              tool_calls = None; tool_call_id = None; name = None };
+              tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
           ];
           metadata = [];
         } in

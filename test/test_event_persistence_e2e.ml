@@ -38,7 +38,7 @@ let test_runtime_create_persists_published_events () =
       } in
       let mock_llm : Types.llm_service = {
         complete_fn = (fun _ _ _ ->
-          Ok { Types.text = Some "mock"; tool_calls = None; finish_reason = Stop;
+          Ok { Types.text = Some "mock"; reasoning_content = None; tool_calls = None; finish_reason = Stop;
                usage = { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 };
                model = "mock" });
         stream_fn = (fun _ _ _ _ _ -> Error (Timeout));

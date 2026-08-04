@@ -10,11 +10,11 @@ let dummy_usage : usage_stats =
   { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
 
 let text_response text : llm_response =
-  { text = Some text; tool_calls = None; finish_reason = Stop;
+  { text = Some text; reasoning_content = None; tool_calls = None; finish_reason = Stop;
     usage = dummy_usage; model = "mock" }
 
 let tool_call_response calls : llm_response =
-  { text = None; tool_calls = Some calls; finish_reason = Tool_calls;
+  { text = None; reasoning_content = None; tool_calls = Some calls; finish_reason = Tool_calls;
     usage = dummy_usage; model = "mock" }
 
 let with_token f =

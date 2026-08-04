@@ -19,6 +19,7 @@ let dummy_message ?(blocks = [Text_block { text = "hello"; cache_control = None 
   tool_calls = None;
   tool_call_id = None;
   name = None;
+  reasoning_content = None;
 }
 
 let cc_equals ?ttl (cc : cache_control option) =
@@ -94,6 +95,7 @@ let test_mark_message_preserves_fields () =
     tool_calls = None;
     tool_call_id = Some "tc1";
     name = Some "bot";
+    reasoning_content = None;
   } in
   let marked = Cache_breakpoint.mark_message ~ttl:`One_hour msg in
   Alcotest.(check string) "role preserved" "Assistant" (match marked.role with Assistant -> "Assistant" | _ -> "other");

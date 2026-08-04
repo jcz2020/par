@@ -16,7 +16,7 @@ let dummy_usage : usage_stats =
   { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
 
 let text_response text : llm_response =
-  { text = Some text; tool_calls = None; finish_reason = Stop;
+  { text = Some text; reasoning_content = None; tool_calls = None; finish_reason = Stop;
     usage = dummy_usage; model = "mock" }
 
 let error_to_string = function
@@ -419,7 +419,7 @@ let structured_suite =
   ])
 
 let tool_call_response tool_name tool_call_id args_json : llm_response =
-  { text = None;
+  { text = None; reasoning_content = None;
     tool_calls = Some [{ id = tool_call_id; name = tool_name; arguments = args_json }];
     finish_reason = Tool_calls; usage = dummy_usage; model = "mock" }
 

@@ -2,7 +2,7 @@ open Par
 
 let dummy_msg role content =
   { Types.role = role; content_blocks = [Text_block { text = content; cache_control = None }];
-    tool_calls = None; tool_call_id = None; name = None }
+    tool_calls = None; tool_call_id = None; name = None; reasoning_content = None }
 
 let dummy_model ~name =
   { Types.provider = `Openai; model_name = name; api_base = None;

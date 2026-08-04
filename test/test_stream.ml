@@ -37,7 +37,7 @@ let test_openai_stream () =
     temperature = 0.7; max_tokens = Some 100; top_p = None; stop_sequences = None
   } in
   let conv : conversation = {
-    messages = [{ role = User; content_blocks = [Text_block { text = "Say hello."; cache_control = None }]; tool_calls = None; tool_call_id = None; name = None }];
+    messages = [{ role = User; content_blocks = [Text_block { text = "Say hello."; cache_control = None }]; tool_calls = None; tool_call_id = None; name = None; reasoning_content = None }];
     metadata = []
   } in
   let chunks = ref 0 in
