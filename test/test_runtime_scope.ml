@@ -39,11 +39,17 @@ let dummy_usage : usage_stats = {
   cache_read_input_tokens = 0;
 }
 
-(* A minimal conversation that is cheap to construct without going
-   through Runtime.invoke. [save_conversation] accepts an explicit
-   ?conversation argument that overrides the runtime's
-   current_conversation cell, so we need no registered agent and no
-   invoke cycle to exercise the persistence path. *)
+let dummy_model : model_config =
+  { provider = `Openai; model_name = "mock"; api_base = None;
+    temperature = 0.0; max_tokens = None; top_p = None;
+    stop_sequences = None }
+
+(* A minimal conversation for direct persistence testing.
+   [save_conversation] accepts an explicit ?conversation argument that
+   overrides the runtime's current_conversation cell, but it still
+   requires a non-None session_id (set as a side effect of [invoke]).
+   So [with_persisted_runtime] registers a mock agent and does a
+   single invoke to bootstrap the session_id before running tests. *)
 let sample_conversation : conversation = {
   messages = [{
     role = User;
@@ -133,6 +139,15 @@ let with_persisted_runtime (f : Runtime.runtime -> 'a) : 'a =
           (try Sqlite_persistence.close sqlt with _ -> ());
           Alcotest.fail ("Runtime.create: " ^ err_str e)
         | Ok rt ->
+          let agent = match Runtime.make_agent ~id:"t"
+                        ~system_prompt:(stable_prompt "test") ~model:dummy_model () with
+            | Ok a -> a | Error e -> Alcotest.fail ("make_agent: " ^ err_str e) in
+          (match Runtime.register_agent rt agent with
+           | Error e -> Alcotest.fail ("register_agent: " ^ err_str e)
+           | Ok () -> ());
+          let _invoke_result = match Runtime.invoke rt ~agent_id:"t" ~message:"init" () with
+            | Ok r -> r
+            | Error (e, _) -> Alcotest.fail ("invoke: " ^ err_str e) in
           let result =
             try f rt
             with exn ->
@@ -143,8 +158,7 @@ let with_persisted_runtime (f : Runtime.runtime -> 'a) : 'a =
           result))
 
 (* Helper: save [sample_conversation] under [?scope], failing the test
-   if the save itself errors. We pass ?conversation explicitly so the
-   test does not depend on current_conversation state set by invoke. *)
+   if the save itself errors. *)
 let save_sample ?scope rt =
   match Runtime.save_conversation ?scope ~conversation:sample_conversation rt () with
   | Error e -> Alcotest.fail ("save_conversation: " ^ err_str e)
