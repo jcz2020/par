@@ -144,6 +144,30 @@ let test_stream_yields_chunks_then_completes () =
     Alcotest.(check bool "has Done" true has_done)
   | Error e -> Alcotest.failf "unexpected error: %s" (show_error e)
 
+let test_mock_with_reasoning () =
+  let (svc, _history) =
+    create ~reasoning:(Some "thinking about it...") [Text "answer"]
+  in
+  (* Non-streaming: complete_fn surfaces reasoning_content alongside text *)
+  (match svc.complete_fn mock_model [] empty_conv with
+   | Ok resp ->
+     Alcotest.(check (option string) "reasoning_content"
+       (Some "thinking about it...") resp.reasoning_content);
+     Alcotest.(check (option string) "text preserved"
+       (Some "answer") resp.text)
+   | Error e -> Alcotest.failf "complete_fn error: %s" (show_error e));
+  (* Streaming: stream_fn emits at least one Reasoning_delta *)
+  let chunks : llm_response_chunk list ref = ref [] in
+  let cb chunk = chunks := chunk :: !chunks in
+  (match svc.stream_fn mock_model [] empty_conv default_stream_config cb with
+   | Ok _ ->
+     let rev = List.rev !chunks in
+     let has_reasoning =
+       List.exists (function Reasoning_delta _ -> true | _ -> false) rev
+     in
+     Alcotest.(check bool "stream emits Reasoning_delta" true has_reasoning)
+   | Error e -> Alcotest.failf "stream_fn error: %s" (show_error e))
+
 (* --- history tests --- *)
 
 let test_call_history_tracks_complete_calls () =
@@ -203,6 +227,8 @@ let () =
     "stream_fn", [
       test_case "stream yields chunks then completes" `Quick
         test_stream_yields_chunks_then_completes;
+      test_case "mock with reasoning emits Reasoning_delta" `Quick
+        test_mock_with_reasoning;
     ];
     "history", [
       test_case "call history tracks complete_calls" `Quick

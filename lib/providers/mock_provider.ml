@@ -83,6 +83,7 @@ type mock_config = {
   delay : float option;  (* Optional simulated delay in seconds *)
   usage : usage_stats;
   model_name : string;
+  reasoning : string option;  (* Optional reasoning text — populates reasoning_content (non-streaming) and emits Reasoning_delta chunks (streaming) *)
 }
 
 let default_usage = { prompt_tokens = 10; completion_tokens = 20; total_tokens = 30 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
@@ -101,20 +102,26 @@ type mock_state = {
 let to_response resp config =
   match resp with
   | Text t ->
-    { text = Some t; tool_calls = None; finish_reason = Stop;
+    { text = Some t; reasoning_content = None; tool_calls = None; finish_reason = Stop;
       usage = config.usage; model = config.model_name }
   | With_tool_calls { text; calls } ->
-    { text; tool_calls = Some calls; finish_reason = Tool_calls;
+    { text; reasoning_content = None; tool_calls = Some calls; finish_reason = Tool_calls;
       usage = config.usage; model = config.model_name }
   | Error e ->
     raise (Failure (format_error e))
+
+let apply_reasoning (resp : llm_response) (config : mock_config) =
+  match config.reasoning with
+  | Some r -> { resp with reasoning_content = Some r }
+  | None -> resp
+
 
 (* Get next response, advancing cursor *)
 let get_next state =
   match state.config.responses with
   | [] ->
     (* No scripted responses: return a default *)
-    { text = Some "mock"; tool_calls = None; finish_reason = Stop;
+    { text = Some "mock"; reasoning_content = None; tool_calls = None; finish_reason = Stop;
       usage = state.config.usage; model = state.config.model_name }
   | [single] ->
     (* Single response: always return it without advancing *)
@@ -128,7 +135,7 @@ let get_next state =
     | Some resp -> to_response resp state.config
     | None ->
       (* Fallback (should not happen with proper modulo) *)
-      { text = Some "mock"; tool_calls = None; finish_reason = Stop;
+      { text = Some "mock"; reasoning_content = None; tool_calls = None; finish_reason = Stop;
         usage = state.config.usage; model = state.config.model_name }
 
 (* Optional simulated delay *)
@@ -140,12 +147,13 @@ let maybe_delay = function
 
 let count_chunks (resp : llm_response) =
   let text_chunks = match resp.text with Some _ -> 1 | None -> 0 in
+  let reasoning_chunks = match resp.reasoning_content with Some _ -> 1 | None -> 0 in
   let tool_chunks = match resp.tool_calls with
     | Some calls -> List.length calls * 2  (* start + delta per call *)
     | None -> 0
   in
-  (* text + tool + usage + done *)
-  text_chunks + tool_chunks + 2
+  (* text + reasoning + tool + usage + done *)
+  text_chunks + reasoning_chunks + tool_chunks + 2
 
 (* --- Schema synthesis for structured output tests --- *)
 
@@ -186,9 +194,9 @@ let synthesize_from_schema (schema : Yojson.Safe.t) : Yojson.Safe.t =
 (* --- Public API --- *)
 
 let create ?(delay = None) ?(usage = default_usage) ?(model_name = default_model)
-    ?structured_response responses =
+    ?(reasoning = None) ?structured_response responses =
   let state = {
-    config = { responses; delay; usage; model_name };
+    config = { responses; delay; usage; model_name; reasoning };
     history = create_history ();
     cursor = 0;
   } in
@@ -200,7 +208,7 @@ let create ?(delay = None) ?(usage = default_usage) ?(model_name = default_model
         timestamp = Unix.gettimeofday ();
       } in
       state.history.complete_calls <- record :: state.history.complete_calls;
-      try Ok (get_next state)
+      try Ok (apply_reasoning (get_next state) state.config)
       with Failure msg -> Error (Internal msg)
     );
     stream_fn = (fun model tools conv _stream_config cb ->
@@ -212,6 +220,14 @@ let create ?(delay = None) ?(usage = default_usage) ?(model_name = default_model
       state.history.stream_calls <- record :: state.history.stream_calls;
       (try
          let resp = get_next state in
+         (* 0. Emit reasoning BEFORE text, mirroring upstream ordering *)
+         let resp =
+           match state.config.reasoning with
+           | Some r ->
+             cb (Reasoning_delta { text = r });
+             { resp with reasoning_content = Some r }
+           | None -> resp
+         in
          (* 1. Emit text as Text_delta *)
          (match resp.text with
           | Some t -> cb (Text_delta { text = t })
@@ -253,7 +269,7 @@ let create ?(delay = None) ?(usage = default_usage) ?(model_name = default_model
         | None -> synthesize_from_schema response_schema
       in
       Ok { text = Some (Yojson.Safe.to_string json);
-           tool_calls = None; finish_reason = Stop;
+           reasoning_content = None; tool_calls = None; finish_reason = Stop;
            usage = state.config.usage; model = state.config.model_name }
     );
     list_models_fn = Some (fun () -> Ok ["mock-model"]);

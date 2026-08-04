@@ -40,6 +40,7 @@ val create :
   ?delay:float option ->
   ?usage:usage_stats ->
   ?model_name:string ->
+  ?reasoning:string option ->
   ?structured_response:Yojson.Safe.t ->
   scripted_response list ->
   llm_service * call_history
@@ -47,6 +48,10 @@ val create :
     - [delay] — optional simulated latency in seconds
     - [usage] — usage stats included in every response (default: 10/20/30)
     - [model_name] — model string in responses (default: "mock-llm")
+    - [reasoning] — when set, every response carries
+      [reasoning_content = Some _] (non-streaming) and the stream path
+      emits a [Reasoning_delta] chunk before any [Text_delta]. Enables
+      reasoning-model simulation for engine aggregator tests.
     - [structured_response] — when set, [complete_structured_fn] returns this
       JSON verbatim (wrapped as [llm_response.text]). When unset, the mock
       synthesizes a minimal valid object from the request schema's
