@@ -48,6 +48,7 @@ val Runtime.create :
   ?llm:llm_service ->
   ?embeddings:embedding_service ->
   ?memory:memory_service ->
+  ?vector_store_backend:Types.vector_store_backend ->
   ?bash_policy:(module Bash_policy.POLICY) ->
   ?workspace:Workspace.workspace ->
   ?mcp_servers:Mcp_types.server_config list ->
@@ -55,6 +56,7 @@ val Runtime.create :
   ?mcp_net:_ Eio.Net.t ->
   ?mcp_clock:_ Eio.Time.clock ->
   ?mcp_startup_policy:Mcp_types.startup_policy ->
+  ?net:_ Eio.Net.t ->
   config:runtime_config ->
   Eio.Switch.t ->
   (runtime, error_category) result
@@ -69,6 +71,7 @@ All optional parameters are `None` by default. Key optional parameters:
 | `?llm` | Primary LLM service provider. |
 | `?embeddings` | Embedding service for RAG pipelines. See [RAG API](rag.md). |
 | `?memory` | Memory service for cross-session agent memory (FTS5). See [Memory API](memory.md). |
+| `?vector_store_backend` | Vector store backend for RAG similarity search. See [RAG API](rag.md). |
 | `?bash_policy` | Bash trust-boundary policy module. Default: `Always` (allow all). |
 | `?workspace` | Workspace for file-system sandboxing. Defaults to CWD. |
 | `?mcp_servers` | MCP server configurations to start on creation. |
@@ -76,6 +79,7 @@ All optional parameters are `None` by default. Key optional parameters:
 | `?mcp_net` | Eio network capability for MCP HTTP/SSE servers. |
 | `?mcp_clock` | Eio clock for MCP startup timeouts. |
 | `?mcp_startup_policy` | MCP server startup policy (blocking vs lazy). |
+| `?net` | Eio network capability for runtime-wide outbound I/O (separate from `?mcp_net`, which scopes only to MCP servers). |
 
 Full example:
 
@@ -128,6 +132,10 @@ type agent_config = {
   compression_cooldown_messages : int option;     (* v0.6.3+: min iterations between auto-compressions. Some 6=default *)
   context_window_override : int option;           (* v0.6.3+: override context window size; None=use provider capability or static table *)
   cache_strategy : cache_strategy;        (* Prompt caching strategy: No_caching | With_cache_of of cache_ttl *)
+  approval_handler : approval_context Approval.approval_handler option;
+                                          (* v0.8.0+: optional HITL approval handler. None=default runtime handler.
+                                             When Some _, this agent's ReAct loop suspends on Approval_required
+                                             tool results and resumes via Runtime.resume_approval. *)
 }
 ```
 
@@ -253,7 +261,10 @@ val Runtime.invoke :
   ?on_chunk:(llm_response_chunk -> unit) option ->
   ?enable_handoff:bool ->
   ?system_prompt_appendix:string ->
+  ?skills:string list ->
   ?context:Invoke_context.invoke_context ->
+  ?update_current:bool ->
+  ?save:bool ->
   unit ->
   (invoke_result, error_category * conversation) result
 ```
@@ -269,7 +280,10 @@ All optional parameters:
 | `?on_chunk` | `(llm_response_chunk -> unit) option` | Streaming callback for LLM response chunks. `None` disables streaming. |
 | `?enable_handoff` | `bool` | Enable agent-to-agent handoff via the `handoff` tool. Default: `false`. |
 | `?system_prompt_appendix` | `string` | Text appended to the system prompt for this invocation only. See [invoke_context](invoke_context.md). |
+| `?skills` | `string list` | Per-call activation override for Skills (v0.8.1+). Pass skill ids to activate only those skills for this call, ignoring each skill's trigger mode. See [Skills API](skills.md). |
 | `?context` | `Invoke_context.invoke_context` | Pre-built per-call isolation context. When provided, uses this context instead of creating a fresh one. See [invoke_context](invoke_context.md). |
+| `?update_current` | `bool` | When `true`, persist this invocation's resulting conversation back to the agent's current conversation handle (v0.7.7+). Default follows the runtime's persistence policy. |
+| `?save` | `bool` | When `true`, persist the resulting conversation to the persistence backend (v0.7.7+). When `false`, the conversation stays in memory only. Default follows the runtime's persistence policy. |
 
 The return type is `invoke_result` (not `llm_response`):
 
@@ -277,8 +291,11 @@ The return type is `invoke_result` (not `llm_response`):
 type invoke_result = {
   response : llm_response;
   conversation : conversation;
+  approval_pending : approval_pending_info option;
 }
 ```
+
+When the agent is configured with an async/webhook `approval_handler` and the ReAct loop hits an `Approval_required` tool result, the engine suspends the loop and returns with `approval_pending = Some { run_id; agent_id; tool_name; expires_at }` (v0.8.0+). Callers should pass the `run_id` to `Runtime.resume_approval` to resolve the request and continue execution. `None` means the invocation completed without suspending for approval.
 
 The `conversation` field in the error tuple carries the conversation state up to the point of failure, enabling error recovery or partial result extraction.
 

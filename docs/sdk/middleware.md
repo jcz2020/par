@@ -6,7 +6,7 @@
 
 # Middleware API Reference
 
-This document describes the middleware pipeline of a runtime created with `Runtime.create`, including the 7 built-in middleware and a guide for writing custom middleware.
+This document describes the middleware pipeline of a runtime created with `Runtime.create`, including the 9 built-in middleware (incl Think_tag_strip added in v0.8.2) and a guide for writing custom middleware.
 
 ## Middleware concepts
 
@@ -21,7 +21,7 @@ type middleware_hook = {
   on_after_llm : (llm_response -> llm_response option) option;
   on_before_tool : (tool_call -> tool_call option) option;
   on_after_tool : (tool_call * handler_result -> handler_result option) option;
-  on_error : (error_category -> handler_result option) option;
+  on_error : (conversation -> error_category -> handler_result option) option;
 }
 ```
 
@@ -333,6 +333,7 @@ let agent = {
     } ();                                     (* Retry *)
     Validation.validation ~strict:true ();     (* Strict validation *)
     Sanitize_tool_output.sanitize_tool_output ();  (* Output sanitization *)
+    Think_tag_strip.create ();                 (* Optional: strip <think>/<reasoning> for reasoning models *)
   ];
 }
 ```
@@ -441,7 +442,7 @@ let fallback_middleware ~fallback_text () =
     on_after_llm = None;
     on_before_tool = None;
     on_after_tool = None;
-    on_error = Some (fun err ->
+    on_error = Some (fun conv err ->
       match err with
       | Types.External_failure _ ->
         (* Convert an external failure into a success result with fallback text *)
@@ -454,7 +455,7 @@ let fallback_middleware ~fallback_text () =
 ### Caveats
 
 - Middleware instances are shared within the same agent configuration, so mind concurrent state isolation
-- `on_error` is currently dead code in the Engine layer (the Engine does not call `apply_on_error`); it will be wired up in a future release
+- `on_error` is called by the Engine inside `apply_on_error` (lib/core/engine.ml:787) when a tool returns `Error`. Use this hook for retry/custom-error-handling middleware. Note: `conversation` is the live conversation snapshot at the point of failure.
 - Returning `Some` means the value was modified or replaced, `None` means pass through the original
 
 ## See also

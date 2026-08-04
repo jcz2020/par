@@ -23,12 +23,13 @@ type runtime_config = {
 }
 ```
 
-`Par.Runtime` 提供三个默认配置值，可以直接使用：
+`Par.Runtime` 提供以下默认配置值，可以直接使用：
 
 ```ocaml
 Runtime.default_event_bus_config   (* buffer_capacity=10000, DLQ 开启 *)
 Runtime.default_quota             (* max_concurrent_tasks=10 *)
 Runtime.default_shutdown_config   (* drain_timeout=30s *)
+Runtime.default_bash_confirm      (* Always 策略 *)
 ```
 
 ### 创建运行时
@@ -40,6 +41,7 @@ val Runtime.create :
   ?llm:llm_service ->
   ?embeddings:embedding_service ->
   ?memory:memory_service ->
+  ?vector_store_backend:Types.vector_store_backend ->
   ?bash_policy:(module Bash_policy.POLICY) ->
   ?workspace:Workspace.workspace ->
   ?mcp_servers:Mcp_types.server_config list ->
@@ -47,6 +49,7 @@ val Runtime.create :
   ?mcp_net:_ Eio.Net.t ->
   ?mcp_clock:_ Eio.Time.clock ->
   ?mcp_startup_policy:Mcp_types.startup_policy ->
+  ?net:_ Eio.Net.t ->
   config:runtime_config ->
   Eio.Switch.t ->
   (runtime, error_category) result
@@ -61,6 +64,7 @@ val Runtime.create :
 | `?llm` | 主 LLM 服务 provider。 |
 | `?embeddings` | 嵌入服务，用于 RAG 管道。见 [RAG API](rag.md)。 |
 | `?memory` | 内存服务，用于跨会话 agent 记忆（FTS5）。见 [Memory API](memory.md)。 |
+| `?vector_store_backend` | 向量存储后端，用于 RAG 相似度搜索。见 [RAG API](rag.md)。 |
 | `?bash_policy` | Bash 信任边界策略模块。默认：`Always`（允许所有）。 |
 | `?workspace` | 文件系统沙箱的 Workspace。默认为 CWD。 |
 | `?mcp_servers` | 创建时启动的 MCP 服务器配置。 |
@@ -68,6 +72,7 @@ val Runtime.create :
 | `?mcp_net` | MCP HTTP/SSE 服务器的 Eio 网络能力。 |
 | `?mcp_clock` | MCP 启动超时的 Eio 时钟。 |
 | `?mcp_startup_policy` | MCP 服务器启动策略（阻塞 vs 延迟）。 |
+| `?net` | Runtime 全局出站 I/O 的 Eio 网络能力（与 `?mcp_net` 分开，后者仅作用于 MCP 服务器）。 |
 
 完整示例：
 
@@ -123,6 +128,10 @@ type agent_config = {
   compression_cooldown_messages : int option;     (* v0.6.3+：两次自动压缩间最小迭代数。Some 6=默认 *)
   context_window_override : int option;           (* v0.6.3+：覆盖 context window 大小；None=用 provider capability 或静态表 *)
   cache_strategy : cache_strategy;        (* 提示词缓存策略：No_caching | With_cache_of of cache_ttl *)
+  approval_handler : approval_context Approval.approval_handler option;
+                                          (* v0.8.0+：可选 HITL 审批 handler。None=用 runtime 默认 handler。
+                                             设为 Some _ 时，此 agent 的 ReAct 循环遇到 Approval_required
+                                             工具结果会挂起，并通过 Runtime.resume_approval 恢复。 *)
 }
 ```
 
@@ -246,7 +255,10 @@ val Runtime.invoke :
   ?on_chunk:(llm_response_chunk -> unit) option ->
   ?enable_handoff:bool ->
   ?system_prompt_appendix:string ->
+  ?skills:string list ->
   ?context:Invoke_context.invoke_context ->
+  ?update_current:bool ->
+  ?save:bool ->
   unit ->
   (invoke_result, error_category * conversation) result
 ```
@@ -262,7 +274,10 @@ val Runtime.invoke :
 | `?on_chunk` | `(llm_response_chunk -> unit) option` | LLM 响应块的流式回调。`None` 禁用流式。 |
 | `?enable_handoff` | `bool` | 启用 agent 间交接（handoff）工具。默认：`false`。 |
 | `?system_prompt_appendix` | `string` | 仅本次调用追加到 system prompt 的文本。见 [invoke_context](invoke_context.md)。 |
+| `?skills` | `string list` | 单次调用激活 Skills 的覆盖（v0.8.1+）。传入 skill id 列表只激活这些 skill，忽略各 skill 的 trigger 模式。见 [Skills API](skills.md)。 |
 | `?context` | `Invoke_context.invoke_context` | 预构建的单次调用隔离上下文。提供时使用此上下文而非创建新的。见 [invoke_context](invoke_context.md)。 |
+| `?update_current` | `bool` | 为 `true` 时，将本次调用产生的对话回写到 agent 当前的 conversation handle（v0.7.7+）。默认遵循 runtime 的持久化策略。 |
+| `?save` | `bool` | 为 `true` 时，将产生的对话持久化到持久化后端（v0.7.7+）。为 `false` 时，对话仅保留在内存中。默认遵循 runtime 的持久化策略。 |
 
 返回类型为 `invoke_result`（不是 `llm_response`）：
 
@@ -270,8 +285,11 @@ val Runtime.invoke :
 type invoke_result = {
   response : llm_response;
   conversation : conversation;
+  approval_pending : approval_pending_info option;
 }
 ```
+
+当 agent 配置了 async/webhook `approval_handler`，且 ReAct 循环遇到 `Approval_required` 工具结果时，引擎会挂起循环并以 `approval_pending = Some { run_id; agent_id; tool_name; expires_at }` 返回（v0.8.0+）。调用方应将 `run_id` 传给 `Runtime.resume_approval` 来解析请求并继续执行。`None` 表示本次调用没有为审批而挂起。
 
 错误元组中的 `conversation` 字段携带失败时的对话状态，支持错误恢复或部分结果提取。
 
@@ -401,6 +419,8 @@ match Invoke_context.invoke_handle_await handle with
 ```ocaml
 val Runtime.close : runtime -> int   (* 返回退出码 *)
 ```
+
+`Runtime.close` 也会停止所有通过 `Runtime.mcp_server` 启动的 MCP 服务器子进程；返回的整数是退出码，非零值表示有子进程拒绝干净退出。
 
 ## 工具注册
 

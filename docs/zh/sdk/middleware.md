@@ -1,7 +1,7 @@
 # Middleware API 参考
 [English](https://github.com/jcz2020/par/blob/main/sdk/middleware.md) · **简体中文**
 
-本文档描述 P-A-R SDK 的中间件管道，包括 7 个内置中间件和自定义中间件编写指南。
+本文档描述 P-A-R SDK 的中间件管道，包括 9 个内置中间件（含 v0.8.2 新增 Think_tag_strip）和自定义中间件编写指南。
 
 ## 中间件概念
 
@@ -18,7 +18,7 @@ type middleware_hook = {
   on_after_llm : (llm_response -> llm_response option) option;
   on_before_tool : (tool_call -> tool_call option) option;
   on_after_tool : (tool_call * handler_result -> handler_result option) option;
-  on_error : (error_category -> handler_result option) option;
+  on_error : (conversation -> error_category -> handler_result option) option;
 }
 ```
 
@@ -301,6 +301,19 @@ let sanitize_hook = Sanitize_tool_output.sanitize_tool_output
   ()
 ```
 
+## Think_tag_strip
+
+剥离 LLM 响应中的 `<think>` 和 `<reasoning>` 标签。推理模型（DeepSeek R1、QwQ）将思维链嵌入这些标签；此中间件可防止它们污染对话历史和用户可见输出。
+
+可选启用 -- 仅影响包含此中间件的 Agent：
+
+```ocaml
+let agent = Runtime.make_agent
+  ~id:"my-agent"
+  ~middleware:[Think_tag_strip.create ()]
+  ~model ~tools:[] ()
+```
+
 ## 组合中间件
 
 中间件按列表顺序排列，靠前的在外层包裹靠后的。典型生产环境配置：
@@ -319,12 +332,82 @@ let agent = {
     } ();                                     (* 重试 *)
     Validation.validation ~strict:true ();     (* 严格校验 *)
     Sanitize_tool_output.sanitize_tool_output ();  (* 输出清洗 *)
+    Think_tag_strip.create ();                 (* 可选：清洗 reasoning 模型的 <think>/<reasoning> 标签 *)
   ];
 }
 ```
 
 执行流程：请求 -> Logging -> Pii_mask -> Rate_limit -> Validation -> LLM
 响应 -> Validation -> Sanitize -> Retry -> Rate_limit -> Pii_mask -> Logging
+
+## Cancellation（取消）
+
+上文的 `Timeout` 中间件只是在事后把超时错误归一化。真正的截止时间（deadline）由 cancellation token 实现，它是运行时范围内"立即停止工作"的基础原语。中间件钩子并不直接接收 cancellation token，但每个工具处理器都会收到一个，任何驱动 Engine 的代码都可以在自己创建的 token 上请求取消。
+
+### Cancellation 接口
+
+```ocaml
+type cancellation_token
+
+val Cancellation.create_token : Eio.Switch.t -> cancellation_token
+val Cancellation.is_cancelled : cancellation_token -> bool
+val Cancellation.check_cancel  : cancellation_token -> unit
+val Cancellation.request_cancel : cancellation_token -> unit
+
+val Cancellation.with_timeout :
+  float ->
+  cancellation_token ->
+  (cancellation_token -> 'a) ->
+  ('a, [> `Timeout | `Cancelled ]) result
+
+val Cancellation.cancellable_handler :
+  cancellation_token ->
+  float ->
+  (Yojson.Safe.t -> Types.handler_result) ->
+  (Yojson.Safe.t -> Types.handler_result)
+```
+
+token 创建于某个 `Eio.Switch.t` 之上。该 switch 拥有 token 的生命周期：当 switch 退出时，token 会随其上运行的所有 fiber 一起被取消。退出作用域时无需显式调用 `request_cancel` 来清理。
+
+`is_cancelled` 是非抛出式探测。当你只想检查标志位但暂不抛出时使用。`check_cancel` 是抛出式探测：若 token 已被取消则立即抛出 `Eio.Cancel.Cancelled`。长时间运行的代码应在自然边界处（循环迭代之间、批处理项之间）调用 `check_cancel`，使取消请求能及时传播，而不是等到下一次阻塞调用。
+
+`request_cancel` 是另一个 fiber 请求停止工作的方式。它会设置标志位；被取消的 fiber 在下次遇到 `check_cancel`、cancel-aware 的 Eio 操作或 `with_timeout` 边界时观察到该标志。
+
+### Timeout vs Cancellation
+
+`with_timeout` 将一个 deadline 与现有 token 组合。它返回函数的值、`` `Timeout ``（deadline 先到）或`` `Cancelled ``（在 deadline 之前有人对底层 token 调用了 `request_cancel`）。这两种情况是分开的，因为它们对应不同的响应方式：超时通常意味着"用更长的预算或更小的任务重试"，而取消通常意味着"调用方放弃了，完全停止"。
+
+```ocaml
+match Cancellation.with_timeout 30.0 token (fun token ->
+  Engine.run_agent token agent message llm registry)
+with
+| Ok result -> (* 继续 *)
+| Error `Timeout -> (* 重试或上抛 *)
+| Error `Cancelled -> (* 传播，不要重试 *)
+```
+
+只有当内部函数在某个时刻观察到 cancellation 时，deadline 才会触发。从不 yield 的纯 CPU 工作会跑过 deadline。PAR 的 Engine 和工具处理器在 LLM 往返之间以及工具分派之前都会检查 cancellation，因此 Agent 调用是 deadline-aware 的。
+
+### 中间件如何与 Cancellation 交互
+
+中间件钩子收到的是 conversation、response、tool call 或 error，但不包含 token。token 在底层流动：Engine 通过 `run_agent` 把它穿起来，每个工具处理器把它作为第二个参数接收。一个中间件如果想在它观察到的某个信号上中止执行，有两个选择：
+
+1. 从相关钩子返回 `None`，让 Engine 继续执行。中间件无法强制 Engine 停止，但可以短路自己的贡献。
+2. 修改共享状态，下一个 `check_cancel` 边界会观察到。这会把中间件与处理器的 cancellation 纪律耦合起来，因此在可行时优先使用第一种方式。
+
+`cancellable_handler` 包装器是让工具处理器变为 cancellation-aware 的标准方式，无需重写其函数体。传入 token 和每次调用的超时，包装器会确保 `check_cancel` 在处理器的各步骤之间触发。
+
+```ocaml
+let handler input token =
+  let wrapped = Cancellation.cancellable_handler token 10.0 real_handler in
+  wrapped input
+```
+
+这里 `real_handler` 不接收 token。包装器为每次调用设置 10 秒预算，若 token 被取消或预算耗尽则中止并返回 `Error`。适用于包装难以穿过 token 的第三方函数。
+
+### 与 Eio 组合
+
+Cancellation 依托于 Eio 的结构化并发。在某个 switch 上创建的 token 会在该 switch 退出时被取消，因此常见的清理模式是"在 `Eio.Switch.run` 内运行 Agent；如果出错，退出 switch 即可拆掉 Agent 的所有 fiber"。极少需要为清理显式调用 `request_cancel`；它主要用于用户发起的取消（一个"停止"按钮、一个 SIGINT 处理器），此时 switch 并未以其他方式退出。
 
 ## 自定义中间件
 
@@ -358,7 +441,7 @@ let fallback_middleware ~fallback_text () =
     on_after_llm = None;
     on_before_tool = None;
     on_after_tool = None;
-    on_error = Some (fun err ->
+    on_error = Some (fun conv err ->
       match err with
       | Types.External_failure _ ->
         (* 将外部失败转换为带有兜底文本的成功结果 *)
@@ -371,8 +454,7 @@ let fallback_middleware ~fallback_text () =
 ### 注意事项
 
 - 中间件实例在同一 Agent 配置中共享，注意并发状态隔离
-- `on_error` 在 Engine 层被调用（`engine.ml` 中 `apply_on_error`），用于错误发生时的回调处理，
-  未来版本将接入
+- `on_error` 在 Engine 层被调用（位于 `lib/core/engine.ml:787` 的 `apply_on_error` 中），当工具返回 `Error` 时触发。此钩子可用于重试/自定义错误处理中间件。注意：`conversation` 是失败发生时的实时对话快照
 - 返回 `Some` 表示修改/替换值，`None` 表示透传原始值
 
 ## See also

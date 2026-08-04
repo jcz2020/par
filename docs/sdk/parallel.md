@@ -19,10 +19,16 @@ val Runtime.invoke_parallel :
   ?parallel_limit:int ->
   ?failure_policy:failure_policy ->
   ?merge_fn:(Yojson.Safe.t list -> Yojson.Safe.t) ->
-  ?cancellation_token:Eio.Switch.t ->
+  ?cancellation_token:cancellation_token ->
   unit ->
   parallel_invoke_result
 ```
+
+> **Note on `cancellation_token`**: this is the record type
+> `Types.cancellation_token = { switch : Eio.Switch.t; mutable cancelled : bool }`,
+> **not** a bare `Eio.Switch.t`. The runtime reads the `cancelled` flag and stops
+> the embedded `switch` when cancellation is requested. See the
+> [Cancellation](#cancellation) section below.
 
 ## `agent_dispatch_spec`
 
@@ -52,17 +58,19 @@ Returned after all branches complete (or after `Fail_fast` stops them):
 
 ```ocaml
 type parallel_invoke_result = {
-  successes : Types.invoke_result list;
+  successes : (agent_dispatch_spec * Yojson.Safe.t) list;
   failures  : (agent_dispatch_spec * error_category) list;
-  merged    : Yojson.Safe.t option;
+  cancelled : agent_dispatch_spec list;
+  duration  : float;
 }
 ```
 
 | Field | Description |
 |-------|-------------|
-| `successes` | Results from agents that completed successfully. |
-| `failures` | Agents that failed, paired with their spec and the error. |
-| `merged` | The result of applying `merge_fn` to all success results. `None` if no results or no `merge_fn`. |
+| `successes` | Tuples of `(agent_dispatch_spec, Yojson.Safe.t)` for agents that completed successfully. The JSON is that agent's raw result — **not** an `invoke_result` record. Extract fields via Yojson pattern matching (see examples below). |
+| `failures` | Tuples of `(agent_dispatch_spec, error_category)` for agents that failed. |
+| `cancelled` | Specs for branches that were cancelled (via `cancellation_token` or `Fail_fast` policy). |
+| `duration` | Wall-clock seconds the whole parallel dispatch took. |
 
 ## Controlling parallelism
 
@@ -100,17 +108,22 @@ The `merge_fn` parameter lets you combine branch results into a single output, s
 
 ```ocaml
 (* Default: wrap results in a JSON list *)
-let default_merge results = `List results
+let default_merge (results : Yojson.Safe.t list) = `List results
 
-(* Custom: concatenate text outputs *)
-let concat_merge results =
-  let texts = List.filter_map (fun r ->
-    match r.Types.response.text with t -> Some t | _ -> None
+(* Custom: concatenate text outputs (assumes each agent returns `Assoc with "text") *)
+let concat_merge (results : Yojson.Safe.t list) =
+  let texts = List.filter_map (fun json ->
+    match json with
+    | `Assoc fields ->
+      (match List.assoc_opt "text" fields with
+       | Some (`String t) -> Some t
+       | _ -> None)
+    | _ -> None
   ) results in
   `String (String.concat "\n---\n" texts)
 
 (* Custom: count successes *)
-let count_merge results = `Int (List.length results)
+let count_merge (results : Yojson.Safe.t list) = `Int (List.length results)
 ```
 
 If `merge_fn` is not provided, results are wrapped in a JSON list (`\`List [...]`).
@@ -126,9 +139,10 @@ let result =
     ~merge_fn:concat_merge
     ()
 in
-match result.merged with
-| Some (`String text) -> print_endline text
-| _ -> print_endline "No merged result"
+(* Iterate the (spec, json) successes directly — no `merged` field *)
+List.iter (fun (spec, json) ->
+  Logs.info (fun m -> m "agent %s: %s" spec.agent_id (Yojson.Safe.to_string json))
+) result.successes
 ```
 
 ## Per-agent workspace isolation
@@ -169,17 +183,22 @@ let specs = [
 
 ## Cancellation
 
-Pass an `Eio.Switch.t` as `cancellation_token` to cancel all branches mid-flight:
+Pass a `cancellation_token` (the record `{ switch : Eio.Switch.t; mutable cancelled : bool }` from `Types`) to cancel all branches mid-flight:
 
 ```ocaml
 Eio.Switch.run (fun cancel_switch ->
+  (* Wrap the switch in a cancellation_token record *)
+  let token : Types.cancellation_token = {
+    switch = cancel_switch;
+    cancelled = false;
+  } in
   (* Start parallel dispatch in a background fiber *)
   let fiber = Eio.Fiber.fork_promise (fun () ->
     Runtime.invoke_parallel ~rt ~specs
-      ~cancellation_token:cancel_switch ())
+      ~cancellation_token:token ())
   in
-  (* Later: cancel all branches *)
-  Eio.Switch.release cancel_switch)
+  (* Later: signal cancellation by flipping the flag *)
+  token.cancelled <- true)
 ```
 
 When cancelled, branches stop and partial results (if any) are collected.
@@ -216,17 +235,24 @@ let () = Eio_main.run (fun env ->
       let result =
         Runtime.invoke_parallel ~rt ~specs
           ~failure_policy:Fail_fast
-          ~merge_fn:(fun results ->
-            let texts = List.filter_map (fun r ->
-              Some r.Types.response.text) results in
+          ~merge_fn:(fun (results : Yojson.Safe.t list) ->
+            let texts = List.filter_map (fun json ->
+              match json with
+              | `Assoc fields ->
+                (match List.assoc_opt "text" fields with
+                 | Some (`String t) -> Some t
+                 | _ -> None)
+              | _ -> None
+            ) results in
             `String (String.concat "\n\n" texts))
           ()
       in
-      Printf.printf "Successes: %d\n" (List.length result.Types.successes);
-      Printf.printf "Failures: %d\n" (List.length result.Types.failures);
-      (match result.merged with
-       | Some (`String t) -> print_endline t
-       | _ -> print_endline "No merged result");
+      Printf.printf "Successes: %d\n" (List.length result.successes);
+      Printf.printf "Failures: %d\n" (List.length result.failures);
+      List.iter (fun (spec, json) ->
+        Logs.info (fun m -> m "agent %s produced: %s"
+                       spec.agent_id (Yojson.Safe.to_string json))
+      ) result.successes;
       ignore (Runtime.close rt)))
 ```
 

@@ -17,10 +17,15 @@ val Runtime.invoke_parallel :
   ?parallel_limit:int ->
   ?failure_policy:failure_policy ->
   ?merge_fn:(Yojson.Safe.t list -> Yojson.Safe.t) ->
-  ?cancellation_token:Eio.Switch.t ->
+  ?cancellation_token:cancellation_token ->
   unit ->
   parallel_invoke_result
 ```
+
+> **关于 `cancellation_token`**：这是 record 类型
+> `Types.cancellation_token = { switch : Eio.Switch.t; mutable cancelled : bool }`，
+> **不是**裸的 `Eio.Switch.t`。运行时读取 `cancelled` 字段，并在请求取消时停止内嵌的
+> `switch`。详见下文 [取消](#取消) 一节。
 
 ## `agent_dispatch_spec`
 
@@ -50,17 +55,19 @@ type agent_dispatch_spec = {
 
 ```ocaml
 type parallel_invoke_result = {
-  successes : Types.invoke_result list;
+  successes : (agent_dispatch_spec * Yojson.Safe.t) list;
   failures  : (agent_dispatch_spec * error_category) list;
-  merged    : Yojson.Safe.t option;
+  cancelled : agent_dispatch_spec list;
+  duration  : float;
 }
 ```
 
 | 字段 | 描述 |
 |------|------|
-| `successes` | 成功完成的 Agent 的结果。 |
-| `failures` | 失败的 Agent，与各自的 spec 和错误配对。 |
-| `merged` | 对所有成功结果应用 `merge_fn` 的结果。如果没有结果或没有 `merge_fn`，为 `None`。 |
+| `successes` | 成功完成的 Agent 的 `(agent_dispatch_spec, Yojson.Safe.t)` 元组列表。JSON 是该 Agent 的原始结果 —— **不是** `invoke_result` record。需通过 Yojson 模式匹配提取字段（见下方示例）。 |
+| `failures` | 失败的 Agent 的 `(agent_dispatch_spec, error_category)` 元组列表。 |
+| `cancelled` | 被取消的分支的 spec（通过 `cancellation_token` 或 `Fail_fast` 策略触发）。 |
+| `duration` | 整个并行分发消耗的挂钟时间（秒）。 |
 
 ## 控制并行度
 
@@ -98,17 +105,22 @@ type failure_policy =
 
 ```ocaml
 (* 默认：将结果包装在 JSON 列表中 *)
-let default_merge results = `List results
+let default_merge (results : Yojson.Safe.t list) = `List results
 
-(* 自定义：连接文本输出 *)
-let concat_merge results =
-  let texts = List.filter_map (fun r ->
-    match r.Types.response.text with t -> Some t | _ -> None
+(* 自定义：连接文本输出（假设每个 Agent 返回 `Assoc 且含 "text" 字段）*)
+let concat_merge (results : Yojson.Safe.t list) =
+  let texts = List.filter_map (fun json ->
+    match json with
+    | `Assoc fields ->
+      (match List.assoc_opt "text" fields with
+       | Some (`String t) -> Some t
+       | _ -> None)
+    | _ -> None
   ) results in
   `String (String.concat "\n---\n" texts)
 
 (* 自定义：计数成功 *)
-let count_merge results = `Int (List.length results)
+let count_merge (results : Yojson.Safe.t list) = `Int (List.length results)
 ```
 
 如果未提供 `merge_fn`，结果被包装在 JSON 列表中（`\`List [...]`）。
@@ -124,9 +136,10 @@ let result =
     ~merge_fn:concat_merge
     ()
 in
-match result.merged with
-| Some (`String text) -> print_endline text
-| _ -> print_endline "No merged result"
+(* 直接迭代 (spec, json) 元组 —— 没有 `merged` 字段 *)
+List.iter (fun (spec, json) ->
+  Logs.info (fun m -> m "agent %s: %s" spec.agent_id (Yojson.Safe.to_string json))
+) result.successes
 ```
 
 ## 每 Agent 工作空间隔离
@@ -167,17 +180,22 @@ let specs = [
 
 ## 取消
 
-传递 `Eio.Switch.t` 作为 `cancellation_token` 来取消所有分支：
+传递 `cancellation_token`（即 `Types` 中的 record `{ switch : Eio.Switch.t; mutable cancelled : bool }`）来取消所有分支：
 
 ```ocaml
 Eio.Switch.run (fun cancel_switch ->
+  (* 将 switch 包装为 cancellation_token record *)
+  let token : Types.cancellation_token = {
+    switch = cancel_switch;
+    cancelled = false;
+  } in
   (* 在后台 fiber 中启动并行分发 *)
   let fiber = Eio.Fiber.fork_promise (fun () ->
     Runtime.invoke_parallel ~rt ~specs
-      ~cancellation_token:cancel_switch ())
+      ~cancellation_token:token ())
   in
-  (* 稍后：取消所有分支 *)
-  Eio.Switch.release cancel_switch)
+  (* 稍后：通过置位标志通知取消 *)
+  token.cancelled <- true)
 ```
 
 取消时，分支停止，部分结果（如果有）被收集。
@@ -214,17 +232,24 @@ let () = Eio_main.run (fun env ->
       let result =
         Runtime.invoke_parallel ~rt ~specs
           ~failure_policy:Fail_fast
-          ~merge_fn:(fun results ->
-            let texts = List.filter_map (fun r ->
-              Some r.Types.response.text) results in
+          ~merge_fn:(fun (results : Yojson.Safe.t list) ->
+            let texts = List.filter_map (fun json ->
+              match json with
+              | `Assoc fields ->
+                (match List.assoc_opt "text" fields with
+                 | Some (`String t) -> Some t
+                 | _ -> None)
+              | _ -> None
+            ) results in
             `String (String.concat "\n\n" texts))
           ()
       in
-      Printf.printf "Successes: %d\n" (List.length result.Types.successes);
-      Printf.printf "Failures: %d\n" (List.length result.Types.failures);
-      (match result.merged with
-       | Some (`String t) -> print_endline t
-       | _ -> print_endline "No merged result");
+      Printf.printf "Successes: %d\n" (List.length result.successes);
+      Printf.printf "Failures: %d\n" (List.length result.failures);
+      List.iter (fun (spec, json) ->
+        Logs.info (fun m -> m "agent %s produced: %s"
+                       spec.agent_id (Yojson.Safe.to_string json))
+      ) result.successes;
       ignore (Runtime.close rt)))
 ```
 
