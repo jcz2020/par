@@ -1,6 +1,6 @@
 # CHANGES
 
-## vX.Y.Z — Reasoning model support + scope plumbing + streaming usage fix
+## v0.8.3 — Reasoning model support + scope plumbing + streaming usage fix
 
 ### Fixed — Runtime persistence
 - **FIX** `Runtime.save_conversation` / `Runtime.load_most_recent_conversation`: previously accepted `?scope:string` in their OCaml signatures but silently dropped the parameter at the persistence_service functor boundary. The underlying `Sqlite_persistence` layer always honored scope. Now plumbed end-to-end through the public Runtime API, the C FFI bridge (new nullable-string FFI pattern: `NULL` -> OCaml `None`), and the Python binding.
