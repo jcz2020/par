@@ -100,6 +100,7 @@ type usage_stats = {
 
 type llm_response = {
   text : string option;
+  reasoning_content : string option;
   tool_calls : tool_call list option;
   finish_reason : finish_reason;
   usage : usage_stats;
@@ -164,6 +165,7 @@ type message = {
   tool_calls : tool_call list option;
   tool_call_id : string option;
   name : string option;
+  reasoning_content : string option;
 }
 [@@deriving yojson]
 
@@ -767,6 +769,7 @@ type fallback_policy =
 
 type llm_response_chunk =
   | Text_delta of { text : string }
+  | Reasoning_delta of { text : string }
   | Tool_call_start of { tool_call_id : string; name : string }
   | Tool_call_delta of { tool_call_id : string; args_json : string }
   | Usage_update of usage_stats
