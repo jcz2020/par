@@ -315,6 +315,13 @@ let agent = Runtime.make_agent
   ~model ~tools:[] ()
 ```
 
+**`Think_tag_strip` vs `reasoning_content`.** These serve different models and different integration patterns:
+
+- `Think_tag_strip` middleware: for models that embed `<think>...</think>` tags INSIDE the `content` field (DeepSeek-R1 via open-source direct API, QwQ). The middleware strips these tags after the LLM call, keeping conversation history clean. Opt-in via `Think_tag_strip.create ()`.
+- `reasoning_content` field: for models that return reasoning as a SEPARATE API field (OpenAI o1/o3, DeepSeek via OpenAI-compatible API). Captured automatically by the OpenAI provider. No middleware needed.
+
+The two are not mutually exclusive. Some models emit reasoning in both places, and some deployments benefit from using both.
+
 ## Composing middleware
 
 Middleware is ordered in the list, with earlier entries wrapping later ones. A typical production configuration:

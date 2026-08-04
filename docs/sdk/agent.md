@@ -285,7 +285,20 @@ All optional parameters:
 | `?update_current` | `bool` | When `true`, persist this invocation's resulting conversation back to the agent's current conversation handle (v0.7.7+). Default follows the runtime's persistence policy. |
 | `?save` | `bool` | When `true`, persist the resulting conversation to the persistence backend (v0.7.7+). When `false`, the conversation stays in memory only. Default follows the runtime's persistence policy. |
 
-The return type is `invoke_result` (not `llm_response`):
+The return type is `invoke_result`, which wraps `llm_response`:
+
+```ocaml
+type llm_response = {
+  text : string option;
+  reasoning_content : string option;
+  tool_calls : tool_call list option;
+  finish_reason : finish_reason;
+  usage : usage_stats;
+  model : string;
+}
+```
+
+`reasoning_content` is populated only by reasoning models (OpenAI o1/o3, DeepSeek-R1 via OpenAI-compatible API). It holds the model's chain-of-thought text when the provider returns it as a separate field. For non-reasoning models, this field is `None`. When set, the model's actual answer is still in `text` (or `tool_calls`), so both fields can carry data simultaneously.
 
 ```ocaml
 type invoke_result = {

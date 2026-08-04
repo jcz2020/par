@@ -55,6 +55,12 @@ type content_block =
 
 **Image_block** holds image data, either as a URL reference or base64-encoded bytes. `media_type` is the MIME type (e.g. `"image/png"`).
 
+### Note on reasoning_content
+
+`reasoning_content : string option` is a top-level field on both `llm_response` and `message`, not a `content_block` variant. Reasoning models (o1, o3, DeepSeek-R1) return chain-of-thought text through this field, separate from the main `text` and `tool_calls`. The field is populated by the OpenAI provider when the upstream API returns `message.reasoning_content` (non-streaming) or `delta.reasoning_content` (streaming).
+
+This is a scope compromise. When Anthropic extended-thinking support lands, `reasoning_content` will migrate into a `Reasoning_block` variant in `content_block`, giving reasoning the same first-class treatment as text and tool use. Until then, check `reasoning_content` directly on the response or message record.
+
 ## Construction
 
 Build each variant by hand with record syntax:

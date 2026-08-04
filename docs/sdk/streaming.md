@@ -121,6 +121,14 @@ class TextDelta:
     text: str
 
 @dataclass(frozen=True)
+class ReasoningDelta:
+    """A chunk of reasoning text from the model. Appears during streaming from
+    reasoning models (o1, o3, DeepSeek-R1) BEFORE the Text_delta chunks.
+    Concatenate `text` to reconstruct the full reasoning trace. Only present
+    when the provider returns reasoning as a separate streaming field."""
+    text: str
+
+@dataclass(frozen=True)
 class ToolCallStart:
     """The LLM is beginning a tool call. Followed by zero or more ToolCallDelta."""
     tool_call_id: str
@@ -144,12 +152,13 @@ class Done:
     """The stream is complete. `finish_reason` is one of: stop, tool_calls, length, content_filter, max_iterations."""
     finish_reason: str
 
-Event = Union[TextDelta, ToolCallStart, ToolCallDelta, UsageUpdate, Done]
+Event = Union[TextDelta, ReasoningDelta, ToolCallStart, ToolCallDelta, UsageUpdate, Done]
 ```
 
 Invariants:
 
 - `TextDelta` events arrive in order. Concatenate `text` to reconstruct the full assistant message.
+- `ReasoningDelta` events appear before `TextDelta` events during streaming from reasoning models. They carry the model's chain-of-thought in chunks. Concatenate `text` to reconstruct the full reasoning trace. Non-reasoning models do not emit these events.
 - A `ToolCallStart` is followed by zero or more `ToolCallDelta` events with the same `tool_call_id`. Concatenate `args_json` and parse the result as JSON to recover the tool call arguments.
 - `UsageUpdate` is optional. OpenAI does not emit it; Anthropic and Mock do. Callers that display token usage must tolerate its absence.
 - `Done` is always the last event. The generator exits after yielding it. If the stream ends without `Done` (network error, cancellation), the generator raises `PARInvokeError` from `next()`.

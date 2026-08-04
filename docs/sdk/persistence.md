@@ -132,6 +132,26 @@ Conversations store the full message history for a session. Each save replaces t
 | `load_conversation_fn` | none | Load a conversation by session id |
 | `load_most_recent_conversation_fn` | `?scope:string` | Load the most recently updated conversation, optionally filtered by scope |
 
+The public Runtime API exposes these as:
+
+```ocaml
+val Runtime.save_conversation :
+  runtime -> ?conversation:conversation -> ?scope:string ->
+  unit -> (unit, error_category) result
+
+val Runtime.load_most_recent_conversation :
+  runtime -> ?scope:string ->
+  unit -> ((string * Types.conversation) option, error_category) result
+```
+
+```python
+# Python binding
+rt.save_conversation(scope="workspace-123")
+rt.load_most_recent_conversation(scope="workspace-123")
+```
+
+When `scope` is set, conversations are stored under that partition and only retrievable by queries with the same scope. When omitted, the conversation is stored without a scope, visible to unscoped loads. The scope value is opaque to the runtime; it is your application's responsibility to use consistent values (workspace id, tenant id, deployment environment, and so on).
+
 ## Configuring persistence
 
 ### OCaml SDK
