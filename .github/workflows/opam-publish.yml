@@ -23,7 +23,7 @@ jobs:
 
       - run: opam install par --deps-only -y
 
-      - run: opam exec -- dune build
+      - run: opam exec -- dune build -p par
 
       - name: Generate opam files
         run: opam exec -- dune build par.opam

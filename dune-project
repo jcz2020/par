@@ -20,9 +20,16 @@
    eio
    eio_main
    uuidm
-   ppx_deriving
-   ppx_deriving_yojson
-   (ppx_deriving_jsonschema (= "0.0.1"))
+    ppx_deriving
+    ppx_deriving_yojson
+    ; ppx_deriving_jsonschema: pinned to 0.0.1 because ≥0.0.6 changed PPX code
+    ; generation from inline JSON literals to runtime primitive references
+    ; (would require `open Ppx_deriving_jsonschema_runtime.Primitives.Yojson`
+    ; in every consumer source file), and ≥0.0.7 added melange +
+    ; server-reason-react as hard dependencies — inappropriate for a pure
+    ; native OCaml project. See CHANGES.md (v0.6.7 entry) for the incident
+    ; that established this pin.
+    (ppx_deriving_jsonschema (= "0.0.1"))
    ppx_sexp_conv
    ppx_compare
     sqlite3
@@ -43,5 +50,4 @@
     csv
     sexplib0
     ctypes
-    alcotest
-    jsonschema-validation))
+    (alcotest :with-test)))

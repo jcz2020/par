@@ -41,8 +41,7 @@ depends: [
   "csv"
   "sexplib0"
   "ctypes"
-  "alcotest"
-  "jsonschema-validation"
+  "alcotest" {with-test}
   "odoc" {with-doc}
 ]
 build: [
