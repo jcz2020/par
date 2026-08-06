@@ -27,6 +27,7 @@ AGENTS.md
 .sisyphus/
 .opencode/
 .beads/
+.session/
 
 # Beads / Dolt files (added by bd init)
 .dolt/
@@ -42,6 +43,9 @@ bindings/python/par_runtime/lib/
 __pycache__/
 *.pyc
 *.pyo
+
+# Release artifacts (live on GitHub Releases, not in the source tree)
+/*.tar.gz
 
 # Beads / Dolt files (added by bd init)
 .beads/proxieddb/

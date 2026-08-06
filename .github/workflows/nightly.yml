@@ -9,10 +9,6 @@ on:
         description: "Git ref to test (default: main)"
         required: false
         default: main
-  pull_request:
-    paths:
-      - ".github/workflows/nightly.yml"
-    branches: [main]
 
 permissions: read-all
 
