@@ -1,19 +1,12 @@
 open Par
 
-let fixture_dir =
-  let d = Filename.get_temp_dir_name () ^ "/par_test_md_loader_"
-          ^ string_of_int (Unix.getpid ()) in
-  Unix.mkdir d 0o755; d
-
+let fixture_dir = Test_fixtures.create_temp_dir ~prefix:"md_loader"
 let fixture_path = Filename.concat fixture_dir "test_md_loader.md"
 
 let () =
   let oc = open_out fixture_path in
   output_string oc "---\ntitle: Hello World\n---\n\n# Hello\n\nSome content.\n";
   close_out oc
-
-let () = at_exit (fun () ->
-  try ignore (Unix.system ("rm -rf " ^ Filename.quote fixture_dir)) with _ -> ())
 
 let test_loads_md_returns_one_document () =
   let ws = Workspace.of_dir fixture_dir |> Result.get_ok in

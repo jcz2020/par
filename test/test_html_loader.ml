@@ -1,10 +1,6 @@
 open Par
 
-let fixture_dir =
-  let d = Filename.get_temp_dir_name () ^ "/par_test_html_loader_"
-          ^ string_of_int (Unix.getpid ()) in
-  Unix.mkdir d 0o755; d
-
+let fixture_dir = Test_fixtures.create_temp_dir ~prefix:"html_loader"
 let fixture_path = Filename.concat fixture_dir "test_html_loader.html"
 
 let () =
@@ -17,9 +13,6 @@ let () =
     <p>visible text here</p>\n\
     </body>\n</html>\n";
   close_out oc
-
-let () = at_exit (fun () ->
-  try ignore (Unix.system ("rm -rf " ^ Filename.quote fixture_dir)) with _ -> ())
 
 let has_substr haystack needle =
   let hlen = String.length haystack and nlen = String.length needle in

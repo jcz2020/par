@@ -5,6 +5,9 @@ let vec0_available =
   let r = (try Sqlite3.enable_load_extension db true with Failure _ -> false) in
   ignore (Sqlite3.db_close db);
   r
+
+let fixtures_dir = Test_fixtures.fixtures_dir_or_skip ()
+
 open Types
 
 let show_error (e : error_category) : string = match e with
@@ -45,7 +48,7 @@ let test_pdf_loader_to_vector_store () =
         | Error e -> Alcotest.failf "Runtime.create failed: %s" (show_error e)
         | Ok r -> r
       in
-      let ws = Workspace.of_dir (Sys.getenv "PAR_FIXTURES_DIR") |> Result.get_ok in
+      let ws = Workspace.of_dir fixtures_dir |> Result.get_ok in
       let docs =
         match Pdf_loader.make ws "sample.pdf" with
         | Error e -> Alcotest.failf "Pdf_loader: %s" (Document.load_error_to_string e)
@@ -95,14 +98,6 @@ let test_pdf_loader_to_vector_store () =
   )
 
 let () =
-  let fixtures_available = match Sys.getenv_opt "PAR_FIXTURES_DIR" with
-    | Some d -> Sys.file_exists d
-    | None -> false
-  in
-  if not fixtures_available then begin
-    print_endline "[SKIP] Set PAR_FIXTURES_DIR to enable (e2e fixture not auto-generated)";
-    exit 0
-  end;
   if not vec0_available then begin
     print_endline "[SKIP] SQLite load_extension not available";
     exit 0

@@ -1,16 +1,6 @@
 open Par
 
-let fixtures_available = match Sys.getenv_opt "PAR_FIXTURES_DIR" with
-  | Some d -> Sys.file_exists d
-  | None -> false
-
-let () =
-  if not fixtures_available then begin
-    print_endline "[SKIP] Set PAR_FIXTURES_DIR to enable (directory fixture not auto-generated)";
-    exit 0
-  end
-
-let fixtures_dir = Sys.getenv "PAR_FIXTURES_DIR"
+let fixtures_dir = Test_fixtures.fixtures_dir_or_skip ()
 
 let test_loads_mixed_directory () =
   let ws = Workspace.of_dir fixtures_dir |> Result.get_ok in

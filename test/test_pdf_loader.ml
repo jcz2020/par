@@ -1,16 +1,6 @@
 open Par
 
-let fixtures_available = match Sys.getenv_opt "PAR_FIXTURES_DIR" with
-  | Some d -> Sys.file_exists d
-  | None -> false
-
-let () =
-  if not fixtures_available then begin
-    print_endline "[SKIP] Set PAR_FIXTURES_DIR to enable (binary PDF fixture not auto-generated)";
-    exit 0
-  end
-
-let fixtures_dir = Sys.getenv "PAR_FIXTURES_DIR"
+let fixtures_dir = Test_fixtures.fixtures_dir_or_skip ()
 let sample_pdf = Filename.concat fixtures_dir "sample.pdf"
 
 let ws () = Workspace.of_dir fixtures_dir |> Result.get_ok

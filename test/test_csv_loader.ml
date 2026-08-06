@@ -1,19 +1,12 @@
 open Par
 
-let fixture_dir =
-  let d = Filename.get_temp_dir_name () ^ "/par_test_csv_loader_"
-          ^ string_of_int (Unix.getpid ()) in
-  Unix.mkdir d 0o755; d
-
+let fixture_dir = Test_fixtures.create_temp_dir ~prefix:"csv_loader"
 let fixture_path = Filename.concat fixture_dir "test_csv_loader.csv"
 
 let () =
   let oc = open_out fixture_path in
   output_string oc "name,age,city\nAlice,30,SF\nBob,25,NYC\n";
   close_out oc
-
-let () = at_exit (fun () ->
-  try ignore (Unix.system ("rm -rf " ^ Filename.quote fixture_dir)) with _ -> ())
 
 let test_header_two_data_rows_two_documents () =
   let ws = Workspace.of_dir fixture_dir |> Result.get_ok in
