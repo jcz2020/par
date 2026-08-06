@@ -1,17 +1,26 @@
 open Par
 
-let fixtures_available = Sys.file_exists "/tmp/opencode"
+(* Dynamic fixture: create the workspace + content file in a temp dir so
+   the test runs in any environment (CI, fresh opam install, tarball
+   build) instead of depending on /tmp/opencode which is a developer-
+   machine checkout of an unrelated project. *)
+let fixture_dir =
+  let d = Filename.get_temp_dir_name () ^ "/par_test_text_loader_"
+          ^ string_of_int (Unix.getpid ()) in
+  Unix.mkdir d 0o755; d
+
+let fixture_path = Filename.concat fixture_dir "test_text_loader.txt"
 
 let () =
-  if not fixtures_available then begin
-    print_endline "[SKIP] Fixtures not available at /tmp/opencode";
-    exit 0
-  end
+  let oc = open_out fixture_path in
+  output_string oc "hello world\nthis is a test file\nfor the text loader\n";
+  close_out oc
 
-let fixture_path = "/tmp/opencode/test_text_loader.txt"
+let () = at_exit (fun () ->
+  try ignore (Unix.system ("rm -rf " ^ Filename.quote fixture_dir)) with _ -> ())
 
 let test_loads_txt_returns_one_document () =
-  let ws = Workspace.of_dir "/tmp/opencode" |> Result.get_ok in
+  let ws = Workspace.of_dir fixture_dir |> Result.get_ok in
   match Text_loader.make ws fixture_path with
   | Error e -> Alcotest.failf "make failed: %s" (Document.load_error_to_string e)
   | Ok loader ->
@@ -22,7 +31,7 @@ let test_loads_txt_returns_one_document () =
     Alcotest.(check string) "source" fixture_path doc.source
 
 let test_metadata_has_file_type_and_file_name () =
-  let ws = Workspace.of_dir "/tmp/opencode" |> Result.get_ok in
+  let ws = Workspace.of_dir fixture_dir |> Result.get_ok in
   match Text_loader.make ws fixture_path with
   | Error e -> Alcotest.failf "make failed: %s" (Document.load_error_to_string e)
   | Ok loader ->
@@ -35,7 +44,7 @@ let test_metadata_has_file_type_and_file_name () =
      | _ -> Alcotest.fail "file_name not a String")
 
 let test_workspace_rejection () =
-  let ws = Workspace.of_dir "/tmp/opencode" |> Result.get_ok in
+  let ws = Workspace.of_dir fixture_dir |> Result.get_ok in
   match Text_loader.make ws "/etc/passwd" with
   | Error (Document.Workspace_rejected _) -> ()
   | Error other ->

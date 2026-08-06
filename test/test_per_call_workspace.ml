@@ -42,8 +42,8 @@ let test_config : Types.runtime_config = {
 let () = Random.self_init ()
 
 let make_temp_dir prefix =
-  let dir = Printf.sprintf "/tmp/par_v066_%s_%d_%d"
-              prefix (Unix.getpid ()) (Random.int 1_000_000) in
+  let dir = Printf.sprintf "%s/par_v066_%s_%d_%d"
+              (Filename.get_temp_dir_name ()) prefix (Unix.getpid ()) (Random.int 1_000_000) in
   Unix.mkdir dir 0o755;
   dir
 

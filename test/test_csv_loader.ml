@@ -1,17 +1,22 @@
 open Par
 
-let fixtures_available = Sys.file_exists "/tmp/opencode"
+let fixture_dir =
+  let d = Filename.get_temp_dir_name () ^ "/par_test_csv_loader_"
+          ^ string_of_int (Unix.getpid ()) in
+  Unix.mkdir d 0o755; d
+
+let fixture_path = Filename.concat fixture_dir "test_csv_loader.csv"
 
 let () =
-  if not fixtures_available then begin
-    print_endline "[SKIP] Fixtures not available at /tmp/opencode";
-    exit 0
-  end
+  let oc = open_out fixture_path in
+  output_string oc "name,age,city\nAlice,30,SF\nBob,25,NYC\n";
+  close_out oc
 
-let fixture_path = "/tmp/opencode/test_csv_loader.csv"
+let () = at_exit (fun () ->
+  try ignore (Unix.system ("rm -rf " ^ Filename.quote fixture_dir)) with _ -> ())
 
 let test_header_two_data_rows_two_documents () =
-  let ws = Workspace.of_dir "/tmp/opencode" |> Result.get_ok in
+  let ws = Workspace.of_dir fixture_dir |> Result.get_ok in
   match Csv_loader.make ws fixture_path with
   | Error e -> Alcotest.failf "make failed: %s" (Document.load_error_to_string e)
   | Ok loader ->
@@ -29,7 +34,7 @@ let test_header_two_data_rows_two_documents () =
      | _ -> Alcotest.fail "csv_city not a String")
 
 let test_row_index_in_metadata () =
-  let ws = Workspace.of_dir "/tmp/opencode" |> Result.get_ok in
+  let ws = Workspace.of_dir fixture_dir |> Result.get_ok in
   match Csv_loader.make ws fixture_path with
   | Error e -> Alcotest.failf "make failed: %s" (Document.load_error_to_string e)
   | Ok loader ->
@@ -40,7 +45,7 @@ let test_row_index_in_metadata () =
      | _ -> Alcotest.fail "row_index not an Int")
 
 let test_workspace_rejection () =
-  let ws = Workspace.of_dir "/tmp/opencode" |> Result.get_ok in
+  let ws = Workspace.of_dir fixture_dir |> Result.get_ok in
   match Csv_loader.make ws "/etc/passwd" with
   | Error (Document.Workspace_rejected _) -> ()
   | Error other ->

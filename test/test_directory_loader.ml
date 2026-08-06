@@ -1,15 +1,19 @@
 open Par
 
-let fixtures_available = Sys.file_exists "/tmp/opencode"
+let fixtures_available = match Sys.getenv_opt "PAR_FIXTURES_DIR" with
+  | Some d -> Sys.file_exists d
+  | None -> false
 
 let () =
   if not fixtures_available then begin
-    print_endline "[SKIP] Fixtures not available at /tmp/opencode";
+    print_endline "[SKIP] Set PAR_FIXTURES_DIR to enable (directory fixture not auto-generated)";
     exit 0
   end
 
+let fixtures_dir = Sys.getenv "PAR_FIXTURES_DIR"
+
 let test_loads_mixed_directory () =
-  let ws = Workspace.of_dir "/tmp/opencode" |> Result.get_ok in
+  let ws = Workspace.of_dir fixtures_dir |> Result.get_ok in
   match Directory_loader.load ws ~map:Directory_loader.default_map "dir_loader_test" with
   | Error e -> Alcotest.failf "load failed: %s" (Document.load_error_to_string e)
   | Ok docs ->
@@ -19,7 +23,7 @@ let test_loads_mixed_directory () =
     Alcotest.(check int) "expected 4 documents (txt 1 + md 1 + csv 2)" 4 n
 
 let test_unknown_extension_skipped () =
-  let ws = Workspace.of_dir "/tmp/opencode" |> Result.get_ok in
+  let ws = Workspace.of_dir fixtures_dir |> Result.get_ok in
   match Directory_loader.load ws ~map:Directory_loader.default_map "dir_loader_test" with
   | Ok docs ->
     (* The unknown.xyz file should not produce any Document *)
@@ -30,7 +34,7 @@ let test_unknown_extension_skipped () =
   | Error e -> Alcotest.failf "load failed: %s" (Document.load_error_to_string e)
 
 let test_workspace_rejection () =
-  let ws = Workspace.of_dir "/tmp/opencode" |> Result.get_ok in
+  let ws = Workspace.of_dir fixtures_dir |> Result.get_ok in
   match Directory_loader.load ws "/etc" with
   | Error (Document.Workspace_rejected _) -> ()
   | Error other ->

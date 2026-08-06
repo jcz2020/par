@@ -1,16 +1,19 @@
 open Par
 
-let fixtures_available = Sys.file_exists "/tmp/opencode"
+let fixtures_available = match Sys.getenv_opt "PAR_FIXTURES_DIR" with
+  | Some d -> Sys.file_exists d
+  | None -> false
 
 let () =
   if not fixtures_available then begin
-    print_endline "[SKIP] Fixtures not available at /tmp/opencode";
+    print_endline "[SKIP] Set PAR_FIXTURES_DIR to enable (binary PDF fixture not auto-generated)";
     exit 0
   end
 
-let sample_pdf = "/tmp/opencode/sample.pdf"
+let fixtures_dir = Sys.getenv "PAR_FIXTURES_DIR"
+let sample_pdf = Filename.concat fixtures_dir "sample.pdf"
 
-let ws () = Workspace.of_dir "/tmp/opencode" |> Result.get_ok
+let ws () = Workspace.of_dir fixtures_dir |> Result.get_ok
 
 let () =
   Alcotest.run "pdf_loader" [

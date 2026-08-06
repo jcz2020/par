@@ -1,17 +1,22 @@
 open Par
 
-let fixtures_available = Sys.file_exists "/tmp/opencode"
+let fixture_dir =
+  let d = Filename.get_temp_dir_name () ^ "/par_test_md_loader_"
+          ^ string_of_int (Unix.getpid ()) in
+  Unix.mkdir d 0o755; d
+
+let fixture_path = Filename.concat fixture_dir "test_md_loader.md"
 
 let () =
-  if not fixtures_available then begin
-    print_endline "[SKIP] Fixtures not available at /tmp/opencode";
-    exit 0
-  end
+  let oc = open_out fixture_path in
+  output_string oc "---\ntitle: Hello World\n---\n\n# Hello\n\nSome content.\n";
+  close_out oc
 
-let fixture_path = "/tmp/opencode/test_md_loader.md"
+let () = at_exit (fun () ->
+  try ignore (Unix.system ("rm -rf " ^ Filename.quote fixture_dir)) with _ -> ())
 
 let test_loads_md_returns_one_document () =
-  let ws = Workspace.of_dir "/tmp/opencode" |> Result.get_ok in
+  let ws = Workspace.of_dir fixture_dir |> Result.get_ok in
   match Markdown_loader.make ws fixture_path with
   | Error e -> Alcotest.failf "make failed: %s" (Document.load_error_to_string e)
   | Ok loader ->
@@ -22,7 +27,7 @@ let test_loads_md_returns_one_document () =
       true (String.length doc.content > 0)
 
 let test_frontmatter_title_in_metadata () =
-  let ws = Workspace.of_dir "/tmp/opencode" |> Result.get_ok in
+  let ws = Workspace.of_dir fixture_dir |> Result.get_ok in
   match Markdown_loader.make ws fixture_path with
   | Error e -> Alcotest.failf "make failed: %s" (Document.load_error_to_string e)
   | Ok loader ->
@@ -32,7 +37,7 @@ let test_frontmatter_title_in_metadata () =
      | _ -> Alcotest.fail "title not in metadata or wrong type")
 
 let test_metadata_file_type_markdown () =
-  let ws = Workspace.of_dir "/tmp/opencode" |> Result.get_ok in
+  let ws = Workspace.of_dir fixture_dir |> Result.get_ok in
   match Markdown_loader.make ws fixture_path with
   | Error e -> Alcotest.failf "make failed: %s" (Document.load_error_to_string e)
   | Ok loader ->
@@ -42,7 +47,7 @@ let test_metadata_file_type_markdown () =
      | _ -> Alcotest.fail "file_type not a String")
 
 let test_workspace_rejection () =
-  let ws = Workspace.of_dir "/tmp/opencode" |> Result.get_ok in
+  let ws = Workspace.of_dir fixture_dir |> Result.get_ok in
   match Markdown_loader.make ws "/etc/passwd" with
   | Error (Document.Workspace_rejected _) -> ()
   | Error other ->

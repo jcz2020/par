@@ -1,15 +1,18 @@
 open Par
 
-let fixtures_available = Sys.file_exists "/tmp/opencode"
+let fixtures_available = match Sys.getenv_opt "PAR_FIXTURES_DIR" with
+  | Some d -> Sys.file_exists d
+  | None -> false
 
 let () =
   if not fixtures_available then begin
-    print_endline "[SKIP] Fixtures not available at /tmp/opencode";
+    print_endline "[SKIP] Set PAR_FIXTURES_DIR to enable (binary DOCX fixture not auto-generated)";
     exit 0
   end
 
-let docx_path = "/tmp/opencode/test_docx_loader.docx"
-let bogus_path = "/tmp/opencode/test_docx_loader_bogus.docx"
+let fixtures_dir = Sys.getenv "PAR_FIXTURES_DIR"
+let docx_path = Filename.concat fixtures_dir "test_docx_loader.docx"
+let bogus_path = Filename.concat fixtures_dir "test_docx_loader_bogus.docx"
 
 let document_xml =
   "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
@@ -30,7 +33,7 @@ let () =
   output_string oc "this is not a zip file";
   close_out oc
 
-let ws () = Workspace.of_dir "/tmp/opencode" |> Result.get_ok
+let ws () = Workspace.of_dir fixtures_dir |> Result.get_ok
 
 let test_valid_docx_returns_one_document () =
   match Docx_loader.make (ws ()) docx_path with
@@ -76,7 +79,7 @@ let test_file_size_is_real_disk_size () =
      | _ -> Alcotest.fail "file_size not an Int")
 
 let test_missing_file_returns_error () =
-  match Docx_loader.make (ws ()) "/tmp/opencode/does_not_exist.docx" with
+  match Docx_loader.make (ws ()) (Filename.concat fixtures_dir "does_not_exist.docx") with
   | Error Document.File_not_found _ -> ()
   | Error other ->
     Alcotest.failf "expected File_not_found, got: %s"

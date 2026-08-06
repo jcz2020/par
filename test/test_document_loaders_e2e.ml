@@ -45,7 +45,7 @@ let test_pdf_loader_to_vector_store () =
         | Error e -> Alcotest.failf "Runtime.create failed: %s" (show_error e)
         | Ok r -> r
       in
-      let ws = Workspace.of_dir "/tmp/opencode" |> Result.get_ok in
+      let ws = Workspace.of_dir (Sys.getenv "PAR_FIXTURES_DIR") |> Result.get_ok in
       let docs =
         match Pdf_loader.make ws "sample.pdf" with
         | Error e -> Alcotest.failf "Pdf_loader: %s" (Document.load_error_to_string e)
@@ -95,8 +95,12 @@ let test_pdf_loader_to_vector_store () =
   )
 
 let () =
-  if not (Sys.file_exists "/tmp/opencode") then begin
-    print_endline "[SKIP] Fixtures not available at /tmp/opencode";
+  let fixtures_available = match Sys.getenv_opt "PAR_FIXTURES_DIR" with
+    | Some d -> Sys.file_exists d
+    | None -> false
+  in
+  if not fixtures_available then begin
+    print_endline "[SKIP] Set PAR_FIXTURES_DIR to enable (e2e fixture not auto-generated)";
     exit 0
   end;
   if not vec0_available then begin

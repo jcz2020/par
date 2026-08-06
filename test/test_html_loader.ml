@@ -1,14 +1,25 @@
 open Par
 
-let fixtures_available = Sys.file_exists "/tmp/opencode"
+let fixture_dir =
+  let d = Filename.get_temp_dir_name () ^ "/par_test_html_loader_"
+          ^ string_of_int (Unix.getpid ()) in
+  Unix.mkdir d 0o755; d
+
+let fixture_path = Filename.concat fixture_dir "test_html_loader.html"
 
 let () =
-  if not fixtures_available then begin
-    print_endline "[SKIP] Fixtures not available at /tmp/opencode";
-    exit 0
-  end
+  let oc = open_out fixture_path in
+  output_string oc "<!DOCTYPE html>\n<html>\n<head>\n\
+    <script>alert(\"test\");</script>\n\
+    <style>p { color:red; }</style>\n</head>\n<body>\n\
+    <nav>navigation</nav>\n\
+    <p>Hello World</p>\n\
+    <p>visible text here</p>\n\
+    </body>\n</html>\n";
+  close_out oc
 
-let fixture_path = "/tmp/opencode/test_html_loader.html"
+let () = at_exit (fun () ->
+  try ignore (Unix.system ("rm -rf " ^ Filename.quote fixture_dir)) with _ -> ())
 
 let has_substr haystack needle =
   let hlen = String.length haystack and nlen = String.length needle in
@@ -20,7 +31,7 @@ let has_substr haystack needle =
   go 0
 
 let test_html_strips_script_style_nav () =
-  let ws = match Workspace.of_dir "/tmp/opencode" with
+  let ws = match Workspace.of_dir fixture_dir with
     | Ok w -> w | Error _ -> Alcotest.fail "workspace creation failed"
   in
   match Html_loader.make ws fixture_path with
@@ -40,7 +51,7 @@ let test_html_strips_script_style_nav () =
       true (has_substr text "visible text here")
 
 let test_html_body_text () =
-  let ws = match Workspace.of_dir "/tmp/opencode" with
+  let ws = match Workspace.of_dir fixture_dir with
     | Ok w -> w | Error _ -> Alcotest.fail "workspace creation failed"
   in
   match Html_loader.make ws fixture_path with
@@ -59,7 +70,7 @@ let test_html_body_text () =
     | _ -> Alcotest.fail "file_type is not a String"
 
 let test_workspace_rejection () =
-  let ws = match Workspace.of_dir "/tmp/opencode" with
+  let ws = match Workspace.of_dir fixture_dir with
     | Ok w -> w | Error _ -> Alcotest.fail "workspace creation failed"
   in
   match Html_loader.make ws "/etc/passwd" with
