@@ -1,5 +1,12 @@
 # CHANGES
 
+## v0.8.5 — test mock-path portability fix (round 2)
+
+### Fixed — Test harness
+
+- **`test_mcp_client` and `test_mcp_server` failed outside the developer tree** — same root cause as v0.8.4's `test_mcp_runtime` fix, in two sibling files that were missed. Both had `mock_path` falling back to the hardcoded absolute path `/root/dev/PAR/_build/default/test/mcp_mock_server.exe` when neither `$MCP_MOCK_PATH` nor the cwd-relative candidates resolved. **Fix**: resolve `mcp_mock_server.exe` as a sibling of `Sys.executable_name` (dune builds both into the same directory), with the dev-tree path and a bare-name PATH lookup as fallbacks. Verified by copying the executables into `/tmp` and running from there: 19/19 `test_mcp_client` + 24/24 `test_mcp_server` pass.
+- **Audit context**: a deep portability sweep of all 100 `test/*.ml` files (triggered by the original reviewer report) confirmed no other CRITICAL path-resolution bugs. Other findings (`/tmp/opencode` fixture hardcoding in 8 document loader tests, overly broad macOS skip guards, tight timing margins) are tracked as P3 tech debt — they SKIP gracefully and do not block opam-repository CI.
+
 ## v0.8.4 — test_mcp_runtime mock-path portability fix
 
 ### Fixed — Test harness

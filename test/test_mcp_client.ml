@@ -23,13 +23,23 @@ let mock_path =
   match Sys.getenv_opt "MCP_MOCK_PATH" with
   | Some p -> p
   | None ->
-    let cwd = Sys.getcwd () in
-    let here = Filename.concat cwd "mcp_mock_server.exe" in
-    if Sys.file_exists here then here
+    (* test_mcp_client.exe and mcp_mock_server.exe are siblings — dune
+       builds them into the same directory. Resolve via the running
+       executable's location so the test works from any install path
+       (dev tree, opam install, opam-repository CI tarball build, etc.). *)
+    let exe_dir = Filename.dirname (Sys.executable_name) in
+    let sibling = Filename.concat exe_dir "mcp_mock_server.exe" in
+    if Sys.file_exists sibling then sibling
     else begin
-      let abs_here = Filename.concat cwd "_build/default/test/mcp_mock_server.exe" in
-      if Sys.file_exists abs_here then abs_here
-      else "/root/dev/PAR/_build/default/test/mcp_mock_server.exe"
+      let cwd = Sys.getcwd () in
+      let dev_tree = Filename.concat cwd "_build/default/test/mcp_mock_server.exe" in
+      if Sys.file_exists dev_tree then dev_tree
+      else begin
+        prerr_endline
+          "[test_mcp_client] could not locate mcp_mock_server.exe; \
+           set MCP_MOCK_PATH or run from a build tree";
+        "mcp_mock_server.exe"
+      end
     end
 
 let base_config ?(args = []) ?(env = []) ?(name = "mock") ?(startup_timeout = 10.0)
