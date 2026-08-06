@@ -1,5 +1,11 @@
 # CHANGES
 
+## v0.8.4 — test_mcp_runtime mock-path portability fix
+
+### Fixed — Test harness
+
+- **`test_mcp_runtime` failed outside the developer tree** — `mock_path` fell back to a hardcoded absolute path (`/root/dev/PAR/_build/default/test/mcp_mock_server.exe`) when neither `$MCP_MOCK_PATH` nor the cwd-relative candidates resolved. Any user installing `par` via opam and running `dune runtest` (including the opam-repository CI build matrix) hit four failures in `test_mcp_runtime` (`create with one mock server spawns`, `Log_and_continue skips bad cfg`, `close publishes Mcp_server_stopped`, `mcp_server found by id`) because the mock MCP server binary couldn't be located. **Fix**: resolve `mcp_mock_server.exe` as a sibling of `Sys.executable_name` first (dune builds both into the same directory), with the dev-tree `_build/default/test/` path and a bare-name PATH lookup as fallbacks. Verified by copying the two executables into `/tmp` and running from there (simulates a tarball-build environment): 10/10 `test_mcp_runtime` cases pass. Reported by @Sudha247 on opam-repository PR #30417.
+
 ## v0.8.3 — Reasoning model support + scope plumbing + streaming usage fix
 
 ### Fixed — Runtime persistence
