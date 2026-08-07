@@ -25,7 +25,7 @@ ask()   { printf "${BOLD}%s${NC} [%s]: " "$1" "$2" >&2; }
 
 GITHUB_REPO="jcz2020/par"
 MIN_PYTHON_MAJOR=3
-MIN_PYTHON_MINOR=8
+MIN_PYTHON_MINOR=10
 MIN_OPAM_VERSION="2.1.0"
 MIN_OCAML_VERSION="5.4"
 
