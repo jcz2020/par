@@ -93,6 +93,8 @@ let plan_read_tool rt =
 
 ## 步骤 2：在 Agent 上注册工具
 
+对步骤 1 构建的每个工具调用 `Runtime.register_tool`，传入描述符字段和处理函数：
+
 ```ocaml
 let (plan_write_desc, plan_write_handler) = plan_write_tool rt in
 let _ = Runtime.register_tool rt

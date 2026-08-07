@@ -4,7 +4,7 @@
 
 # Memory API
 
-PAR 提供一等公民的记忆抽象，用于跨会话的 agent 知识存储。此前每个需要跨会话记忆的 agent 都得自己从零实现 schema + FTS5 + CRUD + 检索。`Memory_service` 模块消除了这种重复。
+PAR 提供一等公民的记忆抽象，用于跨会话的 agent 知识存储。此前每个需要跨会话记忆的 agent 都得自己从零实现 schema + FTS5 + CRUD + 检索。`Memory_service` 模块消除了这种重复。在 `Runtime.create` 时通过 `memory_service` 参数配置它，然后用 `Runtime.memory_service` 取出，将 `get_fn` / `upsert_fn` 闭包传入你的工具。
 
 ## 概览
 
