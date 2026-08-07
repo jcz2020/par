@@ -93,6 +93,8 @@ let plan_read_tool rt =
 
 ## Step 2: Register the tools on your agent
 
+Call `Runtime.register_tool` for each tool built in Step 1, passing the descriptor fields and the handler:
+
 ```ocaml
 let (plan_write_desc, plan_write_handler) = plan_write_tool rt in
 let _ = Runtime.register_tool rt

@@ -4,7 +4,7 @@
 
 # Memory API
 
-PAR provides a first-class memory abstraction for cross-session agent knowledge. Every agent that needs to remember facts across sessions previously had to implement schema + FTS5 + CRUD + retrieval from scratch. The `Memory_service` module eliminates this duplication.
+PAR provides a first-class memory abstraction for cross-session agent knowledge. Every agent that needs to remember facts across sessions previously had to implement schema + FTS5 + CRUD + retrieval from scratch. The `Memory_service` module eliminates this duplication. Configure it at `Runtime.create` time via the `memory_service` parameter, then retrieve it with `Runtime.memory_service` to pass `get_fn` / `upsert_fn` closures into your tools.
 
 ## Overview
 
