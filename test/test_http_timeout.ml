@@ -184,15 +184,6 @@ let test_mcp_transport_notify_times_out () =
       Alcotest.fail "MCP notify succeeded against a hanging server")
 
 let () =
-  (* KNOWN ISSUE (bd PAR-jf2): this executable prints "ALL 3 TESTS PASSED"
-     yet the process exits code 1, contradicting the trailing Unix._exit 0 —
-     root cause under investigation (suspected Eio domain/switch cleanup
-     racing the exit). Nightly sets PAR_SKIP_TIMEOUT_TESTS=1 to keep the
-     suite green; remove this gate once PAR-jf2 is resolved. *)
-  if Sys.getenv_opt "PAR_SKIP_TIMEOUT_TESTS" = Some "1" then begin
-    Printf.eprintf "SKIP: test_http_timeout (known issue bd PAR-jf2)\n%!";
-    Unix._exit 0
-  end;
   Printf.eprintf "DBG: running all 3 timeout tests\n%!";
   Eio_main.run @@ fun env ->
   Http_client.set_clock (Eio.Stdenv.clock env);
