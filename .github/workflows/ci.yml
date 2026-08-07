@@ -92,7 +92,11 @@ jobs:
           else
             opam install . --deps-only --with-test --no-depexts
           fi
-      - run: opam exec -- dune build
+      # Windows: build only FFI + library (lib/ffi transitively pulls par).
+      # Bare `dune build` would also build test/ executables needing alcotest,
+      # not installed on Windows (tests skipped here — see step below). Scoped
+      # dir target is extension-agnostic across .so/.dll, unlike a file target.
+      - run: opam exec -- dune build ${{ runner.os == 'Windows' && 'lib/ffi' || '' }}
       - name: Run tests (skip on Windows — MinGW runtime startup is too slow for the full suite)
         if: runner.os != 'Windows'
         env:
