@@ -1,0 +1,50 @@
+name: Diag PAR-jf2
+
+# TEMPORARY diagnostic to isolate the "all alcotest pass but dune runtest
+# exits 1" issue (bd PAR-jf2). Delete after root-causing.
+on:
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  isolate:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: '5.4.0'
+          dune-cache: true
+          opam-local-packages: |
+            par.opam
+
+      - run: opam install . --deps-only --with-test --no-depexts -y
+
+      - run: opam exec -- dune build
+
+      - name: Serial runtest (-j 1) — find ordered culprit or confirm parallel-only
+        run: |
+          set +e
+          opam exec -- dune runtest -j 1 2>&1 | tee /tmp/serial.log
+          echo "SERIAL_EXIT=${PIPESTATUS[0]}"
+
+      - name: Parallel runtest (default -j) — reproduce + capture dune per-test report
+        if: always()
+        run: |
+          set +e
+          opam exec -- dune runtest 2>&1 | tee /tmp/parallel.log
+          echo "PARALLEL_EXIT=${PIPESTATUS[0]}"
+          echo "=== suites started vs succeeded (parallel) ==="
+          echo "started:   $(grep -c 'Testing .' /tmp/parallel.log)"
+          echo "succeeded: $(grep -c 'Test Successful' /tmp/parallel.log)"
+          echo "=== dune per-test failure lines (parallel) ==="
+          grep -iE "exited with|had exit|exit code [1-9]|-> .FAIL|Error:" /tmp/parallel.log | grep -v "Process completed" | head -30
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diag-parjf2-logs
+          path: /tmp/*.log
