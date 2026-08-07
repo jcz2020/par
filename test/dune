@@ -216,7 +216,7 @@
 
 (test
  (name test_providers)
- (libraries par eio eio_main alcotest yojson tls-eio x509 mirage-crypto-rng.unix)
+ (libraries par eio eio_main alcotest yojson tls-eio x509 mirage-crypto-rng.unix str)
  (modules test_providers)
  (action (run %{test})))
 

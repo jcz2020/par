@@ -1,5 +1,11 @@
 # CHANGES
 
+## v0.8.6 — streaming HTTP error propagation fix
+
+### Fixed — Streaming HTTP error propagation
+- **FIX** `Http_client.do_request_streaming`: non-2xx streaming responses were silently swallowed. The function extracted the HTTP status code from the cohttp response but never checked it — error bodies (JSON, not SSE) were fed to the SSE line parser, which silently skipped every line that did not match the `data:` / `event:` prefix, and the stream completed with `Ok { final_usage = zero; finish_reason = Stop; chunks_received = 0 }`. Users saw an empty response with no indication of the real cause (auth failure, rate limit, upstream 5xx). Now raises `Http_status_error (status, body)` for non-2xx, mirroring the sibling `do_request_streaming_with_flow` (which always had the check). Both `Openai_provider` and `Anthropic_provider` already had exception handlers mapping this to `error_category` via `map_http_status`; those handlers were dead code in the production streaming path and are now reachable.
+- Added 2 regression tests (`test/test_providers.ml`): `test_openai_stream_surfaces_429_as_rate_limited` and `test_anthropic_stream_surfaces_500_with_body`. Both spin up an in-process mock HTTP server (pattern adopted from `test_webhook.ml`), point the provider at it, and assert the error reaches the caller with the correct `error_category` variant. Both fail loudly with a `BUG: silent Ok` diagnostic if the regression returns.
+
 ## v0.8.5 — test mock-path portability fix (round 2)
 
 ### Fixed — Test harness

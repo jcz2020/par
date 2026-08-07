@@ -700,9 +700,113 @@ let test_anthropic_connection_refused_returns_external_failure () =
     Anthropic_provider.set_network t net;
     (match Anthropic_provider.complete t anthropic_model [] user_only_conv with
      | Ok _ -> Alcotest.fail "expected error connecting to 127.0.0.1:1"
-     | Error (External_failure _msg) -> ()
-     | Error (Internal msg) -> Alcotest.failf "expected External_failure, got Internal(%s)" msg
-     | Error e -> Alcotest.failf "expected External_failure, got %s" (show_error e))
+      | Error (External_failure _msg) -> ()
+      | Error (Internal msg) -> Alcotest.failf "expected External_failure, got Internal(%s)" msg
+      | Error e -> Alcotest.failf "expected External_failure, got %s" (show_error e))
+
+(* -------------------------------------------------------------------------- *)
+(* Streaming HTTP-error propagation regression tests                         *)
+(* -------------------------------------------------------------------------- *)
+
+(* Regression coverage for the streaming HTTP-error swallowing bug:
+   do_request_streaming previously ignored non-2xx status codes and let the
+   SSE parser silently discard the error body, returning Ok { chunks_received
+   = 0; ... } and hiding the real cause from users. These tests pin the
+   post-fix contract: a non-2xx streaming response must surface as Error
+   with the real cause mapped to the correct error_category variant. *)
+
+let with_mock_http_server env ~response f =
+  Eio.Switch.run @@ fun sw ->
+  let net = Eio.Stdenv.net env in
+  let addr = `Tcp (Eio.Net.Ipaddr.V4.loopback, 0) in
+  let server_sock = Eio.Net.listen net ~sw ~reuse_addr:true ~backlog:5 addr in
+  let port =
+    match Eio.Net.listening_addr server_sock with
+    | `Tcp (_, p) -> p
+    | _ -> Alcotest.fail "expected TCP listening address"
+  in
+  Eio.Fiber.fork_daemon ~sw (fun () ->
+    while true do
+      Eio.Net.accept_fork server_sock ~sw ~on_error:(fun _ -> ())
+        (fun flow _addr ->
+          try
+            let buf = Eio.Buf_read.of_flow flow
+              ~initial_size:4096 ~max_size:65536 in
+            let _request_line = Eio.Buf_read.line buf in
+            let rec drain_headers () =
+              let line = Eio.Buf_read.line buf in
+              if String.trim line <> "" then drain_headers ()
+            in
+            drain_headers ();
+            Eio.Flow.copy (Eio.Flow.string_source response) flow
+          with _ -> ())
+    done);
+  f (Printf.sprintf "http://127.0.0.1:%d/" port)
+
+let test_openai_stream_surfaces_429_as_rate_limited () =
+  Mirage_crypto_rng_unix.use_default ();
+  Eio_main.run @@ fun env ->
+  let response =
+    "HTTP/1.1 429 Too Many Requests\r\nContent-Length: 13\r\nConnection: close\r\n\r\nrate limited"
+  in
+  with_mock_http_server env ~response (fun url ->
+    let net = (Eio.Stdenv.net env :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
+    match
+      Openai_provider.create
+        (Openai { api_key = "sk-test"
+                ; base_url = Some url
+                ; organization = None; embedding_model = None; prompt_cache_key = None })
+    with
+    | Error e -> Alcotest.failf "create failed: %s" (show_error e)
+    | Ok t ->
+      Openai_provider.set_network t net;
+      let cb _ = () in
+      (match
+         Openai_provider.stream t openai_model [] user_only_conv default_stream_config cb
+       with
+       | Ok r ->
+         Alcotest.failf
+           "BUG: silent Ok on 429 streaming response (chunks_received=%d) — \
+            HTTP error was swallowed"
+           r.chunks_received
+       | Error Rate_limited -> ()
+       | Error e ->
+         Alcotest.failf "expected Rate_limited, got %s" (show_error e)))
+
+let test_anthropic_stream_surfaces_500_with_body () =
+  Mirage_crypto_rng_unix.use_default ();
+  Eio_main.run @@ fun env ->
+  let body = "{\"error\":\"server boom\"}" in
+  let response =
+    Printf.sprintf
+      "HTTP/1.1 500 Internal Server Error\r\nContent-Length: %d\r\nConnection: close\r\n\r\n%s"
+      (String.length body) body
+  in
+  with_mock_http_server env ~response (fun url ->
+    let net = (Eio.Stdenv.net env :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
+    match
+      Anthropic_provider.create
+        (Anthropic { api_key = "sk-ant-test"; base_url = Some url })
+    with
+    | Error e -> Alcotest.failf "create failed: %s" (show_error e)
+    | Ok t ->
+      Anthropic_provider.set_network t net;
+      let cb _ = () in
+      (match
+         Anthropic_provider.stream t anthropic_model [] user_only_conv
+           default_stream_config cb
+       with
+       | Ok r ->
+         Alcotest.failf
+           "BUG: silent Ok on 500 streaming response (chunks_received=%d) — \
+            HTTP error was swallowed"
+           r.chunks_received
+       | Error (External_failure msg) ->
+         Alcotest.(check bool) "error message carries server body" true
+           (try ignore (Str.search_forward (Str.regexp "server boom") msg 0); true
+            with _ -> false)
+       | Error e ->
+         Alcotest.failf "expected External_failure, got %s" (show_error e)))
 
 (* -------------------------------------------------------------------------- *)
 (* Edge cases                                                                *)
@@ -883,10 +987,14 @@ let () =
      "openai_eio_error_paths", [
        Alcotest.test_case "connection refused → External_failure" `Quick
          test_openai_connection_refused_returns_external_failure;
+       Alcotest.test_case "stream 429 → Rate_limited (regression: HTTP error not swallowed)" `Quick
+         test_openai_stream_surfaces_429_as_rate_limited;
      ];
      "anthropic_eio_error_paths", [
        Alcotest.test_case "connection refused → External_failure" `Quick
          test_anthropic_connection_refused_returns_external_failure;
+       Alcotest.test_case "stream 500 → External_failure with body (regression)" `Quick
+         test_anthropic_stream_surfaces_500_with_body;
      ];
     "edge_cases", [
       Alcotest.test_case "OpenAI Unicode in user message" `Quick

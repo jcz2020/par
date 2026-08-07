@@ -472,6 +472,15 @@ let do_request_streaming net url request k =
         List.map (fun (k,v) -> k ^ ": " ^ v) (Cohttp.Header.to_list (Http.Response.headers resp))
       ) in
       let r = Eio.Buf_read.of_flow ~max_size:(100 * 1024 * 1024) resp_body in
+      (* Surface non-2xx streaming responses as Http_status_error so providers
+         can map them to error_category. Without this check, error bodies
+         (JSON, not SSE) get parsed as SSE and silently discarded, returning
+         Ok { chunks_received = 0; ... } and swallowing the real cause.
+         Mirrors do_request_streaming_with_flow above (line 442-446). *)
+      if status < 200 || status >= 300 then begin
+        let body = try Eio.Buf_read.line r with _ -> "" in
+        raise (Http_status_error (status, body))
+      end;
       k ~status ~headers:headers_str ~read_line:(fun () ->
         let result =
           try Some (Eio.Buf_read.line r)
