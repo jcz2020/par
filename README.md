@@ -11,7 +11,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.8.3 — Reasoning model support + scope plumbing + streaming usage fix. 1516 tests passing.
+> **Status**: v0.8.6 — Streaming HTTP error propagation fix. 1504 tests passing.
 
 ---
 
@@ -114,7 +114,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - **Parallel multi-agent dispatch** — `Runtime.invoke_parallel` runs N agents concurrently with typed merge, per-agent workspace isolation, and per-agent approval handler overrides.
 - **Deprecation framework** — `warn_once` helper + `Deprecated_api_called` event + `[@@deprecated]` annotations + migration guides. Breaking changes no longer happen silently.
 - **Python ctypes binding** — `par_runtime` package, thread-safe, no GIL contention with OCaml runtime. Persistent Eio domain per Runtime for full concurrency support.
-- **1516 OCaml tests + Python bindings** passing (all green, including RAG e2e from any cwd)
+- **1504 OCaml tests + Python bindings** passing (all green, including RAG e2e from any cwd)
 - **Skill system** — drop a `skill.md` in `~/.par/skills/<id>/` and it auto-activates during `Runtime.invoke` based on trigger conditions (Auto / Manual / Keyword). Auto-trigger skills no longer replace the system prompt. See [Skills API](docs/sdk/skills.md).
 
 ## Language tracks
@@ -147,11 +147,11 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.8.3 — Reasoning model support (reasoning_content field + Reasoning_delta streaming variant + OpenAI provider parsing) + Runtime.save_conversation/load_most_recent_conversation ?scope plumbing through FFI to Python + OpenAI streaming usage fix (stream_options.include_usage + parser-side usage propagation).
+**Current**: v0.8.6 — Streaming HTTP error propagation fix (non-2xx streaming responses now surface real cause instead of silent empty Ok; bug existed because `Http_client.do_request_streaming` lacked the status check its sibling `do_request_streaming_with_flow` always had).
 
 **Coming next**: opam-repository submission.
 
-**Recent releases**: v0.7.10 (Streaming Architecture Overhaul) → v0.8.0-beta (HITL + Parallel multi-agent dispatch) → v0.8.1 (Memory `get_fn`/`upsert_fn` + Skill `?skills` + DECISIONS.md) → v0.8.2 (Streaming observability + Think_tag_strip middleware) → v0.8.3 (Reasoning model support + scope plumbing + streaming usage fix).
+**Recent releases**: v0.8.3 (Reasoning model support + scope plumbing + streaming usage fix) → v0.8.4 (test_mcp_runtime mock-path portability fix) → v0.8.5 (test mock-path portability fix round 2: mcp_client + mcp_server) → v0.8.6 (Streaming HTTP error propagation fix).
 
 ## Getting help
 
