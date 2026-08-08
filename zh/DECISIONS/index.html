@@ -1,0 +1,2451 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/zh/DECISIONS/">
+      
+      
+      
+      
+        
+          <link rel="alternate" href="../../DECISIONS/" hreflang="en">
+        
+          <link rel="alternate" href="./" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>DECISIONS - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#par-decisions" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../" title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              DECISIONS
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="选择当前语言">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../DECISIONS/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="分享" aria-label="分享" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../" class="md-tabs__link">
+        
+  
+  
+    
+  
+  首页
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  教程
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  实用指南
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../sdk/overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  参考
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  解释
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    首页
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    教程
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    教程
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    快速上手
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    实用指南
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    实用指南
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    并发模式
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    自定义 LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    错误处理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/rag-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    构建 RAG 管道
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../howto/plan-then-execute/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    计划-执行模式
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    参考
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    参考
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK 概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/hitl/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HITL API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/parallel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    并行分发
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/invoke_context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    invoke_context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/middleware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    中间件
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    工具
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP 客户端
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generate API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/document_loaders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    文档加载器
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    持久化 API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/prompt_caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt 缓存
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/content_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    内容块
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    可观测性
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    解释
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    解释
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    架构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/concurrency-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    并发模型
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/persistence-and-durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    持久化与可靠性
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/rag-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG 架构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explanation/faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    常见问题
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        决策索引
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        #1: 拒绝 Plan 一等公民提案
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="#1: 拒绝 Plan 一等公民提案">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        提案摘要
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        决策：拒绝（按提案形状）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        理由（4 条，均经源码 + 业界证据核验）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v09-roadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        替代方案（已纳入 v0.9-ROADMAP）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#escalation-trigger" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Escalation Trigger（何时重评）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        回退方式
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-mode-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        #2: 拒绝 Mode 一等公民提案，增强 Skill 替代
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="#2: 拒绝 Mode 一等公民提案，增强 Skill 替代">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        提案摘要
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        决策：拒绝（作为独立类型）。用 Skill 系统增强替代。
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        理由（3 条）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#skill-4-ux-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Skill 系统的 4 个真实 UX gap（需修补，不是新抽象）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#skill-e1-e3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Skill 不会因 E1-E3 过载
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#escalation-trigger-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Escalation Trigger（何时重评 Mode 作为独立类型）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        回退方式
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-p2-memory_object-last_used_at-usage_count" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        #3: 接受 P2 — 暴露 memory_object 的 last_used_at / usage_count
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="#3: 接受 P2 — 暴露 memory_object 的 last_used_at / usage_count">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        背景
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        源码核验
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        决策：接受
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        实施细节
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        回退方式
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-p3-memory_objectt-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        #4: 拒绝 P3 — memory_object.t 的 scope 字段已存在
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="#4: 拒绝 P3 — memory_object.t 的 scope 字段已存在">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        背景
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        源码核验
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        决策：拒绝（事实纠正）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        回退方式
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        附录：调研方法论
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-2-deferred-items" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2 / Deferred Items
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 2 / Deferred Items">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#p2-1-python-ffi-for-get_fn-upsert_fn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P2-1: Python FFI for get_fn / upsert_fn
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#p2-2-user_activated_skills-e4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P2-2: user_activated_skills 持久化（原 E4）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#p2-3-plan-lifecycle-memory_upserted" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P2-3: Plan lifecycle 事件（Memory_upserted）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#p2-4-opam-repository" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P2-4: opam-repository 正式审核
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<!-- language: zh -->
+<p><strong><a href="https://github.com/jcz2020/par/blob/main/docs/DECISIONS.md">English</a></strong> · 简体中文</p>
+<h1 id="par-decisions">PAR 架构决策档案 (DECISIONS)<a class="headerlink" href="#par-decisions" title="Permanent link">&para;</a></h1>
+<p><strong>目的</strong>: 记录影响公共 API、类型设计、模块结构、ROADMAP scope 的重大决策。每条决策含背景、理由、§11 R1 标注、escalation trigger、回退方式。防止未来重复讨论已决事项。</p>
+<p><strong>关联</strong>: <a href="https://github.com/jcz2020/par/blob/main/docs/STRATEGY.md">STRATEGY.md</a> §11 开发原则 | v0.9-ROADMAP.md（内部文档）</p>
+<hr />
+<h2 id="_1">决策索引<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>日期</th>
+<th>#</th>
+<th>决策</th>
+<th>性质</th>
+<th>§11 R1 标注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-07-29</td>
+<td>1</td>
+<td>拒绝 Plan 一等公民提案（按提案形状）</td>
+<td>API 级 + 架构级</td>
+<td>架构正确</td>
+</tr>
+<tr>
+<td>2026-07-29</td>
+<td>2</td>
+<td>拒绝 Mode 一等公民提案，增强 Skill 替代</td>
+<td>API 级 + 架构级</td>
+<td>架构正确</td>
+</tr>
+<tr>
+<td>2026-07-29</td>
+<td>3</td>
+<td>接受 P2：暴露 <code>memory_object</code> 的 <code>last_used_at</code> / <code>usage_count</code></td>
+<td>API 级</td>
+<td>架构正确</td>
+</tr>
+<tr>
+<td>2026-07-29</td>
+<td>4</td>
+<td>拒绝 P3：<code>memory_object.t</code> 的 <code>scope</code> 字段已存在</td>
+<td>事实纠正</td>
+<td>不适用</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-plan">#1: 拒绝 Plan 一等公民提案<a class="headerlink" href="#1-plan" title="Permanent link">&para;</a></h2>
+<p><strong>日期</strong>: 2026-07-29
+<strong>触发</strong>: 下游编码 agent 集成反馈
+<strong>调研</strong>: 5 个并行 agent（3 explore + 2 librarian）+ 两轮 Oracle 架构审查 + 源码逐行核验 + 6 框架业界对比 + 8 生产产品模式研究</p>
+<h3 id="_2">提案摘要<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<p>下游提议新增 <code>Plan</code> 类型（字段 <code>goal / approach / files_to_touch / steps / risks / status</code>），SQLite 持久化，<code>register_plan / get_plan / list_plans / update_plan_status</code> API，<code>Runtime.invoke</code> 加 <code>?plan_id</code> 参数，<code>Draft → Active → Completed/Abandoned</code> 生命周期。</p>
+<h3 id="_3">决策：拒绝（按提案形状）<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<h3 id="4">理由（4 条，均经源码 + 业界证据核验）<a class="headerlink" href="#4" title="Permanent link">&para;</a></h3>
+<p><strong>1. <code>files_to_touch</code> 是产品概念泄漏，不是 runtime 抽象</strong></p>
+<p>字段 <code>files_to_touch</code> 是编码 agent 专有概念。PAR STRATEGY.md §2 明确目标用户是"LLM 后端工程师"（覆盖全场景），不是"编码 agent 开发者"。把产品形态字段固化进 runtime 违反 §11 R4（"抛开范围是否还成立"——答案：不成立）。</p>
+<p><strong>§11 R1 标注</strong>：提案是<strong>范围妥协伪装成架构决策</strong>（把下游产品概念包装成 runtime 一等公民）。</p>
+<p><strong>2. 业界 6 大框架 + 8 大生产产品零例外用应用层工具实现 plan</strong></p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>证据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>6 大通用框架</td>
+<td>LangGraph / OpenAI Agents SDK / AutoGen / Google ADK / CrewAI / PydanticAI — <strong>0/6 有强制 Plan 类型</strong>；2/6 有 opt-in Plan（CrewAI <code>PlanStep</code>、PydanticAI <code>Planning</code> capability）</td>
+</tr>
+<tr>
+<td>4 大编码 agent</td>
+<td>LangChain open-swe（<code>plan_mode: bool</code> + <code>PlanModeExcludedTools</code> middleware + <code>/workspace/plans/*.md</code>）/ ByteDance deer-flow / HKUDS OpenSpace / claude-code-from-scratch — <strong>全部用 boolean flag + middleware + markdown 文件存储</strong>，零个用用户可注册的 runtime Plan 类型</td>
+</tr>
+<tr>
+<td>8 大生产产品</td>
+<td>Claude Code TodoWrite / Aider / Cursor / Devin / AutoGPT / LangChain v1 TodoListMiddleware / ruflo / Google Cloud Concierge — <strong>全部用应用层工具</strong>，agent 调 <code>TodoWrite(plan_items)</code> 更新 state</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键发现</strong>：编码 agent 领域 <code>plan_mode</code> / <code>permission_mode</code> 是普遍模式（open-swe / deerflow / OpenSpace / claude-code-from-scratch 都有），但全部是 <strong>(a) 布尔/短字符串 flag + (b) 硬编码模式 + (c) markdown 文件存储</strong>——零个是用户可注册的 runtime 类型。这<strong>更强力地支持</strong>"用应用层工具实现"的结论。</p>
+<p><strong>3. PAR 现有原语已覆盖 Plan 的生产实现路径</strong></p>
+<table>
+<thead>
+<tr>
+<th>Plan 需求</th>
+<th>PAR 现有覆盖</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>agent 创建/更新/读取 plan</td>
+<td><code>register_tool</code> 注册 <code>plan_read</code> / <code>plan_write</code> 工具（参考 Claude Code TodoWrite 模式）</td>
+</tr>
+<tr>
+<td>plan 跨 session 持久化</td>
+<td><code>memory_service</code>（FTS5 搜索 + SQLite 持久化），<code>scope = "plan:&lt;id&gt;"</code></td>
+</tr>
+<tr>
+<td>多 subagent 共享同一 plan</td>
+<td>同一 runtime 共享 <code>memory_service</code>，天然达成</td>
+</tr>
+<tr>
+<td>plan 进度跟踪</td>
+<td><code>task_state</code>（8 态状态机 + SQLite 持久化 + Task_* 事件）</td>
+</tr>
+<tr>
+<td>plan 编排</td>
+<td><code>workflow</code>（sequential / parallel / conditional / map_reduce）</td>
+</tr>
+</tbody>
+</table>
+<p>已验证：技术上无阻塞。设计决策：<code>memory_object.scope</code> 用 workspace-level 值（非 session-level）以跨 session 共享。</p>
+<p><strong>4. Workflow 静态 DAG 的真实 gap 不需要新 Plan 类型来解决</strong></p>
+<p>下游核心痛点之一是"workflow 不能运行时变异（agent 跑完一轮发现要改方案）"。已核验 <code>workflow_step</code> 是不可变递归 ADT，0 个 add/remove/replace API——<strong>gap 真实存在</strong>。但解决方案不是 Plan 类型，而是：
+- <strong>首选</strong>：plan 存 workflow variables，workflow 用 Conditional + 变量驱动分支（LangGraph 模式："state IS the plan"）
+- <strong>次选</strong>：bounded <code>Loop</code> step 变体（不是 mutable DAG——后者破坏 checkpoint / 确定性重放 / 并发安全三保证）
+- <strong>验证方法</strong>：2 周联合 spike（见 v0.9-ROADMAP Track D）</p>
+<h3 id="v09-roadmap">替代方案（已纳入 v0.9-ROADMAP）<a class="headerlink" href="#v09-roadmap" title="Permanent link">&para;</a></h3>
+<p>下游用 PAR 现有原语自建 <code>plan_read</code> / <code>plan_write</code> 工具——参考 Claude Code TodoWrite / LangChain v1 TodoListMiddleware 模式。PAR 侧配合做 2 周 spike 验证 workflow 能否满足"可变 plan"需求。</p>
+<h3 id="escalation-trigger">Escalation Trigger（何时重评）<a class="headerlink" href="#escalation-trigger" title="Permanent link">&para;</a></h3>
+<p>出现以下任一情况时，重新评估"是否引入 runtime Plan 类型"：</p>
+<ol>
+<li><strong>CrewAI 或 LangGraph 演进出 rich Plan 类型并成为 de-facto 标准</strong> → 季度监控</li>
+<li><strong>非编码 agent 用户请求 Plan 且 shape 不同</strong>（如研究 agent 的 hypothesis/experiment/conclusion 生命周期）→ "产品概念泄漏"论点弱化</li>
+<li><strong>2 周 spike 证明</strong>：app 层 plan 工具 + workflow + memory_service 组合<strong>无法满足</strong>下游核心需求（运行时 plan 变异 + 多 agent 共享 + 跨 session 持久化）</li>
+</ol>
+<h3 id="_4">回退方式<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<p>不适用（拒绝提案，无代码变更）。</p>
+<hr />
+<h2 id="2-mode-skill">#2: 拒绝 Mode 一等公民提案，增强 Skill 替代<a class="headerlink" href="#2-mode-skill" title="Permanent link">&para;</a></h2>
+<p><strong>日期</strong>: 2026-07-29
+<strong>触发</strong>: 同 #1
+<strong>调研</strong>: 同 #1</p>
+<h3 id="_5">提案摘要<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
+<p>下游提议 <code>Runtime</code> 和 <code>invoke_context</code> 加 <code>mode : string</code> 字段（与 <code>agent_id</code> 解耦），<code>register_mode ~id ~allowed_tools ~prompt_fragment</code> API，<code>set_mode</code> 触发 <code>Mode_entered / Mode_exited</code> 事件，mode 随 session 持久化。</p>
+<h3 id="skill">决策：拒绝（作为独立类型）。用 Skill 系统增强替代。<a class="headerlink" href="#skill" title="Permanent link">&para;</a></h3>
+<h3 id="3">理由（3 条）<a class="headerlink" href="#3" title="Permanent link">&para;</a></h3>
+<p><strong>1. Skill 系统的数据模型是 Mode 提案的超集</strong></p>
+<p>已源码核验（<code>types.mli:299-351</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>Mode 提案字段</th>
+<th>Skill 等价</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>allowed_tools</code></td>
+<td><code>skill_effect.tool_filter_overlay</code>（<code>All_tools \| Only \| Except</code>）</td>
+</tr>
+<tr>
+<td><code>prompt_fragment</code></td>
+<td><code>skill_effect.system_prompt_override</code>（<code>Stable_prompt \| Volatile_prompt \| Both_prompts</code>）</td>
+</tr>
+<tr>
+<td><code>set_mode</code></td>
+<td><code>Runtime.set_user_activated_skills rt ["id"]</code></td>
+</tr>
+<tr>
+<td><code>register_mode</code></td>
+<td><code>Runtime.register_skill rt descriptor</code></td>
+</tr>
+<tr>
+<td><code>Mode_entered / Mode_exited</code> 事件</td>
+<td><strong>缺</strong>（见下文 E2）</td>
+</tr>
+</tbody>
+</table>
+<p>Skill 组合语义：<code>tool_filter</code> = 交集（最严格者赢），<code>system_prompt_override</code> = 后者覆盖前者。</p>
+<p><strong>2. 引入 Mode 会创建与 Skill 并行的重复系统</strong></p>
+<p>§11 R1 标注：<strong>架构不正确</strong>。两套系统做同一件事（行为切换），用户须学两个，组合语义爆炸（Skill <code>tool_filter</code> 和 Mode <code>allowed_tools</code> 取交集还是并集？文档无法自洽）。违反 STRATEGY.md §3 差异化主张 #1（类型严谨）。</p>
+<p><strong>3. 业界 6 大框架零个有用户可注册的 Mode 类型</strong></p>
+<p>LangGraph（conditional edges）/ OpenAI Agents SDK（Handoffs）/ AutoGen（SelectorGroupChat）/ Google ADK（<code>RoutedAgent</code> routing function）/ CrewAI / PydanticAI — <strong>0/6 有用户可注册的 Mode 类型</strong>。通用模式是"不同行为 = 不同 agent + 路由"。</p>
+<p>注意：编码 agent 领域的 <code>permission_mode</code>（Claude Code / OpenSpace）是 mutually-exclusive 的硬编码模式，不是用户可注册类型。PAR 的 Skill（用户可注册 + 可组合）实际上<strong>比这些更灵活</strong>。</p>
+<h3 id="skill-4-ux-gap">Skill 系统的 4 个真实 UX gap（需修补，不是新抽象）<a class="headerlink" href="#skill-4-ux-gap" title="Permanent link">&para;</a></h3>
+<p>调研中发现 Skill 系统虽有 Mode 的数据模型，但 UX 有 4 个缺口：</p>
+<table>
+<thead>
+<tr>
+<th>Gap</th>
+<th>详情</th>
+<th>修复（纳入 v0.9-ROADMAP Track B）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>E1</strong></td>
+<td><code>Runtime.invoke</code> 无 <code>?skills</code> 参数（per-call 激活须调 <code>set_user_activated_skills</code>，race condition）；<code>invoke_async</code> 连 <code>?context</code> 都没有</td>
+<td>加 <code>?skills:string list</code> 到 <code>invoke</code> + <code>invoke_async</code>（~15 LOC）</td>
+</tr>
+<tr>
+<td><strong>E2</strong></td>
+<td>无 <code>Skill_activated / Skill_deactivated</code> 事件（仅有 <code>Cache_invalidated_by_skill</code>）</td>
+<td>加 2 个事件变体到 event ADT（~10 LOC）</td>
+</tr>
+<tr>
+<td><strong>E3</strong></td>
+<td>Python FFI 未暴露 <code>set_user_activated_skills</code>（Python 用户<strong>完全不能</strong>激活 Manual skill）</td>
+<td>加 <code>par_set_user_activated_skills</code> callback + Python binding（~30 LOC）</td>
+</tr>
+<tr>
+<td><strong>E4</strong></td>
+<td><code>user_activated_skills</code> 未持久化（进程重启即丢）</td>
+<td><strong>延后</strong>——等 session 抽象一等公民化（当前 session 是隐式 string tag，无 session 表）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>E1 重要修正</strong>（Oracle 终审发现）：原以为"无 race-free per-call 激活路径"，实际 <code>?context:invoke_context</code> + <code>Invoke_context.create ~skills:[...]</code> 已提供（<code>runtime.ml:727-728</code> 尊重 caller 传入的 context，<code>runtime.ml:774</code> 从 <code>ctx</code> 而非 <code>rt</code> 读 skills）。E1 是<strong>人机工程学补全</strong>（caller 自建 context 会丢失 runtime 的 session_id / hooks 自动快照），不是能力缺口。</p>
+<h3 id="skill-e1-e3">Skill 不会因 E1-E3 过载<a class="headerlink" href="#skill-e1-e3" title="Permanent link">&para;</a></h3>
+<p>Oracle 终审：E1-E3 不增加新概念职责，只补全现有激活/观察/FFI 生命周期。Skill 蠕变（creep）只在未来添加正交职责（路由、中间件组合）时才发生。E1-E3 不触发。</p>
+<h3 id="escalation-trigger-mode">Escalation Trigger（何时重评 Mode 作为独立类型）<a class="headerlink" href="#escalation-trigger-mode" title="Permanent link">&para;</a></h3>
+<p>出现以下<strong>特定</strong>情况时，Mode 作为独立状态机类型才架构正当：</p>
+<blockquote>
+<p>下游需要 <strong>用户可注册、动态定义、带类型化转换守卫的互斥行为状态</strong>——例如"未经过 review-mode 不能进 ship-mode"，或"同一时刻只能激活一个 mode 且有禁转表"。</p>
+</blockquote>
+<p><strong>关键</strong>：Skill 的可组合模型（交集/并集）对互斥状态机在结构上是错的。这是 Skill 增强无法覆盖的唯一场景。</p>
+<p><strong>注意</strong>：编码 agent 领域的 <code>permission_mode</code>（Claude Code / OpenSpace）是互斥的，但都是<strong>硬编码</strong>（非用户可注册）。若下游只需硬编码互斥模式（plan / default / accept_edits），Skill + <code>?skills</code> 参数 + 约定已覆盖——不需要 Mode 类型。</p>
+<h3 id="_6">回退方式<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
+<p>不适用（拒绝提案，无代码变更）。E1-E3 是 Skill 系统增强，独立可回退。</p>
+<hr />
+<h2 id="3-p2-memory_object-last_used_at-usage_count">#3: 接受 P2 — 暴露 <code>memory_object</code> 的 <code>last_used_at</code> / <code>usage_count</code><a class="headerlink" href="#3-p2-memory_object-last_used_at-usage_count" title="Permanent link">&para;</a></h2>
+<p><strong>日期</strong>: 2026-07-29
+<strong>触发</strong>: 同 #1
+<strong>版本</strong>: v0.8.0-beta 吸收</p>
+<h3 id="_7">背景<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h3>
+<p>下游反馈 "<code>Memory_object.t</code> 暴露 <code>last_used_at</code> / <code>usage_count</code>（Sqlite_memory 内部已维护，只是 type 没暴露）"。</p>
+<h3 id="_8">源码核验<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>证据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sqlite_memory.ml:90-91</code></td>
+<td>schema 有 <code>last_used_at REAL</code> + <code>usage_count INTEGER</code></td>
+</tr>
+<tr>
+<td><code>sqlite_memory.ml:339-340</code></td>
+<td><code>bump_usage</code> 每次检索都 <code>UPDATE memory_entries SET usage_count = usage_count + 1, last_used_at = ?</code></td>
+</tr>
+<tr>
+<td><code>sqlite_memory.ml:217,221</code></td>
+<td><code>row_to_memory</code> 读取但用 <code>_last_used_at</code> / <code>_usage_count</code> 前缀丢弃</td>
+</tr>
+<tr>
+<td><code>sqlite_memory.ml:583,595</code></td>
+<td><code>list_all</code> 排序用 <code>ORDER BY last_used_at DESC NULLS LAST, usage_count DESC</code></td>
+</tr>
+<tr>
+<td><code>memory_object.mli:1-11</code></td>
+<td>公开 type <strong>无</strong>这两字段</td>
+</tr>
+</tbody>
+</table>
+<p><strong>结论</strong>：内部记账泄漏到外部影响排序行为、却不让外部读——合法 fix。</p>
+<h3 id="_9">决策：接受<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h3>
+<h3 id="_10">实施细节<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>memory_object.mli</code> + <code>.ml</code> 加 2 字段：<code>last_used_at : float option</code> + <code>usage_count : int</code></li>
+<li><code>sqlite_memory.ml:row_to_memory</code> 去掉 <code>_</code> 前缀，填入返回的 record</li>
+<li><code>to_yojson</code> / <code>of_yojson</code> 跟新（<code>[@@deriving yojson]</code> 自动）</li>
+<li>不需 schema migration（列已存在）</li>
+</ul>
+<p><strong>§11 R1 标注</strong>：架构正确（暴露已维护数据，R5 适用——不是架构决策，是 bug fix 性质）。
+<strong>SemVer</strong>：MINOR（新增公开字段）。v0.8.0-beta 吸收。
+<strong>工作量</strong>：~20 LOC + 1 个测试。</p>
+<h3 id="_11">回退方式<a class="headerlink" href="#_11" title="Permanent link">&para;</a></h3>
+<p>移除 2 字段，恢复 <code>_</code> 前缀。</p>
+<hr />
+<h2 id="4-p3-memory_objectt-scope">#4: 拒绝 P3 — <code>memory_object.t</code> 的 <code>scope</code> 字段已存在<a class="headerlink" href="#4-p3-memory_objectt-scope" title="Permanent link">&para;</a></h2>
+<p><strong>日期</strong>: 2026-07-29
+<strong>触发</strong>: 同 #1</p>
+<h3 id="_12">背景<a class="headerlink" href="#_12" title="Permanent link">&para;</a></h3>
+<p>下游反馈 "<code>Memory_object.t</code> 增 <code>scope : string</code> 字段（schema 有，type 漏了）"。</p>
+<h3 id="_13">源码核验<a class="headerlink" href="#_13" title="Permanent link">&para;</a></h3>
+<p><code>memory_object.mli</code> 第 5 行（直读确认）：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">type</span> <span class="n">memory_object</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  <span class="n">id</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  <span class="n">content</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  <span class="n">summary</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  <span class="n">scope</span> <span class="o">:</span> <span class="kt">string</span> <span class="n">option</span><span class="o">;</span>        <span class="c">(* ← 已存在 *)</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  <span class="n">metadata</span> <span class="o">:</span> <span class="o">(</span><span class="kt">string</span> <span class="o">*</span> <span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span><span class="o">)</span> <span class="kt">list</span><span class="o">;</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  <span class="n">categories</span> <span class="o">:</span> <span class="kt">string</span> <span class="kt">list</span><span class="o">;</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  <span class="n">created_at</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  <span class="n">updated_at</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  <span class="n">source</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="o">}</span>
+</span></code></pre></div>
+<h3 id="_14">决策：拒绝（事实纠正）<a class="headerlink" href="#_14" title="Permanent link">&para;</a></h3>
+<p>下游报告事实错误。<code>scope</code> 字段自 v0.7.1 起已存在于 <code>memory_object.t</code>。建议回信时附文件:行号让下游核实——可能看的是旧版本，或与 P2（<code>last_used_at</code> / <code>usage_count</code>，确实漏了）混在一封信里写错了。</p>
+<h3 id="_15">回退方式<a class="headerlink" href="#_15" title="Permanent link">&para;</a></h3>
+<p>不适用。</p>
+<hr />
+<h2 id="_16">附录：调研方法论<a class="headerlink" href="#_16" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>方法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>源码核验</td>
+<td>Oracle 直读 <code>types.mli</code> / <code>runtime.ml</code> / <code>runtime.mli</code> / <code>sqlite_memory.ml</code> / <code>memory_object.mli</code> / <code>invoke_context.mli</code> / <code>workflow_engine.ml</code>，所有 load-bearing claim 逐行验证</td>
+</tr>
+<tr>
+<td>业界对比</td>
+<td>6 大通用框架（LangGraph / OpenAI Agents SDK / AutoGen / Google ADK / CrewAI / PydanticAI）官方文档 + GitHub 源码（带 commit SHA）</td>
+</tr>
+<tr>
+<td>生产模式</td>
+<td>8 大生产产品（Claude Code TodoWrite / Aider / Cursor / Devin / AutoGPT / LangChain v1 TodoListMiddleware / ruflo / Google Cloud Concierge）实际代码（带 URL）</td>
+</tr>
+<tr>
+<td>编码 agent 专项</td>
+<td>LangChain open-swe / ByteDance deer-flow / HKUDS OpenSpace / claude-code-from-scratch（<code>plan_mode</code> / <code>permission_mode</code> 模式核验）</td>
+</tr>
+<tr>
+<td>架构审查</td>
+<td>两轮 Oracle（架构审查 3m34s + 怀疑论终审 4m14s），§11 R1-R5 标注逐条验证</td>
+</tr>
+<tr>
+<td>自我修正</td>
+<td>E1（per-call skill 激活）原分析有误，Oracle 终审发现 <code>?context</code> + <code>Invoke_context.create ~skills</code> 已提供 race-free 路径，已公开修正</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="phase-2-deferred-items">Phase 2 / Deferred Items<a class="headerlink" href="#phase-2-deferred-items" title="Permanent link">&para;</a></h2>
+<p>以下项目在 v0.8.1/v0.8.2 中明确标注为延后，记录于此防止遗忘。每项含退役触发条件。</p>
+<h3 id="p2-1-python-ffi-for-get_fn-upsert_fn">P2-1: Python FFI for <code>get_fn</code> / <code>upsert_fn</code><a class="headerlink" href="#p2-1-python-ffi-for-get_fn-upsert_fn" title="Permanent link">&para;</a></h3>
+<p><strong>状态</strong>：延后。OCaml SDK 路径已验证（<code>Runtime.memory_service</code> + <code>get_fn</code>/<code>upsert_fn</code>），Python 路径缺 4 层 FFI bridge。
+<strong>影响</strong>：Python 用户无法精确查询/稳定更新 memory entry（只能用 FTS5 search 或 list_all + filter）。
+<strong>工作量</strong>：~1h（照抄 <code>set_user_activated_skills</code> 的 5 层 FFI 模式）。
+<strong>触发</strong>：下游 Python 用户明确需要 plan_read/plan_write 工具时。</p>
+<h3 id="p2-2-user_activated_skills-e4">P2-2: <code>user_activated_skills</code> 持久化（原 E4）<a class="headerlink" href="#p2-2-user_activated_skills-e4" title="Permanent link">&para;</a></h3>
+<p><strong>状态</strong>：延后（§11 R2 范围妥协，合规）。
+<strong>影响</strong>：进程重启后 skill 激活态丢失（conversation 持久化了但 skill overlay 没有）。
+<strong>依赖</strong>：session 一等公民化（当前 session 是隐式 string tag，无 session 表）。
+<strong>触发</strong>：session 一等公民化启动时。</p>
+<h3 id="p2-3-plan-lifecycle-memory_upserted">P2-3: Plan lifecycle 事件（<code>Memory_upserted</code>）<a class="headerlink" href="#p2-3-plan-lifecycle-memory_upserted" title="Permanent link">&para;</a></h3>
+<p><strong>状态</strong>：延后。
+<strong>影响</strong>：下游想订阅 plan 变更事件（实时 UI 显示 plan 进度）当前做不到——upsert 不发射 event_bus 事件。
+<strong>设计决策待定</strong>：(a) 是否所有 upsert 都发事件（可能嘈杂），(b) 是否只对 <code>scope = "plan:*"</code> 发，(c) 是否需要 throttle。
+<strong>工作量</strong>：~10 LOC（event 变体 + 发射），但需先确认设计。
+<strong>触发</strong>：下游明确需要 plan 变更订阅时。</p>
+<h3 id="p2-4-opam-repository">P2-4: opam-repository 正式审核<a class="headerlink" href="#p2-4-opam-repository" title="Permanent link">&para;</a></h3>
+<p><strong>状态</strong>：等待外部审核（不可控）。
+<strong>影响</strong>：用户不能 <code>opam install par</code> 直接安装（需 <code>opam pin add</code>）。
+<strong>bd issue</strong>：PAR-hbt（P3）。
+<strong>触发</strong>：ocaml/opam-repository 维护者 merge PR 后自动解决。</p>
+<hr />
+<p><strong>最后更新</strong>: 2026-08-04</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
