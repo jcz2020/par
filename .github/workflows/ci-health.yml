@@ -45,7 +45,7 @@ jobs:
           # comment OUTSIDE the single-quoted jq program below — an apostrophe
           # inside it terminates the string and breaks jq.
           fails=$(gh run list --branch main --limit 30 \
-                  --json status,conclusion,workflowName,createdAt,htmlUrl \
+                  --json status,conclusion,workflowName,createdAt,url \
                   | jq --arg c "$cutoff" '[.[] | select(.createdAt >= $c
                       and (.conclusion == "failure" or .conclusion == "cancelled")
                       and .workflowName != "CI Health")]
@@ -55,7 +55,7 @@ jobs:
             echo "## Probe 1 - CI failures on main: $count in last 24h"; echo
             if [ "$count" -gt 0 ]; then
               echo "status=FAIL" >> "$GITHUB_OUTPUT"
-              echo "$fails" | jq -r '.[] | "- [\(.workflowName)](\(.htmlUrl)) - \(.conclusion) @ \(.createdAt)"'
+              echo "$fails" | jq -r '.[] | "- [\(.workflowName)](\(.url)) - \(.conclusion) @ \(.createdAt)"'
             else
               echo "status=PASS" >> "$GITHUB_OUTPUT"
               echo "(none)"
