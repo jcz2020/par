@@ -42,7 +42,11 @@ jobs:
           fails=$(gh run list --branch main --limit 30 \
                   --json status,conclusion,workflowName,createdAt,htmlUrl \
                   | jq --arg c "$cutoff" '[.[] | select(.createdAt >= $c
-                      and (.conclusion == "failure" or .conclusion == "cancelled"))]
+                      and (.conclusion == "failure" or .conclusion == "cancelled")
+                      # Exclude this workflow itself: a red ci-health run is a
+                      # *symptom*, not a CI failure — counting it would create a
+                      # self-sustaining loop (each failure seeds the next day's window).
+                      and .workflowName != "CI Health")]
                       | sort_by(.createdAt) | reverse')
           count=$(echo "$fails" | jq 'length')
           {
