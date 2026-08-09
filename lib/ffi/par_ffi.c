@@ -411,6 +411,14 @@ int par_set_user_activated_skills(par_runtime_t* rt, const char* skills_json) {
     CAMLreturnT(int, rc);
 }
 
+char* par_get_user_activated_skills(par_runtime_t* rt) {
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value result = call1_exn("par_get_user_activated_skills", rt->_ocaml_value);
+    char* ret = extract_string(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    return ret;
+}
+
 char* par_list_llm_providers(par_runtime_t* rt) {
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call1_exn("par_list_llm_providers", rt->_ocaml_value);

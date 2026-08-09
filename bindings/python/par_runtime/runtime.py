@@ -423,6 +423,17 @@ class Runtime:
     def clear_user_activated_skills(self) -> None:
         self.set_user_activated_skills([])
 
+    def get_user_activated_skills(self) -> list[str]:
+        self._check_handle()
+        ptr = _lib.par_get_user_activated_skills(self._handle)
+        if not ptr:
+            return []
+        try:
+            raw = ctypes.cast(ptr, ctypes.c_char_p).value.decode("utf-8")
+            return json.loads(raw) if raw else []
+        finally:
+            _free(ptr)
+
     def list_llm_providers(self) -> list[str]:
         """List registered LLM provider ids (v0.5.4 PAR-tiu)."""
         self._check_handle()

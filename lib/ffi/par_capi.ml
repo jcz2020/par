@@ -894,6 +894,16 @@ let do_set_user_activated_skills (state_id : int) (skills_json : string) =
          fd_log ("[do_set_user_activated_skills] EXCEPTION: " ^ Printexc.to_string exc);
          Obj.repr (-1)))
 
+let do_get_user_activated_skills (state_id : int) : string =
+  match get_state state_id with
+  | None -> "[]"
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      let skills = Par.Runtime.get_user_activated_skills rt in
+      let json_items = List.map (fun s -> `String s) skills in
+      Obj.repr (Yojson.Safe.to_string (`List json_items))) in
+    Obj.obj result
+
 let do_invoke (state_id : int) (agent_id : string) (message : string)
     ?save ?update_current () =
   match get_state state_id with
@@ -1772,6 +1782,12 @@ let () =
       let state_id : int = Obj.magic state_id_obj in
       let skills_json : string = Obj.magic skills_json_obj in
       do_set_user_activated_skills state_id skills_json)
+
+let () =
+  Callback.register "par_get_user_activated_skills"
+    (fun (state_id_obj : Obj.t) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_get_user_activated_skills state_id)
 
 let do_set_session_id (state_id : int) (sid : string) : unit =
   match get_state state_id with

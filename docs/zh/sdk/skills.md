@@ -455,6 +455,7 @@ Runtime.invoke rt ~agent_id:"coder" ~message:"实现 X" ~skills:["plan-mode"] ()
 rt.set_user_activated_skills(["plan-mode", "debug-mode"])
 rt.invoke("coder", "实现 X")
 rt.clear_user_activated_skills()
+rt.get_user_activated_skills()   # -> []（清除后）
 ```
 
 ---

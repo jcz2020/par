@@ -455,6 +455,7 @@ Subscribe via the event bus to audit mode transitions.
 rt.set_user_activated_skills(["plan-mode", "debug-mode"])
 rt.invoke("coder", "implement X")
 rt.clear_user_activated_skills()
+rt.get_user_activated_skills()   # -> [] (after clear)
 ```
 
 ---

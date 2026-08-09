@@ -31,6 +31,7 @@ int par_register_agent(par_runtime_t* rt, const char* config_json);
 int par_register_skill(par_runtime_t* rt, const char* json);
 char* par_list_skills(par_runtime_t* rt);
 int par_set_user_activated_skills(par_runtime_t* rt, const char* skills_json);
+char* par_get_user_activated_skills(par_runtime_t* rt);
 
 /* LLM provider registry (v0.5.4 PAR-tiu) */
 char* par_list_llm_providers(par_runtime_t* rt);

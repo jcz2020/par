@@ -58,5 +58,38 @@ class TestSkillRegistration(unittest.TestCase):
             self.assertIn("description", s)
 
 
+class TestSkillActivation(unittest.TestCase):
+
+    def test_get_empty_initially(self):
+        with Runtime(_test_config()) as rt:
+            self.assertEqual(rt.get_user_activated_skills(), [])
+
+    def test_set_then_get_roundtrip(self):
+        with Runtime(_test_config()) as rt:
+            rt.set_user_activated_skills(["plan-mode", "debug-mode"])
+            self.assertEqual(
+                sorted(rt.get_user_activated_skills()),
+                ["debug-mode", "plan-mode"])
+
+    def test_clear_empties_activation_set(self):
+        with Runtime(_test_config()) as rt:
+            rt.set_user_activated_skills(["plan-mode"])
+            self.assertEqual(rt.get_user_activated_skills(), ["plan-mode"])
+            rt.clear_user_activated_skills()
+            self.assertEqual(rt.get_user_activated_skills(), [])
+
+    def test_set_replaces_not_appends(self):
+        with Runtime(_test_config()) as rt:
+            rt.set_user_activated_skills(["a", "b"])
+            rt.set_user_activated_skills(["c"])
+            self.assertEqual(rt.get_user_activated_skills(), ["c"])
+
+    def test_set_empty_equivalent_to_clear(self):
+        with Runtime(_test_config()) as rt:
+            rt.set_user_activated_skills(["x"])
+            rt.set_user_activated_skills([])
+            self.assertEqual(rt.get_user_activated_skills(), [])
+
+
 if __name__ == "__main__":
     unittest.main()
