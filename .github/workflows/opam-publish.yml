@@ -34,7 +34,9 @@ jobs:
           git archive --format=tar.gz --prefix="par-${VERSION}/" -o "par-${VERSION}.tar.gz" HEAD
 
       - name: Generate SHA-512 checksums
-        run: sha512sum par-*.tar.gz > sha512-checksums.txt
+        # -opam suffix avoids a --clobber collision with pypi-publish.yml's
+        # sha512-checksums.txt (bd PAR-bhf: last writer won, tarball checksum lost).
+        run: sha512sum par-*.tar.gz > sha512-checksums-opam.txt
 
       - name: Upload opam archive to existing GH Release
         # NOTE: do NOT use softprops/action-gh-release@v2 here — that would race
@@ -58,7 +60,7 @@ jobs:
             --clobber \
             par-*.tar.gz \
             _build/default/par.opam \
-            sha512-checksums.txt
+            sha512-checksums-opam.txt
 
       - name: Print manual instructions
         env:
