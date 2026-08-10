@@ -11,7 +11,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.8.6 — Streaming HTTP error propagation fix. 1504 tests passing.
+> **Status**: v0.9.0 — Skill activation API completion. 1504 tests passing.
 
 ---
 
@@ -147,11 +147,11 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.8.6 — Streaming HTTP error propagation fix (non-2xx streaming responses now surface real cause instead of silent empty Ok; bug existed because `Http_client.do_request_streaming` lacked the status check its sibling `do_request_streaming_with_flow` always had).
+**Current**: v0.9.0 — Skill activation API completion (`get_user_activated_skills` Python FFI wired through full stack, completing the set/clear/get API surface; also fixes release-infrastructure sha512 checksum collision and cancels the Plan/Goal spike).
 
 **Coming next**: opam-repository submission.
 
-**Recent releases**: v0.8.3 (Reasoning model support + scope plumbing + streaming usage fix) → v0.8.4 (test_mcp_runtime mock-path portability fix) → v0.8.5 (test mock-path portability fix round 2: mcp_client + mcp_server) → v0.8.6 (Streaming HTTP error propagation fix).
+**Recent releases**: v0.8.3 (Reasoning model support + scope plumbing + streaming usage fix) → v0.8.4 (test_mcp_runtime mock-path portability fix) → v0.8.5 (test mock-path portability fix round 2) → v0.8.6 (Streaming HTTP error propagation fix) → v0.9.0 (Skill activation API completion).
 
 ## Getting help
 
