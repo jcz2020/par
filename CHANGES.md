@@ -1,5 +1,20 @@
 # CHANGES
 
+## v0.9.0-beta.20260810 — Skill activation API completion + CI fix
+
+### Added — Python FFI
+- **NEW** `Runtime.get_user_activated_skills() -> list[str]`: returns the currently manually-activated skill ids. Completes the Skill activation API surface (`set`/`clear` shipped in v0.8.1; the getter was specified in the original Track B3 plan but was missing from the C FFI + Python binding). Wired through the full stack: OCaml callback (`par_capi.ml`) → C bridge (`par_ffi.c`/`.h`: `char* par_get_user_activated_skills`) → ctypes signature (`_ffi.py`) → Python wrapper (`runtime.py`). Follows the established `par_list_skills` `char*`-return pattern (caller frees via `_free`).
+- 5 new `TestSkillActivation` tests in `bindings/python/tests/test_skill.py`: initial-empty, set-then-get roundtrip, clear-empties, set-replaces-not-appends, set-empty-equivalent-to-clear.
+
+### Fixed — Release infrastructure
+- **FIX** `opam-publish.yml` + `pypi-publish.yml` checksum collision (bd PAR-bhf): both workflows uploaded `sha512-checksums.txt` to the same GitHub Release via `--clobber`, causing a last-writer-wins race. Verified on v0.8.6: the release asset contained only wheel checksums, the opam tarball checksum was silently lost. Fix: `opam-publish.yml` now emits `sha512-checksums-opam.txt` (tarball); `pypi-publish.yml` keeps `sha512-checksums.txt` (wheels). The two filenames no longer collide. Takes effect from this release forward.
+
+### Changed — Documentation
+- DECISIONS.md #5: cancelled the Plan/Goal spike (v0.9 Track D). The 2-week joint research was planned to evaluate whether the SDK needs a runtime-mutable plan abstraction. Cancelled because #1's research (6/6 frameworks + 8/8 production products, zero exceptions use app-layer tools) already settled the question. SDK does not do product concepts — Plan/Goal fields are product-layer decisions. PAR's existing primitives (`register_tool` + `memory_service` + `workflow`) fully cover the use case. The only separable sub-issue (bounded `Loop` workflow step) is a control-flow primitive, not plan semantics, and will be evaluated independently if iteration demand arises.
+
+### Note on version numbering
+The v0.9.0 MINOR bump retroactively marks the Skill UX era. Tracks A (memory_object fields) and B (`?skills` param, `Skill_activated`/`Skill_deactivated` events, Python FFI `set`/`clear_user_activated_skills`) were implemented on 2026-07-29 and shipped across v0.8.1–v0.8.6 as patch releases. The MINOR bump that should have accompanied them never materialized. This release catches up the version number and adds the missing `get_user_activated_skills` getter to complete the API surface.
+
 ## v0.8.6 — streaming HTTP error propagation fix
 
 ### Fixed — Streaming HTTP error propagation
