@@ -107,13 +107,18 @@ def main() -> int:
 
     # Level 1: import + version match (BLOCKING)
     print("\n=== Level 1: import + version (MUST pass) ===")
-    # Avoid f-string / quote conflict by using a plain string + assertions
-    # outside the embedded code, plus a clean repr()-based error message.
+    # __version__ is synced from dune-project (SemVer: "0.9.0-beta.20260810") while
+    # the expected version is PEP 440 normalized by the workflow ("0.9.0b20260810").
+    # Compare via packaging.version.Version which normalizes both to the same form.
     code = (
         "import par_runtime\n"
         f"_v = par_runtime.__version__\n"
         f"_e = {expected_version!r}\n"
-        f"assert _v == _e, 'version mismatch: ' + repr(_v) + ' != ' + repr(_e)\n"
+        "try:\n"
+        "    from packaging.version import Version\n"
+        "    assert Version(_v) == Version(_e), 'version mismatch: ' + repr(_v) + ' != ' + repr(_e)\n"
+        "except ImportError:\n"
+        "    assert _v == _e, 'version mismatch: ' + repr(_v) + ' != ' + repr(_e)\n"
         "print('import ok, version', _v)\n"
     )
     rc, out, err = run_in_venv(venv_python, code)
