@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.9.0-beta.20260810 — Skill activation API completion + CI fix
+## v0.9.0 — Skill activation API completion + CI fix
 
 ### Added — Python FFI
 - **NEW** `Runtime.get_user_activated_skills() -> list[str]`: returns the currently manually-activated skill ids. Completes the Skill activation API surface (`set`/`clear` shipped in v0.8.1; the getter was specified in the original Track B3 plan but was missing from the C FFI + Python binding). Wired through the full stack: OCaml callback (`par_capi.ml`) → C bridge (`par_ffi.c`/`.h`: `char* par_get_user_activated_skills`) → ctypes signature (`_ffi.py`) → Python wrapper (`runtime.py`). Follows the established `par_list_skills` `char*`-return pattern (caller frees via `_free`).
