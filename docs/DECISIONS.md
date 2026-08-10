@@ -14,6 +14,7 @@
 | 2026-07-29 | 2 | 拒绝 Mode 一等公民提案，增强 Skill 替代 | API 级 + 架构级 | 架构正确 |
 | 2026-07-29 | 3 | 接受 P2：暴露 `memory_object` 的 `last_used_at` / `usage_count` | API 级 | 架构正确 |
 | 2026-07-29 | 4 | 拒绝 P3：`memory_object.t` 的 `scope` 字段已存在 | 事实纠正 | 不适用 |
+| 2026-08-09 | 5 | 取消 Plan/Goal spike（v0.9 Track D）：调研已充分，SDK 不做产品概念 | 范围级 | 架构正确 |
 
 ---
 
@@ -64,11 +65,11 @@
 下游核心痛点之一是"workflow 不能运行时变异（agent 跑完一轮发现要改方案）"。已核验 `workflow_step` 是不可变递归 ADT，0 个 add/remove/replace API——**gap 真实存在**。但解决方案不是 Plan 类型，而是：
 - **首选**：plan 存 workflow variables，workflow 用 Conditional + 变量驱动分支（LangGraph 模式："state IS the plan"）
 - **次选**：bounded `Loop` step 变体（不是 mutable DAG——后者破坏 checkpoint / 确定性重放 / 并发安全三保证）
-- **验证方法**：2 周联合 spike（见 v0.9-ROADMAP Track D）
+- **验证方法**：~~2 周联合 spike~~（**已取消，见 #5**）——调研结论已充分，app 层工具方案被业界 6/6 框架 + 8/8 生产产品验证
 
-### 替代方案（已纳入 v0.9-ROADMAP）
+### 替代方案（app 层工具模式——业界标准做法）
 
-下游用 PAR 现有原语自建 `plan_read` / `plan_write` 工具——参考 Claude Code TodoWrite / LangChain v1 TodoListMiddleware 模式。PAR 侧配合做 2 周 spike 验证 workflow 能否满足"可变 plan"需求。
+下游用 PAR 现有原语自建 `plan_read` / `plan_write` 工具——参考 Claude Code TodoWrite / LangChain v1 TodoListMiddleware 模式。这是 6/6 业界框架的标准做法，不需要 SDK 侧配合验证。
 
 ### Escalation Trigger（何时重评）
 
@@ -76,7 +77,7 @@
 
 1. **CrewAI 或 LangGraph 演进出 rich Plan 类型并成为 de-facto 标准** → 季度监控
 2. **非编码 agent 用户请求 Plan 且 shape 不同**（如研究 agent 的 hypothesis/experiment/conclusion 生命周期）→ "产品概念泄漏"论点弱化
-3. **2 周 spike 证明**：app 层 plan 工具 + workflow + memory_service 组合**无法满足**下游核心需求（运行时 plan 变异 + 多 agent 共享 + 跨 session 持久化）
+3. **下游实测反馈**：app 层 plan 工具 + workflow + memory_service 组合**无法满足**下游核心需求（运行时 plan 变异 + 多 agent 共享 + 跨 session 持久化）——需下游提供具体用例证明现有原语不够（非假设性问题）
 
 ### 回退方式
 
@@ -230,6 +231,37 @@ type memory_object = {
 ### 回退方式
 
 不适用。
+
+---
+
+## #5: 取消 Plan/Goal spike（v0.9 Track D）
+
+**日期**: 2026-08-09
+**触发**: 战略复盘——v0.9.0 ROADMAP 新鲜度核实后发现 Track A+B 已以 v0.8.1 发出，仅 Track D spike 未启动
+
+### 背景
+
+v0.9-ROADMAP Track D 规划了 2 周 Plan/Goal spike（联合下游），验证三个 option：(A) bounded `Loop` step、(B) 中性 `Goal` 类型、(C) 维持现状 + 文档。
+
+### 决策：取消 spike，SDK 不做 Plan/Goal 类型
+
+§11 R1 标注：**架构正确**（范围级——"不做"也是架构决策）。
+
+理由：
+
+1. **调研已充分**。#1 的调研（6/6 框架 + 8/8 生产产品零例外用 app 层工具）已给出确定结论。spike 是当时为对外交涉留的台阶（"联合验证 2 周再定"），不是技术必要性。再花 2 周不改变答案。
+
+2. **SDK 不做产品概念**。Plan/Goal 的字段（`files_to_touch` / `steps` / status 状态机）是产品层决定的。SDK 硬编码 = 把某个下游的产品模型耦合进运行时，违反 narrow-deep-module 原则。PAR 现有原语（`register_tool` + `memory_service` + `workflow`）全覆盖。
+
+3. **唯一可分离的子问题**：bounded `Loop` workflow step。但那是工作流引擎的控制流原语（iteration），不是 plan 语义。该不该加取决于"用户有无表达不出现有 Sequential + Conditional + Map_reduce 组合的迭代需求"，与 Plan/Goal 独立，不紧急，单独评估。
+
+### Escalation Trigger
+
+同 #1（CrewAI/LangGraph 演进出 runtime Plan 类型 / 非编码 agent 不同 shape / 下游实测证明现有原语不够）。
+
+### 回退方式
+
+不适用（取消研究，无代码变更）。
 
 ---
 
