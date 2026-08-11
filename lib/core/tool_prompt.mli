@@ -34,8 +34,8 @@ val descriptors_to_prompt_text : Types.tool_descriptor list -> string
     - Embedded in surrounding prose
 
     Returns the parsed list of [Types.tool_call] values. Each parsed call
-    has [id = ""] — the engine layer (T3.1) is responsible for assigning a
-    real identifier when accepting the call.
+    gets a unique synthesized id ([synth_0], [synth_1], ...) so that
+    multiple tool calls in one response are distinguishable.
 
     {b Never throws.} On any parse failure (malformed JSON, missing
     [tool_calls] field, wrong element types, etc.) returns [[]] and logs a

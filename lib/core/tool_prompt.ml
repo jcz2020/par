@@ -37,8 +37,7 @@ let descriptors_to_prompt_text tools =
 (* Parser                                                                    *)
 (* -------------------------------------------------------------------------- *)
 
-(* Empty id — the engine layer (T3.1) assigns a real id when accepting a call. *)
-let empty_id = ""
+(* Placeholder id — overwritten by tool_calls_of_json with synth_N ids. *)
 
 (* String-aware extraction of the first balanced {...} or [...] substring.
    Reused (adapted) from lib/core/json_extract.ml — we keep the behaviour but
@@ -157,7 +156,7 @@ let tool_call_of_assoc assoc =
             | `Null -> `Assoc []
             | v -> v
           in
-          Some { id = empty_id; name; arguments })
+          Some { id = ""; name; arguments })
       | _ -> None)
   | _ -> None
 
@@ -165,14 +164,14 @@ let tool_calls_of_json json =
   let open Yojson.Safe.Util in
   match member "tool_calls" json with
   | `List items ->
-    let rec collect acc = function
+    let rec collect i acc = function
       | [] -> List.rev acc
       | item :: rest ->
         match tool_call_of_assoc item with
-        | Some tc -> collect (tc :: acc) rest
-        | None -> collect acc rest
+        | Some tc -> collect (i + 1) ({tc with id = Printf.sprintf "synth_%d" i} :: acc) rest
+        | None -> collect i acc rest
     in
-    Ok (collect [] items)
+    Ok (collect 0 [] items)
   | `Null -> Ok []
   | _ -> Error "tool_calls: expected array"
 

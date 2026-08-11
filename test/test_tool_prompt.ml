@@ -80,8 +80,8 @@ let render_then_parse_roundtrip () =
     "{\"message\":\"hi\"}" (Yojson.Safe.to_string first.arguments);
   Alcotest.(check string) "second arguments"
     "{\"expr\":\"2+2\"}" (Yojson.Safe.to_string second.arguments);
-  (* Empty id — engine layer (T3.1) assigns the real id. *)
-  Alcotest.(check string) "id is empty (engine-assigned)" "" first.id
+  (* Synthesized id — tool_calls_of_json assigns synth_N index. *)
+  Alcotest.(check string) "id is synth_0 (index-assigned)" "synth_0" first.id
 
 let parse_handles_json_fences () =
   let input = "Here you go:\n```json\n\
