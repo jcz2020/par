@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.9.1-beta.20260811 — tool_call_id correlation fixes (5 bugs)
+## v0.9.1 — tool_call_id correlation fixes (5 bugs)
 
 ### Fixed — tool_call_id lifecycle (5 independent bugs)
 
