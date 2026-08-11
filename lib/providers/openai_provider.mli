@@ -33,7 +33,7 @@ val set_network : t -> [ `Generic] Eio.Net.ty Eio.Net.t -> unit
     delta, the list of tool-call chunks (start and/or delta), the optional
     finish reason, and the optional usage update. Exposed for unit testing;
     production callers go through [stream]. *)
-val parse_stream_delta : Yojson.Safe.t ->
+val parse_stream_delta : ?tc_id_map:(string, string) Hashtbl.t -> Yojson.Safe.t ->
   (llm_response_chunk option * llm_response_chunk option *
    llm_response_chunk list *
    finish_reason option * usage_stats option)

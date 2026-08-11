@@ -374,7 +374,7 @@ let parse_llm_response json : (llm_response, error_category) result =
 (* SSE parsing                                                           *)
 (* -------------------------------------------------------------------------- *)
 
-let parse_stream_delta json =
+let parse_stream_delta ?tc_id_map json =
   let open Yojson.Safe.Util in
   let log_exn ctx exn =
     Logs.warn (fun m -> m "openai_provider: stream %s parse error: %s" ctx (Printexc.to_string exn))
@@ -423,7 +423,22 @@ let parse_stream_delta json =
               if id = "" || id = "null" then None else Some id
             with exn -> log_exn "tool_id" exn; None
           in
-          let key = match real_id with Some id -> id | None -> string_of_int idx in
+          let idx_str = string_of_int idx in
+          (* Store index→id mapping when we see a real id *)
+          (match real_id, tc_id_map with
+           | Some id, Some m -> Hashtbl.replace m idx_str id
+           | _ -> ());
+          let key =
+            match real_id with
+            | Some id -> id
+            | None ->
+              (match tc_id_map with
+               | Some m ->
+                 (match Hashtbl.find_opt m idx_str with
+                  | Some id -> id
+                  | None -> idx_str)
+               | None -> idx_str)
+          in
           let name = try fn |> member "name" |> to_string with exn -> log_exn "tool_name" exn; "" in
           let args = try fn |> member "arguments" |> to_string with exn -> log_exn "tool_args" exn; "" in
           if name <> "" then begin
@@ -528,6 +543,7 @@ let stream t model_config tools conversation _stream_config callback =
               ref { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
             in
             let finish = ref Stop in
+            let tc_id_map = Hashtbl.create 4 in
              let stop = ref false in
              let rec process_lines () =
                if !stop then ()
@@ -544,8 +560,8 @@ let stream t model_config tools conversation _stream_config callback =
                      else begin
                        try
                          let json = Yojson.Safe.from_string data in
-                          let text_c, reasoning_c, tool_c, finish_opt, usage_opt =
-                            parse_stream_delta json
+                           let text_c, reasoning_c, tool_c, finish_opt, usage_opt =
+                             parse_stream_delta ~tc_id_map json
                           in
                           ( match text_c with
                           | Some chunk ->
