@@ -11,7 +11,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.9.0 — Skill activation API completion. 1504 tests passing.
+> **Status**: v0.9.1 — tool_call_id correlation fixes. 1504 tests passing.
 
 ---
 
