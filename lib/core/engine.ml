@@ -184,11 +184,14 @@ let run_llm_with_optional_streaming llm agent_model agent_tools conv user_cb =
     let text_buf = Buffer.create 256 in
     let reasoning_buf = Buffer.create 256 in
     let tc_state : (string, (string * Buffer.t)) Hashtbl.t = Hashtbl.create 4 in
+    let tc_order : string list ref = ref [] in
     let acc chunk =
       user_chunk chunk;
       match chunk with
       | Text_delta { text } -> Buffer.add_string text_buf text
       | Tool_call_start { tool_call_id; name } ->
+        if not (Hashtbl.mem tc_state tool_call_id) then
+          tc_order := tool_call_id :: !tc_order;
         Hashtbl.replace tc_state tool_call_id (name, Buffer.create 64)
       | Tool_call_delta { tool_call_id; args_json } ->
         (match Hashtbl.find_opt tc_state tool_call_id with
@@ -206,8 +209,9 @@ let run_llm_with_optional_streaming llm agent_model agent_tools conv user_cb =
     match llm.stream_fn agent_model agent_tools conv stream_cfg acc with
     | Error _ as e -> e
     | Ok stream_complete ->
-      let entries = Hashtbl.fold (fun id (name, buf) acc ->
-        (id, name, Buffer.contents buf) :: acc) tc_state [] in
+      let entries = List.rev_map (fun id ->
+        let (name, buf) = Hashtbl.find tc_state id in
+        (id, name, Buffer.contents buf)) !tc_order in
       let tool_calls = if entries = [] then None else
         Some (List.map (fun (id, name, args_str) ->
           let arguments = try Yojson.Safe.from_string args_str with _ -> `Null in
@@ -838,83 +842,95 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
              When parallel=true, the outer forking gives every tool a chance to run
              concurrently; the semaphore caps how many can be in-flight at once. *)
           let invoke_one (call : tool_call) : (tool_call * handler_result) =
-            let event_task_id = Task_id.create () in
-            let event_tool_name = call.name in
-            let fire evt = match on_tool_event with
-              | Some pub -> pub evt
-              | None -> ()
-            in
-            fire (Tool_invoked { task_id = event_task_id; tool_name = event_tool_name });
-            let start_t = Unix.gettimeofday () in
-            let hook_result = (match tool_call_hooks with
-              | Some hooks ->
-                let ctx = { Hook.tool_name = call.name;
-                            tool_call_id = call.id;
-                            input = call.arguments;
-                            has_ui = false } in
-                Hook.run_chain hooks ctx
-              | None -> Hook.Final_allow) in
-            let invoke_allow original_input =
-              match find_tool agent call.name with
-              | None -> (call, Error {
-                  category = Types.Invalid_input (Printf.sprintf "Tool not found: %s" call.name);
-                  message = "Tool not found";
-                  retryable = false;
-                  metadata = []; })
-              | Some descriptor -> (match Tool_registry.resolve registry call.name with
-                  | None -> (call, Error {
-                      category = Types.Internal (Printf.sprintf "Tool handler not registered: %s" call.name);
-                      message = "Handler not registered";
-                      retryable = false;
-                      metadata = []; })
-                  | Some handler -> (call, execute_tool token descriptor handler original_input agent.middleware on_progress ~tool_call_id:call.id ~tool_timeout:agent.tool_timeout))
-            in
-            let invoke_with_quota body =
-              match quota with
-              | Some sem ->
-                Eio.Semaphore.acquire sem;
-                Fun.protect body ~finally:(fun () -> Eio.Semaphore.release sem)
-              | None -> body ()
-            in
-            let result = match hook_result with
-              | Hook.Final_block reason -> (call, Error {
-                  category = Types.Permission_denied (Printf.sprintf "tool '%s'" call.name);
-                  message = Printf.sprintf "Blocked by hook: %s" reason;
-                  retryable = false;
-                  metadata = []; })
-              | Hook.Final_modify modified_input ->
-                invoke_with_quota (fun () -> invoke_allow modified_input)
-              | Hook.Final_allow ->
-                invoke_with_quota (fun () -> invoke_allow call.arguments) in
-            let duration_ms = (Unix.gettimeofday () -. start_t) *. 1000.0 in
-            (match result with
-             | _, Success output ->
-               let preview =
-                 let s = Yojson.Safe.to_string output in
-                 if String.length s > 500 then
-                   Some (String.sub s 0 500 ^
-                         Printf.sprintf "... (%d bytes total)" (String.length s))
-                 else Some s
-               in
-               fire (Tool_completed { task_id = event_task_id;
-                                      tool_name = event_tool_name;
-                                      duration_ms;
-                                      result_preview = preview })
-             | _, Error { category; _ } ->
-               fire (Tool_failed { task_id = event_task_id;
-                                   tool_name = event_tool_name;
-                                   error = category })
-             | _, Handoff _ ->
-               fire (Tool_completed { task_id = event_task_id;
-                                      tool_name = event_tool_name;
-                                      duration_ms;
-                                      result_preview = None })
-             | _, Approval_required _ ->
-               fire (Tool_completed { task_id = event_task_id;
-                                      tool_name = event_tool_name;
-                                      duration_ms;
-                                      result_preview = None }));
-            result in
+            try
+              let event_task_id = Task_id.create () in
+              let event_tool_name = call.name in
+              let fire evt = match on_tool_event with
+                | Some pub -> pub evt
+                | None -> ()
+              in
+              fire (Tool_invoked { task_id = event_task_id; tool_name = event_tool_name });
+              let start_t = Unix.gettimeofday () in
+              let hook_result = (match tool_call_hooks with
+                | Some hooks ->
+                  let ctx = { Hook.tool_name = call.name;
+                              tool_call_id = call.id;
+                              input = call.arguments;
+                              has_ui = false } in
+                  Hook.run_chain hooks ctx
+                | None -> Hook.Final_allow) in
+              let invoke_allow original_input =
+                match find_tool agent call.name with
+                | None -> (call, Error {
+                    category = Types.Invalid_input (Printf.sprintf "Tool not found: %s" call.name);
+                    message = "Tool not found";
+                    retryable = false;
+                    metadata = []; })
+                | Some descriptor -> (match Tool_registry.resolve registry call.name with
+                    | None -> (call, Error {
+                        category = Types.Internal (Printf.sprintf "Tool handler not registered: %s" call.name);
+                        message = "Handler not registered";
+                        retryable = false;
+                        metadata = []; })
+                    | Some handler -> (call, execute_tool token descriptor handler original_input agent.middleware on_progress ~tool_call_id:call.id ~tool_timeout:agent.tool_timeout))
+              in
+              let invoke_with_quota body =
+                match quota with
+                | Some sem ->
+                  Eio.Semaphore.acquire sem;
+                  Fun.protect body ~finally:(fun () -> Eio.Semaphore.release sem)
+                | None -> body ()
+              in
+              let result = match hook_result with
+                | Hook.Final_block reason -> (call, Error {
+                    category = Types.Permission_denied (Printf.sprintf "tool '%s'" call.name);
+                    message = Printf.sprintf "Blocked by hook: %s" reason;
+                    retryable = false;
+                    metadata = []; })
+                | Hook.Final_modify modified_input ->
+                  invoke_with_quota (fun () -> invoke_allow modified_input)
+                | Hook.Final_allow ->
+                  invoke_with_quota (fun () -> invoke_allow call.arguments) in
+              let duration_ms = (Unix.gettimeofday () -. start_t) *. 1000.0 in
+              (match result with
+               | _, Success output ->
+                 let preview =
+                   let s = Yojson.Safe.to_string output in
+                   if String.length s > 500 then
+                     Some (String.sub s 0 500 ^
+                           Printf.sprintf "... (%d bytes total)" (String.length s))
+                   else Some s
+                 in
+                 fire (Tool_completed { task_id = event_task_id;
+                                        tool_name = event_tool_name;
+                                        duration_ms;
+                                        result_preview = preview })
+               | _, Error { category; _ } ->
+                 fire (Tool_failed { task_id = event_task_id;
+                                     tool_name = event_tool_name;
+                                     error = category })
+               | _, Handoff _ ->
+                 fire (Tool_completed { task_id = event_task_id;
+                                        tool_name = event_tool_name;
+                                        duration_ms;
+                                        result_preview = None })
+               | _, Approval_required _ ->
+                 fire (Tool_completed { task_id = event_task_id;
+                                        tool_name = event_tool_name;
+                                        duration_ms;
+                                        result_preview = None }));
+              result
+            with
+            | Eio.Cancel.Cancelled _ as ex -> raise ex
+            | exn ->
+              Logs.warn (fun m -> m "[engine] invoke_one crashed for tool %s (id=%s): %s"
+                            call.name call.id (Printexc.to_string exn));
+              (call, Error {
+                 category = Internal (Printf.sprintf "tool invocation crashed: %s" (Printexc.to_string exn));
+                 message = Printf.sprintf "Tool '%s' invocation crashed: %s" call.name (Printexc.to_string exn);
+                 retryable = false;
+                 metadata = [];
+               }) in
           let results : (tool_call * handler_result) list =
             if parallel then
               let promises = List.map (fun (call : tool_call) ->
