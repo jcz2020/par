@@ -1,5 +1,27 @@
 # CHANGES
 
+## v0.9.1-beta.20260811 — tool_call_id correlation fixes (5 bugs)
+
+### Fixed — tool_call_id lifecycle (5 independent bugs)
+
+All five bugs caused tool_call_id to be missing, duplicated, or mismatched when the LLM called multiple tools — especially in parallel and streaming scenarios.
+
+- **FIX** `tool_prompt.ml`: synthesized tool mode assigned `id = ""` to every tool call. Multiple calls were indistinguishable — the LLM could not correlate results. Now assigns `synth_0`, `synth_1`, etc. (PAR-64l)
+- **FIX** `openai_provider.ml`: streaming `parse_stream_delta` used the real `id` for `Tool_call_start` but fell back to `string_of_int(index)` for `Tool_call_delta` when the SSE chunk omitted `id`. Keys didn't match — argument deltas were silently dropped when 2+ tools were in-flight. Now threads a `?tc_id_map` Hashtbl for index→real_id lookup. (PAR-58e)
+- **FIX** `anthropic_provider.ml`: `build_message_json` for Tool role emitted `{"type":"text"}` instead of `{"type":"tool_result","tool_use_id":"..."}`. The `msg.tool_call_id` field was completely ignored. Anthropic API requires every `tool_use` to have a matching `tool_result` — missing causes 400 error. Now constructs proper `tool_result` blocks. (PAR-v6z)
+- **FIX** `engine.ml` `invoke_one`: `Hook.run_chain` was outside `execute_tool`'s try-with. If a hook threw, the fiber crashed, `await_exn` re-raised, `List.map` stopped — all remaining tool results in the parallel batch were lost. Now wraps entire `invoke_one` body in try-with (re-raises `Eio.Cancel.Cancelled`). (PAR-9jn)
+- **FIX** `engine.ml` streaming accumulator: `Hashtbl.fold` iterated in unspecified order — reconstructed `tool_calls` list could be reordered vs the LLM's original order. Now maintains `tc_order` list ref for guaranteed insertion order. (PAR-9jq)
+
+### Added — Public API surface (bugfix-adjacent)
+
+- `Openai_provider.parse_stream_delta` gains optional `?tc_id_map:(string, string) Hashtbl.t` parameter (backward-compatible — existing callers unaffected)
+- `Anthropic_provider.build_message_json` exposed in `.mli` for testing
+
+### Tests
+
+- 5 new regression test files (`test_tc_id_bug1~5.ml`), 8 new test cases total
+- All existing tests pass — zero regressions
+
 ## v0.9.0 — Skill activation API completion + CI fix
 
 ### Added — Python FFI
