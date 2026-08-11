@@ -87,7 +87,25 @@ let build_message_json msg =
   let blocks_json = List.map emit_block_with_cache msg.content_blocks in
   match msg.role with
   | Tool ->
-    `Assoc [("role", `String "user"); ("content", `List blocks_json)]
+    (match msg.tool_call_id with
+     | Some tu_id ->
+       let result_text =
+         msg.content_blocks
+         |> List.filter_map (function
+              | Text_block { text; _ } -> Some text
+              | Tool_result_block { content; _ } -> Some content
+              | _ -> None)
+         |> String.concat "\n"
+       in
+       `Assoc [("role", `String "user");
+               ("content", `List [
+                  `Assoc [("type", `String "tool_result");
+                          ("tool_use_id", `String tu_id);
+                          ("content", `String result_text)]
+                ])]
+     | None ->
+       (* Fallback: no tool_call_id (shouldn't happen in normal flow) *)
+       `Assoc [("role", `String "user"); ("content", `List blocks_json)])
   | Assistant ->
     let tool_blocks = match msg.tool_calls with
       | Some tcs -> build_tool_calls_content tcs

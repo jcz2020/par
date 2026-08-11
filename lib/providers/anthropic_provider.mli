@@ -20,6 +20,8 @@ val stream :
   (llm_response_chunk -> unit) ->
   (stream_complete, error_category) result
 
+val build_message_json : message -> Yojson.Safe.t
+
 val close : t -> unit
 
 val set_network : t -> [ `Generic] Eio.Net.ty Eio.Net.t -> unit
