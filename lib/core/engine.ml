@@ -842,13 +842,13 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
              When parallel=true, the outer forking gives every tool a chance to run
              concurrently; the semaphore caps how many can be in-flight at once. *)
           let invoke_one (call : tool_call) : (tool_call * handler_result) =
+            let event_task_id = Task_id.create () in
+            let event_tool_name = call.name in
+            let fire evt = match on_tool_event with
+              | Some pub -> pub evt
+              | None -> ()
+            in
             try
-              let event_task_id = Task_id.create () in
-              let event_tool_name = call.name in
-              let fire evt = match on_tool_event with
-                | Some pub -> pub evt
-                | None -> ()
-              in
               fire (Tool_invoked { task_id = event_task_id; tool_name = event_tool_name });
               let start_t = Unix.gettimeofday () in
               let hook_result = (match tool_call_hooks with
@@ -925,8 +925,13 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
             | exn ->
               Logs.warn (fun m -> m "[engine] invoke_one crashed for tool %s (id=%s): %s"
                             call.name call.id (Printexc.to_string exn));
+              let error_category = Internal (Printf.sprintf "tool invocation crashed: %s"
+                                             (Printexc.to_string exn)) in
+              fire (Tool_failed { task_id = event_task_id;
+                                  tool_name = event_tool_name;
+                                  error = error_category });
               (call, Error {
-                 category = Internal (Printf.sprintf "tool invocation crashed: %s" (Printexc.to_string exn));
+                 category = error_category;
                  message = Printf.sprintf "Tool '%s' invocation crashed: %s" call.name (Printexc.to_string exn);
                  retryable = false;
                  metadata = [];

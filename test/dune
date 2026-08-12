@@ -615,7 +615,7 @@
 
 (test
   (name test_tc_id_bug4)
-  (libraries par alcotest)
+  (libraries par eio_main alcotest str)
   (modules test_tc_id_bug4))
 
 (test
