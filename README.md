@@ -11,7 +11,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
-> **Status**: v0.9.1 — tool_call_id correlation fixes. 1504 tests passing.
+> **Status**: v0.10.0 — first-class cancellation + actionable tool errors. 1551 tests passing.
 
 ---
 
@@ -147,11 +147,11 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 ## Status & roadmap
 
-**Current**: v0.9.0 — Skill activation API completion (`get_user_activated_skills` Python FFI wired through full stack, completing the set/clear/get API surface; also fixes release-infrastructure sha512 checksum collision and cancels the Plan/Goal spike).
+**Current**: v0.10.0 — first-class cancellation (`cancel_reason` ADT, replay-valid recovery with synthetic tool results, dispatch/chunk-granularity cooperative checks, cancellable Python `invoke_start`/`invoke_poll`/`invoke_cancel`) + actionable tool validation errors (teach-at-rejection markers `[workspace]`/`[bash-policy]`, edit no-op fix).
 
 **Coming next**: opam-repository submission.
 
-**Recent releases**: v0.8.3 (Reasoning model support + scope plumbing + streaming usage fix) → v0.8.4 (test_mcp_runtime mock-path portability fix) → v0.8.5 (test mock-path portability fix round 2) → v0.8.6 (Streaming HTTP error propagation fix) → v0.9.0 (Skill activation API completion).
+**Recent releases**: v0.8.4 (test_mcp_runtime mock-path portability fix) → v0.8.5 (test mock-path portability fix round 2) → v0.8.6 (Streaming HTTP error propagation fix) → v0.9.0 (Skill activation API completion) → v0.9.1 (tool_call_id correlation fixes) → v0.10.0 (first-class cancellation + actionable tool errors).
 
 ## Getting help
 

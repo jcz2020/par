@@ -1,6 +1,8 @@
 # CHANGES
 
-## [UNRELEASED]
+## v0.10.0 — first-class cancellation + actionable tool errors (2026-08-15)
+
+1551 OCaml tests + 155 Python tests passing.
 
 ### Added — First-class cancellation (OCaml + FFI)
 
