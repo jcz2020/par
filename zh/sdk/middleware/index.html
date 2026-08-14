@@ -1,0 +1,3110 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular, type-safe agent runtime for OCaml 5.4+. LangChain + LangGraph for the OCaml ecosystem.">
+      
+      
+        <meta name="author" content="PAR contributors">
+      
+      
+        <link rel="canonical" href="https://jcz2020.github.io/par/zh/sdk/middleware/">
+      
+      
+        <link rel="prev" href="../workflow/">
+      
+      
+        <link rel="next" href="../tools/">
+      
+      
+        
+          <link rel="alternate" href="../../../sdk/middleware/" hreflang="en">
+        
+          <link rel="alternate" href="./" hreflang="zh">
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>中间件 - PAR — Programmable Agent Runtime</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#middleware-api" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../" title="PAR — Programmable Agent Runtime" class="md-header__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PAR — Programmable Agent Runtime
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              中间件
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="选择当前语言">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../../sdk/middleware/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="zh" class="md-select__link">
+              简体中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="分享" aria-label="分享" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../" class="md-tabs__link">
+        
+  
+  
+    
+  
+  首页
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../quickstart/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  教程
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../howto/concurrency/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  实用指南
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../overview/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  参考
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explanation/architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  解释
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../" title="PAR — Programmable Agent Runtime" class="md-nav__button md-logo" aria-label="PAR — Programmable Agent Runtime" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4v2h1a1 1 0 0 1 1 1h7v2h-7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1H2v-2h7a1 1 0 0 1 1-1h1v-2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 7l4 4-4 4h2.85l3.28-3.28c.37-.39.37-1.02 0-1.42L9.83 7zm10 6h-3v2h3z"/></svg>
+
+    </a>
+    PAR — Programmable Agent Runtime
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jcz2020/par" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jcz2020/par
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    首页
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    教程
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    教程
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    快速上手
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    实用指南
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    实用指南
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/concurrency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    并发模式
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/custom-llm-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    自定义 LLM Provider
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/error-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    错误处理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/rag-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    构建 RAG 管道
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../howto/plan-then-execute/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    计划-执行模式
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    参考
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    参考
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDK 概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hitl/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HITL API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parallel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    并行分发
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../invoke_context/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    invoke_context
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    中间件
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    中间件
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        中间件概念
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="中间件概念">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#middleware_hook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        middleware_hook
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        日志内容
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使用
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#retry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Retry
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Retry">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#retry_policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        retry_policy 类型
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使用示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rate_limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rate_limit
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rate_limit">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        行为
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使用示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timeout
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Timeout">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        行为
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output_validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output_validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Output_validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        行为
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使用示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pii_mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pii_mask
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pii_mask">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        默认检测模式
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        行为
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使用示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sanitize_tool_output-v020" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sanitize_tool_output (v0.2.0)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sanitize_tool_output (v0.2.0)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        默认检测模式
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        三种处理策略
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        行为
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使用示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#think_tag_strip" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Think_tag_strip
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        组合中间件
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cancellation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cancellation（取消）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cancellation（取消）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cancellation_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cancellation 接口
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#timeout-vs-cancellation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timeout vs Cancellation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cancellation_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        中间件如何与 Cancellation 交互
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        与 Eio 组合
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        自定义中间件
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="自定义中间件">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        错误处理中间件示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        注意事项
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        另请参阅
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    工具
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP 客户端
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../generate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generate API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../document_loaders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    文档加载器
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    持久化 API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prompt_caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt 缓存
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content_blocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    内容块
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    可观测性
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    解释
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    解释
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    架构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/concurrency-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    并发模型
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/persistence-and-durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    持久化与可靠性
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/rag-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG 架构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    常见问题
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        中间件概念
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="中间件概念">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#middleware_hook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        middleware_hook
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        日志内容
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使用
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#retry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Retry
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Retry">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#retry_policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        retry_policy 类型
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使用示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rate_limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rate_limit
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rate_limit">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        行为
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使用示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timeout
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Timeout">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        行为
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output_validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output_validation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Output_validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        行为
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使用示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pii_mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pii_mask
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pii_mask">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        默认检测模式
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        行为
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使用示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sanitize_tool_output-v020" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sanitize_tool_output (v0.2.0)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sanitize_tool_output (v0.2.0)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        默认检测模式
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        三种处理策略
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        行为
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使用示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#think_tag_strip" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Think_tag_strip
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        组合中间件
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cancellation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cancellation（取消）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cancellation（取消）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cancellation_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cancellation 接口
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#timeout-vs-cancellation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timeout vs Cancellation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cancellation_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        中间件如何与 Cancellation 交互
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        与 Eio 组合
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        自定义中间件
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="自定义中间件">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        错误处理中间件示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        注意事项
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        另请参阅
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="middleware-api">Middleware API 参考<a class="headerlink" href="#middleware-api" title="Permanent link">&para;</a></h1>
+<p><a href="https://github.com/jcz2020/par/blob/main/sdk/middleware.md">English</a> · <strong>简体中文</strong></p>
+<p>本文档描述 P-A-R SDK 的中间件管道，包括 9 个内置中间件（含 v0.8.2 新增 Think_tag_strip）和自定义中间件编写指南。</p>
+<h2 id="_1">中间件概念<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>中间件通过 <code>middleware_hook</code> 类型定义，作为横切关注点的拦截器插入 Agent 执行管道。
+Engine 使用"俄罗斯套娃"（Russian Doll）模式组合中间件链 -- <code>List.fold_right</code> 保证
+列表中靠前的中间件包裹靠后的中间件。</p>
+<h3 id="middleware_hook">middleware_hook<a class="headerlink" href="#middleware_hook" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">type</span> <span class="n">middleware_hook</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  <span class="n">name</span> <span class="o">:</span> <span class="kt">string</span><span class="o">;</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  <span class="n">on_before_llm</span> <span class="o">:</span> <span class="o">(</span><span class="n">conversation</span> <span class="o">-&gt;</span> <span class="n">conversation</span> <span class="n">option</span><span class="o">)</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  <span class="n">on_after_llm</span> <span class="o">:</span> <span class="o">(</span><span class="n">llm_response</span> <span class="o">-&gt;</span> <span class="n">llm_response</span> <span class="n">option</span><span class="o">)</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  <span class="n">on_before_tool</span> <span class="o">:</span> <span class="o">(</span><span class="n">tool_call</span> <span class="o">-&gt;</span> <span class="n">tool_call</span> <span class="n">option</span><span class="o">)</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  <span class="n">on_after_tool</span> <span class="o">:</span> <span class="o">(</span><span class="n">tool_call</span> <span class="o">*</span> <span class="n">handler_result</span> <span class="o">-&gt;</span> <span class="n">handler_result</span> <span class="n">option</span><span class="o">)</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  <span class="n">on_error</span> <span class="o">:</span> <span class="o">(</span><span class="n">conversation</span> <span class="o">-&gt;</span> <span class="n">error_category</span> <span class="o">-&gt;</span> <span class="n">handler_result</span> <span class="n">option</span><span class="o">)</span> <span class="n">option</span><span class="o">;</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="o">}</span>
+</span></code></pre></div>
+<p>每个钩子返回 <code>Some modified_value</code> 表示修改了值，<code>None</code> 表示透传。</p>
+<p>中间件在 <code>agent_config.middleware</code> 列表中声明，按列表顺序从外到内包裹。</p>
+<h2 id="logging">Logging<a class="headerlink" href="#logging" title="Permanent link">&para;</a></h2>
+<p>记录所有 LLM 和工具调用的日志。零配置，开箱即用。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">val</span> <span class="nn">Logging</span><span class="p">.</span><span class="n">logging</span> <span class="o">:</span> <span class="nn">Types</span><span class="p">.</span><span class="n">middleware_hook</span>
+</span></code></pre></div>
+<h3 id="_2">日志内容<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>钩子</th>
+<th>级别</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>on_before_llm</code></td>
+<td>info</td>
+<td>消息数量</td>
+</tr>
+<tr>
+<td><code>on_after_llm</code></td>
+<td>info</td>
+<td>finish_reason, model 名称</td>
+</tr>
+<tr>
+<td><code>on_before_tool</code></td>
+<td>info</td>
+<td>工具名 + 参数</td>
+</tr>
+<tr>
+<td><code>on_after_tool</code></td>
+<td>info/warn</td>
+<td>成功时 info，失败时 warn（含错误消息）</td>
+</tr>
+<tr>
+<td><code>on_error</code></td>
+<td>err</td>
+<td>错误信息</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_3">使用<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">let</span> <span class="n">agent</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  <span class="n">agent</span> <span class="k">with</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  <span class="n">middleware</span> <span class="o">=</span> <span class="o">[</span> <span class="nn">Logging</span><span class="p">.</span><span class="n">logging</span> <span class="o">];</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="o">}</span>
+</span></code></pre></div>
+<h2 id="retry">Retry<a class="headerlink" href="#retry" title="Permanent link">&para;</a></h2>
+<p>可配置的指数退避重试中间件，处理 LLM 和工具调用的瞬态错误。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">type</span> <span class="n">retry_config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  <span class="n">max_attempts</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>     <span class="c">(* 最大重试次数，默认 3 *)</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  <span class="n">base_delay</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span>    <span class="c">(* 基础延迟（秒），默认 2.0 *)</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  <span class="n">max_delay</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span>     <span class="c">(* 最大延迟（秒），默认 30.0 *)</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="o">}</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="k">val</span> <span class="nn">Retry</span><span class="p">.</span><span class="n">default_retry_config</span> <span class="o">:</span> <span class="n">retry_config</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="k">val</span> <span class="nn">Retry</span><span class="p">.</span><span class="n">retry</span> <span class="o">:</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>  <span class="o">?</span><span class="n">config</span><span class="o">:</span><span class="n">retry_config</span> <span class="o">-&gt;</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>  <span class="o">?</span><span class="n">policy</span><span class="o">:</span><span class="nn">Types</span><span class="p">.</span><span class="n">retry_policy</span> <span class="o">-&gt;</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">middleware_hook</span>
+</span></code></pre></div>
+<h3 id="retry_policy">retry_policy 类型<a class="headerlink" href="#retry_policy" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">type</span> <span class="n">retry_policy</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>  <span class="n">max_attempts</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>  <span class="n">initial_delay</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>  <span class="n">backoff</span> <span class="o">:</span> <span class="n">backoff_strategy</span><span class="o">;</span>         <span class="c">(* Exponential / Fixed / Linear *)</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>  <span class="n">retry_on</span> <span class="o">:</span> <span class="n">retryable_condition</span> <span class="kt">list</span><span class="o">;</span> <span class="c">(* Timeout / Rate_limited / External_failure / ... *)</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>  <span class="n">jitter</span> <span class="o">:</span> <span class="kt">float</span> <span class="n">option</span><span class="o">;</span>               <span class="c">(* 随机抖动因子 *)</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="o">}</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="k">type</span> <span class="n">backoff_strategy</span> <span class="o">=</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>  <span class="o">|</span> <span class="nc">Exponential</span> <span class="k">of</span> <span class="o">{</span> <span class="n">base</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span> <span class="n">max_delay</span> <span class="o">:</span> <span class="kt">float</span> <span class="o">}</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>  <span class="o">|</span> <span class="nc">Fixed</span> <span class="k">of</span> <span class="kt">float</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>  <span class="o">|</span> <span class="nc">Linear</span> <span class="k">of</span> <span class="o">{</span> <span class="n">increment</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span> <span class="n">max_delay</span> <span class="o">:</span> <span class="kt">float</span> <span class="o">}</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="k">type</span> <span class="n">retryable_condition</span> <span class="o">=</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>  <span class="o">|</span> <span class="nc">Timeout</span> <span class="o">|</span> <span class="nc">Rate_limited</span> <span class="o">|</span> <span class="nc">External_failure</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>  <span class="o">|</span> <span class="nc">Connection_error</span> <span class="o">|</span> <span class="nc">Any_retryable</span>
+</span></code></pre></div>
+<h3 id="_4">使用示例<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c">(* 使用默认配置 *)</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">let</span> <span class="n">retry_hook</span> <span class="o">=</span> <span class="nn">Retry</span><span class="p">.</span><span class="n">retry</span> <span class="bp">()</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c">(* 自定义配置 *)</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">let</span> <span class="n">retry_hook</span> <span class="o">=</span> <span class="nn">Retry</span><span class="p">.</span><span class="n">retry</span> <span class="o">~</span><span class="n">config</span><span class="o">:{</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>  <span class="n">max_attempts</span> <span class="o">=</span> <span class="mi">5</span><span class="o">;</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>  <span class="n">base_delay</span> <span class="o">=</span> <span class="mi">1</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>  <span class="n">max_delay</span> <span class="o">=</span> <span class="mi">60</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="o">}</span> <span class="bp">()</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="c">(* 使用完整 retry_policy 控制更多参数 *)</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="k">let</span> <span class="n">retry_hook</span> <span class="o">=</span> <span class="nn">Retry</span><span class="p">.</span><span class="n">retry</span> <span class="o">~</span><span class="n">policy</span><span class="o">:{</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>  <span class="n">max_attempts</span> <span class="o">=</span> <span class="mi">4</span><span class="o">;</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>  <span class="n">initial_delay</span> <span class="o">=</span> <span class="mi">1</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>  <span class="n">backoff</span> <span class="o">=</span> <span class="nc">Exponential</span> <span class="o">{</span> <span class="n">base</span> <span class="o">=</span> <span class="mi">2</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span> <span class="n">max_delay</span> <span class="o">=</span> <span class="mi">30</span><span class="o">.</span><span class="mi">0</span> <span class="o">};</span>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>  <span class="n">retry_on</span> <span class="o">=</span> <span class="o">[</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Timeout</span><span class="o">;</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">Rate_limited</span> <span class="o">];</span>
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>  <span class="n">jitter</span> <span class="o">=</span> <span class="nc">Some</span> <span class="mi">0</span><span class="o">.</span><span class="mi">1</span><span class="o">;</span>
+</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="o">}</span> <span class="bp">()</span>
+</span></code></pre></div>
+<p>默认 <code>retry_config</code> 生成指数退避策略：<code>delay = min(base^attempt, max_delay)</code>。</p>
+<h2 id="rate_limit">Rate_limit<a class="headerlink" href="#rate_limit" title="Permanent link">&para;</a></h2>
+<p>滑动窗口限速中间件，控制 LLM 请求频率。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">type</span> <span class="n">rate_limit_config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>  <span class="n">max_requests</span> <span class="o">:</span> <span class="kt">int</span><span class="o">;</span>    <span class="c">(* 窗口内最大请求数，默认 60 *)</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>  <span class="n">window</span> <span class="o">:</span> <span class="kt">float</span><span class="o">;</span>       <span class="c">(* 窗口时长（秒），默认 60.0 *)</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="o">}</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="k">val</span> <span class="nn">Rate_limit</span><span class="p">.</span><span class="n">default_rate_limit_config</span> <span class="o">:</span> <span class="n">rate_limit_config</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="k">val</span> <span class="nn">Rate_limit</span><span class="p">.</span><span class="n">rate_limit</span> <span class="o">:</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>  <span class="o">?</span><span class="n">config</span><span class="o">:</span><span class="n">rate_limit_config</span> <span class="o">-&gt;</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">middleware_hook</span>
+</span></code></pre></div>
+<h3 id="_5">行为<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>on_before_llm</code>：检查当前窗口内的请求数，超限时在对话 metadata 中标记
+  <code>("rate_limited", true)</code></li>
+<li><code>on_error</code>：收到 <code>Rate_limited</code> 错误时，计算 <code>retry_after</code> 时间并附加到
+  错误 metadata 中</li>
+</ul>
+<h3 id="_6">使用示例<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c">(* 限制每分钟 30 次请求 *)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">let</span> <span class="n">rate_hook</span> <span class="o">=</span> <span class="nn">Rate_limit</span><span class="p">.</span><span class="n">rate_limit</span> <span class="o">~</span><span class="n">config</span><span class="o">:{</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>  <span class="n">max_requests</span> <span class="o">=</span> <span class="mi">30</span><span class="o">;</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>  <span class="n">window</span> <span class="o">=</span> <span class="mi">60</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="o">}</span> <span class="bp">()</span>
+</span></code></pre></div>
+<h2 id="timeout">Timeout<a class="headerlink" href="#timeout" title="Permanent link">&para;</a></h2>
+<p>将超时错误统一转换为标准格式。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">val</span> <span class="nn">Timeout</span><span class="p">.</span><span class="n">timeout_middleware</span> <span class="o">:</span> <span class="n">default_timeout</span><span class="o">:</span><span class="kt">float</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">middleware_hook</span>
+</span></code></pre></div>
+<h3 id="_7">行为<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>on_before_tool</code>：透传（占位）</li>
+<li><code>on_error</code>：将 <code>Timeout</code> 错误转换为带标准消息的 <code>Error</code> 结果</li>
+</ul>
+<p>配合 <code>Cancellation.with_timeout</code> 使用实现真正的超时控制：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nn">Cancellation</span><span class="p">.</span><span class="n">with_timeout</span> <span class="mi">30</span><span class="o">.</span><span class="mi">0</span> <span class="n">token</span> <span class="o">(</span><span class="k">fun</span> <span class="n">token</span> <span class="o">-&gt;</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>  <span class="nn">Engine</span><span class="p">.</span><span class="n">run_agent</span> <span class="n">token</span> <span class="n">agent</span> <span class="n">message</span> <span class="n">llm</span> <span class="n">registry</span><span class="o">)</span>
+</span></code></pre></div>
+<h2 id="output_validation">Output_validation<a class="headerlink" href="#output_validation" title="Permanent link">&para;</a></h2>
+<p>JSON 输入/输出校验中间件，确保 LLM 响应和工具参数格式正确。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">val</span> <span class="nn">Output_validation</span><span class="p">.</span><span class="n">validation</span> <span class="o">:</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>  <span class="o">?</span><span class="n">strict</span><span class="o">:</span><span class="kt">bool</span> <span class="o">-&gt;</span>   <span class="c">(* 默认 false：宽松模式 *)</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">middleware_hook</span>
+</span></code></pre></div>
+<h3 id="_8">行为<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>on_after_llm</th>
+<th>on_before_tool</th>
+<th>on_after_tool</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>宽松 (<code>strict=false</code>)</td>
+<td>缺少 text 和 tool_calls 时 warn 并补充空字符串</td>
+<td>非 object 参数自动替换为 <code>{}</code></td>
+<td>--</td>
+</tr>
+<tr>
+<td>严格 (<code>strict=true</code>)</td>
+<td>同上，但使用 err 级别</td>
+<td>非 object 参数标记为无效，<code>on_after_tool</code> 返回错误</td>
+<td>若参数已标记无效，返回错误结果</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_9">使用示例<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c">(* 开发环境用宽松模式 *)</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="k">let</span> <span class="n">validation_hook</span> <span class="o">=</span> <span class="nn">Output_validation</span><span class="p">.</span><span class="n">validation</span> <span class="bp">()</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c">(* 生产环境用严格模式 *)</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="k">let</span> <span class="n">validation_hook</span> <span class="o">=</span> <span class="nn">Output_validation</span><span class="p">.</span><span class="n">validation</span> <span class="o">~</span><span class="n">strict</span><span class="o">:</span><span class="bp">true</span> <span class="bp">()</span>
+</span></code></pre></div>
+<h2 id="pii_mask">Pii_mask<a class="headerlink" href="#pii_mask" title="Permanent link">&para;</a></h2>
+<p>在 LLM 请求/响应和工具调用中自动检测和脱敏个人身份信息（PII）。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">val</span> <span class="nn">Pii_mask</span><span class="p">.</span><span class="n">pii_mask</span> <span class="o">:</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>  <span class="o">?</span><span class="n">patterns</span><span class="o">:</span><span class="kt">string</span> <span class="kt">list</span> <span class="o">-&gt;</span>         <span class="c">(* 自定义检测模式，默认内置 4 类 *)</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>  <span class="o">?</span><span class="n">replacement</span><span class="o">:</span><span class="kt">string</span> <span class="o">-&gt;</span>           <span class="c">(* 替换文本，默认 &quot;[REDACTED]&quot; *)</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">middleware_hook</span>
+</span></code></pre></div>
+<h3 id="_10">默认检测模式<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>模式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>邮箱</td>
+<td><code>[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z][a-zA-Z]+</code></td>
+</tr>
+<tr>
+<td>电话</td>
+<td><code>XXX-XXX-XXXX</code> / <code>XXX.XXX.XXXX</code> / 10 位连续数字</td>
+</tr>
+<tr>
+<td>SSN</td>
+<td><code>XXX-XX-XXXX</code></td>
+</tr>
+<tr>
+<td>信用卡</td>
+<td><code>XXXX-XXXX-XXXX-XXXX</code> / <code>XXXX XXXX XXXX XXXX</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="_11">行为<a class="headerlink" href="#_11" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>on_before_llm</code>：扫描所有消息 content，替换匹配的 PII</li>
+<li><code>on_after_llm</code>：扫描 LLM 响应 text（防止 LLM 回显 PII）</li>
+<li><code>on_before_tool</code>：递归扫描工具参数 JSON 中所有字符串值</li>
+<li><code>on_after_tool</code>：递归扫描工具结果 JSON 和错误消息</li>
+</ul>
+<h3 id="_12">使用示例<a class="headerlink" href="#_12" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c">(* 使用默认模式 *)</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="k">let</span> <span class="n">pii_hook</span> <span class="o">=</span> <span class="nn">Pii_mask</span><span class="p">.</span><span class="n">pii_mask</span> <span class="bp">()</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="c">(* 自定义模式和替换文本 *)</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="k">let</span> <span class="n">pii_hook</span> <span class="o">=</span> <span class="nn">Pii_mask</span><span class="p">.</span><span class="n">pii_mask</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>  <span class="o">~</span><span class="n">patterns</span><span class="o">:[</span><span class="s2">&quot;my-custom-pattern&quot;</span><span class="o">]</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>  <span class="o">~</span><span class="n">replacement</span><span class="o">:</span><span class="s2">&quot;[DATA REMOVED]&quot;</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>  <span class="bp">()</span>
+</span></code></pre></div>
+<h2 id="sanitize_tool_output-v020">Sanitize_tool_output (v0.2.0)<a class="headerlink" href="#sanitize_tool_output-v020" title="Permanent link">&para;</a></h2>
+<p>检测并清洗工具输出中的 prompt injection 模式，防止 Agent 被恶意工具输出劫持。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">type</span> <span class="n">sanitize_action</span> <span class="o">=</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>  <span class="o">[</span> <span class="o">`</span><span class="nc">Replace</span> <span class="k">of</span> <span class="kt">string</span>    <span class="c">(* 替换匹配内容 *)</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>  <span class="o">|</span> <span class="o">`</span><span class="nc">Tag</span>                  <span class="c">(* 在输出前后添加标签 *)</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>  <span class="o">|</span> <span class="o">`</span><span class="nc">Block</span> <span class="o">]</span>              <span class="c">(* 完全阻断输出 *)</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="k">type</span> <span class="n">sanitize_config</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>  <span class="n">patterns</span> <span class="o">:</span> <span class="kt">string</span> <span class="kt">list</span><span class="o">;</span>
+</span><span id="__span-14-8"><a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>  <span class="n">action</span> <span class="o">:</span> <span class="n">sanitize_action</span><span class="o">;</span>
+</span><span id="__span-14-9"><a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="o">}</span>
+</span><span id="__span-14-10"><a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>
+</span><span id="__span-14-11"><a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a><span class="k">val</span> <span class="nn">Sanitize_tool_output</span><span class="p">.</span><span class="n">default_config</span> <span class="o">:</span> <span class="n">sanitize_config</span>
+</span><span id="__span-14-12"><a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>
+</span><span id="__span-14-13"><a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a><span class="k">val</span> <span class="nn">Sanitize_tool_output</span><span class="p">.</span><span class="n">sanitize_tool_output</span> <span class="o">:</span>
+</span><span id="__span-14-14"><a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a>  <span class="o">?</span><span class="n">config</span><span class="o">:</span><span class="n">sanitize_config</span> <span class="o">-&gt;</span>
+</span><span id="__span-14-15"><a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a>  <span class="kt">unit</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">middleware_hook</span>
+</span></code></pre></div>
+<h3 id="_13">默认检测模式<a class="headerlink" href="#_13" title="Permanent link">&para;</a></h3>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>&quot;ignore previous&quot;, &quot;ignore all previous&quot;, &quot;you are now&quot;,
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>&quot;system:&quot;, &quot;new instructions&quot;, &quot;disregard&quot;
+</span></code></pre></div>
+<h3 id="_14">三种处理策略<a class="headerlink" href="#_14" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>策略</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Replace text</code></td>
+<td>将匹配文本替换为指定字符串（默认 <code>[SANITIZED]</code>）</td>
+</tr>
+<tr>
+<td><code>Tag</code></td>
+<td>保留输出但在开头添加 <code>[SANITIZED-OUTPUT: ...]</code> 标记</td>
+</tr>
+<tr>
+<td><code>Block</code></td>
+<td>拒绝整个输出，替换为 <code>[SANITIZED: blocked ...]</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="_15">行为<a class="headerlink" href="#_15" title="Permanent link">&para;</a></h3>
+<ul>
+<li>仅在 <code>on_after_tool</code> 钩子中生效</li>
+<li>递归扫描工具结果 JSON 中所有字符串值</li>
+<li>同时扫描错误消息</li>
+</ul>
+<h3 id="_16">使用示例<a class="headerlink" href="#_16" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c">(* 使用默认配置 *)</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="k">let</span> <span class="n">sanitize_hook</span> <span class="o">=</span> <span class="nn">Sanitize_tool_output</span><span class="p">.</span><span class="n">sanitize_tool_output</span> <span class="bp">()</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c">(* 严格模式：阻断含注入的输出 *)</span>
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="k">let</span> <span class="n">sanitize_hook</span> <span class="o">=</span> <span class="nn">Sanitize_tool_output</span><span class="p">.</span><span class="n">sanitize_tool_output</span>
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>  <span class="o">~</span><span class="n">config</span><span class="o">:{</span>
+</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>    <span class="n">patterns</span> <span class="o">=</span> <span class="o">[</span>
+</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>      <span class="s2">&quot;ignore previous&quot;</span><span class="o">;</span> <span class="s2">&quot;ignore all previous&quot;</span><span class="o">;</span>
+</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>      <span class="s2">&quot;you are now&quot;</span><span class="o">;</span> <span class="s2">&quot;system:&quot;</span><span class="o">;</span> <span class="s2">&quot;new instructions&quot;</span><span class="o">;</span>
+</span><span id="__span-16-10"><a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>      <span class="s2">&quot;disregard&quot;</span><span class="o">;</span> <span class="s2">&quot;forget everything&quot;</span><span class="o">;</span>
+</span><span id="__span-16-11"><a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a>    <span class="o">];</span>
+</span><span id="__span-16-12"><a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>    <span class="n">action</span> <span class="o">=</span> <span class="o">`</span><span class="nc">Block</span><span class="o">;</span>
+</span><span id="__span-16-13"><a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a>  <span class="o">}</span>
+</span><span id="__span-16-14"><a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>  <span class="bp">()</span>
+</span></code></pre></div>
+<h2 id="think_tag_strip">Think_tag_strip<a class="headerlink" href="#think_tag_strip" title="Permanent link">&para;</a></h2>
+<p>剥离 LLM 响应中的 <code>&lt;think&gt;</code> 和 <code>&lt;reasoning&gt;</code> 标签。推理模型（DeepSeek R1、QwQ）将思维链嵌入这些标签；此中间件可防止它们污染对话历史和用户可见输出。</p>
+<p>可选启用 -- 仅影响包含此中间件的 Agent：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">let</span> <span class="n">agent</span> <span class="o">=</span> <span class="nn">Runtime</span><span class="p">.</span><span class="n">make_agent</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>  <span class="o">~</span><span class="n">id</span><span class="o">:</span><span class="s2">&quot;my-agent&quot;</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>  <span class="o">~</span><span class="n">middleware</span><span class="o">:[</span><span class="nn">Think_tag_strip</span><span class="p">.</span><span class="n">create</span> <span class="bp">()</span><span class="o">]</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>  <span class="o">~</span><span class="n">model</span> <span class="o">~</span><span class="n">tools</span><span class="o">:</span><span class="bp">[]</span> <span class="bp">()</span>
+</span></code></pre></div>
+<p><strong><code>Think_tag_strip</code> 与 <code>reasoning_content</code> 的区别。</strong> 两者服务于不同的模型和集成模式：</p>
+<ul>
+<li><code>Think_tag_strip</code> 中间件：适用于在 <code>content</code> 字段内部嵌入 <code>&lt;think&gt;...&lt;/think&gt;</code> 标签的模型（DeepSeek-R1 通过开源直接 API、QwQ）。中间件在 LLM 调用后剥离这些标签，保持对话历史干净。通过 <code>Think_tag_strip.create ()</code> 选择启用。</li>
+<li><code>reasoning_content</code> 字段：适用于将推理作为独立 API 字段返回的模型（OpenAI o1/o3、DeepSeek 通过 OpenAI 兼容 API）。由 OpenAI provider 自动捕获，无需中间件。</li>
+</ul>
+<p>两者并不互斥。某些模型在两个位置都发出推理内容，某些部署同时使用两者能获得更好效果。</p>
+<h2 id="_17">组合中间件<a class="headerlink" href="#_17" title="Permanent link">&para;</a></h2>
+<p>中间件按列表顺序排列，靠前的在外层包裹靠后的。典型生产环境配置：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="k">let</span> <span class="n">agent</span> <span class="o">=</span> <span class="o">{</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>  <span class="n">agent</span> <span class="k">with</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>  <span class="n">middleware</span> <span class="o">=</span> <span class="o">[</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>    <span class="nn">Logging</span><span class="p">.</span><span class="n">logging</span><span class="o">;</span>                           <span class="c">(* 最外层：记录所有请求 *)</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>    <span class="nn">Pii_mask</span><span class="p">.</span><span class="n">pii_mask</span> <span class="bp">()</span><span class="o">;</span>                      <span class="c">(* 脱敏用户输入 *)</span>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>    <span class="nn">Rate_limit</span><span class="p">.</span><span class="n">rate_limit</span> <span class="o">~</span><span class="n">config</span><span class="o">:{</span>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>      <span class="n">max_requests</span> <span class="o">=</span> <span class="mi">30</span><span class="o">;</span> <span class="n">window</span> <span class="o">=</span> <span class="mi">60</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span>
+</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>    <span class="o">}</span> <span class="bp">()</span><span class="o">;</span>                                     <span class="c">(* 限速 *)</span>
+</span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>    <span class="nn">Retry</span><span class="p">.</span><span class="n">retry</span> <span class="o">~</span><span class="n">config</span><span class="o">:{</span>
+</span><span id="__span-18-10"><a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>      <span class="n">max_attempts</span> <span class="o">=</span> <span class="mi">3</span><span class="o">;</span> <span class="n">base_delay</span> <span class="o">=</span> <span class="mi">2</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span> <span class="n">max_delay</span> <span class="o">=</span> <span class="mi">30</span><span class="o">.</span><span class="mi">0</span><span class="o">;</span>
+</span><span id="__span-18-11"><a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a>    <span class="o">}</span> <span class="bp">()</span><span class="o">;</span>                                     <span class="c">(* 重试 *)</span>
+</span><span id="__span-18-12"><a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a>    <span class="nn">Output_validation</span><span class="p">.</span><span class="n">validation</span> <span class="o">~</span><span class="n">strict</span><span class="o">:</span><span class="bp">true</span> <span class="bp">()</span><span class="o">;</span>     <span class="c">(* 严格校验 *)</span>
+</span><span id="__span-18-13"><a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a>    <span class="nn">Sanitize_tool_output</span><span class="p">.</span><span class="n">sanitize_tool_output</span> <span class="bp">()</span><span class="o">;</span>  <span class="c">(* 输出清洗 *)</span>
+</span><span id="__span-18-14"><a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a>    <span class="nn">Think_tag_strip</span><span class="p">.</span><span class="n">create</span> <span class="bp">()</span><span class="o">;</span>                 <span class="c">(* 可选：清洗 reasoning 模型的 &lt;think&gt;/&lt;reasoning&gt; 标签 *)</span>
+</span><span id="__span-18-15"><a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a>  <span class="o">];</span>
+</span><span id="__span-18-16"><a id="__codelineno-18-16" name="__codelineno-18-16" href="#__codelineno-18-16"></a><span class="o">}</span>
+</span></code></pre></div>
+<p>执行流程：请求 -&gt; Logging -&gt; Pii_mask -&gt; Rate_limit -&gt; Output_validation -&gt; LLM
+响应 -&gt; Output_validation -&gt; Sanitize -&gt; Retry -&gt; Rate_limit -&gt; Pii_mask -&gt; Logging</p>
+<h2 id="cancellation">Cancellation（取消）<a class="headerlink" href="#cancellation" title="Permanent link">&para;</a></h2>
+<p>上文的 <code>Timeout</code> 中间件只是在事后把超时错误归一化。真正的截止时间（deadline）由 cancellation token 实现，它是运行时范围内"立即停止工作"的基础原语。中间件钩子并不直接接收 cancellation token，但每个工具处理器都会收到一个，任何驱动 Engine 的代码都可以在自己创建的 token 上请求取消。</p>
+<h3 id="cancellation_1">Cancellation 接口<a class="headerlink" href="#cancellation_1" title="Permanent link">&para;</a></h3>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">type</span> <span class="n">cancellation_token</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">create_token</span> <span class="o">:</span> <span class="nn">Eio</span><span class="p">.</span><span class="nn">Switch</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span> <span class="n">cancellation_token</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">is_cancelled</span> <span class="o">:</span> <span class="n">cancellation_token</span> <span class="o">-&gt;</span> <span class="kt">bool</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">check_cancel</span>  <span class="o">:</span> <span class="n">cancellation_token</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">request_cancel</span> <span class="o">:</span> <span class="n">cancellation_token</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>
+</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">with_timeout</span> <span class="o">:</span>
+</span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>  <span class="kt">float</span> <span class="o">-&gt;</span>
+</span><span id="__span-19-10"><a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>  <span class="n">cancellation_token</span> <span class="o">-&gt;</span>
+</span><span id="__span-19-11"><a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a>  <span class="o">(</span><span class="n">cancellation_token</span> <span class="o">-&gt;</span> <span class="k">&#39;</span><span class="n">a</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-19-12"><a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a>  <span class="o">(</span><span class="k">&#39;</span><span class="n">a</span><span class="o">,</span> <span class="o">[&gt;</span> <span class="o">`</span><span class="nc">Timeout</span> <span class="o">|</span> <span class="o">`</span><span class="nc">Cancelled</span> <span class="o">])</span> <span class="n">result</span>
+</span><span id="__span-19-13"><a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a>
+</span><span id="__span-19-14"><a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a><span class="k">val</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">cancellable_handler</span> <span class="o">:</span>
+</span><span id="__span-19-15"><a id="__codelineno-19-15" name="__codelineno-19-15" href="#__codelineno-19-15"></a>  <span class="n">cancellation_token</span> <span class="o">-&gt;</span>
+</span><span id="__span-19-16"><a id="__codelineno-19-16" name="__codelineno-19-16" href="#__codelineno-19-16"></a>  <span class="kt">float</span> <span class="o">-&gt;</span>
+</span><span id="__span-19-17"><a id="__codelineno-19-17" name="__codelineno-19-17" href="#__codelineno-19-17"></a>  <span class="o">(</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">handler_result</span><span class="o">)</span> <span class="o">-&gt;</span>
+</span><span id="__span-19-18"><a id="__codelineno-19-18" name="__codelineno-19-18" href="#__codelineno-19-18"></a>  <span class="o">(</span><span class="nn">Yojson</span><span class="p">.</span><span class="nn">Safe</span><span class="p">.</span><span class="n">t</span> <span class="o">-&gt;</span> <span class="nn">Types</span><span class="p">.</span><span class="n">handler_result</span><span class="o">)</span>
+</span></code></pre></div>
+<p>token 创建于某个 <code>Eio.Switch.t</code> 之上。该 switch 拥有 token 的生命周期：当 switch 退出时，token 会随其上运行的所有 fiber 一起被取消。退出作用域时无需显式调用 <code>request_cancel</code> 来清理。</p>
+<p><code>is_cancelled</code> 是非抛出式探测。当你只想检查标志位但暂不抛出时使用。<code>check_cancel</code> 是抛出式探测：若 token 已被取消则立即抛出 <code>Eio.Cancel.Cancelled</code>。长时间运行的代码应在自然边界处（循环迭代之间、批处理项之间）调用 <code>check_cancel</code>，使取消请求能及时传播，而不是等到下一次阻塞调用。</p>
+<p><code>request_cancel</code> 是另一个 fiber 请求停止工作的方式。它会设置标志位；被取消的 fiber 在下次遇到 <code>check_cancel</code>、cancel-aware 的 Eio 操作或 <code>with_timeout</code> 边界时观察到该标志。</p>
+<h3 id="timeout-vs-cancellation">Timeout vs Cancellation<a class="headerlink" href="#timeout-vs-cancellation" title="Permanent link">&para;</a></h3>
+<p><code>with_timeout</code> 将一个 deadline 与现有 token 组合。它返回函数的值、<code>`Timeout</code>（deadline 先到）或<code>`Cancelled</code>（在 deadline 之前有人对底层 token 调用了 <code>request_cancel</code>）。这两种情况是分开的，因为它们对应不同的响应方式：超时通常意味着"用更长的预算或更小的任务重试"，而取消通常意味着"调用方放弃了，完全停止"。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="k">match</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">with_timeout</span> <span class="mi">30</span><span class="o">.</span><span class="mi">0</span> <span class="n">token</span> <span class="o">(</span><span class="k">fun</span> <span class="n">token</span> <span class="o">-&gt;</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>  <span class="nn">Engine</span><span class="p">.</span><span class="n">run_agent</span> <span class="n">token</span> <span class="n">agent</span> <span class="n">message</span> <span class="n">llm</span> <span class="n">registry</span><span class="o">)</span>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="k">with</span>
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="o">|</span> <span class="nc">Ok</span> <span class="n">result</span> <span class="o">-&gt;</span> <span class="c">(* 继续 *)</span>
+</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="o">|</span> <span class="nc">Error</span> <span class="o">`</span><span class="nc">Timeout</span> <span class="o">-&gt;</span> <span class="c">(* 重试或上抛 *)</span>
+</span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="o">|</span> <span class="nc">Error</span> <span class="o">`</span><span class="nc">Cancelled</span> <span class="o">-&gt;</span> <span class="c">(* 传播，不要重试 *)</span>
+</span></code></pre></div>
+<p>只有当内部函数在某个时刻观察到 cancellation 时，deadline 才会触发。从不 yield 的纯 CPU 工作会跑过 deadline。PAR 的 Engine 和工具处理器在 LLM 往返之间以及工具分派之前都会检查 cancellation，因此 Agent 调用是 deadline-aware 的。</p>
+<h3 id="cancellation_2">中间件如何与 Cancellation 交互<a class="headerlink" href="#cancellation_2" title="Permanent link">&para;</a></h3>
+<p>中间件钩子收到的是 conversation、response、tool call 或 error，但不包含 token。token 在底层流动：Engine 通过 <code>run_agent</code> 把它穿起来，每个工具处理器把它作为第二个参数接收。一个中间件如果想在它观察到的某个信号上中止执行，有两个选择：</p>
+<ol>
+<li>从相关钩子返回 <code>None</code>，让 Engine 继续执行。中间件无法强制 Engine 停止，但可以短路自己的贡献。</li>
+<li>修改共享状态，下一个 <code>check_cancel</code> 边界会观察到。这会把中间件与处理器的 cancellation 纪律耦合起来，因此在可行时优先使用第一种方式。</li>
+</ol>
+<p><code>cancellable_handler</code> 包装器是让工具处理器变为 cancellation-aware 的标准方式，无需重写其函数体。传入 token 和每次调用的超时，包装器会确保 <code>check_cancel</code> 在处理器的各步骤之间触发。</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="k">let</span> <span class="n">handler</span> <span class="n">input</span> <span class="n">token</span> <span class="o">=</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>  <span class="k">let</span> <span class="n">wrapped</span> <span class="o">=</span> <span class="nn">Cancellation</span><span class="p">.</span><span class="n">cancellable_handler</span> <span class="n">token</span> <span class="mi">10</span><span class="o">.</span><span class="mi">0</span> <span class="n">real_handler</span> <span class="k">in</span>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>  <span class="n">wrapped</span> <span class="n">input</span>
+</span></code></pre></div>
+<p>这里 <code>real_handler</code> 不接收 token。包装器为每次调用设置 10 秒预算，若 token 被取消或预算耗尽则中止并返回 <code>Error</code>。适用于包装难以穿过 token 的第三方函数。</p>
+<h3 id="eio">与 Eio 组合<a class="headerlink" href="#eio" title="Permanent link">&para;</a></h3>
+<p>Cancellation 依托于 Eio 的结构化并发。在某个 switch 上创建的 token 会在该 switch 退出时被取消，因此常见的清理模式是"在 <code>Eio.Switch.run</code> 内运行 Agent；如果出错，退出 switch 即可拆掉 Agent 的所有 fiber"。极少需要为清理显式调用 <code>request_cancel</code>；它主要用于用户发起的取消（一个"停止"按钮、一个 SIGINT 处理器），此时 switch 并未以其他方式退出。</p>
+<h2 id="_18">自定义中间件<a class="headerlink" href="#_18" title="Permanent link">&para;</a></h2>
+<p>编写自定义中间件只需构造一个 <code>middleware_hook</code> record。以下示例统计 LLM 调用次数：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="k">let</span> <span class="n">counter_middleware</span> <span class="bp">()</span> <span class="o">=</span>
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>  <span class="k">let</span> <span class="n">count</span> <span class="o">=</span> <span class="n">ref</span> <span class="mi">0</span> <span class="k">in</span>
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>  <span class="o">{</span>
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>    <span class="nn">Types</span><span class="p">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;call_counter&quot;</span><span class="o">;</span>
+</span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>    <span class="n">on_before_llm</span> <span class="o">=</span> <span class="nc">Some</span> <span class="o">(</span><span class="k">fun</span> <span class="o">_</span><span class="n">conv</span> <span class="o">-&gt;</span>
+</span><span id="__span-22-6"><a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>      <span class="n">incr</span> <span class="n">count</span><span class="o">;</span>
+</span><span id="__span-22-7"><a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a>      <span class="nn">Printf</span><span class="p">.</span><span class="n">printf</span> <span class="s2">&quot;LLM call #%d</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">!</span><span class="n">count</span><span class="o">;</span>
+</span><span id="__span-22-8"><a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a>      <span class="nc">None</span><span class="o">);</span>
+</span><span id="__span-22-9"><a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a>    <span class="n">on_after_llm</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-22-10"><a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a>    <span class="n">on_before_tool</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-22-11"><a id="__codelineno-22-11" name="__codelineno-22-11" href="#__codelineno-22-11"></a>    <span class="n">on_after_tool</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-22-12"><a id="__codelineno-22-12" name="__codelineno-22-12" href="#__codelineno-22-12"></a>    <span class="n">on_error</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-22-13"><a id="__codelineno-22-13" name="__codelineno-22-13" href="#__codelineno-22-13"></a>  <span class="o">}</span>
+</span></code></pre></div>
+<h3 id="_19">错误处理中间件示例<a class="headerlink" href="#_19" title="Permanent link">&para;</a></h3>
+<p>将特定错误转换为可重试的替代结果：</p>
+<div class="language-ocaml highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="k">let</span> <span class="n">fallback_middleware</span> <span class="o">~</span><span class="n">fallback_text</span> <span class="bp">()</span> <span class="o">=</span>
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>  <span class="o">{</span>
+</span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>    <span class="nn">Types</span><span class="p">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;fallback&quot;</span><span class="o">;</span>
+</span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>    <span class="n">on_before_llm</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-23-5"><a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>    <span class="n">on_after_llm</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-23-6"><a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>    <span class="n">on_before_tool</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-23-7"><a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a>    <span class="n">on_after_tool</span> <span class="o">=</span> <span class="nc">None</span><span class="o">;</span>
+</span><span id="__span-23-8"><a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a>    <span class="n">on_error</span> <span class="o">=</span> <span class="nc">Some</span> <span class="o">(</span><span class="k">fun</span> <span class="n">conv</span> <span class="n">err</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-9"><a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a>      <span class="k">match</span> <span class="n">err</span> <span class="k">with</span>
+</span><span id="__span-23-10"><a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a>      <span class="o">|</span> <span class="nn">Types</span><span class="p">.</span><span class="nc">External_failure</span> <span class="o">_</span> <span class="o">-&gt;</span>
+</span><span id="__span-23-11"><a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a>        <span class="c">(* 将外部失败转换为带有兜底文本的成功结果 *)</span>
+</span><span id="__span-23-12"><a id="__codelineno-23-12" name="__codelineno-23-12" href="#__codelineno-23-12"></a>        <span class="nc">Some</span> <span class="o">(</span><span class="nn">Types</span><span class="p">.</span><span class="nc">Success</span> <span class="o">(`</span><span class="nc">String</span> <span class="n">fallback_text</span><span class="o">))</span>
+</span><span id="__span-23-13"><a id="__codelineno-23-13" name="__codelineno-23-13" href="#__codelineno-23-13"></a>      <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="nc">None</span>  <span class="c">(* 其他错误透传 *)</span>
+</span><span id="__span-23-14"><a id="__codelineno-23-14" name="__codelineno-23-14" href="#__codelineno-23-14"></a>    <span class="o">);</span>
+</span><span id="__span-23-15"><a id="__codelineno-23-15" name="__codelineno-23-15" href="#__codelineno-23-15"></a>  <span class="o">}</span>
+</span></code></pre></div>
+<h3 id="_20">注意事项<a class="headerlink" href="#_20" title="Permanent link">&para;</a></h3>
+<ul>
+<li>中间件实例在同一 Agent 配置中共享，注意并发状态隔离</li>
+<li><code>on_error</code> 在 Engine 层被调用（位于 <code>lib/core/engine.ml:787</code> 的 <code>apply_on_error</code> 中），当工具返回 <code>Error</code> 时触发。此钩子可用于重试/自定义错误处理中间件。注意：<code>conversation</code> 是失败发生时的实时对话快照</li>
+<li>返回 <code>Some</code> 表示修改/替换值，<code>None</code> 表示透传原始值</li>
+</ul>
+<h2 id="_21">另请参阅<a class="headerlink" href="#_21" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../overview/">Overview</a> -- SDK 架构概览</li>
+<li><a href="../agent/">Agent API</a> -- agent_config.middleware 字段说明</li>
+<li><a href="../workflow/">Workflow API</a> -- 工作流中的中间件传播</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
