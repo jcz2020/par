@@ -71,6 +71,7 @@ let error_to_string = function
   | Timeout -> "Timeout"
   | Rate_limited -> "Rate_limited"
   | Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 let str_contains haystack needle =
   try ignore (Str.search_forward (Str.regexp_string needle) haystack 0); true

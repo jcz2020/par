@@ -51,6 +51,7 @@ let error_to_string = function
   | Timeout -> "Timeout"
   | Rate_limited -> "Rate_limited"
   | Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 let with_token f =
   Eio_main.run (fun _env ->
@@ -1345,7 +1346,7 @@ let test_lifecycle_cancel_sets_failed () =
      | Ok () -> ()
      | Error e -> Alcotest.failf "cancel_workflow: %s" (error_to_string e));
     (match Runtime.get_workflow_status rt id with
-     | Ok (Wf_failed (Internal _)) -> ()
+     | Ok (Wf_failed (Cancelled _)) -> ()
      | Ok other ->
        Alcotest.failf "expected Wf_failed, got %s"
          (workflow_status_to_string other)

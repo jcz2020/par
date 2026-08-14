@@ -67,6 +67,13 @@ val execute_tool :
 val add_user_feedback :
   conversation -> string -> conversation
 
+(** Error-path conversation recovery for cancellation.
+    Appends synthetic Tool messages for dangling tool_calls so the
+    conversation is provider-replay valid. Called ONLY on the Error
+    path — the Ok-path egress wrap (v0.7.9 invariant) is untouched. *)
+val recover_on_cancel :
+  conversation -> dispatched:string list -> conversation
+
 (** [resolve_on_max_tokens ~effective_tools agent] returns the effective
     truncation policy. If [agent.on_max_tokens = None] (Auto), resolves to
     [Continue] for tool-less agents (per [effective_tools]) and

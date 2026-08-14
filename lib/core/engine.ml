@@ -126,7 +126,7 @@ let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
                }
              | Error `Cancelled ->
                Error {
-                 category = Timeout;
+                 category = Cancelled (Option.value (Cancellation.reason token) ~default:User_cancelled);
                  message = Printf.sprintf "Tool '%s' cancelled" descriptor.name;
                  retryable = false;
                  metadata = [];
@@ -310,6 +310,7 @@ let error_category_to_string (e : error_category) =
   | Permission_denied msg -> Printf.sprintf "Permission_denied: %s" msg
   | Internal msg -> Printf.sprintf "Internal: %s" msg
   | Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "Cancelled"
 
 (* Schema-driven structured output. Calls the LLM (native structured endpoint
    when available, else a fallback that prepends a JSON-schema directive to
@@ -379,7 +380,7 @@ let run_structured
     (* BS-1: cancellation check at top of each iteration. Prevents unbounded
        LLM calls when the caller signals cancel between repair attempts. *)
     if Cancellation.is_cancelled token then
-      Result.Error ((Timeout : error_category), conv)
+      Result.Error ((Cancelled (Option.value (Cancellation.reason token) ~default:User_cancelled) : error_category), conv)
     else begin
       (* D2: fire on_before_llm if set — conversation-aware but non-mutating
          observability hook (e.g. Logging middleware captures structured
@@ -541,6 +542,58 @@ let ends_with s suffix =
   let slen = String.length s and suflen = String.length suffix in
   slen >= suflen && String.sub s (slen - suflen) suflen = suffix
 
+(** Error-path conversation recovery for cancellation.
+    Scans the trailing Assistant message(s) for tool_calls that have NO
+    following Tool message with matching tool_call_id. Appends one synthetic
+    Tool message per dangling call so the conversation is provider-replay
+    valid (no orphaned tool_calls).
+
+    [~dispatched]: tool_call ids that were dispatched to tool handlers before
+    cancellation. When known, dangling calls that WERE dispatched get the
+    "mid-execution" text; those that were NOT dispatched get the
+    "not-dispatched" text. When unknown (e.g. loop-top cancel), all dangling
+    calls get the "not-dispatched" text.
+
+    This function is called ONLY on the Error path — the Ok-path egress
+    wrap (v0.7.9 invariant) is untouched. *)
+let recover_on_cancel (conv : conversation) ~(dispatched : string list) : conversation =
+  let collected_ids = ref [] in
+  let seen_tool_ids = Hashtbl.create 8 in
+  List.iter (fun (msg : message) ->
+    match msg.role with
+    | Tool ->
+      (match msg.tool_call_id with
+       | Some tcid -> Hashtbl.replace seen_tool_ids tcid ()
+       | None -> ())
+    | Assistant ->
+      (match msg.tool_calls with
+       | Some calls ->
+         List.iter (fun (tc : tool_call) ->
+           if not (Hashtbl.mem seen_tool_ids tc.id) then
+             collected_ids := tc.id :: !collected_ids
+         ) calls
+       | None -> ())
+    | _ -> ()
+  ) conv.messages;
+  let dangling = List.rev !collected_ids in
+  if dangling = [] then conv
+  else
+    let synth_msgs = List.map (fun tc_id ->
+      let text =
+        if List.mem tc_id dispatched then
+          "[cancelled] Tool call aborted mid-execution \xe2\x80\x94 it may have partially completed; verify the effect (e.g. read the file) before retrying. The run was cancelled."
+        else
+          "[cancelled] Tool call aborted before dispatch \xe2\x80\x94 not executed. The run was cancelled."
+      in
+      { role = Tool;
+        content_blocks = Message.content_of_string text;
+        tool_calls = None;
+        tool_call_id = Some tc_id;
+        name = None;
+        reasoning_content = None }
+    ) dangling in
+    { conv with messages = conv.messages @ synth_msgs }
+
 let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
     ?(tool_call_hooks = None) ?(quota = None) ?(parallel = false)
@@ -663,7 +716,13 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
          | Error _ -> Result.Error ((Internal "Max iterations exceeded" : error_category), conv))
     )
     else begin
-      Cancellation.check_cancel token;
+      (* Cancel check — value semantics instead of raising Eio.Cancel.Cancelled.
+         This ensures the Error path carries the conversation for recovery. *)
+      if Cancellation.is_cancelled token then
+        let recovered = recover_on_cancel conv ~dispatched:[] in
+        Result.Error ((Cancelled (Option.value (Cancellation.reason token) ~default:User_cancelled) : error_category), recovered)
+      else begin
+      Eio.Fiber.yield ();
       (* PAR-p70: ratio-based auto-compression gate.
          - threshold=None means manual mode: apply strategy unconditionally (current behavior).
          - threshold=Some r means auto mode: apply strategy only when ratio crosses r AND cooldown elapsed.
@@ -1313,7 +1372,8 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
             if Steering_queue.has_items (Option.value followup ~default:(Steering_queue.create ())) then
               loop ~agent ~global_max conv (iterations + 1)
             else
-              Ok (resp, conv)
+               Ok (resp, conv)
+     end
      end
    in
   let conv = match conversation with

@@ -14,6 +14,7 @@ let test_openai_create_rejects_empty_api_key () =
          (match e with
           | Internal s -> "Internal(" ^ s ^ ")"
   | Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
           | Invalid_input s -> "Invalid_input(" ^ s ^ ")"
           | External_failure s -> "External_failure(" ^ s ^ ")"
           | Rate_limited -> "Rate_limited"

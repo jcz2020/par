@@ -26,6 +26,7 @@ let error_to_string (e : Types.error_category) =
   | Types.Permission_denied s -> Printf.sprintf "Permission_denied %S" s
   | Types.Internal s -> Printf.sprintf "Internal %S" s
   | Types.Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 let test_config : Types.runtime_config = {
   Types.persistence = `Sqlite ":memory:";

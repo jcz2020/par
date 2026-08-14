@@ -12,6 +12,7 @@ let format_error : error_category -> string = function
   | Types.Permission_denied s -> s
   | Types.Internal s -> s
   | Types.Embedding_unsupported -> "embedding_unsupported"
+  | Types.Cancelled _ -> "cancelled"
 
 (* --- Call history for test assertions --- *)
 

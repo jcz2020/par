@@ -622,3 +622,8 @@
   (name test_tc_id_bug5)
   (libraries par alcotest)
   (modules test_tc_id_bug5))
+
+(test
+  (name test_cancellation)
+  (libraries par eio_main alcotest)
+  (modules test_cancellation))

@@ -9,6 +9,7 @@ let show_error (e : error_category) = match e with
   | Permission_denied s -> "Permission_denied: " ^ s
   | Internal s -> "Internal: " ^ s
   | Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 let test_hnsw_backend_via_vector_store () =
   Eio_main.run (fun _env ->

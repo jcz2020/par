@@ -36,6 +36,7 @@ let show_ec (ec : Types.error_category) = match ec with
   | Permission_denied s -> "Permission_denied(" ^ s ^ ")"
   | Internal s -> "Internal(" ^ s ^ ")"
   | Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 
 (* -------------------------------------------------------------------------- *)

@@ -54,6 +54,7 @@ let error_to_string (e : Types.error_category) =
   | Types.Permission_denied s -> Printf.sprintf "Permission_denied %S" s
   | Types.Internal s -> Printf.sprintf "Internal %S" s
   | Types.Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 let agent_has_tool_named rt agent_id tool_name =
   match Runtime.list_agents rt

@@ -18,6 +18,7 @@ let error_to_string (e : error_category) =
   | Permission_denied s -> Printf.sprintf "Permission_denied: %s" s
   | Internal s -> Printf.sprintf "Internal: %s" s
   | Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 let dummy_model : model_config = {
   provider = `Openai; model_name = "mock"; api_base = None;

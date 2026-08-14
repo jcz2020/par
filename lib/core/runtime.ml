@@ -25,6 +25,7 @@ let string_of_error_category (e : Types.error_category) =
   | Types.Permission_denied msg -> Printf.sprintf "Permission_denied: %s" msg
   | Types.Internal msg -> Printf.sprintf "Internal: %s" msg
   | Types.Embedding_unsupported -> "Embedding_unsupported"
+  | Types.Cancelled _ -> "Cancelled"
 
 (* -------------------------------------------------------------------------- *)
 (* SDK — Runtime                                                          *)
@@ -907,6 +908,7 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
     in
     let should_fallback (err : Types.error_category) = match err with
       | Types.Rate_limited | Types.External_failure _ | Types.Timeout -> true
+      | Types.Cancelled _ -> false
       | _ -> false
     in
     let chain = match rt.fallback_policy with
@@ -1867,7 +1869,7 @@ let cancel_workflow rt wf_id =
   match htbl_get rt.workflows wf_id with
   | None -> Result.Error (Invalid_input "Workflow not found")
   | Some _ ->
-    let err = Internal "Cancelled" in
+    let err = (Cancelled User_cancelled : error_category) in
     htbl_set rt.workflows wf_id (Wf_failed err);
     (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_failed err) None with
      | Ok () -> ()

@@ -2,7 +2,7 @@ open Types
 
 type t = cancellation_token
 
-let create_token switch = { switch; cancelled = false }
+let create_token switch = { switch; cancelled = false; reason = None }
 
 let is_cancelled token = token.cancelled
 
@@ -10,8 +10,13 @@ let check_cancel token =
   if token.cancelled then raise (Eio.Cancel.Cancelled (Failure "cancelled"))
   else Eio.Fiber.yield ()
 
-let request_cancel token =
-  token.cancelled <- true
+let request_cancel token reason =
+  if not token.cancelled then begin
+    token.cancelled <- true;
+    token.reason <- Some reason
+  end
+
+let reason token = token.reason
 
 let with_timeout seconds token f =
   let result = ref None in
@@ -35,6 +40,6 @@ let with_timeout seconds token f =
 
 let cancellable_handler token _check_interval handler input =
   if is_cancelled token then
-    Types.Error { category = Timeout; message = "Cancelled"; retryable = false; metadata = [] }
+    Types.Error { category = Cancelled (Option.value (reason token) ~default:User_cancelled); message = "Cancelled"; retryable = false; metadata = [] }
   else
     handler input

@@ -52,6 +52,11 @@ end
 (* Error categories and handler result                                  *)
 (* -------------------------------------------------------------------------- *)
 
+type cancel_reason =
+  | User_cancelled
+  | Guard_cancelled of string
+[@@deriving yojson]
+
 type error_category =
   | Timeout
   | Invalid_input of string
@@ -60,6 +65,7 @@ type error_category =
   | Permission_denied of string
   | Internal of string
   | Embedding_unsupported
+  | Cancelled of cancel_reason
 [@@deriving yojson]
 
 type handler_result =
@@ -295,6 +301,7 @@ type tool_permission =
 type cancellation_token = {
   switch : Eio.Switch.t;
   mutable cancelled : bool;
+  mutable reason : cancel_reason option;
 }
 
 type tool_descriptor = {

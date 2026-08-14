@@ -212,4 +212,6 @@ let run ?session_id ~agent ~message ?max_output_tokens ?total_timeout
     session_id agent.model.model_name
     (String.length (Types.prompt_text agent.system_prompt)) (String.length message)
     (match total_timeout with Some t -> Printf.sprintf "%.1fs" t | None -> "none"));
-  loop conv0 ""
+  try loop conv0 ""
+  with Eio.Cancel.Cancelled _ ->
+    Error ((Cancelled (Option.value (Cancellation.reason cancellation_token) ~default:User_cancelled) : error_category), conv0)

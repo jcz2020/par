@@ -21,6 +21,7 @@ let error_to_string (e : Types.error_category) =
   | Types.Permission_denied s -> Printf.sprintf "Permission_denied %S" s
   | Types.Internal s -> Printf.sprintf "Internal %S" s
   | Types.Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 let str_contains needle haystack =
   let n = String.length needle and h = String.length haystack in

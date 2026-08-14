@@ -64,6 +64,7 @@ let error_to_string = function
   | Timeout -> "Timeout"
   | Rate_limited -> "Rate_limited"
   | Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 let suite = [
   ("PAR-p70 engine integration", [

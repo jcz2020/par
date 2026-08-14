@@ -483,6 +483,7 @@ let do_init (config_json : string) =
               | Par.Types.Permission_denied m -> "Permission_denied: " ^ m
               | Par.Types.Internal m -> "Internal: " ^ m
               | Par.Types.Embedding_unsupported -> "Embedding_unsupported"
+              | Par.Types.Cancelled _ -> "Cancelled"
             in
             fd_log ("[do_init] Runtime.create Error: " ^ err_str);
             slot_put init_slot (`Error err_str)
@@ -914,13 +915,17 @@ let do_invoke (state_id : int) (agent_id : string) (message : string)
          let result = Par.Runtime.invoke rt
             ~agent_id ~message
             ?save ?update_current () in
-         let json = match result with
-           | Ok { Par.Types.response = resp; conversation = _; approval_pending = _ } ->
-             Printf.sprintf "{\"status\": \"ok\", \"content\": %s}"
-               (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp))
-           | Error (err, _) ->
-             error_json (Printf.sprintf "Invoke failed: %s"
-               (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
+          let json = match result with
+            | Ok { Par.Types.response = resp; conversation = _; approval_pending = _ } ->
+              Printf.sprintf "{\"status\": \"ok\", \"content\": %s}"
+                (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp))
+            | Error (Par.Types.Cancelled r, conv) ->
+              Printf.sprintf "{\"status\": \"cancelled\", \"reason\": %s, \"conversation\": %s}"
+                (Yojson.Safe.to_string (Par.Types.cancel_reason_to_yojson r))
+                (Yojson.Safe.to_string (Par.Types.conversation_to_yojson conv))
+            | Error (err, _) ->
+              error_json (Printf.sprintf "Invoke failed: %s"
+                (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
          in
          Obj.repr (Some json)
        with e -> Obj.repr (Some (error_json (Printexc.to_string e))))) in
@@ -938,13 +943,17 @@ let do_invoke_generate (state_id : int) (agent_id : string) (message : string)
          (* Envelope uses "result" key because the response is a structured
             generate_result, not a raw llm_response. Python agent unwraps with
             json.loads(...)["result"]. See long-output-generation-mode-plan §3.1.4. *)
-         let json = match result with
-           | Ok gen_result ->
-             Printf.sprintf "{\"status\": \"ok\", \"result\": %s}"
-               (Yojson.Safe.to_string (Par.Types.generate_result_to_yojson gen_result))
-           | Error (err, _) ->
-             error_json (Printf.sprintf "Generate failed: %s"
-               (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
+          let json = match result with
+            | Ok gen_result ->
+              Printf.sprintf "{\"status\": \"ok\", \"result\": %s}"
+                (Yojson.Safe.to_string (Par.Types.generate_result_to_yojson gen_result))
+            | Error (Par.Types.Cancelled r, conv) ->
+              Printf.sprintf "{\"status\": \"cancelled\", \"reason\": %s, \"conversation\": %s}"
+                (Yojson.Safe.to_string (Par.Types.cancel_reason_to_yojson r))
+                (Yojson.Safe.to_string (Par.Types.conversation_to_yojson conv))
+            | Error (err, _) ->
+              error_json (Printf.sprintf "Generate failed: %s"
+                (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
          in
          Obj.repr (Some json)
        with e -> Obj.repr (Some (error_json (Printexc.to_string e))))) in
@@ -959,16 +968,20 @@ let do_invoke_structured (state_id : int) (agent_id : string) (message : string)
          let response_schema = Yojson.Safe.from_string schema_json in
          let result = Par.Runtime.invoke_structured rt
            ~agent_id ~message ~response_schema () in
-         let json = match result with
-           | Ok { Par.Types.value; raw_response; conversation = _; attempts } ->
-             Printf.sprintf
-               "{\"status\": \"ok\", \"value\": %s, \"raw\": %s, \"attempts\": %d}"
-               (Yojson.Safe.to_string value)
-               (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson raw_response))
-               attempts
-           | Error (err, _) ->
-             error_json (Printf.sprintf "Invoke_structured failed: %s"
-               (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
+          let json = match result with
+            | Ok { Par.Types.value; raw_response; conversation = _; attempts } ->
+              Printf.sprintf
+                "{\"status\": \"ok\", \"value\": %s, \"raw\": %s, \"attempts\": %d}"
+                (Yojson.Safe.to_string value)
+                (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson raw_response))
+                attempts
+            | Error (Par.Types.Cancelled r, conv) ->
+              Printf.sprintf "{\"status\": \"cancelled\", \"reason\": %s, \"conversation\": %s}"
+                (Yojson.Safe.to_string (Par.Types.cancel_reason_to_yojson r))
+                (Yojson.Safe.to_string (Par.Types.conversation_to_yojson conv))
+            | Error (err, _) ->
+              error_json (Printf.sprintf "Invoke_structured failed: %s"
+                (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
          in
          Obj.repr (Some json)
        with e -> Obj.repr (Some (error_json (Printexc.to_string e))))) in
@@ -1041,16 +1054,21 @@ let do_invoke_stream (state_id : int) (agent_id : string) (message : string) =
            `List (List.rev_map (fun s -> `Assoc [("chunk", Yojson.Safe.from_string s)]) !chunk_buf)
            |> Yojson.Safe.to_string
          in
-         let json = match result with
-           | Ok { Par.Types.response = resp; conversation = _; approval_pending = _ } ->
-             Printf.sprintf "{\"status\": \"ok\", \"content\": %s, \"chunks\": %s}"
-               (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp))
-               chunks_json
-           | Error (err, _) ->
-             error_json (Printf.sprintf "Invoke_stream failed: %s"
-               (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
-         in
-         Obj.repr json
+          let json = match result with
+            | Ok { Par.Types.response = resp; conversation = _; approval_pending = _ } ->
+              Printf.sprintf "{\"status\": \"ok\", \"content\": %s, \"chunks\": %s}"
+                (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp))
+                chunks_json
+            | Error (Par.Types.Cancelled r, conv) ->
+              Printf.sprintf "{\"status\": \"cancelled\", \"reason\": %s, \"conversation\": %s, \"chunks\": %s}"
+                (Yojson.Safe.to_string (Par.Types.cancel_reason_to_yojson r))
+                (Yojson.Safe.to_string (Par.Types.conversation_to_yojson conv))
+                chunks_json
+            | Error (err, _) ->
+              error_json (Printf.sprintf "Invoke_stream failed: %s"
+                (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
+          in
+          Obj.repr json
        with
        | Stream_cancelled ->
          cancel_flag := false;
@@ -1096,13 +1114,18 @@ let do_invoke_stream_start (state_id : int) (agent_id : string) (message : strin
            `List (List.rev_map (fun s -> `Assoc [("chunk", Yojson.Safe.from_string s)]) !chunk_buf)
            |> Yojson.Safe.to_string
          in
-         let final = match result with
-           | Ok { Par.Types.response = resp; conversation = _; approval_pending = _ } ->
-             Printf.sprintf "{\"status\": \"ok\", \"content\": %s, \"chunks\": %s}"
-               (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp)) chunks_json
-           | Error (err, _) ->
-             error_json (Printf.sprintf "Invoke_stream failed: %s"
-               (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
+          let final = match result with
+            | Ok { Par.Types.response = resp; conversation = _; approval_pending = _ } ->
+              Printf.sprintf "{\"status\": \"ok\", \"content\": %s, \"chunks\": %s}"
+                (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp)) chunks_json
+            | Error (Par.Types.Cancelled r, conv) ->
+              Printf.sprintf "{\"status\": \"cancelled\", \"reason\": %s, \"conversation\": %s, \"chunks\": %s}"
+                (Yojson.Safe.to_string (Par.Types.cancel_reason_to_yojson r))
+                (Yojson.Safe.to_string (Par.Types.conversation_to_yojson conv))
+                chunks_json
+            | Error (err, _) ->
+              error_json (Printf.sprintf "Invoke_stream failed: %s"
+                (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
          in
          caml_stream_finish handle final 0
        with
@@ -1270,7 +1293,8 @@ let do_health (state_id : int) : string =
          | `Error (Types.External_failure _) -> "Error.External_failure"
          | `Error (Types.Rate_limited) -> "Error.Rate_limited"
          | `Error (Types.Permission_denied _) -> "Error.Permission_denied"
-         | `Error (Types.Embedding_unsupported) -> "Error.Embedding_unsupported")
+         | `Error (Types.Embedding_unsupported) -> "Error.Embedding_unsupported"
+         | `Error (Types.Cancelled _) -> "Error.Cancelled")
       in
       Obj.repr json) in
     (Obj.obj result : string)
@@ -1576,6 +1600,7 @@ let do_embed (state_id : int) (messages_json : string) : string =
               | Par.Types.Permission_denied m -> "Permission_denied: " ^ m
               | Par.Types.Internal m -> "Internal: " ^ json_escape m
               | Par.Types.Embedding_unsupported -> "Embedding_unsupported"
+              | Par.Types.Cancelled _ -> "Cancelled"
             in
             Obj.repr (Printf.sprintf "{\"error\":\"embed failed: %s\"}" err_str))
        with exc ->

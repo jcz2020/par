@@ -32,6 +32,7 @@ let error_to_string = function
   | Timeout -> "Timeout"
   | Rate_limited -> "Rate_limited"
   | Embedding_unsupported -> "Embedding_unavailable"
+  | Cancelled _ -> "cancelled"
 
 let str_contains haystack needle =
   let rec aux i =

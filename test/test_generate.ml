@@ -57,6 +57,7 @@ let error_to_string = function
   | Timeout -> "Timeout"
   | Rate_limited -> "Rate_limited"
   | Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 (* Runtime config: event_bus and shutdown defaults. The `\`Sqlite ":memory:"`
    field is only honored by the FFI layer; the OCaml SDK takes persistence

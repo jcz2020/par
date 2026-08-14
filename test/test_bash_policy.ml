@@ -17,6 +17,7 @@ let error_to_string (e : Types.error_category) =
   | Types.Permission_denied s -> Printf.sprintf "Permission_denied %S" s
   | Types.Internal s -> Printf.sprintf "Internal %S" s
   | Types.Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 (* Get a policy module by name. *)
 let get_policy = function

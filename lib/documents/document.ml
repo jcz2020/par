@@ -46,6 +46,7 @@ let string_of_error_category (e : Types.error_category) = match e with
   | Types.Permission_denied s -> Printf.sprintf "permission denied: %s" s
   | Types.Internal s -> Printf.sprintf "internal error: %s" s
   | Types.Embedding_unsupported -> "embedding unsupported"
+  | Types.Cancelled _ -> "cancelled"
 
 let load_error_to_string = function
   | File_not_found path ->

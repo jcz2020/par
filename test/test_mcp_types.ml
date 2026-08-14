@@ -22,6 +22,7 @@ let must_ok_sid label = function
        | Types.Permission_denied m -> Printf.sprintf "Permission_denied %S" m
        | Types.Internal m -> Printf.sprintf "Internal %S" m
        | Types.Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
        | Types.Invalid_input _ -> assert false)
 
 let must_ok label = function
@@ -48,6 +49,7 @@ let must_invalid label r =
          | Types.Permission_denied m -> Printf.sprintf "Permission_denied %S" m
          | Types.Internal m -> Printf.sprintf "Internal %S" m
          | Types.Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
          | Types.Invalid_input _ -> assert false)
 
 let test_server_id_accepts_short () =

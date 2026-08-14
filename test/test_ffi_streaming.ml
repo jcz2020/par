@@ -33,6 +33,7 @@ let error_to_string e = match e with
   | Invalid_input s -> s
   | Internal s -> s
   | Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
   | External_failure s -> s
   | Permission_denied s -> s
   | Timeout -> "Timeout"

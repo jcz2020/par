@@ -11,6 +11,7 @@ let show_error = function
   | Permission_denied s -> "Permission: " ^ s
   | Internal s -> "Internal: " ^ s
   | Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 let test_openai_stream () =
   let api_key = try Sys.getenv "ZAI_API_KEY" with Not_found -> "" in

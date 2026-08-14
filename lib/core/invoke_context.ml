@@ -67,7 +67,7 @@ let invoke_handle_token h = h.token
 let invoke_handle_await h = Eio.Promise.await_exn h.result_promise
 
 let invoke_handle_cancel h =
-  Cancellation.request_cancel h.token;
+  Cancellation.request_cancel h.token User_cancelled;
   (* CAS loop: set to Cancelled only if not already Completed *)
   let rec try_set () =
     match Atomic.get h.status with
@@ -97,7 +97,7 @@ let fork_invoke
       with
       | Eio.Cancel.Cancelled _ ->
         Atomic.set status Cancelled;
-        Error (Timeout, empty_conversation)
+        Error (Cancelled User_cancelled, empty_conversation)
       | exn ->
         Atomic.set status Failed;
         Error (Internal (Printexc.to_string exn), empty_conversation))

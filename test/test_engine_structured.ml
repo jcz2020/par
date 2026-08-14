@@ -27,6 +27,7 @@ let error_to_string = function
   | Timeout -> "Timeout"
   | Rate_limited -> "Rate_limited"
   | Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 let mock_llm responses =
   let counter = ref 0 in
@@ -292,7 +293,7 @@ let structured_suite =
       let cancelled_token_ref : cancellation_token option ref = ref None in
       let on_call_cancel () =
         (match !cancelled_token_ref with
-         | Some tok -> tok.cancelled <- true
+         | Some tok -> Cancellation.request_cancel tok User_cancelled
          | None -> ())
       in
       let llm = mock_llm_with_structured ~on_call:on_call_cancel [
@@ -307,9 +308,9 @@ let structured_suite =
         | Ok _ -> Alcotest.fail "expected Error, got Ok"
         | Error (e, _) ->
           (match e with
-           | Timeout -> ()
+           | Cancelled _ -> ()
            | other ->
-             Alcotest.fail ("expected Timeout, got: " ^ error_to_string other))));
+             Alcotest.fail ("expected Cancelled, got: " ^ error_to_string other))));
 
     Alcotest.test_case "9. middleware hooks fired (D2)" `Quick (fun () ->
       let before_fired = ref 0 in

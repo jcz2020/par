@@ -67,6 +67,7 @@ let show_error : error_category -> string = function
   | Permission_denied s -> "Permission_denied(" ^ s ^ ")"
   | Internal s -> "Internal(" ^ s ^ ")"
   | Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 let http_error_to_string : Http_client.http_error -> string = function
   | Http_client.Invalid_input s -> "Invalid_input(" ^ s ^ ")"

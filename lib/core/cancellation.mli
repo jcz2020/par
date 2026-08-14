@@ -8,7 +8,9 @@ val is_cancelled : cancellation_token -> bool
 
 val check_cancel : cancellation_token -> unit
 
-val request_cancel : cancellation_token -> unit
+val request_cancel : cancellation_token -> cancel_reason -> unit
+
+val reason : cancellation_token -> cancel_reason option
 
 val with_timeout :
   float ->

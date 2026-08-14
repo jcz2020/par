@@ -84,6 +84,7 @@ let error_to_string = function
   | Timeout -> "Timeout"
   | Rate_limited -> "Rate_limited"
   | Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 let check_ok_text (resp : (llm_response * conversation, error_category * conversation) result) expected =
   match resp with

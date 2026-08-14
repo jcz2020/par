@@ -9,6 +9,7 @@ let show_error : error_category -> string = function
   | Permission_denied s -> "Permission_denied: " ^ s
   | Internal s -> "Internal: " ^ s
   | Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 let vector_has_dim dim vec =
   Alcotest.(check int) "vector dimension" dim (Array.length vec)

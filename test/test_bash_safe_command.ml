@@ -10,6 +10,7 @@ let error_to_string (e : Types.error_category) =
   | Types.Permission_denied s -> Printf.sprintf "Permission_denied %S" s
   | Types.Internal s -> Printf.sprintf "Internal %S" s
   | Types.Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 let ws = match Workspace.of_cwd () with Ok w -> w | Error _ -> failwith "ws"
 

@@ -33,6 +33,7 @@ let show_error : error_category -> string = function
   | Permission_denied s -> s
   | Internal s -> s
   | Embedding_unsupported -> "embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 let test_create_returns_valid_service () =
   let (svc, _history) = create [Text "hello"] in

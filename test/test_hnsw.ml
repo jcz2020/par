@@ -51,6 +51,7 @@ let show_error (e : Types.error_category) = match e with
   | Types.Permission_denied s -> "Permission_denied: " ^ s
   | Types.Internal s -> "Internal: " ^ s
   | Types.Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 let test_insert_search_basic () =
   Random.init 42;

@@ -9,6 +9,7 @@ let string_of_error_category (e : error_category) =
   | Permission_denied msg -> Printf.sprintf "Permission_denied: %s" msg
   | Internal msg -> Printf.sprintf "Internal: %s" msg
   | Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "Cancelled"
 
 type t = {
   mutable buffer : event_envelope list;

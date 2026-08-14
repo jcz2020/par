@@ -68,6 +68,7 @@ let string_of_category (c : Types.error_category) : string = match c with
   | Types.Permission_denied s -> "Permission_denied(" ^ s ^ ")"
   | Types.Internal s -> "Internal(" ^ s ^ ")"
   | Types.Embedding_unsupported -> "Embedding_unsupported"
+  | Types.Cancelled _ -> "Cancelled"
 
 let call_method t ~method_ ~params :
   (Yojson.Safe.t, Types.error_category) result =
