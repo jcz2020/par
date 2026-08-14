@@ -1205,6 +1205,24 @@ let builtin_tools ~switch ~net ~workspace =
             if has_overlap edits then
               Error { category = Invalid_input "Overlapping edits"; message = "Edit ranges overlap, rejected"; retryable = false; metadata = [] }
             else begin
+              let missing_old =
+                let content_len = String.length content in
+                List.find_opt (fun (old, _) ->
+                  let old_len = String.length old in
+                  if old_len = 0 then false
+                  else
+                    let rec aux pos =
+                      if pos > content_len - old_len then false
+                      else if String.sub content pos old_len = old then true
+                      else aux (pos + 1)
+                    in
+                    not (aux 0)
+                ) edits
+              in
+              match missing_old with
+              | Some (_missing, _) ->
+                Error { category = Invalid_input "old_text not found"; message = Printf.sprintf "Edit failed: old_text was not found in '%s'. The file may have changed since it was last read, or the text does not match exactly (including whitespace). Read the file first, then retry with the exact current text." path; retryable = false; metadata = [("code", `String "edit_old_text_not_found")] }
+              | None ->
               let new_content = List.fold_left (fun acc (old, new_) ->
                 let replaced = Str.replace_first (Str.regexp_string old) new_ acc in
                 replaced

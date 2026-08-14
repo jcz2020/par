@@ -60,6 +60,10 @@ let int_field json key =
        | _ -> failwith (Printf.sprintf "expected int field '%s'" key))
   | _ -> failwith "expected JSON object"
 
+let string_contains haystack needle =
+  try let _ = Str.search_forward (Str.regexp_string needle) haystack 0 in true
+  with Not_found -> false
+
 let calculator_suite =
   ("calculator", [
     Alcotest.test_case "adds two numbers" `Quick (fun () ->
@@ -615,6 +619,35 @@ let edit_suite =
           ("edits", `List []);
         ]) token in
         Alcotest.check Alcotest.bool "is error" true (is_error result)));
+
+    Alcotest.test_case "old_text not found returns error" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let rel_name = "par_test_edit_missing.txt" in
+        let cwd = Sys.getcwd () in
+        let oc = open_out rel_name in
+        output_string oc "hello world";
+        close_out oc;
+        let cleanup () = (try Unix.unlink rel_name with _ -> ()); Sys.chdir cwd in
+        let run () =
+          let handler = find_tool "edit" tools in
+          let result = handler (`Assoc [
+            ("path", `String rel_name);
+            ("edits", `List [`Assoc [
+              ("old", `String "nonexistent text");
+              ("new", `String "replacement");
+            ]]);
+          ]) token in
+          Alcotest.check Alcotest.bool "is error" true (is_error result);
+          let msg = match result with
+            | Error { message; _ } -> message
+            | _ -> Alcotest.fail "expected Error"
+          in
+          Alcotest.(check bool "contains old_text not found"
+            true (string_contains msg "old_text was not found"));
+          Alcotest.(check bool "contains Read the file first"
+            true (string_contains msg "Read the file first"))
+        in
+        Fun.protect ~finally:cleanup run));
   ])
 
 let () =
