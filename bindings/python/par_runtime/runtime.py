@@ -522,6 +522,38 @@ class Runtime:
             pass
         return result
 
+    def invoke_start(self, agent_id: str, message: str,
+                     *, save: bool = None, update_current: bool = None) -> str:
+        self._check_handle()
+        handle_id = _lib.par_invoke_start(
+            self._handle, _c_str(agent_id), _c_str(message),
+            ctypes.c_int(1 if save else 0),
+            ctypes.c_int(1 if update_current else 0),
+        )
+        if handle_id < 0:
+            raise PARInvokeError("invoke_start failed (handle registry full or OCaml error)")
+        return str(handle_id)
+
+    def invoke_poll(self, handle_id: str, timeout_ms: int = 0) -> dict:
+        self._check_handle()
+        result_ptr = _lib.par_invoke_poll(int(handle_id), timeout_ms)
+        if not result_ptr:
+            return {"status": "error", "error": "handle not found or already consumed"}
+        raw = _py_str(result_ptr)
+        if not raw:
+            return {"status": "error", "error": "empty poll result"}
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict) and "error" in parsed and "status" not in parsed:
+                return {"status": "error", "error": parsed["error"]}
+            return parsed
+        except json.JSONDecodeError:
+            return {"status": "error", "error": f"invalid JSON from poll: {raw[:200]}"}
+
+    def invoke_cancel(self, handle_id: str) -> None:
+        self._check_handle()
+        _lib.par_invoke_cancel(int(handle_id))
+
     def invoke_generate(
         self,
         agent_id: str,

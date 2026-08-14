@@ -133,6 +133,20 @@ _lib.par_stream_take_final.restype = ctypes.c_void_p
 _lib.par_stream_free.argtypes = [ctypes.c_void_p]
 _lib.par_stream_free.restype = None
 
+# v0.9.x Wave 3: async invoke start/poll/cancel. Mirrors streaming handle API.
+# par_invoke_start returns an int handle ID (index into C-side registry).
+# par_invoke_poll returns malloc'd JSON (caller frees) or NULL if handle gone.
+# par_invoke_cancel sets per-handle atomic cancel flag.
+_lib.par_invoke_start.argtypes = [
+    ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p,
+    ctypes.c_int, ctypes.c_int,
+]
+_lib.par_invoke_start.restype = ctypes.c_int
+_lib.par_invoke_poll.argtypes = [ctypes.c_int, ctypes.c_int]
+_lib.par_invoke_poll.restype = ctypes.c_void_p
+_lib.par_invoke_cancel.argtypes = [ctypes.c_int]
+_lib.par_invoke_cancel.restype = None
+
 # int par_register_agent(par_runtime_t* rt, const char* config_json);
 _lib.par_register_agent.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_register_agent.restype = ctypes.c_int

@@ -1020,6 +1020,59 @@ external caml_get_pending_stream_handle : unit -> nativeint
    error so callers can distinguish cancellation from a real failure. *)
 exception Stream_cancelled
 
+(* v0.9.x Wave 3: async invoke trio. Mirrors streaming start/poll/cancel
+   pattern. Reuses par_stream_handle_t and caml_stream_cancel_state for
+   the cancel flag — identical mechanism, just no chunks flowing. *)
+
+(* C-side pending handle slot, set by par_invoke_start before the OCaml
+   callback fires. *)
+external caml_get_pending_invoke_handle : unit -> nativeint
+  = "caml_get_pending_invoke_handle"
+external caml_invoke_finish : nativeint -> string -> int -> unit
+  = "caml_stream_finish_to_c_byte" "caml_stream_finish_to_c"
+
+let do_invoke_start (state_id : int) (agent_id : string) (message : string)
+    ?(save=false) ?(update_current=false) () =
+  let handle : nativeint = caml_get_pending_invoke_handle () in
+  match get_state state_id with
+  | None ->
+    caml_invoke_finish handle (error_json "Invalid runtime handle") 1
+  | Some _ ->
+    dispatch_async state_id (fun rt _env ->
+      let cancel_flag = Par.Runtime.cancel_stream_requested rt in
+      cancel_flag := false;
+      (try
+         let on_chunk _chunk =
+           if caml_stream_cancel_state handle = 1 then begin
+             cancel_flag := true;
+             raise Stream_cancelled
+           end
+         in
+         let result = Par.Runtime.invoke rt
+           ~agent_id ~message ~on_chunk:(Some on_chunk)
+           ~save ~update_current () in
+         let json = match result with
+           | Ok { Par.Types.response = resp; conversation = _; approval_pending = _ } ->
+             Printf.sprintf "{\"status\": \"ok\", \"content\": %s}"
+               (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp))
+           | Error (Par.Types.Cancelled r, conv) ->
+             Printf.sprintf "{\"status\": \"cancelled\", \"reason\": %s, \"conversation\": %s}"
+               (Yojson.Safe.to_string (Par.Types.cancel_reason_to_yojson r))
+               (Yojson.Safe.to_string (Par.Types.conversation_to_yojson conv))
+           | Error (err, _) ->
+             error_json (Printf.sprintf "Invoke failed: %s"
+               (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
+         in
+         caml_invoke_finish handle json 0
+       with
+       | Stream_cancelled ->
+         cancel_flag := false;
+         caml_invoke_finish handle
+           "{\"status\": \"cancelled\", \"reason\": \"User_cancelled\"}" 0
+       | e ->
+         caml_invoke_finish handle (error_json (Printexc.to_string e)) 1);
+      Obj.repr ())
+
 let do_invoke_stream (state_id : int) (agent_id : string) (message : string) =
   match get_state state_id with
   | None -> error_json "Invalid runtime handle"
@@ -1964,6 +2017,14 @@ let () =
     (fun (state_id_obj : Obj.t) (agent_id : string) (message : string) ->
       let state_id : int = Obj.magic state_id_obj in
       do_invoke_stream state_id agent_id message)
+
+let () =
+  Callback.register "par_invoke_start"
+    (fun (state_id_obj : Obj.t) (agent_id : string) (message : string)
+         (save_int : int) (update_int : int) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_invoke_start state_id agent_id message
+        ~save:(save_int <> 0) ~update_current:(update_int <> 0) ())
 
 let () =
   Callback.register "par_invoke_stream_start"

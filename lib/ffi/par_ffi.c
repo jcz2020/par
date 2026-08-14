@@ -799,6 +799,134 @@ void par_stream_free(par_stream_handle_t* h) {
     free(h);
 }
 
+/* v0.9.x Wave 3: per-invoke-handle async API. Reuses the streaming
+   handle structure. par_invoke_start enqueues work from main thread
+   and returns a handle ID; par_invoke_poll is pure C (no OCaml
+   runtime access needed for state check); par_invoke_cancel sets
+   per-handle atomic cancel flag checked by OCaml on_chunk. */
+
+#define MAX_INVOKE_HANDLES 256
+static par_stream_handle_t* invoke_handles[MAX_INVOKE_HANDLES] = {0};
+static int invoke_handle_next = 0;
+static par_stream_handle_t* g_pending_invoke_handle = NULL;
+
+value caml_get_pending_invoke_handle(value v_unit) {
+    CAMLparam1(v_unit);
+    CAMLreturn(caml_copy_nativeint((intnat)g_pending_invoke_handle));
+}
+
+int par_invoke_start(par_runtime_t* rt, const char* agent_id,
+                     const char* message, int save, int update_current) {
+    if (!rt || !agent_id || !message) return -1;
+
+    int slot = -1;
+    for (int i = 0; i < MAX_INVOKE_HANDLES; i++) {
+        int idx = (invoke_handle_next + i) % MAX_INVOKE_HANDLES;
+        if (invoke_handles[idx] == NULL) { slot = idx; break; }
+    }
+    if (slot < 0) return -1;
+
+    par_stream_handle_t* h = (par_stream_handle_t*)calloc(1, sizeof *h);
+    if (!h) return -1;
+    h->rt = rt;
+#ifndef _WIN32
+    pthread_mutex_init(&h->q_mutex, NULL);
+    pthread_cond_init(&h->q_cond, NULL);
+#else
+    InitializeSRWLock(&h->q_mutex);
+    InitializeConditionVariable(&h->q_cond);
+#endif
+    h->state = PAR_STREAM_RUNNING;
+
+    invoke_handles[slot] = h;
+    invoke_handle_next = (slot + 1) % MAX_INVOKE_HANDLES;
+
+    CAMLparam0();
+    CAMLlocal2(c_aid, c_msg);
+    c_aid = caml_copy_string(agent_id);
+    c_msg = caml_copy_string(message);
+
+    PAR_MUTEX_LOCK(ocaml_lock);
+    g_pending_invoke_handle = h;
+    value args[5] = { rt->_ocaml_value, c_aid, c_msg,
+                      Val_int(save), Val_int(update_current) };
+    const value* cb = lookup_cb("par_invoke_start");
+    value result = caml_callbackN_exn(*cb, 5, args);
+    g_pending_invoke_handle = NULL;
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+
+    if (Is_exception_result(result)) {
+        CAMLdrop;
+        invoke_handles[slot] = NULL;
+        par_stream_free(h);
+        return -1;
+    }
+    CAMLdrop;
+    return slot;
+}
+
+char* par_invoke_poll(int handle_id, int timeout_ms) {
+    if (handle_id < 0 || handle_id >= MAX_INVOKE_HANDLES) return NULL;
+    par_stream_handle_t* h = invoke_handles[handle_id];
+    if (!h) return NULL;
+
+    int state = ATOMIC_LOAD_ACQUIRE(h->state);
+    if (state != PAR_STREAM_RUNNING) {
+        char* result = NULL;
+        PAR_MUTEX_LOCK(h->q_mutex);
+        if (h->final_json) result = strdup(h->final_json);
+        PAR_MUTEX_UNLOCK(h->q_mutex);
+        invoke_handles[handle_id] = NULL;
+        par_stream_free(h);
+        return result;
+    }
+
+    if (timeout_ms <= 0) return strdup("{\"status\": \"pending\"}");
+
+#ifndef _WIN32
+    struct timespec deadline;
+    clock_gettime(CLOCK_REALTIME, &deadline);
+    deadline.tv_sec += timeout_ms / 1000;
+    deadline.tv_nsec += (timeout_ms % 1000) * 1000000L;
+    if (deadline.tv_nsec >= 1000000000L) {
+        deadline.tv_sec++; deadline.tv_nsec -= 1000000000L;
+    }
+#endif
+
+    caml_release_runtime_system();
+    PAR_MUTEX_LOCK(h->q_mutex);
+    while (ATOMIC_LOAD_ACQUIRE(h->state) == PAR_STREAM_RUNNING) {
+#ifndef _WIN32
+        int rc = pthread_cond_timedwait(&h->q_cond, &h->q_mutex, &deadline);
+        if (rc == ETIMEDOUT) break;
+#else
+        SleepConditionVariableSRW(&h->q_cond, &(h->q_mutex), (DWORD)timeout_ms, 0x01);
+        if (ATOMIC_LOAD_ACQUIRE(h->state) == PAR_STREAM_RUNNING) break;
+#endif
+    }
+    PAR_MUTEX_UNLOCK(h->q_mutex);
+    caml_acquire_runtime_system();
+
+    state = ATOMIC_LOAD_ACQUIRE(h->state);
+    if (state == PAR_STREAM_RUNNING)
+        return strdup("{\"status\": \"pending\"}");
+
+    char* result = NULL;
+    PAR_MUTEX_LOCK(h->q_mutex);
+    if (h->final_json) result = strdup(h->final_json);
+    PAR_MUTEX_UNLOCK(h->q_mutex);
+    invoke_handles[handle_id] = NULL;
+    par_stream_free(h);
+    return result;
+}
+
+void par_invoke_cancel(int handle_id) {
+    if (handle_id < 0 || handle_id >= MAX_INVOKE_HANDLES) return;
+    par_stream_handle_t* h = invoke_handles[handle_id];
+    if (!h) return;
+    ATOMIC_STORE_RELEASE(h->state, PAR_STREAM_CANCEL);
+}
+
 char* par_invoke_structured(par_runtime_t* rt, const char* agent_id,
                             const char* message, const char* schema_json) {
     CAMLparam0();

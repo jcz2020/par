@@ -140,6 +140,16 @@ void  par_stream_cancel(par_stream_handle_t* h);
 char* par_stream_take_final(par_stream_handle_t* h);
 void  par_stream_free(par_stream_handle_t* h);
 
+/* v0.9.x Wave 3: async invoke start/poll/cancel. Mirrors the streaming
+   handle API but for non-streaming invoke. par_invoke_start enqueues
+   work on the work_loop domain and returns an integer handle ID;
+   par_invoke_poll returns JSON status (pending/ok/cancelled/error);
+   par_invoke_cancel sets per-handle atomic cancel flag. */
+int   par_invoke_start(par_runtime_t* rt, const char* agent_id,
+                       const char* message, int save, int update_current);
+char* par_invoke_poll(int handle_id, int timeout_ms);
+void  par_invoke_cancel(int handle_id);
+
 /* Event subscription */
 typedef void (*par_event_callback)(const char* event_type, const char* event_json);
 int par_event_subscribe(par_runtime_t* rt, par_event_callback cb);

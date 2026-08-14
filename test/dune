@@ -627,3 +627,8 @@
   (name test_cancellation)
   (libraries par eio_main alcotest)
   (modules test_cancellation))
+
+(test
+  (name test_ffi_streaming)
+  (libraries par eio_main alcotest)
+  (modules test_ffi_streaming))
