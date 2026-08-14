@@ -152,7 +152,17 @@ let policy_rejects ~policy_name ~policy_mod ~argv =
     let input = `Assoc [("argv", `List (List.map (fun s -> `String s) argv))] in
     let token = Cancellation.create_token (Runtime.cancellation_root rt) in
     match h input token with
-    | Error { category = Types.Permission_denied _; _ } -> ()
+    | Error { category = Types.Permission_denied _; message; _ } ->
+      let has_marker =
+        try ignore (Str.search_forward (Str.regexp_string "[bash-policy]") message 0); true
+        with Not_found -> false
+      in
+      let has_policy_name =
+        try ignore (Str.search_forward (Str.regexp_string policy_name) message 0); true
+        with Not_found -> false
+      in
+      Alcotest.check Alcotest.bool "has [bash-policy] marker" true has_marker;
+      Alcotest.check Alcotest.bool "mentions policy name" true has_policy_name
     | Error { category = other; _ } ->
       Alcotest.failf "%s: expected Permission_denied, got %s"
         policy_name (error_to_string other)

@@ -91,7 +91,8 @@ let bash_tool_descriptor : Types.tool_descriptor =
                    Use dedicated tools (read, write, ls) for file operations. \
                    Input: {\"argv\": [\"git\", \"status\"], \"timeout\": 30, \"cwd\": \"src\"}. \
                    Subject to Bash_policy and Bash_blacklist. \
-                   Output: {\"stdout\": \"...\", \"stderr\": \"...\", \"exit_code\": 0, \"duration\": 0.12, \"truncated\": false}."
+                   Output: {\"stdout\": \"...\", \"stderr\": \"...\", \"exit_code\": 0, \"duration\": 0.12, \"truncated\": false}. \
+                   Policy rejections are prefixed " ^ Tool_error.bash_policy_marker ^ "."
   ; input_schema = `Assoc
       [ ("type", `String "object")
       ; ("properties", `Assoc
@@ -116,7 +117,23 @@ let bash_tool_descriptor : Types.tool_descriptor =
 
 let builtin_tools ~switch ~net ~workspace =
   let open Types in
-  let token = Cancellation.create_token switch in 
+  let token = Cancellation.create_token switch in
+  let num_roots = List.length workspace.Workspace.roots in
+  let admit_error path (e : Types.error_category) : Types.handler_result =
+    let (msg, code) = Tool_error.workspace_rejection_message ~path ~num_roots e in
+    Error { category = e; message = msg; retryable = false;
+            metadata = [("code", `String code)] }
+  in
+  let path_required_msg =
+    Tool_error.instructive ~marker:Tool_error.workspace_marker
+      ~why:"Path is required."
+      ~remedy:"Provide a relative path like 'src/main.ml' or an absolute path under a workspace root."
+  in
+  let pattern_required_msg =
+    Tool_error.instructive ~marker:Tool_error.workspace_marker
+      ~why:"Pattern is required."
+      ~remedy:"Provide a non-empty search pattern."
+  in
 
   let calculator =
     let descriptor =
@@ -727,7 +744,8 @@ let builtin_tools ~switch ~net ~workspace =
       ; description = "Read a file from the current working directory. \
                        Input: {\"path\": \"relative/path.txt\", \"offset\": 0, \"limit\": 100}. \
                        Returns file content with line numbers. Binary files are detected \
-                       and returned as base64. Maximum 10MB."
+                       and returned as base64. Maximum 10MB. \
+                       Path rejections are prefixed " ^ Tool_error.workspace_marker ^ " and state the exact rule and the correct form."
       ; input_schema = Jsonschema.to_strict_object_schema read_input_jsonschema
       ; output_schema = None
  ; permission = Allow
@@ -752,11 +770,10 @@ let builtin_tools ~switch ~net ~workspace =
           | _ -> max_int
         in
         if path = "" then
-          Error { category = Invalid_input "Empty path"; message = "Path is required"; retryable = false; metadata = [] }
+          Error { category = Invalid_input "Empty path"; message = path_required_msg; retryable = false; metadata = [] }
         else
           match Workspace.admit workspace path with
-          | Error e ->
-            Error { category = e; message = "Path validation failed"; retryable = false; metadata = [] }
+          | Error e -> admit_error path e
           | Ok sandboxed ->
             let full_path = Workspace.to_string sandboxed in
             let read_lines () =
@@ -797,7 +814,8 @@ let builtin_tools ~switch ~net ~workspace =
     let descriptor =
       { name = "ls"
       ; description = "List directory contents. Input: {\"path\": \".\"} (relative to CWD). \
-                       Returns list of {name, type, size, modified} entries."
+                       Returns list of {name, type, size, modified} entries. \
+                       Path rejections are prefixed " ^ Tool_error.workspace_marker ^ " and state the exact rule and the correct form."
       ; input_schema = Jsonschema.to_strict_object_schema ls_input_jsonschema
       ; output_schema = None
  ; permission = Allow
@@ -814,11 +832,10 @@ let builtin_tools ~switch ~net ~workspace =
           | None -> ""
         in
         if path = "" then
-          Error { category = Invalid_input "Empty path"; message = "Path is required"; retryable = false; metadata = [] }
+          Error { category = Invalid_input "Empty path"; message = path_required_msg; retryable = false; metadata = [] }
         else
           match Workspace.admit workspace path with
-          | Error e ->
-            Error { category = e; message = "Path validation failed"; retryable = false; metadata = [] }
+          | Error e -> admit_error path e
           | Ok sandboxed ->
             let full_path = Workspace.to_string sandboxed in
             try
@@ -880,7 +897,8 @@ let builtin_tools ~switch ~net ~workspace =
       { name = "find"
       ; description = "Find files matching a glob pattern. \
                        Input: {\"pattern\": \"**/*.ml\", \"path\": \".\"}. \
-                       Skips .git, node_modules, _build, _opam directories."
+                       Skips .git, node_modules, _build, _opam directories. \
+                       Path rejections are prefixed " ^ Tool_error.workspace_marker ^ " and state the exact rule and the correct form."
       ; input_schema = Jsonschema.to_strict_object_schema find_input_jsonschema
       ; output_schema = None
  ; permission = Allow
@@ -925,11 +943,10 @@ let builtin_tools ~switch ~net ~workspace =
           | None -> "."
         in
         if pattern = "" then
-          Error { category = Invalid_input "Empty pattern"; message = "Pattern is required"; retryable = false; metadata = [] }
+          Error { category = Invalid_input "Empty pattern"; message = pattern_required_msg; retryable = false; metadata = [] }
         else
           match Workspace.admit workspace path with
-          | Error e ->
-            Error { category = e; message = "Path validation failed"; retryable = false; metadata = [] }
+          | Error e -> admit_error path e
           | Ok sandboxed ->
             let full_path = Workspace.to_string sandboxed in
             try
@@ -954,7 +971,8 @@ let builtin_tools ~switch ~net ~workspace =
       { name = "grep"
       ; description = "Search for regex pattern in files. \
                        Input: {\"pattern\": \"TODO\", \"path\": \".\", \"glob\": \"*.ml\"}. \
-                       Returns matching lines with file:line prefix. Timeout 30s."
+                       Returns matching lines with file:line prefix. Timeout 30s. \
+                       Path rejections are prefixed " ^ Tool_error.workspace_marker ^ " and state the exact rule and the correct form."
       ; input_schema = Jsonschema.to_strict_object_schema grep_input_jsonschema
       ; output_schema = None
  ; permission = Allow
@@ -983,11 +1001,10 @@ let builtin_tools ~switch ~net ~workspace =
           | None -> 0
         in
         if pattern = "" then
-          Error { category = Invalid_input "Empty pattern"; message = "Pattern is required"; retryable = false; metadata = [] }
+          Error { category = Invalid_input "Empty pattern"; message = pattern_required_msg; retryable = false; metadata = [] }
         else
           match Workspace.admit workspace path with
-          | Error e ->
-            Error { category = e; message = "Path validation failed"; retryable = false; metadata = [] }
+          | Error e -> admit_error path e
           | Ok sandboxed ->
             let full_path = Workspace.to_string sandboxed in
             let root_prefix = Workspace.root workspace in
@@ -1047,7 +1064,8 @@ let builtin_tools ~switch ~net ~workspace =
   let write_tool =
     let descriptor =
       { name = "write"
-      ; description = "Write content to a file. Input: {\"path\": \"relative/file.txt\", \"content\": \"...\", \"create_dirs\": true}."
+      ; description = "Write content to a file. Input: {\"path\": \"relative/file.txt\", \"content\": \"...\", \"create_dirs\": true}. \
+                       Path rejections are prefixed " ^ Tool_error.workspace_marker ^ " and state the exact rule and the correct form."
       ; input_schema = Jsonschema.to_strict_object_schema write_input_jsonschema
       ; output_schema = None
  ; permission = Allow
@@ -1072,11 +1090,10 @@ let builtin_tools ~switch ~net ~workspace =
           | None -> false
         in
         if path = "" then
-          Error { category = Invalid_input "Empty path"; message = "Path is required"; retryable = false; metadata = [] }
+          Error { category = Invalid_input "Empty path"; message = path_required_msg; retryable = false; metadata = [] }
         else
           match Workspace.admit workspace path with
-          | Error e ->
-            Error { category = e; message = "Path validation failed"; retryable = false; metadata = [] }
+          | Error e -> admit_error path e
           | Ok sandboxed ->
             let full_path = Workspace.to_string sandboxed in
             try
@@ -1114,7 +1131,8 @@ let builtin_tools ~switch ~net ~workspace =
     let descriptor =
       { name = "edit"
       ; description = "Apply batch edits to a file. Input: {\"path\": \"file.txt\", \"edits\": [{\"old\": \"foo\", \"new\": \"bar\"}]}. \
-                       Each edit is an exact string match. Overlapping edits are rejected."
+                       Each edit is an exact string match. Overlapping edits are rejected. \
+                       Path rejections are prefixed " ^ Tool_error.workspace_marker ^ " and state the exact rule and the correct form."
       ; input_schema = `Assoc
           [ ("type", `String "object")
           ; ("properties", `Assoc
@@ -1155,11 +1173,10 @@ let builtin_tools ~switch ~net ~workspace =
           | _ -> []
         in
         if path = "" then
-          Error { category = Invalid_input "Empty path"; message = "Path is required"; retryable = false; metadata = [] }
+          Error { category = Invalid_input "Empty path"; message = path_required_msg; retryable = false; metadata = [] }
         else
           match Workspace.admit workspace path with
-          | Error e ->
-            Error { category = e; message = "Path validation failed"; retryable = false; metadata = [] }
+          | Error e -> admit_error path e
           | Ok sandboxed ->
             let full_path = Workspace.to_string sandboxed in
             let edits = List.filter_map (fun e ->
@@ -1264,7 +1281,10 @@ let builtin_tools ~switch ~net ~workspace =
         else
            (match Workspace.admit workspace cwd_str with
            | Error e ->
-             Error { category = e; message = Printf.sprintf "Invalid cwd: %s" cwd_str; retryable = false; metadata = [] }
+             let (msg, code) = Tool_error.workspace_rejection_message
+               ~path:cwd_str ~num_roots e in
+             Error { category = e; message = msg; retryable = false;
+                     metadata = [("code", `String code)] }
            | Ok cwd ->
              let _cmd = Bash_safe_command.Exec { argv; cwd; env = []; timeout } in
              (* NOTE: The actual policy check + Eio spawn happens in Runtime.install_bash_tool

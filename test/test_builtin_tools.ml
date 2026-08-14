@@ -650,6 +650,141 @@ let edit_suite =
         Fun.protect ~finally:cleanup run));
   ])
 
+(* ------------------------------------------------------------------ *)
+(* Wave 2A: actionable tool-error feedback — message-content tests     *)
+(* ------------------------------------------------------------------ *)
+
+let get_error_msg = function
+  | Error { message; _ } -> message
+  | _ -> Alcotest.fail "expected Error"
+
+let error_contains result needle =
+  string_contains (get_error_msg result) needle
+
+let error_metadata_code = function
+  | Error { metadata; _ } ->
+    (match List.assoc_opt "code" metadata with
+     | Some (`String s) -> s
+     | _ -> "")
+  | _ -> ""
+
+let wave2a_file_tools_suite =
+  ("wave2a_file_tool_errors", [
+    (* ---- read ---- *)
+    Alcotest.test_case "read: .. path → [workspace] + traversal" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "read" tools in
+        let result = handler (`Assoc [("path", `String "../secret.txt")]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result);
+        Alcotest.check Alcotest.bool "has [workspace]" true (error_contains result "[workspace]");
+        Alcotest.check Alcotest.bool "mentions .." true (error_contains result "contains '..'")));
+
+    Alcotest.test_case "read: colon path → [workspace] + colon" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "read" tools in
+        let result = handler (`Assoc [("path", `String "file:name.txt")]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result);
+        Alcotest.check Alcotest.bool "has [workspace]" true (error_contains result "[workspace]");
+        Alcotest.check Alcotest.bool "mentions :" true (error_contains result "contains ':'")));
+
+    Alcotest.test_case "read: absolute outside → [workspace] + outside" `Quick (fun () ->
+      let tmp = Sys.getcwd () in
+      let test_dir = Filename.concat tmp "par_ws_test_read_abs" in
+      (try Unix.mkdir test_dir 0o755 with _ -> ());
+      let cleanup () = (try Unix.rmdir test_dir with _ -> ()); Sys.chdir tmp in
+      Fun.protect ~finally:cleanup (fun () ->
+        with_tools_in test_dir (fun tools token ->
+          let handler = find_tool "read" tools in
+          let result = handler (`Assoc [("path", `String "/definitely/outside/file.txt")]) token in
+          Alcotest.check Alcotest.bool "is error" true (is_error result);
+          Alcotest.check Alcotest.bool "has [workspace]" true (error_contains result "[workspace]");
+          Alcotest.check Alcotest.bool "mentions outside" true
+            (error_contains result "absolute path outside the workspace"))));
+
+    Alcotest.test_case "read: sensitive prefix → [workspace] + protected" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "read" tools in
+        let result = handler (`Assoc [("path", `String "/etc/passwd")]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result);
+        Alcotest.check Alcotest.bool "has [workspace]" true (error_contains result "[workspace]");
+        (* /etc/passwd hits sensitive-prefix check when /etc is in the sensitive list *)
+        Alcotest.check Alcotest.bool "mentions protected or outside" true
+          (error_contains result "protected location" || error_contains result "outside the workspace")));
+
+    Alcotest.test_case "read: empty path → Path is required" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "read" tools in
+        let result = handler (`Assoc [("path", `String "")]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result);
+        Alcotest.check Alcotest.bool "has [workspace]" true (error_contains result "[workspace]");
+        Alcotest.check Alcotest.bool "says Path is required" true (error_contains result "Path is required")));
+
+    (* ---- write ---- *)
+    Alcotest.test_case "write: .. path → [workspace] + traversal" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "write" tools in
+        let result = handler (`Assoc [("path", `String "../secret.txt"); ("content", `String "x")]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result);
+        Alcotest.check Alcotest.bool "has [workspace]" true (error_contains result "[workspace]");
+        Alcotest.check Alcotest.bool "mentions .." true (error_contains result "contains '..'")));
+
+    Alcotest.test_case "write: colon path → [workspace] + colon" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "write" tools in
+        let result = handler (`Assoc [("path", `String "a:b.txt"); ("content", `String "x")]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result);
+        Alcotest.check Alcotest.bool "has [workspace]" true (error_contains result "[workspace]");
+        Alcotest.check Alcotest.bool "mentions :" true (error_contains result "contains ':'")));
+
+    Alcotest.test_case "write: empty path → Path is required" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "write" tools in
+        let result = handler (`Assoc [("path", `String ""); ("content", `String "x")]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result);
+        Alcotest.check Alcotest.bool "has [workspace]" true (error_contains result "[workspace]");
+        Alcotest.check Alcotest.bool "says Path is required" true (error_contains result "Path is required")));
+
+    (* ---- edit ---- *)
+    Alcotest.test_case "edit: .. path → [workspace] + traversal" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "edit" tools in
+        let result = handler (`Assoc [("path", `String "../x.txt"); ("edits", `List [])]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result);
+        Alcotest.check Alcotest.bool "has [workspace]" true (error_contains result "[workspace]");
+        Alcotest.check Alcotest.bool "mentions .." true (error_contains result "contains '..'")));
+
+    Alcotest.test_case "edit: colon path → [workspace] + colon" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "edit" tools in
+        let result = handler (`Assoc [("path", `String "a:b.txt"); ("edits", `List [])]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result);
+        Alcotest.check Alcotest.bool "has [workspace]" true (error_contains result "[workspace]");
+        Alcotest.check Alcotest.bool "mentions :" true (error_contains result "contains ':'")));
+
+    Alcotest.test_case "edit: empty path → Path is required" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "edit" tools in
+        let result = handler (`Assoc [("path", `String ""); ("edits", `List [])]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result);
+        Alcotest.check Alcotest.bool "has [workspace]" true (error_contains result "[workspace]");
+        Alcotest.check Alcotest.bool "says Path is required" true (error_contains result "Path is required")));
+
+    (* ---- metadata code assertions ---- *)
+    Alcotest.test_case "read: .. path → code workspace_parent_traversal" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "read" tools in
+        let result = handler (`Assoc [("path", `String "../x")]) token in
+        Alcotest.check Alcotest.string "code" "workspace_parent_traversal"
+          (error_metadata_code result)));
+
+    Alcotest.test_case "read: colon path → code workspace_colon" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "read" tools in
+        let result = handler (`Assoc [("path", `String "a:b")]) token in
+        Alcotest.check Alcotest.string "code" "workspace_colon"
+          (error_metadata_code result)));
+  ])
+
 let () =
   Alcotest.run "Builtin Tools" [
     calculator_suite;
@@ -671,4 +806,5 @@ let () =
     grep_suite;
     write_suite;
     edit_suite;
+    wave2a_file_tools_suite;
   ]

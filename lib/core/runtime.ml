@@ -513,22 +513,41 @@ let make_bash_handler rt mgr clock fs input tok : Types.handler_result =
   in
   (match Bash_safe_command.validate_argv argv with
    | Error e ->
-     Error { category = e; message = "argv validation failed";
-             retryable = false; metadata = [] }
+     let argv_summary = String.concat " " argv in
+     let msg = Tool_error.instructive
+       ~marker:Tool_error.bash_policy_marker
+       ~why:(Printf.sprintf "Invalid argv: %s."
+               (match e with Types.Invalid_input s -> s | _ -> "validation error"))
+       ~remedy:(Printf.sprintf "Provide argv as a plain string array \
+                  (e.g. [\"ls\"; \"-la\"]) without NUL bytes, ≤4096 entries. \
+                  argv was: %s" argv_summary) in
+     Error { category = e; message = msg;
+             retryable = false;
+             metadata = [("code", `String "bash_argv_invalid")] }
    | Ok () ->
    (match Workspace.admit rt.workspace cwd_str with
       | Error e ->
-        Error { category = e;
-                message = Printf.sprintf "invalid cwd: %s" cwd_str;
-                retryable = false; metadata = [] }
+        let num_roots = List.length rt.workspace.Workspace.roots in
+        let (msg, code) = Tool_error.workspace_rejection_message
+          ~path:cwd_str ~num_roots e in
+        Error { category = e; message = msg;
+                retryable = false; metadata = [("code", `String code)] }
       | Ok cwd ->
         let cmd : Bash_safe_command.command =
           Bash_safe_command.Exec { argv; cwd; env = []; timeout }
         in
         (match P.filter cmd with
          | Error e ->
-           Error { category = e; message = "policy rejected";
-                   retryable = false; metadata = [] }
+           let cmd_str = String.concat " " argv in
+           let msg = Tool_error.instructive
+             ~marker:Tool_error.bash_policy_marker
+             ~why:(Printf.sprintf "Command rejected by %s policy: %s."
+                     P.name cmd_str)
+             ~remedy:"This policy forbids that command; check the allowed operations \
+                        for this session or use the file tools for writes." in
+           Error { category = e; message = msg;
+                   retryable = false;
+                   metadata = [("code", `String "bash_policy_rejected")] }
          | Ok filtered ->
            let task_id = Task_id.create () in
            let start_t = Unix.gettimeofday () in
