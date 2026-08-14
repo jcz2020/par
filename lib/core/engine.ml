@@ -18,6 +18,13 @@ exception Approval_pending of {
   expires_at : float;
 }
 
+(* Wave 2B: per-chunk cancellation exception.
+   Raised inside the streaming accumulator when Cancellation.is_cancelled
+   fires true AFTER the user's on_chunk callback has observed the chunk.
+   Caught inside run_llm_with_optional_streaming and converted to
+   Error (Cancelled reason) — same shape the loop-top check returns. *)
+exception Stream_cancelled_by_token
+
 (* -------------------------------------------------------------------------- *)
 (* Middleware chain — Russian Doll composition                           *)
 (* -------------------------------------------------------------------------- *)
@@ -177,7 +184,7 @@ let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
 (* Agent executor — ReAct loop                                           *)
 (* -------------------------------------------------------------------------- *)
 
-let run_llm_with_optional_streaming llm agent_model agent_tools conv user_cb =
+let run_llm_with_optional_streaming ?token llm agent_model agent_tools conv user_cb =
   match user_cb with
   | None -> llm.complete_fn agent_model agent_tools conv
   | Some user_chunk ->
@@ -187,6 +194,10 @@ let run_llm_with_optional_streaming llm agent_model agent_tools conv user_cb =
     let tc_order : string list ref = ref [] in
     let acc chunk =
       user_chunk chunk;
+      (match token with
+       | Some tok when Cancellation.is_cancelled tok ->
+         raise Stream_cancelled_by_token
+       | _ -> ());
       match chunk with
       | Text_delta { text } -> Buffer.add_string text_buf text
       | Tool_call_start { tool_call_id; name } ->
@@ -206,22 +217,29 @@ let run_llm_with_optional_streaming llm agent_model agent_tools conv user_cb =
       | Usage_update _ | Done _ -> ()
     in
     let stream_cfg : stream_config = { chunk_timeout = 30.0; total_timeout = None; buffer_size = 4096 } in
-    match llm.stream_fn agent_model agent_tools conv stream_cfg acc with
-    | Error _ as e -> e
-    | Ok stream_complete ->
-      let entries = List.rev_map (fun id ->
-        let (name, buf) = Hashtbl.find tc_state id in
-        (id, name, Buffer.contents buf)) !tc_order in
-      let tool_calls = if entries = [] then None else
-        Some (List.map (fun (id, name, args_str) ->
-          let arguments = try Yojson.Safe.from_string args_str with _ -> `Null in
-          { id; name; arguments }) entries) in
-      let text = if Buffer.length text_buf = 0 then None else Some (Buffer.contents text_buf) in
-      let reasoning_content =
-        if Buffer.length reasoning_buf = 0 then None
-        else Some (Buffer.contents reasoning_buf) in
-      Ok { text; reasoning_content; tool_calls; finish_reason = stream_complete.finish_reason;
-           usage = stream_complete.final_usage; model = agent_model.model_name }
+    (try
+       match llm.stream_fn agent_model agent_tools conv stream_cfg acc with
+       | Error _ as e -> e
+       | Ok stream_complete ->
+         let entries = List.rev_map (fun id ->
+           let (name, buf) = Hashtbl.find tc_state id in
+           (id, name, Buffer.contents buf)) !tc_order in
+         let tool_calls = if entries = [] then None else
+           Some (List.map (fun (id, name, args_str) ->
+             let arguments = try Yojson.Safe.from_string args_str with _ -> `Null in
+             { id; name; arguments }) entries) in
+         let text = if Buffer.length text_buf = 0 then None else Some (Buffer.contents text_buf) in
+         let reasoning_content =
+           if Buffer.length reasoning_buf = 0 then None
+           else Some (Buffer.contents reasoning_buf) in
+         Ok { text; reasoning_content; tool_calls; finish_reason = stream_complete.finish_reason;
+              usage = stream_complete.final_usage; model = agent_model.model_name }
+     with Stream_cancelled_by_token ->
+       let reason = match token with
+         | Some tok -> Option.value (Cancellation.reason tok) ~default:User_cancelled
+         | None -> User_cancelled
+       in
+       Error (Cancelled reason))
 
 let make_conversation system_prompt user_message =
   let sys = { role = System; content_blocks = Message.content_of_string system_prompt; tool_calls = None; tool_call_id = None; name = None; reasoning_content = None } in
@@ -709,10 +727,11 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
             ) plan.dropped;
             apply_breakpoints ~ttl plan.used conv'
         in
-        (match run_llm_with_optional_streaming llm agent.model tools_for_provider conv' on_chunk with
+        (match run_llm_with_optional_streaming ~token llm agent.model tools_for_provider conv' on_chunk with
          | Ok resp ->
            (* Loop invariant: do not append — run_agent's egress wrap does it once. *)
            Ok (resp, conv')
+         | Error (Cancelled _ as c) -> Result.Error (c, conv')
          | Error _ -> Result.Error ((Internal "Max iterations exceeded" : error_category), conv))
     )
     else begin
@@ -823,7 +842,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
         | None -> ()
       in
       fire_llm (Llm_request_sent { task_id = llm_task_id; model = agent.model.model_name });
-      match run_llm_with_optional_streaming llm agent.model tools_for_provider conv on_chunk with
+      match run_llm_with_optional_streaming ~token llm agent.model tools_for_provider conv on_chunk with
       | Result.Error err ->
         (match classify_engine_error err with
          | `Context_length_exceeded ->
@@ -901,6 +920,14 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
              When parallel=true, the outer forking gives every tool a chance to run
              concurrently; the semaphore caps how many can be in-flight at once. *)
           let invoke_one (call : tool_call) : (tool_call * handler_result) =
+            if Cancellation.is_cancelled token then
+              (call, Error {
+                category = Cancelled (Option.value (Cancellation.reason token) ~default:User_cancelled);
+                message = "[cancelled] Tool call aborted before dispatch \xe2\x80\x94 not executed. The run was cancelled.";
+                retryable = false;
+                metadata = [("code", `String "aborted_before_dispatch")];
+              })
+            else begin
             let event_task_id = Task_id.create () in
             let event_tool_name = call.name in
             let fire evt = match on_tool_event with
@@ -994,7 +1021,8 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                  message = Printf.sprintf "Tool '%s' invocation crashed: %s" call.name (Printexc.to_string exn);
                  retryable = false;
                  metadata = [];
-               }) in
+               })
+            end in
           let results : (tool_call * handler_result) list =
             if parallel then
               let promises = List.map (fun (call : tool_call) ->
@@ -1329,7 +1357,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                   else
                     let conv = add_user_feedback conv
                       "Continue from where your previous response stopped. Do not repeat previous content." in
-                    (match run_llm_with_optional_streaming llm agent.model tools_for_provider conv on_chunk with
+                    (match run_llm_with_optional_streaming ~token llm agent.model tools_for_provider conv on_chunk with
                      | Error _ ->
                        ({ resp with text = Some accumulated; finish_reason = Max_tokens }, conv)
                      | Ok cont_resp ->

@@ -375,6 +375,170 @@ let test_ffi_cancelled_json_shape () =
       (Yojson.Safe.to_string (cancel_reason_to_yojson other))
   | Error msg -> Alcotest.failf "reason parse: %s" msg
 
+let test_per_dispatch_cancel_sequential () =
+  Eio_main.run (fun _env ->
+    Eio.Switch.run (fun sw ->
+      let token = Cancellation.create_token sw in
+      let b_called = ref false in
+      let tool_a_started = ref false in
+      let slow_handler (_input : Yojson.Safe.t) (tok : cancellation_token) =
+        tool_a_started := true;
+        while not (Cancellation.is_cancelled tok) do
+          Eio.Fiber.yield ()
+        done;
+        Error {
+          category = Cancelled (Option.value (Cancellation.reason tok) ~default:User_cancelled);
+          message = "cancelled mid-execution";
+          retryable = false;
+          metadata = [];
+        }
+      in
+      let fast_handler (_input : Yojson.Safe.t) (_tok : cancellation_token) =
+        b_called := true;
+        Success (`String "fast")
+      in
+      let tb_a : tool_binding = {
+        descriptor = {
+          name = "tool_a"; description = "slow"; input_schema = `Assoc [];
+          output_schema = None; permission = Allow; timeout = None;
+          concurrency_limit = None; on_update = None; cache_control = None
+        };
+        handler = slow_handler;
+      } in
+      let tb_b : tool_binding = {
+        descriptor = {
+          name = "tool_b"; description = "fast"; input_schema = `Assoc [];
+          output_schema = None; permission = Allow; timeout = None;
+          concurrency_limit = None; on_update = None; cache_control = None
+        };
+        handler = fast_handler;
+      } in
+      let llm = mock_llm [
+        { text = None; reasoning_content = None;
+          tool_calls = Some [
+            { id = "tc_a"; name = "tool_a"; arguments = `Null };
+            { id = "tc_b"; name = "tool_b"; arguments = `Null };
+          ];
+          finish_reason = Tool_calls; usage = dummy_usage; model = "mock" };
+        text_response "should not reach"
+      ] in
+      let agent = basic_agent ~tools:[tb_a; tb_b] () in
+      let reg = make_registry [tb_a; tb_b] in
+      Eio.Fiber.fork ~sw (fun () ->
+        while not !tool_a_started do
+          Eio.Fiber.yield ()
+        done;
+        Cancellation.request_cancel token User_cancelled
+      );
+      match Engine.run_agent ~parallel:false token agent "do things" llm reg with
+      | Error (Cancelled User_cancelled, conv) ->
+        Alcotest.(check bool) "tool_b not called" false !b_called;
+        let tool_call_ids = List.concat_map (fun (msg : message) ->
+          match msg.tool_calls with
+          | Some calls -> List.map (fun (tc : tool_call) -> tc.id) calls
+          | None -> []
+        ) conv.messages in
+        let tool_result_ids = List.filter_map (fun (msg : message) ->
+          match msg.role with Tool -> msg.tool_call_id | _ -> None
+        ) conv.messages in
+        List.iter (fun tcid ->
+          if not (List.mem tcid tool_result_ids) then
+            Alcotest.failf "tool_call %s has no Tool result" tcid
+        ) tool_call_ids;
+        let tc_b_msg = List.find_opt (fun (msg : message) ->
+          msg.role = Tool && msg.tool_call_id = Some "tc_b"
+        ) conv.messages in
+        (match tc_b_msg with
+         | Some msg ->
+           let text = Message.text_of_message msg in
+           Alcotest.(check bool) "tc_b aborted before dispatch" true
+             (str_contains text "aborted before dispatch")
+         | None -> Alcotest.fail "tc_b has no Tool message")
+      | Error (e, _) ->
+        Alcotest.failf "expected Cancelled, got: %s" (error_to_string e)
+      | Ok _ -> Alcotest.fail "expected Error, got Ok"))
+
+let test_per_chunk_cancel () =
+  with_token (fun token ->
+    let chunk_count = ref 0 in
+    let stream_llm = {
+      complete_fn = (fun _ _ _ -> Ok (text_response "unused"));
+      stream_fn = (fun _model _tools _conv _cfg acc ->
+        acc (Text_delta { text = "chunk1" });
+        acc (Text_delta { text = "chunk2" });
+        acc (Done { finish_reason = Stop });
+        Ok { final_usage = dummy_usage; finish_reason = Stop; chunks_received = 3 });
+      close_fn = (fun () -> ());
+      complete_structured_fn = None;
+      list_models_fn = None;
+      supports_native_tools_fn = None;
+      context_window_fn = None; cache_control_fn = None;
+    } in
+    let agent = basic_agent () in
+    let reg = make_registry [] in
+    let on_chunk _chunk =
+      incr chunk_count;
+      if !chunk_count = 1 then
+        Cancellation.request_cancel token User_cancelled
+    in
+    match Engine.run_agent ~on_chunk:(Some on_chunk) token agent "hello" stream_llm reg with
+    | Error (Cancelled User_cancelled, conv) ->
+      let has_assistant = List.exists (fun (msg : message) ->
+        msg.role = Assistant) conv.messages in
+      Alcotest.(check bool) "no partial assistant message" false has_assistant
+    | Error (e, _) ->
+      Alcotest.failf "expected Cancelled, got: %s" (error_to_string e)
+    | Ok _ -> Alcotest.fail "expected Error, got Ok")
+
+let test_loop_cancel_between_iterations () =
+  with_token (fun token ->
+    let llm_call_count = ref 0 in
+    let tool_ran = ref false in
+    let cancelling_handler (_input : Yojson.Safe.t) (_tok : cancellation_token) =
+      tool_ran := true;
+      Cancellation.request_cancel token User_cancelled;
+      Success (`String "result")
+    in
+    let tb : tool_binding = {
+      descriptor = {
+        name = "cancel_tool"; description = "cancels on run";
+        input_schema = `Assoc [];
+        output_schema = None; permission = Allow; timeout = None;
+        concurrency_limit = None; on_update = None; cache_control = None
+      };
+      handler = cancelling_handler;
+    } in
+    let llm = {
+      complete_fn = (fun _model _tools _conv ->
+        incr llm_call_count;
+        if !llm_call_count = 1 then
+          Ok { text = None; reasoning_content = None;
+               tool_calls = Some [{ id = "tc_1"; name = "cancel_tool"; arguments = `Null }];
+               finish_reason = Tool_calls; usage = dummy_usage; model = "mock" }
+        else
+          Ok (text_response "should not reach"));
+      stream_fn = (fun _ _ _ _ _ -> Ok {
+          final_usage = dummy_usage; finish_reason = Stop; chunks_received = 0 });
+      close_fn = (fun () -> ());
+      complete_structured_fn = None;
+      list_models_fn = None;
+      supports_native_tools_fn = None;
+      context_window_fn = None; cache_control_fn = None;
+    } in
+    let agent = basic_agent ~tools:[tb] () in
+    let reg = make_registry [tb] in
+    match Engine.run_agent token agent "do thing" llm reg with
+    | Error (Cancelled User_cancelled, conv) ->
+      Alcotest.(check bool) "tool ran" true !tool_ran;
+      Alcotest.(check int) "only 1 LLM call" 1 !llm_call_count;
+      let has_tool_result = List.exists (fun (msg : message) ->
+        msg.role = Tool && msg.tool_call_id = Some "tc_1"
+      ) conv.messages in
+      Alcotest.(check bool) "tool result in conv" true has_tool_result
+    | Error (e, _) ->
+      Alcotest.failf "expected Cancelled, got: %s" (error_to_string e)
+    | Ok _ -> Alcotest.fail "expected Error, got Ok")
+
 let () =
   let open Alcotest in
   run "Cancellation" [
@@ -409,5 +573,13 @@ let () =
     "ffi", [
       test_case "cancelled JSON shape" `Quick
         test_ffi_cancelled_json_shape;
+    ];
+    "wave2b", [
+      test_case "per-dispatch cancel sequential" `Quick
+        test_per_dispatch_cancel_sequential;
+      test_case "per-chunk cancel" `Quick
+        test_per_chunk_cancel;
+      test_case "loop cancel between iterations" `Quick
+        test_loop_cancel_between_iterations;
     ];
   ]
