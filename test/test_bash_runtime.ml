@@ -17,6 +17,7 @@ let error_to_string (e : Types.error_category) =
   | Types.Permission_denied s -> Printf.sprintf "Permission_denied %S" s
   | Types.Internal s -> Printf.sprintf "Internal %S" s
   | Types.Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "cancelled"
 
 let test_config : Types.runtime_config = {
   Types.persistence = `Sqlite ":memory:";
@@ -195,6 +196,66 @@ let policy_enforcement_suite =
         ~argv:["chmod"; "755"; "foo"]);
   ]
 
+(* -------------------------------------------------------------------------- *)
+(* timeout kills the child process (no process leak past the timeout)         *)
+(* -------------------------------------------------------------------------- *)
+
+let read_proc_file path =
+  let ic = open_in_bin path in
+  let n = in_channel_length ic in
+  let s = really_input_string ic n in
+
+  close_in ic;
+  s
+
+(* Is a `sleep 97` child still alive? Scans /proc cmdlines (Linux only). *)
+let sleep_97_alive () =
+  Array.to_list (Sys.readdir "/proc")
+  |> List.filter (fun e -> e <> "" && e.[0] >= '0' && e.[0] <= '9')
+  |> List.exists (fun pid ->
+      let f = Filename.concat "/proc" (pid ^ "/cmdline") in
+      match (try Some (read_proc_file f) with _ -> None) with
+      | None -> false
+      | Some s ->
+        let s = String.map (fun c -> if c = '\000' then ' ' else c) s in
+        String.trim s = "sleep 97")
+
+let timeout_suite =
+  "timeout", [
+    Alcotest.test_case "bash timeout kills the child process" `Quick (fun () ->
+      if Sys.os_type = "Win32" then
+        print_endline "[SKIP] process-leak check skipped on Windows"
+      else if not (Sys.file_exists "/proc") then
+        print_endline "[SKIP] process-leak check needs /proc (non-Linux)"
+      else
+        with_runtime_eio (fun rt mgr fs ->
+          (match Runtime.install_bash_tool ~process_mgr:mgr ~fs rt with
+           | Ok () -> ()
+           | Error e -> Alcotest.failf "install failed: %s" (error_to_string e));
+          let h = bash_handler rt in
+          let input = `Assoc [
+            ("argv", `List [`String "sleep"; `String "97"]);
+            ("timeout", `Float 0.5);
+          ] in
+          let token = Cancellation.create_token (Runtime.cancellation_root rt) in
+          let t0 = Unix.gettimeofday () in
+          (match h input token with
+           | Error { category = Types.Timeout; _ } -> ()
+           | Error { category = other; _ } ->
+             Alcotest.failf "expected Timeout, got %s" (error_to_string other)
+           | Success _ -> Alcotest.fail "expected Timeout error, got Success"
+           | Handoff _ -> Alcotest.fail "unexpected Handoff"
+           | Approval_required _ -> Alcotest.fail "unexpected Approval_required");
+          let elapsed = Unix.gettimeofday () -. t0 in
+          Alcotest.(check bool) "handler returned near the timeout, not after sleep"
+            true (elapsed < 10.0);
+          (* Contract pin: Eio's await-cancellation kills the child when the
+             timer fiber wins the race. If an eio upgrade ever changes that
+             semantics, this test must fail rather than silently leak. *)
+          Alcotest.(check bool) "child process `sleep 97` was killed" false
+            (sleep_97_alive ())));
+  ]
+
 let () =
   if Sys.os_type = "Win32" then begin
     print_endline "[SKIP] Process spawning tests skipped on Windows";
@@ -205,4 +266,5 @@ let () =
     custom_policy_suite;
     install_suite;
     policy_enforcement_suite;
+    timeout_suite;
   ]
