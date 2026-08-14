@@ -311,6 +311,29 @@ This section is informational. It does not define the public API; it records the
 - **Existing subscribe stub.** `par_event_subscribe` is declared at `lib/ffi/par_ffi.h` line 64 and stubbed at `lib/ffi/par_ffi.c` line 336 (returns `-1`). It is unrelated to streaming but uses the same callback shape. Wiring it up is optional for C.2 and may slip to a later phase; the streaming entrypoint does not depend on it.
 - **Existing Python precedent.** `bindings/python/par_runtime/_ffi.py` line 62 defines `_PYTHON_TOOL_CALLBACK = CFUNCTYPE(c_char_p, c_int, c_char_p)`. Mirror this pattern for the streaming callback: define `_STREAM_CALLBACK = CFUNCTYPE(None, c_char_p, c_char_p)` (event_type, event_json), keep the closure on `self._cb_keepalive` for the runtime's lifetime, parse the JSON inside the callback, and push a constructed `Event` onto the queue.
 
+## Per-chunk cancellation semantics
+
+Cancellation during streaming works at two levels: the OCaml `Cancellation_token` and the Python `_StreamReader.cancel()`.
+
+### OCaml side
+
+When a `cancellation_token` is passed to `Runtime.invoke` with `?on_chunk`, the engine checks `Cancellation.is_cancelled` after each chunk's user callback fires. If the token is cancelled mid-stream:
+
+- The `on_chunk` callback finishes executing for the current chunk (the user callback always fires before the cancellation check).
+- The assistant message is atomically materialized: either the full streamed content appears in the conversation, or nothing appears. There is no partial assistant message.
+
+The guard fires per-chunk, not per-token, so cancellation latency equals one chunk interval (typically 50-300 ms).
+
+### Python side
+
+`_StreamReader.cancel()` sets an atomic flag in the C handle struct. The OCaml `on_chunk` callback polls `caml_stream_cancel_state(handle)` at each chunk boundary and raises `Stream_cancelled` if set. This is per-handle: multiple concurrent streams do not interfere.
+
+Breaking out of the `for` loop or calling `.cancel()` on the reader both trigger the same path. The generator's `finally` clause joins the OCaml fiber and releases the queue.
+
+### Cross-reference
+
+For the full cancellation API (cancel_reason type, first-cause-wins semantics, observer-intervention pattern), see [Cancellation in agent.md](agent.md#cancellation). The Python dispatch-queue trio (`invoke_start` / `invoke_poll` / `invoke_cancel`) provides non-streaming cancellation isolation from Python; see [Python dispatch-queue in agent.md](agent.md#python-dispatch-queue-invoke_start-invoke_poll-invoke_cancel).
+
 ## See also
 
 - [Agent API](agent.md) - `Runtime.invoke`, `agent_config`, the non-streaming entrypoint that `invoke_stream` mirrors

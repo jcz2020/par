@@ -635,6 +635,99 @@ Tool_registry.register rt.tool_registry descriptor handler
 - [ ] 危险工具走 `Bash_policy`（如适用）
 - [ ] `description` 包含 input 示例（让 LLM 知道怎么调用）
 
+## 可行动的校验错误
+
+PAR 中的工具拒绝不只是说"已拒绝"。它们解释*出了什么问题*以及*如何修复*。这是设计原则：错误信息是模型在 ReAct 循环中唯一的反馈信号。把规则写在 system prompt 里导致模型拒绝尝试工作；在拒绝点教学让模型学会正确重试。
+
+### 标记词汇
+
+三种标记前缀出现在工具错误信息中。工具描述引用相同的常量，因此描述和拒绝消息不会产生偏差（两者均来源于 `lib/tools/tool_error.ml`）。
+
+| 标记 | 含义 |
+|------|------|
+| `[workspace]` | 路径校验失败（workspace 沙箱拒绝） |
+| `[bash-policy]` | Bash 命令被策略拒绝（`Coder` / `ReadOnly` / 自定义） |
+| `[cancelled]` | 工具调用因运行被取消而中止 |
+
+### Workspace 路径拒绝
+
+所有文件工具（`read` / `ls` / `find` / `grep` / `write` / `edit`）共享相同的路径校验。存在四种不同的拒绝类型，每种都有特定的消息和元数据代码：
+
+**路径遍历**（代码 `workspace_parent_traversal`）：
+```
+[workspace] Path rejected: '../etc/passwd' contains '..' (path traversal is not allowed).
+Use a clean relative path like 'src/main.ml', or an absolute path under the workspace root.
+```
+
+**路径中含冒号**（代码 `workspace_colon`）：
+```
+[workspace] Path rejected: 'C:\Users' contains ':' (reserved/ambiguous in tool arguments).
+Use a path without ':'.
+```
+
+**绝对路径在 workspace 外**（代码 `workspace_absolute_outside`）：
+```
+[workspace] Path rejected: '/etc/passwd' is an absolute path outside the workspace (2 root(s)).
+Use a relative path like 'src/main.ml' (resolved against the workspace root)
+or an absolute path under a workspace root.
+```
+
+注意根数量：消息告诉模型有多少个 workspace 根，以便它推理哪些绝对路径是允许的。
+
+**受保护位置**（代码 `workspace_protected_location`）：
+```
+[workspace] Path rejected: '~/.ssh/id_rsa' matches a protected location.
+Choose a path outside protected system areas.
+```
+
+两个额外的元数据代码用于缺失参数：
+
+| 代码 | 场景 |
+|------|------|
+| `workspace_path_required` | 缺少必需的 `path` 参数 |
+| `pattern_required` | 缺少必需的 `pattern` 参数（用于 `find` / `grep`） |
+
+### Bash 策略拒绝
+
+当 bash 工具的策略过滤器拒绝命令时，错误会指出策略和命令：
+
+```
+[bash-policy] Command rejected by ReadOnly policy: ["rm", "-rf", "node_modules"].
+This policy does not allow write operations. Use a read-only command or switch to a different policy.
+```
+
+标记 `[bash-policy]` 与 bash 工具描述教给模型的内容一致，因此模型知道这是策略约束，而非 bug。
+
+### Edit 工具：old_text 未找到
+
+此前，`edit` 工具在 `old_text` 未在文件中找到时静默成功。这是最严重的缺陷类别：模型以为它做了更改，但什么都没发生。现在返回错误：
+
+```
+Edit failed: old_text was not found in 'src/main.ml'. The file may have changed
+since it was last read, or the text does not match exactly (including whitespace).
+Read the file first, then retry with the exact current text.
+```
+
+元数据代码：`edit_old_text_not_found`。
+
+### 元数据代码参考
+
+| 代码 | 工具 | 含义 |
+|------|------|------|
+| `workspace_parent_traversal` | read/ls/find/grep/write/edit | 路径包含 `..` |
+| `workspace_colon` | read/ls/find/grep/write/edit | 路径包含 `:` |
+| `workspace_absolute_outside` | read/ls/find/grep/write/edit | 绝对路径在 workspace 根外 |
+| `workspace_protected_location` | read/ls/find/grep/write/edit | 路径匹配受保护的系统区域 |
+| `workspace_path_required` | read/ls/find/grep/write/edit | 缺少必需的 path 参数 |
+| `pattern_required` | find/grep | 缺少必需的 pattern 参数 |
+| `edit_old_text_not_found` | edit | 在文件中未找到 `old_text` 子串 |
+
+### 设计原则：在拒绝点教学
+
+标记和指导性消息的存在是因为错误信息是模型在 ReAct 循环中*唯一*接收的反馈信号。System prompt 规则（"永远不要使用绝对路径"）导致模型完全拒绝尝试。相比之下，像 `[workspace] Path rejected: '/tmp/out.txt' is an absolute path outside the workspace (1 root(s)). Use a relative path like 'src/main.ml' ...` 这样的拒绝给了模型足够的上下文来用正确形式重试。
+
+`lib/tools/tool_error.ml` 中的常量是唯一的真实来源：工具描述 TEACH 标记，工具处理器 EMIT 标记。两者引用相同的常量，因此不会产生偏差。
+
 ## 另请参阅
 
 - [`agent.md`](agent.md) -- Agent 定义、Runtime API、工具注册

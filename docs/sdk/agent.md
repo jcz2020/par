@@ -274,7 +274,7 @@ All optional parameters:
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `?workspace` | `Workspace.workspace` | Per-call workspace override. Tools use this workspace instead of the runtime's default. |
-| `?cancellation_token` | `cancellation_token` | Token for cooperative cancellation. See [Cancellation tokens](#cancellation-tokens). |
+| `?cancellation_token` | `cancellation_token` | Token for cooperative cancellation. See [Cancellation](#cancellation). |
 | `?conversation` | `conversation option` | Resumed conversation history. Pass `None` to start fresh. |
 | `?on_tool_event` | `event -> unit` | Callback fired for tool-related events (tool_call_sent, tool_result_received, etc.). |
 | `?on_chunk` | `(llm_response_chunk -> unit) option` | Streaming callback for LLM response chunks. `None` disables streaming. |
@@ -440,6 +440,65 @@ val Runtime.close : runtime -> int   (* returns exit code *)
 ```
 
 `Runtime.close` also stops every MCP server child spawned through `Runtime.mcp_server`; the returned integer is the exit code, and a non-zero value means a child process refused to exit cleanly.
+
+## Python dispatch-queue: invoke_start / invoke_poll / invoke_cancel
+
+The Python binding provides a non-blocking dispatch-queue trio for cancellation-safe invoke from Python. Blocking `Runtime.invoke` holds the OCaml lock for the entire ReAct loop, which means Python callbacks cannot cancel while the lock is held. The dispatch-queue trio is the only correct isolation path for cancellation from Python.
+
+### API
+
+```python
+# Start an invocation — returns a handle id (string)
+handle_id: str = rt.invoke_start(agent_id, message, *, save=None, update_current=None)
+
+# Poll for results — returns a dict with status: "pending" / "ok" / "error" / "cancelled"
+result: dict = rt.invoke_poll(handle_id, timeout_ms=0)
+
+# Cancel the invocation
+rt.invoke_cancel(handle_id) -> None
+```
+
+### Usage example
+
+```python
+from par_runtime import Runtime
+import json
+
+config = json.dumps({"persistence": {"tag": "sqlite", "contents": ":memory:"}})
+
+with Runtime(config) as rt:
+    # Start a long-running invocation
+    handle = rt.invoke_start("my-agent", "Research OCaml 5 effects")
+
+    # Poll until done
+    while True:
+        result = rt.invoke_poll(handle, timeout_ms=100)
+        status = result.get("status")
+        if status == "ok":
+            print(f"Done: {result['text']}")
+            break
+        elif status in ("error", "cancelled"):
+            print(f"Failed: {result}")
+            break
+        # status == "pending" — do other work, then poll again
+
+    # Or cancel from another thread/fiber
+    # rt.invoke_cancel(handle)
+```
+
+### Terminal poll consumes the handle
+
+A poll that returns a terminal status (`ok`, `error`, or `cancelled`) consumes the handle. After a terminal poll, the handle is no longer valid and further calls to `invoke_poll` or `invoke_cancel` on it will return an error. This is by design: it prevents double-consumption of results.
+
+### When to use the trio vs blocking invoke
+
+| Pattern | Use when |
+|---------|----------|
+| `rt.invoke(agent_id, message)` | Simple synchronous call, no cancellation needed |
+| `rt.invoke_start` / `invoke_poll` / `invoke_cancel` | Need cancellation from Python, or need to do other work while the agent runs |
+| `Runtime.invoke_async` (OCaml) | OCaml-side async with `invoke_handle_await` / `invoke_handle_cancel` |
+
+The trio and `invoke_async` solve the same problem (non-blocking invoke with cancellation) on their respective surfaces. The trio exists because Python's `invoke` holds the OCaml lock for the full loop, making Python-side cancellation impossible without a separate dispatch path.
 
 ## Tool registration
 
@@ -746,22 +805,115 @@ This is a deliberate change from earlier betas, which left the strategy unset an
 
 For agents that talk to models with smaller windows, lower both numbers. A 4K-token model paired with `max_messages = 100` will still trip provider limits, because `max_messages` is checked before token estimation.
 
-## Cancellation tokens
+## Cancellation
+
+First-class cancellation lets you abort a running `invoke` from another fiber. Cancellation is cooperative: the engine checks a token at defined points and returns a typed error with a recoverable conversation.
+
+### cancel_reason
+
+```ocaml
+type cancel_reason =
+  | User_cancelled
+  | Guard_cancelled of string
+```
+
+`User_cancelled` is the default when no specific reason is provided. `Guard_cancelled` carries a descriptive string (for example, `"loop-detector"` from an observer callback).
+
+### Cancellation API
 
 ```ocaml
 val Cancellation.create_token : Eio.Switch.t -> cancellation_token
-val Cancellation.request_cancel : cancellation_token -> unit
+val Cancellation.request_cancel : cancellation_token -> cancel_reason -> unit
+val Cancellation.is_cancelled : cancellation_token -> bool
 val Cancellation.check_cancel : cancellation_token -> unit
   (* raises Eio.Cancel.Cancelled if already cancelled *)
+val Cancellation.reason : cancellation_token -> cancel_reason option
 val Cancellation.with_timeout : float -> cancellation_token ->
   (cancellation_token -> 'a) -> ('a, [ `Cancelled | `Timeout ]) result
 ```
 
 ```ocaml
 let token = Cancellation.create_token switch in
-(* Can be cancelled from another fiber *)
-Cancellation.request_cancel token
+(* Request cancellation with a reason from another fiber *)
+Cancellation.request_cancel token (Guard_cancelled "loop-detector")
 ```
+
+### First-cause-wins semantics
+
+`Cancellation.request_cancel` is first-cause-wins: the first call latches the reason; subsequent calls are ignored. This means concurrent cancellation requests don't race over the reason.
+
+### Where cancellation takes effect
+
+The engine checks the cancellation token at three points:
+
+1. **Loop top** (per iteration): before each LLM call, the engine checks `Cancellation.is_cancelled token`. If cancelled, it returns `Error (Cancelled reason, conversation)` immediately.
+
+2. **Before each tool dispatch**: if a tool call is pending and the token is cancelled, the tool is never executed. The model receives a synthetic result: `"[cancelled] Tool call aborted before dispatch — not executed."` This is honest: the tool did not run, so the conversation says so.
+
+3. **Per streaming chunk**: after the user callback fires for each chunk, the token is checked. A mid-stream cancel leaves no partial assistant message in the conversation (atomic materialization).
+
+**Honest limitation**: blocked C reads in the HTTP layer remain bounded by their own HTTP timeouts. Cancellation cannot interrupt a blocking `recv` call; it takes effect at the next check point after the I/O completes.
+
+### Return contract on cancellation
+
+Cancelled runs return:
+
+```ocaml
+Error (Cancelled reason, recovered_conversation)
+```
+
+The conversation is always provider-replay-valid:
+
+- Dangling `tool_call` ids get synthetic `Tool` messages (so the conversation can be sent back to the provider without errors).
+- Mid-execution aborts say *"may have partially completed; verify the effect (e.g. read the file) before retrying"* (side-effect honesty: never assume no-op).
+
+### Provider fallback does not retry cancelled runs
+
+If a provider call fails and the Retry middleware would normally retry, a `Cancelled` error is not retryable. The cancellation propagates cleanly through the middleware chain.
+
+### Resume via ?conversation
+
+The `recovered_conversation` in the error tuple can be passed back via `?conversation` to resume or inspect the state at the point of cancellation:
+
+```ocaml
+match Runtime.invoke rt ~agent_id:"my-agent" ~message:"Hello!"
+  ~cancellation_token:token () with
+| Ok result -> (* ... *)
+| Error (Cancelled reason, conv) ->
+  Printf.eprintf "Cancelled: %s\n"
+    (match reason with
+     | User_cancelled -> "user cancelled"
+     | Guard_cancelled msg -> msg);
+  (* conv is replay-valid — can be passed to ?conversation on next invoke *)
+  let _next = Runtime.invoke rt ~agent_id:"my-agent"
+    ~message:"Continue where you left off"
+    ~conversation:conv () in
+  ()
+```
+
+### Single-use token
+
+A cancellation token is single-use: reusing a cancelled token insta-cancels the next `invoke`. Create a fresh token for each invocation if you need independent cancellation control.
+
+### Observer-intervention pattern
+
+The `on_tool_event` callback receives events as `unit` (observe-only). To intervene, close over the cancellation token and call `Cancellation.request_cancel` from the callback:
+
+```ocaml
+let token = Cancellation.create_token switch in
+let loop_count = ref 0 in
+Runtime.invoke rt ~agent_id:"my-agent" ~message:"..."
+  ~cancellation_token:token
+  ~on_tool_event:(fun ev ->
+    incr loop_count;
+    if !loop_count > 50 then
+      Cancellation.request_cancel token (Guard_cancelled "loop-detector"))
+  ()
+```
+
+This follows the Go-context pattern: the callback observes, the token carries the cancellation intent.
+
+**FFI asymmetry**: Python callbacks cannot cancel while the OCaml lock is held. From Python, the dispatch-queue trio (`invoke_start` / `invoke_poll` / `invoke_cancel`) is the only correct isolation path for cancellation. See the Python section below.
 
 ## See also
 

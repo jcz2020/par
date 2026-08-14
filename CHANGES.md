@@ -1,5 +1,45 @@
 # CHANGES
 
+## [UNRELEASED]
+
+### Added — First-class cancellation (OCaml + FFI)
+
+- **NEW** `Types.cancel_reason` ADT: `User_cancelled | Guard_cancelled of string`. Cancellation no longer masquerades as `Timeout` or `Internal` anywhere in the error path.
+- **NEW** `error_category.Cancelled of cancel_reason` variant. Cancelled runs return `Error (Cancelled reason, recovered_conversation)` where the conversation is always provider-replay-valid (dangling `tool_call` ids get synthetic `Tool` messages; mid-execution aborts include side-effect-honesty wording).
+- **CHANGED** `Cancellation.request_cancel : cancellation_token -> cancel_reason -> unit` (was `unit`-param). First-cause-wins: the first reason latches; subsequent requests are ignored.
+- **NEW** Cancellation check points: loop-top per iteration (before each LLM call), before each tool dispatch (cancelled calls get synthetic `"[cancelled] Tool call aborted before dispatch — not executed."` results), and per streaming chunk (after the user callback fires).
+- **NEW** `Cancellation.reason : cancellation_token -> cancel_reason option` accessor.
+- Provider fallback does NOT retry cancelled runs; `Cancelled` is not retryable through the Retry middleware.
+
+### Added — Python dispatch-queue trio
+
+- **NEW** `Runtime.invoke_start(agent_id, message, *, save=None, update_current=None) -> str`: non-blocking start, returns a handle id.
+- **NEW** `Runtime.invoke_poll(handle_id, timeout_ms=0) -> dict`: poll for results (status: `pending` / `ok` / `error` / `cancelled`). Terminal poll consumes the handle.
+- **NEW** `Runtime.invoke_cancel(handle_id) -> None`: cancel a running invocation.
+- Blocking `Runtime.invoke()` unchanged. The trio exists because Python's invoke holds the OCaml lock for the full loop; the dispatch-queue is the only correct isolation path for Python-side cancellation.
+
+### Added — Actionable tool errors
+
+- **NEW** `lib/tools/tool_error.ml`: single source of truth for shared error markers `[workspace]` / `[bash-policy]` / `[cancelled]`. Tool descriptions TEACH the markers and rejection formatters EMIT them, both referencing the same constants so they cannot drift.
+- All file-tool path rejections (`read` / `ls` / `find` / `grep` / `write` / `edit`) now state why and how: four workspace rejection kinds (path traversal `..`, colon, absolute-outside with root count, protected location) with metadata codes `workspace_parent_traversal` / `workspace_colon` / `workspace_absolute_outside` / `workspace_protected_location`.
+- `edit` tool now errors when `old_text` is not found (was silent success). Metadata code: `edit_old_text_not_found`.
+- `bash` tool policy rejections now name the policy and command: `[bash-policy] Command rejected by <Policy> policy: <command>. ...`
+
+### Fixed
+
+- **FIX** `edit` tool silent success: `old_text` not found was previously treated as a no-op with `Ok` return. Now returns `Error (Invalid_input "old_text not found")` with instructive message. This was the worst defect class: the model believed it made a change when nothing happened.
+- **FIX** Provider fallback zombie retry on cancel: cancelled runs no longer trigger provider fallback retries. `Cancelled` is not retryable.
+
+### Changed
+
+- Path validation messages are now instructive (explain the rule and suggest the correct form). Anyone matching exact `"Path validation failed"` strings in downstream code must update to the new message format.
+- `Cancelled` replaces `Timeout` / `Internal` renderings for cancelled runs in `error_category`. Pattern matches on `error_category` that relied on `Timeout` or `Internal` for cancellation behavior must add a `Cancelled _` arm.
+
+### Breaking
+
+- `Cancellation.request_cancel` signature changed from `unit`-param to `cancel_reason -> unit`. Callers passing `()` must supply a reason (e.g. `User_cancelled`).
+- `error_category` now has a `Cancelled of cancel_reason` variant. Pattern matches that exhaustively cover `error_category` must add this arm.
+
 ## v0.9.1 — tool_call_id correlation fixes (5 bugs)
 
 ### Fixed — tool_call_id lifecycle (5 independent bugs)

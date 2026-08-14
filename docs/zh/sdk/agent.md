@@ -435,6 +435,65 @@ val Runtime.close : runtime -> int   (* 返回退出码 *)
 
 `Runtime.close` 也会停止所有通过 `Runtime.mcp_server` 启动的 MCP 服务器子进程；返回的整数是退出码，非零值表示有子进程拒绝干净退出。
 
+## Python dispatch-queue：invoke_start / invoke_poll / invoke_cancel
+
+Python 绑定提供非阻塞的 dispatch-queue 三件套，用于从 Python 进行取消安全的 invoke。阻塞的 `Runtime.invoke` 在整个 ReAct 循环期间持有 OCaml 锁，这意味着 Python 回调在锁持有期间无法取消。dispatch-queue 三件套是从 Python 取消的唯一正确隔离路径。
+
+### API
+
+```python
+# 启动调用——返回 handle id（字符串）
+handle_id: str = rt.invoke_start(agent_id, message, *, save=None, update_current=None)
+
+# 轮询结果——返回带 status: "pending" / "ok" / "error" / "cancelled" 的字典
+result: dict = rt.invoke_poll(handle_id, timeout_ms=0)
+
+# 取消调用
+rt.invoke_cancel(handle_id) -> None
+```
+
+### 使用示例
+
+```python
+from par_runtime import Runtime
+import json
+
+config = json.dumps({"persistence": {"tag": "sqlite", "contents": ":memory:"}})
+
+with Runtime(config) as rt:
+    # 启动长时间运行的调用
+    handle = rt.invoke_start("my-agent", "Research OCaml 5 effects")
+
+    # 轮询直到完成
+    while True:
+        result = rt.invoke_poll(handle, timeout_ms=100)
+        status = result.get("status")
+        if status == "ok":
+            print(f"Done: {result['text']}")
+            break
+        elif status in ("error", "cancelled"):
+            print(f"Failed: {result}")
+            break
+        # status == "pending"——做其他事，然后再次轮询
+
+    # 或从另一个线程/fiber 取消
+    # rt.invoke_cancel(handle)
+```
+
+### 终端轮询消耗 handle
+
+返回终端状态（`ok`、`error` 或 `cancelled`）的轮询会消耗 handle。终端轮询后，handle 不再有效，进一步调用 `invoke_poll` 或 `invoke_cancel` 会返回错误。这是设计如此：防止结果被重复消费。
+
+### 何时使用三件套 vs 阻塞 invoke
+
+| 模式 | 适用场景 |
+|------|----------|
+| `rt.invoke(agent_id, message)` | 简单同步调用，不需要取消 |
+| `rt.invoke_start` / `invoke_poll` / `invoke_cancel` | 需要从 Python 取消，或需要在 agent 运行时做其他事 |
+| `Runtime.invoke_async`（OCaml） | OCaml 端异步，用 `invoke_handle_await` / `invoke_handle_cancel` |
+
+三件套和 `invoke_async` 解决相同的问题（带取消的非阻塞 invoke），分别在各自的语言表面上。三件套存在的原因是 Python 的 `invoke` 在整个循环期间持有 OCaml 锁，使得 Python 端取消在没有单独 dispatch 路径的情况下不可能实现。
+
 ## 工具注册
 
 ### tool_descriptor
@@ -741,22 +800,115 @@ Some (Sliding_window { max_messages = 100; max_tokens = 200000 })
 
 对于使用较小窗口的模型，同时降低两个数字。4K token 模型配合 `max_messages = 100` 仍会触发 provider 限制，因为 `max_messages` 在 token 估算之前检查。
 
-## 取消令牌
+## 取消
+
+一等取消机制让你可以从另一个 fiber 中止正在运行的 `invoke`。取消是协作式的：引擎在定义的检查点检查令牌，并返回带有可恢复对话的类型化错误。
+
+### cancel_reason
+
+```ocaml
+type cancel_reason =
+  | User_cancelled
+  | Guard_cancelled of string
+```
+
+`User_cancelled` 是未提供特定原因时的默认值。`Guard_cancelled` 携带描述性字符串（例如，来自 observer 回调的 `"loop-detector"`）。
+
+### 取消 API
 
 ```ocaml
 val Cancellation.create_token : Eio.Switch.t -> cancellation_token
-val Cancellation.request_cancel : cancellation_token -> unit
+val Cancellation.request_cancel : cancellation_token -> cancel_reason -> unit
+val Cancellation.is_cancelled : cancellation_token -> bool
 val Cancellation.check_cancel : cancellation_token -> unit
-  (* 抛出 Eio.Cancel.Cancelled 若已取消 *)
+  (* 若已取消则抛出 Eio.Cancel.Cancelled *)
+val Cancellation.reason : cancellation_token -> cancel_reason option
 val Cancellation.with_timeout : float -> cancellation_token ->
   (cancellation_token -> 'a) -> ('a, [ `Cancelled | `Timeout ]) result
 ```
 
 ```ocaml
 let token = Cancellation.create_token switch in
-(* 在另一个 fiber 中可以取消 *)
-Cancellation.request_cancel token
+(* 从另一个 fiber 带原因请求取消 *)
+Cancellation.request_cancel token (Guard_cancelled "loop-detector")
 ```
+
+### 先到先得语义
+
+`Cancellation.request_cancel` 是先到先得的：第一次调用锁定原因，后续调用被忽略。这意味着并发取消请求不会在原因上产生竞争。
+
+### 取消生效点
+
+引擎在三个点检查取消令牌：
+
+1. **循环顶部**（每次迭代）：在每次 LLM 调用前，引擎检查 `Cancellation.is_cancelled token`。若已取消，立即返回 `Error (Cancelled reason, conversation)`。
+
+2. **每次工具分派前**：若有待执行的工具调用且令牌已取消，工具不会被执行。模型收到合成结果：`"[cancelled] Tool call aborted before dispatch — not executed."` 这是诚实的：工具没有运行，所以对话如实说明。
+
+3. **每个流式 chunk**：在用户回调为每个 chunk 触发后检查令牌。中途取消不会在对话中留下部分 assistant 消息（原子物化）。
+
+**诚实的限制**：HTTP 层中阻塞的 C 读取仍受其自身 HTTP 超时约束。取消无法中断阻塞的 `recv` 调用；它在 I/O 完成后的下一个检查点生效。
+
+### 取消时的返回契约
+
+取消的运行返回：
+
+```ocaml
+Error (Cancelled reason, recovered_conversation)
+```
+
+对话始终是 provider 重放有效的：
+
+- 悬空的 `tool_call` id 会获得合成的 `Tool` 消息（因此对话可以无错地发回 provider）。
+- 中途中断说 *"may have partially completed; verify the effect (e.g. read the file) before retrying"*（副作用诚实：永远不假设无操作）。
+
+### Provider fallback 不重试取消的运行
+
+如果 provider 调用失败且 Retry 中间件通常会重试，`Cancelled` 错误不可重试。取消干净地穿透中间件链。
+
+### 通过 ?conversation 恢复
+
+错误元组中的 `recovered_conversation` 可以通过 `?conversation` 传回，以在取消点恢复或检查状态：
+
+```ocaml
+match Runtime.invoke rt ~agent_id:"my-agent" ~message:"Hello!"
+  ~cancellation_token:token () with
+| Ok result -> (* ... *)
+| Error (Cancelled reason, conv) ->
+  Printf.eprintf "Cancelled: %s\n"
+    (match reason with
+     | User_cancelled -> "user cancelled"
+     | Guard_cancelled msg -> msg);
+  (* conv 是重放有效的——可以传给下一次 invoke 的 ?conversation *)
+  let _next = Runtime.invoke rt ~agent_id:"my-agent"
+    ~message:"Continue where you left off"
+    ~conversation:conv () in
+  ()
+```
+
+### 单次使用令牌
+
+取消令牌是单次使用的：重用已取消的令牌会立即取消下一次 `invoke`。如果需要独立的取消控制，请为每次调用创建新令牌。
+
+### Observer 干预模式
+
+`on_tool_event` 回调以 `unit` 接收事件（仅观察）。要干预，闭包捕获取消令牌并在回调中调用 `Cancellation.request_cancel`：
+
+```ocaml
+let token = Cancellation.create_token switch in
+let loop_count = ref 0 in
+Runtime.invoke rt ~agent_id:"my-agent" ~message:"..."
+  ~cancellation_token:token
+  ~on_tool_event:(fun ev ->
+    incr loop_count;
+    if !loop_count > 50 then
+      Cancellation.request_cancel token (Guard_cancelled "loop-detector"))
+  ()
+```
+
+这遵循 Go-context 模式：回调观察，令牌携带取消意图。
+
+**FFI 不对称**：Python 回调在 OCaml 锁持有期间无法取消。从 Python 角度，dispatch-queue trio（`invoke_start` / `invoke_poll` / `invoke_cancel`）是取消的唯一正确隔离路径。见下方 Python 章节。
 
 ## 另请参阅
 

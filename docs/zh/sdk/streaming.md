@@ -311,6 +311,29 @@ finally:
 - **现有的 subscribe 桩。** `par_event_subscribe` 在 `lib/ffi/par_ffi.h` 第 64 行声明，在 `lib/ffi/par_ffi.c` 第 336 行有桩实现（返回 `-1`）。它与流式无关，但使用相同的回调形状。连接它是 C.2 的可选项，可能推迟到后续阶段；流式入口点不依赖它。
 - **现有的 Python 先例。** `bindings/python/par_runtime/_ffi.py` 第 62 行定义了 `_PYTHON_TOOL_CALLBACK = CFUNCTYPE(c_char_p, c_int, c_char_p)`。为流式回调镜像此模式：定义 `_STREAM_CALLBACK = CFUNCTYPE(None, c_char_p, c_char_p)`（event_type, event_json），在运行时生命周期内将闭包保持在 `self._cb_keepalive` 上，在回调内解析 JSON，并将构造好的 `Event` 推入队列。
 
+## 逐 chunk 取消语义
+
+流式传输期间的取消在两个层面工作：OCaml `Cancellation_token` 和 Python `_StreamReader.cancel()`。
+
+### OCaml 端
+
+当 `cancellation_token` 传给带 `?on_chunk` 的 `Runtime.invoke` 时，引擎在每个 chunk 的用户回调触发后检查 `Cancellation.is_cancelled`。如果令牌在流式传输中途被取消：
+
+- `on_chunk` 回调完成当前 chunk 的执行（用户回调总是在取消检查之前触发）。
+- assistant 消息被原子物化：要么完整的流式内容出现在对话中，要么什么都不出现。不存在部分 assistant 消息。
+
+保护在每个 chunk 触发，不是每个 token，因此取消延迟等于一个 chunk 间隔（典型 50-300 ms）。
+
+### Python 端
+
+`_StreamReader.cancel()` 在 C 句柄结构中设置原子标志。OCaml `on_chunk` 回调在每个 chunk 边界轮询 `caml_stream_cancel_state(handle)`，如发现已设置则抛出 `Stream_cancelled`。这是 per-handle 的：多个并发流之间不干扰。
+
+从 `for` 循环 break 或在 reader 上调用 `.cancel()` 都触发相同路径。generator 的 `finally` 子句 join OCaml fiber 并释放队列。
+
+### 交叉引用
+
+完整的取消 API（cancel_reason 类型、先到先得语义、observer 干预模式），见 agent.md「取消」章节。Python dispatch-queue trio（`invoke_start` / `invoke_poll` / `invoke_cancel`）提供从 Python 的非流式取消隔离；见 agent.md「Python dispatch-queue」章节。
+
 ## 另请参阅
 
 - [Agent API](agent.md) - `Runtime.invoke`、`agent_config`、`invoke_stream` 镜像的非流式入口

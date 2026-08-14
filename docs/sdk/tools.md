@@ -640,6 +640,99 @@ Self-check before submitting a new tool:
 - [ ] Dangerous tools go through `Bash_policy` (when applicable)
 - [ ] The `description` includes an input example (so the LLM knows how to call the tool)
 
+## Actionable validation errors
+
+Tool rejections in PAR don't just say "rejected." They explain *what went wrong* and *how to fix it*. This is a design principle: the error message is the model's only feedback signal in the ReAct loop. Putting rules in the system prompt made models refuse to attempt work; teaching at the point of rejection lets the model learn and retry correctly.
+
+### Marker vocabulary
+
+Three marker prefixes appear in tool error messages. Tool descriptions reference these same constants, so descriptions and rejections cannot drift apart (both are sourced from `lib/tools/tool_error.ml`).
+
+| Marker | Meaning |
+|--------|---------|
+| `[workspace]` | Path validation failure (workspace sandbox rejection) |
+| `[bash-policy]` | Bash command rejected by a policy (`Coder` / `ReadOnly` / custom) |
+| `[cancelled]` | Tool call aborted because the run was cancelled |
+
+### Workspace path rejections
+
+All file tools (`read` / `ls` / `find` / `grep` / `write` / `edit`) share the same path validation. Four distinct rejection kinds exist, each with a specific message and metadata code:
+
+**Path traversal** (code `workspace_parent_traversal`):
+```
+[workspace] Path rejected: '../etc/passwd' contains '..' (path traversal is not allowed).
+Use a clean relative path like 'src/main.ml', or an absolute path under the workspace root.
+```
+
+**Colon in path** (code `workspace_colon`):
+```
+[workspace] Path rejected: 'C:\Users' contains ':' (reserved/ambiguous in tool arguments).
+Use a path without ':'.
+```
+
+**Absolute path outside workspace** (code `workspace_absolute_outside`):
+```
+[workspace] Path rejected: '/etc/passwd' is an absolute path outside the workspace (2 root(s)).
+Use a relative path like 'src/main.ml' (resolved against the workspace root)
+or an absolute path under a workspace root.
+```
+
+Note the root count: the message tells the model how many workspace roots exist, so it can reason about which absolute paths are allowed.
+
+**Protected location** (code `workspace_protected_location`):
+```
+[workspace] Path rejected: '~/.ssh/id_rsa' matches a protected location.
+Choose a path outside protected system areas.
+```
+
+Two additional metadata codes exist for missing arguments:
+
+| Code | When |
+|------|------|
+| `workspace_path_required` | Required `path` argument is missing |
+| `pattern_required` | Required `pattern` argument is missing (for `find` / `grep`) |
+
+### Bash policy rejections
+
+When the bash tool's policy filter rejects a command, the error names the policy and the command:
+
+```
+[bash-policy] Command rejected by ReadOnly policy: ["rm", "-rf", "node_modules"].
+This policy does not allow write operations. Use a read-only command or switch to a different policy.
+```
+
+The marker `[bash-policy]` matches what the bash tool description teaches the model, so the model knows this is a policy constraint, not a bug.
+
+### Edit tool: old_text not found
+
+Previously, the `edit` tool silently succeeded when `old_text` was not found in the file. This was the worst defect class: the model believed it made a change when nothing happened. Now it returns an error:
+
+```
+Edit failed: old_text was not found in 'src/main.ml'. The file may have changed
+since it was last read, or the text does not match exactly (including whitespace).
+Read the file first, then retry with the exact current text.
+```
+
+Metadata code: `edit_old_text_not_found`.
+
+### Metadata codes reference
+
+| Code | Tool | Meaning |
+|------|------|---------|
+| `workspace_parent_traversal` | read/ls/find/grep/write/edit | Path contains `..` |
+| `workspace_colon` | read/ls/find/grep/write/edit | Path contains `:` |
+| `workspace_absolute_outside` | read/ls/find/grep/write/edit | Absolute path outside workspace roots |
+| `workspace_protected_location` | read/ls/find/grep/write/edit | Path matches a protected system area |
+| `workspace_path_required` | read/ls/find/grep/write/edit | Missing required path argument |
+| `pattern_required` | find/grep | Missing required pattern argument |
+| `edit_old_text_not_found` | edit | `old_text` substring not found in file |
+
+### Design principle: teach at the point of rejection
+
+The markers and instructive messages exist because the error message is the *only* feedback signal a model receives during the ReAct loop. System-prompt rules ("never use absolute paths") caused models to refuse attempts entirely. In contrast, a rejection like `[workspace] Path rejected: '/tmp/out.txt' is an absolute path outside the workspace (1 root(s)). Use a relative path like 'src/main.ml' ...` gives the model enough context to retry with the correct form.
+
+The constants in `lib/tools/tool_error.ml` are the single source of truth: tool descriptions TEACH the markers and tool handlers EMIT them. Both reference the same constants, so they cannot drift apart.
+
 ## See also
 
 - [`agent.md`](agent.md) -- Agent definitions, Runtime API, tool registration
