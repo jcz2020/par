@@ -16,6 +16,15 @@ type chunk = {
 }
 
 
+val default_separators : string list
+(** LangChain-compatible default separator ladder used by [chunk_recursive].
+
+    This constant is exported because OCaml makes the [?separators] default
+    unreachable: when an optional argument is followed only by labelled
+    arguments, the compiler reports Warning 16 (unerasable-optional-argument),
+    and no arrangement of the signature lets a caller elide it. Pass this value
+    explicitly to reproduce [chunk_recursive]'s built-in behaviour. *)
+
 (** [chunk_by_chars ~text ~max_size ~overlap] divides [text] into chunks of
     at most [max_size] characters, with [overlap] characters shared between
     consecutive chunks.

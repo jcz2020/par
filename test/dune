@@ -647,3 +647,8 @@
   (name test_nested_invoke_spike)
   (libraries par eio_main alcotest)
   (modules test_nested_invoke_spike))
+
+(test
+  (name test_chunking)
+  (libraries par eio_main alcotest)
+  (modules test_chunking))

@@ -30,6 +30,20 @@
 
 - Test suite extended with new test files (`test_tool_search`, `test_agent_as_tool`, `test_nested_invoke_spike`), plus Python `test_agent_as_tool`.
 
+### Fixed — `Chunking.default_separators` made reachable
+
+- **NEW** `Chunking.default_separators : string list`. OCaml makes `chunk_recursive`'s optional `~separators` argument unerasable (Warning 16: an optional argument followed only by labelled arguments cannot be omitted). Omitting it never fell back to the built-in default — it returned a partially applied `?separators:string list -> chunk list`. Three documentation samples in `docs/sdk/rag.md` and `docs/zh/sdk/rag.md` demonstrated that broken form while claiming the result was a `chunk list`. Pass `default_separators` explicitly.
+- `test/test_chunking.ml` now compiles and passes (16 tests). It had been rotting since v0.5.1 (2026-06-26): one missing application kept it from compiling, and because it was never registered in `test/dune`, nothing ever attempted to build it. An unwired test is worse than no test — it looks like coverage and silently rots.
+- **NEW** `scripts/check_test_wiring.sh`, run as the first CI step. Asserts the `test/test_*.ml` set equals the `(modules ...)` set in `test/dune`. This invariant immediately surfaced the rotting `test_chunking` and prevents recurrence.
+
+### Tests
+
+- OCaml test count 1598 → **1614**; Python 161 passed / 20 skipped.
+
+### Scope note
+
+- `Chunking` is an OCaml-only module — it has never had any FFI entry points, so `default_separators` is deliberately not exposed to Python. Python users do not call the chunkers directly; chunking happens on the OCaml side. Exposing it would add FFI surface with no consumer.
+
 ## v0.10.0 — first-class cancellation + actionable tool errors (2026-08-15)
 
 1551 OCaml tests + 155 Python tests passing.

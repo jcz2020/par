@@ -164,7 +164,9 @@ let () =
         (fun () ->
           let text = "hello world\n\nfoo bar baz" in
           let with_default =
-            Chunking.chunk_recursive ~text ~max_size:10 ~overlap:0
+            Chunking.chunk_recursive
+              ~text ~separators:Chunking.default_separators
+              ~max_size:10 ~overlap:0
           in
           let with_explicit =
             Chunking.chunk_recursive
@@ -181,6 +183,7 @@ let () =
           let chunks =
             Chunking.chunk_recursive
               ~text:(String.make 10 'a')
+              ~separators:Chunking.default_separators
               ~max_size:3 ~overlap:0
           in
           Alcotest.(check (list string)) "split into 3-char chunks"
@@ -192,6 +195,7 @@ let () =
           let chunks =
             Chunking.chunk_recursive
               ~text:"short\n\nthis is too long"
+              ~separators:Chunking.default_separators
               ~max_size:10 ~overlap:0
           in
           let texts = chunks_text chunks in
@@ -224,7 +228,9 @@ let () =
         (fun () ->
           let text = "para1\n\npara2\n\npara3" in
           let chunks =
-            Chunking.chunk_recursive ~text ~max_size:10 ~overlap:0
+            Chunking.chunk_recursive
+              ~text ~separators:Chunking.default_separators
+              ~max_size:10 ~overlap:0
           in
           List.iter
             (fun c ->

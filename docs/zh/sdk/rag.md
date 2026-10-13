@@ -274,8 +274,18 @@ let chunks = chunk_recursive
   ~text:long_document
   ~max_size:1000
   ~overlap:200
+  ~separators:default_separators
 (* chunks : chunk list = [{ text; start_pos; end_pos }] *)
 ```
+
+!!! note "`~separators` 必须显式传入"
+
+    OCaml 中 `chunk_recursive` 的可选参数 `~separators` 无法被省略
+    （Warning 16：当可选参数后面只跟 labelled 参数时，该可选参数不可擦除）。
+    省略它**不会**回退到内置默认值——调用返回的是
+    `?separators:string list -> chunk list`，一个偏应用函数，而不是 chunk 列表。
+    显式传入 `default_separators` 即可获得与 LangChain 兼容的分隔符阶梯
+    `["\n\n"; "\n"; " "; ""]`。
 
 三种策略，都是纯函数（无 I/O、无 provider 耦合、无分词器依赖）：
 
@@ -369,7 +379,8 @@ let index_documents rt store docs =
    * neighboring text. *)
   let full_text = String.concat "\n\n" docs in
   let chunks = Chunking.chunk_recursive
-    ~text:full_text ~max_size:1000 ~overlap:200 in
+    ~text:full_text ~max_size:1000 ~overlap:200
+    ~separators:Chunking.default_separators in
   match Runtime.embed rt (List.map (fun c -> c.Chunking.text) chunks) with
   | Error e ->
     prerr_endline ("indexing failed: " ^ Runtime.string_of_error_category e)

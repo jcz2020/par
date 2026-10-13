@@ -30,6 +30,15 @@ jobs:
         # but Cygwin depext/packaging needs further iteration.
     steps:
       - uses: actions/checkout@v4
+      - name: Check every test file is wired into test/dune
+        # A test module that is never registered is never compiled and never
+        # runs, yet looks like coverage in review. It then silently rots. This
+        # has bitten the repo three times, most recently test_chunking which
+        # went unbuilt from v0.5.1 to v0.11 (~3.5 months) while its target API
+        # drifted underneath it. The invariant is cheap, so enforce it
+        # mechanically instead of relying on discipline. Placed before the slow
+        # opam install so a violation fails fast.
+        run: bash scripts/check_test_wiring.sh --strict
       - name: Validate version
         run: |
           make validate-version

@@ -273,8 +273,19 @@ let chunks = chunk_recursive
   ~text:long_document
   ~max_size:1000
   ~overlap:200
+  ~separators:default_separators
 (* chunks : chunk list = [{ text; start_pos; end_pos }] *)
 ```
+
+!!! note "`~separators` must be passed explicitly"
+
+    OCaml makes `chunk_recursive`'s optional `~separators` argument unerasable
+    (Warning 16: an optional argument followed only by labelled arguments
+    cannot be omitted). Omitting it does **not** fall back to the built-in
+    default — the call returns `?separators:string list -> chunk list`, a
+    partially applied function, not a chunk list. Pass `default_separators`
+    explicitly to get the LangChain-compatible ladder
+    `["\n\n"; "\n"; " "; ""]`.
 
 Three strategies, all pure (no I/O, no provider coupling, no tokenizer dependency):
 
@@ -368,7 +379,8 @@ let index_documents rt store docs =
    * neighboring text. *)
   let full_text = String.concat "\n\n" docs in
   let chunks = Chunking.chunk_recursive
-    ~text:full_text ~max_size:1000 ~overlap:200 in
+    ~text:full_text ~max_size:1000 ~overlap:200
+    ~separators:Chunking.default_separators in
   match Runtime.embed rt (List.map (fun c -> c.Chunking.text) chunks) with
   | Error e ->
     prerr_endline ("indexing failed: " ^ Runtime.string_of_error_category e)
