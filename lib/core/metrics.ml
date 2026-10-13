@@ -5,6 +5,9 @@ type counters = {
   tool_invocations_total : int Atomic.t;
   events_published_total : int Atomic.t;
   events_dropped_total : int Atomic.t;
+  tool_schema_tokens_estimate : int Atomic.t;
+  tools_visible : int Atomic.t;
+  tools_deferred : int Atomic.t;
 }
 
 let empty () = {
@@ -14,6 +17,9 @@ let empty () = {
   tool_invocations_total = Atomic.make 0;
   events_published_total = Atomic.make 0;
   events_dropped_total = Atomic.make 0;
+  tool_schema_tokens_estimate = Atomic.make 0;
+  tools_visible = Atomic.make 0;
+  tools_deferred = Atomic.make 0;
 }
 
 let incr_llm c = Atomic.incr c.llm_requests_total
@@ -23,6 +29,11 @@ let incr_tool_invocations c = Atomic.incr c.tool_invocations_total
 let incr_events_published c = Atomic.incr c.events_published_total
 let incr_events_dropped c = Atomic.incr c.events_dropped_total
 
+let set_tool_schema_stats c ~estimate ~visible ~deferred =
+  Atomic.set c.tool_schema_tokens_estimate estimate;
+  Atomic.set c.tools_visible visible;
+  Atomic.set c.tools_deferred deferred
+
 let snapshot c = [
   ("llm_requests_total", Atomic.get c.llm_requests_total);
   ("task_completed_total", Atomic.get c.task_completed_total);
@@ -30,6 +41,9 @@ let snapshot c = [
   ("tool_invocations_total", Atomic.get c.tool_invocations_total);
   ("events_published_total", Atomic.get c.events_published_total);
   ("events_dropped_total", Atomic.get c.events_dropped_total);
+  ("tool_schema_tokens_estimate", Atomic.get c.tool_schema_tokens_estimate);
+  ("tools_visible", Atomic.get c.tools_visible);
+  ("tools_deferred", Atomic.get c.tools_deferred);
 ]
 
 let merge_into ~target ~source =
@@ -39,4 +53,7 @@ let merge_into ~target ~source =
   add (fun c -> c.task_failed_total);
   add (fun c -> c.tool_invocations_total);
   add (fun c -> c.events_published_total);
-  add (fun c -> c.events_dropped_total)
+  add (fun c -> c.events_dropped_total);
+  add (fun c -> c.tool_schema_tokens_estimate);
+  add (fun c -> c.tools_visible);
+  add (fun c -> c.tools_deferred)

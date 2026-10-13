@@ -45,6 +45,11 @@ type web_search_input = {
   max_results : int [@default 5];
 } [@@deriving yojson { strict = false }, jsonschema]
 
+type apply_patch_input = {
+  patch : string;
+  dry_run : bool [@default false];
+} [@@deriving yojson { strict = false }, jsonschema]
+
 type read_input = {
   path : string;
   offset : int [@default 0];
@@ -1259,6 +1264,139 @@ let builtin_tools ~switch ~net ~workspace =
     { descriptor; handler }
   in
 
+  let apply_patch_tool =
+    let descriptor =
+      { name = "apply_patch"
+      ; description = "Apply a unified diff patch to one or more files. \
+                       Input: {\"patch\": \"--- a/file\\n+++ b/file\\n@@ ...\", \"dry_run\": false}. \
+                       Supports multi-file patches, additions, deletions, renames. \
+                       Binary files are skipped. All hunks must apply or none are written (atomic). \
+                       Context mismatches report exact file/hunk/line details. \
+                       Errors are prefixed " ^ Tool_error.patch_marker ^ "."
+      ; input_schema = Jsonschema.to_strict_object_schema apply_patch_input_jsonschema
+      ; output_schema = None
+      ; permission = Allow
+      ; timeout = Some 30.0
+      ; concurrency_limit = None
+      ; on_update = None
+      ; cache_control = None
+      }
+    in
+    let handler = (fun input _tok ->
+        let open Yojson.Safe.Util in
+        let patch_text = match input |> member "patch" |> to_string_option with
+          | Some p -> p | None -> ""
+        in
+        let dry_run = match input |> member "dry_run" |> to_bool_option with
+          | Some b -> b | None -> false
+        in
+        if patch_text = "" then
+          Error { category = Invalid_input "Empty patch";
+                  message = Tool_error.instructive
+                    ~marker:Tool_error.patch_marker
+                    ~why:"Patch text is empty."
+                    ~remedy:"Provide a unified diff starting with '--- a/path' headers.";
+                  retryable = false;
+                  metadata = [("code", `String "patch_empty")] }
+        else
+          match Apply_patch.parse_diff patch_text with
+          | Error { message; line_num } ->
+            Error { category = Invalid_input "Malformed patch";
+                    message = Tool_error.instructive
+                      ~marker:Tool_error.patch_marker
+                      ~why:(Printf.sprintf "Parse error at line %d: %s" line_num message)
+                      ~remedy:"Check diff format: each file needs --- a/path + +++ b/path headers, \
+                               then @@ -l,c +l,c @@ hunk headers with +/-/space-prefixed lines.";
+                    retryable = false;
+                    metadata = [("code", `String "patch_parse_error");
+                                ("line_num", `Int line_num)] }
+          | Ok patches ->
+            let admitted_paths : (string * string) list ref = ref [] in
+            let admit_err = ref None in
+            List.iter (fun (fp : Apply_patch.file_patch) ->
+              if !admit_err = None then begin
+                let path = if fp.new_path <> "" then fp.new_path else fp.old_path in
+                if path <> "" then
+                  match Workspace.admit workspace path with
+                  | Error e ->
+                    let (msg, code) = Tool_error.workspace_rejection_message ~path ~num_roots e in
+                    admit_err := Some (e, msg, code)
+                  | Ok sandboxed ->
+                    admitted_paths := (path, Workspace.to_string sandboxed) :: !admitted_paths
+              end
+            ) patches;
+            match !admit_err with
+            | Some (e, msg, code) ->
+              Error { category = e; message = msg; retryable = false;
+                      metadata = [("code", `String code)] }
+            | None ->
+              let path_map = Hashtbl.create 16 in
+              List.iter (fun (orig, sandboxed) ->
+                Hashtbl.replace path_map orig sandboxed
+              ) !admitted_paths;
+              let resolve_path p =
+                match Hashtbl.find_opt path_map p with
+                | Some s -> s
+                | None -> p
+              in
+              let read_file p =
+                let full = resolve_path p in
+                if Sys.file_exists full then
+                  try
+                    let ic = open_in full in
+                    let content = Fun.protect (fun () ->
+                      let buf = Buffer.create 4096 in
+                      (try while true do Buffer.add_channel buf ic 4096 done
+                       with End_of_file -> ());
+                      Buffer.contents buf
+                    ) ~finally:(fun () -> close_in ic) in
+                    Some content
+                  with _ -> None
+                else None
+              in
+              let file_exists p = Sys.file_exists (resolve_path p) in
+              (match Apply_patch.apply ~read_file ~file_exists patches with
+               | Error apply_err ->
+                 Error { category = Invalid_input "Patch application failed";
+                         message = Apply_patch.string_of_apply_error apply_err;
+                         retryable = false;
+                         metadata = [("code", `String (Apply_patch.metadata_code_of_error apply_err))] }
+               | Ok { report; staged } ->
+                 if not dry_run then begin
+                   let write_file p content =
+                     let full = resolve_path p in
+                     let dir = Filename.dirname full in
+                     if not (Sys.file_exists dir) then begin
+                       let rec mkdir_p d =
+                         if d = "" || d = "/" || d = "." then ()
+                         else if Sys.file_exists d then ()
+                         else begin
+                           mkdir_p (Filename.dirname d);
+                           (try Unix.mkdir d 0o755 with _ -> ())
+                         end
+                       in
+                       mkdir_p dir
+                     end;
+                     let oc = open_out full in
+                     output_string oc content;
+                     close_out oc
+                   in
+                   List.iter (fun (p, content) -> write_file p content) staged
+                 end;
+                 let skipped = report.skipped_binary in
+                 Success (`Assoc [
+                   ("files_changed", `Int report.files_changed);
+                   ("hunks_applied", `Int report.hunks_applied);
+                   ("insertions", `Int report.insertions);
+                   ("deletions", `Int report.deletions);
+                   ("skipped_binary", `List (List.map (fun s -> `String s) skipped));
+                   ("dry_run", `Bool dry_run);
+                 ]))
+      )
+    in
+    { descriptor; handler }
+  in
+
   let bash_tool =
     let handler = (fun input _tok ->
         let argv =
@@ -1318,6 +1456,7 @@ let builtin_tools ~switch ~net ~workspace =
   ; grep_tool
   ; write_tool
   ; edit_tool
+  ; apply_patch_tool
   ; bash_tool
   ]
 

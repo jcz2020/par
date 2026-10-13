@@ -35,6 +35,7 @@ let make_runtime_config db =
     parallel_tool_execution = true;
     bash_confirm = Types.default_bash_confirm_config;
     event_retention_seconds = 604800.0;
+    max_tool_schema_tokens = None;
   }
 
 let with_runtime f =

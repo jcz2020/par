@@ -20,7 +20,8 @@ let test_config : runtime_config = {
   parallel_tool_execution = false;
   bash_confirm = Par.Runtime.default_bash_confirm;
   event_retention_seconds = 604800.0;
-}
+    max_tool_schema_tokens = None;
+  }
 
 let make_rt_with_capture () =
   captured_events := [];

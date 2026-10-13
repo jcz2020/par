@@ -1,10 +1,14 @@
 type handler_fn = Yojson.Safe.t -> Types.cancellation_token -> Types.handler_result
 
+type tool_layer = Always | Searchable
+
 type t
 
 val create : unit -> t
 
 val register : t -> Types.tool_descriptor -> handler_fn -> (unit, [ `Duplicate_tool of string ]) result
+
+val register_searchable : t -> Types.tool_descriptor -> handler_fn -> (unit, [ `Duplicate_tool of string ]) result
 
 val replace : t -> string -> handler_fn -> unit
 (** Replace an existing handler by name. Used by [Runtime.install_bash_tool]
@@ -19,6 +23,12 @@ val unregister : t -> string -> (unit, [ `Tool_not_found of string ]) result
     call [Runtime.update_agent_tools ~remove:[name]] per agent. *)
 
 val resolve : t -> string -> handler_fn option
+
+val set_layer : t -> string -> tool_layer -> unit
+
+val searchable_descriptors : t -> Types.tool_descriptor list
+
+val layer_of : t -> string -> tool_layer
 
 val find_descriptor : Types.tool_descriptor list -> string -> Types.tool_descriptor option
 

@@ -1,5 +1,35 @@
 # CHANGES
 
+## v0.11.0-beta.20260827 — apply_patch + agent-as-tool + progressive tool loading
+
+### Added — apply_patch tool
+
+- **NEW** `apply_patch` tool (patch category, 24th built-in): applies a standard unified diff to workspace files atomically. Multi-file patches are all-or-nothing; every hunk is validated before any file is written. Follows the `git apply` convention with context-offset tolerance.
+- `dry_run` field (default `false`): validates the patch and reports what would change without writing any files.
+- Rejections use the teach-at-rejection format: `[patch]` marker for hunk failures (context mismatch, corrupt diff) with instructive next-step text; path rejections reuse the standard `[workspace]` markers. Metadata codes `patch_hunk_reject` / `patch_binary_skipped`.
+- Binary files are detected and skipped with a warning, never silently corrupted.
+- Known limitations: a crash mid-write may leave individual files partially written (atomicity covers the logical patch, not crash-safety of single writes); overlapping patches on the same file follow last-writer-wins, same convention as `write` / `edit`.
+
+### Added — Agent-as-tool composition
+
+- **NEW** `Runtime.register_agent_as_tool`: registers an existing agent as a callable tool. OCaml signature: `Runtime.register_agent_as_tool : runtime -> agent_id:string -> ?tool_name:string -> ?description:string -> ?max_depth:int -> ?inherit_cancellation:bool -> unit -> (unit, error_category) result`, exposed to Python as `Runtime.register_agent_as_tool(agent_id, *, tool_name=None, description=None, max_depth=3, inherit_cancellation=True)` through the ctypes binding.
+- Isolation semantics: the sub-agent runs its own ReAct loop with its own workspace/permission scope; the parent invocation sees one tool result. Nested composition is bounded by `max_depth` (default 3).
+- `inherit_cancellation` (default `true`): cancelling the parent run cancels the in-flight sub-agent.
+- Emits an `Agent_tool_completed` event on each sub-agent completion for audit.
+- Limitation: HITL approval handlers do not propagate into the sub-agent; approval-requiring tools inside a sub-agent are governed by the sub-agent's own configuration.
+
+### Added — Progressive tool loading (tool search)
+
+- **NEW** `max_tool_schema_tokens : int option` on `runtime_config` (default `None` = disabled, zero behavior change). Semantics = auto-switch threshold: for each invocation the engine estimates the visible tool descriptor list's token cost (chars/4 heuristic via `Tool_budget.estimate_tokens`); over threshold, that invocation switches to progressive mode.
+- **NEW** `tool_search` meta-tool: input `{query: string; category: string option}`; keyword scoring (name match weighs above description match). Returns matched tools with full JSON schema and promotes them for the current invocation only (per-call shadow list). Tools never exposed or promoted cannot be called — hallucinated names fail with unknown-tool errors and never dispatch.
+- Registry-internal tool layering `Always | Searchable`: the Always layer of builtin/core tools is a guaranteed floor, never trimmed; if the floor alone exceeds the threshold a warning is logged and the floor is still sent in full. MCP tools registered via the existing pull model are searchable once registered.
+- Metrics snapshot gains `tool_schema_tokens_estimate` plus visible/deferred tool counts under progressive mode.
+- Recommended usage: set `max_tool_schema_tokens` (e.g. `2000`) when registering many tools (50+).
+
+### Tests
+
+- Test suite extended with new test files (`test_tool_search`, `test_agent_as_tool`, `test_nested_invoke_spike`), plus Python `test_agent_as_tool`.
+
 ## v0.10.0 — first-class cancellation + actionable tool errors (2026-08-15)
 
 1551 OCaml tests + 155 Python tests passing.

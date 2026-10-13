@@ -6,6 +6,8 @@
 let workspace_marker = "[workspace]"
 let bash_policy_marker = "[bash-policy]"
 let cancelled_marker = "[cancelled]"
+let patch_marker = "[patch]"
+let agent_tool_marker = "[agent-tool]"
 
 let instructive ~marker ~why ~remedy : string =
   Printf.sprintf "%s %s %s" marker why remedy

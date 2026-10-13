@@ -35,7 +35,8 @@ let test_runtime_create_persists_published_events () =
         parallel_tool_execution = true;
         bash_confirm = Types.default_bash_confirm_config;
   event_retention_seconds = 604800.0;
-      } in
+    max_tool_schema_tokens = None;
+  } in
       let mock_llm : Types.llm_service = {
         complete_fn = (fun _ _ _ ->
           Ok { Types.text = Some "mock"; reasoning_content = None; tool_calls = None; finish_reason = Stop;

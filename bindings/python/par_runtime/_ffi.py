@@ -151,6 +151,10 @@ _lib.par_invoke_cancel.restype = None
 _lib.par_register_agent.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_register_agent.restype = ctypes.c_int
 
+# int par_register_agent_as_tool(par_runtime_t* rt, const char* config_json);
+_lib.par_register_agent_as_tool.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_register_agent_as_tool.restype = ctypes.c_int
+
 # int par_register_skill(par_runtime_t* rt, const char* json);
 _lib.par_register_skill.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_register_skill.restype = ctypes.c_int

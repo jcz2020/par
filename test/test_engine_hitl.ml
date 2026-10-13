@@ -150,7 +150,9 @@ let runtime_config () : runtime_config =
     eval_limits = { max_depth = 10; max_node_visits = 1000 };
     parallel_tool_execution = true;
     bash_confirm = Runtime.default_bash_confirm;
-    event_retention_seconds = 604800.0; }
+    event_retention_seconds = 604800.0;
+    max_tool_schema_tokens = None;
+  }
 
 let make_sqlite_persist (sqlt : Sqlite_persistence.t) : persistence_service =
   { save_events_fn = (fun ?scope envs -> Sqlite_persistence.save_events ?scope sqlt envs);

@@ -777,6 +777,28 @@ let do_register_agent (state_id : int) (config_json : string) =
           fd_log ("[do_register_agent] EXCEPTION: " ^ Printexc.to_string exc);
           Obj.repr (-1)))
 
+let do_register_agent_as_tool (state_id : int) (config_json : string) =
+  match get_state state_id with
+  | None -> Obj.repr (-1)
+  | Some _ ->
+    dispatch state_id (fun rt _env ->
+      (try
+         let open Yojson.Safe.Util in
+         let json = Yojson.Safe.from_string config_json in
+         let agent_id = json |> member "agent_id" |> to_string in
+         let tool_name = json |> member "tool_name" |> to_string_option in
+         let description = json |> member "description" |> to_string_option in
+         let max_depth = json |> member "max_depth" |> to_int_option |> Option.value ~default:3 in
+         let inherit_cancellation = json |> member "inherit_cancellation" |> to_bool_option |> Option.value ~default:true in
+         match Par.Runtime.register_agent_as_tool rt ~agent_id
+           ?tool_name ?description ~max_depth ~inherit_cancellation () with
+         | Ok () -> Obj.repr 0
+         | Error _ -> Obj.repr (-1)
+       with
+        | exc ->
+          fd_log ("[do_register_agent_as_tool] EXCEPTION: " ^ Printexc.to_string exc);
+          Obj.repr (-1)))
+
 let parse_skill_descriptor (json : Yojson.Safe.t) : Par.Types.skill_descriptor option =
   let open Yojson.Safe.Util in
   try
@@ -1841,6 +1863,12 @@ let () =
     (fun (state_id_obj : Obj.t) (config_json : string) ->
       let state_id : int = Obj.magic state_id_obj in
       do_register_agent state_id config_json)
+
+let () =
+  Callback.register "par_register_agent_as_tool"
+    (fun (state_id_obj : Obj.t) (config_json : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_register_agent_as_tool state_id config_json)
 
 let () =
   Callback.register "par_register_skill"

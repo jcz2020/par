@@ -910,6 +910,143 @@ Runtime.invoke rt ~agent_id:"my-agent" ~message:"..."
 
 **FFI 不对称**：Python 回调在 OCaml 锁持有期间无法取消。从 Python 角度，dispatch-queue trio（`invoke_start` / `invoke_poll` / `invoke_cancel`）是取消的唯一正确隔离路径。见下方 Python 章节。
 
+## Agent 作为工具（v0.11.0）
+
+`Runtime.register_agent_as_tool` 将已注册的 agent 暴露为可调用工具。父 agent 像调用其他工具一样调用它；子 agent 在独立的 `Invoke_context` 中运行，拥有自己的新对话、system prompt、指标和钩子，然后将最终文本和使用统计返回给父 agent，父 agent 继续其 ReAct 循环。
+
+这与 handoff 不同：handoff *转移*控制权（父循环结束），而 agent-as-tool *返回*控制权（父 agent 在子 agent 完成后继续）。
+
+### 注册
+
+#### OCaml
+
+```ocaml
+val Runtime.register_agent_as_tool :
+  runtime ->
+  agent_id:string ->
+  ?tool_name:string ->
+  ?description:string ->
+  ?max_depth:int ->
+  ?inherit_cancellation:bool ->
+  unit ->
+  (unit, error_category) result
+```
+
+默认值：
+- `tool_name`：`"agent_" ^ agent_id`（例如 `"agent_researcher"`）
+- `description`：从 agent 的 system prompt 自动生成
+- `max_depth`：`3`
+- `inherit_cancellation`：`true`
+
+```ocaml
+(* 将 agent "researcher" 注册为可调用工具 *)
+Runtime.register_agent_as_tool rt ~agent_id:"researcher" ()
+
+(* 自定义工具名和深度限制 *)
+Runtime.register_agent_as_tool rt
+  ~agent_id:"researcher"
+  ~tool_name:"research_tool"
+  ~description:"Research topics and return findings"
+  ~max_depth:2
+  ()
+```
+
+#### Python
+
+```python
+rt.register_agent_as_tool(agent_id, *, tool_name=None, description=None,
+                          max_depth=3, inherit_cancellation=True)
+```
+
+```python
+# 将 agent "researcher" 注册为可调用工具
+rt.register_agent_as_tool("researcher")
+
+# 自定义名称和深度限制
+rt.register_agent_as_tool("researcher", tool_name="research_tool",
+                          description="Research topics and return findings",
+                          max_depth=2)
+```
+
+### 隔离语义
+
+每次 agent-as-tool 调用在独立的 `Invoke_context` 中运行：
+
+- **新对话**：子 agent 以全新对话开始，不继承父 agent 的历史。
+- **独立 system prompt**：子 agent 使用自己注册的 `agent_config.system_prompt`，而非父 agent 的。
+- **独立指标和钩子**：工具计数、token 使用和中间件钩子独立跟踪。
+- **返回值**：子 agent 的最终文本响应和 `usage_stats` 以 JSON 形式返回给父 agent：
+  ```json
+  {
+    "result": "研究结果是：...",
+    "usage": {
+      "prompt_tokens": 1234,
+      "completion_tokens": 567,
+      "total_tokens": 1801,
+      "iterations": 3,
+      "tool_calls": 2
+    }
+  }
+  ```
+  父 agent 以标准工具结果接收此数据并继续自己的 ReAct 循环。
+
+### Handoff 与 agent-as-tool 对比
+
+| 方面 | Handoff | Agent 作为工具 |
+|------|---------|----------------|
+| 控制流 | 父循环结束；子 agent 接管 | 子 agent 返回后父循环继续 |
+| 对话 | 共享或通过 `carry_context` 传递 | 子 agent 全新开始；父 agent 对话不变 |
+| 返回值 | 父 agent 看不到子 agent 的结果 | 子 agent 结果作为工具输出返回给父 agent |
+| 终止 | 子 agent 的 `finish_reason` 结束整个运行 | 子 agent 完成，父 agent 决定下一步 |
+| 嵌套调用 | 不支持（用作工具时 `enable_handoff=false`） | 受 `max_depth` 约束 |
+
+### 深度限制
+
+递归受 `max_depth`（默认 3）约束。每次嵌套 agent-as-tool 调用递减深度计数器。超过限制时工具返回错误：
+
+```
+[agent-tool] Maximum agent-tool nesting depth (3) exceeded.
+Cannot invoke agent 'researcher' as a tool from within a nested agent call.
+Reduce nesting depth or flatten the agent hierarchy.
+```
+
+### 取消继承
+
+`inherit_cancellation=true`（默认）时，子 agent 共享父 agent 的取消令牌。取消父 agent 的 `invoke` 会传播到所有活跃的子 agent。`inherit_cancellation=false` 时，子 agent 独立运行，不受父 agent 取消影响。
+
+### 事件可观测性
+
+父 agent 流只在子 agent 完成时收到一个摘要事件，而非每个子工具调用和 LLM chunk：
+
+```ocaml
+Agent_tool_completed {
+  tool_name : string;          (* 例如 "agent_researcher" *)
+  child_agent_id : string;     (* 例如 "researcher" *)
+  iterations : int;            (* 子 ReAct 循环迭代次数 *)
+  duration_s : float;          (* 墙钟时间（秒） *)
+  usage : usage_stats;         (* 子 agent 的 token 使用 *)
+}
+```
+
+所有中间子事件（工具调用、LLM chunk、中间件钩子）从父流中抑制以避免噪声。只有摘要事件触发。
+
+### 审批限制
+
+如果子 agent 遇到 `Approval_required` 工具结果，它**不会**挂起父 agent 流。而是将审批转换为错误：
+
+```
+[agent-tool] Nested agent cannot await approval. Agent 'researcher' requested
+approval for tool 'bash', but agent-as-tool invocations do not support
+synchronous approval suspension. Configure the child agent to avoid tools
+that require approval, or use handoff instead.
+```
+
+这是设计约束：agent-as-tool 必须同步返回到父 agent 的工具分发，审批挂起会长时间阻塞父 agent 的 ReAct 循环。
+
+### 使用量核算
+
+子 agent 的 token 使用量独立但报告给父 agent。父 agent 的 `usage_stats` 不包含子 agent 的 token。子 agent 的使用量可在 `Agent_tool_completed` 事件和 JSON 结果体（`result.usage`）中查看。
+
 ## 另请参阅
 
 - [Overview](overview.md) -- SDK 架构概览

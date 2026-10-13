@@ -35,6 +35,9 @@ type invoke_context = private {
   steering_queue : Steering_queue.t;
   followup_queue : Steering_queue.t;
   system_prompt_appendix : string option;
+  depth : int;
+  on_tool_event : (Types.event -> unit) option;
+  promoted_tools : Types.tool_descriptor list ref;
 }
 
 (** The fiber-local key. Exported so callers (e.g. Engine) can read the
@@ -51,8 +54,17 @@ val create :
   ?steering:Steering_queue.t ->
   ?followup:Steering_queue.t ->
   ?system_prompt_appendix:string ->
+  ?depth:int ->
+  ?on_tool_event:(Types.event -> unit) ->
+  ?promoted_tools:Types.tool_descriptor list ->
   unit ->
   invoke_context
+
+(** [promote_tools descs] appends [descs] to the current fiber's
+    promoted-tools shadow list, deduplicating by name. No-op when
+    no invoke_context is bound to the current fiber. Used by the
+    [tool_search] meta-tool to make discovered tools callable. *)
+val promote_tools : Types.tool_descriptor list -> unit [@@warning "-32"]
 
 (** Returns the invoke_context bound to the current fiber, or [None] when
     no binding exists (e.g. calls outside [with_context]). Graceful
@@ -71,8 +83,7 @@ val get_current_exn : unit -> invoke_context
 (** Bind [ctx] for the duration of [f]. Propagates into forked fibers. *)
 val with_context : invoke_context -> (unit -> 'a) -> 'a
 
-(** Handle returned by [Runtime.invoke_async]. Allows awaiting, cancelling,
-    and polling the status of a background invoke. *)
+val promote_tools : Types.tool_descriptor list -> unit
 type invoke_handle
 
 (** Block until the invoke reaches a terminal state and yield its result. *)

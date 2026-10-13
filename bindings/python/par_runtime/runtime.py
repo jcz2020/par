@@ -396,6 +396,40 @@ class Runtime:
         if result != 0:
             raise PARError("Failed to register agent")
 
+    def register_agent_as_tool(
+        self,
+        agent_id: str,
+        *,
+        tool_name: str | None = None,
+        description: str | None = None,
+        max_depth: int = 3,
+        inherit_cancellation: bool = True,
+    ) -> None:
+        """Register an existing agent as a callable tool.
+
+        Args:
+            agent_id: ID of the previously registered agent.
+            tool_name: Tool name (default: ``"agent_" + agent_id``).
+            description: Tool description for the LLM.
+            max_depth: Maximum nesting depth (default 3).
+            inherit_cancellation: If True, parent cancellation propagates.
+
+        Raises:
+            PARError: If the agent is not found or registration fails.
+        """
+        self._check_handle()
+        payload: dict = {"agent_id": agent_id}
+        if tool_name is not None:
+            payload["tool_name"] = tool_name
+        if description is not None:
+            payload["description"] = description
+        payload["max_depth"] = max_depth
+        payload["inherit_cancellation"] = inherit_cancellation
+        result = _lib.par_register_agent_as_tool(
+            self._handle, _c_str(json.dumps(payload)))
+        if result != 0:
+            raise PARError(f"Failed to register agent as tool: {agent_id}")
+
     def register_skill(self, descriptor_json: str) -> None:
         self._check_handle()
         result = _lib.par_register_skill(self._handle, _c_str(descriptor_json))

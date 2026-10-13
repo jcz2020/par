@@ -699,10 +699,196 @@ let per_call_registry ~(rt : runtime) ~(workspace : Workspace.workspace) : Tool_
    | Some tools ->
      List.iter (fun (name, handler) -> Tool_registry.replace fresh name handler) tools
    | None -> ());
+  (match rt.services.config.max_tool_schema_tokens with
+   | Some _ ->
+     let handler = Tool_search.make_handler fresh in
+     ignore (Tool_registry.register_searchable fresh Tool_search.descriptor handler)
+   | None -> ());
   fresh
 
 let register_file_tools_rebuild rt rebuild =
   rt.file_tools_rebuild <- Some rebuild
+
+let register_agent_as_tool rt ~agent_id ?(tool_name = "agent_" ^ agent_id) ?description
+    ?(max_depth = 3) ?(inherit_cancellation = true) () =
+  match htbl_get rt.agents agent_id with
+  | None ->
+    Result.Error (Invalid_input
+      (Printf.sprintf "Agent not found: %s" agent_id))
+  | Some child_agent ->
+    let desc = match description with
+      | Some d -> d
+      | None -> Printf.sprintf "Invoke agent '%s' as a tool" agent_id
+    in
+    let handler (input : Yojson.Safe.t) (token : cancellation_token) =
+      let message =
+        match Yojson.Safe.Util.member "message" input with
+        | `String s -> s
+        | `Null ->
+          (match input with
+           | `String s -> s
+           | _ -> Yojson.Safe.to_string input)
+        | other -> Yojson.Safe.to_string other
+      in
+      let parent_depth = match Invoke_context.get_current () with
+        | Some ctx -> ctx.depth
+        | None -> 0
+      in
+      if parent_depth >= max_depth then begin
+        let msg = Tool_error.instructive
+          ~marker:Tool_error.agent_tool_marker
+          ~why:(Printf.sprintf "Maximum agent nesting depth (%d) reached." max_depth)
+          ~remedy:(Printf.sprintf
+            "The agent '%s' cannot be invoked at depth %d. \
+             Increase max_depth or restructure to reduce nesting."
+            agent_id parent_depth) in
+        Error { category = Invalid_input msg;
+                message = msg; retryable = false; metadata = [] }
+      end else if inherit_cancellation && Cancellation.is_cancelled token then
+        Error { category = Cancelled User_cancelled;
+                message = "Parent invocation cancelled"; retryable = false;
+                metadata = [] }
+      else begin
+        let start_t = Unix.gettimeofday () in
+        let child_session_id =
+          Printf.sprintf "agent-tool-%s-%s" agent_id
+            (Session_id.to_string (Session_id.create ()))
+        in
+        let child_metrics = Metrics.empty () in
+        let parent_hooks = match Invoke_context.get_current () with
+          | Some ctx -> ctx.tool_call_hooks_snapshot
+          | None -> []
+        in
+        let child_ctx = Invoke_context.create
+          ~session_id:child_session_id
+          ~metrics:child_metrics
+          ~hooks:parent_hooks
+          ~skills:[]
+          ~depth:(parent_depth + 1)
+          () in
+        let child_token = Cancellation.create_token token.switch in
+        let child_registry = per_call_registry ~rt ~workspace:rt.workspace in
+        let usage_ref = ref {
+          prompt_tokens = 0; completion_tokens = 0; total_tokens = 0;
+          cached_tokens = 0; cache_creation_input_tokens = 0;
+          cache_read_input_tokens = 0;
+        } in
+        let child_llm = rt.services.llm in
+        let wrapped_complete_fn model_config tools conv =
+          match child_llm.complete_fn model_config tools conv with
+          | Ok resp ->
+            let u = resp.usage in
+            usage_ref := {
+              prompt_tokens = !usage_ref.prompt_tokens + u.prompt_tokens;
+              completion_tokens = !usage_ref.completion_tokens + u.completion_tokens;
+              total_tokens = !usage_ref.total_tokens + u.total_tokens;
+              cached_tokens = !usage_ref.cached_tokens + u.cached_tokens;
+              cache_creation_input_tokens = !usage_ref.cache_creation_input_tokens + u.cache_creation_input_tokens;
+              cache_read_input_tokens = !usage_ref.cache_read_input_tokens + u.cache_read_input_tokens;
+            };
+            Ok resp
+          | Error e -> Error e
+        in
+        let child_llm_service : llm_service = {
+          complete_fn = wrapped_complete_fn;
+          stream_fn = child_llm.stream_fn;
+          close_fn = child_llm.close_fn;
+          complete_structured_fn = child_llm.complete_structured_fn;
+          list_models_fn = child_llm.list_models_fn;
+          supports_native_tools_fn = child_llm.supports_native_tools_fn;
+          context_window_fn = child_llm.context_window_fn;
+          cache_control_fn = child_llm.cache_control_fn;
+        } in
+        let child_system_prompt =
+          prompt_text child_agent.system_prompt
+        in
+        let child_conv : conversation = {
+          messages = [
+            { role = System;
+              content_blocks = [Text_block { text = child_system_prompt; cache_control = None }];
+              tool_calls = None; tool_call_id = None; name = None;
+              reasoning_content = None };
+            { role = User;
+              content_blocks = [Text_block { text = message; cache_control = None }];
+              tool_calls = None; tool_call_id = None; name = None;
+              reasoning_content = None };
+          ];
+          metadata = [];
+        } in
+        let iterations_ref = ref 0 in
+        let on_progress_counter _msg = incr iterations_ref in
+        let run_child () =
+          Invoke_context.with_context child_ctx (fun () ->
+            Engine.run_agent
+              ~quota:None
+              ~parallel:rt.parallel_tool_execution
+              ~on_progress:(Some on_progress_counter)
+              ~on_tool_event:None
+              ~conversation:child_conv
+              ~enable_handoff:false
+              ?net:(Option.map (fun n -> (Obj.obj n : _ Eio.Net.t)) rt.net)
+              ?budget_threshold:rt.services.config.max_tool_schema_tokens
+              child_token child_agent message child_llm_service child_registry)
+        in
+        let child_result =
+          try Ok (run_child ())
+          with Engine.Approval_pending _ ->
+            Error `Approval_pending
+        in
+        match child_result with
+        | Error `Approval_pending ->
+          let msg = Tool_error.instructive
+            ~marker:Tool_error.agent_tool_marker
+            ~why:(Printf.sprintf
+              "Agent '%s' requires approval, but nested agents \
+               cannot suspend for approval." agent_id)
+            ~remedy:"Nested agent tools run synchronously and cannot \
+                     pause for HITL approval. Remove approval-requiring \
+                     tools from the child agent or handle approval \
+                     at the parent level." in
+          Error { category = Invalid_input msg;
+                  message = msg; retryable = false; metadata = [] }
+        | Ok (Ok (resp, _conv)) ->
+          let duration = Unix.gettimeofday () -. start_t in
+          let iterations = !iterations_ref in
+          let evt = Agent_tool_completed {
+            tool_name; child_agent_id = agent_id;
+            iterations; duration_s = duration; usage = !usage_ref;
+          } in
+          publish_event rt evt;
+          let parent_on_tool_event = match Invoke_context.get_current () with
+            | Some ctx -> ctx.on_tool_event
+            | None -> None
+          in
+          (match parent_on_tool_event with
+           | Some cb -> cb evt
+           | None -> ());
+          let result_json = `Assoc [
+            ("result", `String (Option.value resp.text ~default:""));
+            ("usage", usage_stats_to_yojson !usage_ref);
+          ] in
+          Success result_json
+        | Ok (Error (Cancelled r, _conv)) ->
+          Error { category = Cancelled r;
+                  message = "Child agent cancelled"; retryable = false;
+                  metadata = [] }
+        | Ok (Error (err, _conv)) ->
+          Error { category = err;
+                  message = Printf.sprintf "Child agent '%s' failed" agent_id;
+                  retryable = false; metadata = [] }
+      end
+    in
+    let input_schema = `Assoc [
+      ("type", `String "object");
+      ("properties", `Assoc [
+        ("message", `Assoc [("type", `String "string"); ("description", `String "The message to send to the agent")]);
+      ]);
+      ("required", `List [`String "message"]);
+    ] in
+    match register_tool rt ~name:tool_name ~description:desc
+      ~input_schema ~handler () with
+    | Ok _ -> Ok ()
+    | Error e -> Error e
 
 let save_conversation rt ?(conversation : Types.conversation option) ?scope () =
   let conv = match conversation with
@@ -761,6 +947,7 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
         ~hooks:rt.tool_call_hooks
         ~skills:(Option.value skills ~default:rt.user_activated_skills)
         ?system_prompt_appendix
+        ?on_tool_event
         ()
   in
   (match rt.event_bus_instance with
@@ -866,6 +1053,7 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
             ~agent_resolver:(fun aid -> htbl_get rt.agents aid)
             ~enable_handoff:(Option.value enable_handoff ~default:false)
             ?net:(Option.map (fun n -> (Obj.obj n : _ Eio.Net.t)) rt.net)
+            ?budget_threshold:rt.services.config.max_tool_schema_tokens
             token config message llm_svc (per_call_registry ~rt ~workspace:effective_workspace)
           with
           | Engine.Approval_pending payload ->
@@ -1132,6 +1320,7 @@ let invoke_structured rt ~agent_id ~message ~response_schema
             ?on_repair_attempt
             ?conversation
             ?net:(Option.map (fun n -> (Obj.obj n : _ Eio.Net.t)) rt.net)
+            ?budget_threshold:rt.services.config.max_tool_schema_tokens
             ~response_schema
             llm_svc token config message
             call_registry
@@ -1453,6 +1642,7 @@ let resume_approval ~rt ~run_id ~outcome ~approver =
               ~enable_handoff:false
               ~conversation:resumed_conv
               ?net:(Option.map (fun n -> (Obj.obj n : _ Eio.Net.t)) rt.net)
+              ?budget_threshold:rt.services.config.max_tool_schema_tokens
               token resumed_agent
               "Approval resolved; please continue."
               rt.services.llm registry
@@ -2315,7 +2505,30 @@ let health rt = {
      | exception _ -> false);
 }
 
-let metrics_snapshot rt = Metrics.snapshot rt.metrics
+let metrics_snapshot rt =
+  let base = Metrics.snapshot rt.metrics in
+  let budget_metrics = match rt.services.config.max_tool_schema_tokens with
+    | None -> []
+    | Some threshold ->
+      let all_agents = list_agents rt in
+      let all_tools = List.concat_map (fun (a : agent_config) -> a.tools) all_agents in
+      let unique_tools = List.fold_left (fun acc (d : Types.tool_descriptor) ->
+        if List.exists (fun (u : Types.tool_descriptor) -> u.name = d.name) acc then acc
+        else d :: acc
+      ) [] all_tools in
+      let estimate = Tool_budget.estimate_tokens unique_tools in
+      let _registry_searchable = Tool_registry.searchable_descriptors rt.tool_registry in
+      let deferred = if estimate > threshold then
+        List.length (Tool_registry.searchable_descriptors rt.tool_registry)
+      else 0 in
+      let visible = List.length unique_tools - deferred in
+      [
+        ("tool_schema_tokens_estimate", estimate);
+        ("tools_visible", visible);
+        ("tools_deferred", deferred);
+      ]
+  in
+  base @ budget_metrics
 
 let cancel_stream_requested rt = rt.cancel_stream_requested
 

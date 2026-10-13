@@ -9,6 +9,9 @@ val incr_tool_invocations : counters -> unit
 val incr_events_published : counters -> unit
 val incr_events_dropped : counters -> unit
 
+val set_tool_schema_stats :
+  counters -> estimate:int -> visible:int -> deferred:int -> unit
+
 val snapshot : counters -> (string * int) list
 
 (** [merge_into ~target ~source] atomically adds every counter in [source]

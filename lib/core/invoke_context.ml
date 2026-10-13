@@ -10,6 +10,9 @@ type invoke_context = {
   steering_queue : Steering_queue.t;
   followup_queue : Steering_queue.t;
   system_prompt_appendix : string option;
+  depth : int;
+  on_tool_event : (Types.event -> unit) option;
+  promoted_tools : Types.tool_descriptor list ref;
 }
 
 let invoke_context_key : invoke_context Eio.Fiber.key =
@@ -23,6 +26,9 @@ let create
     ?(steering = Steering_queue.create ())
     ?(followup = Steering_queue.create ())
     ?system_prompt_appendix
+    ?(depth = 0)
+    ?on_tool_event
+    ?(promoted_tools = [])
     () =
   {
     session_id;
@@ -32,9 +38,22 @@ let create
     steering_queue = steering;
     followup_queue = followup;
     system_prompt_appendix;
+    depth;
+    on_tool_event;
+    promoted_tools = ref promoted_tools;
   }
 
 let get_current () = Eio.Fiber.get invoke_context_key
+
+let promote_tools (descs : Types.tool_descriptor list) =
+  match Eio.Fiber.get invoke_context_key with
+  | Some ctx ->
+    let existing = !(ctx.promoted_tools) in
+    let new_names = List.map (fun (d : Types.tool_descriptor) -> d.name) descs in
+    let filtered = List.filter (fun (d : Types.tool_descriptor) ->
+      not (List.mem d.name new_names)) existing in
+    ctx.promoted_tools := filtered @ descs
+  | None -> ()
 
 (** [appendix_text ()] returns the system_prompt_appendix from the current
     invoke_context, prefixed with ["\\n\\n"] when present, or [""] when no

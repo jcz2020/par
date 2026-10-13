@@ -93,7 +93,8 @@ let test_config : runtime_config = {
   parallel_tool_execution = true;
   bash_confirm = default_bash_confirm;
   event_retention_seconds = 604800.0;
-}
+    max_tool_schema_tokens = None;
+  }
 
 let _make_rt ?llm () =
   Eio.Switch.run (fun sw ->

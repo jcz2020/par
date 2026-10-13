@@ -54,6 +54,7 @@ let extract_task_id : event -> string = function
   | Deprecated_api_called _ -> ""
   | Skill_activated _ -> ""
   | Skill_deactivated _ -> ""
+  | Agent_tool_completed _ -> ""
 
 let extract_session_id (envelope : event_envelope) : string =
   envelope.metadata.session_id

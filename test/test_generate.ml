@@ -72,7 +72,8 @@ let test_runtime_config : runtime_config = {
   parallel_tool_execution = true;
   bash_confirm = Runtime.default_bash_confirm;
   event_retention_seconds = 604800.0;
-}
+    max_tool_schema_tokens = None;
+  }
 
 let make_agent id system_prompt =
   match Runtime.make_agent ~id ~system_prompt:(stable_prompt system_prompt) ~model:dummy_model () with

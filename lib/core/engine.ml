@@ -618,6 +618,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     ?(on_progress = None) ?(on_tool_event = None) ?(on_chunk = None)
     ?conversation ?agent_resolver ?(enable_handoff = false)
     ?(net : _ Eio.Net.t option)
+    ?(budget_threshold : int option)
     token agent user_message llm registry =
   (* PAR-k38 T3.1: resolve effective tool mode.
      - `Auto (default): consult [llm.supports_native_tools_fn].
@@ -639,8 +640,54 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
      double-send native tools metadata the upstream endpoint may reject. *)
   let tools_for_provider =
     if effective_mode = `Synthesized then []
-    else agent.tools
+    else
+      match budget_threshold with
+      | None -> agent.tools
+      | Some threshold ->
+        let estimated = Tool_budget.estimate_tokens agent.tools in
+        if estimated <= threshold then agent.tools
+        else begin
+          let registry_searchable = Tool_registry.searchable_descriptors registry in
+          let tool_search_desc : Types.tool_descriptor = {
+            name = "tool_search";
+            description = "Search available tools by keyword. Returns matching tool descriptors and makes them available for invocation in this session.";
+            input_schema = `Assoc [
+              ("type", `String "object");
+              ("properties", `Assoc [
+                ("query", `Assoc [("type", `String "string"); ("description", `String "Search query (keywords)")]);
+                ("category", `Assoc [("type", `String "string"); ("description", `String "Optional category filter")]);
+              ]);
+              ("required", `List [`String "query"]);
+            ];
+            output_schema = None;
+            permission = Types.Allow;
+            timeout = None;
+            concurrency_limit = None;
+            on_update = None;
+            cache_control = None;
+          } in
+          let always_descs = List.filter (fun (d : Types.tool_descriptor) ->
+            List.exists (fun (rd : Types.tool_descriptor) -> rd.name = d.name) registry_searchable |> not
+          ) agent.tools in
+          let floor_estimate = Tool_budget.estimate_tokens (tool_search_desc :: always_descs) in
+          if floor_estimate > threshold then
+            Logs.warn (fun m -> m
+              "[engine] Always-layer tools alone (%d tokens) exceed budget threshold (%d); sending all anyway"
+              floor_estimate threshold);
+          tool_search_desc :: always_descs
+        end
   in
+  (match budget_threshold with
+   | Some _threshold ->
+     let estimate = Tool_budget.estimate_tokens agent.tools in
+     let visible_count = List.length tools_for_provider in
+     let deferred_count = max 0 (List.length agent.tools - visible_count) in
+     (match Invoke_context.get_current () with
+      | Some ctx ->
+        Metrics.set_tool_schema_stats ctx.Invoke_context.metrics_accumulator
+          ~estimate ~visible:visible_count ~deferred:deferred_count
+      | None -> ())
+   | None -> ());
   (* Long-output mode (plan §2.1.5): compute resolved policy/cap ONCE from
      effective_tools so skill overlay and provider-mode adjustments are
      accounted for. The Max_tokens branch below reads these locals instead
@@ -946,7 +993,17 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                   Hook.run_chain hooks ctx
                 | None -> Hook.Final_allow) in
               let invoke_allow original_input =
-                match find_tool agent call.name with
+                let resolved_desc =
+                  match find_tool agent call.name with
+                  | Some _ as d -> d
+                  | None ->
+                    match Invoke_context.get_current () with
+                    | Some ctx ->
+                      List.find_opt (fun (d : Types.tool_descriptor) ->
+                        d.name = call.name) !(ctx.Invoke_context.promoted_tools)
+                    | None -> None
+                in
+                match resolved_desc with
                 | None -> (call, Error {
                     category = Types.Invalid_input (Printf.sprintf "Tool not found: %s" call.name);
                     message = "Tool not found";
@@ -1513,6 +1570,7 @@ let run_agent_structured
     ?on_progress ?on_tool_event
     ?conversation ?agent_resolver ?enable_handoff
     ?net
+    ?budget_threshold
     ~response_schema
     (llm : llm_service) token (agent : agent_config) message
     (registry : Tool_registry.t) =
@@ -1521,6 +1579,7 @@ let run_agent_structured
     ?on_progress ?on_tool_event
     ?conversation ?agent_resolver ?enable_handoff
     ?net
+    ?budget_threshold
     token agent message llm registry with
   | Error (err, conv) -> Result.Error (err, conv)
   | Ok (_resp, conv) ->

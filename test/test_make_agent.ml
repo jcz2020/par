@@ -124,7 +124,8 @@ let suite = [
   parallel_tool_execution = true;
           bash_confirm = Par.Runtime.default_bash_confirm;
   event_retention_seconds = 604800.0;
-        } in
+    max_tool_schema_tokens = None;
+  } in
         match Par.Runtime.create ~config:cfg sw with
         | Error _ -> Alcotest.fail "create failed"
         | Ok rt ->

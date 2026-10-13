@@ -377,6 +377,19 @@ int par_register_agent(par_runtime_t* rt, const char* config_json) {
     CAMLreturnT(int, rc);
 }
 
+int par_register_agent_as_tool(par_runtime_t* rt, const char* config_json) {
+    CAMLparam0();
+    CAMLlocal1(c_config);
+    c_config = caml_copy_string(config_json);
+
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value result = call2_exn("par_register_agent_as_tool", rt->_ocaml_value, c_config);
+    int is_exc = Is_exception_result(result);
+    int rc = is_exc ? -1 : Int_val(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLreturnT(int, rc);
+}
+
 int par_register_skill(par_runtime_t* rt, const char* json) {
     CAMLparam0();
     CAMLlocal1(c_json);

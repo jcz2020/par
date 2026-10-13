@@ -1,10 +1,10 @@
 # 工具 API 参考
 [English](https://github.com/jcz2020/par/blob/main/sdk/tools.md) · **简体中文**
 
-本文档描述 P-A-R SDK 提供的 23 个内置工具。新增工具通过 `Runtime.register_tool` 注册，工具描述会被注入 LLM 的 system prompt，让 LLM 知道何时调用哪个工具。
+本文档描述 P-A-R SDK 提供的 24 个内置工具。新增工具通过 `Runtime.register_tool` 注册，工具描述会被注入 LLM 的 system prompt，让 LLM 知道何时调用哪个工具。
 
 **版本**: v0.7.1
-**工具总数**: 23（v0.3.0 的 19 个 + v0.3.1 新增的 `bash` + v0.7.1 新增的 3 个 memory 工具）
+**工具总数**: 24（v0.3.0 的 19 个 + v0.3.1 新增的 `bash` + v0.7.1 新增的 3 个 memory 工具 + v0.11.0 新增的 `apply_patch`）
 
 ## 概览
 
@@ -33,6 +33,7 @@ type tool_descriptor = {
 | web | 3 | `fetch_url` / `read_webpage` / `web_search` |
 | fs (read) | 4 | `read` / `ls` / `find` / `grep` |
 | fs (write) | 2 | `write` / `edit` |
+| patch | 1 | `apply_patch` |
 | exec | 1 | `bash`（v0.3.1 新增，**唯一带安全策略**） |
 | memory | 3 | `recall_memory` / `remember_memory` / `search_history`（v0.7.1 新增，**需配置 `Memory_service`**） |
 
@@ -61,6 +62,7 @@ type tool_descriptor = {
 | `grep` | fs (read) | 低 | 30s | 正则匹配，输出 `path:line:text` |
 | `write` | fs (write) | 中 | 30s | 可选 `create_dirs` 自动 mkdir -p |
 | `edit` | fs (write) | 中 | 30s | 批量替换；重叠区间被拒 |
+| `apply_patch` | patch | 中 | 30s | 原子化 unified diff 应用，跨文件全有或全无 |
 | **`bash`** | **exec** | **高** | **60s** | **v0.3.1 新增，9 维安全机制** |
 | `recall_memory` | memory | 低 | 10s | 按关键词搜索记忆，按会话分区 |
 | `remember_memory` | memory | 低 | 10s | 存储新记忆，按会话分区 |
@@ -409,6 +411,70 @@ glob 匹配文件名（`**` 跨目录，`*` 跨组件但不含 `/`）。
 
 ---
 
+## patch 类（v0.11.0 新增）
+
+### apply_patch
+
+将标准 unified diff 原子化地应用到 workspace 文件。补丁中的所有文件要么全部成功，要么全部不修改。适用于 LLM 生成多文件变更集的场景，避免 `edit` 逐文件调用导致的部分应用状态。
+
+**输入**：
+```json
+{
+  "patch": "--- a/src/main.ml\n+++ b/src/main.ml\n@@ -1,5 +1,5 @@\n open Par\n-let x = 1\n+let x = 2\n",
+  "dry_run": false
+}
+```
+
+字段说明：
+- `patch`（必需）：标准 unified diff 字符串。支持多文件补丁。使用 `--- a/path` / `+++ b/path` 头。遵循 `git apply` 约定：上下文偏移匹配容忍小幅偏移。
+- `dry_run`（可选，默认 `false`）：为 `true` 时只验证补丁并报告会发生的变更，不写入任何文件。
+
+**输出**（成功时）：
+```json
+{
+  "files_changed": 1,
+  "files": [
+    { "path": "src/main.ml", "status": "applied", "insertions": 1, "deletions": 1 }
+  ]
+}
+```
+
+**Dry-run 输出**：
+```json
+{
+  "files_changed": 1,
+  "dry_run": true,
+  "files": [
+    { "path": "src/main.ml", "status": "would_apply", "insertions": 1, "deletions": 1 }
+  ]
+}
+```
+
+**文件创建与删除**：旧文件为 `/dev/null` 的 diff 创建新文件。新文件为 `/dev/null` 的 diff 删除已有文件。二进制文件会被检测并跳过并附带警告，不会被静默损坏。
+
+**原子化保证**：工具在写入任何文件前先验证补丁中的所有文件。如果任何 hunk 应用失败（reject），不会写入任何文件，工具返回包含完整拒绝列表的错误。这防止了导致 workspace 不一致的部分应用。
+
+**已知限制**：写入过程中的崩溃或进程终止可能导致单个文件处于部分写入状态。原子化保证覆盖逻辑补丁（跨文件全有或全无），而非单个文件写入的崩溃安全性。对于需要崩溃恢复的工作流，建议配合版本控制系统使用。
+
+**并发语义**：对同一文件的重叠补丁遵循最后写入者胜出（last-writer-wins），与 `write` 和 `edit` 的约定相同。
+
+**错误信息**：补丁拒绝使用 `[patch]` 标记前缀：
+
+```
+[patch] Hunk #1 at line 15 failed: context does not match.
+File: src/main.ml. The patch may have been generated against a different revision.
+Read the file first, then regenerate the patch against the current content.
+```
+
+路径拒绝（workspace 外的绝对路径、路径遍历等）复用标准的 `[workspace]` 标记。
+
+**何时优先于 `edit` / `write`**：
+- 多文件变更集，部分应用不可接受
+- 由 `git diff` 或 `git format-patch` 生成的补丁
+- LLM 产出 unified diff 而非显式 old/new 对的场景
+
+---
+
 ## bash（v0.3.1 新增）
 
 LLM 调用 shell 是**最危险的内置工具**。v0.3.0 故意没做 bash，等 v0.3.1 单独设计。**核心理念**：从"裸 shell string + 黑名单"升级为"**类型化 Safe_command ADT + Policy Functor + 黑名单**"，把安全检查从运行时前移到编译期。
@@ -612,6 +678,43 @@ let () = Eio_main.run (fun env ->
 
 ---
 
+## 渐进式工具加载（v0.11.0 新增）
+
+注册 50+ 工具后，工具的 JSON schema 会主导 prompt 体积。每次调用都要为完整 schema 买单，无论模型是否真的需要其中大部分工具。渐进式工具加载用一次往返换取更小的可见工具集：模型按需搜索隐藏工具，只拉取当前需要的那些。
+
+**配置**：在 `runtime_config` 上设置 `max_tool_schema_tokens`（类型 `int option`，默认 `None`）。注册 50+ 工具时推荐起始值：`2000`。
+
+**自动切换语义**：每次调用时，engine 估算可见工具描述列表的 token 开销（chars/4 启发式，经由 `Tool_budget.estimate_tokens`，是文档声明的估算值而非精确 tokenizer）。估算值超过阈值时，该次调用切换到渐进模式：只有 Always 层的 builtin/core 工具加上 `tool_search` 元工具暴露给 LLM。被推迟的工具保持隐藏，但可以通过搜索触达。
+
+**Always 层地板**：registry 内部把工具分为 `Always | Searchable` 两层。Always 层是保底地板，永不裁剪。如果仅地板自身就超过阈值，会记录警告日志，且地板仍然全量发送。通过现有 pull 模型注册的 MCP 工具一旦注册即为可搜索。
+
+**tool_search 用法**：
+
+输入：
+```json
+{ "query": "temperature convert", "category": "utility" }
+```
+
+输出示意（命中的工具携带完整 JSON schema）：
+```json
+{
+  "results": [
+    { "name": "convert_temperature", "description": "C / F / K conversion", "input_schema": { "type": "object", "...": "..." } }
+  ],
+  "count": 1
+}
+```
+
+评分为关键词匹配：名称命中的权重高于描述命中。
+
+**按调用提升**：搜索之后，命中的工具只在当前调用内被提升（per-call shadow list）。模型可以在同一调用的后续轮次直接调用它们。提升不跨调用持久化。从未暴露或提升的工具完全无法调用；模型编造的工具名会以 unknown-tool 错误失败，永远不会 dispatch。
+
+**指标**：渐进模式下，metrics 快照现在暴露 `tool_schema_tokens_estimate` 以及可见 / 推迟工具数。
+
+**默认无行为变化**：不设置 `max_tool_schema_tokens`（保持 `None`）时行为与现状完全一致。该功能完全 opt-in。
+
+---
+
 ## 注册自定义工具
 
 工具是简单的 `{ descriptor; handler }` 二元组。`Runtime.register_tool` 是便利函数；底层可通过 `Tool_registry.register` 直接注册：
@@ -647,6 +750,7 @@ PAR 中的工具拒绝不只是说"已拒绝"。它们解释*出了什么问题*
 |------|------|
 | `[workspace]` | 路径校验失败（workspace 沙箱拒绝） |
 | `[bash-policy]` | Bash 命令被策略拒绝（`Coder` / `ReadOnly` / 自定义） |
+| `[patch]` | 补丁 hunk 拒绝（上下文不匹配、diff 损坏或二进制文件） |
 | `[cancelled]` | 工具调用因运行被取消而中止 |
 
 ### Workspace 路径拒绝
@@ -721,6 +825,8 @@ Read the file first, then retry with the exact current text.
 | `workspace_path_required` | read/ls/find/grep/write/edit | 缺少必需的 path 参数 |
 | `pattern_required` | find/grep | 缺少必需的 pattern 参数 |
 | `edit_old_text_not_found` | edit | 在文件中未找到 `old_text` 子串 |
+| `patch_hunk_reject` | apply_patch | Hunk 上下文与文件内容不匹配 |
+| `patch_binary_skipped` | apply_patch | 检测到二进制文件并跳过 |
 
 ### 设计原则：在拒绝点教学
 

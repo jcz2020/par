@@ -44,7 +44,8 @@ let make_config ?(persistence = `Sqlite ":memory:") ?(llm_providers = []) () = {
   parallel_tool_execution = true;
   bash_confirm = valid_bash_confirm;
   event_retention_seconds = 604800.0;
-}
+    max_tool_schema_tokens = None;
+  }
 
 let suite = [
   Alcotest.test_case "valid config passes" `Quick (fun () ->

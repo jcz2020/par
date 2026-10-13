@@ -915,6 +915,143 @@ This follows the Go-context pattern: the callback observes, the token carries th
 
 **FFI asymmetry**: Python callbacks cannot cancel while the OCaml lock is held. From Python, the dispatch-queue trio (`invoke_start` / `invoke_poll` / `invoke_cancel`) is the only correct isolation path for cancellation. See the Python section below.
 
+## Agent as Tool (v0.11.0)
+
+`Runtime.register_agent_as_tool` exposes an existing registered agent as a callable tool. The parent agent calls it like any other tool; the child runs with its own fresh conversation, system prompt, metrics, and hooks (isolated `Invoke_context`), then returns its final text and usage stats to the parent, which continues its ReAct loop.
+
+This differs from handoff: handoff *transfers* control (the parent loop ends), while agent-as-tool *returns* control (the parent continues after the child completes).
+
+### Registration
+
+#### OCaml
+
+```ocaml
+val Runtime.register_agent_as_tool :
+  runtime ->
+  agent_id:string ->
+  ?tool_name:string ->
+  ?description:string ->
+  ?max_depth:int ->
+  ?inherit_cancellation:bool ->
+  unit ->
+  (unit, error_category) result
+```
+
+Default values:
+- `tool_name`: `"agent_" ^ agent_id` (for example, `"agent_researcher"`)
+- `description`: auto-generated from the agent's system prompt
+- `max_depth`: `3`
+- `inherit_cancellation`: `true`
+
+```ocaml
+(* Register agent "researcher" as a callable tool *)
+Runtime.register_agent_as_tool rt ~agent_id:"researcher" ()
+
+(* With custom tool name and depth limit *)
+Runtime.register_agent_as_tool rt
+  ~agent_id:"researcher"
+  ~tool_name:"research_tool"
+  ~description:"Research topics and return findings"
+  ~max_depth:2
+  ()
+```
+
+#### Python
+
+```python
+rt.register_agent_as_tool(agent_id, *, tool_name=None, description=None,
+                          max_depth=3, inherit_cancellation=True)
+```
+
+```python
+# Register agent "researcher" as a callable tool
+rt.register_agent_as_tool("researcher")
+
+# With custom name and depth limit
+rt.register_agent_as_tool("researcher", tool_name="research_tool",
+                          description="Research topics and return findings",
+                          max_depth=2)
+```
+
+### Isolation semantics
+
+Each invocation of an agent-as-tool runs in an isolated `Invoke_context`:
+
+- **Fresh conversation**: the child starts with a new conversation, not the parent's history.
+- **Own system prompt**: the child uses its registered `agent_config.system_prompt`, not the parent's.
+- **Own metrics and hooks**: tool counts, token usage, and middleware hooks are tracked independently.
+- **Return value**: the child's final text response and `usage_stats` are returned as JSON to the parent:
+  ```json
+  {
+    "result": "The research findings are: ...",
+    "usage": {
+      "prompt_tokens": 1234,
+      "completion_tokens": 567,
+      "total_tokens": 1801,
+      "iterations": 3,
+      "tool_calls": 2
+    }
+  }
+  ```
+  The parent receives this as a standard tool result and continues its own ReAct loop.
+
+### Handoff vs agent-as-tool
+
+| Aspect | Handoff | Agent as Tool |
+|--------|---------|---------------|
+| Control flow | Parent loop ends; child takes over | Parent loop continues after child returns |
+| Conversation | Shared or carried via `carry_context` | Child starts fresh; parent's conversation unchanged |
+| Return value | Parent never sees child's result | Child's result returned as tool output to parent |
+| Termination | Child's `finish_reason` ends the whole run | Child completes, parent decides next step |
+| Nested calls | Not supported (`enable_handoff=false` when used as tool) | Supported up to `max_depth` |
+
+### Depth limit
+
+Recursion is bounded by `max_depth` (default 3). Each nested agent-as-tool invocation decrements the depth counter. When the limit is exceeded, the tool returns an error:
+
+```
+[agent-tool] Maximum agent-tool nesting depth (3) exceeded.
+Cannot invoke agent 'researcher' as a tool from within a nested agent call.
+Reduce nesting depth or flatten the agent hierarchy.
+```
+
+### Cancellation inheritance
+
+When `inherit_cancellation=true` (the default), the child agent shares the parent's cancellation token. Cancelling the parent's `invoke` propagates to all active child agents. When `inherit_cancellation=false`, the child runs independently and is not affected by parent cancellation.
+
+### Event observability
+
+The parent stream receives a single summary event when the child completes, rather than every child tool call and LLM chunk:
+
+```ocaml
+Agent_tool_completed {
+  tool_name : string;          (* e.g. "agent_researcher" *)
+  child_agent_id : string;     (* e.g. "researcher" *)
+  iterations : int;            (* child ReAct loop iterations *)
+  duration_s : float;          (* wall-clock seconds *)
+  usage : usage_stats;         (* child's token usage *)
+}
+```
+
+All intermediate child events (tool calls, LLM chunks, middleware hooks) are suppressed from the parent stream to avoid noise. Only the summary event fires.
+
+### Approval limitation
+
+If a child agent encounters an `Approval_required` tool result, it does **not** suspend the parent flow. Instead, it converts the approval into an error:
+
+```
+[agent-tool] Nested agent cannot await approval. Agent 'researcher' requested
+approval for tool 'bash', but agent-as-tool invocations do not support
+synchronous approval suspension. Configure the child agent to avoid tools
+that require approval, or use handoff instead.
+```
+
+This is a design constraint: agent-as-tool must return synchronously to the parent's tool dispatch, and approval suspension would block the parent's ReAct loop indefinitely.
+
+### Usage accounting
+
+The child agent's token usage is independent but reported back to the parent. The parent's `usage_stats` do not include the child's tokens. The child's usage is available in the `Agent_tool_completed` event and in the JSON result body (`result.usage`).
+
 ## See also
 
 - [Overview](overview.md) -- SDK architecture overview

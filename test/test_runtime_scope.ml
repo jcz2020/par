@@ -88,7 +88,8 @@ let test_runtime_config : runtime_config = {
   parallel_tool_execution = true;
   bash_confirm = Runtime.default_bash_confirm;
   event_retention_seconds = 604800.0;
-}
+    max_tool_schema_tokens = None;
+  }
 
 (* Build a Runtime backed by an in-memory SQLite handle so that
    save_conversation / load_most_recent_conversation hit persistent

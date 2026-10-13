@@ -50,7 +50,7 @@ with Runtime(config) as rt:
 | Type safety | Runtime crashes | Runtime crashes | **Compile-time guarantees** |
 | Concurrency | asyncio callbacks | asyncio callbacks | **Eio structured effects** |
 | Shell safety | `exec` with raw strings | raw subprocess | **Type-safe ADT, injection-free** |
-| Tool count | 50+ (bloat risk) | 5 (LLM-only) | **23 builtin + custom registration** |
+| Tool count | 50+ (bloat risk) | 5 (LLM-only) | **24 builtin + custom registration** |
 | MCP client | separate lib | not built-in | **stdio + HTTP/SSE builtin** |
 
 ## Quick install
@@ -86,7 +86,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - [Parallel Dispatch](docs/sdk/parallel.md) — parallel multi-agent dispatch, typed merge
 - [Workflow API](docs/sdk/workflow.md) — sequential, parallel, conditional, map-reduce
 - [Middleware](docs/sdk/middleware.md) — Logging, Retry, Rate_limit, Timeout, Arg_validation, Output_validation, PII_mask, Think_tag_strip
-- [Tools](docs/sdk/tools.md) — 23 built-in tools including type-safe bash
+- [Tools](docs/sdk/tools.md) — 24 built-in tools including type-safe bash and atomic patch application
 - [MCP Client](docs/sdk/mcp.md) — connect any Model Context Protocol server
 - [Streaming API](docs/sdk/streaming.md) — token streaming, tool call events
 - [Generate API](docs/sdk/generate.md) — long-output generation, on_max_tokens policy
@@ -104,7 +104,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - **Workflow engine** — sequential, parallel, conditional, map-reduce with checkpoints; `Agent_call` supports `response_schema` for structured output
 - **Multi-provider LLM** — OpenAI, Anthropic, Ollama (local), Mock (tests), + custom registration for any OpenAI-compatible endpoint
 - **MCP client** (stdio + HTTP/SSE) — connect any Model Context Protocol server for tools, resources, prompts
-- **23 built-in tools** including type-safe bash (`Bash_safe_command` ADT), memory tools (`recall_memory`, `remember_memory`, `search_history`)
+- **24 built-in tools** including type-safe bash (`Bash_safe_command` ADT), atomic unified-diff patching (`apply_patch`), memory tools (`recall_memory`, `remember_memory`, `search_history`)
 - **9 middleware** — Logging, Retry, Rate_limit, Timeout, Arg_validation, Output_validation, PII_mask, Sanitize_tool_output, Think_tag_strip
 - **SQLite persistence** — embedded audit log with generic `scope` dimension for session grouping (workspace/user/tenant); Noop backend for tests
 - **Structured concurrency** — OCaml 5.4 effects with Eio, no orphan fibers, no callback hell. `invoke_context` per-call isolation via `Eio.Fiber.with_binding` makes `Runtime.invoke` safe for reentrancy, parallelism, and `invoke_async`.
@@ -113,6 +113,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - **HITL approval** (Sync / Async / Webhook) — agents pause mid-execution for human approval, persist state to SQLite, and resume after external resolution. Approvals survive process restarts.
 - **Parallel multi-agent dispatch** — `Runtime.invoke_parallel` runs N agents concurrently with typed merge, per-agent workspace isolation, and per-agent approval handler overrides.
 - **Deprecation framework** — `warn_once` helper + `Deprecated_api_called` event + `[@@deprecated]` annotations + migration guides. Breaking changes no longer happen silently.
+- **Progressive tool loading** — set `max_tool_schema_tokens` and 50+ tool registrations stop bloating the prompt: the engine exposes an Always-layer floor plus a `tool_search` meta-tool, and the model promotes matched tools on demand per invocation. See [Tools](docs/sdk/tools.md).
 - **Python ctypes binding** — `par_runtime` package, thread-safe, no GIL contention with OCaml runtime. Persistent Eio domain per Runtime for full concurrency support.
 - **1504 OCaml tests + Python bindings** passing (all green, including RAG e2e from any cwd)
 - **Skill system** — drop a `skill.md` in `~/.par/skills/<id>/` and it auto-activates during `Runtime.invoke` based on trigger conditions (Auto / Manual / Keyword). Auto-trigger skills no longer replace the system prompt. See [Skills API](docs/sdk/skills.md).
@@ -149,7 +150,7 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 **Current**: v0.10.0 — first-class cancellation (`cancel_reason` ADT, replay-valid recovery with synthetic tool results, dispatch/chunk-granularity cooperative checks, cancellable Python `invoke_start`/`invoke_poll`/`invoke_cancel`) + actionable tool validation errors (teach-at-rejection markers `[workspace]`/`[bash-policy]`, edit no-op fix).
 
-**Coming next**: opam-repository submission.
+**Coming next**: agent-as-tool composition, progressive tool loading, opam-repository submission.
 
 **Recent releases**: v0.8.4 (test_mcp_runtime mock-path portability fix) → v0.8.5 (test mock-path portability fix round 2) → v0.8.6 (Streaming HTTP error propagation fix) → v0.9.0 (Skill activation API completion) → v0.9.1 (tool_call_id correlation fixes) → v0.10.0 (first-class cancellation + actionable tool errors).
 

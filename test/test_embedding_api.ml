@@ -58,7 +58,8 @@ let minimal_runtime_config : runtime_config = {
   parallel_tool_execution = false;
   bash_confirm = Runtime.default_bash_confirm;
   event_retention_seconds = 86400.0;
-}
+    max_tool_schema_tokens = None;
+  }
 
 let test_runtime_embed_with_mock () =
   let (embed_svc, _history) = Mock_provider.mock_embed_service () in

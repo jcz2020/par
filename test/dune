@@ -632,3 +632,18 @@
   (name test_ffi_streaming)
   (libraries par eio_main alcotest)
   (modules test_ffi_streaming))
+
+(test
+  (name test_tool_search)
+  (libraries par eio_main alcotest)
+  (modules test_tool_search))
+
+(test
+  (name test_agent_as_tool)
+  (libraries par eio_main alcotest)
+  (modules test_agent_as_tool))
+
+(test
+  (name test_nested_invoke_spike)
+  (libraries par eio_main alcotest)
+  (modules test_nested_invoke_spike))

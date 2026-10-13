@@ -790,6 +790,13 @@ type event =
      }
   | Skill_activated of { skill_id : string }
   | Skill_deactivated of { skill_id : string }
+  | Agent_tool_completed of {
+      tool_name : string;
+      child_agent_id : string;
+      iterations : int;
+      duration_s : float;
+      usage : usage_stats;
+    }
     [@@deriving yojson]
 
  and cache_skip_reason =
@@ -986,6 +993,7 @@ type runtime_config = {
   parallel_tool_execution : bool;
   bash_confirm : bash_confirm_config;
   event_retention_seconds : float;
+  max_tool_schema_tokens : int option;
 }
 [@@deriving yojson]
 
@@ -1009,6 +1017,12 @@ let runtime_config_of_yojson (j : Yojson.Safe.t) :
     | `Int i -> float_of_int i
     | _ -> 604800.0
   in
+  let max_tool_schema_tokens =
+    match member "max_tool_schema_tokens" j with
+    | `Null -> None
+    | `Int n -> Some n
+    | _ -> None
+  in
   match _runtime_config_base_of_yojson j with
   | Ok base ->
     Ok {
@@ -1021,6 +1035,7 @@ let runtime_config_of_yojson (j : Yojson.Safe.t) :
       parallel_tool_execution = base.parallel_tool_execution;
       bash_confirm;
       event_retention_seconds;
+      max_tool_schema_tokens;
     }
   | Error e -> Error e
 

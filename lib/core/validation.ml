@@ -274,14 +274,20 @@ let validate_runtime_config (config : Types.runtime_config) =
            | Error e -> Error e)
       in check providers
   in
-  match r1, r2, r3, r4, r5, r6 with
-  | Ok (), Ok (), Ok (), Ok (), Ok (), Ok () -> Ok ()
-  | Error e, _, _, _, _, _ -> Error e
-  | _, Error e, _, _, _, _ -> Error e
-  | _, _, Error e, _, _, _ -> Error e
-  | _, _, _, Error e, _, _ -> Error e
-  | _, _, _, _, Error e, _ -> Error e
-  | _, _, _, _, _, Error e -> Error e
+  let r7 = match config.Types.max_tool_schema_tokens with
+    | None -> Ok ()
+    | Some n when n > 0 -> Ok ()
+    | Some n -> Error (Printf.sprintf "max_tool_schema_tokens: must be > 0 (got %d)" n)
+  in
+  match r1, r2, r3, r4, r5, r6, r7 with
+  | Ok (), Ok (), Ok (), Ok (), Ok (), Ok (), Ok () -> Ok ()
+  | Error e, _, _, _, _, _, _ -> Error e
+  | _, Error e, _, _, _, _, _ -> Error e
+  | _, _, Error e, _, _, _, _ -> Error e
+  | _, _, _, Error e, _, _, _ -> Error e
+  | _, _, _, _, Error e, _, _ -> Error e
+  | _, _, _, _, _, Error e, _ -> Error e
+  | _, _, _, _, _, _, Error e -> Error e
 
 (* -------------------------------------------------------------------------- *)
 (* Model config validation                                                  *)

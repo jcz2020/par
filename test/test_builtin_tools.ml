@@ -785,6 +785,245 @@ let wave2a_file_tools_suite =
           (error_metadata_code result)));
   ])
 
+let apply_patch_suite =
+  ("apply_patch", [
+    Alcotest.test_case "empty patch rejected by handler" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "apply_patch" tools in
+        let result = handler (`Assoc [("patch", `String "")]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result);
+        Alcotest.check Alcotest.bool "has [patch]" true
+          (error_contains result "[patch]")));
+
+    Alcotest.test_case "malformed hunk header rejected" `Quick (fun () ->
+      let diff = "--- a/test.txt\n+++ b/test.txt\n@@ bad header @@\n line\n" in
+      match Apply_patch.parse_diff diff with
+      | Error { message; _ } ->
+        Alcotest.check Alcotest.bool "mentions malformed" true
+          (string_contains message "Malformed")
+      | Ok _ -> Alcotest.fail "expected parse error");
+
+    Alcotest.test_case "empty diff rejected" `Quick (fun () ->
+      match Apply_patch.parse_diff "" with
+      | Error { message; _ } ->
+        Alcotest.check Alcotest.bool "mentions empty" true
+          (string_contains message "Empty")
+      | Ok _ -> Alcotest.fail "expected parse error");
+
+    Alcotest.test_case "single hunk parse + apply" `Quick (fun () ->
+      let diff = "--- a/test.txt\n+++ b/test.txt\n@@ -1,3 +1,3 @@\n line1\n-line2\n+line2_modified\n line3\n" in
+      match Apply_patch.parse_diff diff with
+      | Error e -> Alcotest.failf "parse error: %s" e.message
+      | Ok patches ->
+        let read_file _ = Some "line1\nline2\nline3\n" in
+        let file_exists _ = true in
+        (match Apply_patch.apply ~read_file ~file_exists patches with
+         | Error e -> Alcotest.failf "apply error: %s" (Apply_patch.string_of_apply_error e)
+         | Ok { report; staged } ->
+           Alcotest.check Alcotest.int "files_changed" 1 report.files_changed;
+           Alcotest.check Alcotest.int "hunks_applied" 1 report.hunks_applied;
+           Alcotest.check Alcotest.int "insertions" 1 report.insertions;
+           Alcotest.check Alcotest.int "deletions" 1 report.deletions;
+           let content = List.assoc "test.txt" staged in
+           Alcotest.check Alcotest.bool "has modified line" true
+             (string_contains content "line2_modified")));
+
+    Alcotest.test_case "multi-file patch" `Quick (fun () ->
+      let diff = "--- a/a.txt\n+++ b/a.txt\n@@ -1,2 +1,2 @@\n hello\n-world\n+ocaml\n\n--- a/b.txt\n+++ b/b.txt\n@@ -1,2 +1,2 @@\n foo\n-bar\n+baz\n" in
+      match Apply_patch.parse_diff diff with
+      | Error e -> Alcotest.failf "parse error: %s" e.message
+      | Ok patches ->
+        Alcotest.check Alcotest.int "2 files" 2 (List.length patches);
+        let files = Hashtbl.create 2 in
+        Hashtbl.replace files "a.txt" "hello\nworld\n";
+        Hashtbl.replace files "b.txt" "foo\nbar\n";
+        let read_file p = Hashtbl.find_opt files p in
+        let file_exists p = Hashtbl.mem files p in
+        (match Apply_patch.apply ~read_file ~file_exists patches with
+         | Error e -> Alcotest.failf "apply error: %s" (Apply_patch.string_of_apply_error e)
+         | Ok { report; _ } ->
+           Alcotest.check Alcotest.int "files_changed" 2 report.files_changed;
+           Alcotest.check Alcotest.int "hunks_applied" 2 report.hunks_applied));
+
+    Alcotest.test_case "offset recovery when context shifted" `Quick (fun () ->
+      let diff = "--- a/test.txt\n+++ b/test.txt\n@@ -5,3 +5,3 @@\n context_before\n-old_line\n+new_line\n context_after\n" in
+      match Apply_patch.parse_diff diff with
+      | Error e -> Alcotest.failf "parse error: %s" e.message
+      | Ok patches ->
+        let original =
+          "line1\nline2\nline3\nline4\n\
+           context_before\nold_line\ncontext_after\nline8\n"
+        in
+        let read_file _ = Some original in
+        let file_exists _ = true in
+        (match Apply_patch.apply ~read_file ~file_exists patches with
+         | Error e -> Alcotest.failf "offset recovery failed: %s"
+                        (Apply_patch.string_of_apply_error e)
+         | Ok { report; staged } ->
+           Alcotest.check Alcotest.int "hunks_applied" 1 report.hunks_applied;
+           let content = List.assoc "test.txt" staged in
+           Alcotest.check Alcotest.bool "has new_line" true
+             (string_contains content "new_line")));
+
+    Alcotest.test_case "context mismatch error reports details" `Quick (fun () ->
+      let diff = "--- a/test.txt\n+++ b/test.txt\n@@ -1,3 +1,3 @@\n line1\n-line2\n+line2_mod\n line3\n" in
+      match Apply_patch.parse_diff diff with
+      | Error e -> Alcotest.failf "parse error: %s" e.message
+      | Ok patches ->
+        let read_file _ = Some "completely\ndifferent\ncontent\n" in
+        let file_exists _ = true in
+        (match Apply_patch.apply ~read_file ~file_exists patches with
+         | Ok _ -> Alcotest.fail "expected context mismatch"
+         | Error e ->
+           let msg = Apply_patch.string_of_apply_error e in
+           Alcotest.check Alcotest.bool "has [patch]" true
+             (string_contains msg "[patch]");
+           Alcotest.check Alcotest.bool "has file name" true
+             (string_contains msg "test.txt");
+           Alcotest.check Alcotest.bool "mentions context mismatch" true
+             (string_contains msg "Context mismatch")));
+
+    Alcotest.test_case "binary files skipped" `Quick (fun () ->
+      let diff = "Binary files a/image.png and b/image.png differ\n--- a/text.txt\n+++ b/text.txt\n@@ -1,1 +1,1 @@\n-old\n+new\n" in
+      match Apply_patch.parse_diff diff with
+      | Error e -> Alcotest.failf "parse error: %s" e.message
+      | Ok patches ->
+        let binary_p = List.find (fun p -> p.Apply_patch.is_binary) patches in
+        let text_p = List.find (fun p -> not p.Apply_patch.is_binary) patches in
+        Alcotest.check Alcotest.string "binary path" "image.png"
+          binary_p.new_path;
+        Alcotest.check Alcotest.string "text path" "text.txt"
+          text_p.new_path);
+
+    Alcotest.test_case "file not found error" `Quick (fun () ->
+      let diff = "--- a/missing.txt\n+++ b/missing.txt\n@@ -1,1 +1,1 @@\n-old\n+new\n" in
+      match Apply_patch.parse_diff diff with
+      | Error e -> Alcotest.failf "parse error: %s" e.message
+      | Ok patches ->
+        let read_file _ = None in
+        let file_exists _ = false in
+        (match Apply_patch.apply ~read_file ~file_exists patches with
+         | Ok _ -> Alcotest.fail "expected file not found"
+         | Error (Apply_patch.File_not_found p) ->
+           Alcotest.check Alcotest.string "path" "missing.txt" p
+         | Error e -> Alcotest.failf "wrong error: %s"
+                        (Apply_patch.string_of_apply_error e)));
+
+    Alcotest.test_case "new file creation" `Quick (fun () ->
+      let diff = "--- /dev/null\n+++ b/new.txt\n@@ -0,0 +1,2 @@\n+hello\n+world\n" in
+      match Apply_patch.parse_diff diff with
+      | Error e -> Alcotest.failf "parse error: %s" e.message
+      | Ok patches ->
+        Alcotest.check Alcotest.bool "is_new" true
+          (List.hd patches).Apply_patch.is_new;
+        let read_file _ = None in
+        let file_exists _ = false in
+        (match Apply_patch.apply ~read_file ~file_exists patches with
+         | Error e -> Alcotest.failf "apply error: %s"
+                        (Apply_patch.string_of_apply_error e)
+         | Ok { staged; _ } ->
+           let content = List.assoc "new.txt" staged in
+           Alcotest.check Alcotest.bool "has hello" true
+             (string_contains content "hello")));
+
+    Alcotest.test_case "new file already exists rejected" `Quick (fun () ->
+      let diff = "--- /dev/null\n+++ b/existing.txt\n@@ -0,0 +1,1 @@\n+content\n" in
+      match Apply_patch.parse_diff diff with
+      | Error e -> Alcotest.failf "parse error: %s" e.message
+      | Ok patches ->
+        let read_file _ = Some "old content" in
+        let file_exists _ = true in
+        (match Apply_patch.apply ~read_file ~file_exists patches with
+         | Ok _ -> Alcotest.fail "expected already exists error"
+         | Error (Apply_patch.File_already_exists p) ->
+           Alcotest.check Alcotest.string "path" "existing.txt" p
+         | Error e -> Alcotest.failf "wrong error: %s"
+                        (Apply_patch.string_of_apply_error e)));
+
+    Alcotest.test_case "deletion hunk" `Quick (fun () ->
+      let diff = "--- a/deleteme.txt\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-line1\n-line2\n" in
+      match Apply_patch.parse_diff diff with
+      | Error e -> Alcotest.failf "parse error: %s" e.message
+      | Ok patches ->
+        Alcotest.check Alcotest.bool "is_deleted" true
+          (List.hd patches).Apply_patch.is_deleted);
+
+    Alcotest.test_case "handler dry_run writes nothing" `Quick (fun () ->
+      let rel_name = "par_test_dry_run.txt" in
+      let oc = open_out rel_name in
+      output_string oc "original content\n";
+      close_out oc;
+      let cleanup () = (try Unix.unlink rel_name with _ -> ()) in
+      let run () =
+        with_tools (fun tools token ->
+          let handler = find_tool "apply_patch" tools in
+          let diff = Printf.sprintf
+            "--- a/%s\n\
+             +++ b/%s\n\
+             @@ -1,1 +1,1 @@\n\
+             -original content\n\
+             +modified content\n"
+            rel_name rel_name
+          in
+          let result = handler (`Assoc [
+            ("patch", `String diff);
+            ("dry_run", `Bool true);
+          ]) token in
+          match result with
+          | Success json ->
+            Alcotest.check Alcotest.bool "dry_run flag" true
+              (Yojson.Safe.Util.(json |> member "dry_run" |> to_bool));
+            let ic = open_in rel_name in
+            let actual = input_line ic in
+            close_in ic;
+            Alcotest.check Alcotest.bool "file unchanged" true
+              (string_contains actual "original content")
+          | Error { message; _ } -> Alcotest.failf "handler error: %s" message
+          | _ -> Alcotest.fail "unexpected result")
+      in
+      Fun.protect ~finally:cleanup run);
+
+    Alcotest.test_case "handler workspace path-traversal rejected" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "apply_patch" tools in
+        let diff = "--- a/../secret.txt\n+++ b/../secret.txt\n@@ -1,1 +1,1 @@\n-x\n+y\n" in
+        let result = handler (`Assoc [("patch", `String diff)]) token in
+        Alcotest.check Alcotest.bool "is error" true (is_error result);
+        Alcotest.check Alcotest.bool "has [workspace]" true
+          (error_contains result "[workspace]")));
+
+    Alcotest.test_case "handler applies and writes file" `Quick (fun () ->
+      let rel_name = "par_test_apply_write.txt" in
+      let oc = open_out rel_name in
+      output_string oc "hello world\n";
+      close_out oc;
+      let cleanup () = (try Unix.unlink rel_name with _ -> ()) in
+      let run () =
+        with_tools (fun tools token ->
+          let handler = find_tool "apply_patch" tools in
+          let diff = Printf.sprintf
+            "--- a/%s\n\
+             +++ b/%s\n\
+             @@ -1,1 +1,1 @@\n\
+             -hello world\n\
+             +hello ocaml\n"
+            rel_name rel_name
+          in
+          let result = handler (`Assoc [("patch", `String diff)]) token in
+          match result with
+          | Success json ->
+            Alcotest.check Alcotest.int "files_changed" 1
+              (int_field json "files_changed");
+            let ic = open_in rel_name in
+            let actual = input_line ic in
+            close_in ic;
+            Alcotest.check Alcotest.string "written" "hello ocaml" actual
+          | Error { message; _ } -> Alcotest.failf "handler error: %s" message
+          | _ -> Alcotest.fail "unexpected result")
+      in
+      Fun.protect ~finally:cleanup run);
+  ])
+
 let () =
   Alcotest.run "Builtin Tools" [
     calculator_suite;
@@ -807,4 +1046,5 @@ let () =
     write_suite;
     edit_suite;
     wave2a_file_tools_suite;
+    apply_patch_suite;
   ]

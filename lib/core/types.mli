@@ -684,6 +684,13 @@ type event =
     }
   | Skill_activated of { skill_id : string }
   | Skill_deactivated of { skill_id : string }
+  | Agent_tool_completed of {
+      tool_name : string;
+      child_agent_id : string;
+      iterations : int;
+      duration_s : float;
+      usage : usage_stats;
+    }
     [@@deriving yojson]
 
  and cache_skip_reason =
@@ -851,6 +858,7 @@ type runtime_config = {
   parallel_tool_execution : bool;
   bash_confirm : bash_confirm_config;
   event_retention_seconds : float;
+  max_tool_schema_tokens : int option;
 }
 [@@deriving yojson]
 

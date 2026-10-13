@@ -41,6 +41,8 @@ module Directory_loader = Directory_loader
 module Vector_store = Vector_store
 module Hnsw = Hnsw
 module Tool_registry = Tool_registry
+module Tool_budget = Tool_budget
+module Tool_search = Tool_search
 module Skill_registry = Skill_registry
 module Skill_loader = Skill_loader
 module Builtin_skills = Builtin_skills
@@ -66,6 +68,7 @@ module Bash_safe_command = Bash_safe_command
 module Bash_blacklist = Bash_blacklist
 module Bash_policy = Bash_policy
 module Bash_confirm = Bash_confirm
+module Apply_patch = Apply_patch
 
 module Logging = Logging
 module Retry = Retry

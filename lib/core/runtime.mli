@@ -79,7 +79,18 @@ val register_file_tools_rebuild :
     first registered, capturing the Eio switch + net. [per_call_registry] reads
     this so per-call [?workspace] override applies to file tools too. *)
 
-val register_agent : runtime -> agent_config -> (unit, error_category) result
+val register_agent :
+  runtime -> agent_config -> (unit, error_category) result
+
+val register_agent_as_tool :
+  runtime ->
+  agent_id:string ->
+  ?tool_name:string ->
+  ?description:string ->
+  ?max_depth:int ->
+  ?inherit_cancellation:bool ->
+  unit ->
+  (unit, error_category) result
 
 val list_agents : runtime -> agent_config list
 

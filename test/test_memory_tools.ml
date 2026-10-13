@@ -63,7 +63,8 @@ let make_test_config () = Types.{
   parallel_tool_execution = true;
   bash_confirm = Runtime.default_bash_confirm;
   event_retention_seconds = 60.0;
-}
+    max_tool_schema_tokens = None;
+  }
 
 let run_handler handler input rt =
   let token = Cancellation.create_token (Runtime.cancellation_root rt) in
