@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.11.0-beta.20260827 — apply_patch + agent-as-tool + progressive tool loading
+## v0.11.0-beta.20261013 — apply_patch + agent-as-tool + progressive tool loading
 
 ### Added — apply_patch tool
 
