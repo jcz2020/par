@@ -47,6 +47,10 @@ __pycache__/
 # Release artifacts (live on GitHub Releases, not in the source tree)
 /*.tar.gz
 
+# Native build droppings from ad-hoc gcc/clang invocations at the repo root
+/*.o
+/a.out
+
 # Beads / Dolt files (added by bd init)
 .beads/proxieddb/
 .claude/
