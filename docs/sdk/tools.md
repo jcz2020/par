@@ -521,6 +521,12 @@ Field reference:
 
 `truncated: true` means the output was clipped at 50KB / 2000 lines (a marker is appended at the end).
 
+The installed `bash` handler waits for child exit **and** completion of stdout/stderr
+copying before returning this result. This prevents short commands from returning
+empty or partial output merely because copying lagged behind process exit. The
+configured timeout covers both execution and output draining; a timed-out child is
+terminated before the handler returns a timeout error.
+
 ### Three preset policies
 
 | Policy | Network | Write | Use case |

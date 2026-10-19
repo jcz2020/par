@@ -579,15 +579,18 @@ let make_bash_handler rt mgr clock fs input tok : Types.handler_result =
                      Bash_safe_command.argv_of_command filtered
                    in
                   let cwd_eio = Eio.Path.(fs / Workspace.to_string cwd) in
-                  let proc =
-                    Eio.Process.spawn ~sw:tok.switch mgr
+                  Eio.Switch.check tok.switch;
+                  (* await waits only for child exit. The local switch also
+                     waits for stdout/stderr copy fibers before we read them. *)
+                  let status = Eio.Switch.run (fun sw ->
+                    let proc = Eio.Process.spawn ~sw mgr
                       ~cwd:cwd_eio
                       ~stdin:(Eio.Flow.string_source "")
                       ~stdout:(Eio.Flow.buffer_sink stdout_buf)
                       ~stderr:(Eio.Flow.buffer_sink stderr_buf)
-                      proc_argv
+                      proc_argv in
+                    Eio.Process.await proc)
                   in
-                 let status = Eio.Process.await proc in
                  let code = match status with
                    | `Exited n -> n
                    | `Signaled _ -> 128

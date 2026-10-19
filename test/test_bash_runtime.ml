@@ -208,6 +208,98 @@ let policy_enforcement_suite =
         ~argv:["chmod"; "755"; "foo"]);
   ]
 
+(* A process can exit before its switch-attached output-copy fibers drain.
+   Release those fibers from await, without yielding, to make the race reliable. *)
+module Delayed_output_process = struct
+  type t = { output_ready : unit Eio.Promise.u; exit_code : int }
+  type tag = [ `Generic ]
+
+  let pid _ = 0
+  let await t =
+    Eio.Promise.resolve t.output_ready ();
+    `Exited t.exit_code
+  let signal _ _ = ()
+end
+
+module Delayed_output_manager = struct
+  type t = {
+    stdout : string;
+    stderr : string;
+    exit_code : int;
+    before_copy : unit -> unit;
+  }
+  type tag = [ `Generic ]
+
+  let pipe _ ~sw:_ = failwith "unused by bash capture"
+
+  let spawn t ~sw ?cwd:_ ?stdin:_ ?stdout ?stderr ?env:_ ?executable:_ _argv =
+    let ready, output_ready = Eio.Promise.create () in
+    let copy sink text =
+      Option.iter (fun sink ->
+        Eio.Fiber.fork ~sw (fun () ->
+          Eio.Promise.await ready;
+          t.before_copy ();
+          Eio.Flow.copy_string text sink)) sink
+    in
+    copy stdout t.stdout;
+    copy stderr t.stderr;
+    Eio.Resource.T (
+      { Delayed_output_process.output_ready; exit_code = t.exit_code },
+      Eio.Process.Pi.process (module Delayed_output_process))
+end
+
+let output_capture_suite =
+  "output_capture", [
+    Alcotest.test_case "both outputs drain after child exit and preserve status" `Quick (fun () ->
+      Eio_main.run (fun env ->
+        Eio.Switch.run (fun sw ->
+          let process_mgr = Eio.Resource.T (
+            { Delayed_output_manager.stdout = "complete stdout\n";
+              stderr = "complete stderr\n"; exit_code = 7; before_copy = (fun () -> ()) },
+            Eio.Process.Pi.mgr (module Delayed_output_manager)) in
+          match Runtime.create ~config:test_config sw with
+          | Error e -> Alcotest.failf "create: %s" (error_to_string e)
+          | Ok rt ->
+            Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) (fun () ->
+              (match Runtime.install_bash_tool ~process_mgr
+                 ~clock:(Eio.Stdenv.clock env) ~fs:(Eio.Stdenv.fs env) rt with
+               | Ok () -> ()
+               | Error e -> Alcotest.failf "install: %s" (error_to_string e));
+              let token = Cancellation.create_token sw in
+              match bash_handler rt (`Assoc ["argv", `List [`String "echo"]]) token with
+              | Types.Success output ->
+                let stdout = Yojson.Safe.Util.(output |> member "stdout" |> to_string) in
+                let stderr = Yojson.Safe.Util.(output |> member "stderr" |> to_string) in
+                let exit_code = Yojson.Safe.Util.(output |> member "exit_code" |> to_int) in
+                Alcotest.(check string) "stdout is complete" "complete stdout\n" stdout;
+                Alcotest.(check string) "stderr is complete" "complete stderr\n" stderr;
+                Alcotest.(check int) "nonzero status is preserved" 7 exit_code
+              | _ -> Alcotest.fail "expected bash success"))));
+
+    Alcotest.test_case "timeout covers unfinished output drain after child exit" `Quick (fun () ->
+      Eio_main.run (fun env ->
+        Eio.Switch.run (fun sw ->
+          let process_mgr = Eio.Resource.T (
+            { Delayed_output_manager.stdout = "unread"; stderr = ""; exit_code = 0;
+              before_copy = Eio.Fiber.await_cancel },
+            Eio.Process.Pi.mgr (module Delayed_output_manager)) in
+          match Runtime.create ~config:test_config sw with
+          | Error e -> Alcotest.failf "create: %s" (error_to_string e)
+          | Ok rt ->
+            Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) (fun () ->
+              (match Runtime.install_bash_tool ~process_mgr
+                 ~clock:(Eio.Stdenv.clock env) ~fs:(Eio.Stdenv.fs env) rt with
+               | Ok () -> ()
+               | Error e -> Alcotest.failf "install: %s" (error_to_string e));
+              let input = `Assoc ["argv", `List [`String "echo"]; "timeout", `Float 0.02] in
+              let started = Unix.gettimeofday () in
+              (match bash_handler rt input (Cancellation.create_token sw) with
+               | Types.Error { category = Types.Timeout; _ } -> ()
+               | _ -> Alcotest.fail "must not return before output drains");
+              Alcotest.(check bool) "drain cancellation returns promptly" true
+                (Unix.gettimeofday () -. started < 2.0)))));
+  ]
+
 (* -------------------------------------------------------------------------- *)
 (* timeout kills the child process (no process leak past the timeout)         *)
 (* -------------------------------------------------------------------------- *)
@@ -234,6 +326,52 @@ let sleep_97_alive () =
 
 let timeout_suite =
   "timeout", [
+    Alcotest.test_case "real timer still kills the running child" `Quick (fun () ->
+      Eio_main.run (fun env ->
+        Eio.Switch.run (fun sw ->
+          let Eio.Resource.T (mgr_state, mgr_ops) = Eio.Stdenv.process_mgr env in
+          let module Manager = (val Eio.Resource.get mgr_ops Eio.Process.Pi.Mgr) in
+          let child_pid = ref None in
+          let module Recording_manager = struct
+            type t = Manager.t
+            type tag = Manager.tag
+            let pipe = Manager.pipe
+            let spawn t ~sw ?cwd ?stdin ?stdout ?stderr ?env ?executable argv =
+              let child = Manager.spawn t ~sw ?cwd ?stdin ?stdout ?stderr ?env ?executable argv in
+              child_pid := Some (Eio.Process.pid child);
+              child
+          end in
+          let process_mgr = Eio.Resource.T (mgr_state, Eio.Process.Pi.mgr (module Recording_manager)) in
+          match Runtime.create ~config:test_config sw with
+          | Error e -> Alcotest.failf "create: %s" (error_to_string e)
+          | Ok rt ->
+            Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) (fun () ->
+              (match Runtime.install_bash_tool ~process_mgr
+                 ~clock:(Eio.Stdenv.clock env) ~fs:(Eio.Stdenv.fs env) rt with
+               | Ok () -> ()
+               | Error e -> Alcotest.failf "install: %s" (error_to_string e));
+              let input = `Assoc [
+                "argv", `List [`String "sleep"; `String "97"];
+                "timeout", `Float 0.2;
+              ] in
+              let started = Unix.gettimeofday () in
+              (match bash_handler rt input (Cancellation.create_token sw) with
+               | Types.Error { category = Types.Timeout; _ } -> ()
+               | Types.Error { category; message; _ } ->
+                 Alcotest.failf "expected Timeout, got %s: %s" (error_to_string category) message
+               | _ -> Alcotest.fail "expected timed-out running child");
+              let elapsed = Unix.gettimeofday () -. started in
+              Alcotest.(check bool) "timer was awaited" true (elapsed >= 0.15);
+              Alcotest.(check bool) "timeout returned promptly" true (elapsed < 5.0);
+              let pid = match !child_pid with
+                | Some pid -> pid
+                | None -> Alcotest.fail "child never spawned"
+              in
+              let alive = try Unix.kill pid 0; true with
+                | Unix.Unix_error (Unix.ESRCH, _, _) -> false
+              in
+              Alcotest.(check bool) "timed-out child was killed" false alive))));
+
     Alcotest.test_case "bash timeout kills the child process" `Quick (fun () ->
       if Sys.os_type = "Win32" then
         print_endline "[SKIP] process-leak check skipped on Windows"
@@ -278,5 +416,6 @@ let () =
     custom_policy_suite;
     install_suite;
     policy_enforcement_suite;
+    output_capture_suite;
     timeout_suite;
   ]

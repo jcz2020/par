@@ -22,9 +22,14 @@
 - User input accepts text and image blocks only. Tool protocol blocks are rejected by the shared OCaml runtime entry point, so both language surfaces enforce the same rule.
 - Older persisted images without `detail` remain readable (`None` by default). The local image helper now closes opened channels even when reading fails.
 
+### Fixed — bash output capture race
+
+- `bash` now waits for both output-copy fibers after child exit before reading stdout/stderr. Previously a short command could return empty or partial output because waiting for process exit did not wait for the buffered copies. The capture runs in a local switch inside the existing timeout race, so the timeout still bounds process execution and output draining.
+- Regression coverage includes deterministic delayed stdout/stderr with a nonzero exit code, cancellation of unfinished output draining, and a real clock timeout that verifies the spawned child has been killed. The existing workspace/pwd regression is retained.
+
 ### Tests
 
-- OCaml coverage includes `test_multimodal` (17 cases) and `test_multimodal_safety` (3 compatibility/file-cleanup regressions), bringing the collected total to **1634** tests. Python totals are **174 passed / 20 skipped**, including 13 new HTTP integration/helper cases exercising the actual Python → C → OCaml → provider path, base64/local images, malformed input, legacy JSON, persistence and current-conversation flags. The two existing callback-memory warnings remain.
+- OCaml coverage includes `test_multimodal` (17 cases), `test_multimodal_safety` (3 compatibility/file-cleanup regressions) and three bash capture/timeout regressions, bringing the collected total to **1637** tests. Python totals are **174 passed / 20 skipped**, including 13 new HTTP integration/helper cases exercising the actual Python → C → OCaml → provider path, base64/local images, malformed input, legacy JSON, persistence and current-conversation flags. The two existing callback-memory warnings remain.
 
 ## v0.11.0-beta.20261013 — apply_patch + agent-as-tool + progressive tool loading
 
