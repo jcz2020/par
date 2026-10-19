@@ -96,7 +96,8 @@ let test_memory_tools_scope_isolation () =
           match run_handler (resolve "remember_memory") input rt with
           | Types.Success _ -> ()
           | Types.Error e -> Alcotest.failf "remember_memory: %s" e.message
-          | Types.Handoff _ -> Alcotest.fail "unexpected handoff");
+          | Types.Handoff _ -> Alcotest.fail "unexpected handoff"
+          | Types.Approval_required _ -> Alcotest.fail "unexpected approval request");
 
         Invoke_context.with_context ctx_a (fun () ->
           let input = `Assoc [("query", `String "OCaml great language")] in
@@ -105,7 +106,8 @@ let test_memory_tools_scope_isolation () =
             let count = Yojson.Safe.Util.(result |> member "count" |> to_int) in
             Alcotest.(check int) "scope A recalls 1" 1 count
           | Types.Error e -> Alcotest.failf "recall_memory: %s" e.message
-          | Types.Handoff _ -> Alcotest.fail "unexpected handoff");
+          | Types.Handoff _ -> Alcotest.fail "unexpected handoff"
+          | Types.Approval_required _ -> Alcotest.fail "unexpected approval request");
 
         let ctx_b = Invoke_context.create ~session_id:scope_b () in
         Invoke_context.with_context ctx_b (fun () ->
@@ -115,7 +117,8 @@ let test_memory_tools_scope_isolation () =
             let count = Yojson.Safe.Util.(result |> member "count" |> to_int) in
             Alcotest.(check int) "scope B recalls 0" 0 count
           | Types.Error e -> Alcotest.failf "recall_memory: %s" e.message
-          | Types.Handoff _ -> Alcotest.fail "unexpected handoff");
+          | Types.Handoff _ -> Alcotest.fail "unexpected handoff"
+          | Types.Approval_required _ -> Alcotest.fail "unexpected approval request");
 
         ignore (Runtime.close rt)))
 

@@ -111,6 +111,9 @@ let test_fetch_url_times_out () =
        Unix._exit 1
      | Handoff _ ->
         Printf.eprintf "FAIL: fetch_url returned Handoff\n%!";
+        Unix._exit 1
+     | Approval_required _ ->
+        Printf.eprintf "FAIL: fetch_url returned Approval_required\n%!";
         Unix._exit 1))
 
 (* -------------------------------------------------------------------------- *)

@@ -172,7 +172,8 @@ let policy_rejects ~policy_name ~policy_mod ~argv =
         policy_name policy_name (String.concat " " argv)
     | Handoff _ ->
       Alcotest.failf "%s: unexpected handoff for policy %s"
-        policy_name policy_name)
+        policy_name policy_name
+    | Approval_required _ -> Alcotest.fail "unexpected approval request")
 
 let policy_enforcement_suite =
   "policy_enforcement", [
