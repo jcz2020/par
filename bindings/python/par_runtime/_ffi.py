@@ -201,6 +201,12 @@ _lib.par_invoke.restype = ctypes.c_void_p
 _lib.par_invoke_ext.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
 _lib.par_invoke_ext.restype = ctypes.c_void_p
 
+# Rich-content JSON input; returned memory follows par_invoke ownership.
+_lib.par_invoke_content.argtypes = [
+    ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_int,
+]
+_lib.par_invoke_content.restype = ctypes.c_void_p
+
 # char* par_generate(par_runtime_t* rt, const char* agent_id, const char* message);
 # Caller MUST free() the returned string — same memory model as par_invoke.
 _lib.par_generate.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]

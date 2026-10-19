@@ -4,6 +4,11 @@
 
 本目录包含 PAR (Programmable Agent Runtime) 的用户文档。
 
+最新预发布版是 `v0.11.0-beta.20261013`，包括工具组合、补丁应用和渐进式工具加载。
+Python 可用 `pip install --index-url https://pypi.org/simple par-runtime==0.11.0b20261013`
+显式安装；默认稳定版仍是 v0.10.0。两种 SDK 的多模态输入目前是 `main` 上的开发中
+能力，不在这个已发布 beta 内。
+
 文档按 [Diátaxis](https://diataxis.fr/) 框架组织为四个分类：教程、操作指南、参考、解释。
 
 ---
@@ -67,6 +72,7 @@
 | 文档 | 内容 |
 |------|------|
 | [架构深度解析](explanation/architecture.md) | 核心抽象、模块结构、数据流、类型系统、并发模型、事件流 |
+| [多模态输入设计](explanation/multimodal-completion.md) | OCaml/Python 共享内容表示、存档兼容性与富内容输入校验 |
 
 ### 常见问题
 

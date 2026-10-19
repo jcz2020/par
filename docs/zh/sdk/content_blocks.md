@@ -42,6 +42,7 @@ type content_block =
       source : image_source;
       media_type : string;
       data : string;
+      detail : string option;
       cache_control : cache_control option;
     }
 ```
@@ -289,6 +290,34 @@ let result = Runtime.invoke_content rt ~agent_id:"vision"
 ```
 
 `Runtime.invoke` 是 `Runtime.invoke_content` 的薄封装——它把字符串包成单个文本块。两者共用同一份实现，因此不会出现行为分叉。
+
+### Python 输入
+
+Python 绑定提供相同的同步操作和内容构造函数：
+
+```python
+from par_runtime import Runtime, text, image_url, image_base64, image_file
+
+# rt 是已经初始化、并注册了 "vision" agent 的 Runtime。
+response_json = rt.invoke_content("vision", [
+    text("描述这张图片"),
+    image_url("https://example.com/photo.png", detail="low"),
+], save=True, update_current=True)
+
+local_image = image_file("assets/photo.jpg")
+inline_image = image_base64("iVBORw0KGgo...", media_type="image/png")
+```
+
+构造函数返回 SDK 已有的带标签数组 JSON 块，不引入另一套 provider 专属输入格式。
+`invoke_content` 返回与 `invoke` 相同的 JSON 响应。
+`save=True` 持久化本次调用的对话，`update_current=False` 不覆盖共享的当前对话状态。
+文件辅助函数在 I/O 失败时抛出 `OSError`。格式错误的内容块在调用 provider 前抛出
+`PARInvokeError`。用户输入只接受文本和图像块，不接受 `Tool_use_block` 或
+`Tool_result_block`。
+
+新增 `detail` 字段以前保存的图像块仍可解码：缺少的 `detail` 默认为 `None`。
+新内容块在保存和加载后会保留该提示。OCaml 的 `image_file` 辅助函数在读取失败时
+也会关闭文件通道。
 
 ### Provider 线路格式
 

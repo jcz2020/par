@@ -54,6 +54,11 @@ char* par_invoke(par_runtime_t* rt, const char* agent_id,
 char* par_invoke_ext(par_runtime_t* rt, const char* agent_id,
                      const char* message, int save, int update_current);
 
+/* Tagged-array content_block JSON list. Returns the same envelope and owned
+   string as par_invoke. Explicit flags preserve the extended call contract. */
+char* par_invoke_content(par_runtime_t* rt, const char* agent_id,
+                        const char* content_json, int save, int update_current);
+
 /* Long-output pure generation — returns JSON envelope with the
    generate_result fields. Skips the ReAct loop; auto-continues on
    Max_tokens. Caller must free() the returned string. */

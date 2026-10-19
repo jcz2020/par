@@ -139,6 +139,38 @@
 
 ---
 
+### 2026-10-19: Published beta verification
+
+**Before:** `v0.11.0-beta.20261013` was prepared on main but not published.
+**After:** The existing tag at `416ef86` was pushed with explicit user approval.
+The release is marked as a pre-release, with two Python wheels and source/opam
+assets. Release, wheel publishing, archive publishing and four-platform release
+acceptance completed successfully. The tag contains 1614 OCaml tests; development
+work after that tag is not part of the published beta.
+**Reason:** Provide an opt-in build without replacing stable v0.10.0.
+**Affected surface:** GitHub release assets and the Python package index.
+**Rollback:** Do not move a published tag or overwrite assets; use the package
+index's withdrawal mechanism or a separately authorized replacement release.
+An isolated install from the official package index imported the published wheel
+and found the agent-as-tool API. A configured third-party mirror had not synced it.
+
+### 2026-10-19: Multimodal completion correction
+
+**Before:** The initial multimodal row above deferred Python rich input without
+a technical blocker. New image `detail` also lacked a decoding default.
+**After:** Synchronous `Runtime.invoke_content` ships through both SDK surfaces,
+using the existing content-block JSON contract and explicit persistence flags.
+Older images remain readable; failed file reads close their channels; the shared
+runtime rejects tool-protocol user blocks before provider I/O.
+**Reason:** Architecturally correct one-shot completion (R1/R3); documenting a
+deferral does not justify splitting a feasible implementation.
+**Affected surface:** Runtime validation, content decoding, image helpers, FFI,
+Python exports and bilingual SDK docs/tests.
+**Rollback:** Revert the completion changes together, retaining compatibility for
+already saved images. See [the complete decision](explanation/multimodal-completion.md).
+This supersedes the Python-deferral portion of the earlier row, not its provider
+or input-entry design. No additional version bump or tag is authorized here.
+
 ## 9. 相关文档
 
 - `docs/v0.3-ROADMAP.md`（内部文档） — 当前路线图

@@ -20,6 +20,10 @@ P-A-R (Programmable Agent Runtime) 是一个基于 OCaml 5.4+ 的模块化 Agent
 
 ## 架构
 
+混合文本和图像输入时，两种 SDK 均提供 `Runtime.invoke_content`。
+内容构造函数和 provider 线路格式参见[内容块](content_blocks.md)；
+纯文本 `Runtime.invoke` 保持不变。
+
 ```
 +-----------------------------------------------------------+
 |                       SDK (par)                           |

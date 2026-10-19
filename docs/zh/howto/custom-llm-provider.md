@@ -91,6 +91,11 @@ let config = {
 
 ## 测试
 
+处理多模态输入时，应读取 `message.content_blocks`，而不是只提取文本。
+两种 SDK 现在都能通过 `Runtime.invoke_content` 提交图片。保留块顺序，并将
+URL/base64 图片映射到 provider 的格式，参见[内容块](../sdk/content_blocks.md)。
+如果 provider 不支持图片，应显式返回错误，而不是静默丢弃。
+
 每个 provider 建议至少 3 个测试：
 1. `complete` happy path
 2. `complete` 错误响应（401 / 429 / 500）

@@ -266,6 +266,9 @@ val apply_skill_effect_to_config :
     text and images. Use this for multimodal input; [invoke] is the
     string-only convenience wrapper around it.
 
+    Tool protocol blocks are rejected with [Invalid_input] before any provider
+    call; tool results belong to the engine, not to user input.
+
     Both entry points share one implementation: [invoke] delegates here with
     the message wrapped as a single text block, so there is exactly one
     code path and no divergent behaviour between them. *)

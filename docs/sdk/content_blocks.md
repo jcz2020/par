@@ -43,6 +43,7 @@ type content_block =
       source : image_source;
       media_type : string;
       data : string;
+      detail : string option;
       cache_control : cache_control option;
     }
 ```
@@ -290,6 +291,35 @@ let result = Runtime.invoke_content rt ~agent_id:"vision"
 ```
 
 `Runtime.invoke` is a thin wrapper around `Runtime.invoke_content` — it wraps the string in a single text block. There is one implementation, so the two entry points cannot drift apart.
+
+### Python input
+
+The Python binding exposes the same synchronous operation and content constructors:
+
+```python
+from par_runtime import Runtime, text, image_url, image_base64, image_file
+
+# rt is an initialized Runtime with the "vision" agent already registered.
+response_json = rt.invoke_content("vision", [
+    text("Describe this image"),
+    image_url("https://example.com/photo.png", detail="low"),
+], save=True, update_current=True)
+
+local_image = image_file("assets/photo.jpg")
+inline_image = image_base64("iVBORw0KGgo...", media_type="image/png")
+```
+
+The constructors return the SDK's existing tagged-array JSON blocks; there is no
+second provider-specific input schema. `invoke_content` returns the same JSON
+envelope as `invoke`. `save=True` persists this call's conversation;
+`update_current=False` leaves shared current-conversation state unchanged. File
+helpers raise `OSError` on I/O failures. Malformed blocks raise `PARInvokeError`
+before the provider is called. User input accepts text and image blocks, not
+`Tool_use_block` or `Tool_result_block`.
+
+Persisted image blocks written before `detail` was added still decode: an absent
+`detail` defaults to `None`. New blocks preserve the hint when saved and loaded.
+The OCaml `image_file` helper also closes its channel on failed reads.
 
 ### Provider wire formats
 

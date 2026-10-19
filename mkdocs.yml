@@ -96,6 +96,7 @@ plugins:
             Concurrency Model: 并发模型
             Persistence and Durability: 持久化与可靠性
             RAG Architecture: RAG 架构
+            Multimodal Input Design: 多模态输入设计
             FAQ: 常见问题
           admonition_translations:
             note: 注
@@ -168,6 +169,7 @@ nav:
       - Concurrency Model: explanation/concurrency-model.md
       - Persistence and Durability: explanation/persistence-and-durability.md
       - RAG Architecture: explanation/rag-architecture.md
+      - Multimodal Input Design: explanation/multimodal-completion.md
       - FAQ: explanation/faq.md
 
 not_in_nav: |

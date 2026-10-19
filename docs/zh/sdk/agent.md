@@ -211,6 +211,17 @@ type llm_provider_config =
                 request_format : [ `Openai_compatible | `Anthropic_compatible ] }
 ```
 
+## 多模态用户输入
+
+混合文本和图像块时使用 `Runtime.invoke_content rt ~agent_id ~content ()`。
+既有的 `Runtime.invoke ... ~message` 保留为字符串封装，两者共用同一个引擎路径，
+共享工作区、取消、技能、流式回调、持久化和当前对话选项。
+
+Python 提供 `rt.invoke_content(agent_id, content, *, save=False,
+update_current=True)`，以及 `text`、`image_url`、`image_base64` 和 `image_file`
+构造函数。工具协议块不是合法的用户输入。示例和准确的 JSON 表示参见
+[内容块](content_blocks.md)。
+
 ## 运行时操作
 
 ### 注册 Agent

@@ -930,6 +930,10 @@ let invoke_content rt ~agent_id ~content ?workspace ?cancellation_token ?convers
     ?(skills : string list option)
     ?(context : Invoke_context.invoke_context option)
     ?(update_current = true) ?(save = false) () =
+  if List.exists (function Tool_use_block _ | Tool_result_block _ -> true | _ -> false) content then
+    Result.Error (Invalid_input "user content accepts only text and image blocks",
+      Option.value conversation ~default:{ Types.messages = []; metadata = [] })
+  else
   let text_part = Message.string_of_content content in
   let effective_workspace = Option.value workspace ~default:rt.workspace in
   let ctx = match context with
@@ -2602,4 +2606,3 @@ let clear_user_activated_skills rt =
 
 let get_user_activated_skills rt =
   rt.user_activated_skills
-

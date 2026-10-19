@@ -534,6 +534,24 @@ char* par_invoke_ext(par_runtime_t* rt, const char* agent_id,
     CAMLreturnT(char*, ret);
 }
 
+char* par_invoke_content(par_runtime_t* rt, const char* agent_id,
+                         const char* content_json, int save, int update_current) {
+    if (rt == NULL || agent_id == NULL || content_json == NULL) return NULL;
+    PAR_MUTEX_LOCK(ocaml_lock);
+    CAMLparam0();
+    CAMLlocal3(c_aid, c_content, result);
+    c_aid = caml_copy_string(agent_id);
+    c_content = caml_copy_string(content_json);
+    value args[5] = { rt->_ocaml_value, c_aid, c_content,
+                      Val_int(save), Val_int(update_current) };
+    const value* cb = lookup_cb("par_invoke_content");
+    result = caml_callbackN_exn(*cb, 5, args);
+    char* ret = extract_string(result);
+    CAMLdrop;
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    return ret;
+}
+
 char* par_generate(par_runtime_t* rt, const char* agent_id,
                    const char* message) {
     CAMLparam0();

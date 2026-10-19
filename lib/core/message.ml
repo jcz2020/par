@@ -79,10 +79,9 @@ let image_file path ?media_type ?detail () : (content_block, string) result =
   let bytes =
     try
       let ic = open_in_bin path in
-      let len = in_channel_length ic in
-      let b = really_input_string ic len in
-      close_in ic;
-      Ok b
+      Fun.protect ~finally:(fun () -> close_in_noerr ic) (fun () ->
+        let len = in_channel_length ic in
+        Ok (really_input_string ic len))
     with Sys_error msg -> Error msg
        | End_of_file -> Error (Printf.sprintf "Unexpected end of file: %s" path)
   in

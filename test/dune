@@ -657,3 +657,8 @@
   (name test_multimodal)
   (libraries par eio_main alcotest)
   (modules test_multimodal))
+
+(test
+  (name test_multimodal_safety)
+  (libraries par alcotest)
+  (modules test_multimodal_safety))

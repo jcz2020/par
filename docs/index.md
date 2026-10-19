@@ -80,6 +80,9 @@ Explanation docs discuss the why behind PAR's design. Read these when you want t
 
 [Architecture deep dive](explanation/architecture.md): core abstractions, module structure, data flow, type system, Eio concurrency, event stream.
 
+[Multimodal input design](explanation/multimodal-completion.md): shared OCaml/Python
+content representation, persistence compatibility and rich-input validation.
+
 ### Common questions
 
 [FAQ](explanation/faq.md): 6 common questions answered (PAR vs LangChain, picking a surface, streaming behavior, persistence, provider support, the skill system).

@@ -217,6 +217,18 @@ type llm_provider_config =
                 request_format : [ `Openai_compatible | `Anthropic_compatible ] }
 ```
 
+## Multimodal user input
+
+Use `Runtime.invoke_content rt ~agent_id ~content ()` for mixed text and image
+blocks. The existing `Runtime.invoke ... ~message` remains the string wrapper;
+both use one engine path and share workspace, cancellation, skills, streaming
+callbacks, persistence and current-conversation options.
+
+Python provides `rt.invoke_content(agent_id, content, *, save=False,
+update_current=True)` with `text`, `image_url`, `image_base64` and `image_file`
+constructors. Tool protocol blocks are not valid user input. See
+[Content blocks](content_blocks.md) for examples and the exact JSON representation.
+
 ## Runtime operations
 
 ### Registering an agent

@@ -22,6 +22,10 @@ PAR (Programmable Agent Runtime) ships as one opam package (`par`) plus a PyPI P
 
 ## Architecture at a glance
 
+For mixed text/image input, both SDK surfaces provide `Runtime.invoke_content`.
+Content constructors and provider wire formats are documented in
+[Content blocks](content_blocks.md); text-only `Runtime.invoke` remains unchanged.
+
 ```mermaid
 graph TD
   P["Par facade: open Par"]

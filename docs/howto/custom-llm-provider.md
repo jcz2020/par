@@ -96,6 +96,12 @@ let config = {
 
 ## Testing
 
+For multimodal input, consume `message.content_blocks` rather than extracting
+only text. Both SDKs can now submit images through `Runtime.invoke_content`.
+Preserve block order and map URL/base64 images to your provider's schema; see
+[Content blocks](../sdk/content_blocks.md). If the provider cannot accept images,
+return an explicit error instead of silently dropping them.
+
 Every provider should have at least 3 tests:
 1. `complete` happy path
 2. `complete` error responses (401 / 429 / 500)

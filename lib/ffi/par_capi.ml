@@ -928,15 +928,17 @@ let do_get_user_activated_skills (state_id : int) : string =
     Obj.obj result
 
 let do_invoke (state_id : int) (agent_id : string) (message : string)
-    ?save ?update_current () =
+    ?save ?update_current ?content () =
   match get_state state_id with
   | None -> None
   | Some _ ->
     let result = dispatch state_id (fun rt _env ->
       (try
-         let result = Par.Runtime.invoke rt
-            ~agent_id ~message
-            ?save ?update_current () in
+         let result = match content with
+           | None -> Par.Runtime.invoke rt ~agent_id ~message ?save ?update_current ()
+           | Some blocks ->
+             Par.Runtime.invoke_content rt ~agent_id ~content:blocks ?save ?update_current ()
+         in
           let json = match result with
             | Ok { Par.Types.response = resp; conversation = _; approval_pending = _ } ->
               Printf.sprintf "{\"status\": \"ok\", \"content\": %s}"
@@ -2010,7 +2012,30 @@ let () =
          (save_int : int) (update_int : int) ->
        let state_id : int = Obj.magic state_id_obj in
        unwrap (do_invoke state_id agent_id message
-                 ~save:(save_int <> 0) ~update_current:(update_int <> 0) ()))
+                  ~save:(save_int <> 0) ~update_current:(update_int <> 0) ()))
+
+let () =
+  Callback.register "par_invoke_content"
+    (fun (state_id : int) (agent_id : string) (content_json : string)
+         (save_int : int) (update_int : int) ->
+      let parse () =
+        match Yojson.Safe.from_string content_json with
+        | `List blocks ->
+          let rec decode i acc = function
+            | [] -> Ok (List.rev acc)
+            | json :: rest ->
+              (match Types.content_block_of_yojson json with
+               | Ok block -> decode (i + 1) (block :: acc) rest
+               | Error _ -> Error (Printf.sprintf "Invalid content block at index %d" i))
+          in
+          decode 0 [] blocks
+        | _ -> Error "content must be a JSON list of content blocks"
+      in
+      match (try parse () with Yojson.Json_error _ -> Error "Invalid content JSON") with
+      | Error message -> Obj.repr (error_json message)
+      | Ok content ->
+        unwrap (do_invoke state_id agent_id "" ~content
+                  ~save:(save_int <> 0) ~update_current:(update_int <> 0) ()))
 
 (* Long-output generation mode (plan §3.1.4) *)
 let () =

@@ -15,11 +15,18 @@ from par_runtime.runtime import (
     ToolCallDelta,
     UsageUpdate,
 )
+from par_runtime.content import ContentBlock, ImageDetail, text, image_url, image_base64, image_file
 
 __version__ = "0.11.0-beta.20261013"
 
 __all__ = [
     "Runtime",
+    "ContentBlock",
+    "ImageDetail",
+    "text",
+    "image_url",
+    "image_base64",
+    "image_file",
     "Done",
     "Event",
     "TextDelta",

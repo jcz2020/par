@@ -10,7 +10,7 @@
 
 ### Fixed — Anthropic base64 images were unusable
 
-- The Anthropic adapter emitted `media_type` and `data` as siblings of `source`. Anthropic's schema requires them **inside** `source` for base64 payloads, so base64 image requests were rejected. The wire format now matches the schema. Because the public API had no way to send an image until this release, no existing user was affected.
+- The Anthropic adapter emitted `media_type` and `data` as siblings of `source`. Anthropic's schema requires them **inside** `source` for base64 payloads. The wire format now matches the schema; provider payload tests cover the corrected shape. No live external model acceptance claim is made by these tests.
 
 ### Fixed — OpenAI dropped images silently
 
@@ -18,11 +18,13 @@
 
 ### Scope note
 
-- `Runtime.invoke_content` is OCaml-only in this release. The Python binding's `invoke` takes a string, and exposing rich content over FFI requires a JSON contract for `content_block` plus Python-side construction and error semantics. This is recorded as a known parity gap rather than left implicit — it will be closed in a follow-up release, not deferred silently.
+- Python ships `Runtime.invoke_content(agent_id, content, *, save=False, update_current=True)` in the same feature. Public constructors `text`, `image_url`, `image_base64` and `image_file` use the existing tagged-array content-block JSON contract. The C bridge returns the same envelope and ownership convention as `invoke`; malformed JSON and invalid user blocks are rejected before provider I/O.
+- User input accepts text and image blocks only. Tool protocol blocks are rejected by the shared OCaml runtime entry point, so both language surfaces enforce the same rule.
+- Older persisted images without `detail` remain readable (`None` by default). The local image helper now closes opened channels even when reading fails.
 
 ### Tests
 
-- OCaml test count 1614 → **1631** (+17, new `test_multimodal` suite).
+- OCaml coverage includes `test_multimodal` (17 cases) and `test_multimodal_safety` (3 compatibility/file-cleanup regressions), bringing the collected total to **1634** tests. Python totals are **174 passed / 20 skipped**, including 13 new HTTP integration/helper cases exercising the actual Python → C → OCaml → provider path, base64/local images, malformed input, legacy JSON, persistence and current-conversation flags. The two existing callback-memory warnings remain.
 
 ## v0.11.0-beta.20261013 — apply_patch + agent-as-tool + progressive tool loading
 

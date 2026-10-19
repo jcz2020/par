@@ -7,6 +7,8 @@ import threading
 from dataclasses import dataclass
 from typing import Any, Callable, Iterator, Optional, Union
 
+from par_runtime.content import ContentBlock
+
 from par_runtime._ffi import (
     _lib,
     _c_str,
@@ -554,6 +556,29 @@ class Runtime:
                 raise PARInvokeError(parsed["error"])
         except json.JSONDecodeError:
             pass
+        return result
+
+    def invoke_content(
+        self, agent_id: str, content: list[ContentBlock], *,
+        save: bool = False, update_current: bool = True,
+    ) -> str:
+        """Invoke with text and image blocks built by the content helpers.
+
+        Returns the same JSON envelope as ``invoke``. ``save`` persists the
+        conversation; ``update_current=False`` avoids replacing shared current
+        state. Malformed content raises PARInvokeError before provider I/O.
+        """
+        self._check_handle()
+        result_ptr = _lib.par_invoke_content(
+            self._handle, _c_str(agent_id), _c_str(json.dumps(content)),
+            int(save), int(update_current),
+        )
+        result = _py_str(result_ptr)
+        if not result:
+            raise PARInvokeError(f"invoke_content failed for agent: {agent_id}")
+        parsed = json.loads(result)
+        if isinstance(parsed, dict) and "error" in parsed:
+            raise PARInvokeError(parsed["error"])
         return result
 
     def invoke_start(self, agent_id: str, message: str,
