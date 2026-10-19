@@ -210,53 +210,44 @@ let policy_enforcement_suite =
 
 (* A process can exit before its switch-attached output-copy fibers drain.
    Release those fibers from await, without yielding, to make the race reliable. *)
-module Delayed_output_process = struct
-  type t = { output_ready : unit Eio.Promise.u; exit_code : int }
-  type tag = [ `Generic ]
-
-  let pid _ = 0
-  let await t =
-    Eio.Promise.resolve t.output_ready ();
-    `Exited t.exit_code
-  let signal _ _ = ()
-end
-
-module Delayed_output_manager = struct
-  type t = {
-    stdout : string;
-    stderr : string;
-    exit_code : int;
-    before_copy : unit -> unit;
-  }
-  type tag = [ `Generic ]
-
-  let pipe _ ~sw:_ = failwith "unused by bash capture"
-
-  let spawn t ~sw ?cwd:_ ?stdin:_ ?stdout ?stderr ?env:_ ?executable:_ _argv =
-    let ready, output_ready = Eio.Promise.create () in
-    let copy sink text =
-      Option.iter (fun sink ->
-        Eio.Fiber.fork ~sw (fun () ->
-          Eio.Promise.await ready;
-          t.before_copy ();
-          Eio.Flow.copy_string text sink)) sink
-    in
-    copy stdout t.stdout;
-    copy stderr t.stderr;
-    Eio.Resource.T (
-      { Delayed_output_process.output_ready; exit_code = t.exit_code },
-      Eio.Process.Pi.process (module Delayed_output_process))
-end
+let delayed_output_manager (type tag)
+    (mgr : [> tag Eio.Process.mgr_ty] Eio.Resource.t)
+    ~stdout:text_out ~stderr:text_err ~exit_code ~before_copy =
+  let Eio.Resource.T (state, ops) = mgr in
+  let module Manager = (val Eio.Resource.get ops Eio.Process.Pi.Mgr) in
+  let module Process = struct
+    type t = unit Eio.Promise.u
+    type tag = Manager.tag
+    let pid _ = 0
+    let await ready = Eio.Promise.resolve ready (); `Exited exit_code
+    let signal _ _ = ()
+  end in
+  let module Delayed_manager = struct
+    (* Delegate the complete installed interface; only spawn is simulated. *)
+    include Manager
+    let spawn _ ~sw ?cwd:_ ?stdin:_ ?stdout ?stderr ?env:_ ?executable:_ _argv =
+      let ready, output_ready = Eio.Promise.create () in
+      let copy sink text =
+        Option.iter (fun sink ->
+          Eio.Fiber.fork ~sw (fun () ->
+            Eio.Promise.await ready;
+            before_copy ();
+            Eio.Flow.copy_string text sink)) sink
+      in
+      copy stdout text_out;
+      copy stderr text_err;
+      Eio.Resource.T (output_ready, Eio.Process.Pi.process (module Process))
+  end in
+  Eio.Resource.T (state, Eio.Process.Pi.mgr (module Delayed_manager))
 
 let output_capture_suite =
   "output_capture", [
     Alcotest.test_case "both outputs drain after child exit and preserve status" `Quick (fun () ->
       Eio_main.run (fun env ->
         Eio.Switch.run (fun sw ->
-          let process_mgr = Eio.Resource.T (
-            { Delayed_output_manager.stdout = "complete stdout\n";
-              stderr = "complete stderr\n"; exit_code = 7; before_copy = (fun () -> ()) },
-            Eio.Process.Pi.mgr (module Delayed_output_manager)) in
+          let process_mgr = delayed_output_manager (Eio.Stdenv.process_mgr env)
+            ~stdout:"complete stdout\n" ~stderr:"complete stderr\n"
+            ~exit_code:7 ~before_copy:(fun () -> ()) in
           match Runtime.create ~config:test_config sw with
           | Error e -> Alcotest.failf "create: %s" (error_to_string e)
           | Ok rt ->
@@ -279,10 +270,9 @@ let output_capture_suite =
     Alcotest.test_case "timeout covers unfinished output drain after child exit" `Quick (fun () ->
       Eio_main.run (fun env ->
         Eio.Switch.run (fun sw ->
-          let process_mgr = Eio.Resource.T (
-            { Delayed_output_manager.stdout = "unread"; stderr = ""; exit_code = 0;
-              before_copy = Eio.Fiber.await_cancel },
-            Eio.Process.Pi.mgr (module Delayed_output_manager)) in
+          let process_mgr = delayed_output_manager (Eio.Stdenv.process_mgr env)
+            ~stdout:"unread" ~stderr:"" ~exit_code:0
+            ~before_copy:Eio.Fiber.await_cancel in
           match Runtime.create ~config:test_config sw with
           | Error e -> Alcotest.failf "create: %s" (error_to_string e)
           | Ok rt ->
@@ -333,9 +323,7 @@ let timeout_suite =
           let module Manager = (val Eio.Resource.get mgr_ops Eio.Process.Pi.Mgr) in
           let child_pid = ref None in
           let module Recording_manager = struct
-            type t = Manager.t
-            type tag = Manager.tag
-            let pipe = Manager.pipe
+            include Manager
             let spawn t ~sw ?cwd ?stdin ?stdout ?stderr ?env ?executable argv =
               let child = Manager.spawn t ~sw ?cwd ?stdin ?stdout ?stderr ?env ?executable argv in
               child_pid := Some (Eio.Process.pid child);
