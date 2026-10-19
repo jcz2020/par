@@ -97,6 +97,7 @@ let img = Image_block {
   source = Url "https://example.com/photo.png";
   media_type = "image/png";
   data = "";
+  detail = None;
   cache_control = None;
 }
 
@@ -105,9 +106,12 @@ let img_b64 = Image_block {
   source = Base64 "iVBORw0KGgo...";
   media_type = "image/png";
   data = "";
+  detail = None;
   cache_control = None;
 }
 ```
+
+相比手工拼装这些记录，更推荐使用「图像块」一节中的 `Message` 辅助函数。
 
 通过填充记录来构建完整消息：
 
@@ -245,9 +249,55 @@ type image_source =
   | Base64 of string
 ```
 
-`Image_block` 携带对图像数据的引用及其 MIME 类型。`Url` 指向远程 URL 托管的图像；provider 获取它。`Base64` 直接在块中嵌入原始字节。
+`Image_block` 携带对图像数据的引用及其 MIME 类型。`Url` 指向远程 URL 托管的图像；provider 获取它。`Base64` 直接在块中嵌入原始字节。`detail` 是 provider 相关的分辨率提示——OpenAI 接受 `"auto"`、`"low"` 或 `"high"`，其他 provider 忽略它。
 
-图像是 PAR 为多模态内容做的类型级准备的一部分。`` `Anthropic `` 线路格式已经原生支持图像块。面向用户的图像工具和更高级的 API 计划在 v0.7 中推出。
+### 构造图像块
+
+使用 `Message` 辅助函数，而不是手工拼装记录——它们能保证 `cache_control` 与 `detail` 一致：
+
+```ocaml
+open Par
+
+(* 远程图像——由 provider 拉取，字节不经过 PAR *)
+let remote = Message.image_url "https://example.com/photo.png" ()
+
+(* 显式指定 MIME 类型与分辨率提示 *)
+let remote_hd = Message.image_url "https://example.com/photo.jpg"
+  ~media_type:"image/jpeg" ~detail:"high" ()
+
+(* 字节已在手中 *)
+let inline = Message.image_base64 ~data:"iVBORw0KGgo..." ~media_type:"image/png" ()
+
+(* 本地文件——读取并做 base64 编码；MIME 类型由扩展名推断 *)
+let local = match Message.image_file "assets/photo.png" () with
+  | Ok block -> block
+  | Error msg -> failwith msg
+```
+
+`Message.media_type_of_extension` 映射 `.png`、`.jpg`、`.jpeg`、`.gif`、`.webp` 与 `.bmp`；其他格式请显式传 `~media_type`。`image_file` 在文件无法读取时返回 error 而非抛出异常。
+
+### 把图像发给模型
+
+`Runtime.invoke` 接受纯字符串。多模态输入请用 `Runtime.invoke_content`，它接受内容块列表：
+
+```ocaml
+let result = Runtime.invoke_content rt ~agent_id:"vision"
+  ~content:[
+    Message.text "这张图里有什么？";
+    Message.image_url "https://example.com/photo.png" ();
+  ] ()
+```
+
+`Runtime.invoke` 是 `Runtime.invoke_content` 的薄封装——它把字符串包成单个文本块。两者共用同一份实现，因此不会出现行为分叉。
+
+### Provider 线路格式
+
+| Provider | 图像编码方式 |
+|----------|--------------|
+| `` `Openai `` | 仅当消息**携带图像**时，`content` 才切换为数组形态（`[{type:"text",...}, {type:"image_url",...}]`）。不含图像的消息保持纯字符串形态，因此既有请求载荷不变。`Base64` 源以 data URI 发送（`data:<media_type>;base64,<data>`）——这是 OpenAI 唯一接受的内联形式。`detail` 输出为 `image_url.detail`。 |
+| `` `Anthropic `` | 输出 `{"type":"image","source":{...}}`。base64 情形下 `media_type` 与 `data` 位于 `source` **内部**，符合 Anthropic 的 schema。 |
+
+`` `Ollama `` 适配器沿用 OpenAI 的编码方式。
 
 ## 从 string 迁移
 

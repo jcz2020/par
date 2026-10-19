@@ -138,6 +138,7 @@ val run_structured :
   ?on_after_llm:(llm_response -> llm_response option) option ->
   ?on_repair_attempt:(int -> error_category -> conversation -> unit) ->
   ?conversation:conversation ->
+  ?user_content:Types.content_block list ->
   response_schema:Yojson.Safe.t ->
   llm_service ->
   cancellation_token ->
@@ -160,6 +161,7 @@ val run_agent_structured :
   ?enable_handoff:bool ->
   ?net:_ Eio.Net.t ->
   ?budget_threshold:int ->
+  ?user_content:Types.content_block list ->
   response_schema:Yojson.Safe.t ->
   llm_service ->
   cancellation_token ->
@@ -188,6 +190,7 @@ val run_agent :
   ?enable_handoff:bool ->
   ?net:_ Eio.Net.t ->
   ?budget_threshold:int ->
+  ?user_content:Types.content_block list ->
   cancellation_token ->
   agent_config ->
   string ->

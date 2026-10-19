@@ -65,13 +65,18 @@ let emit_block_with_cache (block : content_block) : Yojson.Safe.t =
       `Assoc [("type", `String "tool_result");
               ("tool_use_id", `String tool_use_id);
               ("content", `String content)]
-    | Image_block { source; media_type; data; _ } ->
+    | Image_block { source; media_type; _ } ->
+      (* Anthropic's image schema puts the MIME type INSIDE "source" for
+         base64 payloads, and has no top-level "data" key. Emitting
+         media_type/data as siblings of "source" produced a body Anthropic
+         rejects, so base64 images were unusable. *)
       let src = match source with
         | Url u -> `Assoc [("type", `String "url"); ("url", `String u)]
-        | Base64 b -> `Assoc [("type", `String "base64"); ("data", `String b)]
+        | Base64 b ->
+          `Assoc [("type", `String "base64"); ("media_type", `String media_type);
+                  ("data", `String b)]
       in
-      `Assoc [("type", `String "image"); ("source", src);
-              ("media_type", `String media_type); ("data", `String data)]
+      `Assoc [("type", `String "image"); ("source", src)]
   in
   match block with
   | Text_block { cache_control = Some cc; _ }

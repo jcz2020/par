@@ -1,5 +1,29 @@
 # CHANGES
 
+## v0.12.0 (unreleased) — multimodal input: public rich-content entry point + OpenAI image wire format
+
+### Added — multimodal input
+
+- **NEW** `Runtime.invoke_content` takes a `Types.content_block list` instead of a plain string, so a message can carry text and images together. `Runtime.invoke` is now a thin wrapper around it (the string is wrapped in one text block) — one implementation, so the two entry points cannot drift apart. No existing signature changed; `Runtime.invoke` behaves exactly as before.
+- **NEW** `Message` constructors: `Message.text`, `Message.image_url`, `Message.image_base64`, `Message.image_file`. `image_file` reads a local image and base64-encodes it; the MIME type is inferred from the extension via `Message.media_type_of_extension` (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.bmp`) and can be overridden with `~media_type`. It returns an error rather than raising when the file cannot be read.
+- **NEW** `Image_block.detail : string option` — the provider-specific resolution hint. OpenAI accepts `"auto"`, `"low"` or `"high"`; other providers ignore it. This adds a field to a public variant's inline record, so code that constructs `Image_block` directly must add `detail = None`. It is added now rather than later so the same public variant is not broken twice.
+
+### Fixed — Anthropic base64 images were unusable
+
+- The Anthropic adapter emitted `media_type` and `data` as siblings of `source`. Anthropic's schema requires them **inside** `source` for base64 payloads, so base64 image requests were rejected. The wire format now matches the schema. Because the public API had no way to send an image until this release, no existing user was affected.
+
+### Fixed — OpenAI dropped images silently
+
+- The OpenAI adapter flattened every message to a plain string, discarding image blocks. Messages carrying images now use the array content form (`[{type:"text",...}, {type:"image_url",...}]`), which is the only form OpenAI accepts for multimodal input. `Base64` sources are sent as a data URI (`data:<media_type>;base64,<data>`), the only inline form OpenAI accepts. **Messages without images keep the plain string form**, so existing request payloads are byte-for-byte unchanged.
+
+### Scope note
+
+- `Runtime.invoke_content` is OCaml-only in this release. The Python binding's `invoke` takes a string, and exposing rich content over FFI requires a JSON contract for `content_block` plus Python-side construction and error semantics. This is recorded as a known parity gap rather than left implicit — it will be closed in a follow-up release, not deferred silently.
+
+### Tests
+
+- OCaml test count 1614 → **1631** (+17, new `test_multimodal` suite).
+
 ## v0.11.0-beta.20261013 — apply_patch + agent-as-tool + progressive tool loading
 
 ### Added — apply_patch tool

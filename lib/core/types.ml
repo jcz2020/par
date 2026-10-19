@@ -185,6 +185,7 @@ type content_block =
       source : image_source;
       media_type : string;
       data : string;
+      detail : string option;
       cache_control : cache_control option;
     }
 [@@deriving yojson]

@@ -191,6 +191,47 @@ let role_to_string = function
   | Assistant -> "assistant"
   | Tool -> "tool"
 
+(* OpenAI multimodal wire format.
+   OpenAI accepts a message "content" as either a plain string or an array of
+   typed parts. The array form is the only way to send an image, so it is
+   used exactly when the message carries image blocks; every other message
+   keeps the string form so existing request payloads are unchanged. *)
+let image_part_json (b : Types.content_block) : Yojson.Safe.t =
+  match b with
+  | Types.Image_block { source; media_type; detail; _ } ->
+    let url =
+      match source with
+      | Types.Url u -> u
+      | Types.Base64 encoded -> Printf.sprintf "data:%s;base64,%s" media_type encoded
+    in
+    let img_fields = [ ("url", `String url) ] in
+    let img_fields =
+      match detail with
+      | Some d -> ("detail", `String d) :: img_fields
+      | None -> img_fields
+    in
+    `Assoc [ ("type", `String "image_url"); ("image_url", `Assoc img_fields) ]
+  | _ -> `Assoc [ ("type", `String "text"); ("text", `String "") ]
+
+let has_image_block (msg : Types.message) =
+  List.exists
+    (function Types.Image_block _ -> true | _ -> false)
+    msg.content_blocks
+
+(* Parts of the array form. Text and image blocks map directly. Any other
+   block kind (tool use / tool result) has no place in OpenAI's multimodal
+   content array — OpenAI carries those in "tool_calls" and in separate
+   role=tool messages, which this provider already emits separately. *)
+let content_parts_json (msg : Types.message) : Yojson.Safe.t list =
+  List.filter_map
+    (fun (b : Types.content_block) ->
+      match b with
+      | Types.Text_block { text; _ } ->
+        Some (`Assoc [ ("type", `String "text"); ("text", `String text) ])
+      | Types.Image_block _ -> Some (image_part_json b)
+      | _ -> None)
+    msg.content_blocks
+
 let build_message_json msg =
   (* NOTE: msg.reasoning_content is intentionally NOT serialized into the
      outbound request body. OpenAI o1/o3 and most OpenAI-compatible APIs
@@ -198,8 +239,26 @@ let build_message_json msg =
      but not echoed back. *)
   let fields = [ ("role", `String (role_to_string msg.role)) ] in
   let fields =
-    let content_str = Message.text_of_message msg in
-    if content_str <> "" then ("content", `String content_str) :: fields else fields
+    if has_image_block msg then
+      let parts = content_parts_json msg in
+      (* Preserve any non-image text (e.g. a tool result payload) that the
+         string form would have carried, so switching to the array form never
+         loses content. *)
+      let extra =
+        msg.content_blocks
+        |> List.filter_map (function
+             | Types.Tool_result_block { content; _ } -> Some content
+             | _ -> None)
+        |> String.concat ""
+      in
+      let parts =
+        if extra = "" then parts
+        else `Assoc [ ("type", `String "text"); ("text", `String extra) ] :: parts
+      in
+      ("content", `List parts) :: fields
+    else
+      let content_str = Message.text_of_message msg in
+      if content_str <> "" then ("content", `String content_str) :: fields else fields
   in
   let fields =
     match msg.tool_calls with

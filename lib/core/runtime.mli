@@ -261,6 +261,32 @@ val apply_skill_effect_to_config :
 
 (** {1 Agent invocation} *)
 
+(** [invoke_content rt ~agent_id ~content ...] invokes an agent with rich
+    user content — a list of [Types.content_block] values, which may mix
+    text and images. Use this for multimodal input; [invoke] is the
+    string-only convenience wrapper around it.
+
+    Both entry points share one implementation: [invoke] delegates here with
+    the message wrapped as a single text block, so there is exactly one
+    code path and no divergent behaviour between them. *)
+val invoke_content :
+  runtime ->
+  agent_id:string ->
+  content:Types.content_block list ->
+  ?workspace:Workspace.workspace ->
+  ?cancellation_token:cancellation_token ->
+  ?conversation:conversation ->
+  ?on_tool_event:(event -> unit) ->
+  ?on_chunk:(llm_response_chunk -> unit) option ->
+  ?enable_handoff:bool ->
+  ?system_prompt_appendix:string ->
+  ?skills:string list ->
+  ?context:Invoke_context.invoke_context ->
+  ?update_current:bool ->
+  ?save:bool ->
+  unit ->
+  (invoke_result, error_category * conversation) result
+
 val invoke :
   runtime ->
   agent_id:string ->

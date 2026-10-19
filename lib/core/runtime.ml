@@ -925,11 +925,12 @@ let load_most_recent_conversation rt ?scope () =
   | Ok None -> Ok None
   | Error _ as e -> e
 
-let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
+let invoke_content rt ~agent_id ~content ?workspace ?cancellation_token ?conversation
     ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix
     ?(skills : string list option)
     ?(context : Invoke_context.invoke_context option)
     ?(update_current = true) ?(save = false) () =
+  let text_part = Message.string_of_content content in
   let effective_workspace = Option.value workspace ~default:rt.workspace in
   let ctx = match context with
     | Some c -> c
@@ -979,10 +980,10 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
        | None -> ())
     in
     let active_effects =
-      compute_active_skill_effects ~user_skills:ctx.user_activated_skills_snapshot rt message
+      compute_active_skill_effects ~user_skills:ctx.user_activated_skills_snapshot rt text_part
     in
     let active_skill_ids =
-      get_active_skill_ids ~user_skills:ctx.user_activated_skills_snapshot rt message
+      get_active_skill_ids ~user_skills:ctx.user_activated_skills_snapshot rt text_part
     in
     List.iter (fun sid ->
       publish_event rt (Skill_activated { skill_id = sid })
@@ -1006,7 +1007,7 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
      | _ when after_tool_count <> before_tool_count
            || composed_effect.system_prompt_override <> None ->
        let skill_ids =
-         get_active_skill_ids ~user_skills:ctx.user_activated_skills_snapshot rt message
+         get_active_skill_ids ~user_skills:ctx.user_activated_skills_snapshot rt text_part
        in
        let skill_id = match skill_ids with
          | [] -> "unknown"
@@ -1054,7 +1055,8 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
             ~enable_handoff:(Option.value enable_handoff ~default:false)
             ?net:(Option.map (fun n -> (Obj.obj n : _ Eio.Net.t)) rt.net)
             ?budget_threshold:rt.services.config.max_tool_schema_tokens
-            token config message llm_svc (per_call_registry ~rt ~workspace:effective_workspace)
+            ~user_content:content
+            token config text_part llm_svc (per_call_registry ~rt ~workspace:effective_workspace)
           with
           | Engine.Approval_pending payload ->
             (* Unique persistence key. [payload.run_id] is the runtime's
@@ -1164,7 +1166,15 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
   Metrics.merge_into ~target:rt.metrics ~source:ctx.metrics_accumulator;
   result)
 
- 
+let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
+    ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix
+    ?(skills : string list option)
+    ?(context : Invoke_context.invoke_context option)
+    ?(update_current = true) ?(save = false) () =
+  invoke_content rt ~agent_id ~content:(Message.content_of_string message)
+    ?workspace ?cancellation_token ?conversation
+    ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix
+    ?skills ?context ~update_current ~save ()
 
 let invoke_async rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
     ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix ?skills ?context () =

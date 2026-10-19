@@ -241,9 +241,9 @@ let run_llm_with_optional_streaming ?token llm agent_model agent_tools conv user
        in
        Error (Cancelled reason))
 
-let make_conversation system_prompt user_message =
+let make_conversation ?(user_content = []) system_prompt user_message =
   let sys = { role = System; content_blocks = Message.content_of_string system_prompt; tool_calls = None; tool_call_id = None; name = None; reasoning_content = None } in
-  let usr = { role = User; content_blocks = Message.content_of_string user_message; tool_calls = None; tool_call_id = None; name = None; reasoning_content = None } in
+  let usr = { role = User; content_blocks = (if user_content = [] then Message.content_of_string user_message else user_content); tool_calls = None; tool_call_id = None; name = None; reasoning_content = None } in
   let appendix = Invoke_context.appendix_text () in
   let metadata =
     if appendix = "" then []
@@ -342,6 +342,7 @@ let run_structured
     ?(on_after_llm : (llm_response -> llm_response option) option = None)
     ?on_repair_attempt
     ?conversation
+    ?(user_content : Types.content_block list = [])
     ~response_schema
     (llm : llm_service)
     token (agent : agent_config) user_message =
@@ -363,10 +364,10 @@ let run_structured
   in
   let conv0 = match conversation with
     | Some existing ->
-      let usr = { role = User; content_blocks = Message.content_of_string user_message; tool_calls = None;
+      let usr = { role = User; content_blocks = (if user_content = [] then Message.content_of_string user_message else user_content); tool_calls = None;
                   tool_call_id = None; name = None; reasoning_content = None } in
       { existing with messages = existing.messages @ [ usr ] }
-    | None -> make_conversation sys_prompt user_message
+    | None -> make_conversation sys_prompt user_message ~user_content
   in
 
   (* Dispatch: native when llm.complete_structured_fn = Some _, otherwise
@@ -619,6 +620,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     ?conversation ?agent_resolver ?(enable_handoff = false)
     ?(net : _ Eio.Net.t option)
     ?(budget_threshold : int option)
+    ?(user_content : Types.content_block list = [])
     token agent user_message llm registry =
   (* PAR-k38 T3.1: resolve effective tool mode.
      - `Auto (default): consult [llm.supports_native_tools_fn].
@@ -1502,13 +1504,13 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
         (key, `String current_appendix) ::
         (List.filter (fun (k, _) -> k <> key) existing.metadata)
       in
-      let usr = { role = User; content_blocks = Message.content_of_string user_message; tool_calls = None;
+      let usr = { role = User; content_blocks = (if user_content = [] then Message.content_of_string user_message else user_content); tool_calls = None;
                   tool_call_id = None; name = None; reasoning_content = None } in
       { messages = messages @ [ usr ]; metadata = updated_metadata }
     | None ->
       Logs.info (fun m -> m "[engine] New conversation: system_prompt=%d chars, user_message=%d chars"
         (String.length sys_prompt_text) (String.length user_message));
-      make_conversation sys_prompt_text user_message
+      make_conversation sys_prompt_text user_message ~user_content
   in
   (* EGRESS WRAP (root-cause fix for v0.7.8): single point of authority for
      materializing the terminal assistant message into the returned conversation.
@@ -1571,6 +1573,7 @@ let run_agent_structured
     ?conversation ?agent_resolver ?enable_handoff
     ?net
     ?budget_threshold
+    ?user_content
     ~response_schema
     (llm : llm_service) token (agent : agent_config) message
     (registry : Tool_registry.t) =
@@ -1580,6 +1583,7 @@ let run_agent_structured
     ?conversation ?agent_resolver ?enable_handoff
     ?net
     ?budget_threshold
+    ?user_content
     token agent message llm registry with
   | Error (err, conv) -> Result.Error (err, conv)
   | Ok (_resp, conv) ->

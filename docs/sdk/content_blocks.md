@@ -98,6 +98,7 @@ let img = Image_block {
   source = Url "https://example.com/photo.png";
   media_type = "image/png";
   data = "";
+  detail = None;
   cache_control = None;
 }
 
@@ -106,9 +107,12 @@ let img_b64 = Image_block {
   source = Base64 "iVBORw0KGgo...";
   media_type = "image/png";
   data = "";
+  detail = None;
   cache_control = None;
 }
 ```
+
+Prefer the `Message` helpers shown in [Image blocks](#image-blocks) over hand-building these records.
 
 Build a full message by populating the record:
 
@@ -246,9 +250,55 @@ type image_source =
   | Base64 of string
 ```
 
-`Image_block` carries a reference to image data along with its MIME type. `Url` points to an image hosted at a remote URL; the provider fetches it. `Base64` embeds the raw bytes directly in the block.
+`Image_block` carries a reference to image data along with its MIME type. `Url` points to an image hosted at a remote URL; the provider fetches it. `Base64` embeds the raw bytes directly in the block. `detail` is the provider-specific resolution hint — OpenAI accepts `"auto"`, `"low"` or `"high"`; other providers ignore it.
 
-Image blocks are part of PAR's type-level preparation for multimodal content. The Anthropic wire format already supports image blocks natively. User-facing image tools and higher-level APIs are planned for v0.7.
+### Constructing image blocks
+
+Use the `Message` helpers rather than building the record by hand — they keep `cache_control` and `detail` consistent:
+
+```ocaml
+open Par
+
+(* Remote image — the provider fetches it, bytes never pass through PAR *)
+let remote = Message.image_url "https://example.com/photo.png" ()
+
+(* Explicit MIME type and resolution hint *)
+let remote_hd = Message.image_url "https://example.com/photo.jpg"
+  ~media_type:"image/jpeg" ~detail:"high" ()
+
+(* Bytes already in hand *)
+let inline = Message.image_base64 ~data:"iVBORw0KGgo..." ~media_type:"image/png" ()
+
+(* Local file — read and base64-encoded; MIME type inferred from the extension *)
+let local = match Message.image_file "assets/photo.png" () with
+  | Ok block -> block
+  | Error msg -> failwith msg
+```
+
+`Message.media_type_of_extension` maps `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp` and `.bmp`; pass `~media_type` explicitly for anything else. `image_file` returns an error rather than raising when the file cannot be read.
+
+### Sending an image to a model
+
+`Runtime.invoke` takes a plain string. For multimodal input use `Runtime.invoke_content`, which takes a list of content blocks:
+
+```ocaml
+let result = Runtime.invoke_content rt ~agent_id:"vision"
+  ~content:[
+    Message.text "What is in this picture?";
+    Message.image_url "https://example.com/photo.png" ();
+  ] ()
+```
+
+`Runtime.invoke` is a thin wrapper around `Runtime.invoke_content` — it wraps the string in a single text block. There is one implementation, so the two entry points cannot drift apart.
+
+### Provider wire formats
+
+| Provider | Image encoding |
+|----------|----------------|
+| `` `Openai `` | Message `content` switches to the array form (`[{type:"text",...}, {type:"image_url",...}]`) **only when the message carries an image**. Messages without images keep the plain string form, so existing request payloads are unchanged. `Base64` sources are sent as a data URI (`data:<media_type>;base64,<data>`), which is the only inline form OpenAI accepts. `detail` is emitted as `image_url.detail`. |
+| `` `Anthropic `` | Emits `{"type":"image","source":{...}}`. For base64, `media_type` and `data` live **inside** `source`, matching Anthropic's schema. |
+
+The `` `Ollama `` adapter inherits the OpenAI encoding.
 
 ## Migration from string
 

@@ -103,24 +103,24 @@ let image_block_construction =
     Alcotest.test_case "Url source" `Quick (fun () ->
       let block = Image_block {
         source = Url "https://example.com/img.png";
-        media_type = "image/png"; data = ""; cache_control = None;
+        media_type = "image/png"; data = ""; detail = None; cache_control = None;
       } in
       check_content_eq "matches"
         (Image_block {
           source = Url "https://example.com/img.png";
-          media_type = "image/png"; data = ""; cache_control = None;
+          media_type = "image/png"; data = ""; detail = None; cache_control = None;
         })
         block);
 
     Alcotest.test_case "Base64 source" `Quick (fun () ->
       let block = Image_block {
         source = Base64 "iVBORw0KGgo=";
-        media_type = "image/png"; data = "raw"; cache_control = None;
+        media_type = "image/png"; data = "raw"; detail = None; cache_control = None;
       } in
       check_content_eq "matches"
         (Image_block {
           source = Base64 "iVBORw0KGgo=";
-          media_type = "image/png"; data = "raw"; cache_control = None;
+          media_type = "image/png"; data = "raw"; detail = None; cache_control = None;
         })
         block);
 
@@ -128,12 +128,12 @@ let image_block_construction =
       let cc = Some { type_ = `Ephemeral; ttl = Some `Five_min } in
       let block = Image_block {
         source = Url "https://example.com/img.png";
-        media_type = "image/jpeg"; data = ""; cache_control = cc;
+        media_type = "image/jpeg"; data = ""; detail = None; cache_control = cc;
       } in
       check_content_eq "matches"
         (Image_block {
           source = Url "https://example.com/img.png";
-          media_type = "image/jpeg"; data = ""; cache_control = cc;
+          media_type = "image/jpeg"; data = ""; detail = None; cache_control = cc;
         })
         block);
   ])
