@@ -26,7 +26,8 @@ let resolve_host host =
     if Array.length entry.Unix.h_addr_list = 0 then failwith ("DNS: " ^ host)
     else Eio.Net.Ipaddr.of_raw (Ipaddr.to_octets (Ipaddr.of_string_exn (Unix.string_of_inet_addr entry.Unix.h_addr_list.(0))))
 
-let raw_request ~sw ~net ~host ~port ~use_tls ~method_ ~path ~req_headers ~req_body ~close_fn =
+let raw_request ~sw ~net ~host ~port ~use_tls ~method_ ~path ~req_headers ~req_body ~close_fn
+    ~max_body_size =
   let ip = resolve_host host in
   let tcp_flow = Eio.Net.connect ~sw net (`Tcp (ip, port)) in
   let flow : _ Eio.Flow.source = if use_tls then failwith "TLS in raw_request not yet supported" else tcp_flow in
@@ -37,7 +38,7 @@ let raw_request ~sw ~net ~host ~port ~use_tls ~method_ ~path ~req_headers ~req_b
   let req = Printf.sprintf "%s %s HTTP/1.1\r\nHost: %s\r\n%s\r\nConnection: close\r\n\r\n%s"
     method_ path host (if hdr = "" then "" else "\r\n" ^ hdr) req_body in
   Eio.Flow.copy (Eio.Flow.string_source req) sink;
-  let reader = Eio.Buf_read.of_flow ~initial_size:4096 ~max_size:(100 * 1024 * 1024) tcp_flow in
+  let reader = Eio.Buf_read.of_flow ~initial_size:4096 ~max_size:max_body_size tcp_flow in
   let status = match String.split_on_char ' ' (Eio.Buf_read.line reader) with
     | _ :: c :: _ -> (try int_of_string (String.trim c) with _ -> 0) | _ -> 0 in
   let hb = Buffer.create 256 in
@@ -48,14 +49,15 @@ let raw_request ~sw ~net ~host ~port ~use_tls ~method_ ~path ~req_headers ~req_b
   read_hdrs ();
   (status, Buffer.contents hb, Eio.Buf_read.take_all reader)
 
-let request_with_timeout ~timeout ~net ~host ~port ~use_tls ~method_ ~path ~request_headers ?(request_body = "") () =
+let request_with_timeout ~timeout ~net ~host ~port ~use_tls ~method_ ~path ~request_headers
+    ?(request_body = "") ?(max_body_size = 100 * 1024 * 1024) () =
   let clock = get_clock () in
   let result =
     Eio.Fiber.first
       (fun () ->
         `Ok (Eio.Switch.run (fun sw ->
           let cf = ref ignore in
-          raw_request ~sw ~net ~host ~port ~use_tls ~method_ ~path ~req_headers:request_headers ~req_body:request_body ~close_fn:cf)))
+          raw_request ~sw ~net ~host ~port ~use_tls ~method_ ~path ~req_headers:request_headers ~req_body:request_body ~close_fn:cf ~max_body_size)))
       (fun () ->
         Eio.Time.sleep clock timeout;
         `Timeout)

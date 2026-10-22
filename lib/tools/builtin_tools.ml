@@ -504,7 +504,9 @@ let builtin_tools ~switch ~net ~workspace =
     { descriptor; handler }
   in
 
-  let _max_download_size = 10 * 1024 * 1024 in
+  (* Download ceiling for the web tools. The response body is buffered in
+     memory, so the cap is enforced on the read, not afterwards. *)
+  let max_download_size = 10 * 1024 * 1024 in
 
   let default_headers = Http.Header.of_list [("user-agent", "P-A-R/0.1 (OCaml agent runtime)")] in
 
@@ -561,17 +563,26 @@ let builtin_tools ~switch ~net ~workspace =
          let (status, _hdrs, body) =
            Http_timeout.request_with_timeout
              ~timeout:15.0 ~net ~host ~port ~use_tls
-             ~method_:"GET" ~path ~request_headers:(Cohttp.Header.to_list default_headers) ()
+             ~method_:"GET" ~path ~request_headers:(Cohttp.Header.to_list default_headers)
+             ~max_body_size:max_download_size ()
          in
          Ok (status, body)
-       with exn -> Error ("HTTP request failed: " ^ Printexc.to_string exn))
+       with
+       | Eio.Buf_read.Buffer_limit_exceeded ->
+         Error (Printf.sprintf
+                  "Response body exceeds the %d MB download limit. \
+                   Fetch a smaller resource, or use a tool that can page through \
+                   the content." (max_download_size / (1024 * 1024)))
+       | exn -> Error ("HTTP request failed: " ^ Printexc.to_string exn))
   in
 
   let fetch_url_tool =
     let descriptor =
       { name = "fetch_url"
       ; description = "Fetch the content of a URL and return the raw text. \
-                       Input: {\"url\": \"https://example.com\", \"max_length\": 10000}"
+                       Input: {\"url\": \"https://example.com\", \"max_length\": 50000} \
+                       (max_length defaults to 50000, capped at 500000; \
+                       responses larger than 10MB are rejected)"
       ; input_schema = Jsonschema.to_strict_object_schema fetch_url_input_jsonschema
       ; output_schema = None
  ; permission = Allow
