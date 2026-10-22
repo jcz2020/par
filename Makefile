@@ -53,6 +53,11 @@ install-dev: build ## Build + install .so + sync version + verify Python binding
 	# so the OCaml runtime can find it at runtime via path resolution.
 	-cp -f _build/default/lib/ffi/vec0.so $(DESTDIR)$(PREFIX)/lib/par/ 2>/dev/null || true
 	-cp -f _build/default/lib/ffi/vec0.dylib $(DESTDIR)$(PREFIX)/lib/par/ 2>/dev/null || true
+	# Refresh the ctypes library the Python package loads. It is gitignored
+	# and gitignored copies go stale, which breaks `import par_runtime` for
+	# anyone running from the source tree with a freshly built .so.
+	install -d bindings/python/par_runtime/lib
+	-cp -f _build/default/lib/ffi/par_capi.so bindings/python/par_runtime/lib/ 2>/dev/null || true
 	$(MAKE) --no-print-directory sync-version
 	$(MAKE) --no-print-directory verify
 

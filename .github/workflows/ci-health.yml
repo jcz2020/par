@@ -84,14 +84,32 @@ jobs:
         run: |
           set -uo pipefail
           local_v=$(sed -n 's/^(version "\([^"]*\)").*/\1/p' dune-project)
-          pypi_v=$(curl -sS --retry 2 --retry-delay 5 \
-                    https://pypi.org/pypi/par-runtime/json \
-                    | jq -r '.info.version // "UNKNOWN"')
-          status=PASS; [ "$pypi_v" != "$local_v" ] && status=FAIL
+          # PyPI normalizes "1.2.3-beta.20260101" to "1.2.3b20260101" and
+          # ".info.version" reports the newest STABLE release, not the newest
+          # pre-release. Comparing the two flagged every beta build as a
+          # mismatch, so CI Health was red on every scheduled run while
+          # reporting a condition that was not a defect. Check instead
+          # whether the local version exists in the release list at all.
+          pypi_norm=$(printf '%s' "$local_v" | sed -E 's/-beta\.([0-9]+)$/b\1/')
+          pypi_json=$(curl -sS --retry 2 --retry-delay 5 \
+                    https://pypi.org/pypi/par-runtime/json)
+          published=$(printf '%s' "$pypi_json" \
+                    | jq -r --arg v "$pypi_norm" \
+                        '.releases | keys[] | select(. == $v) | .' | head -1)
+          stable=$(printf '%s' "$pypi_json" | jq -r '.info.version // "UNKNOWN"')
+          if [ -z "$published" ]; then
+            # Local version is not on the index yet. That is the normal state
+            # between a version bump and its tag, so warn instead of failing.
+            status=WARN
+            note="Not published yet (index latest stable: $stable)."
+          else
+            status=PASS
+            note="Published as $published."
+          fi
           echo "status=$status" >> "$GITHUB_OUTPUT"
           {
-            echo "## Probe 3 - PyPI: dune=$local_v pypi=$pypi_v"; echo
-            [ "$status" = FAIL ] && echo "Version mismatch." || echo "Parity OK."
+            echo "## Probe 3 - PyPI: dune=$local_v"; echo
+            echo "$note"
           } | tee /tmp/probe_pypi.md
 
       - name: Probe 4 - opam-repo version parity (best-effort)

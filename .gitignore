@@ -10,8 +10,12 @@ _build/
 # These are gitignored but still in git history (recoverable via
 # `git checkout <commit> -- <path>`).
 docs/STRATEGY.md
-docs/v0.[0-9]-ROADMAP.md
-docs/v0.[0-9].[0-9]*-ROADMAP.md
+# Version ROADMAPs are local planning documents, not shipped artifacts.
+# The pattern must cover two-digit minor versions (v0.11, v0.12) as well as
+# single-digit ones; the previous rules matched only v0.[0-9] and v0.[0-9].[0-9]*,
+# so v0.11-ROADMAP.md and v0.12-ROADMAP.md showed up as untracked and were one
+# `git add -A` away from being committed.
+docs/v0.*-ROADMAP.md
 docs/plans/
 docs/rules/
 docs/release.md
