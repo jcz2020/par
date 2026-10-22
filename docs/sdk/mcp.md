@@ -99,6 +99,23 @@ let () = Eio_main.run (fun env ->
 
 `Runtime.create` internally spawns a child process for every configured server, runs the initialize handshake, and only returns `Ok rt` once every server has reached the `Ready` state (under the fail-fast policy).
 
+### Streamable HTTP example
+
+Parallel Search exposes a Streamable HTTP MCP endpoint that does not require credentials:
+
+```ocaml
+let parallel_search_config : Mcp_types.server_config =
+  Mcp_types.Http_server {
+    name = "parallel-search";
+    url = "https://search.parallel.ai/mcp";
+    headers = [];
+    startup_timeout = 10.0;
+  }
+```
+
+Pass `parallel_search_config` in `mcp_servers` and provide
+`~mcp_net:(Eio.Stdenv.net env)` when calling `Runtime.create`.
+
 ---
 
 ## Runtime Integration
