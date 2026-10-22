@@ -15,6 +15,7 @@
 | 2026-07-29 | 3 | 接受 P2：暴露 `memory_object` 的 `last_used_at` / `usage_count` | API 级 | 架构正确 |
 | 2026-07-29 | 4 | 拒绝 P3：`memory_object.t` 的 `scope` 字段已存在 | 事实纠正 | 不适用 |
 | 2026-08-09 | 5 | 取消 Plan/Goal spike（v0.9 Track D）：调研已充分，SDK 不做产品概念 | 范围级 | 架构正确 |
+| 2026-10-21 | 6 | 三层边界判据：PAR / par-code / 独立能力项目 | 战略级 | 架构正确 |
 
 ---
 
@@ -262,6 +263,64 @@ v0.9-ROADMAP Track D 规划了 2 周 Plan/Goal spike（联合下游），验证�
 ### 回退方式
 
 不适用（取消研究，无代码变更）。
+
+---
+
+## #6: 三层边界判据 — PAR / par-code / 独立能力项目
+
+**日期**: 2026-10-21
+**触发**: 规划 URL 抓取增强时，发现「放进 PAR 还是另起项目」的判断反复摇摆，且多次在核实前就下了架构结论。根因是判断时只用了两分类，忽略了既有的第三层。
+
+### 背景
+
+v0.6.7 已经确立过一次边界：「引擎归引擎、产品归产品」——CLI 从 PAR 移出，产品形态下沉到独立的 par-code 仓库。那条决策确立了"PAR 是什么"，但没有回答"一个既不是运行时语义、也不是产品 UX 的能力该去哪"。
+
+同时存在三个实际约束：
+
+1. **PAR 没有插件系统**。可用扩展位只有两个：`Runtime.register_tool`（普通函数 + JSON Schema）与 MCP client（stdio / HTTP-SSE）。
+2. **par-code 已是既有的第二层**。它自己就有 `par_code_git_tools.ml` / `par_code_memory_tools.ml` / `par_code_plan_tools.ml` —— 产品专用能力工具住在这里，通过 `register_tool` 接进 PAR，模式已经存在。
+3. **par-code 自己的策略已写明耦合关系**（par-code `docs/STRATEGY.md` §2）：它同时是用户工具和 PAR 的验证用例，"当 par-code 发现 PAR 的限制时，第一反应是修 PAR，而不是在 par-code 里绕开"。
+
+### 决策
+
+按"这个能力承诺的是运行时保证，还是产品形态，还是领域适配"分三层：
+
+| 层 | 归属 | 判据 | 落地形态 |
+|---|---|---|---|
+| **运行时语义** | PAR | 需要**保证**的地方：类型契约、事件、ReAct 循环、工具协议、provider 协议、并发、持久化 | OCaml SDK / Python binding |
+| **产品形态 / 领域能力** | par-code | 属于 agent 产品形态或代码领域能力：REPL、goal chaining、代码专用工具（git / plan / memory） | par-code 内的 `par_code_*_tools.ml`，经 `register_tool` 注册 |
+| **领域适配器** | 独立项目 | 需要异构重型依赖栈（浏览器、搜索引擎 SDK 等） | 普通库（`register_tool` 消费）或 MCP server（跨客户端复用时） |
+
+补充规则：
+
+- **运行时层面的限制 → 修 PAR**，即使 par-code 是唯一受影响的消费者。这是 par-code §2 已经写下的耦合承诺。
+- **领域能力默认不单独开项目**。先看它是否属于 par-code；只有当它需要非 PAR 的消费者（Claude Code 等 MCP 客户端）或需要自己的依赖栈时，才做成独立项目。
+- **不新增插件机制**。独立项目用 `register_tool` 或 MCP 接入，不为它们扩展 PAR 的 API 表面。
+
+### 理由
+
+1. **判据可判定**。前两类的区别是"是否是运行时该保证的东西"，这是可以逐条论证的；而"是否另起项目"不是——它会随项目数量线性增加判断成本。
+2. **避免重复发明扩展位**。PAR 已有 MCP client，若再设计"插件系统"，就是第二个同类机制，且没有 MCP 的跨客户端复用价值。
+3. **与既有决策一致**。本决策是 v0.6.7「引擎归引擎」的三层细化，不推翻它。
+
+### 现状约束（MCP 路径尚不可用）
+
+MCP server 目前**不能**让模型直接调用其工具：`tool_registry.ml` 与 `engine.ml` 无任何 MCP 引用，`Mcp_client.call_tool` 在库内没有调用点，测试也只覆盖服务器生命周期与原始 JSON-RPC。因此：
+
+- 走 `register_tool` 的形态今天可用（Python 侧 `register_tool_with_handler` 已在绑定中）。
+- 走 MCP 的形态需要先补上工具接线（见 bd `PAR-zno`），这也是 par-code 自己的 roadmap v0.11.0「MCP 客户端初始化」的前置条件。
+
+### Escalation Trigger
+
+出现以下任一情况时重评：
+
+- 某能力被多个非 PAR 客户端需要 → 倾向 MCP 形态。
+- PAR 的 opam 依赖面因某能力而不可接受 → 该能力移出 PAR。
+- par-code 之外的第二个 PAR 旗舰消费者出现 → 重新评估「产品能力放 par-code」这一层是否仍然成立。
+
+### 回退方式
+
+不适用（文档级决策，无代码变更）。
 
 ---
 
