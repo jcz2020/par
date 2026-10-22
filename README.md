@@ -12,7 +12,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
 > **Status**: v0.10.0 — first-class cancellation + actionable tool errors. 1551 tests passing.
-> **Latest pre-release**: [v0.11.0-beta.20261013](https://github.com/jcz2020/par/releases/tag/v0.11.0-beta.20261013) — tool composition, patching and progressive loading; 1614 OCaml tests at the tag. Install explicitly with `pip install --index-url https://pypi.org/simple par-runtime==0.11.0b20261013`.
+> **Latest pre-release**: [v0.12.0-beta.20261023](https://github.com/jcz2020/par/releases/tag/v0.12.0-beta.20261023) — multimodal input for both SDKs (text + images in one message) plus the v0.11 tool train; 1639 OCaml tests at the tag. Install explicitly with `pip install --index-url https://pypi.org/simple par-runtime==0.12.0b20261023`.
 
 ---
 
@@ -104,7 +104,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - **ReAct agent loop** with bounded iterations, middleware at every LLM/tool boundary
 - **Workflow engine** — sequential, parallel, conditional, map-reduce with checkpoints; `Agent_call` supports `response_schema` for structured output
 - **Multi-provider LLM** — OpenAI, Anthropic, Ollama (local), Mock (tests), + custom registration for any OpenAI-compatible endpoint
-- **Multimodal input (development)** — OCaml and Python `Runtime.invoke_content` accept mixed text/image blocks; URL, base64 and local-file helpers share the existing content-block format. See [Content blocks](docs/sdk/content_blocks.md).
+- **Multimodal input** — OCaml and Python `Runtime.invoke_content` accept mixed text/image blocks; URL, base64 and local-file helpers share the existing content-block format. See [Content blocks](docs/sdk/content_blocks.md).
 - **MCP client** (stdio + HTTP/SSE) — connect any Model Context Protocol server for tools, resources, prompts
 - **24 built-in tools** including type-safe bash (`Bash_safe_command` ADT), atomic unified-diff patching (`apply_patch`), memory tools (`recall_memory`, `remember_memory`, `search_history`)
 - **9 middleware** — Logging, Retry, Rate_limit, Timeout, Arg_validation, Output_validation, PII_mask, Sanitize_tool_output, Think_tag_strip
@@ -152,9 +152,9 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 **Current**: v0.10.0 — first-class cancellation (`cancel_reason` ADT, replay-valid recovery with synthetic tool results, dispatch/chunk-granularity cooperative checks, cancellable Python `invoke_start`/`invoke_poll`/`invoke_cancel`) + actionable tool validation errors (teach-at-rejection markers `[workspace]`/`[bash-policy]`, edit no-op fix).
 
-**Latest beta**: v0.11.0-beta.20261013 is published as a GitHub pre-release and PyPI prerelease (Linux x86_64 and macOS arm64 wheels). The stable default remains v0.10.0.
+**Latest beta**: v0.12.0-beta.20261023 is published as a GitHub pre-release and PyPI prerelease (Linux x86_64 and macOS arm64 wheels). It carries multimodal input on both SDKs on top of the v0.11 tool train. The stable default remains v0.10.0.
 
-**In development**: multimodal input for both SDKs. These changes are on `main`, not included in the published v0.11 beta. Submission to the package repository remains a separate human action.
+**In development**: the next round is not yet scoped. Submission to the package repository remains a separate human action.
 
 **Recent releases**: v0.8.4 (test_mcp_runtime mock-path portability fix) → v0.8.5 (test mock-path portability fix round 2) → v0.8.6 (Streaming HTTP error propagation fix) → v0.9.0 (Skill activation API completion) → v0.9.1 (tool_call_id correlation fixes) → v0.10.0 (first-class cancellation + actionable tool errors).
 

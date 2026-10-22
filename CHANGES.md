@@ -1,6 +1,6 @@
 # CHANGES
 
-## v0.12.0 (unreleased) — multimodal input: public rich-content entry point + OpenAI image wire format
+## v0.12.0-beta.20261023 — multimodal input: public rich-content entry point + OpenAI image wire format
 
 ### Added — multimodal input
 
@@ -27,9 +27,21 @@
 - `bash` now waits for both output-copy fibers after child exit before reading stdout/stderr. Previously a short command could return empty or partial output because waiting for process exit did not wait for the buffered copies. The capture runs in a local switch inside the existing timeout race, so the timeout still bounds process execution and output draining.
 - Regression coverage includes deterministic delayed stdout/stderr with a nonzero exit code, cancellation of unfinished output draining, and a real clock timeout that verifies the spawned child has been killed. The existing workspace/pwd regression is retained.
 
+### Fixed — web-tool download ceiling was never enforced
+
+- The advertised 10MB limit was a dead constant: the response body was buffered with only the shared 100MB reader default behind it, so a large download was fully materialised in memory before being truncated to `max_length`. The ceiling is now applied while reading — `Http_timeout` takes an optional `max_body_size` that reaches the reader, and the web tools pass the 10MB figure. A response over the ceiling fails with a message that says so.
+- `fetch_url` also described `max_length` as `10000` while its schema defaults to `50000` and caps at `500000`, so the model was given a contract that did not match the behaviour. The description now states the real default, the cap and the download ceiling.
+- Regression coverage drives the limit through a local server: it fails when the ceiling is bypassed and passes with it, and the within-cap case is covered so the cap cannot be tightened into a total breakage.
+
+### Fixed — tooling around the library
+
+- `make install-dev` did not refresh `bindings/python/par_runtime/lib/par_capi.so`, which is what the Python package loads. The copy went stale, so running pytest from the source tree failed at import with an undefined symbol for the newer C entry point. `install-dev` now copies the freshly built library into place.
+- The CI health probe compared the version in `dune-project` against PyPI's `.info.version`, which reports the newest stable release rather than the newest pre-release. Every beta build was therefore reported as a version mismatch, and the workflow exited non-zero on every scheduled run while reporting a condition that was not a defect. The probe now checks whether the local version exists in the published release list, normalising the PEP 440 form, and warns instead of failing when the local version is simply not published yet.
+- The ROADMAP ignore rules matched only single-digit minor versions, so the two-digit ones were untracked without being ignored and sat one `git add -A` away from being committed.
+
 ### Tests
 
-- OCaml coverage includes `test_multimodal` (17 cases), `test_multimodal_safety` (3 compatibility/file-cleanup regressions) and three bash capture/timeout regressions, bringing the collected total to **1637** tests. Python totals are **174 passed / 20 skipped**, including 13 new HTTP integration/helper cases exercising the actual Python → C → OCaml → provider path, base64/local images, malformed input, legacy JSON, persistence and current-conversation flags. The two existing callback-memory warnings remain.
+- OCaml coverage includes `test_multimodal` (17 cases), `test_multimodal_safety` (3 compatibility/file-cleanup regressions), three bash capture/timeout regressions and two download-ceiling regressions, bringing the collected total to **1639** tests. Python totals are **174 passed / 20 skipped**, including 13 new HTTP integration/helper cases exercising the actual Python → C → OCaml → provider path, base64/local images, malformed input, legacy JSON, persistence and current-conversation flags. The two existing callback-memory warnings remain.
 
 ## v0.11.0-beta.20261013 — apply_patch + agent-as-tool + progressive tool loading
 

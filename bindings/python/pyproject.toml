@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "par-runtime"
-version = "0.11.0-beta.20261013"
+version = "0.12.0-beta.20261023"
 description = "Python bindings for P-A-R (Programmable Agent Runtime)"
 requires-python = ">=3.10"
 license = {text = "MIT"}

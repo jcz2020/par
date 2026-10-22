@@ -17,7 +17,7 @@ from par_runtime.runtime import (
 )
 from par_runtime.content import ContentBlock, ImageDetail, text, image_url, image_base64, image_file
 
-__version__ = "0.11.0-beta.20261013"
+__version__ = "0.12.0-beta.20261023"
 
 __all__ = [
     "Runtime",
