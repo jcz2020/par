@@ -13,7 +13,7 @@ This document describes the P-A-R SDK's MCP (Model Context Protocol) client (std
 
 ## Overview
 
-MCP is the LLM tool integration protocol proposed by Anthropic. The server side exposes tools, data resources, and prompt templates over stdio as JSON-RPC 2.0. PAR v0.3.1 implements the client side, so any PAR agent can transparently call any server that follows the MCP specification.
+MCP is the LLM tool integration protocol proposed by Anthropic. The server side exposes tools, data resources, and prompt templates over stdio as JSON-RPC 2.0. PAR v0.3.1 implements the client side, and as of v0.12 a server's tools can be handed to an agent so the model calls them through the normal tool loop.
 
 Why stdio first: local process communication removes network dependencies, TLS configuration, and reverse-proxy burden, and covers 90% of existing MCP server scenarios.
 
@@ -41,6 +41,7 @@ Most users only need `Mcp_client`. Reach for `Mcp_server` when you need to manag
 | ping | done |
 | notifications (list_changed, progress, cancelled) | done |
 | Startup policy: fail-fast / log-and-continue | done |
+| Server tools handed to an agent | done (v0.12) |
 | Graceful shutdown (SIGTERM then SIGKILL fallback) | done |
 | HTTP / SSE transport | done (v0.4.3) |
 | sampling (server to LLM reverse call) | not implemented |
@@ -186,6 +187,47 @@ match Runtime.mcp_server rt sid with
 ```
 
 Server name validation is centralized in `Mcp_naming.validate_server_name`; the rules are: nonempty, at most 32 characters, and limited to `[a-zA-Z0-9_-]`.
+
+---
+
+## Using MCP tools with an agent
+
+`Runtime.create` lists each configured server's tools once the server is up and
+keeps them next to the handlers that call the server. To let a model use one,
+advertise its descriptor on the agent:
+
+```ocaml
+open Par
+
+(* ... the config and mcp_fs_config from Quick Start ... *)
+
+match Runtime.create ~config ~mcp_servers:[mcp_fs_config]
+        ~mcp_process_mgr:(Eio.Stdenv.process_mgr env)
+        ~mcp_clock:(Eio.Stdenv.clock env) switch with
+| Ok rt ->
+  let server_tools = Runtime.mcp_tool_descriptors rt in
+  let agent =
+    Runtime.make_agent ~id:"fs-agent" ~system_prompt:(stable_prompt "You use files.")
+      ~model ~tools:server_tools ()
+  in
+  ignore (Runtime.register_agent rt agent)
+```
+
+The handlers are already in every per-call registry, so an advertised tool is
+callable: the model emits the call, the engine validates the input against the
+server's own schema, and the server does the work.
+
+Selection is explicit on purpose. A server can expose dozens of tools, and
+advertising all of them to every agent works against `max_tool_schema_tokens`.
+Advertise the subset the agent needs.
+
+Two behaviours worth knowing:
+
+- A tool that fails inside the server is reported to the agent as an error, not
+  as output. The server's `isError` result becomes a tool error rather than a
+  successful-looking result.
+- Tool names are the server's own. If a server serves a name an explicitly
+  registered tool already uses, the explicitly registered tool wins.
 
 ---
 

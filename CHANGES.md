@@ -2,6 +2,14 @@
 
 ## v0.12.0-beta.20261023 — multimodal input: public rich-content entry point + OpenAI image wire format
 
+### Added — MCP server tools reach the agent loop
+
+- **NEW** `Runtime.mcp_tool_descriptors` returns the tools exposed by the configured MCP servers. Advertise the ones an agent should offer to the model; the matching handlers are already in every per-call registry, so an advertised tool is callable. The server's own name, description and input schema are carried over, and the engine validates the model's arguments against that schema before the call.
+- A tool that fails inside the server is reported to the agent as an error rather than as output. The server's `isError` result becomes a tool error, so a failed call cannot look like a successful one.
+- Tool names are the server's own. A name an explicitly registered tool already uses keeps the explicitly registered tool.
+- Selection is explicit by design: a server can expose many tools, and advertising all of them to every agent would work against `max_tool_schema_tokens`.
+- `Types.string_of_error_category` is now exported. The renderer moved out of the runtime so that any core module can describe an error; two other modules carried private copies of it.
+
 ### Added — multimodal input
 
 - **NEW** `Runtime.invoke_content` takes a `Types.content_block list` instead of a plain string, so a message can carry text and images together. `Runtime.invoke` is now a thin wrapper around it (the string is wrapped in one text block) — one implementation, so the two entry points cannot drift apart. No existing signature changed; `Runtime.invoke` behaves exactly as before.
@@ -41,7 +49,7 @@
 
 ### Tests
 
-- OCaml coverage includes `test_multimodal` (17 cases), `test_multimodal_safety` (3 compatibility/file-cleanup regressions), three bash capture/timeout regressions and two download-ceiling regressions, bringing the collected total to **1639** tests. Python totals are **174 passed / 20 skipped**, including 13 new HTTP integration/helper cases exercising the actual Python → C → OCaml → provider path, base64/local images, malformed input, legacy JSON, persistence and current-conversation flags. The two existing callback-memory warnings remain.
+- OCaml coverage includes `test_multimodal` (17 cases), `test_multimodal_safety` (3 compatibility/file-cleanup regressions), three bash capture/timeout regressions, two download-ceiling regressions and four MCP tool regressions, bringing the collected total to **1643** tests. Python totals are **174 passed / 20 skipped**, including 13 new HTTP integration/helper cases exercising the actual Python → C → OCaml → provider path, base64/local images, malformed input, legacy JSON, persistence and current-conversation flags. The two existing callback-memory warnings remain.
 
 ## v0.11.0-beta.20261013 — apply_patch + agent-as-tool + progressive tool loading
 

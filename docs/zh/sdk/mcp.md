@@ -8,7 +8,7 @@
 
 ## 概览
 
-MCP 是 Anthropic 提出的 LLM 工具集成协议，server 端把工具（tools）、数据资源（resources）、提示词模板（prompts）以 JSON-RPC 2.0 形式暴露在 stdio 上。PAR v0.3.1 实现 client 侧，让 PAR agent 可以透明地调用任何符合 MCP 规范的 server。
+MCP 是 Anthropic 提出的 LLM 工具集成协议，server 端把工具（tools）、数据资源（resources）、提示词模板（prompts）以 JSON-RPC 2.0 形式暴露在 stdio 上。PAR v0.3.1 实现 client 侧；自 v0.12 起，server 的工具也可以交给 agent，让模型通过常规工具循环调用它们。
 
 为什么先做 stdio：本地进程通信是零网络依赖、零配置 TLS、零反代负担的方案，覆盖 90% 现有 MCP server 场景。
 
@@ -37,6 +37,7 @@ MCP 是 Anthropic 提出的 LLM 工具集成协议，server 端把工具（tools
 | ping | ✅ |
 | notifications（list_changed、progress、cancelled） | ✅ |
 | 启动策略：fail-fast / log-and-continue | ✅ |
+| server 工具交给 agent 使用 | ✅ (v0.12) |
 | 优雅 shutdown（SIGTERM → SIGKILL 降级） | ✅ |
 | sampling（server → LLM 反向调用） | 未实现 |
 | roots / elicitation | 未实现 |
@@ -179,6 +180,43 @@ match Runtime.mcp_server rt sid with
 | Ok srv -> Mcp_server.status srv
 | Error _ -> ...
 ```
+
+---
+
+## 在 agent 中使用 MCP 工具
+
+`Runtime.create` 会在 server 就绪后列出各 server 的工具，并把它们与调用 server 的
+handler 放在一起。要让模型使用其中某个工具，把它的描述符挂到 agent 上：
+
+```ocaml
+open Par
+
+(* ... 沿用「快速开始」里的 config 与 mcp_fs_config ... *)
+
+match Runtime.create ~config ~mcp_servers:[mcp_fs_config]
+        ~mcp_process_mgr:(Eio.Stdenv.process_mgr env)
+        ~mcp_clock:(Eio.Stdenv.clock env) switch with
+| Ok rt ->
+  let server_tools = Runtime.mcp_tool_descriptors rt in
+  let agent =
+    Runtime.make_agent ~id:"fs-agent" ~system_prompt:(stable_prompt "你会使用文件。")
+      ~model ~tools:server_tools ()
+  in
+  ignore (Runtime.register_agent rt agent)
+```
+
+handler 已经在每次调用的注册表里，所以挂上去的工具即可被调用：模型发出调用，引擎
+按 server 自带的 schema 校验入参，然后由 server 执行。
+
+**选择是显式的，这是有意为之**：一个 server 可能暴露几十个工具，把它们全部挂给
+每个 agent 会与 `max_tool_schema_tokens` 的意图相悖。请只挂 agent 真正需要的那部分。
+
+两个值得知道的行为：
+
+- server 内部执行失败时，会以**错误**而非**输出**的形式报告给 agent。server 返回的
+  `isError` 会变成工具错误，而不是看起来成功的结果。
+- 工具名沿用 server 自带的名称。如果某个名字已被显式注册的工具占用，以显式注册的
+  那个为准。
 
 ---
 

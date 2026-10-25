@@ -538,6 +538,18 @@ val mcp_servers : runtime -> (Mcp_types.server_id, Mcp_server.t) Types.protected
 
 val mcp_server : runtime -> Mcp_types.server_id -> (Mcp_server.t, error_category) result
 
+val mcp_tool_descriptors : runtime -> Types.tool_descriptor list
+(** The tools exposed by the MCP servers configured on this runtime.
+
+    Pass the ones an agent should advertise to {!make_agent}; the matching
+    handlers are already in every per-call registry, so an advertised MCP tool
+    is callable. Names are the server's own, so a name an explicitly
+    registered tool already uses keeps the explicit tool.
+
+    Selection is explicit on purpose: MCP servers can expose many tools, and
+    advertising all of them to every agent would work against
+    [max_tool_schema_tokens]. *)
+
 val publish_event : runtime -> event -> unit
 
 val steer : runtime -> string -> unit

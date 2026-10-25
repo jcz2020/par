@@ -16,16 +16,7 @@ type parallel_invoke_result = {
   merged : Yojson.Safe.t option;
 }
 
-let string_of_error_category (e : Types.error_category) =
-  match e with
-  | Types.Timeout -> "Timeout"
-  | Types.Invalid_input msg -> Printf.sprintf "Invalid_input: %s" msg
-  | Types.External_failure msg -> Printf.sprintf "External_failure: %s" msg
-  | Types.Rate_limited -> "Rate_limited"
-  | Types.Permission_denied msg -> Printf.sprintf "Permission_denied: %s" msg
-  | Types.Internal msg -> Printf.sprintf "Internal: %s" msg
-  | Types.Embedding_unsupported -> "Embedding_unsupported"
-  | Types.Cancelled _ -> "Cancelled"
+let string_of_error_category (e : Types.error_category) = Types.string_of_error_category e
 
 (* -------------------------------------------------------------------------- *)
 (* SDK — Runtime                                                          *)
@@ -77,6 +68,11 @@ type runtime = {
   mutable memory_rebuild : ((string * Tool_registry.handler_fn) list) option;
   workspace : Workspace.workspace;
   mcp_servers : (Mcp_types.server_id, Mcp_server.t) Types.protected_hashtbl;
+  (* v0.12: tools exposed by the configured MCP servers, paired with the
+     handler that calls the server. The descriptors are what an agent
+     advertises to the model; the handlers are what the per-call registry
+     resolves. Both come from this one list so they cannot disagree. *)
+  mutable mcp_tools : (Types.tool_descriptor * Tool_registry.handler_fn) list;
   event_bus_instance : Event_bus.t option;
   persistence_writer : Persistence_writer.t option;
   mutable default_provider_id : string option;
@@ -707,7 +703,21 @@ let per_call_registry ~(rt : runtime) ~(workspace : Workspace.workspace) : Tool_
      let handler = Tool_search.make_handler fresh in
      ignore (Tool_registry.register_searchable fresh Tool_search.descriptor handler)
    | None -> ());
+  (* MCP server tools are additive: they fill names that no explicitly
+     registered tool claims. An explicitly registered tool always wins, so a
+     server that happens to use a common name cannot displace it. *)
+  List.iter
+    (fun ((mcp_descriptor : Types.tool_descriptor), handler) ->
+      if not (List.mem mcp_descriptor.Types.name (Tool_registry.names fresh)) then
+        ignore (Tool_registry.register fresh mcp_descriptor handler))
+    rt.mcp_tools;
   fresh
+
+(** The tools exposed by the MCP servers configured on this runtime.
+    Pass the ones an agent should advertise to {!make_agent}; the handlers are
+    already in every per-call registry. Names are the server's own, so a name
+    an explicitly registered tool already uses is skipped by the registry. *)
+let mcp_tool_descriptors rt = List.map fst rt.mcp_tools
 
 let register_file_tools_rebuild rt rebuild =
   rt.file_tools_rebuild <- Some rebuild
@@ -2349,6 +2359,7 @@ let create ?(persistence = noop_persistence)
       memory_rebuild = None;
       workspace;
       mcp_servers = { data = Hashtbl.create 4; mutex = Eio.Mutex.create () };
+      mcp_tools = [];
       event_bus_instance;
       persistence_writer;
       default_provider_id = None;
@@ -2415,18 +2426,25 @@ let create ?(persistence = noop_persistence)
             publish_event rt (Mcp_server_stopped { server_id = Mcp_types.server_id_to_string (Mcp_server.id server) })
           )
         in
+        let spawned : (Mcp_types.server_id * Mcp_server.t) list ref = ref [] in
         let rec loop = function
           | [] ->
             if !mcp_errors <> [] && mcp_startup_policy = Mcp_types.Fail_fast then begin
               stop_all_spawned ();
               List.hd !mcp_errors
-            end else
+            end else begin
+              (* The servers are up, so their tools can be listed now. This is
+                 the only point where every server is reachable, and it keeps
+                 the descriptors and their handlers in one list. *)
+              rt.mcp_tools <- Mcp_tools.entries (List.rev !spawned);
               Ok rt
+            end
           | cfg :: rest ->
             match Mcp_server.spawn ~sw:switch ?process_mgr:mcp_process_mgr ?net:mcp_net ~clock:clk cfg with
             | Ok server ->
               let sid = Mcp_server.id server in
               Types.htbl_set rt.mcp_servers sid server;
+              spawned := (sid, server) :: !spawned;
               publish_event rt (Mcp_server_started { server_id = Mcp_types.server_id_to_string sid; server_name = Mcp_server.name server });
               loop rest
             | Error e ->

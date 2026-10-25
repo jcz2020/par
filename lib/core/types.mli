@@ -54,6 +54,10 @@ type error_category =
   | Cancelled of cancel_reason
 [@@deriving yojson]
 
+val string_of_error_category : error_category -> string
+(** A short human-readable rendering of an error category. Lives here so any
+    module can describe an error without depending on the runtime. *)
+
 type handler_result =
   | Success of Yojson.Safe.t
   | Error of {

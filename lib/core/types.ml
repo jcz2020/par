@@ -68,6 +68,21 @@ type error_category =
   | Cancelled of cancel_reason
 [@@deriving yojson]
 
+(* The renderer for [error_category] lives with the type it renders. It used
+   to sit in [Runtime], which put a dependency cycle in the way of any core
+   module that needed to describe an error, and two other modules carried
+   their own copies. *)
+let string_of_error_category (e : error_category) =
+  match e with
+  | Timeout -> "Timeout"
+  | Invalid_input msg -> Printf.sprintf "Invalid_input: %s" msg
+  | External_failure msg -> Printf.sprintf "External_failure: %s" msg
+  | Rate_limited -> "Rate_limited"
+  | Permission_denied msg -> Printf.sprintf "Permission_denied: %s" msg
+  | Internal msg -> Printf.sprintf "Internal: %s" msg
+  | Embedding_unsupported -> "Embedding_unsupported"
+  | Cancelled _ -> "Cancelled"
+
 type handler_result =
   | Success of Yojson.Safe.t
   | Error of {
