@@ -8,6 +8,21 @@ let image_source_testable = Alcotest.testable
     | Base64 b -> Format.pp_print_string ppf ("Base64 " ^ b))
   ( = )
 
+(* The image constructors that carry bytes return a result; most cases here
+   only care about the block. *)
+let expect_block = function
+  | Ok block -> block
+  | Error msg -> Alcotest.fail ("unexpected image error: " ^ msg)
+
+(* Assertions below care whether a message names the problem, not its exact
+   wording. *)
+let contains haystack needle =
+  let h = String.length haystack and n = String.length needle in
+  let rec go i =
+    i + n <= h && (String.sub haystack i n = needle || go (i + 1))
+  in
+  n = 0 || go 0
+
 (* -------------------------------------------------------------------------- *)
 (* Message helpers                                                            *)
 (* -------------------------------------------------------------------------- *)
@@ -40,10 +55,11 @@ let helper_tests =
 
     Alcotest.test_case "image_base64 builds a Base64-sourced Image_block" `Quick (fun () ->
       match Message.image_base64 ~data:"aGk=" ~media_type:"image/gif" () with
-      | Image_block { source; media_type; _ } ->
+      | Error msg -> Alcotest.fail ("unexpected error: " ^ msg)
+      | Ok (Image_block { source; media_type; _ }) ->
         Alcotest.check image_source_testable "source" (Base64 "aGk=") source;
         Alcotest.check Alcotest.string "media_type" "image/gif" media_type
-      | _ -> Alcotest.fail "expected Image_block");
+      | Ok _ -> Alcotest.fail "expected Image_block");
 
     Alcotest.test_case "media_type_of_extension maps known image types" `Quick (fun () ->
       Alcotest.check Alcotest.(option string) "png" (Some "image/png")
@@ -88,17 +104,103 @@ let helper_tests =
       | Error msg ->
         Alcotest.check Alcotest.bool "message is non-empty" true (msg <> ""));
 
-    Alcotest.test_case "image_file falls back to image/png for unknown extension" `Quick (fun () ->
+    Alcotest.test_case "image_file rejects an unknown extension instead of guessing" `Quick (fun () ->
       let path = Filename.temp_file "par_mm" ".weird" in
       let oc = open_out_bin path in
       output_string oc "x";
       close_out oc;
       (match Message.image_file path () with
+       | Ok _ -> Alcotest.fail "expected the unknown extension to be rejected"
+       | Error msg ->
+         Alcotest.(check bool) "message names the inferred-type problem" true
+           (contains msg "cannot infer"));
+      Sys.remove path);
+
+    Alcotest.test_case "image_file rejects a media type no provider accepts" `Quick (fun () ->
+      let path = Filename.temp_file "par_mm" ".weird" in
+      let oc = open_out_bin path in
+      output_string oc "x";
+      close_out oc;
+      (match Message.image_file path ~media_type:"image/bmp" () with
+       | Ok _ -> Alcotest.fail "expected image/bmp to be rejected"
+       | Error msg ->
+         Alcotest.(check bool) "message names the supported set" true
+           (contains msg "unsupported image media type"));
+      Sys.remove path);
+
+    Alcotest.test_case "image_file rejects an empty file" `Quick (fun () ->
+      let path = Filename.temp_file "par_mm" ".png" in
+      (match Message.image_file path () with
+       | Ok _ -> Alcotest.fail "expected an empty file to be rejected"
+       | Error msg ->
+         Alcotest.(check bool) "message says the file is empty" true (contains msg "empty"));
+      Sys.remove path);
+
+    Alcotest.test_case "image_file refuses an oversize file without reading it" `Quick (fun () ->
+      let path = Filename.temp_file "par_mm" ".png" in
+      (* A sparse file: the size is checked before any bytes are read, so the
+         test needs the length but not the contents. *)
+      let oc = open_out_bin path in
+      output_string oc "x";
+      close_out oc;
+      Unix.truncate path (2 * 1024 * 1024);
+      (match Message.image_file path ~max_bytes:(1024 * 1024) () with
+       | Ok _ -> Alcotest.fail "expected the oversize file to be rejected"
+       | Error msg ->
+         Alcotest.(check bool) "message states the limit" true (contains msg "image limit"));
+      Sys.remove path);
+
+    Alcotest.test_case "image_file honours an explicit max_bytes" `Quick (fun () ->
+      let path = Filename.temp_file "par_mm" ".png" in
+      let oc = open_out_bin path in
+      output_string oc "0123456789";
+      close_out oc;
+      (match Message.image_file path ~max_bytes:4 () with
+       | Ok _ -> Alcotest.fail "expected the file to exceed the explicit limit"
+       | Error _ -> ());
+      (match Message.image_file path ~max_bytes:10 () with
        | Error msg -> Alcotest.fail ("unexpected error: " ^ msg)
-       | Ok (Image_block { media_type; _ }) ->
-         Alcotest.check Alcotest.string "media_type" "image/png" media_type
+       | Ok (Image_block { source = Base64 encoded; _ }) ->
+         Alcotest.(check string) "contents survive" "0123456789"
+           (match Base64.decode encoded with Ok s -> s | Error _ -> "")
        | Ok _ -> Alcotest.fail "expected Image_block");
       Sys.remove path);
+
+    Alcotest.test_case "image_base64 rejects malformed data" `Quick (fun () ->
+      match Message.image_base64 ~data:"not base64!!" () with
+      | Ok _ -> Alcotest.fail "expected malformed base64 to be rejected"
+      | Error msg ->
+        Alcotest.(check bool) "message names base64" true (contains msg "not valid base64"));
+
+    Alcotest.test_case "image_base64 rejects empty data" `Quick (fun () ->
+      match Message.image_base64 ~data:"" () with
+      | Ok _ -> Alcotest.fail "expected empty data to be rejected"
+      | Error msg ->
+        Alcotest.(check bool) "message says the data is empty" true (contains msg "empty"));
+
+    Alcotest.test_case "image_base64 refuses an oversize payload before decoding" `Quick (fun () ->
+      (* Not valid base64 on purpose: if the length check did not run first,
+         this would fail as a decode error instead of a size error. *)
+      let data = String.make 16 '!' in
+      match Message.image_base64 ~data ~max_bytes:6 () with
+      | Ok _ -> Alcotest.fail "expected the encoded payload to be rejected"
+      | Error msg ->
+        Alcotest.(check bool) "rejected on length, before decoding" true
+          (contains msg "image limit"));
+
+    Alcotest.test_case "image_base64 rejects a media type no provider accepts" `Quick (fun () ->
+      match Message.image_base64 ~data:"aGk=" ~media_type:"image/tiff" () with
+      | Ok _ -> Alcotest.fail "expected image/tiff to be rejected"
+      | Error msg ->
+        Alcotest.(check bool) "message names the supported set" true
+          (contains msg "unsupported image media type"));
+
+    Alcotest.test_case "the documented limits are the enforced ones" `Quick (fun () ->
+      Alcotest.(check int) "max_image_bytes is 5 MiB" (5 * 1024 * 1024)
+        Message.max_image_bytes;
+      Alcotest.(check (list string)) "supported media types"
+        ["image/png"; "image/jpeg"; "image/gif"; "image/webp"]
+        Message.supported_image_media_types);
   ])
 
 (* -------------------------------------------------------------------------- *)
@@ -151,7 +253,7 @@ let openai_tests =
        | _ -> Alcotest.fail "expected content to be an array"));
 
     Alcotest.test_case "base64 image becomes a data URI" `Quick (fun () ->
-      let msg = user_message [ Message.image_base64 ~data:"aGk=" ~media_type:"image/jpeg" () ] in
+      let msg = user_message [ expect_block (Message.image_base64 ~data:"aGk=" ~media_type:"image/jpeg" ()) ] in
       let fields = json_assoc (Openai_provider.build_message_json msg) in
       (match find_field "content" fields with
        | `List [ `Assoc p ] ->
@@ -183,7 +285,7 @@ let openai_tests =
 let anthropic_tests =
   ( "Anthropic image wire format", [
     Alcotest.test_case "base64 image keeps media_type inside source" `Quick (fun () ->
-      let msg = user_message [ Message.image_base64 ~data:"aGk=" ~media_type:"image/jpeg" () ] in
+      let msg = user_message [ expect_block (Message.image_base64 ~data:"aGk=" ~media_type:"image/jpeg" ()) ] in
       let fields = json_assoc (Anthropic_provider.build_message_json msg) in
       (match find_field "content" fields with
        | `List [ `Assoc p ] ->

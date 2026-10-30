@@ -200,3 +200,105 @@ def test_legacy_image_json_can_be_invoked(vision_runtime):
     runtime.invoke_content("vision", [block])
     user = next(message for message in requests[0]["messages"] if message["role"] == "user")
     assert user["content"][0]["image_url"]["url"] == "https://example.com/legacy.png"
+
+
+# ---------------------------------------------------------------------------
+# Image limits and MIME validation
+#
+# These run against the constructors only: they pin PAR's own contract. No
+# provider is contacted, so nothing here claims a provider accepted an image.
+# ---------------------------------------------------------------------------
+
+
+def test_image_limits_are_the_documented_values():
+    from par_runtime import MAX_IMAGE_BYTES, SUPPORTED_IMAGE_MEDIA_TYPES
+
+    assert MAX_IMAGE_BYTES == 5 * 1024 * 1024
+    assert SUPPORTED_IMAGE_MEDIA_TYPES == frozenset(
+        {"image/png", "image/jpeg", "image/gif", "image/webp"}
+    )
+
+
+def test_image_error_is_a_value_error():
+    from par_runtime import ImageError
+
+    assert issubclass(ImageError, ValueError)
+
+
+def test_image_file_rejects_unknown_extension_instead_of_guessing(tmp_path):
+    from par_runtime import ImageError, image_file
+
+    path = tmp_path / "photo.weird"
+    path.write_bytes(b"x")
+    with pytest.raises(ImageError, match="cannot infer"):
+        image_file(path)
+
+
+def test_image_file_rejects_media_type_no_provider_accepts(tmp_path):
+    from par_runtime import ImageError, image_file
+
+    path = tmp_path / "photo.weird"
+    path.write_bytes(b"x")
+    with pytest.raises(ImageError, match="unsupported image media type"):
+        image_file(path, media_type="image/bmp")
+
+
+def test_image_file_rejects_empty_file(tmp_path):
+    from par_runtime import ImageError, image_file
+
+    path = tmp_path / "photo.png"
+    path.write_bytes(b"")
+    with pytest.raises(ImageError, match="empty"):
+        image_file(path)
+
+
+def test_image_file_refuses_oversize_without_reading_it(tmp_path):
+    from par_runtime import ImageError, image_file
+
+    path = tmp_path / "big.png"
+    # Sparse file: the size is what matters, not the contents.
+    with path.open("wb") as handle:
+        handle.truncate(2 * 1024 * 1024)
+    with pytest.raises(ImageError, match="image limit"):
+        image_file(path, max_bytes=1024 * 1024)
+
+
+def test_image_file_honours_max_bytes(tmp_path):
+    from par_runtime import ImageError, image_file
+
+    path = tmp_path / "photo.png"
+    path.write_bytes(b"0123456789")
+    with pytest.raises(ImageError, match="image limit"):
+        image_file(path, max_bytes=4)
+    block = image_file(path, max_bytes=10)
+    assert block[1]["source"] == ["Base64", base64.b64encode(b"0123456789").decode()]
+
+
+def test_image_base64_rejects_malformed_data():
+    from par_runtime import ImageError, image_base64
+
+    with pytest.raises(ImageError, match="not valid base64"):
+        image_base64("not base64!!")
+
+
+def test_image_base64_rejects_empty_data():
+    from par_runtime import ImageError, image_base64
+
+    with pytest.raises(ImageError, match="empty"):
+        image_base64("")
+
+
+def test_image_base64_refuses_oversize_payload_before_decoding():
+    from par_runtime import ImageError, image_base64
+
+    # Not valid base64 on purpose: if the length check did not run first, this
+    # would fail as a decode error instead of a size error.
+    with pytest.raises(ImageError, match="image limit"):
+        image_base64("!" * 16, max_bytes=6)
+
+
+def test_image_base64_rejects_media_type_no_provider_accepts():
+    from par_runtime import ImageError, image_base64
+
+    with pytest.raises(ImageError, match="unsupported image media type"):
+        image_base64("aGk=", media_type="image/tiff")

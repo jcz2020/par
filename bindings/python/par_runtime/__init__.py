@@ -15,7 +15,17 @@ from par_runtime.runtime import (
     ToolCallDelta,
     UsageUpdate,
 )
-from par_runtime.content import ContentBlock, ImageDetail, text, image_url, image_base64, image_file
+from par_runtime.content import (
+    MAX_IMAGE_BYTES,
+    SUPPORTED_IMAGE_MEDIA_TYPES,
+    ContentBlock,
+    ImageDetail,
+    ImageError,
+    image_base64,
+    image_file,
+    image_url,
+    text,
+)
 
 __version__ = "0.12.0-beta.20261023"
 
@@ -23,6 +33,9 @@ __all__ = [
     "Runtime",
     "ContentBlock",
     "ImageDetail",
+    "ImageError",
+    "MAX_IMAGE_BYTES",
+    "SUPPORTED_IMAGE_MEDIA_TYPES",
     "text",
     "image_url",
     "image_base64",

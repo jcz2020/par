@@ -14,21 +14,30 @@ let legacy_image () =
   | Error message -> Alcotest.fail message
 
 let current_image () =
-  let block = Message.image_base64 ~data:"aGk=" ~detail:"low" () in
-  match content_block_of_yojson (content_block_to_yojson block) with
-  | Ok decoded -> Alcotest.(check bool) "image survives JSON roundtrip" true (decoded = block)
-  | Error message -> Alcotest.fail message
+  match Message.image_base64 ~data:"aGk=" ~detail:"low" () with
+  | Error message -> Alcotest.fail ("unexpected image error: " ^ message)
+  | Ok block ->
+    match content_block_of_yojson (content_block_to_yojson block) with
+    | Ok decoded -> Alcotest.(check bool) "image survives JSON roundtrip" true (decoded = block)
+    | Error message -> Alcotest.fail message
 
 let failed_file_reads_close_channels () =
   if Sys.file_exists "/proc/self/fd" then begin
     let open_count () = Array.length (Sys.readdir "/proc/self/fd") in
-    let before = open_count () in
-    for _ = 1 to 32 do
-      match Message.image_file (Filename.get_temp_dir_name ()) () with
-      | Error _ -> ()
-      | Ok _ -> Alcotest.fail "a directory is not an image file"
-    done;
-    Alcotest.(check int) "failed reads close their descriptors" before (open_count ())
+    (* A supported extension so the check reaches [open_in_bin]: on Linux a
+       directory opens read-only and fails when read, which is the path that
+       has a descriptor to leak. *)
+    let dir = Filename.temp_file "par_dir" ".png" in
+    Sys.remove dir;
+    Unix.mkdir dir 0o700;
+    Fun.protect ~finally:(fun () -> Unix.rmdir dir) (fun () ->
+        let before = open_count () in
+        for _ = 1 to 32 do
+          match Message.image_file dir () with
+          | Error _ -> ()
+          | Ok _ -> Alcotest.fail "a directory is not an image file"
+        done;
+        Alcotest.(check int) "failed reads close their descriptors" before (open_count ()))
   end
 
 let () =

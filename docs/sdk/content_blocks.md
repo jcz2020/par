@@ -267,8 +267,10 @@ let remote = Message.image_url "https://example.com/photo.png" ()
 let remote_hd = Message.image_url "https://example.com/photo.jpg"
   ~media_type:"image/jpeg" ~detail:"high" ()
 
-(* Bytes already in hand *)
-let inline = Message.image_base64 ~data:"iVBORw0KGgo..." ~media_type:"image/png" ()
+(* Bytes already in hand — checked, so the call can fail *)
+let inline = match Message.image_base64 ~data:"iVBORw0KGgo..." ~media_type:"image/png" () with
+  | Ok block -> block
+  | Error msg -> failwith msg
 
 (* Local file — read and base64-encoded; MIME type inferred from the extension *)
 let local = match Message.image_file "assets/photo.png" () with
@@ -276,7 +278,32 @@ let local = match Message.image_file "assets/photo.png" () with
   | Error msg -> failwith msg
 ```
 
-`Message.media_type_of_extension` maps `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp` and `.bmp`; pass `~media_type` explicitly for anything else. `image_file` returns an error rather than raising when the file cannot be read.
+`Message.media_type_of_extension` maps `.png`, `.jpg`, `.jpeg`, `.gif` and `.webp`. `.bmp` is not inferred because neither supported provider accepts it; pass `~media_type` for anything else, or the call is an error rather than a silent guess.
+
+### Limits and validation
+
+The constructors that carry image bytes are the boundary where a caller hands
+PAR data it did not produce, so they check it instead of trusting it:
+
+| Rule | Value |
+|------|-------|
+| Decoded payload limit | 5 MiB (`Message.max_image_bytes`; override per call with `?max_bytes`) |
+| Accepted media types | `image/png`, `image/jpeg`, `image/gif`, `image/webp` (`Message.supported_image_media_types`) |
+| Base64 payloads | must decode; an oversized string is rejected on its encoded length before anything is decoded |
+| Empty payloads | rejected |
+| Unknown file extension | rejected unless `?media_type` is given |
+
+`image_file` checks the file size before reading, so a large file is refused
+without being loaded into memory. `image_base64` returns a result for the same
+reason; `image_file` always did.
+
+`image_url` is not checked: it carries a reference, not bytes, and its
+`media_type` is a hint the provider may ignore.
+
+Five mebibytes is the per-image cap Anthropic documents; OpenAI allows more, so
+raise `?max_bytes` when the provider in use accepts more. These limits are
+PAR's own contract — they are not a claim that a provider accepted any
+particular image.
 
 ### Sending an image to a model
 
@@ -313,9 +340,13 @@ The constructors return the SDK's existing tagged-array JSON blocks; there is no
 second provider-specific input schema. `invoke_content` returns the same JSON
 envelope as `invoke`. `save=True` persists this call's conversation;
 `update_current=False` leaves shared current-conversation state unchanged. File
-helpers raise `OSError` on I/O failures. Malformed blocks raise `PARInvokeError`
-before the provider is called. User input accepts text and image blocks, not
-`Tool_use_block` or `Tool_result_block`.
+helpers raise `OSError` on I/O failures and `ImageError` (a `ValueError`) when
+the content fails a check: unknown extension, unsupported media type, malformed
+or oversized base64, or a file over `MAX_IMAGE_BYTES`. `MAX_IMAGE_BYTES` and
+`SUPPORTED_IMAGE_MEDIA_TYPES` are exported so a caller can pre-check, and
+`max_bytes=` overrides the limit per call. Malformed blocks raise
+`PARInvokeError` before the provider is called. User input accepts text and
+image blocks, not `Tool_use_block` or `Tool_result_block`.
 
 Persisted image blocks written before `detail` was added still decode: an absent
 `detail` defaults to `None`. New blocks preserve the hint when saved and loaded.

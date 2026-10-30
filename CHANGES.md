@@ -1,6 +1,16 @@
 # CHANGES
 
-## v0.12.0-beta.20261023 — multimodal input: public rich-content entry point + OpenAI image wire format
+## Unreleased
+
+### Breaking — image constructors validate what they carry
+
+- `Message.image_base64` now returns `(content_block, string) result` instead of a bare `content_block`. The payload is checked rather than trusted: it must be valid base64, must not be empty, and must not exceed the size limit. Callers on `0.12.0-beta.20261023` add a `match` (or `Result` unwrap).
+- `Message.image_file` no longer falls back to `image/png` for an unknown extension. Without `~media_type` it returns an error naming the extension. `.bmp` is no longer inferred at all: neither supported provider accepts it, so inferring it only moved the failure downstream.
+- Both data constructors reject a media type outside the new `Message.supported_image_media_types` (`image/png`, `image/jpeg`, `image/gif`, `image/webp`), and name the supported set in the error.
+- New `Message.max_image_bytes` (5 MiB, the per-image cap Anthropic documents) bounds what PAR carries inline; `?max_bytes` overrides it per call. `image_file` checks the file size before reading, so an oversized file is never loaded; `image_base64` rejects an oversized encoded string by its length before decoding anything. Empty payloads are rejected on both paths.
+- `image_url` is unchanged and unvalidated: it carries a reference, not bytes, and its media type is a hint the provider may ignore.
+- Python mirrors the rules. `ImageError` (a `ValueError`) covers content-check failures, `MAX_IMAGE_BYTES` and `SUPPORTED_IMAGE_MEDIA_TYPES` are exported for pre-checks, and `max_bytes=` overrides per call. `image_file` reads at most `max_bytes + 1` bytes, so an oversized file is not loaded.
+- These checks are PAR's own input contract. They are not evidence that any provider accepted an image.
 
 ### Added — MCP server tools reach the agent loop
 
@@ -9,6 +19,13 @@
 - Tool names are the server's own. A name an explicitly registered tool already uses keeps the explicitly registered tool.
 - Selection is explicit by design: a server can expose many tools, and advertising all of them to every agent would work against `max_tool_schema_tokens`.
 - `Types.string_of_error_category` is now exported. The renderer moved out of the runtime so that any core module can describe an error; two other modules carried private copies of it.
+
+### Tests
+
+- OCaml totals are **1652 tests across 123 suites**, 0 failures: four MCP tool regressions (three fail when the wiring is removed) and ten image-limit/media-type cases on top of the 1639 collected at the tag. Python totals are **185 passed / 20 skipped** (eleven new image-limit/MIME cases), with the two pre-existing callback-memory warnings unchanged.
+- The image tests were mutation-checked, not assumed: removing the unknown-extension check fails three cases, removing the size checks fails the oversize cases, and disabling the encoded-length check makes the pre-decode case report a base64 error instead of a size error.
+
+## v0.12.0-beta.20261023 — multimodal input: public rich-content entry point + OpenAI image wire format
 
 ### Added — multimodal input
 
@@ -49,7 +66,7 @@
 
 ### Tests
 
-- OCaml coverage includes `test_multimodal` (17 cases), `test_multimodal_safety` (3 compatibility/file-cleanup regressions), three bash capture/timeout regressions, two download-ceiling regressions and four MCP tool regressions, bringing the collected total to **1643** tests. Python totals are **174 passed / 20 skipped**, including 13 new HTTP integration/helper cases exercising the actual Python → C → OCaml → provider path, base64/local images, malformed input, legacy JSON, persistence and current-conversation flags. The two existing callback-memory warnings remain.
+- OCaml coverage includes `test_multimodal` (17 cases), `test_multimodal_safety` (3 compatibility/file-cleanup regressions), three bash capture/timeout regressions and two download-ceiling regressions, bringing the collected total to **1639** tests. Python totals are **174 passed / 20 skipped**, including 13 new HTTP integration/helper cases exercising the actual Python → C → OCaml → provider path, base64/local images, malformed input, legacy JSON, persistence and current-conversation flags. The two existing callback-memory warnings remain.
 
 ## v0.11.0-beta.20261013 — apply_patch + agent-as-tool + progressive tool loading
 

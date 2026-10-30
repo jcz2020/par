@@ -266,8 +266,10 @@ let remote = Message.image_url "https://example.com/photo.png" ()
 let remote_hd = Message.image_url "https://example.com/photo.jpg"
   ~media_type:"image/jpeg" ~detail:"high" ()
 
-(* 字节已在手中 *)
-let inline = Message.image_base64 ~data:"iVBORw0KGgo..." ~media_type:"image/png" ()
+(* 字节已在手中——会做校验，因此可能失败 *)
+let inline = match Message.image_base64 ~data:"iVBORw0KGgo..." ~media_type:"image/png" () with
+  | Ok block -> block
+  | Error msg -> failwith msg
 
 (* 本地文件——读取并做 base64 编码；MIME 类型由扩展名推断 *)
 let local = match Message.image_file "assets/photo.png" () with
@@ -275,7 +277,30 @@ let local = match Message.image_file "assets/photo.png" () with
   | Error msg -> failwith msg
 ```
 
-`Message.media_type_of_extension` 映射 `.png`、`.jpg`、`.jpeg`、`.gif`、`.webp` 与 `.bmp`；其他格式请显式传 `~media_type`。`image_file` 在文件无法读取时返回 error 而非抛出异常。
+`Message.media_type_of_extension` 映射 `.png`、`.jpg`、`.jpeg`、`.gif` 与 `.webp`。`.bmp` 不做推断，因为两个受支持的 provider 都不接受它；其他格式请显式传 `~media_type`，否则调用直接报错，而不是静默猜测。
+
+### 上限与校验
+
+承载图像字节的构造函数是「调用方把并非自己产生的数据交给 PAR」的边界，因此它们
+校验数据，而不是信任数据：
+
+| 规则 | 取值 |
+|------|------|
+| 解码后载荷上限 | 5 MiB（`Message.max_image_bytes`；可用 `?max_bytes` 逐次覆盖） |
+| 接受的 MIME 类型 | `image/png`、`image/jpeg`、`image/gif`、`image/webp`（`Message.supported_image_media_types`） |
+| base64 载荷 | 必须可解码；超长字符串在**解码之前**按编码长度拒绝 |
+| 空载荷 | 拒绝 |
+| 未知文件扩展名 | 未显式给 `?media_type` 时拒绝 |
+
+`image_file` 在读取之前先检查文件大小，所以过大的文件不会被读进内存。
+`image_base64` 同样返回 result；`image_file` 一直都是。
+
+`image_url` 不做校验：它携带的是引用而非字节，其 `media_type` 只是 provider
+可能忽略的提示。
+
+5 MiB 是 Anthropic 文档给出的单图上限；OpenAI 允许更大，所用 provider 支持更大时
+请抬高 `?max_bytes`。这些上限是 PAR 自己的契约——它们不代表某个 provider 接受过
+任何具体图片。
 
 ### 把图像发给模型
 
@@ -311,9 +336,12 @@ inline_image = image_base64("iVBORw0KGgo...", media_type="image/png")
 构造函数返回 SDK 已有的带标签数组 JSON 块，不引入另一套 provider 专属输入格式。
 `invoke_content` 返回与 `invoke` 相同的 JSON 响应。
 `save=True` 持久化本次调用的对话，`update_current=False` 不覆盖共享的当前对话状态。
-文件辅助函数在 I/O 失败时抛出 `OSError`。格式错误的内容块在调用 provider 前抛出
-`PARInvokeError`。用户输入只接受文本和图像块，不接受 `Tool_use_block` 或
-`Tool_result_block`。
+文件辅助函数在 I/O 失败时抛出 `OSError`，内容校验不通过时抛出 `ImageError`
+（`ValueError` 的子类）：未知扩展名、不支持的 MIME 类型、畸形或超长的 base64、
+超过 `MAX_IMAGE_BYTES` 的文件。`MAX_IMAGE_BYTES` 与 `SUPPORTED_IMAGE_MEDIA_TYPES`
+已导出，便于调用方预先检查；`max_bytes=` 可逐次覆盖上限。格式错误的内容块在调用
+provider 前抛出 `PARInvokeError`。用户输入只接受文本和图像块，不接受
+`Tool_use_block` 或 `Tool_result_block`。
 
 新增 `detail` 字段以前保存的图像块仍可解码：缺少的 `detail` 默认为 `None`。
 新内容块在保存和加载后会保留该提示。OCaml 的 `image_file` 辅助函数在读取失败时
