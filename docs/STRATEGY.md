@@ -139,6 +139,67 @@
 
 ---
 
+### 2026-10-26: MCP server tools reach the agent loop
+
+**Before**: `Mcp_client` could list and call a server's tools, but nothing put
+those tools in front of a model. `tool_registry.ml` and `engine.ml` held no MCP
+reference, `Mcp_client.call_tool` had no call site in the library, and the
+runtime tests covered server lifecycle and raw JSON-RPC only. `docs/sdk/mcp.md`
+claimed any agent could transparently call any server — overstated for tools.
+**After**: `Runtime.create` lists each configured server's tools once the server is
+up and keeps each descriptor next to the handler that calls the server.
+`Runtime.mcp_tool_descriptors` exposes the descriptors; advertising one on an
+agent makes it callable, because the handler is already in every per-call
+registry. The engine validates the model's arguments against the server's own
+schema. A server-reported `isError` becomes a tool error rather than a
+successful-looking result.
+**Reason**: Architecturally correct, one-shot completion (§11 R1/R3). The MCP
+client was the extension point; the missing piece was wiring it to the loop, and
+adding a second extension mechanism would have been the wrong answer. Selection
+is explicit rather than automatic because PAR ships `max_tool_schema_tokens` for
+exactly this problem — auto-advertising every server tool to every agent would
+work against it.
+**Affected surface**: new `lib/core/mcp_tools.ml`, runtime tool registry and
+agent-facing API, `Types.string_of_error_category` (moved out of the runtime so
+core modules can describe errors without a dependency cycle; two modules carried
+private copies), bilingual MCP docs.
+**Rollback**: Revert the wiring; the descriptors and handlers disappear together
+because they come from one list, so the model-visible and callable sets cannot
+drift apart.
+
+---
+
+### 2026-10-31: Image input bounds and media-type validation
+
+**Before**: `Message.image_file` read the whole caller-specified file with no
+size ceiling, and mapped an unknown extension to `image/png` without saying so.
+`Message.image_base64` accepted any string: not-base64, empty, and arbitrarily
+large payloads all went through. `.bmp` was inferred although neither supported
+provider accepts it, so the failure surfaced at the provider, far from the call
+that caused it. Python's `image_file` read the whole file and had the same
+silent default.
+**After**: One rule set, stated once and enforced on both SDK surfaces.
+`Message.max_image_bytes` (5 MiB) bounds the decoded payload and `?max_bytes`
+overrides it; `image_file` checks the size before reading, `image_base64`
+rejects an oversized encoded string before decoding; empty payloads are
+rejected; unknown extensions and media types outside
+`Message.supported_image_media_types` are errors that name the accepted set.
+`image_base64` returns a result because it can now fail. Python raises
+`ImageError` (a `ValueError`) and exposes `MAX_IMAGE_BYTES`,
+`SUPPORTED_IMAGE_MEDIA_TYPES`, and `max_bytes=`.
+**Reason**: Architecturally correct, one-shot completion (§11 R1/R3). These
+constructors are the boundary where a caller hands PAR data it did not produce;
+trusting it there meant the contract was asserted rather than checked, and a
+mislabelled payload failed downstream. `image_url` stays unvalidated on
+purpose: it carries a reference, not bytes.
+**Affected surface**: `lib/core/message.ml`, `bindings/python/par_runtime/content.py`
+and its exports, `test/test_multimodal.ml`, `test/test_multimodal_safety.ml`,
+`bindings/python/tests/test_multimodal.py`, bilingual `content_blocks.md`.
+**Rollback**: Revert the constructors and their tests; no persisted data
+changes shape, so no migration is involved.
+
+---
+
 ### 2026-10-19: Published beta verification
 
 **Before:** `v0.11.0-beta.20261013` was prepared on main but not published.
