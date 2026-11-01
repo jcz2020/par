@@ -1,6 +1,8 @@
 # CHANGES
 
-## Unreleased
+## v0.13.1-beta.20261102 — MCP from Python, and a bash environment leak fixed
+
+> A follow-up to `0.13.0` that closes the one parity gap it carried and fixes a security defect in the bash tool: children inherited PAR's whole environment, so a plain `printenv` exposed every API key. Also adds the isolation-boundary page that should have existed alongside the bash tool. **1669 OCaml tests across 124 suites, 0 failures; 198 Python tests passing with 20 pre-existing skips.** Beta-first: the stable line remains v0.10.0.
 
 ### Fixed — bash children inherited PAR's whole environment
 

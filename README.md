@@ -152,7 +152,7 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 **Current**: v0.10.0 — first-class cancellation (`cancel_reason` ADT, replay-valid recovery with synthetic tool results, dispatch/chunk-granularity cooperative checks, cancellable Python `invoke_start`/`invoke_poll`/`invoke_cancel`) + actionable tool validation errors (teach-at-rejection markers `[workspace]`/`[bash-policy]`, edit no-op fix).
 
-**Latest beta**: v0.13.0-beta.20261102 (GitHub pre-release and PyPI prerelease) carries MCP server tools into the model's callable set, bounds and validates image input on both SDKs, and replaces the reasoning string field with content blocks while wiring Anthropic extended thinking end to end. 1665 OCaml tests across 124 suites and 193 Python tests pass. The stable default remains v0.10.0.
+**Latest beta**: v0.13.1-beta.20261102 (GitHub pre-release and PyPI prerelease) makes MCP usable from Python and fixes a bash security defect: child processes inherited PAR's environment, so API keys were readable from a plain `printenv`. It builds on v0.13.0, which brought MCP tools into the model's callable set, bounded image input on both SDKs, and reasoning content blocks with Anthropic extended thinking. 1669 OCaml tests across 124 suites and 198 Python tests pass. The stable default remains v0.10.0.
 
 **In development**: the next round is not yet scoped. What is left on the runtime side is tool-execution isolation and durable execution; both need a design pass before code. Submission to the package repository remains a separate human action.
 
