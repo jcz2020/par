@@ -1,6 +1,8 @@
 # CHANGES
 
-## Unreleased
+## v0.13.0-beta.20261102 — MCP tools, bounded image input, reasoning blocks + Anthropic thinking
+
+> Three capabilities and three surface changes. MCP server tools now reach the model, image constructors are bounded and validated, and reasoning is a content block with Anthropic extended thinking wired end to end. **1665 OCaml tests across 124 suites, 0 failures; 193 Python tests passing with 20 pre-existing skips.** Beta-first: the stable line remains v0.10.0.
 
 ### Breaking — reasoning is a content block, not a field
 
@@ -8,18 +10,6 @@
 - New block variants: `Reasoning_block { text; signature; cache_control }` and `Redacted_reasoning_block { data; cache_control }`. `signature` is Anthropic's thinking signature — the block must be replayed verbatim, signature included, when the assistant message also carries `tool_use`.
 - Reading code changes from `resp.reasoning_content` to `resp.reasoning`; construction code loses the field. `text_of_message` still returns only output text: reasoning is not part of the answer.
 - Conversations persisted by an earlier version still load. The derived parser rejects unknown keys, so `message_of_yojson` migrates a legacy `reasoning_content` string into an unsigned `Reasoning_block` rather than failing. The Anthropic adapter drops unsigned thinking blocks when building a request, so a migrated conversation cannot turn into an invalid replay.
-
-### Added — Anthropic extended thinking
-
-- `model_config.thinking_budget_tokens : int option` turns thinking on with a token budget. Anthropic's own limits (`>= 1024` and `< max_tokens`) are checked locally and reported as `Invalid_input`, naming the two values that disagree, instead of letting the provider reject the request.
-- Anthropic rejects `temperature` and `top_p` alongside thinking, so the adapter omits both when a budget is set.
-- Responses parse `thinking` and `redacted_thinking` blocks and keep the signature and the opaque payload; the next request replays them verbatim.
-- Streaming forwards `thinking_delta` as `Reasoning_delta` and `signature_delta` as the new `Reasoning_signature` chunk. The engine aggregates them into one signed reasoning block.
-- Streaming aggregates a turn's thinking into a single block (keeping the last signature) and drops redacted thinking blocks, because the chunk interface cannot carry a whole block. Use the non-streaming path when exact block structure matters.
-
-### Fixed — Python streaming mis-decoded reasoning
-
-- `Reasoning_delta` chunks fell through the decoder's text branch, so a Python caller saw the model's chain of thought concatenated into the answer text. They now decode to `ReasoningDelta`, and the new `ReasoningSignature` is exported alongside it. The streaming docs described both classes; the code behind them was missing.
 
 ### Breaking — image constructors validate what they carry
 
@@ -38,6 +28,26 @@
 - Tool names are the server's own. A name an explicitly registered tool already uses keeps the explicitly registered tool.
 - Selection is explicit by design: a server can expose many tools, and advertising all of them to every agent would work against `max_tool_schema_tokens`.
 - `Types.string_of_error_category` is now exported. The renderer moved out of the runtime so that any core module can describe an error; two other modules carried private copies of it.
+
+### Added — Anthropic extended thinking
+
+- `model_config.thinking_budget_tokens : int option` turns thinking on with a token budget. Anthropic's own limits (`>= 1024` and `< max_tokens`) are checked locally and reported as `Invalid_input`, naming the two values that disagree, instead of letting the provider reject the request.
+- Anthropic rejects `temperature` and `top_p` alongside thinking, so the adapter omits both when a budget is set.
+- Responses parse `thinking` and `redacted_thinking` blocks and keep the signature and the opaque payload; the next request replays them verbatim.
+- Streaming forwards `thinking_delta` as `Reasoning_delta` and `signature_delta` as the new `Reasoning_signature` chunk. The engine aggregates them into one signed reasoning block.
+- Streaming aggregates a turn's thinking into a single block (keeping the last signature) and drops redacted thinking blocks, because the chunk interface cannot carry a whole block. Use the non-streaming path when exact block structure matters.
+
+### Fixed — Python streaming mis-decoded reasoning
+
+- `Reasoning_delta` chunks fell through the decoder's text branch, so a Python caller saw the model's chain of thought concatenated into the answer text. They now decode to `ReasoningDelta`, and the new `ReasoningSignature` is exported alongside it. The streaming docs described both classes; the code behind them was missing.
+
+### Surface note — MCP is OCaml-only in this release
+
+- `Runtime.mcp_tool_descriptors` has no Python counterpart. The Python binding can call `mcp_server` / `mcp_list_tools` on an already-configured server, but `Runtime.create` does not accept `mcp_servers` yet, so a Python program cannot configure one in the first place. The OCaml surface is complete; Python parity is tracked as `PAR-b3b`.
+
+### Known issues
+
+- None new in this release. The `test_http_timeout.py` SIGABRT recorded under v0.7.5 remains tracked for a future version: the streaming callback runs on a Python thread without OCaml domain registration.
 
 ### Tests
 

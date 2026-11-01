@@ -152,9 +152,9 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 **Current**: v0.10.0 — first-class cancellation (`cancel_reason` ADT, replay-valid recovery with synthetic tool results, dispatch/chunk-granularity cooperative checks, cancellable Python `invoke_start`/`invoke_poll`/`invoke_cancel`) + actionable tool validation errors (teach-at-rejection markers `[workspace]`/`[bash-policy]`, edit no-op fix).
 
-**Latest beta**: v0.12.0-beta.20261023 is published as a GitHub pre-release and PyPI prerelease (Linux x86_64 and macOS arm64 wheels). It carries multimodal input on both SDKs on top of the v0.11 tool train. The stable default remains v0.10.0.
+**Latest beta**: v0.13.0-beta.20261102 (GitHub pre-release and PyPI prerelease) carries MCP server tools into the model's callable set, bounds and validates image input on both SDKs, and replaces the reasoning string field with content blocks while wiring Anthropic extended thinking end to end. 1665 OCaml tests across 124 suites and 193 Python tests pass. The stable default remains v0.10.0.
 
-**In development**: the next round is not yet scoped. Submission to the package repository remains a separate human action.
+**In development**: the next round is not yet scoped. What is left on the runtime side is tool-execution isolation and durable execution; both need a design pass before code. Submission to the package repository remains a separate human action.
 
 **Recent releases**: v0.8.4 (test_mcp_runtime mock-path portability fix) → v0.8.5 (test mock-path portability fix round 2) → v0.8.6 (Streaming HTTP error propagation fix) → v0.9.0 (Skill activation API completion) → v0.9.1 (tool_call_id correlation fixes) → v0.10.0 (first-class cancellation + actionable tool errors).
 
