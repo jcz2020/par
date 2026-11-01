@@ -44,6 +44,8 @@ bindings/python/dist/
 bindings/python/*.egg-info/
 bindings/python/par_runtime/*.so
 bindings/python/par_runtime/lib/
+# Wheel produced by scripts/release-local-test.sh
+/wheels/
 __pycache__/
 *.pyc
 *.pyo
