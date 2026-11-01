@@ -63,7 +63,7 @@ type tool_descriptor = {
 | `write` | fs (write) | 中 | 30s | 可选 `create_dirs` 自动 mkdir -p |
 | `edit` | fs (write) | 中 | 30s | 批量替换；重叠区间被拒 |
 | `apply_patch` | patch | 中 | 30s | 原子化 unified diff 应用，跨文件全有或全无 |
-| **`bash`** | **exec** | **高** | **60s** | **v0.3.1 新增，9 维安全机制** |
+| **`bash`** | **exec** | **高** | **60s** | **v0.3.1 新增，唯一带安全策略** |
 | `recall_memory` | memory | 低 | 10s | 按关键词搜索记忆，按会话分区 |
 | `remember_memory` | memory | 低 | 10s | 存储新记忆，按会话分区 |
 | `search_history` | memory | 低 | 10s | 搜索跨会话的对话历史 |
@@ -586,7 +586,10 @@ let () = Eio_main.run (fun env ->
 - `clock`：`Eio.Stdenv.clock env`，用于 timeout 强制（无 clock 则超时失效）
 - `fs`：`Eio.Stdenv.fs env`，文件系统 capability，用于设置子进程的 cwd。不传则 bash 命令在 PAR 进程的 cwd 运行，workspace 沙箱失效。
 
-### 9 维安全机制
+### 安全机制
+
+下表列出的是**实际生效**的环节，另外单列一行说明运行时不提供的限制——把那一行也算作
+「一层」，正是让读者误以为隔离比实际更强的来源。
 
 | # | 机制 | 实现 |
 |---|------|------|

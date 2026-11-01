@@ -68,7 +68,7 @@ All tools except `bash` use `permission = Allow`. The file-path tools (`read` / 
 | `write` | fs (write) | medium | 30s | optional `create_dirs` for auto mkdir -p |
 | `edit` | fs (write) | medium | 30s | batch replace; overlapping ranges are rejected |
 | `apply_patch` | patch | medium | 30s | atomic unified-diff application across files |
-| **`bash`** | **exec** | **high** | **60s** | **added in v0.3.1, 9-layer safety mechanism** |
+| **`bash`** | **exec** | **high** | **60s** | **added in v0.3.1, the only tool with a safety policy** |
 | `recall_memory` | memory | low | 10s | search memories by keyword, scoped by session |
 | `remember_memory` | memory | low | 10s | store a new memory, scoped by session |
 | `search_history` | memory | low | 10s | search conversation history across sessions |
@@ -592,7 +592,11 @@ let () = Eio_main.run (fun env ->
 - `clock`: `Eio.Stdenv.clock env`, used to enforce the timeout (without a clock, timeouts do nothing)
 - `fs`: `Eio.Stdenv.fs env`, the filesystem capability used to set the child process's cwd. Without it, bash commands would run in the PAR process's cwd, defeating the workspace sandbox.
 
-### The 9-layer safety mechanism
+### Safety mechanisms
+
+The table lists what is enforced, plus one row that names a limit the runtime
+does not provide — counting that row as a "layer" is what lets readers assume
+more isolation than they get.
 
 | # | Mechanism | Implementation |
 |---|------|------|
