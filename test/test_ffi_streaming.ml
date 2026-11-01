@@ -27,7 +27,7 @@ let dummy_model : model_config = {
   temperature = 0.0;
   max_tokens = None;
   top_p = None;
-  stop_sequences = None;
+  stop_sequences = None; thinking_budget_tokens = None;
 }
 
 let error_to_string e = match e with

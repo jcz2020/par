@@ -45,6 +45,15 @@ type content_block =
       detail : string option;
       cache_control : cache_control option;
     }
+  | Reasoning_block of {
+      text : string;
+      signature : string option;
+      cache_control : cache_control option;
+    }
+  | Redacted_reasoning_block of {
+      data : string;
+      cache_control : cache_control option;
+    }
 ```
 
 **Text_block** 持有纯文本。LLM 的响应文本和用户输入都落在这里。
@@ -55,11 +64,13 @@ type content_block =
 
 **Image_block** 持有图像数据，可以是 URL 引用或 base64 编码的字节。`media_type` 是 MIME 类型（如 `"image/png"`）。
 
-### 关于 reasoning_content
+**Reasoning_block** 持有推理模型的思维链（o1/o3、DeepSeek-R1、Claude extended thinking）。它装的是推理文本而非面向用户的答案，`text_of_message` 会刻意跳过它。`signature` 是 Anthropic 的 thinking 签名：当 assistant 消息同时携带 `tool_use` 时，该块必须连同签名原样回传，因此引擎会把推理块放在记录下来的 assistant 消息最前面。
 
-`reasoning_content : string option` 是 `llm_response` 和 `message` 上的顶层字段，而非 `content_block` 变体。推理模型（o1、o3、DeepSeek-R1）通过此字段返回思维链文本，与主要的 `text` 和 `tool_calls` 分离。当上游 API 返回 `message.reasoning_content`（非流式）或 `delta.reasoning_content`（流式）时，此字段由 OpenAI provider 填充。
+**Redacted_reasoning_block** 持有 Anthropic 在隐去推理内容时替换进去的不透明载荷。它没有文本，同样必须回传才能让往返保持合法。
 
-这是范围妥协。当 Anthropic extended-thinking 支持落地后，`reasoning_content` 将迁移到 `content_block` 中的 `Reasoning_block` 变体，让推理获得与文本和工具使用同等的一等公民待遇。在此之前，直接在 response 或 message record 上检查 `reasoning_content`。
+只有在 provider 能重放时，推理块才会进入线路：Anthropic 适配器会丢弃**没有签名**的 `Reasoning_block`（来自其他 provider，或来自推理还不是块的旧对话），因为 Anthropic 拒绝没有签名的 thinking 块。OpenAI 适配器从不回传推理——o1/o3 与多数 OpenAI 兼容 API 都不接受输入里的推理内容。
+
+`llm_response.reasoning` 持有单次响应的同一批块，引擎会把这些块复制到记录的 assistant 消息中、并置于文本之前。
 
 ## 构造
 

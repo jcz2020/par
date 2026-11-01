@@ -2,12 +2,12 @@ open Par
 
 let dummy_msg role content =
   { Types.role = role; content_blocks = [Text_block { text = content; cache_control = None }];
-    tool_calls = None; tool_call_id = None; name = None; reasoning_content = None }
+    tool_calls = None; tool_call_id = None; name = None }
 
 let dummy_model ~name =
   { Types.provider = `Openai; model_name = name; api_base = None;
     temperature = 0.0; max_tokens = None; top_p = None;
-    stop_sequences = None }
+    stop_sequences = None; thinking_budget_tokens = None }
 
 (* complete_fn is a failwith stub: the pure helpers under test never
    invoke it. If a test triggers an LLM call, the failure surfaces

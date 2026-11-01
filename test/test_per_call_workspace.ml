@@ -219,7 +219,7 @@ let isolation_suite =
                setup_builtins rt ~switch:sw ~net;
                let model : Types.model_config = {
                  provider = `Openai; model_name = "t"; api_base = None;
-                 temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None } in
+                 temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None; thinking_budget_tokens = None } in
                let agent = match Runtime.make_agent ~id:"a"
                  ~system_prompt:(Types.stable_prompt "s") ~model
                  ~tools:[Builtin_tools.bash_tool_descriptor] () with

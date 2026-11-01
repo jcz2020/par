@@ -669,6 +669,11 @@
   (modules test_http_body_limit))
 
 (test
+  (name test_reasoning)
+  (libraries par eio_main alcotest yojson logs)
+  (modules test_reasoning))
+
+(test
   (name test_mcp_tools)
   (libraries par eio_main alcotest yojson logs)
   (modules test_mcp_tools)

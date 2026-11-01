@@ -233,10 +233,10 @@ let content_parts_json (msg : Types.message) : Yojson.Safe.t list =
     msg.content_blocks
 
 let build_message_json msg =
-  (* NOTE: msg.reasoning_content is intentionally NOT serialized into the
-     outbound request body. OpenAI o1/o3 and most OpenAI-compatible APIs
-     reject reasoning_content on input. Reasoning is captured on response
-     but not echoed back. *)
+  (* NOTE: reasoning blocks are intentionally NOT serialized into the outbound
+     request body. OpenAI o1/o3 and most OpenAI-compatible APIs reject
+     reasoning on input. Reasoning is captured on response but not echoed
+     back. *)
   let fields = [ ("role", `String (role_to_string msg.role)) ] in
   let fields =
     if has_image_block msg then
@@ -417,16 +417,16 @@ let parse_llm_response json : (llm_response, error_category) result =
       try match message |> member "content" with `String s -> Some s | _ -> None
       with _ -> None
     in
-    let reasoning_content =
-      try match message |> member "reasoning_content" with
-        | `String s -> Some s
-        | _ -> None
-      with _ -> None
+    let reasoning =
+      match (try message |> member "reasoning_content" with _ -> `Null) with
+      | `String text ->
+        [Reasoning_block { text; signature = None; cache_control = None }]
+      | _ -> []
     in
     let tool_calls =
       try Some (parse_tool_calls (message |> member "tool_calls")) with _ -> None
     in
-    Ok { text; reasoning_content; tool_calls; finish_reason = finish; usage; model }
+    Ok { text; reasoning; tool_calls; finish_reason = finish; usage; model }
   | [] -> Result.Error (External_failure "No choices in OpenAI response")
 
 (* -------------------------------------------------------------------------- *)

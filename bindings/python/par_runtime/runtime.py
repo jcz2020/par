@@ -32,6 +32,25 @@ class TextDelta:
     text: str
 
 @dataclass(frozen=True)
+class ReasoningDelta:
+    """A chunk of a reasoning model's chain of thought.
+
+    Concatenate ``text`` across deltas to rebuild the trace. Reasoning arrives
+    before the text it leads to. It is not part of the user-facing answer.
+    """
+    text: str
+
+@dataclass(frozen=True)
+class ReasoningSignature:
+    """Anthropic's signature for the thinking block that just streamed.
+
+    The signature arrives after the block's text. It is replayed automatically
+    when the assistant turn is sent back with a tool call, so callers only need
+    it to persist a conversation themselves.
+    """
+    signature: str
+
+@dataclass(frozen=True)
 class ToolCallStart:
     tool_call_id: str
     name: str
@@ -51,7 +70,8 @@ class UsageUpdate:
 class Done:
     finish_reason: str
 
-Event = Union[TextDelta, ToolCallStart, ToolCallDelta, UsageUpdate, Done]
+Event = Union[TextDelta, ReasoningDelta, ReasoningSignature, ToolCallStart,
+              ToolCallDelta, UsageUpdate, Done]
 
 
 def _decode_event(payload) -> Event:
@@ -73,6 +93,10 @@ def _decode_event(payload) -> Event:
 
     if tag == "Text_delta":
         return TextDelta(text=fields.get("text", ""))
+    if tag == "Reasoning_delta":
+        return ReasoningDelta(text=fields.get("text", ""))
+    if tag == "Reasoning_signature":
+        return ReasoningSignature(signature=fields.get("signature", ""))
     if tag == "Tool_call_start":
         return ToolCallStart(
             tool_call_id=fields.get("tool_call_id", ""),

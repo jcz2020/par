@@ -42,7 +42,7 @@ let dummy_usage : usage_stats = {
 let dummy_model : model_config =
   { provider = `Openai; model_name = "mock"; api_base = None;
     temperature = 0.0; max_tokens = None; top_p = None;
-    stop_sequences = None }
+    stop_sequences = None; thinking_budget_tokens = None }
 
 (* A minimal conversation for direct persistence testing.
    [save_conversation] accepts an explicit ?conversation argument that
@@ -57,14 +57,13 @@ let sample_conversation : conversation = {
     tool_calls = None;
     tool_call_id = None;
     name = None;
-    reasoning_content = None;
   }];
   metadata = [("test_marker", `String "runtime_scope")];
 }
 
 let mock_llm : llm_service = {
   complete_fn = (fun _ _ _ ->
-    Ok { text = Some "mock"; reasoning_content = None;
+    Ok { text = Some "mock"; reasoning = [];
          tool_calls = None; finish_reason = Stop;
          usage = dummy_usage; model = "mock" });
   stream_fn = (fun _ _ _ _ _ -> Error Timeout);

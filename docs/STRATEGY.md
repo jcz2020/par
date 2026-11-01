@@ -139,6 +139,46 @@
 
 ---
 
+### 2026-11-02: Reasoning becomes a content block; Anthropic extended thinking
+
+**Before**: reasoning lived in a `reasoning_content : string option` field on
+both `llm_response` and `message`. `engine.ml` documented that as a 范围妥协
+whose retirement trigger was "when Anthropic extended-thinking support lands".
+The shape could not carry an Anthropic thinking signature, so a tool-use
+round-trip would have been rejected, and `.bmp`-style reasoning was the one part
+of the content model that never became a block. Anthropic thinking was
+unavailable: no `thinking` request parameter, no `thinking`/`redacted_thinking`
+parsing, no `thinking_delta` streaming.
+**After**: `Reasoning_block { text; signature; cache_control }` and
+`Redacted_reasoning_block { data; cache_control }` are `content_block` variants;
+`message.reasoning_content` and `llm_response.reasoning_content` are gone
+(`llm_response.reasoning : content_block list`). `model_config` gains
+`thinking_budget_tokens`, the adapter validates Anthropic's budget limits
+locally, omits `temperature`/`top_p` when thinking is on, parses and replays
+`thinking` and `redacted_thinking` verbatim, and streams `thinking_delta` plus a
+new `Reasoning_signature` chunk. `message_of_yojson` migrates a legacy
+`reasoning_content` string into an unsigned block instead of failing, and the
+Anthropic adapter drops unsigned blocks so migrated data cannot produce an
+invalid request.
+**Reason**: Architecturally correct, one-shot completion (§11 R1/R3) — the
+trigger recorded for the compromise arrived, so it was retired rather than
+extended. Doing the type migration together with the capability avoids paying
+for the same public-type break twice, and both ride the same unreleased MINOR
+window as the image-constructor change. Streaming's aggregation limits are a
+documented property of the chunk interface, not a silently accepted defect:
+non-streaming preserves the exact block structure.
+**Affected surface**: `lib/core/types.{ml,mli}`, `message.ml`, `engine.ml`,
+`generate.ml`, `cache_breakpoint.ml`, `context_manager.ml`, `runtime.ml`,
+`lib/providers/{anthropic,openai,mock}_provider.ml`, the Python streaming
+decoder and exports, bilingual `content_blocks.md` / `agent.md` /
+`streaming.md`, `test/test_reasoning.ml` (new), and mechanical field updates
+across the test tree.
+**Rollback**: Revert the blocks and the field together; persisted conversations
+written after this change contain `Reasoning_block`s that an older parser would
+reject, so a rollback also needs the persistence migration in reverse.
+
+---
+
 ### 2026-10-26: MCP server tools reach the agent loop
 
 **Before**: `Mcp_client` could list and call a server's tools, but nothing put

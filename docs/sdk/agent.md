@@ -172,8 +172,11 @@ type model_config = {
   max_tokens : int option;
   top_p : float option;
   stop_sequences : string list option;
+  thinking_budget_tokens : int option;  (* Anthropic extended thinking; None = off *)
 }
 ```
+
+`thinking_budget_tokens = Some n` turns on Anthropic extended thinking with an `n`-token budget. Anthropic requires `n >= 1024` and `n < max_tokens`; the adapter checks both locally and returns `Invalid_input` instead of letting the provider reject the request. Anthropic rejects `temperature` and `top_p` alongside thinking, so the adapter omits both when thinking is on. Other providers ignore the field.
 
 Provider examples:
 
@@ -181,24 +184,25 @@ Provider examples:
 (* OpenAI *)
 { provider = `Openai; model_name = "gpt-4"; api_base = None;
   temperature = 0.7; max_tokens = Some 4096; top_p = None;
-  stop_sequences = None }
+  stop_sequences = None; thinking_budget_tokens = None }
 
-(* Anthropic via ZhipuAI gateway *)
+(* Anthropic with extended thinking: temperature/top_p are ignored by the
+   adapter when a budget is set *)
 { provider = `Anthropic; model_name = "claude-sonnet-4-20250514";
-  api_base = Some "https://open.bigmodel.cn/api/paas/v4";
-  temperature = 0.5; max_tokens = None; top_p = None;
-  stop_sequences = None }
+  api_base = None;
+  temperature = 1.0; max_tokens = Some 8192; top_p = None;
+  stop_sequences = None; thinking_budget_tokens = Some 2048 }
 
 (* Ollama local model *)
 { provider = `Ollama; model_name = "llama3"; api_base = None;
   temperature = 0.8; max_tokens = None; top_p = None;
-  stop_sequences = None }
+  stop_sequences = None; thinking_budget_tokens = None }
 
 (* Custom endpoint *)
 { provider = `Custom "my-provider"; model_name = "my-model";
   api_base = Some "http://localhost:8000/v1";
   temperature = 0.7; max_tokens = None; top_p = None;
-  stop_sequences = None }
+  stop_sequences = None; thinking_budget_tokens = None }
 ```
 
 ### LLM provider configuration
@@ -302,7 +306,7 @@ The return type is `invoke_result`, which wraps `llm_response`:
 ```ocaml
 type llm_response = {
   text : string option;
-  reasoning_content : string option;
+  reasoning : content_block list;   (* Reasoning_block / Redacted_reasoning_block *)
   tool_calls : tool_call list option;
   finish_reason : finish_reason;
   usage : usage_stats;
@@ -310,7 +314,7 @@ type llm_response = {
 }
 ```
 
-`reasoning_content` is populated only by reasoning models (OpenAI o1/o3, DeepSeek-R1 via OpenAI-compatible API). It holds the model's chain-of-thought text when the provider returns it as a separate field. For non-reasoning models, this field is `None`. When set, the model's actual answer is still in `text` (or `tool_calls`), so both fields can carry data simultaneously.
+`reasoning` holds the model's chain of thought as content blocks, in the provider's order: OpenAI o1/o3 and DeepSeek-R1 return it as a separate `reasoning_content` field (one unsigned `Reasoning_block`), and Anthropic extended thinking returns signed `thinking` blocks plus, when it redacts, `Redacted_reasoning_block`s. It is empty for non-reasoning models. The model's actual answer is still in `text` (or `tool_calls`), so both can carry data at once; `Message.text_of_message` never includes reasoning.
 
 ```ocaml
 type invoke_result = {

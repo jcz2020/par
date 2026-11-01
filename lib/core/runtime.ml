@@ -820,11 +820,11 @@ let register_agent_as_tool rt ~agent_id ?(tool_name = "agent_" ^ agent_id) ?desc
             { role = System;
               content_blocks = [Text_block { text = child_system_prompt; cache_control = None }];
               tool_calls = None; tool_call_id = None; name = None;
-              reasoning_content = None };
+              };
             { role = User;
               content_blocks = [Text_block { text = message; cache_control = None }];
               tool_calls = None; tool_call_id = None; name = None;
-              reasoning_content = None };
+              };
           ];
           metadata = [];
         } in
@@ -1110,7 +1110,7 @@ let invoke_content rt ~agent_id ~content ?workspace ?cancellation_token ?convers
               text = Some (Printf.sprintf
                 "Approval required for tool %s — awaiting decision (run_id=%s, expires_at=%.0f)"
                 payload.tool_name persist_id payload.expires_at);
-              reasoning_content = None;
+              reasoning = [];
               tool_calls = None;
               finish_reason = Stop;
               usage = {
@@ -1656,7 +1656,6 @@ let resume_approval ~rt ~run_id ~outcome ~approver =
               tool_calls = None;
               tool_call_id = Some tool_call_id;
               name = Some tool_name_from_snapshot;
-              reasoning_content = None;
             } in
             { conv_snapshot with
               messages = conv_snapshot.messages @ [ tool_msg ] }

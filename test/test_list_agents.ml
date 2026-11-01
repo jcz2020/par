@@ -4,11 +4,11 @@ open Types
 let dummy_model : model_config =
   { provider = `Openai; model_name = "mock"; api_base = None;
     temperature = 0.0; max_tokens = None; top_p = None;
-    stop_sequences = None }
+    stop_sequences = None; thinking_budget_tokens = None }
 
 let mock_llm : llm_service = {
   complete_fn = (fun _ _ _ ->
-    Ok { text = Some "mock"; reasoning_content = None; tool_calls = None; finish_reason = Stop;
+    Ok { text = Some "mock"; reasoning = []; tool_calls = None; finish_reason = Stop;
          usage = { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 };
          model = "mock" });
   stream_fn = (fun _ _ _ _ _ -> Error (Timeout));

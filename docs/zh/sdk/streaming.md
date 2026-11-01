@@ -129,6 +129,13 @@ class ReasoningDelta:
     text: str
 
 @dataclass(frozen=True)
+class ReasoningSignature:
+    """Anthropic 刚流式输出的 thinking 块的签名。
+    在块文本之后到达；如果你自己持久化对话，请把它和块一起保存。
+    不做签名的 provider 永远不会发出它。"""
+    signature: str
+
+@dataclass(frozen=True)
 class ToolCallStart:
     """The LLM is beginning a tool call. Followed by zero or more ToolCallDelta."""
     tool_call_id: str
@@ -152,13 +159,15 @@ class Done:
     """The stream is complete. `finish_reason` is one of: stop, tool_calls, length, content_filter, max_iterations."""
     finish_reason: str
 
-Event = Union[TextDelta, ReasoningDelta, ToolCallStart, ToolCallDelta, UsageUpdate, Done]
+Event = Union[TextDelta, ReasoningDelta, ReasoningSignature, ToolCallStart,
+              ToolCallDelta, UsageUpdate, Done]
 ```
 
 不变量：
 
 - `TextDelta` 事件按序到达。拼接 `text` 以重建完整的 assistant 消息。
 - `ReasoningDelta` 事件在推理模型流式传输时出现在 `TextDelta` 事件之前。它们携带模型思维链的分块内容。拼接 `text` 以重建完整的推理轨迹。非推理模型不会发出这些事件。
+- 当 provider 为其 thinking 块签名时（Anthropic），`ReasoningSignature` 会在它所属的推理文本之后到达。聚合后的 assistant 消息会携带它，因此工具调用往返无需调用方做任何事即可保持合法。流式会把一轮中的思考聚合为一个块并保留最后一个签名，且会丢弃 redacted thinking 块：需要精确块结构时请使用非流式路径。
 - 一个 `ToolCallStart` 后面跟着零个或多个具有相同 `tool_call_id` 的 `ToolCallDelta` 事件。拼接 `args_json` 并将结果解析为 JSON 以恢复工具调用参数。
 - `UsageUpdate` 是可选的。OpenAI 不发出它；Anthropic 和 Mock 会。显示 token 用量的调用方必须容忍它的缺失。
 - `Done` 总是最后一个事件。generator 在产出它后退出。如果流在没有 `Done` 的情况下结束（网络错误、取消），generator 从 `next()` 抛出 `PARInvokeError`。

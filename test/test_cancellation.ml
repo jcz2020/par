@@ -5,18 +5,18 @@ open Runtime
 let dummy_model : model_config =
   { provider = `Openai; model_name = "mock"; api_base = None;
     temperature = 0.0; max_tokens = None; top_p = None;
-    stop_sequences = None }
+    stop_sequences = None; thinking_budget_tokens = None }
 
 let dummy_usage : usage_stats =
   { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0;
     cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
 
 let text_response text : llm_response =
-  { text = Some text; reasoning_content = None; tool_calls = None;
+  { text = Some text; reasoning = []; tool_calls = None;
     finish_reason = Stop; usage = dummy_usage; model = "mock" }
 
 let _tool_call_response calls : llm_response =
-  { text = None; reasoning_content = None; tool_calls = Some calls;
+  { text = None; reasoning = []; tool_calls = Some calls;
     finish_reason = Tool_calls; usage = dummy_usage; model = "mock" }
 
 let mock_llm responses =
@@ -142,17 +142,17 @@ let test_recover_on_cancel_dual_text () =
   let conv = {
     messages = [
       { role = System; content_blocks = Message.content_of_string "sys";
-        tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
+        tool_calls = None; tool_call_id = None; name = None };
       { role = User; content_blocks = Message.content_of_string "do it";
-        tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
+        tool_calls = None; tool_call_id = None; name = None };
       { role = Assistant; content_blocks = [];
         tool_calls = Some [
           { id = "tc_1"; name = "tool_a"; arguments = `Null };
           { id = "tc_2"; name = "tool_b"; arguments = `Null };
-        ]; tool_call_id = None; name = None; reasoning_content = None };
+        ]; tool_call_id = None; name = None };
       { role = Tool; content_blocks = Message.content_of_string "result for tc_1";
         tool_calls = None; tool_call_id = Some "tc_1"; name = Some "tool_a";
-        reasoning_content = None };
+        };
     ];
     metadata = []
   } in
@@ -320,14 +320,14 @@ let test_recovered_conversation_replay_valid () =
   let conv = {
     messages = [
       { role = System; content_blocks = Message.content_of_string "sys";
-        tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
+        tool_calls = None; tool_call_id = None; name = None };
       { role = User; content_blocks = Message.content_of_string "do it";
-        tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
+        tool_calls = None; tool_call_id = None; name = None };
       { role = Assistant; content_blocks = [];
         tool_calls = Some [
           { id = "tc_1"; name = "tool_a"; arguments = `Null };
           { id = "tc_2"; name = "tool_b"; arguments = `Null };
-        ]; tool_call_id = None; name = None; reasoning_content = None };
+        ]; tool_call_id = None; name = None };
     ];
     metadata = []
   } in
@@ -415,7 +415,7 @@ let test_per_dispatch_cancel_sequential () =
         handler = fast_handler;
       } in
       let llm = mock_llm [
-        { text = None; reasoning_content = None;
+        { text = None; reasoning = [];
           tool_calls = Some [
             { id = "tc_a"; name = "tool_a"; arguments = `Null };
             { id = "tc_b"; name = "tool_b"; arguments = `Null };
@@ -513,7 +513,7 @@ let test_loop_cancel_between_iterations () =
       complete_fn = (fun _model _tools _conv ->
         incr llm_call_count;
         if !llm_call_count = 1 then
-          Ok { text = None; reasoning_content = None;
+          Ok { text = None; reasoning = [];
                tool_calls = Some [{ id = "tc_1"; name = "cancel_tool"; arguments = `Null }];
                finish_reason = Tool_calls; usage = dummy_usage; model = "mock" }
         else

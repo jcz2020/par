@@ -84,7 +84,7 @@ type mock_config = {
   delay : float option;  (* Optional simulated delay in seconds *)
   usage : usage_stats;
   model_name : string;
-  reasoning : string option;  (* Optional reasoning text — populates reasoning_content (non-streaming) and emits Reasoning_delta chunks (streaming) *)
+  reasoning : string option;  (* Optional reasoning text — populates a Reasoning_block (non-streaming) and emits Reasoning_delta chunks (streaming) *)
 }
 
 let default_usage = { prompt_tokens = 10; completion_tokens = 20; total_tokens = 30 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
@@ -103,17 +103,18 @@ type mock_state = {
 let to_response resp config =
   match resp with
   | Text t ->
-    { text = Some t; reasoning_content = None; tool_calls = None; finish_reason = Stop;
+    { text = Some t; reasoning = []; tool_calls = None; finish_reason = Stop;
       usage = config.usage; model = config.model_name }
   | With_tool_calls { text; calls } ->
-    { text; reasoning_content = None; tool_calls = Some calls; finish_reason = Tool_calls;
+    { text; reasoning = []; tool_calls = Some calls; finish_reason = Tool_calls;
       usage = config.usage; model = config.model_name }
   | Error e ->
     raise (Failure (format_error e))
 
 let apply_reasoning (resp : llm_response) (config : mock_config) =
   match config.reasoning with
-  | Some r -> { resp with reasoning_content = Some r }
+  | Some text ->
+    { resp with reasoning = [Reasoning_block { text; signature = None; cache_control = None }] }
   | None -> resp
 
 
@@ -122,7 +123,7 @@ let get_next state =
   match state.config.responses with
   | [] ->
     (* No scripted responses: return a default *)
-    { text = Some "mock"; reasoning_content = None; tool_calls = None; finish_reason = Stop;
+    { text = Some "mock"; reasoning = []; tool_calls = None; finish_reason = Stop;
       usage = state.config.usage; model = state.config.model_name }
   | [single] ->
     (* Single response: always return it without advancing *)
@@ -136,7 +137,7 @@ let get_next state =
     | Some resp -> to_response resp state.config
     | None ->
       (* Fallback (should not happen with proper modulo) *)
-      { text = Some "mock"; reasoning_content = None; tool_calls = None; finish_reason = Stop;
+      { text = Some "mock"; reasoning = []; tool_calls = None; finish_reason = Stop;
         usage = state.config.usage; model = state.config.model_name }
 
 (* Optional simulated delay *)
@@ -148,7 +149,7 @@ let maybe_delay = function
 
 let count_chunks (resp : llm_response) =
   let text_chunks = match resp.text with Some _ -> 1 | None -> 0 in
-  let reasoning_chunks = match resp.reasoning_content with Some _ -> 1 | None -> 0 in
+  let reasoning_chunks = match resp.reasoning with [] -> 0 | _ -> 1 in
   let tool_chunks = match resp.tool_calls with
     | Some calls -> List.length calls * 2  (* start + delta per call *)
     | None -> 0
@@ -226,7 +227,7 @@ let create ?(delay = None) ?(usage = default_usage) ?(model_name = default_model
            match state.config.reasoning with
            | Some r ->
              cb (Reasoning_delta { text = r });
-             { resp with reasoning_content = Some r }
+             { resp with reasoning = [Reasoning_block { text = r; signature = None; cache_control = None }] }
            | None -> resp
          in
          (* 1. Emit text as Text_delta *)
@@ -270,7 +271,7 @@ let create ?(delay = None) ?(usage = default_usage) ?(model_name = default_model
         | None -> synthesize_from_schema response_schema
       in
       Ok { text = Some (Yojson.Safe.to_string json);
-           reasoning_content = None; tool_calls = None; finish_reason = Stop;
+           reasoning = []; tool_calls = None; finish_reason = Stop;
            usage = state.config.usage; model = state.config.model_name }
     );
     list_models_fn = Some (fun () -> Ok ["mock-model"]);

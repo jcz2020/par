@@ -24,7 +24,7 @@ let contains_substring ~needle haystack =
 let dummy_model : model_config =
   { provider = `Openai; model_name = "mock"; api_base = None;
     temperature = 0.0; max_tokens = None; top_p = None;
-    stop_sequences = None }
+    stop_sequences = None; thinking_budget_tokens = None }
 
 let dummy_usage : usage_stats =
   { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0;
@@ -32,19 +32,19 @@ let dummy_usage : usage_stats =
     cache_read_input_tokens = 0 }
 
 let stop_response text : llm_response =
-  { text = Some text; reasoning_content = None; tool_calls = None; finish_reason = Stop;
+  { text = Some text; reasoning = []; tool_calls = None; finish_reason = Stop;
     usage = dummy_usage; model = "mock" }
 
 let content_filter_response text : llm_response =
-  { text = Some text; reasoning_content = None; tool_calls = None; finish_reason = Content_filter;
+  { text = Some text; reasoning = []; tool_calls = None; finish_reason = Content_filter;
     usage = dummy_usage; model = "mock" }
 
 let max_tokens_response text : llm_response =
-  { text = Some text; reasoning_content = None; tool_calls = None; finish_reason = Max_tokens;
+  { text = Some text; reasoning = []; tool_calls = None; finish_reason = Max_tokens;
     usage = dummy_usage; model = "mock" }
 
 let tool_call_response calls : llm_response =
-  { text = None; reasoning_content = None; tool_calls = Some calls; finish_reason = Tool_calls;
+  { text = None; reasoning = []; tool_calls = Some calls; finish_reason = Tool_calls;
     usage = dummy_usage; model = "mock" }
 
 let mock_llm responses =
@@ -315,7 +315,7 @@ let terminal_assistant_message_suite =
     Alcotest.test_case "Stop with empty text still adds Assistant turn" `Quick
       (fun () ->
         let empty_resp : llm_response =
-          { text = None; reasoning_content = None; tool_calls = None; finish_reason = Stop;
+          { text = None; reasoning = []; tool_calls = None; finish_reason = Stop;
             usage = dummy_usage; model = "mock" } in
         let llm = mock_llm [ empty_resp ] in
         let agent = basic_agent () in
@@ -470,7 +470,7 @@ let terminal_assistant_message_suite =
       (fun () ->
         let handoff_tool = make_handoff_tool "B" in
         let empty_stop_resp : llm_response =
-          { text = None; reasoning_content = None; tool_calls = None; finish_reason = Stop;
+          { text = None; reasoning = []; tool_calls = None; finish_reason = Stop;
             usage = dummy_usage; model = "mock" } in
         let llm = mock_llm_dynamic (fun conv ->
           match system_prompt_of conv with
@@ -526,19 +526,16 @@ let terminal_assistant_message_suite =
           role = Assistant;
           content_blocks = [Text_block { text = "previous answer"; cache_control = None }];
           tool_calls = None; tool_call_id = None; name = None;
-          reasoning_content = None;
         } in
         let prior_sys : message = {
           role = System;
           content_blocks = [Text_block { text = "you are resumed"; cache_control = None }];
           tool_calls = None; tool_call_id = None; name = None;
-          reasoning_content = None;
         } in
         let prior_user : message = {
           role = User;
           content_blocks = [Text_block { text = "previous question"; cache_control = None }];
           tool_calls = None; tool_call_id = None; name = None;
-          reasoning_content = None;
         } in
         let existing_conv : conversation = {
           messages = [prior_sys; prior_user; prior_assistant_msg];
@@ -548,7 +545,6 @@ let terminal_assistant_message_suite =
           role = User;
           content_blocks = [Text_block { text = "follow-up question"; cache_control = None }];
           tool_calls = None; tool_call_id = None; name = None;
-          reasoning_content = None;
         } in
         let resumed_conv = { existing_conv with
                               messages = existing_conv.messages @ [new_user_msg] } in
@@ -593,9 +589,12 @@ let terminal_assistant_message_suite =
           complete_fn = (fun _ _ _ -> Ok (stop_response "unused"));
           stream_fn = (fun _model _tools _conv _cfg acc ->
             acc (Reasoning_delta { text = "thinking" });
+            (* Anthropic signs the block after its text; the aggregator must
+               keep the signature or a tool-use round-trip would be rejected. *)
+            acc (Reasoning_signature { signature = "sig-stream" });
             acc (Text_delta { text = "answer" });
             acc (Done { finish_reason = Stop });
-            Ok { final_usage = dummy_usage; finish_reason = Stop; chunks_received = 3 });
+            Ok { final_usage = dummy_usage; finish_reason = Stop; chunks_received = 4 });
           close_fn = (fun () -> ());
           complete_structured_fn = None;
           list_models_fn = None;
@@ -608,21 +607,27 @@ let terminal_assistant_message_suite =
           match Engine.run_agent ~on_chunk:(Some (fun _ -> ()))
                   token agent "hi" stream_llm reg with
           | Ok (resp, _conv) ->
-            Alcotest.(check (option string)) "reasoning_content accumulated"
-              (Some "thinking") resp.reasoning_content;
+            (match resp.reasoning with
+             | [Reasoning_block { text; signature; _ }] ->
+               Alcotest.(check string) "reasoning accumulated" "thinking" text;
+               Alcotest.(check (option string))
+                 "signature kept for the tool-use round-trip" (Some "sig-stream") signature
+             | other ->
+               Alcotest.failf "expected one reasoning block, got %d"
+                 (List.length other));
             Alcotest.(check (option string)) "text accumulated"
               (Some "answer") resp.text
           | Error (e, _) ->
             Alcotest.fail ("expected Ok, got Error: " ^ error_to_string e)));
 
-    (* ---- Test 13: add_assistant_message propagates reasoning_content ----
-       Verifies that when the LLM returns reasoning_content, the engine's
-       egress wrap (add_assistant_message) propagates it into the
-       conversation's terminal Assistant message. *)
-    Alcotest.test_case "add_assistant_message propagates reasoning_content" `Quick
+    (* ---- Test 13: add_assistant_message propagates reasoning blocks ----
+       Verifies that when the LLM returns reasoning, the engine's egress wrap
+       (add_assistant_message) prepends it to the conversation's terminal
+       Assistant message, ahead of the text it led to. *)
+    Alcotest.test_case "add_assistant_message prepends reasoning" `Quick
       (fun () ->
         let reasoning_llm = mock_llm_dynamic (fun _conv ->
-          { text = Some "response"; reasoning_content = Some "thoughts";
+          { text = Some "response"; reasoning = [Reasoning_block { text = "thoughts"; signature = None; cache_control = None }];
             tool_calls = None; finish_reason = Stop;
             usage = dummy_usage; model = "mock" })
         in
@@ -633,8 +638,11 @@ let terminal_assistant_message_suite =
           | Ok (_resp, conv) ->
             (match List.rev conv.messages with
              | last :: _ ->
-               Alcotest.(check (option string)) "last message has reasoning_content"
-                 (Some "thoughts") last.reasoning_content
+               (match last.content_blocks with
+                | [Reasoning_block { text; _ }; Text_block _] ->
+                  Alcotest.(check string) "last message carries reasoning" "thoughts" text
+                | _ ->
+                  Alcotest.fail "expected the assistant message to open with a reasoning block, then its text")
              | [] -> Alcotest.fail "conv empty")
           | Error (e, _) ->
             Alcotest.fail ("expected Ok, got Error: " ^ error_to_string e)));

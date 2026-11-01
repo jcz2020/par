@@ -314,10 +314,10 @@ let agent = Runtime.make_agent
   ~model ~tools:[] ()
 ```
 
-**`Think_tag_strip` 与 `reasoning_content` 的区别。** 两者服务于不同的模型和集成模式：
+**`Think_tag_strip` 与推理块的区别。** 两者服务于不同的模型和集成模式：
 
 - `Think_tag_strip` 中间件：适用于在 `content` 字段内部嵌入 `<think>...</think>` 标签的模型（DeepSeek-R1 通过开源直接 API、QwQ）。中间件在 LLM 调用后剥离这些标签，保持对话历史干净。通过 `Think_tag_strip.create ()` 选择启用。
-- `reasoning_content` 字段：适用于将推理作为独立 API 字段返回的模型（OpenAI o1/o3、DeepSeek 通过 OpenAI 兼容 API）。由 OpenAI provider 自动捕获，无需中间件。
+- `Reasoning_block` 块：适用于将推理作为独立 API 字段返回的模型（OpenAI o1/o3、DeepSeek 通过 OpenAI 兼容 API）。由 OpenAI provider 自动捕获，无需中间件。
 
 两者并不互斥。某些模型在两个位置都发出推理内容，某些部署同时使用两者能获得更好效果。
 

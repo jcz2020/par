@@ -133,25 +133,6 @@ type usage_stats = {
 }
 [@@deriving yojson]
 
-type llm_response = {
-  text : string option;
-  reasoning_content : string option;   (* NEW — captures reasoning model output *)
-  tool_calls : tool_call list option;
-  finish_reason : finish_reason;
-  usage : usage_stats;
-  model : string;
-}
-[@@deriving yojson]
-
-let llm_response_validate resp =
-  match (resp.text, resp.tool_calls, resp.reasoning_content) with
-  | None, None, _ | None, Some [], _ ->
-    if Option.is_some resp.reasoning_content then
-      Result.Error "reasoning_only_response: model produced reasoning but no actionable output (consider increasing max_tokens)"
-    else
-      Result.Error "llm_response must have text or tool_calls"
-  | _ -> Ok ()
-
 (* -------------------------------------------------------------------------- *)
 (* Prompt caching + content block types (PAR-4lh, v0.6.4)                   *)
 (* -------------------------------------------------------------------------- *)
@@ -203,7 +184,43 @@ type content_block =
       detail : string option [@default None];
       cache_control : cache_control option;
     }
+  | Reasoning_block of {
+      text : string;
+      (* Anthropic extended thinking requires the thinking block to be sent
+         back verbatim, signature included, when the assistant message also
+         carries a tool_use block. None for providers that do not sign. *)
+      signature : string option [@default None];
+      cache_control : cache_control option;
+    }
+  | Redacted_reasoning_block of {
+      (* Anthropic replaces flagged thinking with an opaque blob. It carries no
+         text, and it must also be echoed back for the round-trip to be valid. *)
+      data : string;
+      cache_control : cache_control option;
+    }
 [@@deriving yojson]
+
+type llm_response = {
+  text : string option;
+  (* Reasoning output, in the provider's order. Holds Reasoning_block and
+     Redacted_reasoning_block values; the engine prepends them to the assistant
+     message so an Anthropic tool-use round-trip stays valid. *)
+  reasoning : content_block list;
+  tool_calls : tool_call list option;
+  finish_reason : finish_reason;
+  usage : usage_stats;
+  model : string;
+}
+[@@deriving yojson]
+
+let llm_response_validate resp =
+  match (resp.text, resp.tool_calls) with
+  | None, None | None, Some [] ->
+    if resp.reasoning <> [] then
+      Result.Error "reasoning_only_response: model produced reasoning but no actionable output (consider increasing max_tokens)"
+    else
+      Result.Error "llm_response must have text or tool_calls"
+  | _ -> Ok ()
 
 (* -------------------------------------------------------------------------- *)
 (* Conversation types (early — referenced by middleware_hook)            *)
@@ -218,11 +235,35 @@ type message = {
   tool_calls : tool_call list option;
   tool_call_id : string option;
   name : string option;
-  reasoning_content : string option;   (* NEW — reasoning model output for assistant messages *)
 }
 [@@deriving yojson]
 
-and conversation = {
+(* Persisted before v0.13, reasoning was a []string option] field on the
+   message instead of a block. The derived parser rejects unknown keys, so
+   without this shim every conversation written by an earlier version would
+   fail to load. The legacy text is moved into a [Reasoning_block] rather than
+   dropped: it stays readable, and the Anthropic adapter skips unsigned
+   thinking blocks when building a request, so it can never produce an invalid
+   replay. *)
+let message_of_yojson_derived = message_of_yojson
+
+let message_of_yojson (json : Yojson.Safe.t) : (message, string) result =
+  match json with
+  | `Assoc fields ->
+    let legacy, fields = List.partition (fun (key, _) -> key = "reasoning_content") fields in
+    (match message_of_yojson_derived (`Assoc fields) with
+     | Ok msg ->
+       (match legacy with
+        | (_, `String text) :: _ when text <> "" ->
+          Ok { msg with
+               content_blocks =
+                 Reasoning_block { text; signature = None; cache_control = None }
+                 :: msg.content_blocks }
+        | _ -> Ok msg)
+     | Error _ as e -> e)
+  | _ -> message_of_yojson_derived json
+
+type conversation = {
   messages : message list;
   metadata : (string * Yojson.Safe.t) list;
 }
@@ -287,6 +328,11 @@ type model_config = {
   max_tokens : int option;
   top_p : float option;
   stop_sequences : string list option;
+  (* Anthropic extended thinking budget. [Some n] turns thinking on with a
+     budget of [n] tokens; other providers ignore it. Anthropic rejects
+     temperature/top_p alongside thinking, so the adapter omits them when this
+     is set, and [n] must be smaller than the request's max_tokens. *)
+  thinking_budget_tokens : int option [@default None];
 }
 [@@deriving yojson]
 
@@ -918,7 +964,10 @@ type fallback_policy =
 
 type llm_response_chunk =
   | Text_delta of { text : string }
-  | Reasoning_delta of { text : string }   (* NEW — streaming reasoning chunks *)
+  | Reasoning_delta of { text : string }
+  (* Anthropic sends the thinking block's signature as its own delta, at the
+     end of the block. Consumers that only render text can ignore it. *)
+  | Reasoning_signature of { signature : string }
   | Tool_call_start of { tool_call_id : string; name : string }
   | Tool_call_delta of { tool_call_id : string; args_json : string }
   | Usage_update of usage_stats

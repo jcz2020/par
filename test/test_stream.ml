@@ -35,10 +35,11 @@ let test_openai_stream () =
   } in
   let model = {
     provider = `Openai; model_name = "glm-4-flash"; api_base = None;
-    temperature = 0.7; max_tokens = Some 100; top_p = None; stop_sequences = None
+    temperature = 0.7; max_tokens = Some 100; top_p = None; stop_sequences = None;
+    thinking_budget_tokens = None
   } in
   let conv : conversation = {
-    messages = [{ role = User; content_blocks = [Text_block { text = "Say hello."; cache_control = None }]; tool_calls = None; tool_call_id = None; name = None; reasoning_content = None }];
+    messages = [{ role = User; content_blocks = [Text_block { text = "Say hello."; cache_control = None }]; tool_calls = None; tool_call_id = None; name = None }];
     metadata = []
   } in
   let chunks = ref 0 in

@@ -190,6 +190,10 @@ let run_llm_with_optional_streaming ?token llm agent_model agent_tools conv user
   | Some user_chunk ->
     let text_buf = Buffer.create 256 in
     let reasoning_buf = Buffer.create 256 in
+    (* Anthropic signs the thinking block last. Streaming aggregates the
+       thinking text into one block, so the last signature is the one that
+       belongs to it. *)
+    let reasoning_signature = ref None in
     let tc_state : (string, (string * Buffer.t)) Hashtbl.t = Hashtbl.create 4 in
     let tc_order : string list ref = ref [] in
     let acc chunk =
@@ -214,6 +218,7 @@ let run_llm_with_optional_streaming ?token llm agent_model agent_tools conv user
              Buffer.add_string !buf args_json
            end)
       | Reasoning_delta { text } -> Buffer.add_string reasoning_buf text
+      | Reasoning_signature { signature } -> reasoning_signature := Some signature
       | Usage_update _ | Done _ -> ()
     in
     let stream_cfg : stream_config = { chunk_timeout = 30.0; total_timeout = None; buffer_size = 4096 } in
@@ -229,10 +234,13 @@ let run_llm_with_optional_streaming ?token llm agent_model agent_tools conv user
              let arguments = try Yojson.Safe.from_string args_str with _ -> `Null in
              { id; name; arguments }) entries) in
          let text = if Buffer.length text_buf = 0 then None else Some (Buffer.contents text_buf) in
-         let reasoning_content =
-           if Buffer.length reasoning_buf = 0 then None
-           else Some (Buffer.contents reasoning_buf) in
-         Ok { text; reasoning_content; tool_calls; finish_reason = stream_complete.finish_reason;
+         let reasoning =
+           if Buffer.length reasoning_buf = 0 then []
+           else [ Reasoning_block {
+               text = Buffer.contents reasoning_buf;
+               signature = !reasoning_signature;
+               cache_control = None } ] in
+         Ok { text; reasoning; tool_calls; finish_reason = stream_complete.finish_reason;
               usage = stream_complete.final_usage; model = agent_model.model_name }
      with Stream_cancelled_by_token ->
        let reason = match token with
@@ -242,8 +250,8 @@ let run_llm_with_optional_streaming ?token llm agent_model agent_tools conv user
        Error (Cancelled reason))
 
 let make_conversation ?(user_content = []) system_prompt user_message =
-  let sys = { role = System; content_blocks = Message.content_of_string system_prompt; tool_calls = None; tool_call_id = None; name = None; reasoning_content = None } in
-  let usr = { role = User; content_blocks = (if user_content = [] then Message.content_of_string user_message else user_content); tool_calls = None; tool_call_id = None; name = None; reasoning_content = None } in
+  let sys = { role = System; content_blocks = Message.content_of_string system_prompt; tool_calls = None; tool_call_id = None; name = None } in
+  let usr = { role = User; content_blocks = (if user_content = [] then Message.content_of_string user_message else user_content); tool_calls = None; tool_call_id = None; name = None } in
   let appendix = Invoke_context.appendix_text () in
   let metadata =
     if appendix = "" then []
@@ -254,13 +262,14 @@ let make_conversation ?(user_content = []) system_prompt user_message =
 let add_assistant_message conv (resp : llm_response) =
   let msg = {
     role = Assistant;
-    content_blocks = (match resp.text with
+    (* Reasoning first: Anthropic expects the thinking blocks to precede the
+       text and tool_use they led to, and replays them for signature checks. *)
+    content_blocks = resp.reasoning @ (match resp.text with
         | Some t -> [Text_block { text = t; cache_control = None }]
         | None -> []);
     tool_calls = resp.tool_calls;
     tool_call_id = None;
     name = None;
-    reasoning_content = resp.reasoning_content;
   } in
   { conv with messages = conv.messages @ [ msg ] }
 
@@ -277,7 +286,6 @@ let add_tool_result_message conv (call : tool_call) result =
     tool_calls = None;
     tool_call_id = Some call.id;
     name = Some call.name;
-    reasoning_content = None;
   } in
   { conv with messages = conv.messages @ [ msg ] }
 
@@ -311,7 +319,6 @@ let add_user_feedback conv feedback_message =
     tool_calls = None;
     tool_call_id = None;
     name = None;
-    reasoning_content = None;
   } in
   { conv with messages = conv.messages @ [ msg ] }
 
@@ -365,7 +372,7 @@ let run_structured
   let conv0 = match conversation with
     | Some existing ->
       let usr = { role = User; content_blocks = (if user_content = [] then Message.content_of_string user_message else user_content); tool_calls = None;
-                  tool_call_id = None; name = None; reasoning_content = None } in
+                  tool_call_id = None; name = None } in
       { existing with messages = existing.messages @ [ usr ] }
     | None -> make_conversation sys_prompt user_message ~user_content
   in
@@ -491,6 +498,9 @@ let set_cache_control (cc : Types.cache_control option) (block : Types.content_b
   | Types.Tool_use_block tb -> Types.Tool_use_block { tb with cache_control = cc }
   | Types.Tool_result_block tb -> Types.Tool_result_block { tb with cache_control = cc }
   | Types.Image_block ib -> Types.Image_block { ib with cache_control = cc }
+  | (Types.Reasoning_block _ | Types.Redacted_reasoning_block _) as b ->
+    (* Anthropic rejects cache_control on thinking blocks. *)
+    b
 
 (* v0.6.4 prompt caching: build breakpoint candidates from current request state.
    Pri 100 = System message, pri 60 = pre-marked tool (mark_tool), pri 10 = last user block.
@@ -609,7 +619,7 @@ let recover_on_cancel (conv : conversation) ~(dispatched : string list) : conver
         tool_calls = None;
         tool_call_id = Some tc_id;
         name = None;
-        reasoning_content = None }
+        }
     ) dangling in
     { conv with messages = conv.messages @ synth_msgs }
 
@@ -722,7 +732,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
       let msgs = Steering_queue.drain_all q in
       List.fold_left (fun c msg ->
         let usr = { role = User; content_blocks = Message.content_of_string msg; tool_calls = None;
-                    tool_call_id = None; name = None; reasoning_content = None } in
+                    tool_call_id = None; name = None } in
         { c with messages = c.messages @ [usr] }
       ) conv msgs
   in
@@ -1138,7 +1148,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                    (fun (m : message) -> m.role <> System) conv.messages in
                  let sys_msg = {
                    role = System; content_blocks = Message.content_of_string target_sys_prompt;
-                   tool_calls = None; tool_call_id = None; name = None; reasoning_content = None
+                   tool_calls = None; tool_call_id = None; name = None
                  } in
                  let new_conv = { conv with messages = sys_msg :: non_sys } in
                  loop ~agent:target_agent ~global_max new_conv (iterations + 1)
@@ -1147,11 +1157,11 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                   | Some t ->
                     let sys_msg = {
                       role = System; content_blocks = Message.content_of_string target_sys_prompt;
-                      tool_calls = None; tool_call_id = None; name = None; reasoning_content = None
+                      tool_calls = None; tool_call_id = None; name = None
                     } in
                     let user_msg = {
                       role = User; content_blocks = Message.content_of_string t;
-                      tool_calls = None; tool_call_id = None; name = None; reasoning_content = None
+                      tool_calls = None; tool_call_id = None; name = None
                     } in
                     let new_conv = { messages = [sys_msg; user_msg]; metadata = [] } in
                     loop ~agent:target_agent ~global_max new_conv (iterations + 1)
@@ -1444,12 +1454,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                   { role = Assistant;
                     content_blocks = (if combined_text = "" then []
                                       else [Text_block { text = combined_text; cache_control = None }]);
-                    tool_calls = None; tool_call_id = None; name = None;
-                    (* reasoning_content = None: cross-continuation reasoning is incoherent
-                       (each continuation produces fresh reasoning unrelated to prior).
-                       This is a 范围妥协 — long-term migration to Reasoning_block content
-                       variant (next major) will revisit. See CHANGES.md. *)
-                    reasoning_content = None } in
+                    tool_calls = None; tool_call_id = None; name = None } in
                 let final_conv = { final_conv with messages = pre_msgs @ [combined_msg] } in
                 let final_conv = drain_into_conv final_conv followup in
                 Ok (final_resp, final_conv)
@@ -1505,7 +1510,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
         (List.filter (fun (k, _) -> k <> key) existing.metadata)
       in
       let usr = { role = User; content_blocks = (if user_content = [] then Message.content_of_string user_message else user_content); tool_calls = None;
-                  tool_call_id = None; name = None; reasoning_content = None } in
+                  tool_call_id = None; name = None } in
       { messages = messages @ [ usr ]; metadata = updated_metadata }
     | None ->
       Logs.info (fun m -> m "[engine] New conversation: system_prompt=%d chars, user_message=%d chars"

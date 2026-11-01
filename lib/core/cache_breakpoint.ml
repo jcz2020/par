@@ -52,6 +52,10 @@ let mark_message ~ttl (msg : Types.message) : Types.message =
       | Types.Tool_use_block b -> Types.Tool_use_block { b with cache_control = cc }
       | Types.Tool_result_block b -> Types.Tool_result_block { b with cache_control = cc }
       | Types.Image_block b -> Types.Image_block { b with cache_control = cc }
+      | (Types.Reasoning_block _ | Types.Redacted_reasoning_block _) ->
+        (* Anthropic rejects cache_control on thinking blocks, so marking one
+           would build an invalid request. Leave the message as it is. *)
+        last
     in
     let new_blocks = List.rev (marked_last :: rest) in
     { msg with Types.content_blocks = new_blocks }

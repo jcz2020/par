@@ -101,10 +101,10 @@ let apply_summarize max_tokens summary_model conv llm_opt ~on_event =
           messages = [
             { role = System; content_blocks = [Text_block { text = "You are a helpful assistant that summarizes conversations concisely."; cache_control = None }];
               tool_calls = None; tool_call_id = None; name = None;
-              reasoning_content = None };
+              };
             { role = User; content_blocks = [Text_block { text = prompt_text; cache_control = None }];
               tool_calls = None; tool_call_id = None; name = None;
-              reasoning_content = None };
+              };
           ];
           metadata = [];
         } in
@@ -123,7 +123,6 @@ let apply_summarize max_tokens summary_model conv llm_opt ~on_event =
                 role = System;
                 content_blocks = Message.content_of_string (Printf.sprintf "[Conversation Summary]\n%s" summary_text);
                 tool_calls = None; tool_call_id = None; name = None;
-                reasoning_content = None;
               } in
               Ok { conv with messages = summary_msg :: to_keep }
             | None ->

@@ -101,6 +101,7 @@ let model_config_suite =
         max_tokens = Some 4096;
         top_p = Some 0.9;
         stop_sequences = Some ["END"; "\n"];
+        thinking_budget_tokens = None;
       } in
       check_roundtrip model_config_to_yojson model_config_of_yojson cfg ());
 
@@ -112,7 +113,7 @@ let model_config_suite =
         temperature = 1.0;
         max_tokens = None;
         top_p = None;
-        stop_sequences = None;
+        stop_sequences = None; thinking_budget_tokens = Some 2048;
       } in
       check_roundtrip model_config_to_yojson model_config_of_yojson cfg ());
 
@@ -124,7 +125,7 @@ let model_config_suite =
         temperature = 0.5;
         max_tokens = Some 2048;
         top_p = None;
-        stop_sequences = None;
+        stop_sequences = None; thinking_budget_tokens = None;
       } in
       check_roundtrip model_config_to_yojson model_config_of_yojson cfg ());
 
@@ -136,7 +137,7 @@ let model_config_suite =
         temperature = 0.0;
         max_tokens = None;
         top_p = None;
-        stop_sequences = None;
+        stop_sequences = None; thinking_budget_tokens = None;
       } in
       check_roundtrip model_config_to_yojson model_config_of_yojson cfg ());
   ])

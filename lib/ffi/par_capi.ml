@@ -638,7 +638,9 @@ let parse_model_config (json : Yojson.Safe.t) : Par.Types.model_config =
     | `List _ as v -> Yojson.Safe.Util.to_list v |> List.filter_map Yojson.Safe.Util.to_string_option
     | _ -> []
   in
-  { provider; model_name; api_base; temperature; max_tokens; top_p; stop_sequences = Some stop_sequences }
+  let thinking_budget_tokens = json |> member "thinking_budget_tokens" |> to_int_option in
+  { provider; model_name; api_base; temperature; max_tokens; top_p;
+    stop_sequences = Some stop_sequences; thinking_budget_tokens }
 
 let parse_system_prompt_template (json : Yojson.Safe.t) : Par.Types.system_prompt_template =
   let open Yojson.Safe.Util in

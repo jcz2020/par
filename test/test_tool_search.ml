@@ -15,7 +15,7 @@ let error_to_string (e : error_category) =
 let dummy_model : model_config =
   { provider = `Openai; model_name = "mock"; api_base = None;
     temperature = 0.0; max_tokens = None; top_p = None;
-    stop_sequences = None }
+    stop_sequences = None; thinking_budget_tokens = None }
 
 let dummy_usage : usage_stats =
   { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0;
@@ -23,7 +23,7 @@ let dummy_usage : usage_stats =
     cache_read_input_tokens = 0 }
 
 let stop_response text : llm_response =
-  { text = Some text; reasoning_content = None; tool_calls = None;
+  { text = Some text; reasoning = []; tool_calls = None;
     finish_reason = Stop; usage = dummy_usage; model = "mock" }
 
 let make_tool ?(description = "A test tool") name =

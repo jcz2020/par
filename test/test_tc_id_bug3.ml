@@ -8,7 +8,6 @@ let test_tool_message_serializes_as_tool_result () =
     tool_calls = None;
     tool_call_id = Some "toolu_abc123";
     name = Some "get_weather";
-    reasoning_content = None;
   } in
   let json = Anthropic_provider.build_message_json msg in
   let open Yojson.Safe.Util in
@@ -28,7 +27,6 @@ let test_tool_message_without_id_falls_back () =
     tool_calls = None;
     tool_call_id = None;
     name = None;
-    reasoning_content = None;
   } in
   let json = Anthropic_provider.build_message_json msg in
   let open Yojson.Safe.Util in

@@ -26,7 +26,7 @@ let make_rt () =
 let dummy_model : model_config =
   { provider = `Openai; model_name = "gpt-4"; api_base = None;
     temperature = 0.0; max_tokens = Some 1024; top_p = None;
-    stop_sequences = None }
+    stop_sequences = None; thinking_budget_tokens = None }
 
 let basic_agent ?(tools : tool_descriptor list = []) ?(id = "test-agent") () : agent_config =
   { id; system_prompt = stable_prompt "You are a test agent.";

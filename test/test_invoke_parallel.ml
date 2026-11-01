@@ -9,7 +9,7 @@ open Types
 let dummy_model : model_config =
   { provider = `Openai; model_name = "mock"; api_base = None;
     temperature = 0.0; max_tokens = None; top_p = None;
-    stop_sequences = None }
+    stop_sequences = None; thinking_budget_tokens = None }
 
 let dummy_usage : usage_stats =
   { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0;
@@ -17,7 +17,7 @@ let dummy_usage : usage_stats =
     cache_read_input_tokens = 0 }
 
 let text_response text : llm_response =
-  { text = Some text; reasoning_content = None; tool_calls = None; finish_reason = Stop;
+  { text = Some text; reasoning = []; tool_calls = None; finish_reason = Stop;
     usage = dummy_usage; model = "mock" }
 
 let error_to_string = function
@@ -417,7 +417,7 @@ let test_cancellation_via_token () =
 let test_async_callback_suspends_branch () =
   with_switch (fun sw ->
     let tool_call_b : llm_response =
-      { text = None; reasoning_content = None;
+      { text = None; reasoning = [];
         tool_calls = Some [{
           id = "tc-b1"; name = "guarded_tool_b";
           arguments = `Assoc [] }];

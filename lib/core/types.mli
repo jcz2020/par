@@ -108,18 +108,6 @@ type usage_stats = {
 }
 [@@deriving yojson]
 
-type llm_response = {
-  text : string option;
-  reasoning_content : string option;
-  tool_calls : tool_call list option;
-  finish_reason : finish_reason;
-  usage : usage_stats;
-  model : string;
-}
-[@@deriving yojson]
-
-val llm_response_validate : llm_response -> (unit, string) result
-
 (* -------------------------------------------------------------------------- *)
 (* Prompt caching + content block types (PAR-4lh, v0.6.4)                   *)
 (* -------------------------------------------------------------------------- *)
@@ -161,7 +149,37 @@ type content_block =
       detail : string option [@default None];
       cache_control : cache_control option;
     }
+  | Reasoning_block of {
+      text : string;
+      (** Anthropic extended thinking requires the block to be sent back
+          verbatim, signature included, when the assistant message also carries
+          a [tool_use] block. [None] for providers that do not sign. *)
+      signature : string option [@default None];
+      cache_control : cache_control option;
+    }
+  | Redacted_reasoning_block of {
+      (** Anthropic replaces flagged thinking with an opaque blob. It carries
+          no text, and it must also be echoed back for the round-trip to be
+          valid. *)
+      data : string;
+      cache_control : cache_control option;
+    }
 [@@deriving yojson]
+
+type llm_response = {
+  text : string option;
+  (** Reasoning output, in the provider's order. Holds [Reasoning_block] and
+      [Redacted_reasoning_block] values; the engine prepends them to the
+      assistant message so an Anthropic tool-use round-trip stays valid. *)
+  reasoning : content_block list;
+  tool_calls : tool_call list option;
+  finish_reason : finish_reason;
+  usage : usage_stats;
+  model : string;
+}
+[@@deriving yojson]
+
+val llm_response_validate : llm_response -> (unit, string) result
 
 (* -------------------------------------------------------------------------- *)
 (* Conversation types (early — referenced by middleware_hook)            *)
@@ -176,7 +194,6 @@ type message = {
   tool_calls : tool_call list option;
   tool_call_id : string option;
   name : string option;
-  reasoning_content : string option;
 }
 [@@deriving yojson]
 
@@ -230,6 +247,11 @@ type model_config = {
   max_tokens : int option;
   top_p : float option;
   stop_sequences : string list option;
+  (** Anthropic extended thinking budget. [Some n] turns thinking on with a
+      budget of [n] tokens; other providers ignore it. Anthropic rejects
+      temperature/top_p alongside thinking, so the adapter omits them when this
+      is set, and [n] must be smaller than the request's max_tokens. *)
+  thinking_budget_tokens : int option [@default None];
 }
 [@@deriving yojson]
 
@@ -789,6 +811,9 @@ type fallback_policy =
 type llm_response_chunk =
   | Text_delta of { text : string }
   | Reasoning_delta of { text : string }
+  (** Anthropic sends the thinking block's signature as its own delta, at the
+      end of the block. Consumers that only render text can ignore it. *)
+  | Reasoning_signature of { signature : string }
   | Tool_call_start of { tool_call_id : string; name : string }
   | Tool_call_delta of { tool_call_id : string; args_json : string }
   | Usage_update of usage_stats

@@ -174,7 +174,6 @@ let message_helper_tests =
         tool_calls = None;
         tool_call_id = None;
         name = None;
-        reasoning_content = None;
       } in
       Alcotest.check Alcotest.string "extracts text" "question"
         (Message.text_of_message msg));

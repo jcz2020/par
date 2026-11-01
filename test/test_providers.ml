@@ -32,6 +32,7 @@ let openai_model : model_config =
   ; max_tokens = Some 64
   ; top_p = None
   ; stop_sequences = None
+  ; thinking_budget_tokens = None
   }
 
 let anthropic_model : model_config =
@@ -42,6 +43,7 @@ let anthropic_model : model_config =
   ; max_tokens = Some 64
   ; top_p = None
   ; stop_sequences = None
+  ; thinking_budget_tokens = None
   }
 
 let user_only_conv : conversation =
@@ -51,7 +53,6 @@ let user_only_conv : conversation =
         ; tool_calls = None
         ; tool_call_id = None
         ; name = None
-        ; reasoning_content = None
         } ]
   ; metadata = []
   }
@@ -434,8 +435,12 @@ let test_openai_parse_llm_response_extracts_reasoning_content () =
   | Ok resp ->
     Alcotest.(check string) "text extracted" "answer"
       (Option.value resp.text ~default:"<none>");
-    Alcotest.(check string) "reasoning_content extracted" "thinking..."
-      (Option.value resp.reasoning_content ~default:"<none>")
+    (match resp.reasoning with
+     | [Reasoning_block { text; signature; _ }] ->
+       Alcotest.(check string) "reasoning extracted" "thinking..." text;
+       Alcotest.(check (option string)) "OpenAI does not sign" None signature
+     | other ->
+       Alcotest.failf "expected one reasoning block, got %d" (List.length other))
 
 (* Bug 3 (reasoning_content) regression — streaming side: a delta containing
    only reasoning_content (no content) must emit a Reasoning_delta chunk and
@@ -470,18 +475,19 @@ let test_openai_parse_stream_delta_emits_reasoning_delta () =
        | Some (Text_delta { text = t }) -> "Text_delta " ^ t
        | Some _ -> "<other chunk>")
 
-(* Bug 3 (reasoning_content) regression — request side: even if a message has
-   reasoning_content set (e.g. an assistant turn we recorded), it MUST NOT be
-   serialized into the outbound request — OpenAI rejects reasoning_content on
-   input. Direct test of the exposed build_message_json. *)
+(* Bug 3 (reasoning_content) regression — request side: even if an assistant
+   turn we recorded carries a reasoning block, it MUST NOT be serialized into
+   the outbound request — OpenAI rejects reasoning on input. Direct test of the
+   exposed build_message_json. *)
 let test_openai_build_message_json_excludes_reasoning_content () =
   let msg : message =
     { role = Assistant
-    ; content_blocks = [Text_block { text = "answer"; cache_control = None }]
+    ; content_blocks =
+        [ Reasoning_block { text = "thinking..."; signature = None; cache_control = None }
+        ; Text_block { text = "answer"; cache_control = None } ]
     ; tool_calls = None
     ; tool_call_id = None
     ; name = None
-    ; reasoning_content = Some "thinking..."
     }
   in
   let json = Openai_provider.build_message_json msg in
@@ -632,14 +638,12 @@ let test_anthropic_request_body_extracts_system_prompt () =
           ; tool_calls = None
           ; tool_call_id = None
           ; name = None
-          ; reasoning_content = None
           }
         ; { role = User
           ; content_blocks = [Text_block { text = "Hello"; cache_control = None }]
           ; tool_calls = None
           ; tool_call_id = None
           ; name = None
-          ; reasoning_content = None
           }
         ]
     ; metadata = []
@@ -821,7 +825,6 @@ let test_edge_openai_unicode_in_message () =
           ; tool_calls = None
           ; tool_call_id = None
           ; name = None
-          ; reasoning_content = None
           } ]
     ; metadata = []
     }

@@ -4,17 +4,17 @@ open Types
 let dummy_model : model_config =
   { provider = `Openai; model_name = "mock"; api_base = None;
     temperature = 0.0; max_tokens = None; top_p = None;
-    stop_sequences = None }
+    stop_sequences = None; thinking_budget_tokens = None }
 
 let dummy_usage : usage_stats =
   { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
 
 let text_response text : llm_response =
-  { text = Some text; reasoning_content = None; tool_calls = None; finish_reason = Stop;
+  { text = Some text; reasoning = []; tool_calls = None; finish_reason = Stop;
     usage = dummy_usage; model = "mock" }
 
 let tool_call_response calls : llm_response =
-  { text = None; reasoning_content = None; tool_calls = Some calls; finish_reason = Tool_calls;
+  { text = None; reasoning = []; tool_calls = Some calls; finish_reason = Tool_calls;
     usage = dummy_usage; model = "mock" }
 
 let mock_llm responses =
@@ -194,8 +194,7 @@ let agent_loop_suite =
           let sys_msg = {
             role = System;
             content_blocks = [Text_block { text = "modified system prompt"; cache_control = None }];
-            tool_calls = None; tool_call_id = None; name = None;
-            reasoning_content = None
+            tool_calls = None; tool_call_id = None; name = None
           } in
           Some { conv with messages = sys_msg :: conv.messages });
         on_after_llm = None;
@@ -715,7 +714,7 @@ let middleware_suite =
         messages = [{ role = User;
           content_blocks = [Text_block { text = "contact me at user@example.com please"; cache_control = None }];
           tool_calls = None; tool_call_id = None; name = None;
-          reasoning_content = None }];
+          }];
         metadata = [] } in
       (match mw.on_before_llm with
        | Some before_fn ->

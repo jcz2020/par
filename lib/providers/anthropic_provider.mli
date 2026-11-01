@@ -22,6 +22,26 @@ val stream :
 
 val build_message_json : message -> Yojson.Safe.t
 
+val build_request_body :
+  model_config:model_config ->
+  tools:tool_descriptor list ->
+  conversation:conversation ->
+  stream:bool ->
+  ?response_schema:Yojson.Safe.t ->
+  unit ->
+  string
+(** Serialise a request body. Exposed for unit testing: the thinking parameter
+    and the temperature/top_p omission are wire-format contracts. *)
+
+val parse_llm_response : Yojson.Safe.t -> (llm_response, error_category) result
+(** Parse a Messages API response. Exposed for unit testing: thinking and
+    redacted_thinking blocks must survive into [llm_response.reasoning]. *)
+
+val check_thinking : model_config -> (unit, error_category) result
+(** Anthropic's extended-thinking limits: the budget must be at least 1024 and
+    smaller than max_tokens. Exposed so the rule is testable without a
+    network. *)
+
 val close : t -> unit
 
 val set_network : t -> [ `Generic] Eio.Net.ty Eio.Net.t -> unit

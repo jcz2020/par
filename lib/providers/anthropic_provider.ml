@@ -77,6 +77,20 @@ let emit_block_with_cache (block : content_block) : Yojson.Safe.t =
                   ("data", `String b)]
       in
       `Assoc [("type", `String "image"); ("source", src)]
+    | Reasoning_block { text; signature; _ } ->
+      (* Anthropic requires the thinking block back verbatim, signature
+         included, whenever the assistant message also carries tool_use. *)
+      (match signature with
+       | Some sig_ ->
+         `Assoc [("type", `String "thinking"); ("thinking", `String text);
+                 ("signature", `String sig_)]
+       | None ->
+         (* Without a signature the block cannot be replayed; sending it
+            anyway would be rejected, so only the text is kept out of the
+            request when the provider never signed it. *)
+         `Assoc [("type", `String "thinking"); ("thinking", `String text)])
+    | Redacted_reasoning_block { data; _ } ->
+      `Assoc [("type", `String "redacted_thinking"); ("data", `String data)]
   in
   match block with
   | Text_block { cache_control = Some cc; _ }
@@ -88,8 +102,18 @@ let emit_block_with_cache (block : content_block) : Yojson.Safe.t =
      | _ -> base)
   | _ -> base
 
+(* A thinking block without a signature cannot be replayed: Anthropic rejects
+   it. Such blocks come from another provider or from pre-v0.13 persisted data,
+   so they are kept in the conversation but left out of the request. *)
+let replayable_block = function
+  | Reasoning_block { signature = None; _ } -> false
+  | _ -> true
+
 let build_message_json msg =
-  let blocks_json = List.map emit_block_with_cache msg.content_blocks in
+  let blocks_json =
+    List.filter replayable_block msg.content_blocks
+    |> List.map emit_block_with_cache
+  in
   match msg.role with
   | Tool ->
     (match msg.tool_call_id with
@@ -141,14 +165,47 @@ let tool_descriptor_to_json (td : tool_descriptor) =
   | Some cc -> `Assoc (("cache_control", cache_control_to_json cc) :: base)
   | None -> `Assoc base
 
+(* Anthropic's own limits for extended thinking: the budget must be at least
+   1024 tokens and smaller than max_tokens. Rejecting here turns a provider 400
+   into an error that names the two values that disagree. *)
+let check_thinking (model_config : model_config) : (unit, error_category) result =
+  match model_config.thinking_budget_tokens with
+  | None -> Ok ()
+  | Some budget ->
+    let max_tokens = Option.value model_config.max_tokens ~default:4096 in
+    if budget < 1024 then
+      Result.Error (Invalid_input
+        (Printf.sprintf
+           "thinking_budget_tokens is %d; Anthropic requires at least 1024" budget))
+    else if budget >= max_tokens then
+      Result.Error (Invalid_input
+        (Printf.sprintf
+           "thinking_budget_tokens (%d) must be smaller than max_tokens (%d)"
+           budget max_tokens))
+    else Ok ()
+
 let build_request_body ~model_config ~tools ~conversation ~stream ?response_schema () =
   let system_blocks, conv = extract_system_prompt conversation in
+  let thinking = model_config.thinking_budget_tokens in
   let fields =
     [ ("model", `String model_config.model_name)
     ; ("messages", `List (List.map build_message_json conv.messages))
     ; ("max_tokens", `Int (Option.value model_config.max_tokens ~default:4096))
-    ; ("temperature", `Float model_config.temperature)
     ]
+  in
+  (* Anthropic rejects temperature and top_p alongside extended thinking, so
+     they are left out rather than sent and refused. *)
+  let fields =
+    match thinking with
+    | Some _ -> fields
+    | None -> ("temperature", `Float model_config.temperature) :: fields
+  in
+  let fields =
+    match thinking with
+    | Some budget ->
+      ("thinking", `Assoc [("type", `String "enabled"); ("budget_tokens", `Int budget)])
+      :: fields
+    | None -> fields
   in
   let fields =
     match system_blocks with
@@ -157,7 +214,9 @@ let build_request_body ~model_config ~tools ~conversation ~stream ?response_sche
     | None -> fields
   in
   let fields =
-    match model_config.top_p with Some tp -> ("top_p", `Float tp) :: fields | None -> fields
+    match thinking, model_config.top_p with
+    | None, Some tp -> ("top_p", `Float tp) :: fields
+    | _ -> fields
   in
   let fields =
     match model_config.stop_sequences with
@@ -222,6 +281,7 @@ let parse_content_blocks json =
   let blocks = json |> to_list in
   let text_parts = ref [] in
   let tool_parts = ref [] in
+  let reasoning = ref [] in
   List.iter
     (fun block ->
       let typ = block |> member "type" |> to_string in
@@ -237,9 +297,21 @@ let parse_content_blocks json =
           }
         in
         tool_parts := tc :: !tool_parts
+      | "thinking" ->
+        let text = try block |> member "thinking" |> to_string with _ -> "" in
+        let signature =
+          try match block |> member "signature" with
+            | `String sig_ -> Some sig_
+            | _ -> None
+          with _ -> None
+        in
+        reasoning := Reasoning_block { text; signature; cache_control = None } :: !reasoning
+      | "redacted_thinking" ->
+        let data = try block |> member "data" |> to_string with _ -> "" in
+        reasoning := Redacted_reasoning_block { data; cache_control = None } :: !reasoning
       | _ -> ())
     blocks;
-  (List.rev !text_parts, List.rev !tool_parts)
+  (List.rev !text_parts, List.rev !tool_parts, List.rev !reasoning)
 
 let parse_llm_response json : (llm_response, error_category) result =
   let open Yojson.Safe.Util in
@@ -253,7 +325,7 @@ let parse_llm_response json : (llm_response, error_category) result =
     with _ -> { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
   in
   let content = json |> member "content" in
-  let text_parts, tool_parts = parse_content_blocks content in
+  let text_parts, tool_parts, reasoning = parse_content_blocks content in
   let text =
     match text_parts with
     | [] -> None
@@ -262,7 +334,7 @@ let parse_llm_response json : (llm_response, error_category) result =
   let tool_calls =
     match tool_parts with [] -> None | tcs -> Some (List.rev tcs)
   in
-  Ok { text; reasoning_content = None; tool_calls; finish_reason = stop_reason; usage; model }
+  Ok { text; reasoning; tool_calls; finish_reason = stop_reason; usage; model }
 
 (* -------------------------------------------------------------------------- *)
 (* SSE parsing                                                           *)
@@ -284,7 +356,12 @@ let process_stream_event (evt_type, data_str) callback usage finish chunks curre
       let block = json |> member "content_block" in
       (try
          let typ = block |> member "type" |> to_string in
-         if typ = "tool_use" then begin
+         if typ = "redacted_thinking" then
+           Logs.warn (fun m -> m
+             "anthropic_provider: stream dropped a redacted thinking block; \
+              the streaming chunk interface cannot carry it. Use the \
+              non-streaming path when thinking is enabled and tools are in play.")
+         else if typ = "tool_use" then begin
            let tc_id = block |> member "id" |> to_string in
            let name = block |> member "name" |> to_string in
            let _idx = try json |> member "index" |> to_int with exn -> log_exn "block_start.index" exn; 0 in
@@ -303,6 +380,18 @@ let process_stream_event (evt_type, data_str) callback usage finish chunks curre
            incr chunks
          end
        with exn -> log_exn "text_delta" exn);
+      (try
+         let typ = delta |> member "type" |> to_string in
+         if typ = "thinking_delta" then begin
+           let txt = delta |> member "thinking" |> to_string in
+           callback (Reasoning_delta { text = txt });
+           incr chunks
+         end else if typ = "signature_delta" then begin
+           let signature = delta |> member "signature" |> to_string in
+           callback (Reasoning_signature { signature });
+           incr chunks
+         end
+       with exn -> log_exn "thinking_delta" exn);
       (try
          let typ = delta |> member "type" |> to_string in
          if typ = "input_json_delta" then begin
@@ -342,6 +431,9 @@ let process_stream_event (evt_type, data_str) callback usage finish chunks curre
 (* -------------------------------------------------------------------------- *)
 
 let complete t model_config tools conversation =
+  match check_thinking model_config with
+  | Error _ as e -> e
+  | Ok () ->
   match t.net with
   | None -> Result.Error (Internal "Network not initialized; call set_network first")
   | Some net ->
@@ -369,6 +461,9 @@ let complete t model_config tools conversation =
       | exn -> Result.Error (Internal (Printexc.to_string exn)) )
 
 let complete_structured t model_config tools conversation schema =
+  match check_thinking model_config with
+  | Error _ as e -> e
+  | Ok () ->
   match t.net with
   | None -> Result.Error (Internal "Network not initialized; call set_network first")
   | Some net ->
@@ -404,6 +499,9 @@ let complete_structured t model_config tools conversation schema =
       | exn -> Result.Error (Internal (Printexc.to_string exn)) )
 
 let stream t model_config tools conversation _stream_config callback =
+  match check_thinking model_config with
+  | Error _ as e -> e
+  | Ok () ->
   match t.net with
   | None -> Result.Error (Internal "Network not initialized; call set_network first")
   | Some net ->

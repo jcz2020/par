@@ -166,8 +166,11 @@ type model_config = {
   max_tokens : int option;
   top_p : float option;
   stop_sequences : string list option;
+  thinking_budget_tokens : int option;  (* Anthropic extended thinking；None = 关闭 *)
 }
 ```
+
+`thinking_budget_tokens = Some n` 开启 Anthropic extended thinking，预算 `n` 个 token。Anthropic 要求 `n >= 1024` 且 `n < max_tokens`；适配器在本地就检查这两条并返回 `Invalid_input`，而不是让 provider 拒绝请求。Anthropic 不接受与 thinking 同时出现的 `temperature` 与 `top_p`，因此开启 thinking 时适配器会省略这两个字段。其他 provider 忽略该字段。
 
 Provider 示例：
 
@@ -295,7 +298,7 @@ val Runtime.invoke :
 ```ocaml
 type llm_response = {
   text : string option;
-  reasoning_content : string option;
+  reasoning : content_block list;   (* Reasoning_block / Redacted_reasoning_block *)
   tool_calls : tool_call list option;
   finish_reason : finish_reason;
   usage : usage_stats;
@@ -303,7 +306,7 @@ type llm_response = {
 }
 ```
 
-`reasoning_content` 仅由推理模型（OpenAI o1/o3、DeepSeek-R1 通过 OpenAI 兼容 API）填充。当 provider 以独立字段返回推理内容时，它持有模型的思维链文本。对于非推理模型，此字段为 `None`。设置时，模型的实际回答仍在 `text`（或 `tool_calls`）中，因此两个字段可以同时携带数据。
+`reasoning` 以内容块的形式、按 provider 的顺序持有模型的思维链：OpenAI o1/o3 与 DeepSeek-R1 以独立的 `reasoning_content` 字段返回（一个无签名的 `Reasoning_block`），Anthropic extended thinking 返回带签名的 `thinking` 块，隐去推理内容时还会返回 `Redacted_reasoning_block`。非推理模型下该列表为空。模型的实际回答仍在 `text`（或 `tool_calls`）中，因此两者可以同时携带数据；`Message.text_of_message` 永远不会包含推理内容。
 
 ```ocaml
 type invoke_result = {

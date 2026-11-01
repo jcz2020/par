@@ -11,7 +11,7 @@ let mock_model : model_config = {
   temperature = 0.7;
   max_tokens = None;
   top_p = None;
-  stop_sequences = None;
+  stop_sequences = None; thinking_budget_tokens = None;
 }
 
 let empty_conv : conversation = { messages = []; metadata = [] }
@@ -149,11 +149,15 @@ let test_mock_with_reasoning () =
   let (svc, _history) =
     create ~reasoning:(Some "thinking about it...") [Text "answer"]
   in
-  (* Non-streaming: complete_fn surfaces reasoning_content alongside text *)
+  (* Non-streaming: complete_fn surfaces reasoning as a block alongside text *)
   (match svc.complete_fn mock_model [] empty_conv with
    | Ok resp ->
-     Alcotest.(check (option string) "reasoning_content"
-       (Some "thinking about it...") resp.reasoning_content);
+     (match resp.reasoning with
+      | [Reasoning_block { text; signature; _ }] ->
+        Alcotest.(check string) "reasoning text" "thinking about it..." text;
+        Alcotest.(check (option string)) "mock does not sign" None signature
+      | other ->
+        Alcotest.failf "expected one reasoning block, got %d" (List.length other));
      Alcotest.(check (option string) "text preserved"
        (Some "answer") resp.text)
    | Error e -> Alcotest.failf "complete_fn error: %s" (show_error e));

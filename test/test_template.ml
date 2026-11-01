@@ -13,7 +13,7 @@ let show_error : error_category -> string = function
 
 let dummy_model : Types.model_config = {
   Types.provider = `Openai; model_name = "gpt-4"; api_base = None;
-  temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None;
+  temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None; thinking_budget_tokens = None;
 }
 
 let dummy_agent ?(id = "test") ?(system_prompt = stable_prompt "hello") ?system_prompt_template () = {

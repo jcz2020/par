@@ -46,6 +46,15 @@ type content_block =
       detail : string option;
       cache_control : cache_control option;
     }
+  | Reasoning_block of {
+      text : string;
+      signature : string option;
+      cache_control : cache_control option;
+    }
+  | Redacted_reasoning_block of {
+      data : string;
+      cache_control : cache_control option;
+    }
 ```
 
 **Text_block** holds plain text. The LLM's response text and user input both land here.
@@ -56,11 +65,13 @@ type content_block =
 
 **Image_block** holds image data, either as a URL reference or base64-encoded bytes. `media_type` is the MIME type (e.g. `"image/png"`).
 
-### Note on reasoning_content
+**Reasoning_block** holds a reasoning model's chain of thought (o1/o3, DeepSeek-R1, Claude extended thinking). It carries the reasoning text, not the user-facing answer, and `text_of_message` deliberately leaves it out. `signature` is Anthropic's thinking signature: the block must be sent back verbatim, signature included, whenever the assistant message also carries a `tool_use` block, so the engine prepends reasoning blocks to the assistant message it records.
 
-`reasoning_content : string option` is a top-level field on both `llm_response` and `message`, not a `content_block` variant. Reasoning models (o1, o3, DeepSeek-R1) return chain-of-thought text through this field, separate from the main `text` and `tool_calls`. The field is populated by the OpenAI provider when the upstream API returns `message.reasoning_content` (non-streaming) or `delta.reasoning_content` (streaming).
+**Redacted_reasoning_block** holds the opaque payload Anthropic substitutes when it redacts thinking. It has no text and must also be echoed back for the round-trip to stay valid.
 
-This is a scope compromise. When Anthropic extended-thinking support lands, `reasoning_content` will migrate into a `Reasoning_block` variant in `content_block`, giving reasoning the same first-class treatment as text and tool use. Until then, check `reasoning_content` directly on the response or message record.
+Reasoning blocks only reach the wire when the provider can replay them: the Anthropic adapter drops an unsigned `Reasoning_block` (one that came from another provider, or from a conversation persisted before reasoning became a block) because Anthropic rejects a thinking block without a signature. The OpenAI adapter never sends reasoning back — o1/o3 and most OpenAI-compatible APIs reject it on input.
+
+`llm_response.reasoning` carries the same blocks for a single response, and the engine copies them into the recorded assistant message ahead of the text.
 
 ## Construction
 

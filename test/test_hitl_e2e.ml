@@ -26,7 +26,7 @@ let error_to_string (e : error_category) =
 
 let dummy_model : model_config = {
   provider = `Openai; model_name = "mock"; api_base = None;
-  temperature = 0.0; max_tokens = None; top_p = None; stop_sequences = None;
+  temperature = 0.0; max_tokens = None; top_p = None; stop_sequences = None; thinking_budget_tokens = None;
 }
 
 let make_tool_call name args : tool_call =

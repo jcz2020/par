@@ -7,23 +7,22 @@ open Types
 
 let make_conversation system_prompt user_message =
   let sys = { role = System; content_blocks = Message.content_of_string system_prompt;
-              tool_calls = None; tool_call_id = None; name = None;
-              reasoning_content = None } in
+              tool_calls = None; tool_call_id = None; name = None } in
   let usr = { role = User; content_blocks = Message.content_of_string user_message;
-              tool_calls = None; tool_call_id = None; name = None;
-              reasoning_content = None } in
+              tool_calls = None; tool_call_id = None; name = None } in
   { messages = [ sys; usr ]; metadata = [] }
 
 let add_assistant_message conv (resp : llm_response) =
   let msg = {
     role = Assistant;
-    content_blocks = (match resp.text with
+    (* Reasoning first: Anthropic expects thinking blocks before the text and
+       tool_use they precede. *)
+    content_blocks = resp.reasoning @ (match resp.text with
         | Some t -> [Text_block { text = t; cache_control = None }]
         | None -> []);
     tool_calls = resp.tool_calls;
     tool_call_id = None;
     name = None;
-    reasoning_content = resp.reasoning_content;
   } in
   { conv with messages = conv.messages @ [ msg ] }
 
@@ -34,7 +33,6 @@ let add_user_feedback conv feedback_message =
     tool_calls = None;
     tool_call_id = None;
     name = None;
-    reasoning_content = None;
   } in
   { conv with messages = conv.messages @ [ msg ] }
 
@@ -59,9 +57,10 @@ let run_llm_with_optional_streaming llm agent_model conv user_cb =
              Hashtbl.iter (fun _ (_, b) -> buf := b) tc_state;
              Buffer.add_string !buf args_json
            end)
-      | Reasoning_delta _ | Usage_update _ | Done _ -> ()
-      (* Generate path does not surface reasoning_content; chunk is intentionally
-         ignored. Streaming aggregator in engine.ml handles accumulation. *)
+      | Reasoning_delta _ | Reasoning_signature _ | Usage_update _ | Done _ -> ()
+      (* Generate path does not surface reasoning; chunks are intentionally
+         ignored. The streaming aggregator in engine.ml handles accumulation
+         for the agent loop. *)
     in
     let stream_cfg : stream_config =
       { chunk_timeout = 30.0; total_timeout = None; buffer_size = 4096 } in
@@ -77,7 +76,7 @@ let run_llm_with_optional_streaming llm agent_model conv user_cb =
           { id; name; arguments }) entries) in
       let text =
         if Buffer.length text_buf = 0 then None else Some (Buffer.contents text_buf) in
-      Ok { text; reasoning_content = None; tool_calls; finish_reason = stream_complete.finish_reason;
+      Ok { text; reasoning = []; tool_calls; finish_reason = stream_complete.finish_reason;
            usage = stream_complete.final_usage; model = agent_model.model_name }
 
 (* -------------------------------------------------------------------------- *)

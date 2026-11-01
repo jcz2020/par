@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Breaking — reasoning is a content block, not a field
+
+- `message.reasoning_content` is gone. Reasoning now lives in `message.content_blocks` as a `Reasoning_block`, and `llm_response.reasoning_content : string option` became `llm_response.reasoning : content_block list`.
+- New block variants: `Reasoning_block { text; signature; cache_control }` and `Redacted_reasoning_block { data; cache_control }`. `signature` is Anthropic's thinking signature — the block must be replayed verbatim, signature included, when the assistant message also carries `tool_use`.
+- Reading code changes from `resp.reasoning_content` to `resp.reasoning`; construction code loses the field. `text_of_message` still returns only output text: reasoning is not part of the answer.
+- Conversations persisted by an earlier version still load. The derived parser rejects unknown keys, so `message_of_yojson` migrates a legacy `reasoning_content` string into an unsigned `Reasoning_block` rather than failing. The Anthropic adapter drops unsigned thinking blocks when building a request, so a migrated conversation cannot turn into an invalid replay.
+
+### Added — Anthropic extended thinking
+
+- `model_config.thinking_budget_tokens : int option` turns thinking on with a token budget. Anthropic's own limits (`>= 1024` and `< max_tokens`) are checked locally and reported as `Invalid_input`, naming the two values that disagree, instead of letting the provider reject the request.
+- Anthropic rejects `temperature` and `top_p` alongside thinking, so the adapter omits both when a budget is set.
+- Responses parse `thinking` and `redacted_thinking` blocks and keep the signature and the opaque payload; the next request replays them verbatim.
+- Streaming forwards `thinking_delta` as `Reasoning_delta` and `signature_delta` as the new `Reasoning_signature` chunk. The engine aggregates them into one signed reasoning block.
+- Streaming aggregates a turn's thinking into a single block (keeping the last signature) and drops redacted thinking blocks, because the chunk interface cannot carry a whole block. Use the non-streaming path when exact block structure matters.
+
+### Fixed — Python streaming mis-decoded reasoning
+
+- `Reasoning_delta` chunks fell through the decoder's text branch, so a Python caller saw the model's chain of thought concatenated into the answer text. They now decode to `ReasoningDelta`, and the new `ReasoningSignature` is exported alongside it. The streaming docs described both classes; the code behind them was missing.
+
 ### Breaking — image constructors validate what they carry
 
 - `Message.image_base64` now returns `(content_block, string) result` instead of a bare `content_block`. The payload is checked rather than trusted: it must be valid base64, must not be empty, and must not exceed the size limit. Callers on `0.12.0-beta.20261023` add a `match` (or `Result` unwrap).
@@ -22,7 +41,7 @@
 
 ### Tests
 
-- OCaml totals are **1652 tests across 123 suites**, 0 failures: four MCP tool regressions (three fail when the wiring is removed) and ten image-limit/media-type cases on top of the 1639 collected at the tag. Python totals are **185 passed / 20 skipped** (eleven new image-limit/MIME cases), with the two pre-existing callback-memory warnings unchanged.
+- OCaml totals are **1665 tests across 124 suites**, 0 failures: four MCP tool regressions (three fail when the wiring is removed), ten image-limit/media-type cases, and thirteen reasoning cases covering the block round-trip, legacy-field migration (direct and nested), Anthropic parse/serialise/replay, budget limits, streaming deltas and the streaming aggregator's signature. Python totals are **193 passed / 20 skipped** (five chunk-decoding cases and three Anthropic-thinking cases through the C bridge), with the two pre-existing callback-memory warnings unchanged.
 - The image tests were mutation-checked, not assumed: removing the unknown-extension check fails three cases, removing the size checks fails the oversize cases, and disabling the encoded-length check makes the pre-decode case report a base64 error instead of a size error.
 
 ## v0.12.0-beta.20261023 — multimodal input: public rich-content entry point + OpenAI image wire format

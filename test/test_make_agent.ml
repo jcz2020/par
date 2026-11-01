@@ -8,7 +8,7 @@ let valid_model = {
   temperature = 0.7;
   max_tokens = None;
   top_p = None;
-  stop_sequences = None;
+  stop_sequences = None; thinking_budget_tokens = None;
 }
 
 let suite = [

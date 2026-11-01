@@ -31,7 +31,7 @@ let mock_model : model_config = {
   temperature = 0.0;
   max_tokens = Some 100;
   top_p = Some 1.0;
-  stop_sequences = None;
+  stop_sequences = None; thinking_budget_tokens = None;
 }
 
 let mock_agent =

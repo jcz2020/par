@@ -25,7 +25,7 @@ let test_concurrent_metrics_isolation () =
       | Error _ -> failwith "create"
       | Ok rt ->
         let model = { provider = `Openai; model_name = "t"; api_base = None;
-                      temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None } in
+                      temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None; thinking_budget_tokens = None } in
         let agent = match Runtime.make_agent ~id:"t"
                       ~system_prompt:(stable_prompt "p") ~model () with
           | Ok a -> a | Error _ -> failwith "make_agent" in
@@ -57,7 +57,7 @@ let test_concurrent_session_id_via_context () =
       | Error _ -> failwith "create"
       | Ok rt ->
         let model = { provider = `Openai; model_name = "t"; api_base = None;
-                      temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None } in
+                      temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None; thinking_budget_tokens = None } in
         let agent = match Runtime.make_agent ~id:"t"
                       ~system_prompt:(stable_prompt "p") ~model () with
           | Ok a -> a | Error _ -> failwith "make_agent" in
@@ -90,7 +90,7 @@ let test_invoke_async_handle_lifecycle () =
       | Error _ -> failwith "create"
       | Ok rt ->
         let model = { provider = `Openai; model_name = "t"; api_base = None;
-                      temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None } in
+                      temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None; thinking_budget_tokens = None } in
         let agent = match Runtime.make_agent ~id:"t"
                       ~system_prompt:(stable_prompt "p") ~model () with
           | Ok a -> a | Error _ -> failwith "make_agent" in
@@ -177,7 +177,7 @@ let test_invoke_context_with_binding_propagates () =
       | Error _ -> failwith "create"
       | Ok rt ->
         let model = { provider = `Openai; model_name = "t"; api_base = None;
-                      temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None } in
+                      temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None; thinking_budget_tokens = None } in
         let agent = match Runtime.make_agent ~id:"t"
                       ~system_prompt:(stable_prompt "p") ~model () with
           | Ok a -> a | Error _ -> failwith "make_agent" in
@@ -203,7 +203,7 @@ let test_system_prompt_appendix_with () =
       | Error _ -> failwith "create"
       | Ok rt ->
         let model = { provider = `Openai; model_name = "t"; api_base = None;
-                      temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None } in
+                      temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None; thinking_budget_tokens = None } in
         let agent = match Runtime.make_agent ~id:"t"
                       ~system_prompt:(stable_prompt "base prompt") ~model () with
           | Ok a -> a | Error _ -> failwith "make_agent" in
@@ -234,7 +234,7 @@ let test_system_prompt_appendix_without () =
       | Error _ -> failwith "create"
       | Ok rt ->
         let model = { provider = `Openai; model_name = "t"; api_base = None;
-                      temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None } in
+                      temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None; thinking_budget_tokens = None } in
         let agent = match Runtime.make_agent ~id:"t"
                       ~system_prompt:(stable_prompt "base prompt") ~model () with
           | Ok a -> a | Error _ -> failwith "make_agent" in
@@ -271,7 +271,7 @@ let test_system_prompt_appendix_resume () =
       | Error _ -> failwith "create"
       | Ok rt ->
         let model = { provider = `Openai; model_name = "t"; api_base = None;
-                      temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None } in
+                      temperature = 0.7; max_tokens = None; top_p = None; stop_sequences = None; thinking_budget_tokens = None } in
         let agent = match Runtime.make_agent ~id:"t"
                       ~system_prompt:(stable_prompt "base prompt") ~model () with
           | Ok a -> a | Error _ -> failwith "make_agent" in
@@ -280,13 +280,13 @@ let test_system_prompt_appendix_resume () =
           Par.Types.messages = [
             { role = System;
               content_blocks = Par.Message.content_of_string "original system";
-              tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
+              tool_calls = None; tool_call_id = None; name = None };
             { role = User;
               content_blocks = Par.Message.content_of_string "first msg";
-              tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
+              tool_calls = None; tool_call_id = None; name = None };
             { role = Assistant;
               content_blocks = Par.Message.content_of_string "first reply";
-              tool_calls = None; tool_call_id = None; name = None; reasoning_content = None };
+              tool_calls = None; tool_call_id = None; name = None };
           ];
           metadata = [];
         } in
