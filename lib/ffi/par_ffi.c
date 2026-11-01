@@ -1087,6 +1087,14 @@ char* par_mcp_list_tools(par_runtime_t* rt, const char* server_id) {
     CAMLreturnT(char*, ret);
 }
 
+char* par_mcp_tool_descriptors(par_runtime_t* rt) {
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value result = call1_exn("par_mcp_tool_descriptors", rt->_ocaml_value);
+    char* ret = extract_string(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    return ret;
+}
+
 char* par_workflow_status(par_runtime_t* rt, const char* run_id) {
     CAMLparam0();
     CAMLlocal1(c_rid);

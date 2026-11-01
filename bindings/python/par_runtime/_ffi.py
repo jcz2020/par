@@ -279,6 +279,10 @@ _lib.par_mcp_server.restype = ctypes.c_void_p
 _lib.par_mcp_list_tools.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_mcp_list_tools.restype = ctypes.c_void_p
 
+# char* par_mcp_tool_descriptors(par_runtime_t* rt);
+_lib.par_mcp_tool_descriptors.argtypes = [ctypes.c_void_p]
+_lib.par_mcp_tool_descriptors.restype = ctypes.c_void_p
+
 # char* par_workflow_status(par_runtime_t* rt, const char* run_id);
 _lib.par_workflow_status.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_workflow_status.restype = ctypes.c_void_p

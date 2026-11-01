@@ -1,5 +1,17 @@
 # CHANGES
 
+## Unreleased
+
+### Added — MCP is usable from Python
+
+- `Runtime.create` now reads `mcp_servers` from the config JSON, so a Python program can configure stdio and HTTP servers. Entries use the shape `Mcp_types.server_config_of_yojson` accepts: `{"type": "stdio", "name", "command", "args", "env", "cwd", "startup_timeout"}` or `{"type": "http", "name", "url", "headers", "startup_timeout"}`. A malformed entry fails the init instead of being skipped.
+- **NEW** `Runtime.mcp_tool_descriptors()` returns the same descriptor dicts `register_agent` accepts, so the list can be handed to an agent as-is or filtered to a subset. This is the counterpart of the OCaml `Runtime.mcp_tool_descriptors`, which shipped without it in v0.13.0-beta.20261102.
+- The FFI's eight-way `Runtime.create` branch (one per combination of optional persistence/memory/vector-store service) collapsed into one call that forwards the options; adding a parameter was an eight-way edit before.
+
+### Tests
+
+- Python totals rise to **198 passed / 20 skipped** with five MCP cases: servers accepted, descriptors listed, the list accepted by `register_agent`, an empty config, and a malformed entry failing the init. Three of them fail when the config parse is removed. OCaml is unchanged at 1665 tests across 124 suites.
+
 ## v0.13.0-beta.20261102 — MCP tools, bounded image input, reasoning blocks + Anthropic thinking
 
 > Three capabilities and three surface changes. MCP server tools now reach the model, image constructors are bounded and validated, and reasoning is a content block with Anthropic extended thinking wired end to end. **1665 OCaml tests across 124 suites, 0 failures; 193 Python tests passing with 20 pre-existing skips.** Beta-first: the stable line remains v0.10.0.

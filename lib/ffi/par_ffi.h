@@ -114,6 +114,9 @@ int par_follow_up(par_runtime_t* rt, const char* message);
 /* MCP access */
 char* par_mcp_server(par_runtime_t* rt, const char* server_id);
 char* par_mcp_list_tools(par_runtime_t* rt, const char* server_id);
+/** Tool descriptors for every configured MCP server, as the same JSON shape
+ *  register_agent accepts. Pass them straight through, or pick a subset. */
+char* par_mcp_tool_descriptors(par_runtime_t* rt);
 
 /* Workflow status/cancel */
 char* par_workflow_status(par_runtime_t* rt, const char* run_id);

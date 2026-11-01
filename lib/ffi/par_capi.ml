@@ -292,6 +292,22 @@ let do_init (config_json : string) =
       fd_log (Printf.sprintf "[do_init] config parse error: %s" s);
       failwith (Printf.sprintf "Invalid config JSON: %s" s)
   in
+  (* MCP servers are a create-time parameter rather than part of
+     [runtime_config], so they are read from the same JSON object here. Each
+     entry is the shape [Mcp_types.server_config_of_yojson] accepts, which is
+     also what the OCaml docs call a server config. *)
+  let mcp_servers =
+    match json |> Yojson.Safe.Util.member "mcp_servers" with
+    | `Null -> []
+    | `List entries ->
+      List.map (fun entry ->
+        match Par.Mcp_types.server_config_of_yojson entry with
+        | Ok server -> server
+        | Error msg -> failwith ("Invalid mcp_servers entry: " ^ msg)) entries
+    | _ -> failwith "Invalid config JSON: mcp_servers must be a list"
+  in
+  if mcp_servers <> [] then
+    fd_log (Printf.sprintf "[do_init] mcp_servers=%d" (List.length mcp_servers));
   let state_id = alloc_state () in
   let state = Hashtbl.find states state_id in
   fd_log (Printf.sprintf "[do_init] state_id=%d allocated" state_id);
@@ -457,16 +473,18 @@ let do_init (config_json : string) =
         in
         fd_log "[do_init] about to call Runtime.create";
         Eio.Switch.run (fun sw ->
+          (* The optional services are forwarded as options: a branch per
+             present/absent combination duplicated the call eight times and
+             made adding a parameter an eight-way edit. *)
           let create_result =
-            match persistence_svc, memory_svc, vector_store_backend with
-            | Some p, Some m, Some v -> Par.Runtime.create ~net ~config ~llm ?embeddings:embed_opt ~persistence:p ~memory:m ~vector_store_backend:v sw
-            | Some p, Some m, None  -> Par.Runtime.create ~net ~config ~llm ?embeddings:embed_opt ~persistence:p ~memory:m sw
-            | Some p, None,  Some v -> Par.Runtime.create ~net ~config ~llm ?embeddings:embed_opt ~persistence:p ~vector_store_backend:v sw
-            | Some p, None,  None  -> Par.Runtime.create ~net ~config ~llm ?embeddings:embed_opt ~persistence:p sw
-            | None,  Some m, Some v -> Par.Runtime.create ~net ~config ~llm ?embeddings:embed_opt ~memory:m ~vector_store_backend:v sw
-            | None,  Some m, None  -> Par.Runtime.create ~net ~config ~llm ?embeddings:embed_opt ~memory:m sw
-            | None,  None,  Some v -> Par.Runtime.create ~net ~config ~llm ?embeddings:embed_opt ~vector_store_backend:v sw
-            | None,  None,  None  -> Par.Runtime.create ~net ~config ~llm ?embeddings:embed_opt sw
+            Par.Runtime.create ~net ~config ~llm ?embeddings:embed_opt
+              ?persistence:persistence_svc ?memory:memory_svc
+              ?vector_store_backend
+              ~mcp_servers
+              ~mcp_clock:(Eio.Stdenv.clock env)
+              ~mcp_process_mgr:(Eio.Stdenv.process_mgr env)
+              ~mcp_net:net
+              sw
           in
           match create_result with
           | Ok rt ->
@@ -1335,6 +1353,38 @@ let do_mcp_list_tools (state_id : int) (sid : string) : string option =
          Obj.repr (Some (error_json (Printexc.to_string e))))) in
     (Obj.obj result : string option)
 
+(* The tool descriptor shape [parse_tool_descriptor] reads back, so the
+   descriptors a caller gets here can be passed straight into register_agent.
+   [on_update] is a callback and is deliberately absent; MCP tools never set
+   it. *)
+let mcp_descriptor_json (td : Par.Types.tool_descriptor) : Yojson.Safe.t =
+  `Assoc ([
+    ("name", `String td.Par.Types.name);
+    ("description", `String td.Par.Types.description);
+    ("input_schema", td.Par.Types.input_schema);
+  ]
+  @ (match td.Par.Types.timeout with
+     | Some t -> [ ("timeout", `Float t) ]
+     | None -> [])
+  @ (match td.Par.Types.concurrency_limit with
+     | Some n -> [ ("concurrency_limit", `Int n) ]
+     | None -> []))
+
+let do_mcp_tool_descriptors (state_id : int) : string option =
+  match get_state state_id with
+  | None -> Some (error_json "Invalid runtime handle")
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      (try
+         let descriptors = Par.Runtime.mcp_tool_descriptors rt in
+         let json =
+           `Assoc [ ("tools", `List (List.map mcp_descriptor_json descriptors)) ]
+         in
+         Obj.repr (Some (Yojson.Safe.to_string json))
+       with e ->
+         Obj.repr (Some (error_json (Printexc.to_string e))))) in
+    (Obj.obj result : string option)
+
 let do_workflow_status (state_id : int) (run_id : string) : string option =
   match get_state state_id with
   | None -> Some (error_json "Invalid runtime handle")
@@ -2140,6 +2190,12 @@ let () =
     (fun (state_id_obj : Obj.t) (server_id : string) ->
       let state_id : int = Obj.magic state_id_obj in
       unwrap (do_mcp_list_tools state_id server_id))
+
+let () =
+  Callback.register "par_mcp_tool_descriptors"
+    (fun (state_id_obj : Obj.t) ->
+      let state_id : int = Obj.magic state_id_obj in
+      unwrap (do_mcp_tool_descriptors state_id))
 
 let () =
   Callback.register "par_workflow_status"

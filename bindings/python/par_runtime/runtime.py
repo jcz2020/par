@@ -1233,6 +1233,31 @@ class Runtime:
             raise PARError(parsed["error"])
         return parsed.get("tools", [])
 
+    def mcp_tool_descriptors(self) -> list:
+        """Tool descriptors for every MCP server this runtime was created with.
+
+        The dicts use the same shape ``register_agent`` accepts, so the whole
+        list can be passed as an agent's ``tools``, or filtered down to the
+        subset that agent should see.
+
+        Selection is explicit by design: a server can expose many tools, and
+        advertising all of them to every agent works against the tool-schema
+        budget.
+
+        Returns:
+            list of tool descriptor dicts.
+
+        Raises:
+            PARError: If the runtime handle is invalid.
+        """
+        self._check_handle()
+        result_ptr = _lib.par_mcp_tool_descriptors(self._handle)
+        result = _py_str(result_ptr)
+        parsed = json.loads(result)
+        if "error" in parsed:
+            raise PARError(parsed["error"])
+        return parsed.get("tools", [])
+
     def workflow_status(self, run_id: str) -> dict:
         """Query the status of a workflow run.
 

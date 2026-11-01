@@ -221,6 +221,43 @@ Selection is explicit on purpose. A server can expose dozens of tools, and
 advertising all of them to every agent works against `max_tool_schema_tokens`.
 Advertise the subset the agent needs.
 
+### Python
+
+The Python binding configures servers in the same JSON object it already passes
+to `Runtime`:
+
+```python
+import json
+from par_runtime import Runtime
+
+config = {
+    # ... the usual persistence / event_bus / shutdown keys ...
+    "mcp_servers": [{
+        "type": "stdio",
+        "name": "filesystem",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/srv/data"],
+        "env": {}, "cwd": None, "startup_timeout": 10.0,
+    }],
+}
+
+with Runtime(json.dumps(config)) as rt:
+    tools = rt.mcp_tool_descriptors()       # list of tool-descriptor dicts
+    rt.register_agent(json.dumps({
+        "id": "fs",
+        "system_prompt": "You use files.",
+        "model": {"provider": "openai", "model_name": "gpt-4o", "temperature": 0.0},
+        "tools": tools,                     # or filter it down to a subset
+    }))
+```
+
+`mcp_tool_descriptors()` returns the same shape `register_agent` accepts, so the
+list can be handed over as-is or filtered to the tools that agent should see.
+An HTTP server entry takes `{"type": "http", "name": ..., "url": ...,
+"headers": {}, "startup_timeout": ...}` instead of `command`/`args`.
+
+A malformed entry fails `Runtime(...)` rather than being skipped silently.
+
 Two behaviours worth knowing:
 
 - A tool that fails inside the server is reported to the agent as an error, not

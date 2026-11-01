@@ -211,6 +211,41 @@ handler 已经在每次调用的注册表里，所以挂上去的工具即可被
 **选择是显式的，这是有意为之**：一个 server 可能暴露几十个工具，把它们全部挂给
 每个 agent 会与 `max_tool_schema_tokens` 的意图相悖。请只挂 agent 真正需要的那部分。
 
+### Python
+
+Python 绑定在它原本就传给 `Runtime` 的同一个 JSON 对象里配置 server：
+
+```python
+import json
+from par_runtime import Runtime
+
+config = {
+    # ... 常规的 persistence / event_bus / shutdown 键 ...
+    "mcp_servers": [{
+        "type": "stdio",
+        "name": "filesystem",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/srv/data"],
+        "env": {}, "cwd": None, "startup_timeout": 10.0,
+    }],
+}
+
+with Runtime(json.dumps(config)) as rt:
+    tools = rt.mcp_tool_descriptors()       # 工具描述符 dict 列表
+    rt.register_agent(json.dumps({
+        "id": "fs",
+        "system_prompt": "你会使用文件。",
+        "model": {"provider": "openai", "model_name": "gpt-4o", "temperature": 0.0},
+        "tools": tools,                     # 也可以过滤成子集
+    }))
+```
+
+`mcp_tool_descriptors()` 返回的正是 `register_agent` 接受的结构，因此可以整个传进去，
+也可以只挑该 agent 需要的那部分。HTTP server 条目改用 `{"type": "http", "name":
+..., "url": ..., "headers": {}, "startup_timeout": ...}`，不要 `command`/`args`。
+
+格式错误的条目会让 `Runtime(...)` 构造失败，而不是被静默跳过。
+
 两个值得知道的行为：
 
 - server 内部执行失败时，会以**错误**而非**输出**的形式报告给 agent。server 返回的
