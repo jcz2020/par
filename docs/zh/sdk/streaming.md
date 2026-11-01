@@ -3,7 +3,7 @@
 
 # Streaming API 参考
 
-> **Note (v0.6.7):** 对 `bin/main.ml` 第 386 行的引用是历史性的 — CLI 在 v0.6.7 中被移除，流式逻辑现在位于 SDK 和 FFI 中。当前入口点见 [SDK 概览](overview.md)。
+> **Note (v0.6.7):** 对 `bin/main.ml`的引用是历史性的 — CLI 在 v0.6.7 中被移除，流式逻辑现在位于 SDK 和 FFI 中。当前入口点见 [SDK 概览](overview.md)。
 
 > 在 v0.5.1 中添加。真实来源：`lib/core/types.ml` 中的 OCaml 类型 `Types.llm_response_chunk`。Phase C.1 设计契约；Phase C.2（FFI 桥接）和 C.3（Python generator）实现本文档。
 
@@ -13,7 +13,7 @@
 
 流式输出让调用方可以逐 token 消费 LLM 的输出，而不用等待完整响应。对于交互式 UI，这将感知延迟从"等 8 秒，然后倾倒 500 个词"降低到"200 ms 内出现第一个 token，然后稳定滴流"。对于长时间运行的工具调用流程，这也意味着调用方在看到足够信息后可以提前取消。
 
-PAR 在 v0.5.1 中通过新的 Python 方法 `invoke_stream` 暴露了 `Runtime.invoke` 上已有的 `?on_chunk` 参数来添加流式支持。OCaml 端自 v0.4.0 起就支持分块输出（见 `lib/core/types.ml` 第 509 行的 `llm_response_chunk` ADT），但 FFI 层和 Python 封装尚未发布。本文档在任何实现代码编写之前定义了它们应有的样子。
+PAR 在 v0.5.1 中通过新的 Python 方法 `invoke_stream` 暴露了 `Runtime.invoke` 上已有的 `?on_chunk` 参数来添加流式支持。OCaml 端自 v0.4.0 起就支持分块输出（见 `lib/core/types.ml` 中的 `llm_response_chunk` ADT），但 FFI 层和 Python 封装尚未发布。本文档在任何实现代码编写之前定义了它们应有的样子。
 
 Provider 支持情况各不相同，详见下方"Provider 支持"部分。OpenAI、Anthropic 和 Mock 都支持文本增量和工具调用增量流式输出；只有 Anthropic 和 Mock 还会发出用量更新。
 
@@ -62,7 +62,7 @@ rt.invoke("agent", "hello", on_event=print)
 
 **优点**
 
-- 直接匹配 OCaml 端的形状。`Runtime.invoke` 上的 `?on_chunk`（`lib/core/runtime.ml` 第 336 行）已经是回调参数；FFI 可以直接透传，无需队列。
+- 直接匹配 OCaml 端的形状。`Runtime.invoke` 上的 `?on_chunk`（`lib/core/runtime.ml`）已经是回调参数；FFI 可以直接透传，无需队列。
 - FFI 更简单。Python 端没有迭代器状态机、没有哨兵值、没有 `_DONE` 协议。一个回调指针，一个 C 入口点。
 - 易于层叠。日志记录器或指标钩子只是通过小封装组合的另一个可调用对象。
 - 对 JavaScript 和 Java 转过来的开发者来说很熟悉，他们习惯事件驱动的 API。
@@ -109,7 +109,7 @@ PAR 的主要 Python 受众是编写 agent 驱动服务的后端工程师。他�
 
 ## Event 类型
 
-`Event` 是一个冻结数据类联合，镜像 `lib/core/types.ml` 第 509 行的 OCaml `llm_response_chunk` ADT。每个构造器映射到一个 Python 类。字段名完全匹配 OCaml 的记录标签，使 JSON 往返可预测。
+`Event` 是一个冻结数据类联合，镜像 `lib/core/types.ml` 中的 OCaml `llm_response_chunk` ADT。每个构造器映射到一个 Python 类。字段名完全匹配 OCaml 的记录标签，使 JSON 往返可预测。
 
 ```python
 from dataclasses import dataclass
@@ -313,11 +313,11 @@ finally:
 
 本节是信息性的。它不定义公共 API；它记录 FFI 桥接应使用的钩子。
 
-- **复用现有的 `?on_chunk` 参数。** `lib/core/runtime.ml` 第 336 行的 `Runtime.invoke` 已经接受 `?on_chunk : (Types.llm_response_chunk -> unit) option`。通过此参数连接 C 回调；不要在 OCaml 端添加新的代码路径。
+- **复用现有的 `?on_chunk` 参数。** `lib/core/runtime.ml` 中的 `Runtime.invoke` 已经接受 `?on_chunk : (Types.llm_response_chunk -> unit) option`。通过此参数连接 C 回调；不要在 OCaml 端添加新的代码路径。
 - **不要通过事件总线路由 chunk。** 事件总线（`Event_bus` 模块）没有流式事件构造器，也不应该添加。流式 chunk 是同步回调，不是发布-订阅事件。将两者混合会将流消费者耦合到事件总线的保留策略。
-- **参考消费者实现。** OCaml SDK 的规范 chunk 消费者是 `lib/core/runtime.ml` 第 336 行的 `?on_chunk` 回调连接（被 `Runtime.invoke` 使用），它将 `Text_delta` / `Tool_call_delta`（见 `lib/core/types.ml` 第 509 行的 `llm_response_chunk` ADT）分派到调用方的回调。C.2/C.3 实现应镜像相同的判别逻辑。（之前 `bin/main.ml` 中的 CLI 消费者是历史参考，但该文件在 v0.6.7 中被移除。）
-- **新的 C 入口点。** 在 `lib/ffi/par_ffi.h` 和 `lib/ffi/par_ffi.c` 中添加 `par_invoke_stream(par_runtime_t* rt, const char* agent_id, const char* message, par_event_callback cb, void* user_data)`。以 `par_invoke` 和 `lib/ffi/par_ffi.h` 第 64 行现有的 `par_event_callback` typedef 为模型。`user_data` 指针原封不动转发给回调，以便 Python 绑定可以传递其队列引用。
-- **现有的 subscribe 桩。** `par_event_subscribe` 在 `lib/ffi/par_ffi.h` 第 64 行声明，在 `lib/ffi/par_ffi.c` 第 336 行有桩实现（返回 `-1`）。它与流式无关，但使用相同的回调形状。连接它是 C.2 的可选项，可能推迟到后续阶段；流式入口点不依赖它。
+- **参考消费者实现。** OCaml SDK 的规范 chunk 消费者是 `lib/core/runtime.ml`的 `?on_chunk` 回调连接（被 `Runtime.invoke` 使用），它将 `Text_delta` / `Tool_call_delta`（见 `lib/core/types.ml` 中的 `llm_response_chunk` ADT）分派到调用方的回调。C.2/C.3 实现应镜像相同的判别逻辑。（之前 `bin/main.ml` 中的 CLI 消费者是历史参考，但该文件在 v0.6.7 中被移除。）
+- **新的 C 入口点。** 在 `lib/ffi/par_ffi.h` 和 `lib/ffi/par_ffi.c` 中添加 `par_invoke_stream(par_runtime_t* rt, const char* agent_id, const char* message, par_event_callback cb, void* user_data)`。以 `par_invoke` 和 `lib/ffi/par_ffi.h`现有的 `par_event_callback` typedef 为模型。`user_data` 指针原封不动转发给回调，以便 Python 绑定可以传递其队列引用。
+- **现有的 subscribe 桩。** `par_event_subscribe` 在 `lib/ffi/par_ffi.h`声明，在 `lib/ffi/par_ffi.c`有桩实现（返回 `-1`）。它与流式无关，但使用相同的回调形状。连接它是 C.2 的可选项，可能推迟到后续阶段；流式入口点不依赖它。
 - **现有的 Python 先例。** `bindings/python/par_runtime/_ffi.py` 第 62 行定义了 `_PYTHON_TOOL_CALLBACK = CFUNCTYPE(c_char_p, c_int, c_char_p)`。为流式回调镜像此模式：定义 `_STREAM_CALLBACK = CFUNCTYPE(None, c_char_p, c_char_p)`（event_type, event_json），在运行时生命周期内将闭包保持在 `self._cb_keepalive` 上，在回调内解析 JSON，并将构造好的 `Event` 推入队列。
 
 ## 逐 chunk 取消语义

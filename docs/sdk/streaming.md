@@ -3,7 +3,7 @@
 
 # Streaming API Reference
 
-> **Note (v0.6.7):** The reference to `bin/main.ml` line 386 is historical — the CLI was removed in v0.6.7, the streaming logic lives in the SDK and FFI. See [SDK overview](overview.md) for current entry points.
+> **Note (v0.6.7):** The reference to `bin/main.ml` is historical — the CLI was removed in v0.6.7, the streaming logic lives in the SDK and FFI. See [SDK overview](overview.md) for current entry points.
 
 > Added in v0.5.1. Source-of-truth: the OCaml type `Types.llm_response_chunk` in `lib/core/types.ml`. Phase C.1 design contract; Phases C.2 (FFI bridge) and C.3 (Python generator) implement this document.
 
@@ -13,7 +13,7 @@ This page is the API contract for streaming LLM output from PAR's Python binding
 
 Streaming lets a caller consume an LLM's output token by token instead of waiting for the full response. For interactive UIs this cuts perceived latency from "wait 8 seconds, then dump 500 words" to "first token in 200 ms, then a steady drip." For long-running tool-call flows it also means the caller can cancel early once it sees enough.
 
-PAR adds streaming in v0.5.1 by exposing the existing `?on_chunk` parameter on `Runtime.invoke` through a new Python method, `invoke_stream`. The OCaml side has supported chunked output since v0.4.0 (see `lib/core/types.ml` line 509 for the `llm_response_chunk` ADT), but the FFI surface and Python wrapper have not yet shipped. This document defines what they should look like before any implementation code is written.
+PAR adds streaming in v0.5.1 by exposing the existing `?on_chunk` parameter on `Runtime.invoke` through a new Python method, `invoke_stream`. The OCaml side has supported chunked output since v0.4.0 (see the `llm_response_chunk` ADT in `lib/core/types.ml`), but the FFI surface and Python wrapper have not yet shipped. This document defines what they should look like before any implementation code is written.
 
 Provider support varies and is documented in the Provider Support section below. OpenAI, Anthropic, and Mock all stream text deltas and tool-call deltas; only Anthropic and Mock also emit usage updates.
 
@@ -62,7 +62,7 @@ rt.invoke("agent", "hello", on_event=print)
 
 **Pros**
 
-- Matches the OCaml-side shape directly. `?on_chunk` at `Runtime.invoke` (`lib/core/runtime.ml` line 336) is already a callback parameter; the FFI can hand it straight through with no queue.
+- Matches the OCaml-side shape directly. `?on_chunk` at `Runtime.invoke` (`lib/core/runtime.ml`) is already a callback parameter; the FFI can hand it straight through with no queue.
 - Simpler FFI. No iterator state machine on the Python side, no sentinel, no `_DONE` protocol. One callback pointer, one C entrypoint.
 - Easy to layer. A logger or metrics hook is just another callable composed via a small wrapper.
 - Familiar to JavaScript and Java refugees who expect event-driven APIs.
@@ -109,7 +109,7 @@ The rest of this document specifies Option 1 in full.
 
 ## Event type
 
-`Event` is a frozen-dataclass union mirroring the OCaml `llm_response_chunk` ADT at `lib/core/types.ml` line 509. Each constructor maps to one Python class. Field names match the OCaml record labels exactly so JSON round-trips are predictable.
+`Event` is a frozen-dataclass union mirroring the OCaml `llm_response_chunk` ADT in `lib/core/types.ml`. Each constructor maps to one Python class. Field names match the OCaml record labels exactly so JSON round-trips are predictable.
 
 ```python
 from dataclasses import dataclass
@@ -313,11 +313,11 @@ The `PARError` covers every error path that crosses the FFI boundary: malformed 
 
 This section is informational. It does not define the public API; it records the hooks the FFI bridge should use.
 
-- **Reuse the existing `?on_chunk` parameter.** `Runtime.invoke` at `lib/core/runtime.ml` line 336 already accepts `?on_chunk : (Types.llm_response_chunk -> unit) option`. Wire the C callback through this parameter; do not add a new code path on the OCaml side.
+- **Reuse the existing `?on_chunk` parameter.** `Runtime.invoke` in `lib/core/runtime.ml` already accepts `?on_chunk : (Types.llm_response_chunk -> unit) option`. Wire the C callback through this parameter; do not add a new code path on the OCaml side.
 - **Do not route chunks through the event bus.** The event bus (`Event_bus` module) has no streaming event constructor and should not gain one. Streaming chunks are a synchronous callback, not a publish-subscribe event. Mixing the two would couple stream consumers to event-bus retention policy.
-- **Reference consumer implementation.** The OCaml SDK's canonical chunk-consumer is the `?on_chunk` callback wiring at `lib/core/runtime.ml` line 336 (used by `Runtime.invoke`), which dispatches `Text_delta` / `Tool_call_delta` (see `lib/core/types.ml` line 509 for the `llm_response_chunk` ADT) to the caller's callback. The C.2/C.3 implementations should mirror this same discrimination logic. (The previous CLI consumer in `bin/main.ml` was the historical reference but that file was removed in v0.6.7.)
-- **New C entrypoint.** Add `par_invoke_stream(par_runtime_t* rt, const char* agent_id, const char* message, par_event_callback cb, void* user_data)` to `lib/ffi/par_ffi.h` and `lib/ffi/par_ffi.c`. Model the signature on `par_invoke` and the existing `par_event_callback` typedef at `lib/ffi/par_ffi.h` line 64. The `user_data` pointer is forwarded untouched to the callback so the Python binding can pass its queue reference.
-- **Existing subscribe stub.** `par_event_subscribe` is declared at `lib/ffi/par_ffi.h` line 64 and stubbed at `lib/ffi/par_ffi.c` line 336 (returns `-1`). It is unrelated to streaming but uses the same callback shape. Wiring it up is optional for C.2 and may slip to a later phase; the streaming entrypoint does not depend on it.
+- **Reference consumer implementation.** The OCaml SDK's canonical chunk-consumer is the `?on_chunk` callback wiring at `lib/core/runtime.ml` (used by `Runtime.invoke`), which dispatches `Text_delta` / `Tool_call_delta` (see the `llm_response_chunk` ADT in `lib/core/types.ml`) to the caller's callback. The C.2/C.3 implementations should mirror this same discrimination logic. (The previous CLI consumer in `bin/main.ml` was the historical reference but that file was removed in v0.6.7.)
+- **New C entrypoint.** Add `par_invoke_stream(par_runtime_t* rt, const char* agent_id, const char* message, par_event_callback cb, void* user_data)` to `lib/ffi/par_ffi.h` and `lib/ffi/par_ffi.c`. Model the signature on `par_invoke` and the existing `par_event_callback` typedef at `lib/ffi/par_ffi.h`. The `user_data` pointer is forwarded untouched to the callback so the Python binding can pass its queue reference.
+- **Existing subscribe stub.** `par_event_subscribe` is declared at `lib/ffi/par_ffi.h` and stubbed at `lib/ffi/par_ffi.c` (returns `-1`). It is unrelated to streaming but uses the same callback shape. Wiring it up is optional for C.2 and may slip to a later phase; the streaming entrypoint does not depend on it.
 - **Existing Python precedent.** `bindings/python/par_runtime/_ffi.py` line 62 defines `_PYTHON_TOOL_CALLBACK = CFUNCTYPE(c_char_p, c_int, c_char_p)`. Mirror this pattern for the streaming callback: define `_STREAM_CALLBACK = CFUNCTYPE(None, c_char_p, c_char_p)` (event_type, event_json), keep the closure on `self._cb_keepalive` for the runtime's lifetime, parse the JSON inside the callback, and push a constructed `Event` onto the queue.
 
 ## Per-chunk cancellation semantics
