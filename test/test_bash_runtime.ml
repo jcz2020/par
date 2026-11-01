@@ -208,6 +208,61 @@ let policy_enforcement_suite =
         ~argv:["chmod"; "755"; "foo"]);
   ]
 
+(* -------------------------------------------------------------------------- *)
+(* environment isolation                                                      *)
+(* -------------------------------------------------------------------------- *)
+
+let contains haystack needle =
+  let h = String.length haystack and n = String.length needle in
+  let rec go i = i + n <= h && (String.sub haystack i n = needle || go (i + 1)) in
+  n = 0 || go 0
+
+let bash_stdout rt argv =
+  let h = bash_handler rt in
+  let input = `Assoc [("argv", `List (List.map (fun s -> `String s) argv))] in
+  let token = Cancellation.create_token (Runtime.cancellation_root rt) in
+  match h input token with
+  | Success json ->
+    (match Yojson.Safe.Util.(json |> member "stdout" |> to_string_option) with
+     | Some s -> s
+     | None -> Alcotest.fail "bash result has no stdout")
+  | Error { category; message; _ } ->
+    Alcotest.failf "bash failed: %s (%s)" (error_to_string category) message
+  | Handoff _ | Approval_required _ ->
+    Alcotest.fail "bash returned a non-execution result"
+
+(* These cases execute a real process, so they need a clock: without one the
+   handler used to report an immediate timeout, and now waits indefinitely. *)
+let with_exec_runtime f =
+  Eio_main.run (fun env ->
+    Eio.Switch.run (fun sw ->
+      let mgr = Eio.Stdenv.process_mgr env in
+      let fs = Eio.Stdenv.fs env in
+      let clock = Eio.Stdenv.clock env in
+      match Runtime.create ~config:test_config sw with
+      | Error e -> Alcotest.failf "Runtime.create failed: %s" (error_to_string e)
+      | Ok rt ->
+        (match Runtime.install_bash_tool ~process_mgr:mgr ~clock ~fs rt with
+         | Ok () -> ()
+         | Error e -> Alcotest.failf "install failed: %s" (error_to_string e));
+        f rt))
+
+(* The policy computes a sanitized environment; the spawn must actually use
+   it. Before this, the child inherited PAR's whole environment, so a plain
+   [printenv] exposed every API key in it. *)
+let env_isolation_suite =
+  "env_isolation", [
+    Alcotest.test_case "secret env vars do not reach the child" `Quick (fun () ->
+      Unix.putenv "PAR_TEST_API_TOKEN" "leaked-value";
+      Unix.putenv "PAR_TEST_PLAIN_VAR" "kept-value";
+      with_exec_runtime (fun rt ->
+        let secret_out = bash_stdout rt ["printenv"; "PAR_TEST_API_TOKEN"] in
+        Alcotest.(check bool) "the secret is gone" false (contains secret_out "leaked-value");
+        let plain_out = bash_stdout rt ["printenv"; "PAR_TEST_PLAIN_VAR"] in
+        Alcotest.(check bool) "an ordinary variable survives" true
+          (contains plain_out "kept-value")));
+  ]
+
 (* A process can exit before its switch-attached output-copy fibers drain.
    Release those fibers from await, without yielding, to make the race reliable. *)
 let delayed_output_manager (type tag)
@@ -366,10 +421,10 @@ let timeout_suite =
       else if not (Sys.file_exists "/proc") then
         print_endline "[SKIP] process-leak check needs /proc (non-Linux)"
       else
-        with_runtime_eio (fun rt mgr fs ->
-          (match Runtime.install_bash_tool ~process_mgr:mgr ~fs rt with
-           | Ok () -> ()
-           | Error e -> Alcotest.failf "install failed: %s" (error_to_string e));
+        (* This case used to install without a clock, which reported an
+           immediate timeout instead of exercising a timer. It now waits on a
+           real clock, so the no-leftover-process assertion is meaningful. *)
+        with_exec_runtime (fun rt ->
           let h = bash_handler rt in
           let input = `Assoc [
             ("argv", `List [`String "sleep"; `String "97"]);
@@ -385,8 +440,8 @@ let timeout_suite =
            | Handoff _ -> Alcotest.fail "unexpected Handoff"
            | Approval_required _ -> Alcotest.fail "unexpected Approval_required");
           let elapsed = Unix.gettimeofday () -. t0 in
-          Alcotest.(check bool) "handler returned near the timeout, not after sleep"
-            true (elapsed < 10.0);
+          Alcotest.(check bool) "waited for the timer, then returned"
+            true (elapsed >= 0.4 && elapsed < 10.0);
           (* Contract pin: Eio's await-cancellation kills the child when the
              timer fiber wins the race. If an eio upgrade ever changes that
              semantics, this test must fail rather than silently leak. *)
@@ -404,6 +459,7 @@ let () =
     custom_policy_suite;
     install_suite;
     policy_enforcement_suite;
+    env_isolation_suite;
     output_capture_suite;
     timeout_suite;
   ]

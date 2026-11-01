@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Fixed — bash children inherited PAR's whole environment
+
+- `Bash_policy.sanitize_env` was computed and then thrown away: the handler seeded the command with an empty environment and spawned the child without `~env`, so the child inherited PAR's environment instead. A plain `printenv` exposed `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `AWS_*`, `GITHUB_TOKEN` and everything else in it. The handler now seeds the command with the current environment, the policy filters it, and the filtered set is what the child receives.
+- `install_bash_tool` without `?clock` reported **every** command as a timeout immediately, because the timeout branch was a no-op and therefore always won the race. A missing clock now means "no timer", which is what the parameter documentation always said.
+- The `timeout` parameter advertised a 600-second hard cap that did not exist. A caller-supplied timeout is now clamped to `Bash_policy.max_timeout_seconds` (600s).
+
+### Added — the bash isolation boundary is written down
+
+- New page `docs/explanation/sandbox-model.md` (EN + ZH): the seven stages a bash call goes through, the five things it does not guarantee (filesystem confinement, network isolation, process-group cleanup, CPU/memory limits, privilege drop), why the gap exists, and the opt-in `?sandbox` design with the trigger that would justify building it. The mechanism itself is not implemented.
+- Two claims in the tools page were never true and are corrected: process-group cleanup via `setpgid`/`killpg` is not implemented (the timeout kills the direct child only), and the policy's `max_cpu_seconds` / `max_memory_kb` are declared but not enforced.
+
 ### Added — MCP is usable from Python
 
 - `Runtime.create` now reads `mcp_servers` from the config JSON, so a Python program can configure stdio and HTTP servers. Entries use the shape `Mcp_types.server_config_of_yojson` accepts: `{"type": "stdio", "name", "command", "args", "env", "cwd", "startup_timeout"}` or `{"type": "http", "name", "url", "headers", "startup_timeout"}`. A malformed entry fails the init instead of being skipped.
@@ -10,7 +21,8 @@
 
 ### Tests
 
-- Python totals rise to **198 passed / 20 skipped** with five MCP cases: servers accepted, descriptors listed, the list accepted by `register_agent`, an empty config, and a malformed entry failing the init. Three of them fail when the config parse is removed. OCaml is unchanged at 1665 tests across 124 suites.
+- OCaml totals are **1669 tests across 124 suites**, 0 failures: one environment-isolation case (it fails if the spawn goes back to inheriting the caller's environment) and three timeout-cap cases, on top of the 1665 from the release.
+- Python totals are **198 passed / 20 skipped**, including five MCP cases: servers accepted, descriptors listed, the list accepted by `register_agent`, an empty config, and a malformed entry failing the init. Three of them fail when the config parse is removed.
 
 ## v0.13.0-beta.20261102 — MCP tools, bounded image input, reasoning blocks + Anthropic thinking
 

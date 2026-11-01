@@ -488,6 +488,19 @@ let record_task_failed rt =
 let publish_event rt evt =
   rt.publish_event_fn evt
 
+(* The policy filters the environment it is given; it cannot read the process
+   environment itself. Seeding [Exec.env] with the current environment is what
+   makes [Bash_policy.sanitize_env] mean anything — without it the policy sees
+   an empty list and the child inherits everything. *)
+let current_env_pairs () =
+  Array.to_list (Unix.environment ())
+  |> List.filter_map (fun entry ->
+      match String.index_opt entry '=' with
+      | None | Some 0 -> None
+      | Some i ->
+        Some (String.sub entry 0 i,
+              String.sub entry (i + 1) (String.length entry - i - 1)))
+
 let make_bash_handler rt mgr clock fs input tok : Types.handler_result =
   let module P = (val rt.bash_policy : Bash_policy.POLICY) in
   let argv =
@@ -505,7 +518,11 @@ let make_bash_handler rt mgr clock fs input tok : Types.handler_result =
   in
   let timeout =
     let t = Yojson.Safe.Util.(input |> member "timeout" |> to_float_option) in
-    match t with Some x when x > 0.0 -> x | _ -> 30.0
+    (* Clamped: the tool description promises a hard cap, and a model asking
+       for an unbounded run is exactly the case the cap exists for. *)
+    match t with
+    | Some x when x > 0.0 -> Bash_policy.clamp_timeout x
+    | _ -> 30.0
   in
   (match Bash_safe_command.validate_argv argv with
    | Error e ->
@@ -530,7 +547,7 @@ let make_bash_handler rt mgr clock fs input tok : Types.handler_result =
                 retryable = false; metadata = [("code", `String code)] }
       | Ok cwd ->
         let cmd : Bash_safe_command.command =
-          Bash_safe_command.Exec { argv; cwd; env = []; timeout }
+          Bash_safe_command.Exec { argv; cwd; env = current_env_pairs (); timeout }
         in
         (match P.filter cmd with
          | Error e ->
@@ -578,9 +595,19 @@ let make_bash_handler rt mgr clock fs input tok : Types.handler_result =
                   Eio.Switch.check tok.switch;
                   (* await waits only for child exit. The local switch also
                      waits for stdout/stderr copy fibers before we read them. *)
+                  (* The policy has already removed secret variables; handing
+                     the result to the spawn is what keeps them out of the
+                     child. Inheriting the parent environment here exposed every
+                     API key to a plain [printenv]. *)
+                  let child_env =
+                    Array.of_list
+                      (List.map (fun (k, v) -> k ^ "=" ^ v)
+                         (Bash_safe_command.env_of_command filtered))
+                  in
                   let status = Eio.Switch.run (fun sw ->
                     let proc = Eio.Process.spawn ~sw mgr
                       ~cwd:cwd_eio
+                      ~env:child_env
                       ~stdin:(Eio.Flow.string_source "")
                       ~stdout:(Eio.Flow.buffer_sink stdout_buf)
                       ~stderr:(Eio.Flow.buffer_sink stderr_buf)
@@ -597,7 +624,9 @@ let make_bash_handler rt mgr clock fs input tok : Types.handler_result =
                (fun () ->
                  (match clock with
                   | Some c -> Eio.Time.sleep c timeout
-                  | None -> ());
+                  | (* Without a clock there is nothing to wait on. Returning
+                       immediately reported every command as a timeout. *)
+                    None -> Eio.Fiber.await_cancel ());
                  Result.Error `Timeout)
            in
            (match proc_result with

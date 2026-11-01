@@ -170,6 +170,7 @@ nav:
       - Persistence and Durability: explanation/persistence-and-durability.md
       - RAG Architecture: explanation/rag-architecture.md
       - Multimodal Input Design: explanation/multimodal-completion.md
+      - Bash Execution and Isolation: explanation/sandbox-model.md
       - FAQ: explanation/faq.md
 
 not_in_nav: |

@@ -505,7 +505,7 @@ Executes shell commands with three layers of defense:
 Field reference:
 - `argv` (required): argument array, **not a shell string**
 - `cwd`: Working directory (relative to workspace root, or absolute path under workspace root). Default: `"."`
-- `timeout`: max execution seconds, default `30`, hard cap `600`
+- `timeout`: max execution seconds, default `30`, clamped to a hard cap of `600`
 
 ### Output
 
@@ -599,9 +599,9 @@ let () = Eio_main.run (fun env ->
 | 1 | Workspace-anchored sandbox | `Workspace.sandboxed_path` abstract type; the constructor rejects `..`, `:`, and sensitive prefixes (`/etc`, `~/.ssh`, etc.). Absolute paths under workspace root are admitted |
 | 2 | Blacklist | 31 regex rules in `Bash_blacklist` (`rm -rf /`, `dd of=/dev/sda`, `:(){:|:&};:`, and similar) |
 | 3 | Whitelist (optional) | implement whitelist logic in a custom `POLICY` |
-| 4 | Timeout | `Eio.Process.spawn` + `Eio.Fiber.first` race; hard cap 600s |
-| 5 | Process group cleanup | `Eio.Process` + `setpgid`; the timeout sends `killpg` to the whole group |
-| 6 | Environment scrubbing | `Bash_policy.sanitize_env` strips `*_SECRET*` / `*_KEY*` / `AWS_*` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GITHUB_TOKEN` and similar |
+| 4 | Timeout | `Eio.Process.spawn` + `Eio.Fiber.first` race; requests are clamped to 600s |
+| 5 | Process-group cleanup | **Not provided.** The timeout kills the direct child; descendants it started are not reaped |
+| 6 | Environment scrubbing | `Bash_policy.sanitize_env` strips `*_SECRET*` / `*_KEY*` / `AWS_*` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GITHUB_TOKEN` and similar, and the filtered set is what the child receives |
 | 7 | Output truncation | 50KB byte cap + 2000 line cap; a marker is appended when triggered |
 | 8 | ANSI stripping | removes CSI (`ESC[...]`) and OSC (`ESC]...BEL`) sequences |
 | 9 | Audit log | the event bus emits `Bash_invoked` / `Bash_completed` events (carrying a `risk` rating and `argv`) |
@@ -614,7 +614,7 @@ let () = Eio_main.run (fun env ->
 - **Never disable the timeout**. It's the last line of defense against fork bombs and network hangs
 - Environment variables are scrubbed automatically. If you need to pass a secret, write it to a file and have the agent use the `read` tool (don't put it in the `env` field)
 - The blacklist is a **last resort**, not the main defense. For safety-critical setups, set `allow_write:false` and `allow_network:false` in a custom `POLICY`
-- **OS-level sandboxing** (bwrap / landlock) is not provided in v0.3.1
+- **OS-level sandboxing** (bwrap / landlock / seatbelt) is not provided. See [Bash execution and isolation](../explanation/sandbox-model.md) for what the runtime does and does not guarantee.
 
 ### Risk scoring
 

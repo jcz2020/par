@@ -65,6 +65,10 @@ let is_secret_key key =
       with Not_found -> false
 
 (* Output is sorted for determinism. *)
+let max_timeout_seconds = 600.0
+
+let clamp_timeout t = Float.min t max_timeout_seconds
+
 let sanitize_env env =
   let kept = List.filter (fun (k, _) -> not (is_secret_key k)) env in
   List.sort (fun (a, _) (b, _) -> String.compare a b) kept

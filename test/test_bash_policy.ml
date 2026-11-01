@@ -221,6 +221,17 @@ let coder_suite = "Coder", [
 (* sanitize_env tests                                                        *)
 (* -------------------------------------------------------------------------- *)
 
+let timeout_cap_suite = "timeout_cap", [
+  Alcotest.test_case "documented ceiling is 600s" `Quick (fun () ->
+    Alcotest.(check (float 0.0)) "max_timeout_seconds" 600.0
+      Bash_policy.max_timeout_seconds);
+  Alcotest.test_case "a larger request is clamped" `Quick (fun () ->
+    Alcotest.(check (float 0.0)) "clamped" 600.0
+      (Bash_policy.clamp_timeout 1_000_000.0));
+  Alcotest.test_case "a smaller request is kept" `Quick (fun () ->
+    Alcotest.(check (float 0.0)) "kept" 0.5 (Bash_policy.clamp_timeout 0.5));
+]
+
 let sanitize_env_suite = "sanitize_env", [
   test_case "strips OPENAI_API_KEY" `Quick (fun () ->
     let env = ["PATH", "/usr/bin"; "OPENAI_API_KEY", "sk-xxx"; "USER", "test"] in
@@ -399,6 +410,7 @@ let () =
     readonly_suite;
     readonlynonet_suite;
     coder_suite;
+    timeout_cap_suite;
     sanitize_env_suite;
     strip_ansi_suite;
     truncate_output_suite;

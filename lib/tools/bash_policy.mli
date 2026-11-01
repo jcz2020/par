@@ -51,6 +51,13 @@ module Coder : POLICY
 
     Output is sorted by key (descending) for determinism — the same input
     always produces the same output, important for tests. *)
+(** Ceiling on the per-call timeout. A caller-supplied timeout is clamped to
+    this, so a model cannot ask for an unbounded run. *)
+val max_timeout_seconds : float
+
+(** Clamp a positive timeout to {!max_timeout_seconds}. *)
+val clamp_timeout : float -> float
+
 val sanitize_env : (string * string) list -> (string * string) list
 
 (** Remove ANSI escape sequences from command output.

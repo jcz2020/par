@@ -593,9 +593,9 @@ let () = Eio_main.run (fun env ->
 | 1 | Workspace 锁定 | `Workspace.sandboxed_path` 抽象类型，构造时拒绝 `..`、`:` 及敏感前缀（`/etc`、`~/.ssh` 等），**workspace 根下的绝对路径被放行** |
 | 2 | 黑名单 | `Bash_blacklist` 31 条正则（`rm -rf /`、`dd of=/dev/sda`、`:(){:|:&};:` 等） |
 | 3 | 白名单（可选） | 自定义 `POLICY` 实现白名单逻辑 |
-| 4 | 超时 | `Eio.Process.spawn` + `Eio.Fiber.first` race；硬上限 600s |
-| 5 | 进程组清理 | `Eio.Process` + `setpgid`；超时通过 `killpg` 杀整组 |
-| 6 | 环境脱敏 | `Bash_policy.sanitize_env` 剥离 `*_SECRET*` / `*_KEY*` / `AWS_*` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GITHUB_TOKEN` 等 |
+| 4 | 超时 | `Eio.Process.spawn` + `Eio.Fiber.first` race；请求被钳制在 600s 以内 |
+| 5 | 进程组清理 | **不提供。** 超时只杀直接子进程，它派生的后代不会被回收 |
+| 6 | 环境脱敏 | `Bash_policy.sanitize_env` 剥离 `*_SECRET*` / `*_KEY*` / `AWS_*` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GITHUB_TOKEN` 等，子进程实际收到的就是过滤后的集合 |
 | 7 | 输出截断 | 50KB 字节 + 2000 行；marker 追加 |
 | 8 | ANSI 剥离 | 移除 CSI（`ESC[...]`）与 OSC（`ESC]...BEL`）序列 |
 | 9 | 审计日志 | event bus 发送 `Bash_invoked` / `Bash_completed` 事件（携带 `risk` 评分与 `argv`） |
@@ -608,7 +608,7 @@ let () = Eio_main.run (fun env ->
 - **永远不要禁用 timeout**，它是 fork bomb 与网络挂起的最后防线
 - 环境变量自动脱敏。如需传 secret，写到文件后用 `read` 工具读取（不在 `env` 字段里传）
 - 黑名单是**最后一道**防线，不是主防御。安全关键场景请在自定义 `POLICY` 里设 `allow_write:false` + `allow_network:false`
-- **OS 层沙箱**（bwrap / landlock）v0.3.1 不提供
+- **OS 层沙箱**（bwrap / landlock / seatbelt）不提供。运行时到底保证什么、不保证什么，见[「Bash 执行与隔离」](../explanation/sandbox-model.md)。
 
 ### 风险评分
 
