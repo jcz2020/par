@@ -669,6 +669,11 @@
   (modules test_http_body_limit))
 
 (test
+  (name test_workflow_recovery)
+  (libraries par eio_main alcotest yojson logs str)
+  (modules test_workflow_recovery))
+
+(test
   (name test_reasoning)
   (libraries par eio_main alcotest yojson logs)
   (modules test_reasoning))

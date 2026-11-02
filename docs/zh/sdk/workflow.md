@@ -302,9 +302,22 @@ val Runtime.resume_workflow : runtime -> Workflow_run_id.t ->
   (workflow_result option, error_category) result
 ```
 
-从检查点恢复支持 `Sequential` 和 `Conditional` 步骤类型。挂起 `step_path` 处的 `Parallel` 和 `Map_reduce` 会返回 `Error`，因为无法从检查点安全重建迭代中的并发状态。唯一能产生挂起的步骤类型是 `Human_approval`，因此实际上此限制仅在审批位于 Parallel 或 Map_reduce 分支内时才有关。
+从检查点恢复支持 `Sequential` 和 `Conditional` 步骤类型。若检查点落在 `Parallel`、`Map_reduce` 或 `Sub_workflow` 内部，整个节点会重跑，而不是返回错误——因为无法重建节点内部的并发状态；运行保持 at-least-once 语义。
 
 返回 `Ok (Some result)` 表示工作流执行完毕，`Ok None` 表示在后续审批处再次挂起，其他情况返回 `Error`。
+
+### 恢复被中断的工作流
+
+```ocaml
+val Runtime.recover_workflow : runtime -> Workflow_run_id.t ->
+  (workflow_result option, error_category) result
+```
+
+所属进程已死掉的运行会以 `running` 状态留在存储里。`Runtime.create` 会把这些行读回来，并对每行发出 `Workflow_orphaned`；**不会自动恢复**，因为重跑一个已经产生副作用的步骤应由调用方决定。
+
+`recover_workflow` 从最近的检查点重新进入：之前的步骤不再执行，之后的继续。语义是 **at-least-once**——如果进程是在某一步执行中途死掉的，检查点仍指向上一步，那一步会被重跑。`Parallel`、`Map_reduce` 与 `Sub_workflow` 是原子的：落在其中的检查点会让整个节点重跑。`Sub_workflow` 的步骤不能独立恢复。若检查点的 `schema_version` 比运行时能理解的新，会被拒绝而不是猜测。
+
+恢复前必须先把工作流定义注册到运行时（`register_workflow`）；对处于挂起状态的运行，恢复会被拒绝——请改用 `resume_workflow`。
 
 ## 变量与上下文传播
 
@@ -366,6 +379,7 @@ type workflow_checkpoint = {
   variables : (string * Yojson.Safe.t) list;     (* 当前变量快照 *)
   step_results : Yojson.Safe.t list;             (* 已完成步骤的结果 *)
   allowed_roles : string list option;            (* None = 不受限 *)
+  schema_version : int;                          (* 1 = 当前；旧行按 1 读 *)
 }
 [@@deriving yojson]
 ```

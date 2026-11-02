@@ -773,6 +773,9 @@ type event =
   | Workflow_step_completed of { step_id : string }
   | Workflow_completed of { workflow_run_id : Workflow_run_id.t }
   | Workflow_failed of { workflow_run_id : Workflow_run_id.t; error : error_category }
+  (* A run was still marked running when the process started: its writer died.
+     Emitted once per row at startup; nothing is resumed automatically. *)
+  | Workflow_orphaned of { workflow_run_id : Workflow_run_id.t }
   | Approval_requested of { prompt : string; allowed_roles : string list }
   | Approval_granted of { approver : string }
   | Approval_timeout
@@ -1301,6 +1304,9 @@ type workflow_checkpoint = {
   variables : (string * Yojson.Safe.t) list;
   step_results : Yojson.Safe.t list;
   allowed_roles : string list option;
+  (* Bumped when the checkpoint shape changes in a way a reader must know
+     about. Rows written before this field existed read as 1. *)
+  schema_version : int [@default 1];
 }
 [@@deriving yojson]
 
@@ -1331,7 +1337,7 @@ type persistence_service = {
   load_task_state_fn : Task_id.t -> (task_state option, error_category) result;
   save_workflow_state_fn : Workflow_run_id.t -> workflow_status -> workflow_checkpoint option -> (unit, error_category) result;
   load_workflow_state_fn : Workflow_run_id.t -> (workflow_checkpoint option, error_category) result;
-  load_all_suspended_workflows_fn : unit -> ((Workflow_run_id.t * workflow_status) list, error_category) result;
+  load_recoverable_runs_fn : unit -> ((Workflow_run_id.t * workflow_status) list, error_category) result;
   save_workflow_def_fn : string -> Yojson.Safe.t -> (unit, error_category) result;
   load_all_workflow_defs_fn : unit -> ((string * Yojson.Safe.t) list, error_category) result;
   save_conversation_fn : ?scope:string -> string -> conversation -> (unit, error_category) result;

@@ -12,7 +12,17 @@ An agent runtime generates events. Every tool invocation, every task state chang
 
 PAR treats persistence as an *eventually-consistent audit log*, not as a transactional state store. The agent loop itself does not block on persistence. When `Runtime.invoke` emits a `Tool_invoked` event, that event goes to the event bus, and from there to a batched writer, and from there to SQLite, all asynchronously. If the write fails, the runtime logs it and keeps running. The agent's correctness does not depend on the audit log being durable, only on the LLM responses and tool results being correct in memory. This separation is what lets PAR stay fast under load while still giving you an audit trail after the fact.
 
-The exception is workflow checkpoints. Workflow state, stored in the `workflow_states` table, is written when a workflow step completes so a crashed run can be resumed. That path is more latency-sensitive, but it still goes through the same batched writer. If you need strict durability for workflow resume, you accept the batch latency.
+The exception is workflow checkpoints. Workflow state, stored in the `workflow_states` table, is written after each step of a `Sequential` chain, together with the variables that step bound, so an interrupted run can resume where it stopped. That path is more latency-sensitive, but it still goes through the same batched writer. If you need strict durability for workflow resume, you accept the batch latency.
+
+## Recovering an interrupted workflow
+
+A run whose process died is left in the store as `running`. `Runtime.create` loads those rows, puts them back in the in-memory table and emits `Workflow_orphaned` once per row. Nothing resumes automatically: re-running a step that already had a side effect is a decision for the caller, not something a library should do on startup.
+
+`Runtime.recover_workflow rt run_id` re-enters at the checkpoint. Steps before it do not run again; steps after it do. The semantics are **at-least-once**: if the process died *during* a step, the checkpoint still points at the previous one, so that step runs again. Make steps that call the outside world idempotent, or check the effect before repeating it.
+
+Control-flow nodes are atomic for recovery. `Parallel`, `Map_reduce` and `Sub_workflow` do not checkpoint their children, so a crash inside one leaves the checkpoint before the node and recovery re-runs the whole node. `Conditional` resumes into the branch it took, provided that branch is a `Sequential`. A checkpoint whose `schema_version` is newer than the runtime understands is refused rather than guessed at.
+
+Sub-workflows are not independently recoverable yet: a crashed child leaves only its parent's checkpoint, so recovery re-runs the whole `Sub_workflow` step.
 
 ## Two persistence tiers
 

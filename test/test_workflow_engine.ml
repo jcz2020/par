@@ -501,8 +501,8 @@ let test_checkpoint_callback_fires_per_step () =
     let ctx = make_ctx
       ~agent_resolver:(fun _ -> Some agent)
       ~tool_resolver:(fun _ -> Some t.descriptor)
-      ~on_step_complete:(Some (fun path result ->
-        captured := (path, result) :: !captured))
+      ~on_step_complete:(Some (fun (c : Workflow_engine.step_completion) ->
+        captured := (c.path, c.result) :: !captured))
       ~token ~llm ~registry:reg () in
     let step : workflow_step = Sequential [
       Tool_call { tool_name = "test_tool"; input = `Assoc [] };
@@ -514,6 +514,80 @@ let test_checkpoint_callback_fires_per_step () =
     let ids = List.map fst (List.rev !captured) in
     Alcotest.(check (list string)) "step ids" ["0"; "1"; "2"]
       (List.map (fun p -> String.concat "." (List.map string_of_int p)) ids))
+
+(* The callback must carry the variables as they stand *after* the step. The
+   old shape passed only the result, and the runtime rebuilt the context with
+   its starting variables, so a persisted checkpoint could not be resumed. *)
+let test_checkpoint_callback_carries_accumulated_variables () =
+  let t = dummy_tool (fun _ _ -> Success (`Assoc [("who", `String "first")])) in
+  let agent = basic_agent ~tools:[t] () in
+  with_token (fun token ->
+    let llm = mock_llm [text_response "unused"; text_response "unused"] in
+    let reg = make_registry [t] in
+    let captured = ref [] in
+    let ctx = make_ctx
+      ~agent_resolver:(fun _ -> Some agent)
+      ~tool_resolver:(fun _ -> Some t.descriptor)
+      ~on_step_complete:(Some (fun (c : Workflow_engine.step_completion) ->
+        captured := c :: !captured))
+      ~token ~llm ~registry:reg () in
+    let step : workflow_step = Sequential [
+      Tool_call { tool_name = "test_tool"; input = `Assoc [] };
+      Tool_call { tool_name = "test_tool"; input = `Assoc [] };
+    ] in
+    let _ = ok_or_fail "execute_step" (Workflow_engine.execute_step ctx step) in
+    (match List.rev !captured with
+     | [ first; second ] ->
+       Alcotest.(check (list string)) "first path" ["0"]
+         (List.map string_of_int first.path);
+       Alcotest.(check (list string)) "second path" ["1"]
+         (List.map string_of_int second.path);
+       (* After step 0 the binding result_0 exists; after step 1 it is still
+          there, which is what makes resuming at step 1 possible. *)
+       Alcotest.(check bool) "second notification keeps result_0" true
+         (List.mem_assoc "result_0" second.variables);
+       Alcotest.(check bool) "first notification has result_0" true
+         (List.mem_assoc "result_0" first.variables);
+       Alcotest.(check bool) "result_1 appears only after step 1" false
+         (List.mem_assoc "result_1" first.variables)
+     | other -> Alcotest.failf "expected 2 notifications, got %d" (List.length other)))
+
+(* Parallel, Map_reduce, Conditional and Sub_workflow are atomic for recovery:
+   a crash inside them must leave the checkpoint before the node, so their
+   children must not report completion. *)
+let test_atomic_nodes_do_not_notify () =
+  let t = dummy_tool (fun _ _ -> Success (`String "ok")) in
+  let agent = basic_agent ~tools:[t] () in
+  with_token (fun token ->
+    let llm = mock_llm [text_response "unused"] in
+    let reg = make_registry [t] in
+    let captured = ref [] in
+    let ctx = make_ctx
+      ~agent_resolver:(fun _ -> Some agent)
+      ~tool_resolver:(fun _ -> Some t.descriptor)
+      ~on_step_complete:(Some (fun (c : Workflow_engine.step_completion) ->
+        captured := c :: !captured))
+      ~token ~llm ~registry:reg () in
+    let step : workflow_step =
+      Sequential [
+        Parallel [
+          Tool_call { tool_name = "test_tool"; input = `Assoc [] };
+          Tool_call { tool_name = "test_tool"; input = `Assoc [] };
+        ];
+        Conditional {
+          condition = Literal (`Bool true);
+          then_step = Tool_call { tool_name = "test_tool"; input = `Assoc [] };
+          else_step = None;
+        };
+      ] in
+    let _ = ok_or_fail "execute_step" (Workflow_engine.execute_step ctx step) in
+    (* Only the Sequential's two children report: the Parallel block at [0]
+       and the Conditional at [1]. Nothing inside them does. *)
+    let paths =
+      List.rev_map (fun (c : Workflow_engine.step_completion) -> c.path) !captured
+    in
+    Alcotest.(check (list string)) "only atomic nodes report" ["0"; "1"]
+      (List.map (fun p -> String.concat "." (List.map string_of_int p)) paths))
 
 let test_checkpoint_records_partial_state_on_failure () =
   let bad = dummy_tool ~name:"bad"
@@ -529,8 +603,8 @@ let test_checkpoint_records_partial_state_on_failure () =
       ~agent_resolver:(fun _ -> Some agent)
       ~tool_resolver:(fun n -> if n = "bad" then Some bad.descriptor
                                else Some ok.descriptor)
-      ~on_step_complete:(Some (fun path result ->
-        captured := (path, result) :: !captured))
+      ~on_step_complete:(Some (fun (c : Workflow_engine.step_completion) ->
+        captured := (c.path, c.result) :: !captured))
       ~token ~llm ~registry:reg () in
     let step : workflow_step = Sequential [
       Tool_call { tool_name = "ok"; input = `Assoc [] };
@@ -672,6 +746,7 @@ let test_resume_sequential_after_approval_runs_remaining_steps () =
       variables = ctx.Workflow_engine.variables;
       step_results = [`String "first-step-result"];
       allowed_roles = Some ["admin"];
+      schema_version = 1;
     } in
     match Workflow_engine.resume_from_checkpoint ctx top_step cp with
     | Ok (`List results) ->
@@ -711,6 +786,7 @@ let test_resume_restores_variables_from_checkpoint () =
       variables = saved_vars;
       step_results = [`String "first"];
       allowed_roles = Some [];
+      schema_version = 1;
     } in
     ignore (Workflow_engine.resume_from_checkpoint ctx top_step cp);
     Alcotest.(check string) "restored var substituted into tool input"
@@ -743,6 +819,7 @@ let test_resume_nested_sequential_drops_into_inner_branch () =
       variables = ctx.Workflow_engine.variables;
       step_results = [`String "A"];
       allowed_roles = Some [];
+      schema_version = 1;
     } in
     match Workflow_engine.resume_from_checkpoint ctx top_step cp with
     | Ok (`List results) ->
@@ -777,6 +854,7 @@ let test_resume_conditional_true_branch_runs_after_approval () =
       variables = ctx.Workflow_engine.variables;
       step_results = [];
       allowed_roles = Some [];
+      schema_version = 1;
     } in
     match Workflow_engine.resume_from_checkpoint ctx top_step cp with
     | Ok (`List results) ->
@@ -788,8 +866,14 @@ let test_resume_conditional_true_branch_runs_after_approval () =
     | Error e -> Alcotest.failf "conditional resume failed: %s"
                    (error_to_string e))
 
-let test_resume_rejects_parallel_at_step_path () =
-  let t = dummy_tool (fun _ _ -> Success (`String "x")) in
+(* A checkpoint that falls inside an atomic node cannot be resumed partway, so
+   the whole node runs again. Before this, such a checkpoint was rejected
+   outright, which made every crashed Parallel unrecoverable. *)
+let test_resume_inside_parallel_reruns_the_node () =
+  let calls = ref [] in
+  let t = dummy_tool (fun input _ ->
+    calls := input :: !calls;
+    Success (`String "x")) in
   with_token (fun token ->
     let llm = mock_llm [text_response "unused"] in
     let reg = make_registry [t] in
@@ -806,18 +890,18 @@ let test_resume_rejects_parallel_at_step_path () =
     ] in
     let cp : workflow_checkpoint = {
       workflow_id = "wf-parallel";
-      step_path = [1];
+      step_path = [1; 0];
       variables = ctx.Workflow_engine.variables;
-      step_results = [`String "A"];
+      step_results = [`String "B"];
       allowed_roles = None;
+      schema_version = 1;
     } in
-    match Workflow_engine.resume_from_checkpoint ctx top_step cp with
-    | Ok _ -> Alcotest.fail "expected Error for Parallel mid-Sequential resume"
-    | Error (Internal msg) ->
-      Alcotest.(check bool) "mentions Parallel" true
-        (try ignore (Str.search_forward (Str.regexp "Parallel") msg 0); true
-         with Not_found -> false)
-    | Error e -> Alcotest.failf "expected Internal, got: %s" (error_to_string e))
+    (match Workflow_engine.resume_from_checkpoint ctx top_step cp with
+     | Ok _ -> ()
+     | Error e -> Alcotest.failf "expected the node to re-run: %s" (error_to_string e));
+    let ran = List.sort compare (List.map Yojson.Safe.to_string !calls) in
+    Alcotest.(check (list string)) "the whole parallel node re-ran"
+      ["\"B\""; "\"C\""] ran)
 
 let test_resume_invalid_step_path_returns_error () =
   let t = dummy_tool (fun _ _ -> Success (`String "x")) in
@@ -837,6 +921,7 @@ let test_resume_invalid_step_path_returns_error () =
       variables = ctx.Workflow_engine.variables;
       step_results = [];
       allowed_roles = None;
+      schema_version = 1;
     } in
     match Workflow_engine.resume_from_checkpoint ctx top_step cp with
     | Ok _ -> Alcotest.fail "expected Error for out-of-bounds step_path"
@@ -853,7 +938,8 @@ let test_step_path_tracks_nested_position () =
       ~agent_resolver:(fun _ -> Some agent)
       ~tool_resolver:(fun _ -> Some t.descriptor)
       ~token ~llm ~registry:reg
-      ~on_step_complete:(Some (fun path _ -> paths_seen := path :: !paths_seen))
+      ~on_step_complete:(Some (fun (c : Workflow_engine.step_completion) ->
+        paths_seen := c.path :: !paths_seen))
       () in
     let step = Sequential [
       Tool_call { tool_name = "test_tool"; input = `Assoc [] };
@@ -933,8 +1019,8 @@ let make_rehydration_persist (sqlt : Sqlite_persistence.t) : persistence_service
       (fun id st cp -> Sqlite_persistence.save_workflow_state sqlt id st cp);
     load_workflow_state_fn =
       (fun id -> Sqlite_persistence.load_workflow_state sqlt id);
-    load_all_suspended_workflows_fn =
-      (fun () -> Sqlite_persistence.load_all_suspended_workflows sqlt);
+    load_recoverable_runs_fn =
+      (fun () -> Sqlite_persistence.load_recoverable_runs sqlt);
     save_workflow_def_fn =
       (fun id def -> Sqlite_persistence.save_workflow_def sqlt id def);
     load_all_workflow_defs_fn =
@@ -975,6 +1061,7 @@ let test_rehydration_restores_suspended_workflows () =
         variables = [("k", `String "v")];
         step_results = [`String "first-step"];
         allowed_roles = Some ["admin"];
+        schema_version = 1;
       } in
       (* Round 1: create runtime, save suspended state. *)
       let persist1, rt1 =
@@ -2058,6 +2145,10 @@ let () =
     ("Checkpoint", [
       Alcotest.test_case "checkpoint callback fires per step" `Quick
         test_checkpoint_callback_fires_per_step;
+      Alcotest.test_case "callback carries accumulated variables" `Quick
+        test_checkpoint_callback_carries_accumulated_variables;
+      Alcotest.test_case "atomic nodes do not notify" `Quick
+        test_atomic_nodes_do_not_notify;
       Alcotest.test_case "partial state recorded on failure" `Quick
         test_checkpoint_records_partial_state_on_failure;
       Alcotest.test_case "make_checkpoint preserves state" `Quick
@@ -2080,8 +2171,8 @@ let () =
         test_resume_nested_sequential_drops_into_inner_branch;
       Alcotest.test_case "conditional true branch runs after approval" `Quick
         test_resume_conditional_true_branch_runs_after_approval;
-      Alcotest.test_case "rejects Parallel at step_path" `Quick
-        test_resume_rejects_parallel_at_step_path;
+      Alcotest.test_case "inside a Parallel re-runs the node" `Quick
+        test_resume_inside_parallel_reruns_the_node;
       Alcotest.test_case "invalid step_path returns error" `Quick
         test_resume_invalid_step_path_returns_error;
       Alcotest.test_case "runtime.resume_workflow end-to-end" `Quick

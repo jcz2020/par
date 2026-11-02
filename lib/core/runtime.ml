@@ -1769,11 +1769,14 @@ let submit_workflow rt ?workspace ?(inputs = []) wf =
   htbl_set rt.workflows id Wf_running;
   publish_event rt (Workflow_started { workflow_run_id = id });
   let token = Cancellation.create_token rt.cancellation_root in
-  let checkpoint_cb step_path result =
-    let step_id = String.concat "." (List.map string_of_int step_path) in
+  let checkpoint_cb (completion : Workflow_engine.step_completion) =
+    let step_id =
+      String.concat "." (List.map string_of_int completion.Workflow_engine.path) in
     publish_event rt (Workflow_step_completed { step_id });
-    let cp = Workflow_engine.make_checkpoint ~step_path
-               ~step_results:[result]
+    let cp = Workflow_engine.make_checkpoint
+               ~step_path:completion.Workflow_engine.path
+               ~step_results:[completion.Workflow_engine.result]
+               ~variables:completion.Workflow_engine.variables
                {
                   Workflow_engine.variables = effective_vars;
                  token;
@@ -1873,11 +1876,14 @@ let submit_workflow_async rt ?workspace ?(inputs = []) wf =
   htbl_set rt.workflows id Wf_running;
   publish_event rt (Workflow_started { workflow_run_id = id });
   let token = Cancellation.create_token rt.cancellation_root in
-  let checkpoint_cb step_path result =
-    let step_id = String.concat "." (List.map string_of_int step_path) in
+  let checkpoint_cb (completion : Workflow_engine.step_completion) =
+    let step_id =
+      String.concat "." (List.map string_of_int completion.Workflow_engine.path) in
     publish_event rt (Workflow_step_completed { step_id });
-    let cp = Workflow_engine.make_checkpoint ~step_path
-               ~step_results:[result]
+    let cp = Workflow_engine.make_checkpoint
+               ~step_path:completion.Workflow_engine.path
+               ~step_results:[completion.Workflow_engine.result]
+               ~variables:completion.Workflow_engine.variables
                { Workflow_engine.variables = effective_vars;
                  token;
                  agent_resolver = (fun aid -> htbl_get rt.agents aid);
@@ -2150,6 +2156,96 @@ let register_workflow rt (wf : workflow) =
                             wf.def.id (string_of_error_category e)));
   Ok ()
 
+(* Shared by [resume_workflow] (a run that suspended for approval) and
+   [recover_workflow] (a run whose writer died): re-enter at the checkpoint and
+   persist the outcome. Steps after the resume point keep checkpointing, so a
+   second crash is recoverable from where it stopped. *)
+let run_from_checkpoint rt ~(wf_id : Workflow_run_id.t) ~(wf : workflow)
+    ~(checkpoint : workflow_checkpoint) =
+  let token = Cancellation.create_token rt.cancellation_root in
+  let checkpoint_cb (completion : Workflow_engine.step_completion) =
+    let step_id =
+      String.concat "." (List.map string_of_int completion.Workflow_engine.path) in
+    publish_event rt (Workflow_step_completed { step_id });
+    let cp : workflow_checkpoint = {
+      workflow_id = wf.def.id;
+      step_path = completion.Workflow_engine.path;
+      variables = completion.Workflow_engine.variables;
+      step_results = [completion.Workflow_engine.result];
+      allowed_roles = None;
+      schema_version = 1;
+    } in
+    (match rt.services.persistence.save_workflow_state_fn wf_id Wf_running (Some cp) with
+     | Ok () -> ()
+     | Error e ->
+       Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)))
+  in
+  let ctx = {
+    Workflow_engine.variables = checkpoint.variables;
+    token;
+    agent_resolver = (fun aid -> htbl_get rt.agents aid);
+    tool_resolver = find_tool_across_agents rt;
+    llm = rt.services.llm;
+    registry = rt.tool_registry;
+    parallel_limit = wf.def.parallel_limit;
+    failure_policy = wf.def.failure_policy;
+    workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
+    on_step_complete = Some checkpoint_cb;
+    workflow_run_id = Some wf_id;
+    workflow_id_resolver = (fun () -> Some wf.def.id);
+    workspace = rt.workspace;
+    workspace_overrides = [];
+    approval_handler_overrides = [];
+    per_call_registry_fn = None;
+    on_approval_pending = None;
+    net = rt.net;
+  } in
+  htbl_set rt.workflows wf_id Wf_running;
+  (match rt.services.persistence.save_workflow_state_fn wf_id Wf_running None with
+   | Ok () -> ()
+   | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+  let start_time = Unix.gettimeofday () in
+  try
+    (match Workflow_engine.resume_from_checkpoint ctx wf.def.steps checkpoint with
+     | Ok value ->
+       let elapsed = Unix.gettimeofday () -. start_time in
+       let wf_result = {
+         outputs = [("result", value)];
+         status = `Success;
+         elapsed;
+         metadata = [("workflow_id", wf.def.id); ("workflow_name", wf.def.name)];
+       } in
+       htbl_set rt.workflows wf_id (Wf_completed wf_result);
+       (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_completed wf_result) None with
+        | Ok () -> ()
+        | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+       publish_event rt (Workflow_completed { workflow_run_id = wf_id });
+       (match wf.on_complete with Some cb -> cb wf_result | None -> ());
+       Ok (Some wf_result)
+     | Error err ->
+       htbl_set rt.workflows wf_id (Wf_failed err);
+       (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_failed err) None with
+        | Ok () -> ()
+        | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+       publish_event rt (Workflow_failed { workflow_run_id = wf_id; error = err });
+       Error err)
+  with
+  | Workflow_engine.Workflow_suspended { checkpoint = new_cp; prompt; allowed_roles } ->
+    htbl_set rt.workflows wf_id (Wf_suspended new_cp);
+    (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_suspended new_cp) (Some new_cp) with
+     | Ok () -> ()
+     | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+    publish_event rt (Approval_requested { prompt; allowed_roles });
+    Ok None
+  | exn ->
+    let err = Internal (Printexc.to_string exn) in
+    htbl_set rt.workflows wf_id (Wf_failed err);
+    (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_failed err) None with
+     | Ok () -> ()
+     | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
+    publish_event rt (Workflow_failed { workflow_run_id = wf_id; error = err });
+    Error err
+
 let resume_workflow rt wf_id =
   match htbl_get rt.workflows wf_id with
   | None -> Result.Error (Invalid_input "Workflow not found")
@@ -2159,74 +2255,42 @@ let resume_workflow rt wf_id =
        Result.Error (Invalid_input
          (Printf.sprintf "Workflow definition '%s' not found (needed for resume)"
             checkpoint.workflow_id))
-     | Some wf ->
-       let token = Cancellation.create_token rt.cancellation_root in
-       let ctx = {
-         Workflow_engine.variables = checkpoint.variables;
-         token;
-         agent_resolver = (fun aid -> htbl_get rt.agents aid);
-         tool_resolver = find_tool_across_agents rt;
-         llm = rt.services.llm;
-         registry = rt.tool_registry;
-         parallel_limit = wf.def.parallel_limit;
-         failure_policy = wf.def.failure_policy;
-         workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
-         on_step_complete = None;
-          workflow_run_id = Some wf_id;
-          workflow_id_resolver = (fun () -> Some wf.def.id);
-           workspace = rt.workspace;
-           workspace_overrides = [];
-           approval_handler_overrides = [];
-           per_call_registry_fn = None;
-           on_approval_pending = None;
-      net = rt.net;
-          } in
-        htbl_set rt.workflows wf_id Wf_running;
-       (match rt.services.persistence.save_workflow_state_fn wf_id Wf_running None with
-        | Ok () -> ()
-        | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
-       let start_time = Unix.gettimeofday () in
-       (try
-           (match Workflow_engine.resume_from_checkpoint ctx wf.def.steps checkpoint with
-            | Ok value ->
-              let elapsed = Unix.gettimeofday () -. start_time in
-              let wf_result = {
-                outputs = [("result", value)];
-                status = `Success;
-                elapsed;
-                metadata = [("workflow_id", wf.def.id); ("workflow_name", wf.def.name)];
-              } in
-              htbl_set rt.workflows wf_id (Wf_completed wf_result);
-              (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_completed wf_result) None with
-               | Ok () -> ()
-               | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
-              publish_event rt (Workflow_completed { workflow_run_id = wf_id });
-              (match wf.on_complete with Some cb -> cb wf_result | None -> ());
-              Ok (Some wf_result)
-            | Error err ->
-              htbl_set rt.workflows wf_id (Wf_failed err);
-              (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_failed err) None with
-               | Ok () -> ()
-               | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
-              publish_event rt (Workflow_failed { workflow_run_id = wf_id; error = err });
-              Error err)
-         with
-          | Workflow_engine.Workflow_suspended { checkpoint = new_cp; prompt; allowed_roles } ->
-            htbl_set rt.workflows wf_id (Wf_suspended new_cp);
-            (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_suspended new_cp) (Some new_cp) with
-             | Ok () -> ()
-             | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
-            publish_event rt (Approval_requested { prompt; allowed_roles });
-            Ok None
-          | exn ->
-            let err = Internal (Printexc.to_string exn) in
-            htbl_set rt.workflows wf_id (Wf_failed err);
-            (match rt.services.persistence.save_workflow_state_fn wf_id (Wf_failed err) None with
-             | Ok () -> ()
-             | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
-            publish_event rt (Workflow_failed { workflow_run_id = wf_id; error = err });
-            Error err))
+     | Some wf -> run_from_checkpoint rt ~wf_id ~wf ~checkpoint)
   | Some _ -> Result.Error (Invalid_input "Workflow is not suspended")
+
+(** Recover a run that was interrupted: its row is still [running] because the
+    process that owned it died. Nothing is resumed automatically — this is an
+    explicit call, because the decision to re-run steps with side effects
+    belongs to the caller. Steps after the checkpoint run again; steps before it
+    do not. *)
+let recover_workflow rt wf_id =
+  match htbl_get rt.workflows wf_id with
+  | None -> Result.Error (Invalid_input "Workflow not found")
+  | Some Wf_running ->
+    (match rt.services.persistence.load_workflow_state_fn wf_id with
+     | Error e -> Result.Error e
+     | Ok None ->
+       Result.Error (Invalid_input
+         (Printf.sprintf
+            "Workflow %s is marked running but has no checkpoint to recover from"
+            (Workflow_run_id.to_string wf_id)))
+     | Ok (Some checkpoint) ->
+       if checkpoint.schema_version > 1 then
+         Result.Error (Invalid_input
+           (Printf.sprintf
+              "Checkpoint schema_version %d is newer than this runtime understands (1)"
+              checkpoint.schema_version))
+       else
+         match htbl_get rt.workflow_defs checkpoint.workflow_id with
+         | None ->
+           Result.Error (Invalid_input
+             (Printf.sprintf "Workflow definition '%s' not found (needed for recovery)"
+                checkpoint.workflow_id))
+         | Some wf -> run_from_checkpoint rt ~wf_id ~wf ~checkpoint)
+  | Some (Wf_suspended _) ->
+    Result.Error (Invalid_input
+      "Workflow is suspended for approval; use resume_workflow")
+  | Some _ -> Result.Error (Invalid_input "Workflow is not in a recoverable state")
 
 let approve_workflow rt wf_id ~approver =
   match htbl_get rt.workflows wf_id with
@@ -2259,7 +2323,7 @@ let noop_persistence : Types.persistence_service = {
   load_task_state_fn = (fun _task_id -> Ok None);
   save_workflow_state_fn = (fun _id _status _checkpoint -> Ok ());
   load_workflow_state_fn = (fun _id -> Ok None);
-  load_all_suspended_workflows_fn = (fun _ -> Ok []);
+  load_recoverable_runs_fn = (fun _ -> Ok []);
   save_workflow_def_fn = (fun _ _ -> Ok ());
   load_all_workflow_defs_fn = (fun _ -> Ok []);
   save_conversation_fn = (fun ?scope:_ _sid _conv -> Ok ());
@@ -2422,11 +2486,16 @@ let create ?(persistence = noop_persistence)
      | Error e ->
        Logs.err (fun m -> m "Runtime.create: workflow_defs rehydration failed: %s"
                     (string_of_error_category e)));
-    (match rt.services.persistence.load_all_suspended_workflows_fn () with
-     | Ok suspended_runs ->
+    (match rt.services.persistence.load_recoverable_runs_fn () with
+     | Ok recoverable_runs ->
        List.iter (fun (run_id, status) ->
-         Types.htbl_set rt.workflows run_id status
-       ) suspended_runs
+         Types.htbl_set rt.workflows run_id status;
+         (* A running row means the process that owned it is gone. Say so once;
+          * recovery is an explicit call. *)
+         match status with
+         | Wf_running -> publish_event rt (Workflow_orphaned { workflow_run_id = run_id })
+         | _ -> ()
+       ) recoverable_runs
      | Error e ->
        Logs.err (fun m -> m "Runtime.create: rehydration failed: %s"
                     (string_of_error_category e)));

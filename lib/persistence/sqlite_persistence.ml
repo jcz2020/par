@@ -454,11 +454,15 @@ let load_workflow_state t run_id =
     load_workflow_state_from_db t.db run_id
   )
 
- let load_all_suspended_workflows t =
+(* Both suspended and still-running runs can be recovered: the first has a
+   checkpoint written at the suspension point, the second was interrupted by a
+   crash and has whatever the last completed step wrote. *)
+ let load_recoverable_runs t =
   Eio.Mutex.use_ro t.mutex (fun () ->
     let stmt =
       Sqlite3.prepare t.db
-        "SELECT id, checkpoint FROM workflow_states WHERE status = 'suspended'"
+        "SELECT id, status, checkpoint FROM workflow_states \
+         WHERE status IN ('suspended', 'running')"
     in
     let acc = ref [] in
     let result =
@@ -468,17 +472,25 @@ let load_workflow_state t run_id =
         match Sqlite3.step stmt with
         | Sqlite3.Rc.ROW ->
           let id_str = Sqlite3.column_text stmt 0 in
-          let checkpoint_json = Sqlite3.column_text stmt 1 in
+          let status_str = Sqlite3.column_text stmt 1 in
+          let checkpoint_json = Sqlite3.column_text stmt 2 in
           let run_id = Workflow_run_id.of_string id_str in
-          (match workflow_checkpoint_of_yojson (Yojson.Safe.from_string checkpoint_json) with
-           | Ok cp -> acc := (run_id, Wf_suspended cp) :: !acc
-           | Error msg ->
-             Logs.err (fun m -> m "load_all_suspended: skipping run %s, decode error: %s"
-                          id_str msg))
+          (* A running row may have no checkpoint at all: the writer died before
+             the first step finished. [Wf_running] carries no payload, so there
+             is nothing to decode — decoding the empty column is what turned a
+             recoverable row into a startup crash. *)
+          if status_str = "running" then
+            acc := (run_id, Wf_running) :: !acc
+          else
+            (match workflow_checkpoint_of_yojson (Yojson.Safe.from_string checkpoint_json) with
+             | Ok cp -> acc := (run_id, Wf_suspended cp) :: !acc
+             | Error msg ->
+               Logs.err (fun m -> m "load_recoverable_runs: skipping run %s, decode error: %s"
+                            id_str msg))
         | Sqlite3.Rc.DONE -> stop := true
         | rc ->
           stop := true;
-          error := Some (Result.Error (Internal (Printf.sprintf "Load suspended: %s" (Sqlite3.Rc.to_string rc))))
+          error := Some (Result.Error (Internal (Printf.sprintf "Load recoverable runs: %s" (Sqlite3.Rc.to_string rc))))
       done;
       match !error with
       | Some e -> e

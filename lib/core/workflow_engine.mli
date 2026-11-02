@@ -29,6 +29,16 @@ type approval_suspend_payload = {
   expires_at : float;
 }
 
+(** What a completed step reports. [variables] is the accumulated variable set
+    *after* the step, which is what a checkpoint needs; the old callback shape
+    only received the step result, so checkpoints carried the variables from
+    before the run started. *)
+type step_completion = {
+  path : int list;
+  variables : (string * Yojson.Safe.t) list;
+  result : Yojson.Safe.t;
+}
+
 type exec_context = {
   variables : (string * Yojson.Safe.t) list;
   token : cancellation_token;
@@ -39,7 +49,12 @@ type exec_context = {
   parallel_limit : int;
   failure_policy : failure_policy;
   workflow_resolver : string -> workflow option;
-  on_step_complete : (int list -> Yojson.Safe.t -> unit) option;
+  (** Invoked after each *resume-safe* step completes. Only children of a
+      Sequential chain report: Parallel, Map_reduce, Sub_workflow and
+      Conditional subtrees run with this set to [None], so a crash inside one
+      of them leaves the checkpoint before the node and the whole node is
+      re-run on recovery. *)
+  on_step_complete : (step_completion -> unit) option;
   workflow_run_id : Workflow_run_id.t option;
   workflow_id_resolver : unit -> string option;
   workspace : Workspace.workspace;
@@ -70,6 +85,10 @@ val make_checkpoint :
   step_path:int list ->
   ?step_results:Yojson.Safe.t list ->
   ?allowed_roles:string list option ->
+  (** Overrides the context's variables. A step-completion callback passes the
+      accumulated set it received, so the checkpoint reflects the run's state
+      rather than the caller's starting state. *)
+  ?variables:(string * Yojson.Safe.t) list ->
   exec_context -> workflow_checkpoint
 
 (** Execute a single workflow step, returning its result as JSON.

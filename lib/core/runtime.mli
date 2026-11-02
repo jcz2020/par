@@ -513,6 +513,19 @@ val approve_workflow :
 val resume_workflow :
   runtime -> Workflow_run_id.t -> (workflow_result option, error_category) result
 
+val recover_workflow :
+  runtime -> Workflow_run_id.t -> (workflow_result option, error_category) result
+(** Recover a run that was interrupted by a crash. Such a run is left as
+    [running] in the store, and [create] rehydrates it and emits
+    {!Workflow_orphaned}; nothing resumes automatically, because re-running
+    steps that already had side effects is the caller's decision.
+
+    Execution restarts after the last completed step recorded in the
+    checkpoint. Control-flow nodes ([Parallel], [Map_reduce], [Conditional],
+    [Sub_workflow]) are atomic for recovery: if the checkpoint falls inside one,
+    the whole node runs again. A checkpoint with a newer [schema_version] than
+    this runtime understands is rejected rather than guessed at. *)
+
 val tool_registry : runtime -> Tool_registry.t
 
 val bash_policy : runtime -> (module Bash_policy.POLICY)

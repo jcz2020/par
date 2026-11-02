@@ -20,6 +20,7 @@ let extract_task_id : event -> string = function
   | Workflow_step_completed { step_id } -> step_id
   | Workflow_completed { workflow_run_id } -> Workflow_run_id.to_string workflow_run_id
   | Workflow_failed { workflow_run_id; _ } -> Workflow_run_id.to_string workflow_run_id
+  | Workflow_orphaned { workflow_run_id } -> Workflow_run_id.to_string workflow_run_id
   | Approval_requested _ -> ""
   | Approval_granted _ -> ""
   | Approval_timeout -> ""

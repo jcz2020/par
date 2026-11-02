@@ -305,9 +305,22 @@ val Runtime.resume_workflow : runtime -> Workflow_run_id.t ->
   (workflow_result option, error_category) result
 ```
 
-Resume from checkpoint supports `Sequential` and `Conditional` step types. `Parallel` and `Map_reduce` at the suspension `step_path` return an `Error`, because mid-iteration concurrency state cannot be safely reconstructed from a checkpoint. The only step type that can produce a suspension is `Human_approval`, so in practice this limitation only matters when the approval sits inside a Parallel or Map_reduce branch.
+Checkpoint resume covers `Sequential` and `Conditional` step types. A checkpoint that falls inside `Parallel`, `Map_reduce` or `Sub_workflow` makes that whole node run again instead of returning an error, because mid-node concurrency state cannot be reconstructed; the run keeps at-least-once semantics.
 
 Returns `Ok (Some result)` if the workflow ran to completion, `Ok None` if it suspended again at a later approval, and `Error` otherwise.
+
+### Recover an interrupted workflow
+
+```ocaml
+val Runtime.recover_workflow : runtime -> Workflow_run_id.t ->
+  (workflow_result option, error_category) result
+```
+
+A run whose process died stays `running` in the store. `Runtime.create` rehydrates those rows and emits `Workflow_orphaned` for each; nothing resumes automatically, because replaying a step that already had a side effect is the caller's decision.
+
+`recover_workflow` re-enters at the last checkpoint: steps before it do not run again, the rest do. The semantics are **at-least-once** — if the process died during a step, the checkpoint still points at the previous one and that step runs again. `Parallel`, `Map_reduce` and `Sub_workflow` are atomic: a checkpoint inside one re-runs the whole node. `Sub_workflow` steps are not independently recoverable. A checkpoint whose `schema_version` is newer than the runtime understands is refused rather than guessed at.
+
+The workflow definition must be registered on the runtime (`register_workflow`) before recovering, and recovery refuses a suspended run — use `resume_workflow` for that.
 
 ## Variables and context propagation
 
@@ -369,6 +382,7 @@ type workflow_checkpoint = {
   variables : (string * Yojson.Safe.t) list;     (* Current variable snapshot *)
   step_results : Yojson.Safe.t list;             (* Results of completed steps *)
   allowed_roles : string list option;            (* None = unrestricted *)
+  schema_version : int;                          (* 1 = current; older rows default to 1 *)
 }
 [@@deriving yojson]
 ```

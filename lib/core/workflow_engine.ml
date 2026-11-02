@@ -46,6 +46,12 @@ type approval_suspend_payload = {
   expires_at : float;
 }
 
+type step_completion = {
+  path : int list;
+  variables : (string * Yojson.Safe.t) list;
+  result : Yojson.Safe.t;
+}
+
 type exec_context = {
   variables : (string * Yojson.Safe.t) list;
   token : cancellation_token;
@@ -56,7 +62,7 @@ type exec_context = {
   parallel_limit : int;
   failure_policy : failure_policy;
   workflow_resolver : string -> workflow option;
-  on_step_complete : (int list -> Yojson.Safe.t -> unit) option;
+  on_step_complete : (step_completion -> unit) option;
   workflow_run_id : Workflow_run_id.t option;
   workflow_id_resolver : unit -> string option;
   workspace : Workspace.workspace;
@@ -74,7 +80,8 @@ exception Workflow_suspended of {
   checkpoint : workflow_checkpoint;
 }
 
-let make_checkpoint ~step_path ?(step_results = []) ?(allowed_roles = None) ctx =
+let make_checkpoint ~step_path ?(step_results = []) ?(allowed_roles = None)
+    ?variables ctx =
   let workflow_id =
     match ctx.workflow_id_resolver () with
     | Some id -> id
@@ -83,9 +90,10 @@ let make_checkpoint ~step_path ?(step_results = []) ?(allowed_roles = None) ctx 
   {
     workflow_id;
     step_path;
-    variables = ctx.variables;
+    variables = (match variables with Some v -> v | None -> ctx.variables);
     step_results;
     allowed_roles;
+    schema_version = 1;
   }
 
 (* -------------------------------------------------------------------------- *)
@@ -130,6 +138,24 @@ let rec flatten_json prefix (json : Yojson.Safe.t) : (string * Yojson.Safe.t) li
       flatten_json path item
     ) (List.mapi (fun i v -> (i, v)) items)
   | other -> if prefix = "" then [] else [(prefix, other)]
+
+(* The result_N / result.N binding scheme, shared by the executor and any
+   caller that has to reproduce one step's bindings. *)
+let bind_step_result ~idx result =
+  let flat = flatten_json "" result in
+  ("result", result)
+  :: List.map (fun (k, v) -> ("result." ^ k, v)) flat
+  @ [ (Printf.sprintf "result_%d" idx, result) ]
+  @ List.map (fun (k, v) -> (Printf.sprintf "result_%d.%s" idx k, v)) flat
+
+let notify_step ctx ~path ~variables result =
+  match ctx.on_step_complete with
+  | Some cb -> cb { path; variables; result }
+  | None -> ()
+
+(* Atomic node: a crash inside it leaves the checkpoint before it, and recovery
+   re-runs the whole node. Children therefore must not report completion. *)
+let without_step_notifications ctx = { ctx with on_step_complete = None }
 
 (* -------------------------------------------------------------------------- *)
 (* Step execution — recursive dispatcher                                      *)
@@ -196,19 +222,19 @@ let rec execute_step ?(path=[]) ctx step =
     execute_sequential ~path ctx steps
 
   | Parallel steps ->
-    execute_parallel ~path ctx steps
+    execute_parallel ~path (without_step_notifications ctx) steps
 
   | Conditional { condition; then_step; else_step } ->
     (match Expression.evaluate_to_bool ctx.variables condition with
      | Result.Error e -> Result.Error e
-     | Ok true -> execute_step ~path ctx then_step
+     | Ok true -> execute_step ~path (without_step_notifications ctx) then_step
      | Ok false ->
        match else_step with
-       | Some s -> execute_step ~path ctx s
+       | Some s -> execute_step ~path (without_step_notifications ctx) s
        | None -> Ok `Null)
 
   | Map_reduce { over; step = inner_step; reduce } ->
-    execute_map_reduce ~path ctx over inner_step reduce
+    execute_map_reduce ~path (without_step_notifications ctx) over inner_step reduce
 
   | Human_approval { prompt_template; timeout; allowed_roles } ->
     let prompt = substitute prompt_template ctx.variables in
@@ -247,7 +273,10 @@ let rec execute_step ?(path=[]) ctx step =
        Result.Error (Invalid_input (Printf.sprintf "Sub-workflow not found: %s" workflow_id))
      | Some child_wf ->
        let merged_vars = variables @ ctx.variables in
-       let child_ctx = { ctx with variables = merged_vars } in
+       (* A sub-workflow's steps belong to its own run, not the parent's, so
+          they must not overwrite the parent checkpoint. *)
+       let child_ctx = { ctx with variables = merged_vars;
+                                   on_step_complete = None } in
        (match execute_workflow child_ctx child_wf with
         | Ok wf_result ->
           (match List.assoc_opt "result" wf_result.outputs with
@@ -275,28 +304,21 @@ and execute_sequential ?(path=[]) ?(start_idx=0) ctx steps =
       let step_ctx = { ctx with variables = effective_vars } in
       match execute_step ~path:step_path step_ctx step with
       | Ok result ->
-        (match ctx.on_step_complete with
-         | Some cb -> cb step_path result
-         | None -> ());
-        let flat = flatten_json "" result in
-        let flat_with_prefix = ("result", result) ::
-          List.map (fun (k, v) -> ("result." ^ k, v)) flat @
-          [Printf.sprintf "result_%d" effective_idx, result] @
-          List.map (fun (k, v) ->
-            (Printf.sprintf "result_%d.%s" effective_idx k, v)) flat in
-        loop (result :: acc) (idx + 1) (acc_results @ flat_with_prefix) rest
+        let flat_with_prefix = bind_step_result ~idx:effective_idx result in
+        let acc_results' = acc_results @ flat_with_prefix in
+        notify_step ctx ~path:step_path
+          ~variables:(ctx.variables @ acc_results') result;
+        loop (result :: acc) (idx + 1) acc_results' rest
       | Result.Error err ->
         match ctx.failure_policy with
         | Fail_fast -> Result.Error err
         | Continue_on_failure ->
-          (match ctx.on_step_complete with
-           | Some cb -> cb step_path `Null
-           | None -> ());
-          let new_bindings = [
-            ("result", `Null);
-            (Printf.sprintf "result_%d" effective_idx, `Null);
-          ] in
-          loop acc (idx + 1) (acc_results @ new_bindings) rest
+          let new_bindings =
+            bind_step_result ~idx:effective_idx `Null in
+          let acc_results' = acc_results @ new_bindings in
+          notify_step ctx ~path:step_path
+            ~variables:(ctx.variables @ acc_results') `Null;
+          loop acc (idx + 1) acc_results' rest
         | Conditional { on_failure } ->
           match execute_step ~path:step_path step_ctx on_failure with
           | Ok _ -> loop acc (idx + 1) acc_results rest
@@ -532,14 +554,11 @@ let rec resume_from_checkpoint (ctx : exec_context) (wf_steps : workflow_step)
 and resume_step ~path (ctx : exec_context) (step : workflow_step) (step_path : int list) =
   match step_path with
   | [] ->
-    (* At the suspended step itself. Must be Human_approval — treat as approved. *)
-    (match step with
-     | Human_approval _ -> Ok `Null
-     | _ ->
-       Result.Error (Internal
-         (Printf.sprintf "resume: leaf step at path [%s] is %s, not Human_approval"
-            (String.concat "." (List.map string_of_int path))
-            (step_type_name step))))
+    (* The recorded step already ran: it either completed before the crash, or
+       it is the Human_approval the run suspended on and is now granted. Both
+       cases skip it and let the parent continue with the next sibling. *)
+    ignore step;
+    Ok `Null
   | idx :: rest ->
     (match step with
      | Sequential steps ->
@@ -559,13 +578,9 @@ and resume_step ~path (ctx : exec_context) (step : workflow_step) (step_path : i
               Result.Error (Internal
                 (Printf.sprintf "resume: index %d out of bounds for Sequential at [%s]"
                    idx (String.concat "." (List.map string_of_int path))))
-            | Some (Human_approval _) ->
-              execute_sequential ~path ~start_idx:(idx + 1) ctx rest_to_run
-            | Some other ->
-              Result.Error (Internal
-                (Printf.sprintf "resume: step at Sequential index %d (path [%s]) is %s, not Human_approval (only Human_approval can suspend)"
-                   idx (String.concat "." (List.map string_of_int path))
-                   (step_type_name other))))
+            | Some _ ->
+              (* Completed or approved: continue after it. *)
+              execute_sequential ~path ~start_idx:(idx + 1) ctx rest_to_run)
          | _ :: _ ->
           (match List.nth_opt steps idx with
            | None ->
@@ -590,13 +605,15 @@ and resume_step ~path (ctx : exec_context) (step : workflow_step) (step_path : i
                | Error e -> Error e)
             | None -> Ok `Null)
          | Error e -> Error e)
-     | Parallel _ | Map_reduce _ ->
+     | Parallel _ | Map_reduce _ | Sub_workflow _ ->
+       (* Atomic for recovery: the checkpoint fell inside this node, so its
+          partial state is not resumable. Run the whole node again; the caller
+          gets at-least-once semantics rather than a wrong-state resume. *)
+       (match execute_step ~path ctx step with
+        | Ok _ -> Ok `Null
+        | Error e -> Error e)
+     | Agent_call _ | Tool_call _ | Human_approval _ ->
        Result.Error (Internal
-         (Printf.sprintf "Resume not supported for %s at step_path [%s] (only Sequential + Conditional)"
-            (step_type_name step)
-            (String.concat "." (List.map string_of_int (path @ step_path)))))
-     | Agent_call _ | Tool_call _ | Human_approval _ | Sub_workflow _ ->
-       Result.Error (Internal
-         (Printf.sprintf "resume: leaf step %s at non-empty step_path [%s]"
+         (Printf.sprintf "resume: step_path points past leaf %s at [%s]"
             (step_type_name step)
             (String.concat "." (List.map string_of_int (path @ step_path))))))

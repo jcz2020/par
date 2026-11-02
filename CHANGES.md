@@ -23,7 +23,7 @@
 
 ### Tests
 
-- OCaml totals are **1669 tests across 124 suites**, 0 failures: one environment-isolation case (it fails if the spawn goes back to inheriting the caller's environment) and three timeout-cap cases, on top of the 1665 from the release.
+- OCaml totals are **1676 tests across 125 suites**, 0 failures: two workflow-checkpoint cases (accumulated variables, atomic nodes stay silent) and five recovery cases (orphan detection, skipping completed steps, newer schema refused, checkpointless run refused, suspended run pointed at `resume_workflow`), plus one environment-isolation case and three timeout-cap cases. The recovery test fails if the skip logic is removed.
 - Python totals are **198 passed / 20 skipped**, including five MCP cases: servers accepted, descriptors listed, the list accepted by `register_agent`, an empty config, and a malformed entry failing the init. Three of them fail when the config parse is removed.
 
 ## v0.13.0-beta.20261102 — MCP tools, bounded image input, reasoning blocks + Anthropic thinking
