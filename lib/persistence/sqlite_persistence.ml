@@ -482,7 +482,11 @@ let load_workflow_state t run_id =
           if status_str = "running" then
             acc := (run_id, Wf_running) :: !acc
           else
-            (match workflow_checkpoint_of_yojson (Yojson.Safe.from_string checkpoint_json) with
+            (* A corrupt row must not take startup down with it. *)
+            (match
+               try workflow_checkpoint_of_yojson (Yojson.Safe.from_string checkpoint_json)
+               with _ -> Error "invalid JSON"
+             with
              | Ok cp -> acc := (run_id, Wf_suspended cp) :: !acc
              | Error msg ->
                Logs.err (fun m -> m "load_recoverable_runs: skipping run %s, decode error: %s"

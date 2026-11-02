@@ -377,7 +377,7 @@ type workflow_checkpoint = {
   workflow_id : string;                          (* 标识 workflow_def 以便恢复 *)
   step_path : int list;                          (* 点分路径，指向挂起点 *)
   variables : (string * Yojson.Safe.t) list;     (* 当前变量快照 *)
-  step_results : Yojson.Safe.t list;             (* 已完成步骤的结果 *)
+  step_results : Yojson.Safe.t list;             (* 写入本检查点那一步的结果 *)
   allowed_roles : string list option;            (* None = 不受限 *)
   schema_version : int;                          (* 1 = 当前；旧行按 1 读 *)
 }

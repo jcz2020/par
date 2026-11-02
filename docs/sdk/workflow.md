@@ -380,7 +380,7 @@ type workflow_checkpoint = {
   workflow_id : string;                          (* Identifies the workflow_def for resume *)
   step_path : int list;                          (* Dot-separated path to the suspension point *)
   variables : (string * Yojson.Safe.t) list;     (* Current variable snapshot *)
-  step_results : Yojson.Safe.t list;             (* Results of completed steps *)
+  step_results : Yojson.Safe.t list;             (* Result of the step that wrote this checkpoint *)
   allowed_roles : string list option;            (* None = unrestricted *)
   schema_version : int;                          (* 1 = current; older rows default to 1 *)
 }

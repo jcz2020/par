@@ -139,6 +139,27 @@ let rec flatten_json prefix (json : Yojson.Safe.t) : (string * Yojson.Safe.t) li
     ) (List.mapi (fun i v -> (i, v)) items)
   | other -> if prefix = "" then [] else [(prefix, other)]
 
+(* [results] is documented as "every sibling output so far". A resumed run
+   starts with an empty loop accumulator but already carries result_N bindings
+   in its variables, so the list is rebuilt from the bindings instead of from
+   the accumulator. Sorting by index also fixes the order: the accumulator
+   version emitted the list reversed. *)
+let step_results_from_bindings bindings =
+  let prefix = "result_" in
+  let plen = String.length prefix in
+  bindings
+  |> List.filter_map (fun (key, value) ->
+      if String.length key > plen
+         && (not (String.contains key '.'))
+         && String.sub key 0 plen = prefix
+      then
+        match int_of_string_opt (String.sub key plen (String.length key - plen)) with
+        | Some idx -> Some (idx, value)
+        | None -> None
+      else None)
+  |> List.sort (fun (a, _) (b, _) -> compare a b)
+  |> List.map snd
+
 (* The result_N / result.N binding scheme, shared by the executor and any
    caller that has to reproduce one step's bindings. *)
 let bind_step_result ~idx result =
@@ -296,11 +317,10 @@ and execute_sequential ?(path=[]) ?(start_idx=0) ctx steps =
     | step :: rest ->
       let effective_idx = start_idx + idx in
       let step_path = path @ [effective_idx] in
-      let results_so_far = List.filter_map (fun (k, v) ->
-        if k = "result" then Some v else None) acc_results in
+      let results_so_far = step_results_from_bindings (ctx.variables @ acc_results) in
       let effective_vars =
         ctx.variables @ acc_results
-        @ [("results", `List (List.rev results_so_far))] in
+        @ [("results", `List results_so_far)] in
       let step_ctx = { ctx with variables = effective_vars } in
       match execute_step ~path:step_path step_ctx step with
       | Ok result ->

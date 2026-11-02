@@ -173,7 +173,10 @@ let recovery_workflow () : workflow = {
     version = 1;
     steps = Sequential [
       Tool_call { tool_name = "echo"; input = `String "A" };
-      Tool_call { tool_name = "echo"; input = `String "B" };
+      (* The first step after recovery asks for the sibling outputs. They must
+         be rebuilt from the checkpoint, not from the loop's local list. *)
+      Tool_call { tool_name = "echo";
+                  input = `Assoc [("seen", `String "{{results}}")] };
       Tool_call { tool_name = "echo"; input = `String "C" };
     ];
     variables = [];
@@ -216,8 +219,19 @@ let test_recover_skips_completed_steps () =
    | Ok None -> Alcotest.fail "recover returned no result"
    | Ok (Some result) ->
      Alcotest.(check bool) "completed" true (result.status = `Success));
-  let ran = List.sort compare (List.map Yojson.Safe.to_string !calls) in
-  Alcotest.(check (list string)) "only steps 1 and 2 ran" ["\"B\""; "\"C\""] ran;
+  let ran = List.map Yojson.Safe.to_string !calls in
+  Alcotest.(check int) "only steps 1 and 2 ran" 2 (List.length ran);
+  Alcotest.(check bool) "step 0 did not run" false (List.mem "\"A\"" ran);
+  (* Step 1 received {{results}}, rebuilt from the checkpoint's result_0. *)
+  Alcotest.(check bool) "results was rebuilt after recovery" true
+    (List.exists (fun rendered ->
+         let needle = "A" in
+         let n = String.length needle in
+         let rec go i =
+           i + n <= String.length rendered
+           && (String.sub rendered i n = needle || go (i + 1))
+         in
+         go 0) ran);
   (match Runtime.get_workflow_status rt run_id with
    | Ok (Wf_completed _) -> ()
    | Ok other ->
@@ -272,6 +286,54 @@ let test_recover_without_checkpoint_is_rejected () =
   | Error e ->
     Alcotest.failf "expected Invalid_input, got %s" (error_to_string e)
 
+(* A [Wf_running] entry that this process created belongs to a live run.
+   Recovering it would execute the workflow twice, so eligibility comes from the
+   orphan set recorded at startup, not from the status alone. *)
+let test_a_live_run_is_not_recoverable () =
+  Eio_main.run @@ fun _env ->
+  Eio.Switch.run @@ fun sw ->
+  let rt = match Runtime.create ~config:(runtime_config ()) sw with
+    | Ok rt -> rt
+    | Error e -> Alcotest.failf "create: %s" (error_to_string e)
+  in
+  Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) @@ fun () ->
+  let release = ref false in
+  let tb = match Runtime.register_tool rt ~name:"gate"
+                  ~description:"waits" ~input_schema:(`Assoc [])
+                  ~handler:(fun _ _ ->
+                    while not !release do Eio.Fiber.yield () done;
+                    Success (`String "done")) () with
+    | Ok tb -> tb
+    | Error e -> Alcotest.failf "register_tool: %s" (error_to_string e)
+  in
+  ignore (Runtime.register_agent rt (recovery_agent tb));
+  let wf = {
+    def = {
+      id = "wf-live"; name = "Live"; version = 1;
+      steps = Sequential [ Tool_call { tool_name = "gate"; input = `Assoc [] } ];
+      variables = []; failure_policy = Fail_fast; parallel_limit = 1; timeout = 300.0;
+    };
+    on_complete = None;
+  } in
+  ignore (Runtime.register_workflow rt wf);
+  let run_id = match Runtime.submit_workflow_async rt wf with
+    | Ok id -> id
+    | Error e -> Alcotest.failf "submit: %s" (error_to_string e)
+  in
+  (match Runtime.recover_workflow rt run_id with
+   | Ok _ -> Alcotest.fail "a live run must not be recovered"
+   | Error (Invalid_input msg) ->
+     Alcotest.(check bool) "explains why" true
+       (let needle = "running in this process" in
+        let n = String.length needle in
+        let rec go i =
+          i + n <= String.length msg
+          && (String.sub msg i n = needle || go (i + 1))
+        in
+        go 0)
+   | Error e -> Alcotest.failf "expected Invalid_input, got %s" (error_to_string e));
+  release := true
+
 let test_recover_on_suspended_points_at_resume () =
   Eio_main.run @@ fun _env ->
   Eio.Switch.run @@ fun sw ->
@@ -317,5 +379,7 @@ let () =
         test_recover_without_checkpoint_is_rejected;
       Alcotest.test_case "a suspended run points at resume_workflow" `Quick
         test_recover_on_suspended_points_at_resume;
+      Alcotest.test_case "a run started in this process is refused" `Quick
+        test_a_live_run_is_not_recoverable;
     ];
   ]

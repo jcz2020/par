@@ -32,6 +32,12 @@ type runtime = {
   shutdown_mutex : Eio.Mutex.t;
   tasks : (Task_id.t, task_state) protected_hashtbl;
   workflows : (Workflow_run_id.t, workflow_status) protected_hashtbl;
+  (* Runs found still [running] at startup. Recovery is only allowed for these:
+     a [Wf_running] entry that this process created belongs to a live run, and
+     recovering it would execute the workflow twice. *)
+  orphaned_workflow_runs : (Workflow_run_id.t, unit) protected_hashtbl;
+  (* Guards against two concurrent recoveries of the same run. *)
+  recovering_workflow_runs : (Workflow_run_id.t, unit) protected_hashtbl;
   workflow_defs : (string, workflow) protected_hashtbl;
   tool_registry : Tool_registry.t;
   mutable tool_description_overrides : (string * string) list;
@@ -2201,7 +2207,9 @@ let run_from_checkpoint rt ~(wf_id : Workflow_run_id.t) ~(wf : workflow)
     net = rt.net;
   } in
   htbl_set rt.workflows wf_id Wf_running;
-  (match rt.services.persistence.save_workflow_state_fn wf_id Wf_running None with
+  (* Keep the checkpoint: if this process dies before the next step finishes,
+     recovery must still have the resume point it started from. *)
+  (match rt.services.persistence.save_workflow_state_fn wf_id Wf_running (Some checkpoint) with
    | Ok () -> ()
    | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
   let start_time = Unix.gettimeofday () in
@@ -2267,7 +2275,18 @@ let recover_workflow rt wf_id =
   match htbl_get rt.workflows wf_id with
   | None -> Result.Error (Invalid_input "Workflow not found")
   | Some Wf_running ->
-    (match rt.services.persistence.load_workflow_state_fn wf_id with
+    if htbl_get rt.orphaned_workflow_runs wf_id = None then
+      Result.Error (Invalid_input
+        ("Workflow is running in this process; recovery is only for runs whose "
+         ^ "writer died and were rehydrated at startup"))
+    else if htbl_get rt.recovering_workflow_runs wf_id <> None then
+      Result.Error (Invalid_input "Recovery for this workflow is already in progress")
+    else
+    Fun.protect
+      ~finally:(fun () -> htbl_remove rt.recovering_workflow_runs wf_id)
+      (fun () ->
+    htbl_set rt.recovering_workflow_runs wf_id ();
+    match rt.services.persistence.load_workflow_state_fn wf_id with
      | Error e -> Result.Error e
      | Ok None ->
        Result.Error (Invalid_input
@@ -2430,6 +2449,8 @@ let create ?(persistence = noop_persistence)
       shutdown_mutex = Eio.Mutex.create ();
       tasks = { data = Hashtbl.create 256; mutex = Eio.Mutex.create () };
       workflows = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
+      orphaned_workflow_runs = { data = Hashtbl.create 8; mutex = Eio.Mutex.create () };
+      recovering_workflow_runs = { data = Hashtbl.create 8; mutex = Eio.Mutex.create () };
       workflow_defs = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
       tool_registry = Tool_registry.create ();
       tool_description_overrides = [];
@@ -2493,7 +2514,9 @@ let create ?(persistence = noop_persistence)
          (* A running row means the process that owned it is gone. Say so once;
           * recovery is an explicit call. *)
          match status with
-         | Wf_running -> publish_event rt (Workflow_orphaned { workflow_run_id = run_id })
+         | Wf_running ->
+           Types.htbl_set rt.orphaned_workflow_runs run_id ();
+           publish_event rt (Workflow_orphaned { workflow_run_id = run_id })
          | _ -> ()
        ) recoverable_runs
      | Error e ->

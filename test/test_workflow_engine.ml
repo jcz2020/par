@@ -589,6 +589,50 @@ let test_atomic_nodes_do_not_notify () =
     Alcotest.(check (list string)) "only atomic nodes report" ["0"; "1"]
       (List.map (fun p -> String.concat "." (List.map string_of_int p)) paths))
 
+(* [results] is documented as "every sibling output so far", and it is derived
+   from the accumulated bindings rather than kept in the loop's local list. That
+   is what makes it correct after a resume, where the loop accumulator is empty
+   but the checkpoint carries result_N. *)
+let test_results_variable_tracks_siblings () =
+  let seen = ref [] in
+  let t = dummy_tool (fun input _ ->
+    seen := input :: !seen;
+    Success (`String "ok")) in
+  let agent = basic_agent ~tools:[t] () in
+  with_token (fun token ->
+    let llm = mock_llm [text_response "unused"] in
+    let reg = make_registry [t] in
+    let ctx = make_ctx
+      ~agent_resolver:(fun _ -> Some agent)
+      ~tool_resolver:(fun _ -> Some t.descriptor)
+      ~token ~llm ~registry:reg () in
+    let step : workflow_step = Sequential [
+      Tool_call { tool_name = "test_tool"; input = `String "A" };
+      Tool_call { tool_name = "test_tool";
+                  input = `Assoc [("seen", `String "{{results}}")] };
+    ] in
+    let _ = ok_or_fail "execute_step" (Workflow_engine.execute_step ctx step) in
+    match List.rev !seen with
+    | [ _first; `Assoc fields ] ->
+      (match List.assoc_opt "seen" fields with
+       | Some (`String rendered) ->
+         (* The previous step's *output*, not its input. *)
+         Alcotest.(check bool) "results contains the previous output" true
+           (let needle = "ok" in
+            let n = String.length needle in
+            let rec go i =
+              i + n <= String.length rendered
+              && (String.sub rendered i n = needle || go (i + 1))
+            in
+            go 0)
+       | other ->
+         Alcotest.failf "expected a rendered string, got %s"
+           (match other with Some j -> Yojson.Safe.to_string j | None -> "<missing>"))
+    | other ->
+      Alcotest.failf "expected two tool calls, got %d: %s"
+        (List.length other)
+        (String.concat " | " (List.map Yojson.Safe.to_string other)))
+
 let test_checkpoint_records_partial_state_on_failure () =
   let bad = dummy_tool ~name:"bad"
     (fun _ _ -> Error { category = Internal "mid-fail"; message = "mid-fail";
@@ -2149,6 +2193,8 @@ let () =
         test_checkpoint_callback_carries_accumulated_variables;
       Alcotest.test_case "atomic nodes do not notify" `Quick
         test_atomic_nodes_do_not_notify;
+      Alcotest.test_case "results variable tracks siblings" `Quick
+        test_results_variable_tracks_siblings;
       Alcotest.test_case "partial state recorded on failure" `Quick
         test_checkpoint_records_partial_state_on_failure;
       Alcotest.test_case "make_checkpoint preserves state" `Quick
