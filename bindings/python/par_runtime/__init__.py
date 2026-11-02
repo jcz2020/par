@@ -29,7 +29,7 @@ from par_runtime.content import (
     text,
 )
 
-__version__ = "0.13.1-beta.20261102"
+__version__ = "0.14.0-beta.20261102"
 
 __all__ = [
     "Runtime",

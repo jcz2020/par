@@ -1,5 +1,30 @@
 # CHANGES
 
+## v0.14.0-beta.20261102 — durable workflow execution
+
+> An interrupted workflow can now be recovered instead of being silently orphaned. The per-step checkpoint was written with the run's *starting* variables, so it looked resumable and was not; recovery is explicit, skips completed steps, and the semantics are at-least-once. **1678 OCaml tests across 125 suites, 0 failures; 198 Python tests passing with 20 pre-existing skips.** Beta-first: the stable line remains v0.10.0.
+
+### Added — durable workflow execution
+
+- **NEW** `Runtime.recover_workflow` re-enters an interrupted workflow at its last checkpoint, skipping the steps that already completed. `Runtime.create` rehydrates runs left `running` by a dead process and emits `Workflow_orphaned` once per row; nothing resumes automatically, because replaying a step with side effects is the caller's decision.
+- Per-step checkpoints now carry the variables accumulated *after* the step. The reporter used to run on a rebuilt context holding the run's starting variables, so a checkpoint could record a step path without the bindings that step produced — resumable-looking, not resumable. `Workflow_engine.step_completion` replaces the `int list -> Yojson -> unit` callback and carries `path`, `variables` and `result`.
+- `Parallel`, `Map_reduce`, `Sub_workflow` and `Conditional` subtrees no longer report completion, because a checkpoint inside them cannot be resumed partway. A crash there leaves the checkpoint before the node and recovery re-runs the whole node. This also stops a sub-workflow's steps from overwriting its parent's checkpoint.
+- `workflow_checkpoint` gains `schema_version` (older rows read as 1); a checkpoint from a newer schema is refused rather than guessed at.
+- `persistence_service.load_all_suspended_workflows_fn` is renamed `load_recoverable_runs_fn` and loads `running` rows as well as `suspended` ones.
+- `{{results}}` is derived from the `result_N` bindings in index order, so a resumed run sees the same array a normal run would; the previous implementation read the loop's local list (empty after a resume) and emitted it reversed.
+- Semantics are **at-least-once**: a step interrupted mid-execution runs again on recovery. Documented in `persistence-and-durability.md` and the workflow SDK page, both languages.
+
+### Fixed — issues found reviewing the durability work
+
+- Recovery accepted any `running` status, including runs this process started, so recovering a live run would execute the workflow twice. Eligibility now comes from the orphan set recorded at startup, with an in-flight guard against a second concurrent recovery.
+- Entering recovery cleared the stored checkpoint; a second crash before the next step finished then had nothing to resume from. The checkpoint is kept.
+- A corrupt or NULL checkpoint column took startup down with a `Json_error`, for suspended rows as well as running ones. Decoding is guarded.
+- A running row with no checkpoint (the writer died before the first step) is reported as an orphan and declined by recovery with a clear error, instead of crashing startup.
+
+### Tests
+
+- OCaml totals are **1678 tests across 125 suites**, 0 failures: two checkpoint cases (accumulated variables, atomic nodes stay silent), one `{{results}}` case, and six recovery cases (orphan detection, skipping completed steps, a live run refused, newer schema refused, checkpointless run refused, suspended run pointed at `resume_workflow`). The recovery test fails when the skip-completed logic is removed.
+
 ## v0.13.1-beta.20261102 — MCP from Python, and a bash environment leak fixed
 
 > A follow-up to `0.13.0` that closes the one parity gap it carried and fixes a security defect in the bash tool: children inherited PAR's whole environment, so a plain `printenv` exposed every API key. Also adds the isolation-boundary page that should have existed alongside the bash tool. **1669 OCaml tests across 124 suites, 0 failures; 198 Python tests passing with 20 pre-existing skips.** Beta-first: the stable line remains v0.10.0.
@@ -23,7 +48,7 @@
 
 ### Tests
 
-- OCaml totals are **1676 tests across 125 suites**, 0 failures: two workflow-checkpoint cases (accumulated variables, atomic nodes stay silent) and five recovery cases (orphan detection, skipping completed steps, newer schema refused, checkpointless run refused, suspended run pointed at `resume_workflow`), plus one environment-isolation case and three timeout-cap cases. The recovery test fails if the skip logic is removed.
+- OCaml totals were **1669 tests across 124 suites**, 0 failures: one environment-isolation case (it fails if the spawn goes back to inheriting the caller's environment) and three timeout-cap cases.
 - Python totals are **198 passed / 20 skipped**, including five MCP cases: servers accepted, descriptors listed, the list accepted by `register_agent`, an empty config, and a malformed entry failing the init. Three of them fail when the config parse is removed.
 
 ## v0.13.0-beta.20261102 — MCP tools, bounded image input, reasoning blocks + Anthropic thinking
