@@ -4,7 +4,7 @@
 
 # Persistence API
 
-PAR 内置一个持久化层，将事件、任务状态、工作流检查点和对话历史存储在本地 SQLite 数据库中。持久化服务是可选的。配置后，每次 `Runtime.invoke` 调用都会获得持久存储。不配置时，runtime 以临时模式运行，适合快速实验和单元测试。
+PAR 内置一个持久化层，将事件、任务状态、工作流检查点、invoke 检查点和对话历史存储在本地 SQLite 数据库中。持久化服务是可选的。配置后，每次 `Runtime.invoke` 调用都会获得持久存储。不配置时，runtime 以临时模式运行，适合快速实验和单元测试。
 
 ## 概览
 
@@ -118,9 +118,20 @@ type session_summary = {
 |------|------|
 | `save_workflow_state_fn` | 保存工作流状态和可选检查点 |
 | `load_workflow_state_fn` | 加载工作流运行的检查点 |
-| `load_all_suspended_workflows_fn` | 列出所有挂起的工作流（用于崩溃后恢复） |
+| `load_recoverable_runs_fn` | 列出崩溃写入者留下的行（`running` 与 `suspended`），供启动时重水化 |
 | `save_workflow_def_fn` | 按 id 存储工作流定义 |
 | `load_all_workflow_defs_fn` | 列出所有已存储的工作流定义 |
+
+### Invoke 检查点
+
+持久化 invoke（`Runtime.invoke ~durable:true`）为每个在途运行保留一行。该行仅在 invoke 运行期间存在：第 0 次迭代后、以及每个完成的工具批次后更新，任何终止结果都会删除。因此启动时发现的行必然属于已死的写入者，正是 `Runtime.recover_invoke` 与 `Runtime.list_orphaned_invokes` 的输入。
+
+| 函数 | 说明 |
+|------|------|
+| `save_invoke_checkpoint_fn` | 更新在途 invoke 的检查点 |
+| `load_invoke_checkpoint_fn` | 按 invoke id 加载检查点；解码失败返回错误而非 `None` |
+| `list_invoke_checkpoints_fn` | 列出启动重水化所需的遗留行（无法解码的行记录日志后跳过） |
+| `delete_invoke_checkpoint_fn` | 终止结果时删除检查点 |
 
 ### 对话历史
 
@@ -193,15 +204,17 @@ with Runtime(config) as rt:
 
 ## SQLite Schema
 
-后端在首次打开时创建五张表：
+后端在首次打开时创建七张表：
 
 | 表 | 用途 |
 |----|------|
 | `events` | 事件日志，包含 task_id、session_id、scope、payload |
 | `task_states` | 任务状态快照 |
 | `workflow_states` | 工作流检查点和状态 |
+| `invoke_checkpoints` | 在途持久化 invoke 的检查点（每个运行中的 invoke 一行） |
 | `conversations` | 对话消息和元数据 |
 | `workflow_definitions` | 按 id 存储的工作流定义 |
+| `approvals` | 待处理的 HITL 审批请求及其会话快照 |
 
 索引创建在 `task_id`、`session_id`、`scope` 和 `updated_at` 上以支持高效查询。`scope` 列通过迁移添加，如果从旧版本升级。
 

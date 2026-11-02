@@ -293,6 +293,9 @@ type invoke_result = {
      field backwards-compatible with the v0.7.x single-shot invoke
      semantics — existing call sites pass [approval_pending = None]. *)
   approval_pending : approval_pending_info option;
+  (* Present when the invoke ran with durability enabled; pass it to
+     [Runtime.recover_invoke] after a crash. *)
+  invoke_id : string option;
 }
 
 type structured_invoke_result = {
@@ -776,6 +779,10 @@ type event =
   (* A run was still marked running when the process started: its writer died.
      Emitted once per row at startup; nothing is resumed automatically. *)
   | Workflow_orphaned of { workflow_run_id : Workflow_run_id.t }
+  (* A durable invoke left a checkpoint behind when the process started: its
+     writer died. Emitted once per row at startup; nothing is resumed
+     automatically. *)
+  | Invoke_orphaned of { invoke_id : string; agent_id : string }
   | Approval_requested of { prompt : string; allowed_roles : string list }
   | Approval_granted of { approver : string }
   | Approval_timeout
@@ -1310,6 +1317,19 @@ type workflow_checkpoint = {
 }
 [@@deriving yojson]
 
+type invoke_checkpoint = {
+  invoke_id : string;
+  agent_id : string;
+  session_id : string;
+  schema_version : int [@default 1];
+  iteration : int;
+  elapsed : float;
+  enable_handoff : bool;
+  conversation : conversation;
+  updated_at : float;
+}
+[@@deriving yojson]
+
 type workflow_status =
   | Wf_pending
   | Wf_running
@@ -1355,6 +1375,14 @@ type persistence_service = {
     run_id:string -> (Yojson.Safe.t option, error_category) result;
   delete_pending_approval_fn :
     run_id:string -> (unit, error_category) result;
+  save_invoke_checkpoint_fn :
+    invoke_checkpoint -> (unit, error_category) result;
+  load_invoke_checkpoint_fn :
+    string -> (invoke_checkpoint option, error_category) result;
+  list_invoke_checkpoints_fn :
+    unit -> (invoke_checkpoint list, error_category) result;
+  delete_invoke_checkpoint_fn :
+    string -> (unit, error_category) result;
   close_fn : unit -> unit;
 }
 

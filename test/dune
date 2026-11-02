@@ -674,6 +674,11 @@
   (modules test_workflow_recovery))
 
 (test
+  (name test_invoke_durability)
+  (libraries par eio_main alcotest yojson logs sqlite3)
+  (modules test_invoke_durability))
+
+(test
   (name test_reasoning)
   (libraries par eio_main alcotest yojson logs)
   (modules test_reasoning))

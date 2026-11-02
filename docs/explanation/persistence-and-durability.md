@@ -12,7 +12,7 @@ An agent runtime generates events. Every tool invocation, every task state chang
 
 PAR treats persistence as an *eventually-consistent audit log*, not as a transactional state store. The agent loop itself does not block on persistence. When `Runtime.invoke` emits a `Tool_invoked` event, that event goes to the event bus, and from there to a batched writer, and from there to SQLite, all asynchronously. If the write fails, the runtime logs it and keeps running. The agent's correctness does not depend on the audit log being durable, only on the LLM responses and tool results being correct in memory. This separation is what lets PAR stay fast under load while still giving you an audit trail after the fact.
 
-The exception is workflow checkpoints. Workflow state, stored in the `workflow_states` table, is written after each step of a `Sequential` chain, together with the variables that step bound, so an interrupted run can resume where it stopped. That path is more latency-sensitive, but it still goes through the same batched writer. If you need strict durability for workflow resume, you accept the batch latency.
+The exception is checkpoints. Workflow state, stored in the `workflow_states` table, is written after each step of a `Sequential` chain, together with the variables that step bound, so an interrupted run can resume where it stopped. Durable invoke checkpoints (`invoke_checkpoints`) are written synchronously on the invoke fiber, because a checkpoint that might still be in a buffer when the process dies is not a checkpoint. Workflow checkpoints are always on; invoke checkpoints are opt-in, because a long tool loop pays one conversation-sized write per batch. The rest of the audit log stays asynchronous.
 
 ## Recovering an interrupted workflow
 
@@ -24,6 +24,23 @@ Control-flow nodes are atomic for recovery. `Parallel`, `Map_reduce` and `Sub_wo
 
 Sub-workflows are not independently recoverable yet: a crashed child leaves only its parent's checkpoint, so recovery re-runs the whole `Sub_workflow` step.
 
+## Recovering an interrupted invoke
+
+The agent loop has its own crash story, and it is opt-in. `Runtime.invoke ~durable:true` (or naming the run with `~invoke_id`) writes a checkpoint after iteration zero and after every completed tool batch, into the `invoke_checkpoints` table. The row is deleted on every terminal outcome — success, failure, cancellation, and suspension for approval — so a row that outlives the process belongs to a dead writer.
+
+Name the run yourself when you need to recover it: `~invoke_id:"order-42"`. A minted id is only returned in `invoke_result.invoke_id`, which a crashed process never returns. After a restart, `Runtime.create` loads leftover rows, emits `Invoke_orphaned` once per row, and `Runtime.list_orphaned_invokes` lists them. `Runtime.recover_invoke rt ~invoke_id` re-enters the loop with the checkpointed conversation, the recorded iteration count and the elapsed execution budget.
+
+The semantics match workflows:
+
+- **at-least-once**: a tool that was executing when the process died runs again;
+- **explicit**: nothing resumes automatically, and only ids rehydrated at startup are eligible — a run still in flight in this process is refused, because recovering it would execute it twice;
+- **atomic batches**: a parallel tool batch checkpoints once, after all its results are folded into the conversation. A crash inside a batch replays the whole batch;
+- **schema-checked**: a checkpoint from a newer `schema_version` is refused rather than guessed at.
+
+Two honest limits. The system prompt is replayed from the checkpoint rather than recomputed, so a skill or appendix change between the crash and the recovery does not take effect. And a run suspended for approval is not recoverable this way: the `approvals` row owns that state and `Runtime.resume_approval` is its resume path.
+
+Checkpoints are written synchronously on the invoke fiber, not through the batched event writer. That is deliberate — a checkpoint that might still be in a buffer when the process dies is not a checkpoint — and it is why durability is opt-in: a long tool loop pays one conversation-sized write per batch.
+
 ## Two persistence tiers
 
 PAR ships two persistence tiers, controlled by the `persistence` field in `runtime_config`:
@@ -33,9 +50,9 @@ PAR ships two persistence tiers, controlled by the `persistence` field in `runti
 
 The `` `Noop `` tier is also a subtle architectural statement. When persistence is noop, the runtime skips wiring up the event bus entirely. There is no dead event bus feeding a dead writer. The `Persistence_writer` and `Event_bus` instances are `None` on the runtime record. This keeps the test path lean and makes it impossible to accidentally leave a background drain fiber running in a unit test.
 
-## The schema: three tables
+## The schema: four tables
 
-SQLite uses the schema defined in `lib/persistence/sqlite_persistence.ml`. Three tables:
+SQLite uses the schema defined in `lib/persistence/sqlite_persistence.ml`. Four tables:
 
 ```sql
 CREATE TABLE events (
@@ -61,13 +78,19 @@ CREATE TABLE workflow_states (
   checkpoint  TEXT,
   updated_at  REAL NOT NULL
 );
+
+CREATE TABLE invoke_checkpoints (
+  invoke_id  TEXT PRIMARY KEY,
+  state_json TEXT NOT NULL,
+  updated_at REAL NOT NULL
+);
 ```
 
 `events` is the append-only audit log. Every published event is JSON-serialized into `payload`, tagged with `task_id` and `timestamp`, and deduplicated by `idempotency_key`. The `session_id` column lets you filter events by conversation, and `actions_json` carries structured side-effect data (the command vector for a bash invocation, for example). Two indexes, `idx_events_task_id` and `idx_events_session_id`, keep the common query paths fast.
 
-`task_states` tracks the lifecycle of a task: queued, running, completed, failed. `workflow_states` holds workflow checkpoints so a multi-step workflow can resume after a crash. Both use `updated_at` as a monotonic clock for ordering.
+`task_states` tracks the lifecycle of a task: queued, running, completed, failed. `workflow_states` holds workflow checkpoints so a multi-step workflow can resume after a crash. `invoke_checkpoints` holds one in-flight conversation snapshot per durable invoke. All of them use `updated_at` as a monotonic clock for ordering.
 
-The schema is borrowed from LangGraph's three-table model, which is itself an abstraction over what checkpointing systems need: a log of what happened (`events`), a snapshot of transient state (`task_states`), and a snapshot of long-running state (`workflow_states`). PAR deliberately did not invent a fourth shape. The three-table pattern is battle-tested across agent frameworks, and reusing it means the operational playbook (how you query for a session's history, how you prune, how you resume) transfers.
+The first three tables are borrowed from LangGraph's three-table model, which is itself an abstraction over what checkpointing systems need: a log of what happened (`events`), a snapshot of transient state (`task_states`), and a snapshot of long-running state (`workflow_states`). PAR deliberately did not invent a fourth *shape*. `invoke_checkpoints` is the same "snapshot of transient state" idea, but keyed by an invoke id: an `invoke` is not a `task_state` row, and putting a conversation-sized payload on the scheduler's state record would charge every task query for durability data it does not use. The table exists so the two concerns stay separate rather than sharing a row with a union of columns.
 
 ## The write path: event bus to disk
 
@@ -111,7 +134,7 @@ One constraint follows from WAL plus SQLite's file locking: only one process sho
 
 Left unchecked, the events table grows forever. PAR prunes it. The default retention TTL is 7 days (`default_retention_ttl = 7. *. 24. *. 60. *. 60.` in `lib/persistence/sqlite_persistence.ml`). When a SQLite backend is opened, it runs a prune that deletes every event older than the TTL. You can override the TTL per-backend at create time.
 
-Pruning is timestamp-based, on the `events` table only. `task_states` and `workflow_states` are not pruned automatically, because their rows represent resumable state rather than historical noise. If you want to clean those up, you do it yourself with a DELETE. The assumption is that a long-running service cares about audit history aging out but not about losing a workflow checkpoint it might still resume.
+Pruning is timestamp-based, on the `events` table only. `task_states`, `workflow_states` and `invoke_checkpoints` are not pruned automatically, because their rows represent resumable state rather than historical noise. If you want to clean those up, you do it yourself with a DELETE. The assumption is that a long-running service cares about audit history aging out but not about losing a workflow checkpoint it might still resume.
 
 ## When to pick which tier
 

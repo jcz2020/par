@@ -38,6 +38,14 @@ type runtime = {
   orphaned_workflow_runs : (Workflow_run_id.t, unit) protected_hashtbl;
   (* Guards against two concurrent recoveries of the same run. *)
   recovering_workflow_runs : (Workflow_run_id.t, unit) protected_hashtbl;
+  (* Durable invokes (PAR-mrr): ids rehydrated at startup as orphans, ids whose
+     recovery is running now, and ids currently in flight in this process. The
+     last one is what stops [recover_invoke] from double-running a live invoke,
+     the same defect v0.14 fixed for workflows. *)
+  orphaned_invokes : (string, string) protected_hashtbl;
+  recovering_invokes : (string, unit) protected_hashtbl;
+  active_invokes : (string, unit) protected_hashtbl;
+  persistence_is_noop : bool;
   workflow_defs : (string, workflow) protected_hashtbl;
   tool_registry : Tool_registry.t;
   mutable tool_description_overrides : (string * string) list;
@@ -952,9 +960,7 @@ let load_conversation rt sid =
   | Ok (Some conv) ->
     rt.session_id := Some sid;
     Current_conversation.set rt (Some conv);
-    (match rt.event_bus_instance with
-     | Some bus -> Event_bus.set_session_id bus sid
-     | None -> rt.services.event_bus.set_session_id_fn sid);
+    rt.services.event_bus.set_session_id_fn sid;
     Logs.debug (fun m -> m "Session resumed: sid=%s (%d messages)"
                    sid (List.length conv.Types.messages));
     Ok (Some conv)
@@ -966,34 +972,90 @@ let load_most_recent_conversation rt ?scope () =
   | Ok (Some (sid, conv)) ->
     rt.session_id := Some sid;
     Current_conversation.set rt (Some conv);
-    (match rt.event_bus_instance with
-     | Some bus -> Event_bus.set_session_id bus sid
-     | None -> rt.services.event_bus.set_session_id_fn sid);
+    rt.services.event_bus.set_session_id_fn sid;
     Ok (Some (sid, conv))
   | Ok None -> Ok None
   | Error _ as e -> e
 
-let invoke_content rt ~agent_id ~content ?workspace ?cancellation_token ?conversation
+(* The user turn a checkpointed conversation started from, used when recovery
+   re-enters [invoke_content]: skills and the appendix are recomputed from it,
+   so the resumed run sees the same activation the crashed one did. *)
+let last_user_content (conv : Types.conversation) =
+  List.fold_left (fun acc (m : Types.message) ->
+    if m.role = Types.User then m.content_blocks else acc
+  ) [] conv.messages
+
+let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token ?conversation
     ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix
     ?(skills : string list option)
     ?(context : Invoke_context.invoke_context option)
-    ?(update_current = true) ?(save = false) () =
-  if List.exists (function Tool_use_block _ | Tool_result_block _ -> true | _ -> false) content then
+    ?(update_current = true) ?(save = false)
+    ?(durable = false) ?invoke_id
+    ?(resume : invoke_checkpoint option)
+    () =
+  (* A named or durable run is checkpointed after every completed tool batch,
+     so a crashed process can resume it. Naming a run with [~invoke_id] implies
+     durability: a run the caller cannot name is a run it cannot recover. *)
+  let durable = durable || invoke_id <> None || resume <> None in
+  let invoke_id = match resume with
+    | Some cp -> Some cp.invoke_id
+    | None ->
+      if durable then
+        Some (match invoke_id with
+              | Some id -> id
+              | None -> Session_id.to_string (Session_id.create ()))
+      else None
+  in
+  let content = match resume with
+    | Some cp -> last_user_content cp.conversation
+    | None -> content
+  in
+  let conversation = match resume with
+    | Some cp -> Some cp.conversation
+    | None -> conversation
+  in
+  (* A checkpoint taken with handoff enabled must resume with it: the flag
+     changes which tools the loop will accept, so it is part of the state. *)
+  let enable_handoff = match resume with
+    | Some cp -> Some cp.enable_handoff
+    | None -> enable_handoff
+  in
+  let empty_conv = { Types.messages = []; metadata = [] } in
+  let error_conv = Option.value conversation ~default:empty_conv in
+  let already_in_flight = match invoke_id with
+    | Some id -> htbl_get rt.active_invokes id <> None
+    | None -> false
+  in
+  if durable && rt.persistence_is_noop then
+    Result.Error (Invalid_input
+      "durable invoke requires a persistence backend (the noop service cannot checkpoint)",
+      error_conv)
+  else if already_in_flight then
+    Result.Error (Invalid_input
+      (Printf.sprintf "Invoke id '%s' is already in flight in this process"
+         (Option.value invoke_id ~default:"")), error_conv)
+  else if List.exists (function Tool_use_block _ | Tool_result_block _ -> true | _ -> false) content then
     Result.Error (Invalid_input "user content accepts only text and image blocks",
-      Option.value conversation ~default:{ Types.messages = []; metadata = [] })
+      Option.value conversation ~default:empty_conv)
   else
   let text_part = Message.string_of_content content in
   let effective_workspace = Option.value workspace ~default:rt.workspace in
   let ctx = match context with
     | Some c -> c
     | None ->
-      let session_id = match !(rt.session_id) with
-        | Some sid -> sid
-        | None ->
-          let new_sid = Session_id.to_string (Session_id.create ()) in
-          rt.session_id := Some new_sid;
-          new_sid
+      let session_id = match resume with
+        | Some cp when cp.session_id <> "" -> cp.session_id
+        | _ ->
+          (match !(rt.session_id) with
+           | Some sid -> sid
+           | None ->
+             let new_sid = Session_id.to_string (Session_id.create ()) in
+             rt.session_id := Some new_sid;
+             new_sid)
       in
+      (match resume with
+       | Some cp when cp.session_id <> "" -> rt.session_id := Some cp.session_id
+       | _ -> ());
       Invoke_context.create
         ~session_id
         ~metrics:(Metrics.empty ())
@@ -1003,16 +1065,28 @@ let invoke_content rt ~agent_id ~content ?workspace ?cancellation_token ?convers
         ?on_tool_event
         ()
   in
-  (match rt.event_bus_instance with
-   | Some bus -> Event_bus.set_session_id bus ctx.session_id
-   | None -> rt.services.event_bus.set_session_id_fn ctx.session_id);
+  rt.services.event_bus.set_session_id_fn ctx.session_id;
   Invoke_context.with_context ctx (fun () ->
+  (match invoke_id with
+   | Some id -> htbl_set rt.active_invokes id ()
+   | None -> ());
+  Fun.protect
+    ~finally:(fun () ->
+      match invoke_id with
+      | Some id -> htbl_remove rt.active_invokes id
+      | None -> ())
+    (fun () ->
   let result =
   let agent = htbl_get rt.agents agent_id in
   match agent with
   | None -> Result.Error (Invalid_input (Printf.sprintf "Agent not found: %s" agent_id),
                            { Types.messages = []; metadata = [] })
   | Some config ->
+    let invoke_start = Unix.gettimeofday () in
+    let base_elapsed = match resume with
+      | Some cp -> cp.elapsed
+      | None -> 0.0
+    in
     let token = match cancellation_token with
       | Some t -> t
       | None -> Cancellation.create_token rt.cancellation_root
@@ -1108,6 +1182,31 @@ let invoke_content rt ~agent_id ~content ?workspace ?cancellation_token ?convers
             ?net:(Option.map (fun n -> (Obj.obj n : _ Eio.Net.t)) rt.net)
             ?budget_threshold:rt.services.config.max_tool_schema_tokens
             ~user_content:content
+            ~on_step_complete:(Some (fun conv iteration ->
+              match invoke_id with
+              | None -> ()
+              | Some id ->
+                let now = Unix.gettimeofday () in
+                let cp : Types.invoke_checkpoint = {
+                  invoke_id = id;
+                  agent_id;
+                  session_id = ctx.session_id;
+                  schema_version = 1;
+                  iteration;
+                  elapsed = base_elapsed +. (now -. invoke_start);
+                  enable_handoff = Option.value enable_handoff ~default:false;
+                  conversation = conv;
+                  updated_at = now;
+                } in
+                (match rt.services.persistence.save_invoke_checkpoint_fn cp with
+                 | Ok () -> ()
+                 | Error e ->
+                   Logs.err (fun m -> m
+                     "[invoke] save_invoke_checkpoint failed (id=%s iter=%d): %s"
+                     id iteration (string_of_error_category e)))))
+            ~resume:(resume <> None)
+            ~resume_iteration:(match resume with Some cp -> cp.iteration | None -> 0)
+            ~resume_elapsed:base_elapsed
             token config text_part llm_svc (per_call_registry ~rt ~workspace:effective_workspace)
           with
           | Engine.Approval_pending payload ->
@@ -1197,16 +1296,14 @@ let invoke_content rt ~agent_id ~content ?workspace ?cancellation_token ?convers
                 record_llm_success rt;
                 if update_current then Current_conversation.set rt (Some conv);
                 if save then ignore (save_conversation rt ~conversation:conv () : (unit, error_category) result);
-                Result.Ok { Types.response = resp; conversation = conv; approval_pending }
+                Result.Ok { Types.response = resp; conversation = conv; approval_pending; invoke_id }
               | Error (err, _conv) when should_fallback err && rest <> [] ->
                 record_llm_error rt err;
                 let evt = Types.Provider_fallback_attempted {
                   from_provider = id;
                   to_provider = List.hd rest;
                 } in
-                (match rt.event_bus_instance with
-                 | Some bus -> Event_bus.publish bus evt
-                 | None -> rt.services.event_bus.publish_fn evt);
+                rt.services.event_bus.publish_fn evt;
                 try_providers rest
               | Error (err, conv) ->
                 record_llm_error rt err;
@@ -1215,21 +1312,45 @@ let invoke_content rt ~agent_id ~content ?workspace ?cancellation_token ?convers
     in
     try_providers all_ids
   in
+  (* A checkpoint row means "in flight", so every terminal outcome removes it.
+     A run suspended for approval also removes it: the approvals row owns that
+     state and [resume_approval] is its recovery path. *)
+  (match invoke_id with
+   | Some id ->
+     (match rt.services.persistence.delete_invoke_checkpoint_fn id with
+      | Ok () -> ()
+      | Error e ->
+        Logs.err (fun m -> m "[invoke] delete_invoke_checkpoint failed (id=%s): %s"
+                    id (string_of_error_category e)))
+   | None -> ());
   Metrics.merge_into ~target:rt.metrics ~source:ctx.metrics_accumulator;
-  result)
+  result))
+
+(* The public entry point hides [~resume]: resuming from an arbitrary
+   checkpoint would bypass the orphan and in-flight guards in [recover_invoke]. *)
+let invoke_content rt ~agent_id ~content ?workspace ?cancellation_token ?conversation
+    ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix
+    ?(skills : string list option)
+    ?(context : Invoke_context.invoke_context option)
+    ?(update_current = true) ?(save = false)
+    ?(durable = false) ?invoke_id () =
+  invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token ?conversation
+    ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix
+    ?skills ?context ~update_current ~save ~durable ?invoke_id ()
 
 let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
     ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix
     ?(skills : string list option)
     ?(context : Invoke_context.invoke_context option)
-    ?(update_current = true) ?(save = false) () =
+    ?(update_current = true) ?(save = false) ?(durable = false) ?invoke_id () =
   invoke_content rt ~agent_id ~content:(Message.content_of_string message)
     ?workspace ?cancellation_token ?conversation
     ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix
-    ?skills ?context ~update_current ~save ()
+    ?skills ?context ~update_current ~save ~durable ?invoke_id ()
 
 let invoke_async rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
-    ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix ?skills ?context () =
+    ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix ?skills ?context
+    ?(durable = false) ?invoke_id () =
   let token = match cancellation_token with
     | Some t -> t
     | None -> Cancellation.create_token rt.cancellation_root
@@ -1237,7 +1358,7 @@ let invoke_async rt ~agent_id ~message ?workspace ?cancellation_token ?conversat
   Invoke_context.fork_invoke ~sw:rt.cancellation_root ~token (fun () ->
     invoke rt ~agent_id ~message ?workspace
       ~cancellation_token:token ?conversation ?on_tool_event ?on_chunk
-      ?enable_handoff ?system_prompt_appendix ?skills ?context ())
+      ?enable_handoff ?system_prompt_appendix ?skills ?context ~durable ?invoke_id ())
 
 let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
     ?(save = true) ?(update_current = true) ?on_tool_event ?on_chunk ?system_prompt_appendix () =
@@ -1248,9 +1369,7 @@ let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
       rt.session_id := Some new_sid;
       new_sid
   in
-  (match rt.event_bus_instance with
-   | Some bus -> Event_bus.set_session_id bus session_id
-   | None -> rt.services.event_bus.set_session_id_fn session_id);
+  rt.services.event_bus.set_session_id_fn session_id;
   match htbl_get rt.agents agent_id with
   | None -> Result.Error (Invalid_input (Printf.sprintf "Unknown agent: %s" agent_id),
                            { Types.messages = []; metadata = [] })
@@ -1332,9 +1451,7 @@ let invoke_structured rt ~agent_id ~message ~response_schema
     ?system_prompt_appendix
     ?on_tool_event ?on_repair_attempt () =
   let session_id = Session_id.to_string (Session_id.create ()) in
-  (match rt.event_bus_instance with
-   | Some bus -> Event_bus.set_session_id bus session_id
-   | None -> rt.services.event_bus.set_session_id_fn session_id);
+  rt.services.event_bus.set_session_id_fn session_id;
   let ctx = Invoke_context.create
     ~session_id
     ~metrics:(Metrics.empty ())
@@ -2311,6 +2428,66 @@ let recover_workflow rt wf_id =
       "Workflow is suspended for approval; use resume_workflow")
   | Some _ -> Result.Error (Invalid_input "Workflow is not in a recoverable state")
 
+(* -------------------------------------------------------------------------- *)
+(* Durable invoke recovery (PAR-mrr)                                          *)
+(* -------------------------------------------------------------------------- *)
+
+(** Ids rehydrated at startup as orphans, paired with their agent. *)
+let list_orphaned_invokes rt =
+  let acc = ref [] in
+  Types.htbl_iter rt.orphaned_invokes (fun id agent_id ->
+    acc := (id, agent_id) :: !acc);
+  List.rev !acc
+
+(** Resume a durable invoke whose writer died. Mirrors [recover_workflow]:
+    only startup orphans are eligible (a live invoke would run twice), the
+    caller must decide, and a checkpoint from a newer schema is refused. *)
+let recover_invoke rt ~invoke_id ?workspace ?on_tool_event ?on_chunk
+    ?(update_current = true) ?(save = false) () =
+  let empty_conv = { Types.messages = []; metadata = [] } in
+  if htbl_get rt.recovering_invokes invoke_id <> None then
+    Result.Error (Invalid_input "Recovery for this invoke is already in progress", empty_conv)
+  else if htbl_get rt.active_invokes invoke_id <> None then
+    Result.Error (Invalid_input
+      ("Invoke is running in this process; recovery is only for runs whose writer died"),
+      empty_conv)
+  else if htbl_get rt.orphaned_invokes invoke_id = None then
+    Result.Error (Invalid_input
+      ("Invoke was not recorded as an orphan at startup; recovery only accepts runs \
+        rehydrated by Runtime.create"), empty_conv)
+  else
+  Fun.protect
+    ~finally:(fun () -> htbl_remove rt.recovering_invokes invoke_id)
+    (fun () ->
+    htbl_set rt.recovering_invokes invoke_id ();
+    match rt.services.persistence.load_invoke_checkpoint_fn invoke_id with
+    | Error e -> Result.Error (e, empty_conv)
+    | Ok None ->
+      Result.Error (Invalid_input
+        (Printf.sprintf "Invoke %s is recorded as an orphan but has no checkpoint" invoke_id),
+        empty_conv)
+    | Ok (Some cp) ->
+      if cp.schema_version > 1 then
+        Result.Error (Invalid_input
+          (Printf.sprintf
+             "Checkpoint schema_version %d is newer than this runtime understands (1)"
+             cp.schema_version), empty_conv)
+      else if htbl_get rt.agents cp.agent_id = None then
+        Result.Error (Invalid_input
+          (Printf.sprintf "Agent '%s' is not registered (needed for recovery)" cp.agent_id),
+          empty_conv)
+      else
+        match invoke_content_internal rt ~agent_id:cp.agent_id ~content:[]
+                ?workspace ?on_tool_event ?on_chunk
+                ~resume:cp ~update_current ~save () with
+        | Ok _ as ok ->
+          (* A recovered run is no longer an orphan. Keep the entry on failure
+             so a transient cause (agent not registered yet) can be fixed and
+             retried. *)
+          htbl_remove rt.orphaned_invokes invoke_id;
+          ok
+        | Error _ as e -> e)
+
 let approve_workflow rt wf_id ~approver =
   match htbl_get rt.workflows wf_id with
   | None -> Result.Error (Invalid_input "Workflow not found")
@@ -2351,6 +2528,10 @@ let noop_persistence : Types.persistence_service = {
   save_pending_approval_fn = (fun ~run_id:_ ~agent_id:_ ~payload:_ ~expires_at:_ -> Ok ());
   load_pending_approval_fn = (fun ~run_id:_ -> Ok None);
   delete_pending_approval_fn = (fun ~run_id:_ -> Ok ());
+  save_invoke_checkpoint_fn = (fun _cp -> Ok ());
+  load_invoke_checkpoint_fn = (fun _id -> Ok None);
+  list_invoke_checkpoints_fn = (fun () -> Ok []);
+  delete_invoke_checkpoint_fn = (fun _id -> Ok ());
   close_fn = ignore;
 }
 
@@ -2396,6 +2577,12 @@ let create ?(persistence = noop_persistence)
     in
     let semaphore = Eio.Semaphore.make config.default_quota.max_concurrent_tasks in
     let persistence_is_noop = persistence == noop_persistence in
+    (* A caller-supplied bus used to be dropped entirely when persistence was
+       on: [create] built an internal bus for the writer and the injected one saw
+       no events at all, so orphan notifications never reached an operator. The
+       two now compose: events go to both, and the caller keeps ownership of
+       subscriptions and session ids. *)
+    let caller_has_bus = event_bus != noop_event_bus_service in
     let (event_bus_service, event_bus_instance, persistence_writer) =
       if not persistence_is_noop then begin
         let bus = Event_bus.create default_event_bus_config in
@@ -2415,7 +2602,24 @@ let create ?(persistence = noop_persistence)
         let _sub = Event_bus.subscribe bus (fun envelope ->
           Persistence_writer.push writer envelope
         ) in
-        (Event_bus.to_service bus, Some bus, Some writer)
+        let internal_svc = Event_bus.to_service bus in
+        let service =
+          if not caller_has_bus then internal_svc
+          else {
+            (* Internal first: persistence must see the event even if a
+               caller handler raises. *)
+            publish_fn = (fun evt ->
+              internal_svc.publish_fn evt;
+              event_bus.publish_fn evt);
+            subscribe_fn = event_bus.subscribe_fn;
+            unsubscribe_fn = event_bus.unsubscribe_fn;
+            set_session_id_fn = (fun sid ->
+              internal_svc.set_session_id_fn sid;
+              event_bus.set_session_id_fn sid);
+            start_dispatcher_fn = event_bus.start_dispatcher_fn;
+          }
+        in
+        (service, Some bus, Some writer)
       end else
         (event_bus, None, None)
     in
@@ -2451,6 +2655,10 @@ let create ?(persistence = noop_persistence)
       workflows = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
       orphaned_workflow_runs = { data = Hashtbl.create 8; mutex = Eio.Mutex.create () };
       recovering_workflow_runs = { data = Hashtbl.create 8; mutex = Eio.Mutex.create () };
+      orphaned_invokes = { data = Hashtbl.create 8; mutex = Eio.Mutex.create () };
+      recovering_invokes = { data = Hashtbl.create 8; mutex = Eio.Mutex.create () };
+      active_invokes = { data = Hashtbl.create 8; mutex = Eio.Mutex.create () };
+      persistence_is_noop = persistence_is_noop;
       workflow_defs = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
       tool_registry = Tool_registry.create ();
       tool_description_overrides = [];
@@ -2521,6 +2729,17 @@ let create ?(persistence = noop_persistence)
        ) recoverable_runs
      | Error e ->
        Logs.err (fun m -> m "Runtime.create: rehydration failed: %s"
+                    (string_of_error_category e)));
+    (match rt.services.persistence.list_invoke_checkpoints_fn () with
+     | Ok checkpoints ->
+       List.iter (fun (cp : Types.invoke_checkpoint) ->
+         Types.htbl_set rt.orphaned_invokes cp.invoke_id cp.agent_id;
+         publish_event rt (Invoke_orphaned {
+           invoke_id = cp.invoke_id; agent_id = cp.agent_id;
+         })
+       ) checkpoints
+     | Error e ->
+       Logs.err (fun m -> m "Runtime.create: invoke checkpoints rehydration failed: %s"
                     (string_of_error_category e)));
     let mcp_errors = ref [] in
     if mcp_servers <> [] then begin
@@ -2689,9 +2908,7 @@ let cancel_stream_requested rt = rt.cancel_stream_requested
 
 let set_session_id rt sid =
   rt.session_id := Some sid;
-  (match rt.event_bus_instance with
-   | Some bus -> Event_bus.set_session_id bus sid
-   | None -> rt.services.event_bus.set_session_id_fn sid)
+  rt.services.event_bus.set_session_id_fn sid
 
 let get_session_id rt =
   match !(rt.session_id) with
@@ -2699,9 +2916,7 @@ let get_session_id rt =
   | None ->
     let sid = Session_id.to_string (Session_id.create ()) in
     rt.session_id := Some sid;
-    (match rt.event_bus_instance with
-     | Some bus -> Event_bus.set_session_id bus sid
-     | None -> rt.services.event_bus.set_session_id_fn sid);
+    rt.services.event_bus.set_session_id_fn sid;
     sid
 
 let get_default_provider_id rt = rt.default_provider_id

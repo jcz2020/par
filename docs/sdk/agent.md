@@ -281,6 +281,8 @@ val Runtime.invoke :
   ?context:Invoke_context.invoke_context ->
   ?update_current:bool ->
   ?save:bool ->
+  ?durable:bool ->
+  ?invoke_id:string ->
   unit ->
   (invoke_result, error_category * conversation) result
 ```
@@ -300,6 +302,8 @@ All optional parameters:
 | `?context` | `Invoke_context.invoke_context` | Pre-built per-call isolation context. When provided, uses this context instead of creating a fresh one. See [invoke_context](invoke_context.md). |
 | `?update_current` | `bool` | When `true`, persist this invocation's resulting conversation back to the agent's current conversation handle (v0.7.7+). Default follows the runtime's persistence policy. |
 | `?save` | `bool` | When `true`, persist the resulting conversation to the persistence backend (v0.7.7+). When `false`, the conversation stays in memory only. Default follows the runtime's persistence policy. |
+| `?durable` | `bool` | Checkpoint the invoke after every completed tool batch so a crashed process can resume it. Requires a real persistence backend; the noop service is rejected. Default: `false`. |
+| `?invoke_id` | `string` | Name the run and imply `durable = true`. Supply one when the run must be recoverable: a minted id is only returned in `invoke_result.invoke_id`, which a crashed process never returns. |
 
 The return type is `invoke_result`, which wraps `llm_response`:
 
@@ -321,6 +325,7 @@ type invoke_result = {
   response : llm_response;
   conversation : conversation;
   approval_pending : approval_pending_info option;
+  invoke_id : string option;   (* present when durability is enabled *)
 }
 ```
 
@@ -338,6 +343,53 @@ match Runtime.invoke rt ~agent_id:"my-agent" ~message:"Hello!" () with
   Printf.eprintf "Error: %s\n"
     (Types.error_category_to_yojson err |> Yojson.Safe.to_string)
 ```
+
+### Durable invokes and crash recovery
+
+A durable invoke checkpoints the conversation after iteration zero and after every completed tool batch. The checkpoint is deleted on every terminal outcome, so a row that outlives the process belongs to a dead writer.
+
+```ocaml
+val Runtime.recover_invoke :
+  runtime ->
+  invoke_id:string ->
+  ?workspace:Workspace.workspace ->
+  ?on_tool_event:(event -> unit) ->
+  ?on_chunk:(llm_response_chunk -> unit) option ->
+  ?update_current:bool ->
+  ?save:bool ->
+  unit ->
+  (invoke_result, error_category * conversation) result
+
+val Runtime.list_orphaned_invokes : runtime -> (string * string) list
+```
+
+Name the run yourself when it must survive a crash:
+
+```ocaml
+match Runtime.invoke rt ~agent_id:"ops" ~message:"reconcile accounts"
+        ~invoke_id:"reconcile-2026-11-03" () with
+| Ok result -> (* ... *)
+| Error (err, _) -> (* ... *)
+```
+
+After a restart, `Runtime.create` rehydrates leftover rows and emits `Invoke_orphaned` once per row; `list_orphaned_invokes` returns them as `(invoke_id, agent_id)`. Nothing resumes automatically, because replaying a tool with side effects is the caller's decision:
+
+```ocaml
+List.iter (fun (invoke_id, _agent_id) ->
+  match Runtime.recover_invoke rt ~invoke_id () with
+  | Ok result -> ignore result
+  | Error (err, _) -> ignore err)
+  (Runtime.list_orphaned_invokes rt)
+```
+
+Recovery semantics:
+
+- **at-least-once** — a tool that was executing when the process died runs again;
+- a parallel tool batch is atomic: it checkpoints once, after every result is folded into the conversation, so a crash inside the batch replays the batch;
+- only ids rehydrated at startup are eligible; an invoke still in flight in this process is refused, because recovering it would execute it twice;
+- a checkpoint whose `schema_version` is newer than the runtime understands is refused.
+
+A run suspended for approval is not recoverable this way: the approvals row owns that state, and `Runtime.resume_approval` is its resume path. In Python, the method surface is `invoke(..., durable=True, invoke_id=...)`, `recover_invoke(invoke_id)`, and `list_orphaned_invokes()`.
 
 ### Structured output
 

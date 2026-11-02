@@ -273,6 +273,8 @@ val Runtime.invoke :
   ?context:Invoke_context.invoke_context ->
   ?update_current:bool ->
   ?save:bool ->
+  ?durable:bool ->
+  ?invoke_id:string ->
   unit ->
   (invoke_result, error_category * conversation) result
 ```
@@ -292,6 +294,8 @@ val Runtime.invoke :
 | `?context` | `Invoke_context.invoke_context` | 预构建的单次调用隔离上下文。提供时使用此上下文而非创建新的。见 [invoke_context](invoke_context.md)。 |
 | `?update_current` | `bool` | 为 `true` 时，将本次调用产生的对话回写到 agent 当前的 conversation handle（v0.7.7+）。默认遵循 runtime 的持久化策略。 |
 | `?save` | `bool` | 为 `true` 时，将产生的对话持久化到持久化后端（v0.7.7+）。为 `false` 时，对话仅保留在内存中。默认遵循 runtime 的持久化策略。 |
+| `?durable` | `bool` | 在每个完成的工具批次后写检查点，使崩溃的进程可以恢复本次 invoke。需要真实的持久化后端；noop 服务会被拒绝。默认：`false`。 |
+| `?invoke_id` | `string` | 给运行起名，并隐含 `durable = true`。需要崩溃后仍可恢复时必须提供：自动生成的 id 只出现在 `invoke_result.invoke_id` 里，而崩溃的进程永远返回不了它。 |
 
 返回类型为 `invoke_result`，它包裹 `llm_response`：
 
@@ -313,6 +317,7 @@ type invoke_result = {
   response : llm_response;
   conversation : conversation;
   approval_pending : approval_pending_info option;
+  invoke_id : string option;   (* 启用持久化时存在 *)
 }
 ```
 
@@ -330,6 +335,53 @@ match Runtime.invoke rt ~agent_id:"my-agent" ~message:"Hello!" () with
   Printf.eprintf "Error: %s\n"
     (Types.error_category_to_yojson err |> Yojson.Safe.to_string)
 ```
+
+### 持久化 invoke 与崩溃恢复
+
+持久化 invoke 会在第 0 次迭代后、以及每个完成的工具批次后写一次会话检查点。任何终止结果都会删除检查点，因此活过进程的行必然属于已死的写入者。
+
+```ocaml
+val Runtime.recover_invoke :
+  runtime ->
+  invoke_id:string ->
+  ?workspace:Workspace.workspace ->
+  ?on_tool_event:(event -> unit) ->
+  ?on_chunk:(llm_response_chunk -> unit) option ->
+  ?update_current:bool ->
+  ?save:bool ->
+  unit ->
+  (invoke_result, error_category * conversation) result
+
+val Runtime.list_orphaned_invokes : runtime -> (string * string) list
+```
+
+需要在崩溃后恢复时，请自己给运行起名：
+
+```ocaml
+match Runtime.invoke rt ~agent_id:"ops" ~message:"reconcile accounts"
+        ~invoke_id:"reconcile-2026-11-03" () with
+| Ok result -> (* ... *)
+| Error (err, _) -> (* ... *)
+```
+
+重启后，`Runtime.create` 会读回遗留的行，并对每行发一次 `Invoke_orphaned`；`list_orphaned_invokes` 以 `(invoke_id, agent_id)` 返回它们。不会自动恢复：重跑一个有副作用的工具应由调用方决定。
+
+```ocaml
+List.iter (fun (invoke_id, _agent_id) ->
+  match Runtime.recover_invoke rt ~invoke_id () with
+  | Ok result -> ignore result
+  | Error (err, _) -> ignore err)
+  (Runtime.list_orphaned_invokes rt)
+```
+
+恢复语义：
+
+- **at-least-once**——进程死亡时正在执行的工具会重跑；
+- 并行工具批次是原子的：仅在全部结果折入会话后写一次检查点，批次内部崩溃会整批重跑；
+- 只有启动时重水化的 id 才有资格；本进程仍在运行的 invoke 会被拒绝，因为恢复它会导致双重执行；
+- `schema_version` 比运行时能理解的新时，检查点被拒绝。
+
+因审批挂起的运行不走这条路：`approvals` 行拥有那个状态，恢复入口是 `Runtime.resume_approval`。Python 侧对应 `invoke(..., durable=True, invoke_id=...)`、`recover_invoke(invoke_id)` 与 `list_orphaned_invokes()`。
 
 ### 结构化输出
 

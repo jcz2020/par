@@ -552,6 +552,47 @@ char* par_invoke_content(par_runtime_t* rt, const char* agent_id,
     return ret;
 }
 
+char* par_invoke_durable(par_runtime_t* rt, const char* agent_id,
+                         const char* message, const char* invoke_id) {
+    if (rt == NULL || agent_id == NULL || message == NULL) return NULL;
+    CAMLparam0();
+    CAMLlocal3(c_aid, c_msg, c_iid);
+    c_aid = caml_copy_string(agent_id);
+    c_msg = caml_copy_string(message);
+    c_iid = caml_copy_string(invoke_id == NULL ? "" : invoke_id);
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value args[4] = { rt->_ocaml_value, c_aid, c_msg, c_iid };
+    const value* cb = lookup_cb("par_invoke_durable");
+    value result = caml_callbackN_exn(*cb, 4, args);
+    char* ret = extract_string(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLreturnT(char*, ret);
+}
+
+char* par_recover_invoke(par_runtime_t* rt, const char* invoke_id) {
+    if (rt == NULL || invoke_id == NULL) return NULL;
+    CAMLparam0();
+    CAMLlocal1(c_iid);
+    c_iid = caml_copy_string(invoke_id);
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value args[2] = { rt->_ocaml_value, c_iid };
+    const value* cb = lookup_cb("par_recover_invoke");
+    value result = caml_callbackN_exn(*cb, 2, args);
+    char* ret = extract_string(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLreturnT(char*, ret);
+}
+
+char* par_list_orphaned_invokes(par_runtime_t* rt) {
+    if (rt == NULL) return NULL;
+    CAMLparam0();
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value result = call1_exn("par_list_orphaned_invokes", rt->_ocaml_value);
+    char* ret = extract_string(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLreturnT(char*, ret);
+}
+
 char* par_generate(par_runtime_t* rt, const char* agent_id,
                    const char* message) {
     CAMLparam0();

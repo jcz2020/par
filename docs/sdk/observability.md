@@ -144,6 +144,7 @@ The `event` variant is large because the bus covers the whole runtime lifecycle.
 | Tools | `Tool_invoked`, `Tool_completed`, `Tool_failed`, `Tool_progress` | `tool_name`, `duration_ms`, `result_preview` |
 | Bash tool | `Bash_invoked`, `Bash_completed` | `argv`, `cwd`, `exit_code`, `risk` |
 | Workflows | `Workflow_started`, `Workflow_step_completed`, `Workflow_completed`, `Workflow_failed` | `workflow_run_id`, `step_id` |
+| Durability | `Workflow_orphaned`, `Invoke_orphaned` | `workflow_run_id`, `invoke_id`, `agent_id` |
 | Approval | `Approval_requested`, `Approval_granted`, `Approval_timeout` | `prompt`, `allowed_roles`, `approver` |
 | Shutdown | `Shutdown_initiated`, `Shutdown_completed` | `exit_code` |
 | MCP | `Mcp_server_started`, `Mcp_server_failed`, `Mcp_server_stopped`, `Mcp_tool_invoked`, `Mcp_tool_completed`, `Mcp_resource_read`, `Mcp_prompt_rendered` | `server_id`, `tool_name`, `uri` |

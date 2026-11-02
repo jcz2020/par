@@ -627,6 +627,8 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
     ?(tool_call_hooks = None) ?(quota = None) ?(parallel = false)
     ?(on_progress = None) ?(on_tool_event = None) ?(on_chunk = None)
+    ?(on_step_complete = None)
+    ?(resume = false) ?(resume_iteration = 0) ?(resume_elapsed = 0.0)
     ?conversation ?agent_resolver ?(enable_handoff = false)
     ?(net : _ Eio.Net.t option)
     ?(budget_threshold : int option)
@@ -745,7 +747,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
       (let c = Message.text_of_message msg in
        if c = "" then "<none>" else c))
   in
-  let start_time = Unix.gettimeofday () in
+  let start_time = Unix.gettimeofday () -. resume_elapsed in
   let last_compress_iter = ref (-1_000_000) in
   let reactive_attempts = ref 0 in
   (* LOOP INVARIANT (root-cause fix for v0.7.8):
@@ -758,6 +760,15 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
      LLM call's context and remain inside [loop].
      This eliminates the "remember-to-call-add_assistant_message" pattern
      that caused the original bug (Stop/Content_filter path forgot). *)
+  (* Durable invoke checkpoint boundary (PAR-mrr): a step is one completed
+     tool batch, after its results are folded into the conversation. Parallel
+     batches report once — a crash inside one replays the whole batch, the same
+     rule the workflow engine uses for its atomic subtrees. *)
+  let report_step conv iteration =
+    match on_step_complete with
+    | Some f -> f conv iteration
+    | None -> ()
+  in
   let rec loop ~agent ~global_max conv iterations =
     let global_max = max global_max agent.max_iterations in
     let elapsed = Unix.gettimeofday () -. start_time in
@@ -1340,6 +1351,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
            | [] ->
              (match approvals with
               | [] ->
+                report_step conv (iterations + 1);
                 loop ~agent ~global_max conv (iterations + 1)
               | [(call, (Approval_required _ as ar))] ->
                 execute_approval call ar
@@ -1469,6 +1481,11 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
      end
    in
   let conv = match conversation with
+    | Some existing when resume ->
+      (* Recovery continues from the checkpoint verbatim: the system prompt and
+         any invoke appendix are already materialized in it, so re-applying
+         them would drift from what the interrupted run actually saw. *)
+      existing
     | Some existing ->
       Logs.info (fun m -> m "[engine] Resuming conversation: %d existing messages, appending user message (%d chars)"
         (List.length existing.messages) (String.length user_message));
@@ -1543,7 +1560,11 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
      `tool_call_id = None` — only "terminal-shaped" Assistant messages can
      trigger the skip. Case (a) is enforced by code review + the structural
      default (`Ok (resp, conv)` gets the append for free). *)
-  match loop ~agent ~global_max:0 conv 0 with
+  (* Iteration zero is a checkpoint too: a crash before the first tool batch
+     would otherwise leave a run with nothing to resume from. Recovery skips
+     this write, because the row it loaded is already the same state. *)
+  if not resume then report_step conv 0;
+  match loop ~agent ~global_max:0 conv resume_iteration with
   | Result.Error e -> Result.Error e
   | Result.Ok (resp, conv_pre) ->
      let needs_append =

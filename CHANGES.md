@@ -1,5 +1,35 @@
 # CHANGES
 
+## Unreleased — durable agent invokes
+
+> An interrupted agent loop can now be recovered instead of silently losing its completed tool calls. Durability is opt-in, checkpoints after iteration zero and after every completed tool batch, and the row is deleted on every terminal outcome — so a row that outlives the process belongs to a dead writer. Also fixes the defect that made crash notifications unobservable: an injected `~event_bus` was discarded whenever persistence was on. **1685 OCaml tests across 126 suites, 0 failures; 202 Python tests passing with 20 pre-existing skips.** No version bump yet: the next release is a MINOR because a public record and the event type changed.
+
+### Added — durable invokes (PAR-mrr)
+
+- **NEW** `Runtime.invoke ~durable:true` checkpoints the invoke after iteration zero and after every completed tool batch. `~invoke_id:"order-42"` names the run and implies durability: a minted id is only returned in `invoke_result.invoke_id`, which a crashed process never returns, so the caller must be able to name the run it wants to recover. Durability requires a real persistence backend; the noop service is rejected instead of silently checkpointing into nothing.
+- **NEW** `Runtime.recover_invoke rt ~invoke_id` re-enters the loop with the checkpointed conversation, iteration count and elapsed execution budget. Eligibility mirrors `recover_workflow`: only ids rehydrated at startup, with an in-flight guard, because recovering a live run would execute it twice. A parallel tool batch is atomic — the checkpoint is written once, after every result is folded into the conversation, so a crash inside the batch replays the batch. A checkpoint whose `schema_version` is newer than the runtime understands is refused.
+- **NEW** `Runtime.list_orphaned_invokes` returns the `(invoke_id, agent_id)` pairs rehydrated at startup. `Runtime.create` emits `Invoke_orphaned` once per row; nothing resumes automatically.
+- **NEW** `invoke_checkpoints` table (`invoke_id`, `state_json`, `updated_at`). A row exists only while the invoke is in flight. Undecodable rows are logged and skipped at startup rather than taking the process down.
+- `invoke_result` gains `invoke_id : string option`.
+- Python: `Runtime.invoke(..., durable=True, invoke_id=...)`, `Runtime.recover_invoke(invoke_id)` and `Runtime.list_orphaned_invokes()`, backed by `par_invoke_durable`, `par_recover_invoke` and `par_list_orphaned_invokes`.
+- The resumed run replays the checkpointed system prompt verbatim rather than recomputing skills and the invoke appendix, so recovery cannot drift from the context the crashed run actually saw. A run suspended for approval is not recoverable through `recover_invoke`: the `approvals` row owns that state and `resume_approval` is its resume path.
+
+### Fixed — an injected event bus was dropped when persistence was on (PAR-tqf)
+
+- `Runtime.create` built an internal bus for the persistence writer and discarded the caller's `~event_bus` outright, so an injected bus received no runtime events at all — including `Workflow_orphaned` and `Invoke_orphaned`. The two now compose: events go to the internal bus first (persistence must see them even if a caller handler raises), then to the caller's bus, and `set_session_id` updates both. Subscriptions stay delegated to the caller's bus. This is what makes the orphan notification observable, and it is a prerequisite for recovery being usable rather than merely present.
+
+### Breaking relative to the published beta
+
+- `invoke_result` gained `invoke_id`; record literals and record patterns that spell out every field must add it.
+- `event` gained `Invoke_orphaned`; exhaustive matches must handle it.
+- `persistence_service` gained four checkpoint fields: `save_invoke_checkpoint_fn`, `load_invoke_checkpoint_fn`, `list_invoke_checkpoints_fn`, `delete_invoke_checkpoint_fn`.
+- `Engine.run_agent` gained optional parameters (`?on_step_complete`, `?resume`, `?resume_iteration`, `?resume_elapsed`); existing calls are unaffected.
+
+### Tests
+
+- OCaml totals are **1685 tests across 126 suites**, 0 failures. Seven new cases: the checkpoint exists while the tool runs and is gone after success; recovery replays the checkpointed conversation without re-running the completed tool; the orphan is announced on an injected bus while persistence is on; a newer schema is refused; a run started in this process is refused; a corrupt row does not crash startup; and an injected bus sees `Workflow_orphaned` while persistence is on. Three mutations were run to prove the set is not vacuous: disabling `~resume` breaks recovery, removing the iteration-zero checkpoint breaks the lifecycle case, removing the terminal delete breaks both, and dropping the bus composition breaks the notification case.
+- Python totals are **202 passed / 20 skipped**, including four binding cases: the id is echoed, a successful run leaves no row, the durable flag mints an id, and an unknown id is refused by `recover_invoke`.
+
 ## v0.14.0-beta.20261102 — durable workflow execution
 
 > An interrupted workflow can now be recovered instead of being silently orphaned. The per-step checkpoint was written with the run's *starting* variables, so it looked resumable and was not; recovery is explicit, skips completed steps, and the semantics are at-least-once. **1678 OCaml tests across 125 suites, 0 failures; 198 Python tests passing with 20 pre-existing skips.** Beta-first: the stable line remains v0.10.0.

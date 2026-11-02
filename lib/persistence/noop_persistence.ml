@@ -48,3 +48,13 @@ let load_pending_approval _t ~run_id:_ = Ok None
 let delete_pending_approval _t ~run_id:_ = Ok ()
 
 let list_expired_approvals _t ~cutoff:_ = Ok []
+
+(* Durability requires a real backend: [invoke ~durable:true] rejects the noop
+   service rather than silently checkpointing into nothing. *)
+let save_invoke_checkpoint (_ : t) (_cp : invoke_checkpoint) = Ok ()
+
+let load_invoke_checkpoint (_ : t) (_invoke_id : string) = Ok None
+
+let list_invoke_checkpoints (_ : t) = Ok []
+
+let delete_invoke_checkpoint (_ : t) (_invoke_id : string) = Ok ()

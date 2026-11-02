@@ -148,6 +148,10 @@ let with_persisted_runtime ~llm ~agent (f : Par.Runtime.runtime -> 'a) : 'a =
             (fun ~run_id -> Sqlite_persistence.load_pending_approval sqlt ~run_id);
           delete_pending_approval_fn =
             (fun ~run_id -> Sqlite_persistence.delete_pending_approval sqlt ~run_id);
+          save_invoke_checkpoint_fn = (fun cp -> Sqlite_persistence.save_invoke_checkpoint sqlt cp);
+          load_invoke_checkpoint_fn = (fun id -> Sqlite_persistence.load_invoke_checkpoint sqlt id);
+          list_invoke_checkpoints_fn = (fun () -> Sqlite_persistence.list_invoke_checkpoints sqlt);
+          delete_invoke_checkpoint_fn = (fun id -> Sqlite_persistence.delete_invoke_checkpoint sqlt id);
           close_fn = (fun () -> Sqlite_persistence.close sqlt);
         } in
         (match Runtime.create ~llm ~persistence:persist

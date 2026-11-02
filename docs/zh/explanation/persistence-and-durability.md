@@ -14,7 +14,7 @@ Agent 运行时会产生事件。每次工具调用、每次任务状态变更�
 
 PAR 把持久化视为*最终一致的审计日志*，而非事务性状态存储。Agent 循环本身不会在持久化上阻塞。`Runtime.invoke` 发出 `Tool_invoked` 事件时，事件去往事件总线，再到批量写入器，最后到 SQLite，全程异步。写入失败时运行时记录日志并继续运行。Agent 的正确性不依赖审计日志的持久性，只依赖 LLM 响应和工具结果在内存中的正确性。这种分离让 PAR 在负载下保持快速，同时事后给你审计轨迹。
 
-例外是工作流检查点。工作流状态存储在 `workflow_states` 表中，在 `Sequential` 链的每一步完成后写入，并带上该步绑定的变量，因此被中断的运行可以从停下的位置继续。这条路径对延迟更敏感，但仍通过同一个批量写入器。如果你需要工作流恢复的严格持久性，就接受批量延迟。
+例外是检查点。工作流状态存储在 `workflow_states` 表中，在 `Sequential` 链的每一步完成后写入，并带上该步绑定的变量，因此被中断的运行可以从停下的位置继续。持久化 invoke 的检查点（`invoke_checkpoints`）在 invoke 所在的 fiber 上同步写入——进程死亡时可能还留在缓冲区里的检查点不算检查点。工作流检查点始终开启；invoke 检查点是可选的，因为长工具循环每批都要付一次「整份会话大小」的写入。其余审计日志仍然异步。
 
 ## 恢复被中断的工作流
 
@@ -26,6 +26,23 @@ PAR 把持久化视为*最终一致的审计日志*，而非事务性状态存�
 
 子工作流目前不能独立恢复：子工作流崩溃时只留下父级的检查点，因此恢复会重跑整个 `Sub_workflow` 步骤。
 
+## 恢复被中断的 invoke
+
+Agent 循环有自己的崩溃恢复路径，而且是可选的。`Runtime.invoke ~durable:true`（或给运行起名 `~invoke_id`）会在第 0 次迭代后、以及每个完成的工具批次后，往 `invoke_checkpoints` 表写一次检查点。任何终止结果——成功、失败、取消、因审批挂起——都会删除该行，因此活过进程的行必然属于已死的写入者。
+
+需要恢复时请自己给运行起名：`~invoke_id:"order-42"`。自动生成的 id 只出现在 `invoke_result.invoke_id` 里，而崩溃的进程永远返回不了它。重启后，`Runtime.create` 读回遗留的行、对每行发一次 `Invoke_orphaned`，`Runtime.list_orphaned_invokes` 列出它们。`Runtime.recover_invoke rt ~invoke_id` 带着检查点里的会话、迭代计数与已耗时预算重新进入循环。
+
+语义与工作流一致：
+
+- **at-least-once**：进程死亡时正在执行的工具会重跑；
+- **显式**：不会自动恢复，且只有启动时重水化的 id 才有资格——本进程仍在运行的 invoke 会被拒绝，因为恢复它会导致双重执行；
+- **批次原子**：并行工具批次只在全部结果折入会话后写一次检查点。批次内部崩溃会整批重跑；
+- **schema 校验**：`schema_version` 更新的检查点被拒绝，而不是猜测。
+
+两条需要如实说明的限制。系统提示词从检查点原样重放，而不是重新计算，因此崩溃与恢复之间修改 skill 或 appendix 不会生效。因审批挂起的运行不走这条路：`approvals` 行拥有那个状态，恢复入口是 `Runtime.resume_approval`。
+
+检查点在 invoke 所在的 fiber 上同步写入，不经过批量事件写入器。这是刻意的——进程死亡时可能还在缓冲区里的检查点不算检查点——也是持久化必须可选的原因：长工具循环每个批次都要付一次会话大小的写入。
+
 ## 两个持久化层级
 
 PAR 提供两个持久化层级，通过 `runtime_config` 的 `persistence` 字段控制：
@@ -35,9 +52,9 @@ PAR 提供两个持久化层级，通过 `runtime_config` 的 `persistence` 字�
 
 `` `Noop `` 层级也是一个微妙的架构声明。持久化为 noop 时，运行时完全跳过事件总线的接线。没有死总线喂给死写入器。`Persistence_writer` 和 `Event_bus` 实例在运行时记录上是 `None`。这让测试路径精简，也使单元测试中意外留下后台 drain fiber 运行变得不可能。
 
-## Schema：三张表
+## Schema：四张表
 
-SQLite 使用 `lib/persistence/sqlite_persistence.ml` 中定义的 schema。三张表：
+SQLite 使用 `lib/persistence/sqlite_persistence.ml` 中定义的 schema。四张表：
 
 ```sql
 CREATE TABLE events (
@@ -63,13 +80,19 @@ CREATE TABLE workflow_states (
   checkpoint  TEXT,
   updated_at  REAL NOT NULL
 );
+
+CREATE TABLE invoke_checkpoints (
+  invoke_id  TEXT PRIMARY KEY,
+  state_json TEXT NOT NULL,
+  updated_at REAL NOT NULL
+);
 ```
 
 `events` 是追加式审计日志。每个发布的事件被 JSON 序列化到 `payload`，标记 `task_id` 和 `timestamp`，通过 `idempotency_key` 去重。`session_id` 列让你按会话过滤事件，`actions_json` 携带结构化的副作用数据（比如 bash 调用的命令向量）。两个索引 `idx_events_task_id` 和 `idx_events_session_id` 保持常见查询路径的性能。
 
-`task_states` 跟踪任务生命周期：排队、运行中、完成、失败。`workflow_states` 保存工作流检查点，使多步工作流在崩溃后可以恢复。两者都使用 `updated_at` 作为单调时钟排序。
+`task_states` 跟踪任务生命周期：排队、运行中、完成、失败。`workflow_states` 保存工作流检查点，使多步工作流在崩溃后可以恢复。`invoke_checkpoints` 为每个持久化 invoke 保存一份在途会话快照。它们都用 `updated_at` 作为单调时钟排序。
 
-Schema 借鉴自 LangGraph 的三表模型，它是对检查点系统需求的抽象：发生过什么的日志（`events`）、瞬时状态的快照（`task_states`）、长期运行状态的快照（`workflow_states`）。PAR 刻意没有发明第四种形态。三表模式在 agent 框架中经过实战检验，复用它意味着运维手册（如何查询会话历史、如何裁剪、如何恢复）可以直接迁移。
+前三张表借鉴自 LangGraph 的三表模型，它是对检查点系统需求的抽象：发生过什么的日志（`events`）、瞬时状态的快照（`task_states`）、长期运行状态的快照（`workflow_states`）。PAR 刻意没有发明第四种*形态*。`invoke_checkpoints` 仍是同一个「瞬时状态快照」思路，只是以 invoke id 为键：invoke 不是 `task_state` 行，而把会话大小的负载塞进调度器的状态记录，会让每次任务查询都为用不到的持久化数据付费。这张表存在，是为了让两个关注点各自独立，而不是挤在同一行里堆列。
 
 ## 写入路径：从事件总线到磁盘
 
@@ -113,7 +136,7 @@ WAL 加 SQLite 文件锁有一个约束：同一时间只有一个进程应该�
 
 不加控制的话，events 表会无限增长。PAR 会裁剪它。默认保留 TTL 为 7 天（`default_retention_ttl = 7. *. 24. *. 60. *. 60.`，在 `lib/persistence/sqlite_persistence.ml` 中）。SQLite 后端打开时会运行一次裁剪，删除所有超过 TTL 的事件。你可以在创建时为每个后端覆盖 TTL。
 
-裁剪基于时间戳，仅针对 `events` 表。`task_states` 和 `workflow_states` 不自动裁剪，因为它们的行代表可恢复状态而非历史噪音。如果你想清理它们，自己写 DELETE。假设是长期运行的服务关心审计历史的过期清理，但不关心丢失可能仍需恢复的工作流检查点。
+裁剪基于时间戳，仅针对 `events` 表。`task_states`、`workflow_states` 与 `invoke_checkpoints` 不自动裁剪，因为它们的行代表可恢复状态而非历史噪音。如果你想清理它们，自己写 DELETE。假设是长期运行的服务关心审计历史的过期清理，但不关心丢失可能仍需恢复的工作流检查点。
 
 ## 何时选择哪个层级
 

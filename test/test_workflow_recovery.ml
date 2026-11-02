@@ -73,6 +73,10 @@ let persistence_of (sqlt : Sqlite_persistence.t) : persistence_service = {
     (fun ~run_id -> Sqlite_persistence.load_pending_approval sqlt ~run_id);
   delete_pending_approval_fn =
     (fun ~run_id -> Sqlite_persistence.delete_pending_approval sqlt ~run_id);
+  save_invoke_checkpoint_fn = (fun cp -> Sqlite_persistence.save_invoke_checkpoint sqlt cp);
+  load_invoke_checkpoint_fn = (fun id -> Sqlite_persistence.load_invoke_checkpoint sqlt id);
+  list_invoke_checkpoints_fn = (fun () -> Sqlite_persistence.list_invoke_checkpoints sqlt);
+  delete_invoke_checkpoint_fn = (fun id -> Sqlite_persistence.delete_invoke_checkpoint sqlt id);
   close_fn = (fun () -> Sqlite_persistence.close sqlt);
 }
 
@@ -136,6 +140,39 @@ let test_create_rehydrates_running_and_emits_orphaned () =
          | Workflow_orphaned { workflow_run_id } ->
            Workflow_run_id.equal workflow_run_id run_id
          | _ -> false) !written)
+
+(* The injected bus used to be discarded whenever persistence was on: the
+   runtime built its own bus for the writer and the caller's one saw nothing.
+   Orphan notifications are the one signal that makes recovery usable, so this
+   pins the composition. *)
+let test_injected_bus_sees_orphan_notifications () =
+  Eio_main.run @@ fun _env ->
+  Eio.Switch.run @@ fun sw ->
+  with_database @@ fun persist ->
+  let run_id = Workflow_run_id.create () in
+  let cp = checkpoint ~workflow_id:"wf-bus" () in
+  (match persist.save_workflow_state_fn run_id Wf_running (Some cp) with
+   | Ok () -> ()
+   | Error e -> Alcotest.failf "seed: %s" (error_to_string e));
+  let seen = ref [] in
+  let bus : event_bus_service = {
+    publish_fn = (fun evt -> seen := evt :: !seen);
+    subscribe_fn = (fun _ -> "");
+    unsubscribe_fn = (fun _ -> ());
+    set_session_id_fn = (fun _ -> ());
+    start_dispatcher_fn = (fun _ -> ());
+  } in
+  let rt = match Runtime.create ~persistence:persist ~event_bus:bus
+                   ~config:(runtime_config ()) sw with
+    | Ok rt -> rt
+    | Error e -> Alcotest.failf "create: %s" (error_to_string e)
+  in
+  Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) @@ fun () ->
+  Alcotest.(check bool) "the injected bus saw Workflow_orphaned" true
+    (List.exists (function
+       | Workflow_orphaned { workflow_run_id } ->
+         Workflow_run_id.equal workflow_run_id run_id
+       | _ -> false) !seen)
 
 (* -------------------------------------------------------------------------- *)
 (* Recovery                                                                   *)
@@ -369,6 +406,8 @@ let () =
     "startup", [
       Alcotest.test_case "running rows are rehydrated and announced" `Quick
         test_create_rehydrates_running_and_emits_orphaned;
+      Alcotest.test_case "an injected bus sees orphan notifications" `Quick
+        test_injected_bus_sees_orphan_notifications;
     ];
     "recovery", [
       Alcotest.test_case "completed steps are not re-run" `Quick

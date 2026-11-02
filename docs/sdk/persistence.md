@@ -4,7 +4,7 @@
 
 # Persistence API
 
-PAR ships with an embedded persistence layer that stores events, task states, workflow checkpoints, and conversation history in a local SQLite database. The persistence service is optional. When configured, it gives every `Runtime.invoke` call durable storage. When omitted, the runtime works in ephemeral mode, great for quick experiments and unit tests.
+PAR ships with an embedded persistence layer that stores events, task states, workflow checkpoints, invoke checkpoints, and conversation history in a local SQLite database. The persistence service is optional. When configured, it gives every `Runtime.invoke` call durable storage. When omitted, the runtime works in ephemeral mode, great for quick experiments and unit tests.
 
 ## Overview
 
@@ -118,9 +118,20 @@ Workflow persistence handles checkpoints, suspended workflows, and workflow defi
 |----------|-------------|
 | `save_workflow_state_fn` | Save workflow status and optional checkpoint |
 | `load_workflow_state_fn` | Load the checkpoint for a workflow run |
-| `load_all_suspended_workflows_fn` | List all suspended workflows (for resume after crash) |
+| `load_recoverable_runs_fn` | List rows a crashed writer left behind (`running` and `suspended`) for startup rehydration |
 | `save_workflow_def_fn` | Store a workflow definition by id |
 | `load_all_workflow_defs_fn` | List all stored workflow definitions |
+
+### Invoke checkpoints
+
+Durable invokes (`Runtime.invoke ~durable:true`) keep one row per in-flight run. The row exists only while the invoke is running: it is upserted after iteration zero and after every completed tool batch, and deleted on every terminal outcome. A row found at startup therefore belongs to a dead writer, which is what `Runtime.recover_invoke` and `Runtime.list_orphaned_invokes` consume.
+
+| Function | Description |
+|----------|-------------|
+| `save_invoke_checkpoint_fn` | Upsert the checkpoint for an in-flight invoke |
+| `load_invoke_checkpoint_fn` | Load a checkpoint by invoke id; a decode failure is an error, not `None` |
+| `list_invoke_checkpoints_fn` | List leftover rows for startup rehydration (undecodable rows are logged and skipped) |
+| `delete_invoke_checkpoint_fn` | Remove a checkpoint on terminal outcome |
 
 ### Conversation history
 
@@ -193,15 +204,17 @@ with Runtime(config) as rt:
 
 ## SQLite schema
 
-The backend creates five tables on first open:
+The backend creates seven tables on first open:
 
 | Table | Purpose |
 |-------|---------|
 | `events` | Event log with task_id, session_id, scope, payload |
 | `task_states` | Task state snapshots |
 | `workflow_states` | Workflow checkpoints and status |
+| `invoke_checkpoints` | In-flight durable invoke checkpoints (one row per running invoke) |
 | `conversations` | Conversation messages and metadata |
 | `workflow_definitions` | Workflow definitions by id |
+| `approvals` | Pending HITL approval requests with their conversation snapshot |
 
 Indexes are created on `task_id`, `session_id`, `scope`, and `updated_at` for efficient queries. The `scope` column is added via migration if upgrading from an older version that did not have it.
 

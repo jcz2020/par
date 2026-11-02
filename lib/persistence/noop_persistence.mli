@@ -18,4 +18,8 @@ val save_pending_approval : t -> run_id:string -> agent_id:string -> payload:Yoj
 val load_pending_approval : t -> run_id:string -> (Yojson.Safe.t option, error_category) result
 val delete_pending_approval : t -> run_id:string -> (unit, error_category) result
 val list_expired_approvals : t -> cutoff:float -> (string list, error_category) result
+val save_invoke_checkpoint : t -> invoke_checkpoint -> (unit, error_category) result
+val load_invoke_checkpoint : t -> string -> (invoke_checkpoint option, error_category) result
+val list_invoke_checkpoints : t -> (invoke_checkpoint list, error_category) result
+val delete_invoke_checkpoint : t -> string -> (unit, error_category) result
 val transaction : t -> (t -> 'a) -> ('a, error_category) result

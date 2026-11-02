@@ -185,6 +185,10 @@ val run_agent :
   ?on_progress:(string -> unit) option ->
   ?on_tool_event:(event -> unit) option ->
   ?on_chunk:(llm_response_chunk -> unit) option ->
+  ?on_step_complete:(conversation -> int -> unit) option ->
+  ?resume:bool ->
+  ?resume_iteration:int ->
+  ?resume_elapsed:float ->
   ?conversation:conversation ->
   ?agent_resolver:(string -> agent_config option) ->
   ?enable_handoff:bool ->

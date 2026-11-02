@@ -207,6 +207,21 @@ _lib.par_invoke_content.argtypes = [
 ]
 _lib.par_invoke_content.restype = ctypes.c_void_p
 
+# Durable invocation (PAR-mrr). Empty invoke_id means "mint one"; the id is
+# echoed in the JSON envelope as "invoke_id". Same ownership as par_invoke.
+_lib.par_invoke_durable.argtypes = [
+    ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p,
+]
+_lib.par_invoke_durable.restype = ctypes.c_void_p
+
+# Resume a durable invoke whose writer died; only startup orphans are eligible.
+_lib.par_recover_invoke.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_recover_invoke.restype = ctypes.c_void_p
+
+# JSON array of {"invoke_id","agent_id"} rehydrated at startup as orphans.
+_lib.par_list_orphaned_invokes.argtypes = [ctypes.c_void_p]
+_lib.par_list_orphaned_invokes.restype = ctypes.c_void_p
+
 # char* par_generate(par_runtime_t* rt, const char* agent_id, const char* message);
 # Caller MUST free() the returned string — same memory model as par_invoke.
 _lib.par_generate.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p]

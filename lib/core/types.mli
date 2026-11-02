@@ -215,6 +215,11 @@ type invoke_result = {
   response : llm_response;
   conversation : conversation;
   approval_pending : approval_pending_info option;
+  (* Present when the invoke ran with durability enabled. The caller can pass
+     this id to [Runtime.recover_invoke] after a crash, so a durable run is
+     only recoverable when the caller can name it (either by supplying
+     [~invoke_id] or by reading this field). *)
+  invoke_id : string option;
 }
 
 type structured_invoke_result = {
@@ -641,6 +646,10 @@ type event =
   (** A run was still marked running when the process started, i.e. its writer
       died. Emitted once per row at startup; nothing is resumed automatically. *)
   | Workflow_orphaned of { workflow_run_id : Workflow_run_id.t }
+  (** A durable invoke left a checkpoint behind when the process started, i.e.
+      its writer died. Emitted once per row at startup; nothing is resumed
+      automatically. *)
+  | Invoke_orphaned of { invoke_id : string; agent_id : string }
   | Approval_requested of { prompt : string; allowed_roles : string list }
   | Approval_granted of { approver : string }
   | Approval_timeout
@@ -1020,6 +1029,29 @@ type workflow_checkpoint = {
 }
 [@@deriving yojson]
 
+(** Checkpoint for a durable [Runtime.invoke] (PAR-mrr). Written after every
+    completed tool batch; the row's existence in the store means the invoke is
+    in flight. A row that survives a process is an orphan: recovery is explicit
+    because replaying a tool with side effects is the caller's decision. *)
+type invoke_checkpoint = {
+  invoke_id : string;
+  agent_id : string;
+  session_id : string;
+  schema_version : int [@default 1];
+  (* Completed ReAct iterations at snapshot time; recovery resumes counting
+     here so the iteration budget is not silently reset. *)
+  iteration : int;
+  (* Wall-clock seconds spent before the snapshot; recovery restores the
+     [max_execution_time] budget instead of restarting it. *)
+  elapsed : float;
+  (* Recorded because it changes loop behavior: a checkpoint taken with
+     handoff enabled must resume with handoff enabled. *)
+  enable_handoff : bool;
+  conversation : conversation;
+  updated_at : float;
+}
+[@@deriving yojson]
+
 type workflow_status =
   | Wf_pending
   | Wf_running
@@ -1050,6 +1082,17 @@ type persistence_service = {
     run_id:string -> (Yojson.Safe.t option, error_category) result;
   delete_pending_approval_fn :
     run_id:string -> (unit, error_category) result;
+  (* Durable invoke checkpoints (PAR-mrr). A row exists only while the invoke
+     is in flight: it is upserted after each completed tool batch and deleted
+     on every terminal outcome. Rows found at startup belong to a dead writer. *)
+  save_invoke_checkpoint_fn :
+    invoke_checkpoint -> (unit, error_category) result;
+  load_invoke_checkpoint_fn :
+    string -> (invoke_checkpoint option, error_category) result;
+  list_invoke_checkpoints_fn :
+    unit -> (invoke_checkpoint list, error_category) result;
+  delete_invoke_checkpoint_fn :
+    string -> (unit, error_category) result;
   close_fn : unit -> unit;
 }
 

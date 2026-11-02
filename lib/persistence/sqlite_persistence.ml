@@ -80,6 +80,11 @@ let init_schema db =
          created_at   REAL NOT NULL,
          expires_at   REAL NOT NULL
        )|};
+    {|CREATE TABLE IF NOT EXISTS invoke_checkpoints (
+         invoke_id    TEXT PRIMARY KEY,
+         state_json   TEXT NOT NULL,
+         updated_at   REAL NOT NULL
+       )|};
   ] in
   (match List.find_map (fun sql ->
      match exec_sql db sql with
@@ -656,6 +661,113 @@ let list_expired_approvals t ~cutoff =
     in
     let _ = Sqlite3.finalize stmt in
     result
+  )
+
+(* -------------------------------------------------------------------------- *)
+(* Durable invoke checkpoints (PAR-mrr)                                       *)
+(* -------------------------------------------------------------------------- *)
+
+let save_invoke_checkpoint t (cp : invoke_checkpoint) =
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
+    let json = Yojson.Safe.to_string (invoke_checkpoint_to_yojson cp) in
+    let stmt =
+      Sqlite3.prepare t.db
+        "INSERT OR REPLACE INTO invoke_checkpoints (invoke_id, state_json, updated_at) \
+         VALUES (?, ?, ?)"
+    in
+    let _ = Sqlite3.bind_text stmt 1 cp.invoke_id in
+    let _ = Sqlite3.bind_text stmt 2 json in
+    let _ = Sqlite3.bind_double stmt 3 cp.updated_at in
+    let step_result = Sqlite3.step stmt in
+    let _ = Sqlite3.finalize stmt in
+    match step_result with
+    | Sqlite3.Rc.DONE | Sqlite3.Rc.ROW -> Ok ()
+    | rc ->
+      Result.Error (Internal (Printf.sprintf "save_invoke_checkpoint: %s"
+                                (Sqlite3.Rc.to_string rc)))
+  )
+
+(** A row that cannot be decoded is reported, not guessed at: recovery must not
+    resume from a checkpoint this runtime does not understand. *)
+let load_invoke_checkpoint t invoke_id =
+  Eio.Mutex.use_ro t.mutex (fun () ->
+    let stmt =
+      Sqlite3.prepare t.db
+        "SELECT state_json FROM invoke_checkpoints WHERE invoke_id = ?"
+    in
+    let _ = Sqlite3.bind_text stmt 1 invoke_id in
+    let result =
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.ROW ->
+        let state_json = Sqlite3.column_text stmt 0 in
+        (match
+           try invoke_checkpoint_of_yojson (Yojson.Safe.from_string state_json)
+           with Yojson.Json_error msg -> Error msg
+         with
+         | Ok cp -> Ok (Some cp)
+         | Error msg ->
+           Result.Error (Internal
+             (Printf.sprintf "load_invoke_checkpoint decode (%s): %s" invoke_id msg)))
+      | Sqlite3.Rc.DONE -> Ok None
+      | rc ->
+        Result.Error (Internal (Printf.sprintf "load_invoke_checkpoint: %s"
+                                  (Sqlite3.Rc.to_string rc)))
+    in
+    let _ = Sqlite3.finalize stmt in
+    result
+  )
+
+(** Startup scan. A corrupt row must not take the process down (the v0.14
+    workflow lesson), so it is logged and skipped; the remaining rows are still
+    reported. *)
+let list_invoke_checkpoints t =
+  Eio.Mutex.use_ro t.mutex (fun () ->
+    let stmt =
+      Sqlite3.prepare t.db
+        "SELECT invoke_id, state_json FROM invoke_checkpoints ORDER BY updated_at ASC"
+    in
+    let acc = ref [] in
+    let result =
+      let stop = ref false in
+      let error = ref None in
+      while not !stop do
+        match Sqlite3.step stmt with
+        | Sqlite3.Rc.ROW ->
+          let invoke_id = Sqlite3.column_text stmt 0 in
+          let state_json = Sqlite3.column_text stmt 1 in
+          (match
+             try invoke_checkpoint_of_yojson (Yojson.Safe.from_string state_json)
+             with Yojson.Json_error msg -> Error msg
+           with
+           | Ok cp -> acc := cp :: !acc
+           | Error msg ->
+             Logs.err (fun m -> m
+               "sqlite_persistence: skipping undecodable invoke checkpoint %s: %s"
+               invoke_id msg))
+        | Sqlite3.Rc.DONE -> stop := true
+        | rc ->
+          stop := true;
+          error := Some (Result.Error (Internal
+            (Printf.sprintf "list_invoke_checkpoints: %s" (Sqlite3.Rc.to_string rc))))
+      done;
+      match !error with
+      | Some e -> e
+      | None -> Ok (List.rev !acc)
+    in
+    let _ = Sqlite3.finalize stmt in
+    result
+  )
+
+let delete_invoke_checkpoint t invoke_id =
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
+    let stmt = Sqlite3.prepare t.db "DELETE FROM invoke_checkpoints WHERE invoke_id = ?" in
+    let _ = Sqlite3.bind_text stmt 1 invoke_id in
+    let step_result = Sqlite3.step stmt in
+    let _ = Sqlite3.finalize stmt in
+    match step_result with
+    | Sqlite3.Rc.DONE | Sqlite3.Rc.ROW -> Ok ()
+    | rc -> Result.Error (Internal (Printf.sprintf "delete_invoke_checkpoint: %s"
+                                      (Sqlite3.Rc.to_string rc)))
   )
 
 let transaction t f =

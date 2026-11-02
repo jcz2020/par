@@ -362,6 +362,10 @@ let do_init (config_json : string) =
                     Par.Sqlite_persistence.load_pending_approval sqlt ~run_id);
                   delete_pending_approval_fn = (fun ~run_id ->
                     Par.Sqlite_persistence.delete_pending_approval sqlt ~run_id);
+                  save_invoke_checkpoint_fn = (fun cp -> Par.Sqlite_persistence.save_invoke_checkpoint sqlt cp);
+                  load_invoke_checkpoint_fn = (fun id -> Par.Sqlite_persistence.load_invoke_checkpoint sqlt id);
+                  list_invoke_checkpoints_fn = (fun () -> Par.Sqlite_persistence.list_invoke_checkpoints sqlt);
+                  delete_invoke_checkpoint_fn = (fun id -> Par.Sqlite_persistence.delete_invoke_checkpoint sqlt id);
                   close_fn = (fun () -> Par.Sqlite_persistence.close sqlt);
                 }
              | Error e ->
@@ -947,33 +951,67 @@ let do_get_user_activated_skills (state_id : int) : string =
       Obj.repr (Yojson.Safe.to_string (`List json_items))) in
     Obj.obj result
 
+let invoke_result_json ~label
+    (result : (Par.Types.invoke_result, Par.Types.error_category * Par.Types.conversation) result) : string =
+  match result with
+  | Ok { Par.Types.response = resp; conversation = _; invoke_id; _ } ->
+    Printf.sprintf "{\"status\": \"ok\", \"content\": %s, \"invoke_id\": %s}"
+      (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp))
+      (match invoke_id with
+       | Some id -> Yojson.Safe.to_string (`String id)
+       | None -> "null")
+  | Error (Par.Types.Cancelled r, conv) ->
+    Printf.sprintf "{\"status\": \"cancelled\", \"reason\": %s, \"conversation\": %s}"
+      (Yojson.Safe.to_string (Par.Types.cancel_reason_to_yojson r))
+      (Yojson.Safe.to_string (Par.Types.conversation_to_yojson conv))
+  | Error (err, _) ->
+    error_json (Printf.sprintf "%s failed: %s" label
+                  (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
+
 let do_invoke (state_id : int) (agent_id : string) (message : string)
-    ?save ?update_current ?content () =
+    ?save ?update_current ?content ?durable ?invoke_id () =
   match get_state state_id with
   | None -> None
   | Some _ ->
     let result = dispatch state_id (fun rt _env ->
       (try
          let result = match content with
-           | None -> Par.Runtime.invoke rt ~agent_id ~message ?save ?update_current ()
+           | None ->
+             Par.Runtime.invoke rt ~agent_id ~message ?save ?update_current
+               ?durable ?invoke_id ()
            | Some blocks ->
-             Par.Runtime.invoke_content rt ~agent_id ~content:blocks ?save ?update_current ()
+             Par.Runtime.invoke_content rt ~agent_id ~content:blocks ?save ?update_current
+               ?durable ?invoke_id ()
          in
-          let json = match result with
-            | Ok { Par.Types.response = resp; conversation = _; approval_pending = _ } ->
-              Printf.sprintf "{\"status\": \"ok\", \"content\": %s}"
-                (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp))
-            | Error (Par.Types.Cancelled r, conv) ->
-              Printf.sprintf "{\"status\": \"cancelled\", \"reason\": %s, \"conversation\": %s}"
-                (Yojson.Safe.to_string (Par.Types.cancel_reason_to_yojson r))
-                (Yojson.Safe.to_string (Par.Types.conversation_to_yojson conv))
-            | Error (err, _) ->
-              error_json (Printf.sprintf "Invoke failed: %s"
-                (Yojson.Safe.to_string (Par.Types.error_category_to_yojson err)))
-         in
-         Obj.repr (Some json)
+         Obj.repr (Some (invoke_result_json ~label:"Invoke" result))
        with e -> Obj.repr (Some (error_json (Printexc.to_string e))))) in
     (Obj.obj result : string option)
+
+(* Recovery of a durable invoke whose writer died (PAR-mrr). Eligibility is
+   enforced in the runtime: only ids rehydrated at startup, never a live run. *)
+let do_recover_invoke (state_id : int) (invoke_id : string) =
+  match get_state state_id with
+  | None -> None
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      (try
+         let result = Par.Runtime.recover_invoke rt ~invoke_id () in
+         Obj.repr (Some (invoke_result_json ~label:"Recovery" result))
+       with e -> Obj.repr (Some (error_json (Printexc.to_string e))))) in
+    (Obj.obj result : string option)
+
+let do_list_orphaned_invokes (state_id : int) : string =
+  match get_state state_id with
+  | None -> "[]"
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      let items =
+        List.map (fun (invoke_id, agent_id) ->
+          `Assoc [("invoke_id", `String invoke_id); ("agent_id", `String agent_id)])
+          (Par.Runtime.list_orphaned_invokes rt)
+      in
+      Obj.repr (Yojson.Safe.to_string (`List items))) in
+    Obj.obj result
 
 let do_invoke_generate (state_id : int) (agent_id : string) (message : string)
     ?save ?update_current () =
@@ -1096,7 +1134,7 @@ let do_invoke_start (state_id : int) (agent_id : string) (message : string)
            ~agent_id ~message ~on_chunk:(Some on_chunk)
            ~save ~update_current () in
          let json = match result with
-           | Ok { Par.Types.response = resp; conversation = _; approval_pending = _ } ->
+           | Ok { Par.Types.response = resp; conversation = _; approval_pending = _; _ } ->
              Printf.sprintf "{\"status\": \"ok\", \"content\": %s}"
                (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp))
            | Error (Par.Types.Cancelled r, conv) ->
@@ -1152,7 +1190,7 @@ let do_invoke_stream (state_id : int) (agent_id : string) (message : string) =
            |> Yojson.Safe.to_string
          in
           let json = match result with
-            | Ok { Par.Types.response = resp; conversation = _; approval_pending = _ } ->
+            | Ok { Par.Types.response = resp; conversation = _; approval_pending = _; _ } ->
               Printf.sprintf "{\"status\": \"ok\", \"content\": %s, \"chunks\": %s}"
                 (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp))
                 chunks_json
@@ -1212,7 +1250,7 @@ let do_invoke_stream_start (state_id : int) (agent_id : string) (message : strin
            |> Yojson.Safe.to_string
          in
           let final = match result with
-            | Ok { Par.Types.response = resp; conversation = _; approval_pending = _ } ->
+            | Ok { Par.Types.response = resp; conversation = _; approval_pending = _; _ } ->
               Printf.sprintf "{\"status\": \"ok\", \"content\": %s, \"chunks\": %s}"
                 (Yojson.Safe.to_string (Par.Types.llm_response_to_yojson resp)) chunks_json
             | Error (Par.Types.Cancelled r, conv) ->
@@ -2088,6 +2126,27 @@ let () =
       | Ok content ->
         unwrap (do_invoke state_id agent_id "" ~content
                   ~save:(save_int <> 0) ~update_current:(update_int <> 0) ()))
+
+(* Durable invoke (PAR-mrr). An empty invoke_id means "mint one". *)
+let () =
+  Callback.register "par_invoke_durable"
+    (fun (state_id_obj : Obj.t) (agent_id : string) (message : string)
+         (invoke_id : string) ->
+       let state_id : int = Obj.magic state_id_obj in
+       let invoke_id = if invoke_id = "" then None else Some invoke_id in
+       unwrap (do_invoke state_id agent_id message ~durable:true ?invoke_id ()))
+
+let () =
+  Callback.register "par_recover_invoke"
+    (fun (state_id_obj : Obj.t) (invoke_id : string) ->
+       let state_id : int = Obj.magic state_id_obj in
+       unwrap (do_recover_invoke state_id invoke_id))
+
+let () =
+  Callback.register "par_list_orphaned_invokes"
+    (fun (state_id_obj : Obj.t) ->
+       let state_id : int = Obj.magic state_id_obj in
+       do_list_orphaned_invokes state_id)
 
 (* Long-output generation mode (plan §3.1.4) *)
 let () =

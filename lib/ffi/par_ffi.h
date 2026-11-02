@@ -59,6 +59,22 @@ char* par_invoke_ext(par_runtime_t* rt, const char* agent_id,
 char* par_invoke_content(par_runtime_t* rt, const char* agent_id,
                         const char* content_json, int save, int update_current);
 
+/* Durable invocation (PAR-mrr). Pass an empty string (or NULL) as invoke_id to
+   mint one; the id is echoed in the JSON envelope as "invoke_id". Requires a
+   real persistence backend. Returns the same envelope and owned string as
+   par_invoke. */
+char* par_invoke_durable(par_runtime_t* rt, const char* agent_id,
+                         const char* message, const char* invoke_id);
+
+/* Resume a durable invoke whose writer died. Only ids rehydrated at runtime
+   startup are eligible; a live run is refused. Returns the same envelope and
+   owned string as par_invoke. */
+char* par_recover_invoke(par_runtime_t* rt, const char* invoke_id);
+
+/* Durable invokes rehydrated at startup as orphans, as a JSON array of
+   {"invoke_id","agent_id"} objects. Caller must free() the returned string. */
+char* par_list_orphaned_invokes(par_runtime_t* rt);
+
 /* Long-output pure generation — returns JSON envelope with the
    generate_result fields. Skips the ReAct loop; auto-continues on
    Max_tokens. Caller must free() the returned string. */

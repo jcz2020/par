@@ -559,9 +559,27 @@ class Runtime:
         return None
 
     def invoke(self, agent_id: str, message: str,
-               *, save: bool = None, update_current: bool = None) -> str:
+               *, save: bool = None, update_current: bool = None,
+               durable: bool = False, invoke_id: str = None) -> str:
+        """Invoke an agent.
+
+        ``durable=True`` (or naming the run with ``invoke_id``) checkpoints the
+        invoke after every completed tool batch and removes the checkpoint on
+        every terminal outcome. Supply ``invoke_id`` when the run must be
+        recoverable after a crash: read the id back from the envelope's
+        ``invoke_id`` field, or pass your own business key here. Durability
+        requires a real persistence backend and is rejected on the noop one.
+
+        Durable invokes do not take ``save``/``update_current``; the checkpoint
+        is the persistence, and it is keyed by ``invoke_id``.
+        """
         self._check_handle()
-        if save is not None or update_current is not None:
+        if durable or invoke_id is not None:
+            result_ptr = _lib.par_invoke_durable(
+                self._handle, _c_str(agent_id), _c_str(message),
+                _c_str(invoke_id or ""),
+            )
+        elif save is not None or update_current is not None:
             result_ptr = _lib.par_invoke_ext(
                 self._handle, _c_str(agent_id), _c_str(message),
                 ctypes.c_int(1 if save else 0),
@@ -581,6 +599,40 @@ class Runtime:
         except json.JSONDecodeError:
             pass
         return result
+
+    def recover_invoke(self, invoke_id: str) -> str:
+        """Resume a durable invoke that was interrupted by a crash.
+
+        Only ids rehydrated at runtime startup are eligible, and a run still in
+        flight in this process is refused — recovering a live run would execute
+        it twice. Semantics are at-least-once: steps recorded before the
+        checkpoint do not run again, a tool that was executing when the process
+        died runs again.
+
+        Returns the same JSON envelope as ``invoke``.
+        """
+        self._check_handle()
+        result_ptr = _lib.par_recover_invoke(self._handle, _c_str(invoke_id))
+        result = _py_str(result_ptr)
+        if not result:
+            raise PARInvokeError(f"recover_invoke failed for id: {invoke_id}")
+        parsed = json.loads(result)
+        if isinstance(parsed, dict) and "error" in parsed:
+            raise PARInvokeError(parsed["error"])
+        return result
+
+    def list_orphaned_invokes(self) -> list[dict]:
+        """Durable invokes rehydrated at startup as orphans.
+
+        Each entry is ``{"invoke_id": ..., "agent_id": ...}``. These are the
+        only ids :meth:`recover_invoke` accepts.
+        """
+        self._check_handle()
+        result_ptr = _lib.par_list_orphaned_invokes(self._handle)
+        raw = _py_str(result_ptr)
+        if not raw:
+            raise PARInvokeError("list_orphaned_invokes failed")
+        return json.loads(raw)
 
     def invoke_content(
         self, agent_id: str, content: list[ContentBlock], *,

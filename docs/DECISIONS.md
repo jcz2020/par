@@ -17,6 +17,8 @@
 | 2026-08-09 | 5 | 取消 Plan/Goal spike（v0.9 Track D）：调研已充分，SDK 不做产品概念 | 范围级 | 架构正确 |
 | 2026-10-21 | 6 | 三层边界判据：PAR / par-code / 独立能力项目 | 战略级 | 架构正确 |
 | 2026-11-02 | 7 | 持久化执行语义：at-least-once + 显式恢复 + 原子控制流节点 | API 级 + 架构级 | 架构正确 |
+| 2026-11-03 | 8 | 持久化 invoke：批次检查点 + 显式恢复 + 运行名由调用方给 | API 级 + 架构级 | 架构正确（3 处 R2 妥协） |
+| 2026-11-03 | 9 | 注入的 event_bus 与内部持久化总线组合而非二选一 | API 级 | 架构正确 |
 
 ---
 
@@ -344,12 +346,14 @@ MCP server 目前**不能**让模型直接调用其工具：`tool_registry.ml` �
 
 **范围妥协（R2 合规）**：
 - 子工作流不能独立恢复（崩溃后整块重跑）。退役触发：出现需要细粒度恢复子工作流的部署，且检查点能安全表达子运行边界。
-- agent 循环中途崩溃恢复不做（`PAR-mrr`）。退役触发：出现"长工具调用崩溃后无法接受重跑"的生产反馈。
+- agent 循环中途崩溃恢复不做（`PAR-mrr`）。退役触发：出现"长工具调用崩溃后无法接受重跑"的生产反馈。**已于 2026-11-03 退役，见 #8。**
 - 流式 reasoning 的块级结构同理，见推理块决策。
 
-### 已知冲突（未决）
+### 已知冲突（已解决）
 
-`~event_bus` 在 persistence 非 noop 时被忽略：运行时自建总线用于落盘，注入的服务收不到 `Workflow_orphaned` 等事件。两个注入点如何共存是一个独立决策，尚未做。
+`~event_bus` 在 persistence 非 noop 时被忽略：运行时自建总线用于落盘，注入的服务收不到 `Workflow_orphaned` 等事件。
+
+**已于 2026-11-03 解决，见 #9**：两个总线组合，事件先发内部（落盘）再发调用方。`Workflow_orphaned` 与 `Invoke_orphaned` 现在都能被注入的总线看到。
 
 ### Escalation Trigger
 
@@ -360,6 +364,68 @@ MCP server 目前**不能**让模型直接调用其工具：`tool_registry.ml` �
 ### 回退方式
 
 公开面为 additive；删除 `Runtime.recover_workflow`、孤儿集合与 `Workflow_orphaned` 即回到 v0.13 行为。带 `schema_version` 的检查点旧二进制可读（缺字段按 1）。
+
+---
+
+## #8: 持久化 invoke 的恢复语义（agent 循环崩溃恢复）
+
+**日期**: 2026-11-03
+**触发**: `PAR-mrr`。v0.14 让工作流可恢复，但 agent 循环中途崩溃后，已完成的工具调用只存在于内存里，重跑会重复副作用。
+
+### 决策
+
+1. **检查点表独立**：新增 `invoke_checkpoints`（`invoke_id` 主键、`state_json`、`updated_at`）。不复用 `task_states`（invoke 不是 task 行，把会话大小的负载塞进调度器状态记录会让每次任务查询为用不到的数据付费），也不塞进 `approvals`（那是审批状态）。这张表是 `PAR-4dt` Checkpointer 层的第一块，工作流表暂不迁移。
+2. **边界是工具批次**：第 0 次迭代后写一次，之后每个完成的工具批次后写一次。并行批次是原子的——全部结果折入会话后才写一次，批次内部崩溃则整批重跑（与 #7 的 `Parallel` 规则同构）。
+3. **行存在 = 在途**：任何终止结果（成功、失败、取消、审批挂起）都删除该行。启动时发现的行走 `Invoke_orphaned` + 显式 `Runtime.recover_invoke`，资格规则复用 #7：只认启动时记录的孤儿集合，并加在途保护，避免恢复一个活运行导致双重执行。
+4. **运行名由调用方给**：`~invoke_id` 隐含 `durable = true`。自动生成的 id 只出现在返回值里，而崩溃的进程返回不了它——"可恢复"的前提是调用方能命名。
+5. **系统提示词原样重放**：恢复不重算 skill / appendix，避免恢复后的上下文与崩溃前不一致。
+6. **可选开启**：`~durable` 默认 `false`。
+
+### §11 R1 标注
+
+**架构正确**：1–5 是契约。第 3 条复用了 #7 审查中发现的正确性要求——状态本身无法区分孤儿与活运行。
+
+**范围妥协（R2 合规）**：
+- 每步写整份会话快照（O(n²) 字节）。退役触发：快照改为增量/差分后，把 `durable` 改为默认开启。
+- 审批挂起不并入同一条恢复路径，仍由 `approvals` 行 + `resume_approval` 负责。退役触发：出现"同一运行既要跨崩溃又要跨审批"的部署需求。
+- 工作流检查点未迁移到统一 Checkpointer。退役触发：`PAR-4dt` 的 Store 层落地时一并迁移。
+- `invoke_structured` / `invoke_generate` 不支持 durable。退役触发：结构化输出的长工具循环出现崩溃恢复需求。
+
+### Escalation Trigger
+
+- 检查点体积成为瓶颈 → 需要增量快照。
+- 出现 exactly-once 要求 → 需要幂等键 + 工具回执表。
+- 恢复被当作"重启即继续" → 说明显式恢复的门槛需要更醒目的文档/API 反馈。
+
+### 回退方式
+
+公开面为 additive。删除 `invoke_checkpoints` 表、`Runtime.recover_invoke` / `list_orphaned_invokes`、`Invoke_orphaned` 事件与 `~durable` / `~invoke_id` 参数即回到 v0.14 行为；已写下的行对旧二进制只是无读取方的空表。
+
+---
+
+## #9: 注入的 event_bus 与内部持久化总线组合
+
+**日期**: 2026-11-03
+**触发**: #7 记录为"未决冲突"。persistence 非 noop 时 `Runtime.create` 自建内部总线供落盘，调用方通过 `~event_bus` 注入的服务被整个丢弃——注入的总线收不到任何事件，包括 `Workflow_orphaned` 与 `Invoke_orphaned`。durable 恢复的孤儿通知对外不可见，等于哑巴。
+
+### 决策
+
+1. **组合，不二选一**：事件先发内部总线（落盘），再发调用方总线。顺序固定且内部优先——落盘不因调用方 handler 抛异常而丢失。
+2. **`set_session_id` 双写**；`subscribe` / `unsubscribe` / `start_dispatcher` 委派给调用方总线，因为那才是调用方持有的实例。
+3. **未注入总线时行为不变**：只使用内部总线。
+
+### §11 R1 标注
+
+**架构正确**。其余选项（拒绝组合、只发调用方、只用内部）都会让可观测性取决于 persistence 配置，是更差的契约。
+
+### Escalation Trigger
+
+- 调用方 handler 抛异常开始影响 invoke 延迟 → 需要异步 fan-out 或隔离。
+- 出现跨总线订阅顺序要求 → 需要显式优先级。
+
+### 回退方式
+
+恢复 `(Event_bus.to_service bus, Some bus, Some writer)` 分支并删除组合记录，即回到 v0.14 行为。
 
 ---
 

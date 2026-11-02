@@ -271,7 +271,10 @@ val apply_skill_effect_to_config :
 
     Both entry points share one implementation: [invoke] delegates here with
     the message wrapped as a single text block, so there is exactly one
-    code path and no divergent behaviour between them. *)
+    code path and no divergent behaviour between them.
+
+    The durability parameters ([?durable], [?invoke_id]) behave as documented
+    on {!invoke}. *)
 val invoke_content :
   runtime ->
   agent_id:string ->
@@ -287,9 +290,23 @@ val invoke_content :
   ?context:Invoke_context.invoke_context ->
   ?update_current:bool ->
   ?save:bool ->
+  ?durable:bool ->
+  ?invoke_id:string ->
   unit ->
   (invoke_result, error_category * conversation) result
+(** [~durable:true] checkpoints the invoke after every completed tool batch, so
+    a crashed process can resume it with {!recover_invoke}. The checkpoint is
+    removed on every terminal outcome, which means a row that outlives the
+    process belongs to a dead writer.
 
+    [~invoke_id] names the run and implies [~durable:true]. Supply one when the
+    caller must be able to recover the run after a crash: the id is otherwise
+    minted and only visible in the result, which a crashed process never
+    returns. Durability requires a real persistence backend; the noop service
+    is rejected rather than silently checkpointing into nothing.
+
+    A run suspended for approval is not recoverable through {!recover_invoke};
+    the approvals row owns that state and {!resume_approval} resumes it. *)
 val invoke :
   runtime ->
   agent_id:string ->
@@ -305,6 +322,8 @@ val invoke :
   ?context:Invoke_context.invoke_context ->
   ?update_current:bool ->
   ?save:bool ->
+  ?durable:bool ->
+  ?invoke_id:string ->
   unit ->
   (invoke_result, error_category * conversation) result
 
@@ -325,6 +344,8 @@ val invoke_async :
   ?system_prompt_appendix:string ->
   ?skills:string list ->
   ?context:Invoke_context.invoke_context ->
+  ?durable:bool ->
+  ?invoke_id:string ->
   unit ->
   Invoke_context.invoke_handle
 
@@ -525,6 +546,30 @@ val recover_workflow :
     [Sub_workflow]) are atomic for recovery: if the checkpoint falls inside one,
     the whole node runs again. A checkpoint with a newer [schema_version] than
     this runtime understands is rejected rather than guessed at. *)
+
+val list_orphaned_invokes : runtime -> (string * string) list
+(** Durable invokes rehydrated at startup as orphans, as [(invoke_id, agent_id)].
+    These are the only ids {!recover_invoke} accepts. Each one also produced an
+    {!Invoke_orphaned} event at [create] time. *)
+
+val recover_invoke :
+  runtime ->
+  invoke_id:string ->
+  ?workspace:Workspace.workspace ->
+  ?on_tool_event:(event -> unit) ->
+  ?on_chunk:(llm_response_chunk -> unit) option ->
+  ?update_current:bool ->
+  ?save:bool ->
+  unit ->
+  (invoke_result, error_category * conversation) result
+(** Resume a durable invoke that was interrupted by a crash. The semantics are
+    at-least-once: steps recorded before the checkpoint do not run again, and a
+    tool that was executing when the process died runs again.
+
+    Only ids rehydrated at [Runtime.create] time are eligible, and an invoke
+    still in flight in this process is refused, because recovering a live run
+    would execute it twice. A checkpoint from a newer schema is refused rather
+    than guessed at. *)
 
 val tool_registry : runtime -> Tool_registry.t
 
