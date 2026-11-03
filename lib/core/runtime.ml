@@ -968,7 +968,7 @@ let register_agent_as_tool rt ~agent_id ?(tool_name = "agent_" ^ agent_id) ?desc
     | Ok _ -> Ok ()
     | Error e -> Error e
 
-let save_conversation rt ?(conversation : Types.conversation option) ?scope () =
+let save_conversation rt ?(conversation : Types.conversation option) ?session_id ?scope () =
   let conv = match conversation with
     | Some c -> Some c
     | None -> Current_conversation.get rt
@@ -977,9 +977,12 @@ let save_conversation rt ?(conversation : Types.conversation option) ?scope () =
      or background run. Saving under [rt.session_id] would overwrite the
      parent's conversation even when the branch was explicitly isolated. *)
   let session_id =
-    match Invoke_context.get_current () with
-    | Some ctx -> Some ctx.Invoke_context.session_id
-    | None -> !(rt.session_id)
+    match session_id with
+    | Some _ as s -> s
+    | None ->
+      (match Invoke_context.get_current () with
+       | Some ctx -> Some ctx.Invoke_context.session_id
+       | None -> !(rt.session_id))
   in
   match session_id, conv with
   | Some sid, Some c -> rt.services.persistence.save_conversation_fn ?scope sid c
@@ -1113,11 +1116,12 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
            | Some sid -> sid
            | None ->
              let new_sid = Session_id.to_string (Session_id.create ()) in
-             rt.session_id := Some new_sid;
+             if update_current then rt.session_id := Some new_sid;
              new_sid)
       in
       (match resume with
-       | Some cp when cp.session_id <> "" -> rt.session_id := Some cp.session_id
+       | Some cp when cp.session_id <> "" ->
+         if update_current then rt.session_id := Some cp.session_id
        | _ -> ());
       Invoke_context.create
         ~session_id
@@ -1128,8 +1132,14 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
         ?on_tool_event
         ()
   in
+  let previous_bus_session = !(rt.session_id) in
   rt.services.event_bus.set_session_id_fn ctx.session_id;
-  Invoke_context.with_context ctx (fun () ->
+  Fun.protect
+    ~finally:(fun () ->
+      match previous_bus_session with
+      | Some sid -> rt.services.event_bus.set_session_id_fn sid
+      | None -> ())
+    (fun () -> Invoke_context.with_context ctx (fun () ->
   let result =
   let agent = htbl_get rt.agents agent_id in
   match agent with
@@ -1169,33 +1179,39 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
       publish_event rt (Skill_activated { skill_id = sid })
     ) active_skill_ids;
     let composed_effect = compose_skill_effects active_effects in
+    let base_tools = config.tools in
     let before_tool_count = List.length config.tools in
     let config = apply_skill_effect_to_config composed_effect config in
-    let config =
-      if rt.tool_description_overrides = [] then config
+    let apply_overrides tools =
+      if rt.tool_description_overrides = [] then tools
       else
-        { config with tools =
-          List.map (fun (td : Types.tool_descriptor) ->
-            match List.assoc_opt td.name rt.tool_description_overrides with
-            | Some desc -> { td with Types.description = desc }
-            | None -> td
-          ) config.tools }
+        List.map (fun (td : Types.tool_descriptor) ->
+          match List.assoc_opt td.name rt.tool_description_overrides with
+          | Some desc -> { td with Types.description = desc }
+          | None -> td
+        ) tools
     in
+    let config = { config with tools = apply_overrides config.tools } in
     (* Recovery replays the tool set the crashed run actually saw. Recomputing
        skill effects from the checkpointed conversation can pick a different
        filter (the last user turn may be steering, and the activated-skill list
        is the current runtime's), which would silently change the model's
-       available tools mid-run. *)
+       available tools mid-run.  Filter the agent's unfiltered tool set, not the
+       current skill-filtered one. *)
     let config =
       match resume with
       | Some cp when cp.tool_names <> [] ->
-        { config with tools =
-            List.filter (fun (td : Types.tool_descriptor) ->
-              List.mem td.name cp.tool_names) config.tools }
+        let missing = List.filter (fun name ->
+          not (List.exists (fun (td : Types.tool_descriptor) -> td.name = name) base_tools)
+        ) cp.tool_names in
+        if missing <> [] then
+          Logs.warn (fun m -> m
+            "[invoke] recovery checkpoint names tools that are no longer registered: %s"
+            (String.concat ", " missing));
+        let replay = List.filter (fun (td : Types.tool_descriptor) ->
+          List.mem td.name cp.tool_names) base_tools in
+        { config with tools = apply_overrides replay }
       | _ -> config
-    in
-    let effective_tool_names =
-      List.map (fun (td : Types.tool_descriptor) -> td.name) config.tools
     in
     let after_tool_count = List.length config.tools in
     (match active_effects with
@@ -1252,20 +1268,20 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
             ?net:(Option.map (fun n -> (Obj.obj n : _ Eio.Net.t)) rt.net)
             ?budget_threshold:rt.services.config.max_tool_schema_tokens
             ~user_content:content
-            ~on_step_complete:(Some (fun conv step_agent_id iteration ->
+            ~on_step_complete:(Some (fun conv step_agent iteration ->
               match invoke_id with
               | None -> ()
               | Some id ->
                 let now = Unix.gettimeofday () in
                 let cp : Types.invoke_checkpoint = {
                   invoke_id = id;
-                  agent_id = step_agent_id;
+                  agent_id = step_agent.id;
                   session_id = ctx.session_id;
                   schema_version = 1;
                   iteration;
                   elapsed = base_elapsed +. (now -. invoke_start);
                   enable_handoff = Option.value enable_handoff ~default:false;
-                  tool_names = effective_tool_names;
+                  tool_names = List.map (fun (td : Types.tool_descriptor) -> td.name) step_agent.tools;
                   conversation = conv;
                   updated_at = now;
                 } in
@@ -1369,7 +1385,8 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
               | Ok (resp, conv, approval_pending) ->
                 record_llm_success rt;
                 if update_current then Current_conversation.set rt (Some conv);
-                if save then ignore (save_conversation rt ~conversation:conv () : (unit, error_category) result);
+                if save then ignore (save_conversation rt ~conversation:conv
+                                       ~session_id:ctx.session_id () : (unit, error_category) result);
                 Result.Ok { Types.response = resp; conversation = conv; approval_pending; invoke_id }
               | Error (err, _conv) when should_fallback err && rest <> [] ->
                 record_llm_error rt err;
@@ -1395,10 +1412,15 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
   in
   (* A checkpoint row means "in flight", so every terminal outcome removes it.
      A run suspended for approval also removes it: the approvals row owns that
-     state and [resume_approval] is its recovery path. *)
-  delete_checkpoint ();
+     state and [resume_approval] is its recovery path.  A recovery attempt that
+     fails for a transient reason keeps the row so the caller can retry; a
+     deliberate cancellation is terminal and removes it. *)
+  (match result, resume with
+   | Result.Error (Cancelled _, _), _ -> delete_checkpoint ()
+   | Result.Error _, Some _ -> ()
+   | _ -> delete_checkpoint ());
   Metrics.merge_into ~target:rt.metrics ~source:ctx.metrics_accumulator;
-  result))
+  result)))
 
 (* The public entry point hides [~resume]: resuming from an arbitrary
    checkpoint would bypass the orphan and in-flight guards in [recover_invoke]. *)
@@ -1515,7 +1537,8 @@ let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
           record_llm_success rt;
           if update_current then Current_conversation.set rt (Some conv);
           if save then
-            ignore (save_conversation rt ~conversation:conv () : (unit, error_category) result);
+            ignore (save_conversation rt ~conversation:conv
+                      ~session_id:ctx.session_id () : (unit, error_category) result);
           Result.Ok gen_result
         | Error (err, conv) ->
           record_llm_error rt err;
@@ -2578,6 +2601,11 @@ let recover_invoke rt ~invoke_id ?workspace ?cancellation_token ?on_tool_event ?
              retried. *)
           htbl_remove rt.orphaned_invokes invoke_id;
           ok
+        | Error (Cancelled _, _) as e ->
+          (* Cancellation is terminal: the checkpoint was removed above, so
+             the orphan entry must go too. *)
+          htbl_remove rt.orphaned_invokes invoke_id;
+          e
         | Error _ as e -> e)
 
 let approve_workflow rt wf_id ~approver =

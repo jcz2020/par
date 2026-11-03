@@ -49,7 +49,7 @@ type agent_dispatch_spec = {
 | `input` | 可选的 prompt 覆盖。如果为 `None`，Agent 使用默认行为。 |
 | `workspace` | 可选的每 Agent 工作空间。覆盖运行时级别的工作空间，用于该 Agent 的工具处理器。适用于将并行 Agent 沙箱化到不同的文件系统根目录。 |
 | `approval_handler` | 可选的每 Agent 处理器覆盖。当同时存在 `agent_config` 上的处理器时，优先使用此处的处理器。 |
-| `blocking_approval` | 默认 `false`。设为 `true` 时，如果该 Agent 在执行期间触发审批，整个并行节点会等待解析。设为 `false`（默认）时，只有该 Agent 的分支挂起，其他分支继续运行。 |
+| `blocking_approval` | 预留给未来版本；当前 beta 的 `invoke_parallel` 不读取该字段。所有分支目前都独立挂起。 |
 | `conversation` | 从已有对话开始该分支。`None` 表示新建。更新后的分支对话通过 `parallel_success.conversation` 返回。 |
 
 ## `parallel_invoke_result`
@@ -194,7 +194,7 @@ in
 并行分发与 [HITL 框架](hitl.md) 集成：
 
 - **非阻塞（默认）**：如果 Agent 通过 async 或 webhook 处理器触发审批，只有该分支挂起。其他分支继续运行。
-- **阻塞**（`blocking_approval = true`）：如果在 spec 上设置，整个并行节点会等待该 Agent 的审批解析后再收集结果。
+- **阻塞**（`blocking_approval = true`）：预留给未来版本；当前 beta 的 `invoke_parallel` 不读取该字段。所有分支目前都独立挂起。
 - **每 Agent 处理器**：每个 spec 可以覆盖审批处理器。这意味着同一批并行中的不同 Agent 可以使用不同的审批策略。
 
 ```ocaml

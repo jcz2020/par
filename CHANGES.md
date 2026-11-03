@@ -50,7 +50,7 @@
 
 ### Tests
 
-- OCaml totals are **1734 tests**, 0 failures. Python is **204 passed / 20 skipped** (two new binding cases: `set_tool_layer`, `list_conversations`).
+- OCaml totals are **1735 tests**, 0 failures. Python is **204 passed / 20 skipped** (two new binding cases: `set_tool_layer`, `list_conversations`).
 - `test/test_context_manager.ml`: model declaration wins over provider capability; unknown still resolves to 0.
 - New `test/test_invoke_async_isolation.ml`: save/update_current flags, branch session persistence, atomic first-cause-wins.
 - `test/test_invoke_parallel.ml`: branch conversation roundtrip.

@@ -139,6 +139,8 @@ let test_async_flags () =
     (match Invoke_context.invoke_handle_await h with
      | Ok _ -> ()
      | Error (e, _) -> Alcotest.fail ("child async: " ^ err_str e));
+    Alcotest.(check string) "parent session id unchanged" "parent"
+      (Runtime.get_session_id rt);
     let parent_after = match Runtime.load_conversation rt "parent" with
       | Ok (Some c) -> c
       | Ok None -> Alcotest.fail "parent conversation disappeared"
@@ -155,6 +157,8 @@ let test_async_flags () =
     (match Invoke_context.invoke_handle_await h with
      | Ok _ -> ()
      | Error (e, _) -> Alcotest.fail ("child save async: " ^ err_str e));
+    Alcotest.(check string) "parent session id still unchanged" "parent"
+      (Runtime.get_session_id rt);
     (match Runtime.load_conversation rt "child-session" with
      | Ok (Some c) ->
        Alcotest.(check bool) "child saved in its own session" true

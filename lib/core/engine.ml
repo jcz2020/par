@@ -1258,6 +1258,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                  } in
                  let new_conv = { conv with messages = sys_msg :: non_sys } in
                  let new_conv = drain_into_conv new_conv steering in
+                 report_step new_conv target_agent (iterations + 1);
                  loop ~agent:target_agent ~global_max new_conv (iterations + 1)
                | false ->
                  (match task with
@@ -1271,6 +1272,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                       tool_calls = None; tool_call_id = None; name = None
                     } in
                     let new_conv = { messages = [sys_msg; user_msg]; metadata = [] } in
+                    report_step new_conv target_agent (iterations + 1);
                     loop ~agent:target_agent ~global_max new_conv (iterations + 1)
                   | None ->
                     handoff_error "Handoff with carry_context=false requires a task"))
@@ -1279,6 +1281,10 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
             let fire evt = match on_tool_event with
               | Some pub -> pub evt
               | None -> ()
+            in
+            let continue_after_approval conv =
+              report_step conv agent (iterations + 1);
+              continue_loop conv
             in
             match ar with
             | Approval_required
@@ -1329,7 +1335,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                            "approval granted for %s" tool_name));
                        ]) in
                        let conv = add_tool_result_message conv call synth in
-                       continue_loop conv
+                       continue_after_approval conv
                      | Rejected { reason } ->
                        fire (Approval_rejected { reason; approver });
                        let synth = (Error {
@@ -1339,13 +1345,13 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                          metadata = [];
                        } : handler_result) in
                        let conv = add_tool_result_message conv call synth in
-                       continue_loop conv
+                       continue_after_approval conv
                      | Modified { new_input } ->
                        fire (Approval_modified { new_input; approver });
                        let modified_call = { call with arguments = new_input } in
                        let (_, result) = invoke_one modified_call in
                        let conv = add_tool_result_message conv modified_call result in
-                       continue_loop conv
+                       continue_after_approval conv
                      | Escalated { target } ->
                        fire (Approval_escalated { target; approver });
                        execute_handoff call target true None
@@ -1358,7 +1364,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                          metadata = [];
                        } : handler_result) in
                        let conv = add_tool_result_message conv call synth in
-                       continue_loop conv)
+                       continue_after_approval conv)
                    | Async_callback _ ->
                      let pending_payload = `Assoc [
                        ("tool_call_id", `String call.id);
@@ -1416,7 +1422,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                                "approval granted for %s" tool_name));
                            ]) in
                            let conv = add_tool_result_message conv call synth in
-                           continue_loop conv
+                           continue_after_approval conv
                          | Approval.Rejected { reason } ->
                            fire (Approval_rejected { reason; approver });
                            let synth = (Error {
@@ -1426,13 +1432,13 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                              metadata = [];
                            } : handler_result) in
                            let conv = add_tool_result_message conv call synth in
-                           continue_loop conv
+                           continue_after_approval conv
                          | Approval.Modified { new_input } ->
                            fire (Approval_modified { new_input; approver });
                            let modified_call = { call with arguments = new_input } in
                            let (_, result) = invoke_one modified_call in
                            let conv = add_tool_result_message conv modified_call result in
-                           continue_loop conv
+                           continue_after_approval conv
                          | Approval.Escalated { target } ->
                            fire (Approval_escalated { target; approver });
                            execute_handoff call target true None
@@ -1445,7 +1451,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                              metadata = [];
                            } : handler_result) in
                            let conv = add_tool_result_message conv call synth in
-                           continue_loop conv))))
+                           continue_after_approval conv))))
             | _ ->
               Result.Error (Internal
                 "execute_approval: non-Approval_required input", conv)
@@ -1462,7 +1468,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
            | [] ->
              (match approvals with
               | [] ->
-                report_step conv agent.id (iterations + 1);
+                report_step conv agent (iterations + 1);
                 continue_loop conv
               | [(call, (Approval_required _ as ar))] ->
                 execute_approval call ar
@@ -1696,7 +1702,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
   (* Iteration zero is a checkpoint too: a crash before the first tool batch
      would otherwise leave a run with nothing to resume from. Recovery skips
      this write, because the row it loaded is already the same state. *)
-  if not resume then report_step conv agent.id 0;
+  if not resume then report_step conv agent 0;
   match loop ~agent ~global_max:0 conv resume_iteration with
   | Result.Error e -> Result.Error e
   | Result.Ok (resp, conv_pre) ->

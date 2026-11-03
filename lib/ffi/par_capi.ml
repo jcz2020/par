@@ -640,14 +640,20 @@ let do_set_tool_layer (state_id : int) (name : string) (layer : string) : int =
   | None -> -1
   | Some _ ->
     let layer = match String.lowercase_ascii layer with
-      | "searchable" -> Par.Tool_registry.Searchable
-      | _ -> Par.Tool_registry.Always
+      | "searchable" -> Some Par.Tool_registry.Searchable
+      | "always" -> Some Par.Tool_registry.Always
+      | _ -> None
     in
-    let result = dispatch state_id (fun rt _env ->
-      match Par.Runtime.set_tool_layer rt ~name ~layer with
-      | Ok () -> Obj.repr 0
-      | Error _ -> Obj.repr (-1)) in
-    (Obj.obj result : int)
+    (match layer with
+     | None -> -1
+     | Some layer ->
+       (try
+          let result = dispatch state_id (fun rt _env ->
+            match Par.Runtime.set_tool_layer rt ~name ~layer with
+            | Ok () -> Obj.repr 0
+            | Error _ -> Obj.repr (-1)) in
+          (Obj.obj result : int)
+        with _ -> -1))
 
 (* -------------------------------------------------------------------------- *)
 (* Config parsers (unchanged from previous code)                              *)

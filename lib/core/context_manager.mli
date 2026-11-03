@@ -55,7 +55,8 @@ val truncate_conversation :
     provider's real context-length error. *)
 val default_context_window : model_config -> int
 
-(** Three-tier context-window resolver: user_override → provider cap → static table.
+(** Four-tier context-window resolver: user_override → model declaration →
+    provider capability → static table.
 
     Returns 0 only when all three tiers fail (unknown model, no capability
     function, no override). Callers should treat 0 as "window unknown —

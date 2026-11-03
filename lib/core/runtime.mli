@@ -692,7 +692,7 @@ val clear_tool_call_hooks : runtime -> unit
 
 val run_tool_call_hooks : runtime -> Hook.tool_call_context -> Hook.chain_result
 
-val save_conversation : runtime -> ?conversation:conversation -> ?scope:string -> unit -> (unit, error_category) result
+val save_conversation : runtime -> ?conversation:conversation -> ?session_id:string -> ?scope:string -> unit -> (unit, error_category) result
 
 val load_conversation : runtime -> string -> (Types.conversation option, error_category) result
 
@@ -703,7 +703,7 @@ val list_conversations :
   (Types.conversation_summary list, error_category) result
 (** List sessions from the conversations table, newest first.
 
-    Unlike [Persistence.load_sessions], this does not require the session to
+    Unlike [Sqlite_persistence.load_sessions], this does not require the session to
     have events: a forked/branch conversation that was saved but never emitted
     an event is still listed. [limit] defaults to 50. *)
 

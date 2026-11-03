@@ -159,12 +159,15 @@ type conversation_summary = {
 该列表来自 conversations 表，而不是事件日志。已保存但从未发过事件的会话（例如
 fork 分支）仍然可见。`load_sessions_fn` 仍是事件活动视图。
 
+`?scope:None` 会列出**所有** scope；传显式 scope 可限制到单个 tenant/workspace
+分区。`turn_count` 是存储的消息数，不是用户轮次数。
+
 公共 Runtime API 将这些暴露为：
 
 ```ocaml
 val Runtime.save_conversation :
-  runtime -> ?conversation:conversation -> ?scope:string ->
-  unit -> (unit, error_category) result
+  runtime -> ?conversation:conversation -> ?session_id:string ->
+  ?scope:string -> unit -> (unit, error_category) result
 
 val Runtime.load_most_recent_conversation :
   runtime -> ?scope:string ->

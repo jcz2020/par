@@ -52,7 +52,7 @@ type agent_dispatch_spec = {
 | `input` | Optional prompt override. If `None`, the agent uses its default behavior. |
 | `workspace` | Optional per-agent workspace. Overrides the runtime-level workspace for this agent's tool handlers. Useful for sandboxing parallel agents to different file-system roots. |
 | `approval_handler` | Optional per-agent handler override. Takes precedence over the handler set on `agent_config` when both are present. |
-| `blocking_approval` | Default `false`. When `true`, if this agent triggers an approval during execution, the entire parallel node waits for resolution. When `false` (default), only this agent's branch suspends; other branches continue. |
+| `blocking_approval` | Reserved for a future release; not read by `invoke_parallel` in this beta. Today every branch suspends independently. |
 | `conversation` | Start this branch from an existing conversation. `None` starts fresh. The updated branch conversation is returned in `parallel_success.conversation`. |
 
 ## `parallel_invoke_result`
@@ -199,7 +199,7 @@ When `workspace` is `None`, the agent uses the runtime-level workspace.
 Parallel dispatch integrates with the [HITL framework](hitl.md):
 
 - **Non-blocking (default)**: If an agent triggers an approval via an async or webhook handler, only that branch suspends. Other branches continue running.
-- **Blocking** (`blocking_approval = true`): If set on a spec, the entire parallel node waits for that agent's approval to be resolved before collecting results.
+- **Blocking** (`blocking_approval = true`): reserved for a future release; the field is not read by `invoke_parallel` in this beta. Every branch suspends independently today.
 - **Per-agent handler**: Each spec can override the approval handler. This means different agents in the same parallel batch can use different approval strategies.
 
 ```ocaml

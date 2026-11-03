@@ -160,12 +160,16 @@ This list is derived from the conversations table, not the event log. A session
 that was saved but never emitted an event (for example a forked branch) is still
 visible here. `load_sessions_fn` remains the event-activity view.
 
+`?scope:None` lists across **all** scopes. Pass an explicit scope to restrict the
+result to one tenant/workspace partition. `turn_count` is the number of stored
+messages, not a count of user turns.
+
 The public Runtime API exposes these as:
 
 ```ocaml
 val Runtime.save_conversation :
-  runtime -> ?conversation:conversation -> ?scope:string ->
-  unit -> (unit, error_category) result
+  runtime -> ?conversation:conversation -> ?session_id:string ->
+  ?scope:string -> unit -> (unit, error_category) result
 
 val Runtime.load_most_recent_conversation :
   runtime -> ?scope:string ->

@@ -502,7 +502,7 @@ type context_strategy =
    - `Cooldown_active n: would compress but N more messages needed.
      [n] is messages remaining before cooldown expires.
    - `No_window_size: threshold set but no resolver could determine
-     the context window size (tier-1 table miss + tier-2 capability
+     the context window size (tier-1 table miss + tier-3 capability
      unset + tier-3 override None).
    - `No_strategy: threshold set but agent.context_strategy = None
      AND no auto-default strategy available. *)
@@ -1226,7 +1226,7 @@ type llm_service = {
      to [Some false] at construction time. *)
   supports_native_tools_fn : (unit -> bool) option;
   (* PAR-p70: Provider-declared context window size for the current model.
-     When Some f, called by Context_manager.resolve_context_window as tier-2
+     When Some f, called by Context_manager.resolve_context_window as tier-3
      resolver (tier-1 = static table, tier-3 = user override). None = unknown,
      fall through to static table. Mirrors the supports_native_tools_fn capability
      pattern. *)

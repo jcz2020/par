@@ -399,7 +399,7 @@ let test_handoff_checkpoint_records_the_active_agent () =
   Eio_main.run @@ fun _env ->
   Eio.Switch.run @@ fun sw ->
   with_sqlite @@ fun sqlt persist ->
-  let seen_agent = ref None in
+  let seen_checkpoint = ref None in
   let target_calls = ref 0 in
   let rt = match create_runtime ~persistence:persist
                    ~llm:(scripted_llm [
@@ -430,10 +430,10 @@ let test_handoff_checkpoint_records_the_active_agent () =
                        ~handler:(fun _ _ ->
                          incr target_calls;
                          if !target_calls = 2 then
-                           seen_agent :=
+                           seen_checkpoint :=
                              (match Sqlite_persistence.load_invoke_checkpoint sqlt "handoff-1" with
-                              | Ok (Some cp) -> Some cp.agent_id
-                              | _ -> None);
+                              | Ok cp -> cp
+                              | Error _ -> None);
                          Success (`String "target done")) () with
     | Ok tb -> tb
     | Error e -> Alcotest.failf "register_tool target_tool: %s" (error_to_string e)
@@ -444,8 +444,13 @@ let test_handoff_checkpoint_records_the_active_agent () =
           ~enable_handoff:true () with
    | Ok _ -> ()
    | Error (e, _) -> Alcotest.failf "invoke: %s" (error_to_string e));
-  Alcotest.(check (option string)) "the checkpoint names the target agent"
-    (Some "target") !seen_agent
+  (match !seen_checkpoint with
+   | None -> Alcotest.fail "checkpoint was not observed"
+   | Some cp ->
+     Alcotest.(check string) "the checkpoint names the target agent"
+       "target" cp.agent_id;
+     Alcotest.(check (list string)) "the checkpoint names the target's tools"
+       ["target_tool"] cp.tool_names)
 
 (* Two fibers racing for the same id must not both run. The claim is a single
    critical section; before that, the check and the registration were separate
@@ -554,6 +559,41 @@ let test_failed_run_removes_the_checkpoint () =
   (match Sqlite_persistence.load_invoke_checkpoint sqlt "fail-1" with
    | Ok None -> ()
    | Ok (Some _) -> Alcotest.fail "a failed run left its checkpoint behind"
+   | Error e -> Alcotest.failf "load: %s" (error_to_string e))
+
+let test_failed_recovery_keeps_the_checkpoint () =
+  Eio_main.run @@ fun _env ->
+  Eio.Switch.run @@ fun sw ->
+  with_sqlite @@ fun sqlt persist ->
+  seed_checkpoint ~invoke_id:"recover-fail" ~agent_id:"durable-agent" sqlt;
+  let llm : llm_service = {
+    complete_fn = (fun _ _ _ -> Error (Internal "provider down"));
+    stream_fn = (fun _ _ _ _ _ -> Error (Internal "provider down"));
+    close_fn = (fun () -> ());
+    complete_structured_fn = None;
+    list_models_fn = None;
+    supports_native_tools_fn = None;
+    context_window_fn = None; cache_control_fn = None;
+  } in
+  let rt = match create_runtime ~persistence:persist ~llm sw with
+    | Ok rt -> rt
+    | Error e -> Alcotest.failf "create: %s" (error_to_string e)
+  in
+  Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) @@ fun () ->
+  let echo = match Runtime.register_tool rt ~name:"echo" ~description:"echoes"
+               ~input_schema:(`Assoc [])
+               ~handler:(fun _ _ -> Success (`String "A")) () with
+    | Ok tb -> tb
+    | Error e -> Alcotest.failf "register_tool: %s" (error_to_string e)
+  in
+  ignore (Runtime.register_agent rt (make_agent ~tools:[echo] "durable-agent"));
+  (match Runtime.recover_invoke rt ~invoke_id:"recover-fail" () with
+   | Ok _ -> Alcotest.fail "expected recovery to fail"
+   | Error _ -> ());
+  (match Sqlite_persistence.load_invoke_checkpoint sqlt "recover-fail" with
+   | Ok (Some cp) ->
+     Alcotest.(check int) "checkpoint kept for retry" 1 cp.iteration
+   | Ok None -> Alcotest.fail "a failed recovery deleted the checkpoint"
    | Error e -> Alcotest.failf "load: %s" (error_to_string e))
 
 (* The approvals row owns a suspended run, so the durable row is removed. The
@@ -706,6 +746,8 @@ let () =
         test_duplicate_invoke_id_is_refused;
       Alcotest.test_case "a failed run removes its checkpoint" `Quick
         test_failed_run_removes_the_checkpoint;
+      Alcotest.test_case "a failed recovery keeps its checkpoint" `Quick
+        test_failed_recovery_keeps_the_checkpoint;
       Alcotest.test_case "an approval suspension removes it" `Quick
         test_approval_suspension_removes_the_checkpoint;
       Alcotest.test_case "a cancelled run removes it" `Quick
