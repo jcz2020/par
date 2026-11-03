@@ -92,9 +92,9 @@ let () =
             (Context_manager.default_context_window (dummy_model ~name:n)))
           names);
 
-      Alcotest.test_case "unknown_model_safe_default_8000" `Quick (fun () ->
-        Alcotest.(check int) "unknown → 8000"
-          8000
+      Alcotest.test_case "unknown_model_returns_zero" `Quick (fun () ->
+        Alcotest.(check int) "unknown → 0 (window unknown)"
+          0
           (Context_manager.default_context_window
              (dummy_model ~name:"some-future-model-2027")));
     ]);
@@ -110,10 +110,10 @@ let () =
              ~user_override:(Some 50000)));
 
       Alcotest.test_case "provider_cap_wins_over_table" `Quick (fun () ->
-        (* llm declares 128000, table for unknown model is 8000 → 128000 wins *)
+        (* llm declares 128000, table for unknown model is 0 → 128000 wins *)
         let llm = dummy_llm ~context_window_fn:(fun () -> 128000) () in
         let model = dummy_model ~name:"some-unknown-model" in
-        Alcotest.(check int) "provider cap 128000 wins over table 8000"
+        Alcotest.(check int) "provider cap 128000 wins over unknown table"
           128000
           (Context_manager.resolve_context_window ~llm ~model
              ~user_override:None));
@@ -126,15 +126,11 @@ let () =
           (Context_manager.resolve_context_window ~llm ~model
              ~user_override:None));
 
-      Alcotest.test_case "unknown_no_fn_no_override_returns_safe_default" `Quick (fun () ->
-        (* DEVIATION NOTE: spec test list item #8 said "returns 0" here, but
-           the plan's default_context_window always returns ≥8000 (safe
-           conservative default), so resolve_context_window likewise returns
-           the safe default rather than 0. Documented in report. *)
+      Alcotest.test_case "unknown_no_fn_no_override_returns_zero" `Quick (fun () ->
         let llm = dummy_llm () in
         let model = dummy_model ~name:"some-future-llm" in
-        Alcotest.(check int) "unknown model, no fn, no override → 8000 (safe)"
-          8000
+        Alcotest.(check int) "unknown model, no fn, no override → 0 (skip)"
+          0
           (Context_manager.resolve_context_window ~llm ~model
              ~user_override:None));
     ]);
@@ -273,6 +269,98 @@ let () =
         Alcotest.(check bool) "false when cooldown=None and ratio<threshold"
           false should_compress;
         Alcotest.(check bool) "Some `Below_threshold" true (reason <> None));
+    ]);
+
+    ("apply_strategy", [
+      Alcotest.test_case "summarize_none_uses_default_model" `Quick (fun () ->
+        let seen_model = ref None in
+        let llm : Types.llm_service =
+          { complete_fn = (fun model _tools _conv ->
+              seen_model := Some model.Types.model_name;
+              Ok { text = Some "summary"; reasoning = []; tool_calls = None;
+                   finish_reason = Stop;
+                   usage = { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0;
+                             cached_tokens = 0; cache_creation_input_tokens = 0;
+                             cache_read_input_tokens = 0 };
+                   model = model.Types.model_name });
+            stream_fn = (fun _ _ _ _ _ ->
+              failwith "stream_fn should not be called");
+            close_fn = (fun () -> ());
+            complete_structured_fn = None;
+            list_models_fn = None;
+            supports_native_tools_fn = None;
+            context_window_fn = None; cache_control_fn = None }
+        in
+        let model = dummy_model ~name:"active-model" in
+        let conv = {
+          Types.messages =
+            [ dummy_msg Types.System "sys";
+              dummy_msg Types.User "older question";
+              dummy_msg Types.Assistant "older answer";
+              dummy_msg Types.User "middle question";
+              dummy_msg Types.Assistant "middle answer";
+              dummy_msg Types.User "recent question" ];
+          metadata = [];
+        } in
+        let result =
+          Context_manager.apply_strategy ~default_model:model
+            (Summarize { max_tokens = 1; summary_model = None })
+            conv (Some llm) ~on_event:None
+        in
+        (match result with
+         | Ok conv' ->
+           Alcotest.(check (option string)) "used the running model"
+             (Some "active-model") !seen_model;
+           (match conv'.Types.messages with
+            | first :: _ ->
+              Alcotest.(check bool) "summary message prepended" true
+                (first.Types.role = Types.System
+                 && (try ignore (Str.search_forward (Str.regexp_string "[Conversation Summary]")
+                                   (Message.text_of_message first) 0); true
+                     with Not_found -> false))
+            | [] -> Alcotest.fail "expected summarized conversation")
+         | Error _ -> Alcotest.fail "expected Ok from summarize"));
+
+      Alcotest.test_case "summarize_explicit_model_wins" `Quick (fun () ->
+        let seen_model = ref None in
+        let llm : Types.llm_service =
+          { complete_fn = (fun model _tools _conv ->
+              seen_model := Some model.Types.model_name;
+              Ok { text = Some "summary"; reasoning = []; tool_calls = None;
+                   finish_reason = Stop;
+                   usage = { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0;
+                             cached_tokens = 0; cache_creation_input_tokens = 0;
+                             cache_read_input_tokens = 0 };
+                   model = model.Types.model_name });
+            stream_fn = (fun _ _ _ _ _ -> failwith "stream_fn should not be called");
+            close_fn = (fun () -> ());
+            complete_structured_fn = None;
+            list_models_fn = None;
+            supports_native_tools_fn = None;
+            context_window_fn = None; cache_control_fn = None }
+        in
+        let default_model = dummy_model ~name:"active-model" in
+        let explicit_model = dummy_model ~name:"summarizer-model" in
+        let conv = {
+          Types.messages =
+            [ dummy_msg Types.System "sys";
+              dummy_msg Types.User "older question";
+              dummy_msg Types.Assistant "older answer";
+              dummy_msg Types.User "middle question";
+              dummy_msg Types.Assistant "middle answer";
+              dummy_msg Types.User "recent question" ];
+          metadata = [];
+        } in
+        let result =
+          Context_manager.apply_strategy ~default_model
+            (Summarize { max_tokens = 1; summary_model = Some explicit_model })
+            conv (Some llm) ~on_event:None
+        in
+        (match result with
+         | Ok _ ->
+           Alcotest.(check (option string)) "explicit model used"
+             (Some "summarizer-model") !seen_model
+         | Error _ -> Alcotest.fail "expected Ok from summarize"));
     ]);
 
     ("apply_default_summarize", [

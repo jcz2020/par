@@ -144,16 +144,24 @@ type agent_config = {
 Context window 大小通过三层 resolver 解析：
 1. `context_window_override`（用户 supplied，优先级最高）
 2. `llm_service.context_window_fn`（provider capability 函数）
-3. 静态查表（`default_context_window`）：gpt-4o 系列=128K，claude-4 系列=200K，gpt-3.5-turbo=16385，未知=8000（保守默认）
+3. 静态查表（`default_context_window`）：gpt-4o 系列=128K，claude-4 系列=200K，gpt-3.5-turbo=16385
+
+未知模型解析为 `0`（“window unknown”）。PAR 此时**跳过主动压缩**，发出
+`Context_compression_skipped { reason = \`No_window_size }` 并打印一次警告，而不是
+猜一个小窗口、每轮都截断健康对话。真正的 provider context-length 错误仍会触发
+reactive 压缩路径。
 
 两个可观测事件：
 - `Context_compressed { trigger; tokens_before; tokens_after; messages_before; messages_after; strategy_used; elapsed_ms }` 压缩成功时
 - `Context_compression_skipped { reason }` 跳过时，带类型化 reason：`` `Below_threshold of float ``、`` `Cooldown_active of int ``、`` `No_window_size ``、`` `No_strategy ``
 
-**默认值变更（0.x 中的 BREAKING）**：`make_agent` 默认 `context_strategy` 从
-`Sliding_window { max_messages=100; max_tokens=200000 }` 改为 `Summarize { max_tokens=8000; summary_model=None }`。
-业界调研确认所有主流生产 agent 框架的默认值都是 LLM-summarize（Letta、Anthropic、LangChain、CrewAI），
-零个用 truncate-drop。要恢复 v0.6.3 前的行为，显式设置 `context_strategy = Some (Sliding_window {...})`。
+**默认值**：`make_agent` 保持 `context_strategy = None`。配合默认的
+`context_compression_threshold = Some 0.8`，引擎会走按窗口推导预算的默认摘要路径。
+只有需要固定策略时才显式设置 `context_strategy`。
+
+`Summarize { summary_model = None }` 表示“用正在跑这段对话的模型摘要”（即
+`agent.model`），**不会**静默退化成截断。想用更便宜的摘要模型时设置
+`summary_model = Some model`。
 
 ### model_config
 

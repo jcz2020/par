@@ -22,8 +22,9 @@ exception Approval_pending of {
    Raised inside the streaming accumulator when Cancellation.is_cancelled
    fires true AFTER the user's on_chunk callback has observed the chunk.
    Caught inside run_llm_with_optional_streaming and converted to
-   Error (Cancelled reason) — same shape the loop-top check returns. *)
-exception Stream_cancelled_by_token
+   Error (Cancelled reason) — same shape the loop-top check returns.
+   The exception lives in [Cancellation] so providers can re-raise it
+   instead of swallowing it in their per-event parse handlers. *)
 
 (* -------------------------------------------------------------------------- *)
 (* Middleware chain — Russian Doll composition                           *)
@@ -185,6 +186,10 @@ let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
 (* -------------------------------------------------------------------------- *)
 
 let run_llm_with_optional_streaming ?token llm agent_model agent_tools conv user_cb =
+  let conv = Conversation_repair.normalize_arguments conv in
+  match Conversation_repair.validate conv with
+  | Error msg -> Result.Error (Invalid_input msg)
+  | Ok () ->
   match user_cb with
   | None -> llm.complete_fn agent_model agent_tools conv
   | Some user_chunk ->
@@ -200,7 +205,7 @@ let run_llm_with_optional_streaming ?token llm agent_model agent_tools conv user
       user_chunk chunk;
       (match token with
        | Some tok when Cancellation.is_cancelled tok ->
-         raise Stream_cancelled_by_token
+         raise Cancellation.Stream_cancelled_by_token
        | _ -> ());
       match chunk with
       | Text_delta { text } -> Buffer.add_string text_buf text
@@ -221,6 +226,23 @@ let run_llm_with_optional_streaming ?token llm agent_model agent_tools conv user
       | Reasoning_signature { signature } -> reasoning_signature := Some signature
       | Usage_update _ | Done _ -> ()
     in
+    let parse_tool_arguments ~id ~name args_str =
+      if String.trim args_str = "" then `Assoc []
+      else
+        try
+          match Yojson.Safe.from_string args_str with
+          | `Assoc _ as obj -> obj
+          | other ->
+            Logs.warn (fun m -> m
+              "[engine] tool_call %s (%s) arguments are not a JSON object (%s); \
+               using {}" id name (Yojson.Safe.to_string other));
+            `Assoc []
+        with exn ->
+          Logs.warn (fun m -> m
+            "[engine] tool_call %s (%s) arguments are not valid JSON (%s); \
+             using {}" id name (Printexc.to_string exn));
+          `Assoc []
+    in
     let stream_cfg : stream_config = { chunk_timeout = 30.0; total_timeout = None; buffer_size = 4096 } in
     (try
        match llm.stream_fn agent_model agent_tools conv stream_cfg acc with
@@ -231,7 +253,7 @@ let run_llm_with_optional_streaming ?token llm agent_model agent_tools conv user
            (id, name, Buffer.contents buf)) !tc_order in
          let tool_calls = if entries = [] then None else
            Some (List.map (fun (id, name, args_str) ->
-             let arguments = try Yojson.Safe.from_string args_str with _ -> `Null in
+             let arguments = parse_tool_arguments ~id ~name args_str in
              { id; name; arguments }) entries) in
          let text = if Buffer.length text_buf = 0 then None else Some (Buffer.contents text_buf) in
          let reasoning =
@@ -242,7 +264,7 @@ let run_llm_with_optional_streaming ?token llm agent_model agent_tools conv user
                cache_control = None } ] in
          Ok { text; reasoning; tool_calls; finish_reason = stream_complete.finish_reason;
               usage = stream_complete.final_usage; model = agent_model.model_name }
-     with Stream_cancelled_by_token ->
+     with Cancellation.Stream_cancelled_by_token ->
        let reason = match token with
          | Some tok -> Option.value (Cancellation.reason tok) ~default:User_cancelled
          | None -> User_cancelled
@@ -376,6 +398,7 @@ let run_structured
       { existing with messages = existing.messages @ [ usr ] }
     | None -> make_conversation sys_prompt user_message ~user_content
   in
+  let conv0 = Conversation_repair.normalize_arguments conv0 in
 
   (* Dispatch: native when llm.complete_structured_fn = Some _, otherwise
      fallback that injects the schema directive into the system message text.
@@ -748,6 +771,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
   let start_time = Unix.gettimeofday () in
   let last_compress_iter = ref (-1_000_000) in
   let reactive_attempts = ref 0 in
+  let warned_no_window = ref false in
   (* LOOP INVARIANT (root-cause fix for v0.7.8):
      conv passed around inside [loop] MUST NOT contain the final assistant
      message derived from the terminal response. Every Ok-bearing terminal
@@ -818,6 +842,15 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
         in
         let fire_evt evt = match on_tool_event with Some pub -> pub evt | None -> () in
         (match skip_reason with
+         | Some `No_window_size when not !warned_no_window ->
+           warned_no_window := true;
+           Logs.warn (fun m -> m
+             "[engine] context window unknown for model %s; proactive \
+              compression disabled. Set agent.context_window_override or \
+              provide llm_service.context_window_fn."
+             agent.model.model_name)
+         | _ -> ());
+        (match skip_reason with
          | Some r -> fire_evt (Context_compression_skipped { reason = r })
          | None -> ());
         match agent.context_strategy, agent.context_compression_threshold, should_fire with
@@ -850,13 +883,13 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
            | Error _ -> conv)
         | Some strategy, None, _ ->
           (* manual mode: apply unconditionally (preserves pre-p70 behavior) *)
-          (match Context_manager.apply_strategy strategy conv (Some llm) ~on_event:on_tool_event with
+          (match Context_manager.apply_strategy ~default_model:agent.model strategy conv (Some llm) ~on_event:on_tool_event with
            | Ok conv' -> conv'
            | Error _ -> conv)
         | Some _strategy, Some _, false -> conv
         | Some strategy, Some _, true ->
           let compress_start = Unix.gettimeofday () in
-          (match Context_manager.apply_strategy strategy conv (Some llm) ~on_event:on_tool_event with
+          (match Context_manager.apply_strategy ~default_model:agent.model strategy conv (Some llm) ~on_event:on_tool_event with
            | Ok conv' ->
              let elapsed_ms =
                int_of_float ((Unix.gettimeofday () -. compress_start) *. 1000.0)
@@ -912,7 +945,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
               Logs.warn (fun m -> m "[engine] Context length exceeded (reactive attempt %d/2), applying context strategy" !reactive_attempts);
               let conv = match agent.context_strategy with
                 | Some strategy ->
-                  (match Context_manager.apply_strategy strategy conv (Some llm) ~on_event:on_tool_event with
+                  (match Context_manager.apply_strategy ~default_model:agent.model strategy conv (Some llm) ~on_event:on_tool_event with
                    | Ok conv' -> conv'
                    | Error _ -> conv)
                 | None when agent.context_compression_threshold <> None ->
@@ -1517,6 +1550,11 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
         (String.length sys_prompt_text) (String.length user_message));
       make_conversation sys_prompt_text user_message ~user_content
   in
+  (* Heal conversations written before tool arguments were validated (or by a
+     caller that built them by hand): non-object arguments become {} before
+     they can reach a provider.  Pairing is validated separately at request
+     time so corruption is reported instead of silently rewritten. *)
+  let conv = Conversation_repair.normalize_arguments conv in
   (* EGRESS WRAP (root-cause fix for v0.7.8): single point of authority for
      materializing the terminal assistant message into the returned conversation.
      The loop's contract is "conv does NOT contain the terminal response"; this

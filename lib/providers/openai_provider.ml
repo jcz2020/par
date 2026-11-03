@@ -617,36 +617,43 @@ let stream t model_config tools conversation _stream_config callback =
                      if data = "[DONE]" then
                        stop := true
                      else begin
-                       try
-                         let json = Yojson.Safe.from_string data in
-                           let text_c, reasoning_c, tool_c, finish_opt, usage_opt =
-                             parse_stream_delta ~tc_id_map json
-                          in
-                          ( match text_c with
-                          | Some chunk ->
-                            callback chunk;
-                            incr chunks
-                          | None -> () );
-                          ( match reasoning_c with
-                          | Some chunk ->
-                            callback chunk;
-                            incr chunks
-                          | None -> () );
-                          ( match tool_c with
-                         | chunk :: rest ->
-                           List.iter (fun c -> callback c; incr chunks) (chunk :: rest)
-                         | [] -> () );
-                         ( match finish_opt with
-                         | Some f -> finish := f
-                         | None -> () );
-                         ( match usage_opt with
-                         | Some u -> usage := u
-                         | None -> () )
-                        with exn ->
-                          let preview = String.sub data 0 (min 200 (String.length data)) in
-                          Logs.warn (fun m -> m "openai_provider: stream chunk dropped: %s — data: %s"
-                            (Printexc.to_string exn) preview)
-                     end
+                        (* Parse inside the try; invoke the callback outside it.
+                           A callback exception (notably cancellation) must not
+                           be mistaken for a malformed SSE chunk. *)
+                        let parsed =
+                          try
+                            let json = Yojson.Safe.from_string data in
+                            Some (parse_stream_delta ~tc_id_map json)
+                          with exn ->
+                            let preview = String.sub data 0 (min 200 (String.length data)) in
+                            Logs.warn (fun m -> m "openai_provider: stream chunk dropped: %s — data: %s"
+                              (Printexc.to_string exn) preview);
+                            None
+                        in
+                        (match parsed with
+                         | None -> ()
+                         | Some (text_c, reasoning_c, tool_c, finish_opt, usage_opt) ->
+                           (match text_c with
+                            | Some chunk ->
+                              callback chunk;
+                              incr chunks
+                            | None -> ());
+                           (match reasoning_c with
+                            | Some chunk ->
+                              callback chunk;
+                              incr chunks
+                            | None -> ());
+                           (match tool_c with
+                            | chunk :: rest ->
+                              List.iter (fun c -> callback c; incr chunks) (chunk :: rest)
+                            | [] -> ());
+                           (match finish_opt with
+                            | Some f -> finish := f
+                            | None -> ());
+                           (match usage_opt with
+                            | Some u -> usage := u
+                            | None -> ()))
+                      end
                    end;
                    process_lines ()
             in
@@ -662,6 +669,8 @@ let stream t model_config tools conversation _stream_config callback =
           (http_error_to_error_category
              (Http_client.map_http_status status body))
       | Eio.Io _ -> Result.Error (External_failure "Network error during OpenAI stream")
+      | Cancellation.Stream_cancelled_by_token as exn -> raise exn
+      | Eio.Cancel.Cancelled _ as exn -> raise exn
       | Failure msg when (try Str.search_forward (Str.regexp "timed out") msg 0 >= 0 with _ -> false) -> Result.Error Timeout
      | Failure msg -> Result.Error (Invalid_input msg)
       | exn -> Result.Error (Internal (Printexc.to_string exn)) )

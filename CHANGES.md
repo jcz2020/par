@@ -1,5 +1,36 @@
 # CHANGES
 
+## Unreleased — context safety, payload validation, streaming cancellation
+
+> A long conversation no longer gets compacted on the strength of a guessed 8K window, and a malformed tool call can no longer poison every later request. Cancellation now actually stops an active stream instead of being swallowed as a malformed SSE chunk. No version bump yet.
+
+### Fixed — unknown models no longer silently truncate at 8K
+
+- `Context_manager.default_context_window` returns `0` for unknown models, matching the documented resolver contract. The engine emits `Context_compression_skipped { reason = \`No_window_size }` and a one-time warning instead of guessing a small window. A real provider context-length error still triggers reactive compression.
+- `Runtime.make_agent` no longer defaults `context_strategy` to `Summarize { max_tokens = 8000; summary_model = None }`; the default is now `None`, so the ratio-gated path derives its budget from the resolved window. This also fixes the known-model case where a 128K conversation was compacted at the 0.8 threshold to an 8K absolute budget.
+- `Summarize { summary_model = None }` now means "summarize with the running agent model" (`agent.model`), not "fall back to truncation". An explicit `summary_model = Some model` still wins. `Context_manager.apply_strategy` gained `?default_model`.
+
+### Fixed — tool-call / tool-result pairing survives every cut
+
+- New `Conversation_repair` module (`Par.Conversation_repair`):
+  - `normalize_arguments` turns non-object tool-call arguments into `{}` (with the tool_call id/name in the log) so a provider never receives `null`/scalars as function arguments.
+  - `repair_tool_pairs` drops orphan Tool results and synthesizes a result for any call that lost its result during a cut.
+  - `validate` enforces the provider-fatal direction: every Tool result must have a matching tool_call in the preceding assistant batch; non-object arguments are rejected with the offending id/name. A tool_call without a result is accepted because handoff calls are control flow.
+- `truncate_conversation`, `apply_sliding_window` and `apply_summarize` all return provider-replay-valid conversations. Before each LLM request the engine normalizes arguments and validates pairing; a corrupt caller-supplied conversation returns `Invalid_input` with the offending id/name instead of a provider 400.
+
+### Fixed — streaming cancellation was swallowed by both providers
+
+- The cancellation exception now lives in `Cancellation.Stream_cancelled_by_token`. OpenAI's streaming loop parses JSON inside its `try` and invokes the callback outside it; Anthropic re-raises the exception from every per-event handler. Both outer handlers re-raise `Eio.Cancel.Cancelled` instead of converting it to `Internal`.
+- The engine maps the propagated exception to `Error (Cancelled reason, conversation)`. Added provider-level tests that raise from the first SSE chunk and assert no second callback, plus an engine mapping test.
+- Known limitation: a completely stalled connection with no chunks cannot be interrupted because cohttp-eio's blocked read does not respond to Eio cancellation (`test/test_http_timeout.ml` documents this). Cancellation takes effect on the next chunk. A raw-socket HTTP rewrite is tracked separately.
+
+### Tests
+
+- New `test/test_conversation_repair.ml` (11 cases: normalization, orphan drop, missing-result synthesis, every truncation cut across budgets/keep_system, sliding-window and summarize outputs).
+- New `test/test_engine_payload_validation.ml` (malformed streamed arguments persist as `{}` and the next request sees `{}`; an orphan Tool result is rejected before the provider is called).
+- New `test/test_streaming_cancel.ml` (OpenAI and Anthropic callback exceptions propagate after the first chunk; engine maps them to `Cancelled`).
+- `test/test_context_manager.ml` / `test/test_context_compression.ml` / `test/test_make_agent.ml` updated for the new window and strategy defaults.
+
 ## v0.14.0-beta.20261102 — durable workflow execution
 
 > An interrupted workflow can now be recovered instead of being silently orphaned. The per-step checkpoint was written with the run's *starting* variables, so it looked resumable and was not; recovery is explicit, skips completed steps, and the semantics are at-least-once. **1678 OCaml tests across 125 suites, 0 failures; 198 Python tests passing with 20 pre-existing skips.** Beta-first: the stable line remains v0.10.0.

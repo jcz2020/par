@@ -278,6 +278,21 @@
  (modules test_context_manager))
 
 (test
+ (name test_conversation_repair)
+ (libraries par alcotest)
+ (modules test_conversation_repair))
+
+(test
+ (name test_engine_payload_validation)
+ (libraries par eio_main alcotest)
+ (modules test_engine_payload_validation))
+
+(test
+ (name test_streaming_cancel)
+ (libraries par eio_main mirage-crypto-rng.unix alcotest)
+ (modules test_streaming_cancel))
+
+(test
  (name test_noop_persistence)
  (libraries par alcotest)
  (modules test_noop_persistence))

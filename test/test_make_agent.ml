@@ -24,6 +24,19 @@ let suite = [
     | Error e -> Alcotest.failf "expected Ok, got: %s"
         (match e with Invalid_input m -> m | _ -> "other"));
 
+  Alcotest.test_case "default context_strategy is None" `Quick (fun () ->
+    match Runtime.make_agent
+      ~id:"agent1"
+      ~system_prompt:(stable_prompt "hello")
+      ~model:valid_model () with
+    | Ok agent ->
+      Alcotest.(check bool) "default strategy is None" true
+        (agent.context_strategy = None);
+      Alcotest.(check bool) "auto compression remains enabled" true
+        (agent.context_compression_threshold = Some 0.8)
+    | Error e -> Alcotest.failf "expected Ok, got: %s"
+        (match e with Invalid_input m -> m | _ -> "other"));
+
   Alcotest.test_case "empty id rejected" `Quick (fun () ->
     match Runtime.make_agent
       ~id:""

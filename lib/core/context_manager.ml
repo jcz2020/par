@@ -27,31 +27,37 @@ let estimate_tokens conv =
   char_count / chars_per_token
 
 let truncate_conversation ?(keep_system = true) ~min_messages ~max_tokens conv =
-  let system_msgs, other_msgs =
-    List.partition (fun (m : message) -> m.role = System) conv.messages
-  in
-  let kept_system = if keep_system then system_msgs else [] in
-  let remaining_from = List.length other_msgs in
-  if remaining_from <= min_messages then
-    { conv with messages = kept_system @ other_msgs }
-  else begin
-    let tokens = estimate_tokens conv in
-    if tokens <= max_tokens then conv
+  let truncated =
+    let system_msgs, other_msgs =
+      List.partition (fun (m : message) -> m.role = System) conv.messages
+    in
+    let kept_system = if keep_system then system_msgs else [] in
+    let remaining_from = List.length other_msgs in
+    if remaining_from <= min_messages then
+      { conv with messages = kept_system @ other_msgs }
     else begin
-      let rec drop_oldest msgs =
-        let len = List.length msgs in
-        if len <= min_messages then msgs
-        else begin
-          let candidate = if keep_system then kept_system @ List.tl msgs else List.tl msgs in
-          let est = estimate_tokens { conv with messages = candidate } in
-          if est <= max_tokens || len - 1 <= min_messages then List.tl msgs
-          else drop_oldest (List.tl msgs)
-        end
-      in
-      let trimmed = drop_oldest other_msgs in
-      { conv with messages = kept_system @ trimmed }
+      let tokens = estimate_tokens conv in
+      if tokens <= max_tokens then conv
+      else begin
+        let rec drop_oldest msgs =
+          let len = List.length msgs in
+          if len <= min_messages then msgs
+          else begin
+            let candidate = if keep_system then kept_system @ List.tl msgs else List.tl msgs in
+            let est = estimate_tokens { conv with messages = candidate } in
+            if est <= max_tokens || len - 1 <= min_messages then List.tl msgs
+            else drop_oldest (List.tl msgs)
+          end
+        in
+        let trimmed = drop_oldest other_msgs in
+        { conv with messages = kept_system @ trimmed }
+      end
     end
-  end
+  in
+  (* A cut can land between an assistant tool_call and its Tool result.  The
+     contract of this public helper is a provider-replay-valid conversation,
+     not merely a shorter one. *)
+  Conversation_repair.repair_tool_pairs truncated
 
 let format_messages_for_summary msgs =
   let role_str = function
@@ -68,7 +74,7 @@ let format_messages_for_summary msgs =
 let apply_truncate_oldest ~keep_system ~min_messages conv =
   truncate_conversation ~keep_system ~min_messages ~max_tokens:default_max_tokens conv
 
-let apply_summarize max_tokens summary_model conv llm_opt ~on_event =
+let apply_summarize ?default_model max_tokens summary_model conv llm_opt ~on_event =
   let tokens = estimate_tokens conv in
   if tokens <= max_tokens then Ok conv
   else
@@ -90,7 +96,16 @@ let apply_summarize max_tokens summary_model conv llm_opt ~on_event =
     in
     if to_summarize = [] then Ok conv
     else
-      match llm_opt, summary_model with
+      (* [summary_model = None] means "use the model that is running this
+         conversation", not "fall back to truncation".  The latter silently
+         discarded history, which is the opposite of what the [Summarize]
+         strategy promises. *)
+      let effective_model =
+        match summary_model with
+        | Some _ as m -> m
+        | None -> default_model
+      in
+      match llm_opt, effective_model with
       | Some llm, Some model ->
         let prompt_text =
           Printf.sprintf
@@ -124,7 +139,8 @@ let apply_summarize max_tokens summary_model conv llm_opt ~on_event =
                 content_blocks = Message.content_of_string (Printf.sprintf "[Conversation Summary]\n%s" summary_text);
                 tool_calls = None; tool_call_id = None; name = None;
               } in
-              Ok { conv with messages = summary_msg :: to_keep }
+              Ok (Conversation_repair.repair_tool_pairs
+                    { conv with messages = summary_msg :: to_keep })
             | None ->
               Ok (apply_truncate_oldest ~keep_system:true ~min_messages:4 conv))
          | Error _ ->
@@ -146,17 +162,20 @@ let apply_sliding_window max_messages max_tokens conv =
   in
   let conv' = { conv with messages = system_msgs @ truncated_other } in
   let tokens = estimate_tokens conv' in
-  if tokens <= max_tokens then conv'
-  else
-    let min_keep = max 2 (List.length system_msgs) in
-    truncate_conversation ~keep_system:true ~min_messages:min_keep ~max_tokens conv'
+  let result =
+    if tokens <= max_tokens then conv'
+    else
+      let min_keep = max 2 (List.length system_msgs) in
+      truncate_conversation ~keep_system:true ~min_messages:min_keep ~max_tokens conv'
+  in
+  Conversation_repair.repair_tool_pairs result
 
-let apply_strategy strategy conv llm_opt ~on_event =
+let apply_strategy ?default_model strategy conv llm_opt ~on_event =
   match strategy with
   | Truncate_oldest { keep_system; min_messages } ->
     Ok (apply_truncate_oldest ~keep_system ~min_messages conv)
   | Summarize { max_tokens; summary_model } ->
-    apply_summarize max_tokens summary_model conv llm_opt ~on_event
+    apply_summarize ?default_model max_tokens summary_model conv llm_opt ~on_event
   | Sliding_window { max_messages; max_tokens } ->
     Ok (apply_sliding_window max_messages max_tokens conv)
 
@@ -188,7 +207,7 @@ let default_context_window (model : model_config) =
   else if has_sub "o4-mini" then 200000
   else if has_sub "o1" then 200000
   else if has_sub "o3" then 200000
-  else 8000
+  else 0
 
 let resolve_context_window ~llm ~model ~user_override =
   match user_override with
