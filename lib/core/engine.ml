@@ -295,6 +295,15 @@ let add_assistant_message conv (resp : llm_response) =
   } in
   { conv with messages = conv.messages @ [ msg ] }
 
+let response_has_content (resp : llm_response) =
+  resp.tool_calls <> None || resp.reasoning <> [] ||
+  (match resp.text with Some t -> String.trim t <> "" | None -> false)
+
+(* An empty assistant message is not replayable by OpenAI or Anthropic.  This
+   is used after stripping hallucinated tool_calls from a tool-less agent. *)
+let add_assistant_message_if_nonempty conv resp =
+  if response_has_content resp then add_assistant_message conv resp else conv
+
 let add_tool_result_message conv (call : tool_call) result =
   let content = match result with
     | Success json -> Yojson.Safe.to_string json
@@ -406,6 +415,9 @@ let run_structured
      the existing user_message is preserved as the second conversation
      message, and the system message gains the schema instruction. *)
   let dispatch (model : model_config) tools conv (schema : Yojson.Safe.t) =
+    match Conversation_repair.validate conv with
+    | Error msg -> Result.Error (Invalid_input msg)
+    | Ok () ->
     match llm.complete_structured_fn with
     | Some fn -> fn model tools conv schema
     | None ->
@@ -452,7 +464,12 @@ let run_structured
           | Some fn -> (match fn llm_resp with Some r -> r | None -> llm_resp)
           | None -> llm_resp
         in
-        let conv_with_assistant = add_assistant_message conv_after_before llm_resp_after in
+        (* The structured path never executes tools.  Keeping a model-emitted
+           tool_call in the conversation would leave a dangling call that the
+           next repair attempt cannot replay.  The raw_response still carries
+           it for debugging. *)
+        let conv_resp = { llm_resp_after with tool_calls = None } in
+        let conv_with_assistant = add_assistant_message_if_nonempty conv_after_before conv_resp in
         let text = match llm_resp_after.text with
           | Some t -> t
           | None -> ""
@@ -795,8 +812,13 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     | Some f -> f conv step_agent iteration
     | None -> ()
   in
+  let terminal_agent = ref agent in
   let rec loop ~agent ~global_max conv iterations =
+    terminal_agent := agent;
     let global_max = max global_max agent.max_iterations in
+    let continue_loop conv =
+      loop ~agent ~global_max (drain_into_conv conv steering) (iterations + 1)
+    in
     let elapsed = Unix.gettimeofday () -. start_time in
     let max_time = Option.value agent.max_execution_time ~default:infinity in
     if elapsed > max_time then
@@ -865,8 +887,40 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
              agent.model.model_name)
          | _ -> ());
         (match skip_reason with
+         | Some `No_window_size when agent.context_strategy <> None ->
+           (* An explicit strategy is applied below even without a window;
+              emitting "skipped" here would contradict "compressed". *)
+           ()
          | Some r -> fire_evt (Context_compression_skipped { reason = r })
          | None -> ());
+        let apply_explicit_strategy ?(fire_on_noop = false) strategy =
+          let compress_start = Unix.gettimeofday () in
+          (match Context_manager.apply_strategy ~default_model:agent.model strategy conv (Some llm) ~on_event:on_tool_event with
+           | Ok conv' ->
+             let tokens_after = Context_manager.estimate_tokens conv' in
+             let messages_after = List.length conv'.messages in
+             if not fire_on_noop
+                && tokens_after = tokens_before
+                && messages_after = messages_before then
+               conv
+             else begin
+               let elapsed_ms =
+                 int_of_float ((Unix.gettimeofday () -. compress_start) *. 1000.0)
+               in
+               fire_evt (Context_compressed {
+                 trigger = Option.value agent.context_compression_threshold ~default:0.0;
+                 tokens_before;
+                 tokens_after;
+                 messages_before;
+                 messages_after;
+                 strategy_used = strategy;
+                 elapsed_ms;
+               });
+               last_compress_iter := iterations;
+               conv'
+             end
+           | Error _ -> conv)
+        in
         match agent.context_strategy, agent.context_compression_threshold, should_fire with
         | None, None, _ -> conv
         | None, Some _, false -> conv
@@ -897,31 +951,25 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
            | Error _ -> conv)
         | Some strategy, None, _ ->
           (* manual mode: apply unconditionally (preserves pre-p70 behavior) *)
-          (match Context_manager.apply_strategy ~default_model:agent.model strategy conv (Some llm) ~on_event:on_tool_event with
-           | Ok conv' -> conv'
-           | Error _ -> conv)
-        | Some _strategy, Some _, false -> conv
-        | Some strategy, Some _, true ->
-          let compress_start = Unix.gettimeofday () in
-          (match Context_manager.apply_strategy ~default_model:agent.model strategy conv (Some llm) ~on_event:on_tool_event with
-           | Ok conv' ->
-             let elapsed_ms =
-               int_of_float ((Unix.gettimeofday () -. compress_start) *. 1000.0)
+          apply_explicit_strategy strategy
+        | Some strategy, Some _, false ->
+          (match skip_reason with
+           | Some `No_window_size ->
+             (* An explicit strategy is a user decision.  A missing window must
+                not silently disable Sliding_window/Truncate_oldest, which do
+                not need one.  Respect the cooldown so a summarizer is not
+                called on every iteration. *)
+             let cooldown_ok = match agent.compression_cooldown_messages with
+               | Some cd -> iterations - !last_compress_iter >= cd
+               | None -> true
              in
-             fire_evt (Context_compressed {
-               trigger = Option.value agent.context_compression_threshold ~default:0.8;
-               tokens_before;
-               tokens_after = Context_manager.estimate_tokens conv';
-               messages_before;
-               messages_after = List.length conv'.messages;
-               strategy_used = strategy;
-               elapsed_ms;
-             });
-             last_compress_iter := iterations;
-             conv'
-           | Error _ -> conv)
+             if cooldown_ok then apply_explicit_strategy strategy else conv
+           | _ -> conv)
+        | Some strategy, Some _, true ->
+          apply_explicit_strategy ~fire_on_noop:true strategy
       in
       let conv = apply_before_llm agent.middleware conv (fun c -> c) in
+      let conv = Conversation_repair.normalize_arguments conv in
       (* v0.6.4 prompt caching: plan breakpoints and apply cache_control markers *)
       let conv =
         match agent.cache_strategy with
@@ -976,7 +1024,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                     ~max_tokens:8000 conv
               in
               last_compress_iter := iterations;
-              loop ~agent ~global_max conv (iterations + 1)
+              continue_loop conv
             end
           | `Other err_classified ->
            let err_classified : error_category = err_classified in
@@ -984,7 +1032,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
              (fun e -> Error { category = e; message = "LLM error"; retryable = false; metadata = [] })
            in
            (match action with
-            | Error { retryable = true; _ } -> loop ~agent ~global_max conv (iterations + 1)
+            | Error { retryable = true; _ } -> continue_loop conv
             | Handoff _ -> Result.Error ((Internal "Handoff reached retry path" : error_category), conv)
             | _ -> Result.Error (err_classified, conv)))
         | Ok resp ->
@@ -1159,16 +1207,23 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
               results ([], [], []) in
           let conv = List.fold_left (fun conv (c, r) ->
             add_tool_result_message conv c r) conv non_special in
-          let conv = drain_into_conv conv steering in
           let execute_handoff (call : tool_call) target_agent_id carry_context task =
             let resolver = match agent_resolver with
               | Some r -> r
               | None -> (fun _ -> None)
             in
+            let handoff_error reason =
+              let conv = add_tool_result_message conv call (Error {
+                category = Invalid_input reason;
+                message = reason;
+                retryable = false;
+                metadata = [];
+              }) in
+              Result.Error (Invalid_input reason, conv)
+            in
             match resolver target_agent_id with
             | None ->
-              Result.Error (Invalid_input
-                (Printf.sprintf "Handoff target not found: %s" target_agent_id), conv)
+              handoff_error (Printf.sprintf "Handoff target not found: %s" target_agent_id)
             | Some target_agent ->
               (match on_tool_event with
                | Some pub ->
@@ -1191,6 +1246,10 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
               in
               (match carry_context with
                | true ->
+                 (* A handoff is a control-flow tool call, but it still needs a
+                    result before the target agent sees the conversation. *)
+                 let conv = add_tool_result_message conv call
+                     (Handoff { target_agent_id; carry_context; task }) in
                  let non_sys = List.filter
                    (fun (m : message) -> m.role <> System) conv.messages in
                  let sys_msg = {
@@ -1198,6 +1257,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                    tool_calls = None; tool_call_id = None; name = None
                  } in
                  let new_conv = { conv with messages = sys_msg :: non_sys } in
+                 let new_conv = drain_into_conv new_conv steering in
                  loop ~agent:target_agent ~global_max new_conv (iterations + 1)
                | false ->
                  (match task with
@@ -1213,8 +1273,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                     let new_conv = { messages = [sys_msg; user_msg]; metadata = [] } in
                     loop ~agent:target_agent ~global_max new_conv (iterations + 1)
                   | None ->
-                    Result.Error (Invalid_input
-                      "Handoff with carry_context=false requires a task", conv)))
+                    handoff_error "Handoff with carry_context=false requires a task"))
           in
           let execute_approval (call : tool_call) (ar : handler_result) =
             let fire evt = match on_tool_event with
@@ -1233,6 +1292,14 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                    agent_id = agent.id;
                    tool_name;
                  });
+                 let conv = add_tool_result_message conv call (Error {
+                   category = Internal (Printf.sprintf
+                     "Approval_handler_missing for agent %s on tool %s"
+                     agent.id tool_name);
+                   message = "Approval handler missing";
+                   retryable = false;
+                   metadata = [];
+                 }) in
                  Result.Error (Internal (Printf.sprintf
                    "Approval_handler_missing for agent %s on tool %s"
                    agent.id tool_name), conv)
@@ -1262,7 +1329,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                            "approval granted for %s" tool_name));
                        ]) in
                        let conv = add_tool_result_message conv call synth in
-                       loop ~agent ~global_max conv (iterations + 1)
+                       continue_loop conv
                      | Rejected { reason } ->
                        fire (Approval_rejected { reason; approver });
                        let synth = (Error {
@@ -1272,13 +1339,13 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                          metadata = [];
                        } : handler_result) in
                        let conv = add_tool_result_message conv call synth in
-                       loop ~agent ~global_max conv (iterations + 1)
+                       continue_loop conv
                      | Modified { new_input } ->
                        fire (Approval_modified { new_input; approver });
                        let modified_call = { call with arguments = new_input } in
                        let (_, result) = invoke_one modified_call in
                        let conv = add_tool_result_message conv modified_call result in
-                       loop ~agent ~global_max conv (iterations + 1)
+                       continue_loop conv
                      | Escalated { target } ->
                        fire (Approval_escalated { target; approver });
                        execute_handoff call target true None
@@ -1291,7 +1358,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                          metadata = [];
                        } : handler_result) in
                        let conv = add_tool_result_message conv call synth in
-                       loop ~agent ~global_max conv (iterations + 1))
+                       continue_loop conv)
                    | Async_callback _ ->
                      let pending_payload = `Assoc [
                        ("tool_call_id", `String call.id);
@@ -1349,7 +1416,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                                "approval granted for %s" tool_name));
                            ]) in
                            let conv = add_tool_result_message conv call synth in
-                           loop ~agent ~global_max conv (iterations + 1)
+                           continue_loop conv
                          | Approval.Rejected { reason } ->
                            fire (Approval_rejected { reason; approver });
                            let synth = (Error {
@@ -1359,13 +1426,13 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                              metadata = [];
                            } : handler_result) in
                            let conv = add_tool_result_message conv call synth in
-                           loop ~agent ~global_max conv (iterations + 1)
+                           continue_loop conv
                          | Approval.Modified { new_input } ->
                            fire (Approval_modified { new_input; approver });
                            let modified_call = { call with arguments = new_input } in
                            let (_, result) = invoke_one modified_call in
                            let conv = add_tool_result_message conv modified_call result in
-                           loop ~agent ~global_max conv (iterations + 1)
+                           continue_loop conv
                          | Approval.Escalated { target } ->
                            fire (Approval_escalated { target; approver });
                            execute_handoff call target true None
@@ -1378,42 +1445,67 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                              metadata = [];
                            } : handler_result) in
                            let conv = add_tool_result_message conv call synth in
-                           loop ~agent ~global_max conv (iterations + 1)))))
+                           continue_loop conv))))
             | _ ->
               Result.Error (Internal
                 "execute_approval: non-Approval_required input", conv)
+          in
+          let synthetic_error conv (call, _) reason =
+            add_tool_result_message conv call (Error {
+              category = Invalid_input reason;
+              message = reason;
+              retryable = false;
+              metadata = [];
+            })
           in
           (match handoffs with
            | [] ->
              (match approvals with
               | [] ->
                 report_step conv agent.id (iterations + 1);
-                loop ~agent ~global_max conv (iterations + 1)
+                continue_loop conv
               | [(call, (Approval_required _ as ar))] ->
                 execute_approval call ar
-              | [_] ->
+              | [_] as one ->
+                let conv = List.fold_left (fun c item ->
+                  synthetic_error c item "Non-Approval_required result in approvals partition") conv one in
                 Result.Error (Internal
                   "Non-Approval_required result in approvals partition", conv)
-              | _ ->
+              | many ->
+                let conv = List.fold_left (fun c item ->
+                  synthetic_error c item "Multiple approvals in one tool batch are not supported") conv many in
                 Result.Error (Invalid_input
                   "Multiple approvals in one tool batch not supported in v0.8.0", conv))
            | [(call, Handoff { target_agent_id; carry_context; task })] ->
              if not enable_handoff then
+               let conv = synthetic_error conv (call, Success `Null)
+                 "Tool returned Handoff but enable_handoff=false" in
                Result.Error (Invalid_input
                  "Tool returned Handoff but enable_handoff=false", conv)
              else
                (match approvals with
                | [] ->
                  execute_handoff call target_agent_id carry_context task
-               | _ ->
+               | many ->
+                 let conv = synthetic_error conv (call, Success `Null)
+                   "Cannot mix Handoff and Approval_required in same batch" in
+                 let conv = List.fold_left (fun c item ->
+                   synthetic_error c item "Cannot mix Handoff and Approval_required in same batch") conv many in
                  Result.Error (Invalid_input
                    "Cannot mix Handoff and Approval_required in same batch", conv))
-           | [_] ->
-             Result.Error (Internal
-               "Non-Handoff result in handoffs partition", conv)
-           | _ ->
-             Result.Error (Invalid_input
-               "Multiple handoffs in one tool batch", conv))
+           | one ->
+             let reason =
+               match one with
+               | [_] -> "Non-Handoff result in handoffs partition"
+               | _ -> "Multiple handoffs in one tool batch"
+             in
+             let conv = List.fold_left (fun c item -> synthetic_error c item reason) conv one in
+             let err =
+               match one with
+               | [_] -> Internal reason
+               | _ -> Invalid_input reason
+             in
+             Result.Error (err, conv))
         | _ ->
           match resp.finish_reason with
           | Max_tokens ->
@@ -1432,7 +1524,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                  Ok (resp, conv)
                end else
                  if iterations + 1 >= global_max then Result.Error (Internal "Max iterations exceeded", conv)
-                 else loop ~agent ~global_max conv (iterations + 1)
+                 else continue_loop conv
              | Types.Retry ->
                (* Loop invariant: do not append the truncated partial here —
                   if the next iteration succeeds, that response gets appended
@@ -1440,10 +1532,10 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                   path discards conv anyway. *)
                let conv = drain_into_conv conv followup in
                if iterations + 1 >= global_max then Result.Error (Internal "Max iterations exceeded with truncated output", conv)
-               else loop ~agent ~global_max conv (iterations + 1)
+               else continue_loop conv
              | Types.Continue when not has_content ->
                if iterations + 1 >= global_max then Result.Error (Internal "Max iterations exceeded", conv)
-               else loop ~agent ~global_max conv (iterations + 1)
+               else continue_loop conv
               | Types.Continue ->
                 (* Temporary mid-iteration append — feeds initial chunk into the
                    continue_chunks sub-loop's LLM context. This message (plus all
@@ -1510,7 +1602,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
           | _ ->
             let conv = drain_into_conv conv followup in
             if Steering_queue.has_items (Option.value followup ~default:(Steering_queue.create ())) then
-              loop ~agent ~global_max conv (iterations + 1)
+              continue_loop conv
             else
                Ok (resp, conv)
      end
@@ -1624,7 +1716,23 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
          not (last_text = resp_text)
        | _ -> true
      in
-    let conv_final = if needs_append then add_assistant_message conv_pre resp else conv_pre in
+    (* A model with no tools can still hallucinate a tool_call.  Keep it in the
+       returned response (workflow callers may inspect it), but never persist a
+       dangling call into the conversation: the next request cannot replay it. *)
+    let conv_resp, stripped =
+      let terminal = !terminal_agent in
+      if terminal.tools = [] && resp.tool_calls <> None then begin
+        Logs.warn (fun m -> m
+          "[engine] dropping hallucinated tool_calls from conversation for agent %s (tools=[])" terminal.id);
+        ({ resp with tool_calls = None }, true)
+      end else (resp, false)
+    in
+    let conv_final =
+      if needs_append then
+        if stripped then add_assistant_message_if_nonempty conv_pre conv_resp
+        else add_assistant_message conv_pre conv_resp
+      else conv_pre
+    in
     Result.Ok (resp, conv_final)
 
 (* Two-phase structured output: ReAct loop with tools, then structured call.

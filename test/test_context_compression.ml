@@ -69,6 +69,84 @@ let error_to_string = function
 let suite = [
   ("PAR-p70 engine integration", [
 
+    Alcotest.test_case "default_summarize_budget_tracks_window" `Quick (fun () ->
+      let counter = ref 0 in
+      let events = ref [] in
+      let llm = mock_llm_tracked counter [
+        text_response "summary text";
+        text_response "final answer";
+      ] in
+      let agent = agent_with
+        ~context_strategy:None
+        ~context_compression_threshold:(Some 0.01)
+        ~context_window_override:(Some 128000)
+        ~max_iterations:3 () in
+      let long_conv : conversation = {
+        messages = List.init 20 (fun i ->
+          { role = (if i mod 2 = 0 then User else Assistant);
+            content_blocks = [Text_block { text = String.make 4000 'x'; cache_control = None }];
+            tool_calls = None; tool_call_id = None; name = None });
+        metadata = [];
+      } in
+      let collector evt = events := evt :: !events in
+      with_token (fun token ->
+        let reg = make_registry () in
+        (match Engine.run_agent ~conversation:long_conv
+                 ~on_tool_event:(Some collector) token agent "latest" llm reg with
+         | Ok _ -> ()
+         | Error (e, _) -> Alcotest.fail ("expected Ok: " ^ error_to_string e));
+        let compressed = List.find_opt (function
+          | Context_compressed _ -> true | _ -> false) !events in
+        match compressed with
+        | None -> Alcotest.fail "expected Context_compressed"
+        | Some (Context_compressed c) ->
+          (match c.strategy_used with
+           | Summarize { max_tokens; _ } ->
+             Alcotest.(check int) "budget is window/8" 16000 max_tokens
+           | _ -> Alcotest.fail "expected Summarize strategy");
+          Alcotest.(check bool) "tokens decreased" true
+            (c.tokens_after < c.tokens_before)
+        | Some _ -> Alcotest.fail "expected Context_compressed"));
+
+    Alcotest.test_case "explicit_strategy_applies_without_known_window" `Quick (fun () ->
+      let counter = ref 0 in
+      let events = ref [] in
+      let captured_len = ref 0 in
+      let llm =
+        { (mock_llm_tracked counter [ text_response "ok" ]) with
+          complete_fn = (fun _model _tools conv ->
+            captured_len := List.length conv.messages;
+            incr counter;
+            Ok (text_response "ok")) }
+      in
+      let agent = agent_with
+        ~context_strategy:(Some (Sliding_window { max_messages = 2; max_tokens = 1 }))
+        ~context_compression_threshold:(Some 0.8)
+        ~context_window_override:None () in
+      let long_conv : conversation = {
+        messages = List.init 12 (fun i ->
+          { role = (if i mod 2 = 0 then User else Assistant);
+            content_blocks = [Text_block { text = String.make 2000 'x'; cache_control = None }];
+            tool_calls = None; tool_call_id = None; name = None });
+        metadata = [];
+      } in
+      let collector evt = events := evt :: !events in
+      with_token (fun token ->
+        let reg = make_registry () in
+        (match Engine.run_agent ~conversation:long_conv
+                 ~on_tool_event:(Some collector) token agent "latest" llm reg with
+         | Ok _ -> ()
+         | Error (e, _) -> Alcotest.fail ("expected Ok: " ^ error_to_string e));
+        let compressed = List.exists (function
+          | Context_compressed _ -> true | _ -> false) !events in
+        let no_window_skip = List.exists (function
+          | Context_compression_skipped { reason = `No_window_size } -> true
+          | _ -> false) !events in
+        Alcotest.(check bool) "explicit strategy applied" true compressed;
+        Alcotest.(check bool) "no contradictory skip event" false no_window_skip;
+        Alcotest.(check bool) "sliding window trimmed the request" true
+          (!captured_len <= 3)));
+
     Alcotest.test_case "unknown_model_skips_proactive_compression" `Quick (fun () ->
       let counter = ref 0 in
       let events = ref [] in

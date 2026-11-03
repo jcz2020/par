@@ -147,10 +147,10 @@ Context window 大小通过四层 resolver 解析：
 3. `llm_service.context_window_fn`（provider capability 函数）
 4. 静态查表（`default_context_window`）：gpt-4o 系列=128K，claude-4 系列=200K，gpt-3.5-turbo=16385
 
-未知模型解析为 `0`（“window unknown”）。PAR 此时**跳过主动压缩**，发出
-`Context_compression_skipped { reason = \`No_window_size }` 并打印一次警告，而不是
-猜一个小窗口、每轮都截断健康对话。真正的 provider context-length 错误仍会触发
-reactive 压缩路径。
+未知模型解析为 `0`（“window unknown”）。PAR 此时**跳过按窗口推导的主动压缩**，
+发出 `Context_compression_skipped { reason = \`No_window_size }` 并打印一次警告，
+而不是猜一个小窗口、每轮都截断健康对话。显式 `context_strategy` 仍会应用（见下文）。
+真正的 provider context-length 错误仍会触发 reactive 压缩路径。
 
 两个可观测事件：
 - `Context_compressed { trigger; tokens_before; tokens_after; messages_before; messages_after; strategy_used; elapsed_ms }` 压缩成功时
@@ -715,6 +715,12 @@ Agent 执行核心是 `Par.Engine.run_agent`：
    - 将工具结果追加到对话
 7. 递归调用直到 `finish_reason` 为 `Stop` 或达到 `max_iterations`
 
+每次 provider 请求前，引擎会把非对象 tool arguments 归一为 `{}`，并校验
+tool_call/tool_result 配对。该检查是 provider-agnostic 的：即使自定义 provider
+能接受未配对历史，也会被拒绝，因为同一对话之后可能通过 OpenAI/Anthropic 重放。
+调用方传入的畸形对话返回 `Invalid_input`，错误带出问题的 tool_call id/name，
+而不是让 provider 返回 400。
+
 ### max_iterations 行为
 
 当迭代次数达到 `max_iterations` 时，`run_agent` 返回：
@@ -860,7 +866,7 @@ type context_strategy =
 
 `Summarize` 使用第二次 LLM 调用将早期轮次压缩为摘要消息。`max_tokens` 限定摘要长度。`summary_model` 可选地将摘要调用路由到比 agent 主模型更便宜或更快的模型；`None` 复用 agent 自身的 `model_config`。当早期上下文确实重要但 token 预算紧张时选择此策略，代价是每次摘要多一次 LLM 往返。
 
-`Sliding_window` 保留最近的 `max_messages` 条消息，丢弃所有更旧的内容，受 `max_tokens` 上限约束。它是最便宜的策略，因为从不调用其他模型，并且逐字保留对话尾部。v0.6.3 之前这是默认值；从 v0.6.3 开始默认是 `Summarize`（见上方"自动上下文压缩"）。
+`Sliding_window` 保留最近的 `max_messages` 条消息，丢弃所有更旧的内容，受 `max_tokens` 上限约束。它是最便宜的策略，因为从不调用其他模型，并且逐字保留对话尾部。显式策略即使模型窗口未知也会应用；只有按比例的自动路径需要窗口。
 
 ### 引擎如何应用策略
 
@@ -868,6 +874,7 @@ type context_strategy =
 
 ```ocaml
 val Context_manager.apply_strategy :
+  ?default_model:Types.model_config ->
   Types.context_strategy -> Types.conversation ->
   Types.llm_service option ->
   on_event:(Types.event -> unit) option ->
@@ -878,17 +885,15 @@ val Context_manager.estimate_tokens : Types.conversation -> int
 
 `estimate_tokens` 是粗略的字符数除以四的启发式方法。它不是分词器。在推理预算时将数字视为参考值。
 
-### v0.5.1 默认值
+### 默认值
 
-从 v0.5.1 开始，没有显式 `context_strategy` 的运行时获得：
+`make_agent` 保持 `context_strategy = None`。配合默认的
+`context_compression_threshold = Some 0.8`，引擎走按窗口推导预算的默认摘要路径。
+只有需要固定策略时才显式设置 `context_strategy`。
+`Summarize { summary_model = None }` 使用正在运行的 agent 模型。
 
-```ocaml
-Some (Sliding_window { max_messages = 100; max_tokens = 200000 })
-```
-
-这是对早期 beta 版本的刻意变更，之前策略未设置让对话无限增长直到 provider 拒绝。200K token 上限匹配当前最大的生产模型，100 条消息上限防止对话在单条消息很短时依然膨胀。如果你之前依赖无限增长（例如在运行时外部自行摘要），显式设置 `context_strategy = None` 可恢复旧行为。
-
-对于使用较小窗口的模型，同时降低两个数字。4K token 模型配合 `max_messages = 100` 仍会触发 provider 限制，因为 `max_messages` 在 token 估算之前检查。
+小窗口模型需要固定策略时，显式设置 `Sliding_window`/`Truncate_oldest`；
+即使 PAR 无法解析模型窗口，它也会应用。
 
 ## 取消
 

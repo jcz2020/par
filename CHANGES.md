@@ -50,7 +50,7 @@
 
 ### Tests
 
-- OCaml totals are **1718 tests**, 0 failures. Python is **204 passed / 20 skipped** (two new binding cases: `set_tool_layer`, `list_conversations`).
+- OCaml totals are **1734 tests**, 0 failures. Python is **204 passed / 20 skipped** (two new binding cases: `set_tool_layer`, `list_conversations`).
 - `test/test_context_manager.ml`: model declaration wins over provider capability; unknown still resolves to 0.
 - New `test/test_invoke_async_isolation.ml`: save/update_current flags, branch session persistence, atomic first-cause-wins.
 - `test/test_invoke_parallel.ml`: branch conversation roundtrip.
@@ -70,10 +70,12 @@
 ### Fixed — tool-call / tool-result pairing survives every cut
 
 - New `Conversation_repair` module (`Par.Conversation_repair`):
-  - `normalize_arguments` turns non-object tool-call arguments into `{}` (with the tool_call id/name in the log) so a provider never receives `null`/scalars as function arguments.
-  - `repair_tool_pairs` drops orphan Tool results and synthesizes a result for any call that lost its result during a cut.
-  - `validate` enforces the provider-fatal direction: every Tool result must have a matching tool_call in the preceding assistant batch; non-object arguments are rejected with the offending id/name. A tool_call without a result is accepted because handoff calls are control flow.
+  - handles both the OpenAI-style `tool_calls` field and Anthropic-style `Tool_use_block` / `Tool_result_block` content;
+  - `normalize_arguments` turns non-object tool-call arguments (in either representation) into `{}` (with the tool_call id/name in the log) so a provider never receives `null`/scalars as function arguments;
+  - `repair_tool_pairs` drops orphan results and synthesizes a result for any call that lost its result during a cut;
+  - `validate` enforces that every result has a matching call and every call has a result before the next non-result message; non-object arguments are rejected with the offending id/name.
 - `truncate_conversation`, `apply_sliding_window` and `apply_summarize` all return provider-replay-valid conversations. Before each LLM request the engine normalizes arguments and validates pairing; a corrupt caller-supplied conversation returns `Invalid_input` with the offending id/name instead of a provider 400.
+- Handoff calls now get a `<handoff>` Tool result before the target agent receives the carried conversation, and hallucinated tool_calls from a tool-less agent are dropped from the persisted conversation (the returned response still carries them for workflow callers).
 
 ### Fixed — streaming cancellation was swallowed by both providers
 
@@ -83,10 +85,11 @@
 
 ### Tests
 
-- New `test/test_conversation_repair.ml` (11 cases: normalization, orphan drop, missing-result synthesis, every truncation cut across budgets/keep_system, sliding-window and summarize outputs).
+- New `test/test_conversation_repair.ml` (17 cases: both tool-call representations, normalization, orphan drop, missing-result synthesis, strict dangling-call rejection, every truncation cut across budgets/keep_system, sliding-window and summarize outputs).
 - New `test/test_engine_payload_validation.ml` (malformed streamed arguments persist as `{}` and the next request sees `{}`; an orphan Tool result is rejected before the provider is called).
-- New `test/test_streaming_cancel.ml` (OpenAI and Anthropic callback exceptions propagate after the first chunk; engine maps them to `Cancelled`).
-- `test/test_context_manager.ml` / `test/test_context_compression.ml` / `test/test_make_agent.ml` updated for the new window and strategy defaults.
+- New `test/test_streaming_cancel.ml` (OpenAI and Anthropic cancellation and generic callback exceptions abort after the first chunk; non-streaming malformed arguments normalize to `{}`; engine maps cancellation to `Cancelled`).
+- `test/test_handoff.ml` asserts the carried conversation contains the `<handoff>` result and is provider-valid.
+- `test/test_context_manager.ml` / `test/test_context_compression.ml` / `test/test_make_agent.ml` updated for the new window and strategy defaults, including the window-derived summarize budget and explicit-strategy-without-window path.
 
 ## Unreleased — durable agent invokes
 

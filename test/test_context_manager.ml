@@ -221,10 +221,12 @@ let () =
             ~cooldown:(Some 6)
             ~llm ~model ~conv
             ~iterations_since_last_compress:2
-            ~window_override:None
+            ~window_override:(Some 1000)
         in
         Alcotest.(check bool) "false during cooldown" false should_compress;
-        Alcotest.(check bool) "Some (`Cooldown_active 4)" true (reason <> None));
+        (match reason with
+         | Some (`Cooldown_active 4) -> ()
+         | _ -> Alcotest.fail "expected `Cooldown_active 4"));
 
       Alcotest.test_case "window_zero_skips_with_no_window_size" `Quick (fun () ->
         (* Explicit override=0 → window resolves to 0 → skip *)

@@ -153,6 +153,64 @@ let test_orphan_tool_result_is_rejected_before_request () =
     | Error (e, _) -> Alcotest.failf "expected Invalid_input, got %s"
         (error_to_string e))
 
+let test_hallucinated_tool_calls_not_persisted () =
+  with_token (fun token ->
+    let llm : llm_service = {
+      complete_fn = (fun _ _ _ ->
+        Ok { text = Some "answer"; reasoning = [];
+             tool_calls = Some [{ id = "tc_halluc"; name = "ghost";
+                                  arguments = `Assoc [] }];
+             finish_reason = Tool_calls; usage = dummy_usage; model = "mock" });
+      stream_fn = (fun _ _ _ _ _ -> Error Timeout);
+      close_fn = (fun () -> ());
+      complete_structured_fn = None;
+      list_models_fn = None;
+      supports_native_tools_fn = None;
+      context_window_fn = None; cache_control_fn = None;
+    } in
+    let agent = agent_with [] in
+    let reg = make_registry [] in
+    match Engine.run_agent token agent "go" llm reg with
+    | Error (e, _) -> Alcotest.fail ("expected Ok: " ^ error_to_string e)
+    | Ok (resp, conv) ->
+      Alcotest.(check bool) "raw response keeps the hallucinated call" true
+        (resp.tool_calls <> None);
+      (match Conversation_repair.validate conv with
+       | Ok () -> ()
+       | Error msg -> Alcotest.fail ("persisted conversation invalid: " ^ msg));
+      let persisted_calls = List.concat_map (fun (m : message) ->
+        match m.tool_calls with Some calls -> calls | None -> []) conv.messages in
+      Alcotest.(check int) "hallucinated calls stripped from conversation" 0
+        (List.length persisted_calls))
+
+let test_hallucinated_tool_calls_without_text () =
+  with_token (fun token ->
+    let llm : llm_service = {
+      complete_fn = (fun _ _ _ ->
+        Ok { text = None; reasoning = [];
+             tool_calls = Some [{ id = "tc_empty"; name = "ghost";
+                                  arguments = `Assoc [] }];
+             finish_reason = Tool_calls; usage = dummy_usage; model = "mock" });
+      stream_fn = (fun _ _ _ _ _ -> Error Timeout);
+      close_fn = (fun () -> ());
+      complete_structured_fn = None;
+      list_models_fn = None;
+      supports_native_tools_fn = None;
+      context_window_fn = None; cache_control_fn = None;
+    } in
+    let agent = agent_with [] in
+    let reg = make_registry [] in
+    match Engine.run_agent token agent "go" llm reg with
+    | Error (e, _) -> Alcotest.fail ("expected Ok: " ^ error_to_string e)
+    | Ok (_resp, conv) ->
+      (match Conversation_repair.validate conv with
+       | Ok () -> ()
+       | Error msg -> Alcotest.fail ("persisted conversation invalid: " ^ msg));
+      let empty_assistant = List.exists (fun (m : message) ->
+        m.role = Assistant && m.content_blocks = [] && m.tool_calls = None)
+        conv.messages in
+      Alcotest.(check bool) "no empty assistant message" false empty_assistant)
+
 let () =
   Alcotest.run "engine_payload_validation" [
     "payload", [
@@ -160,5 +218,9 @@ let () =
         test_malformed_arguments_are_normalized;
       Alcotest.test_case "orphan_tool_result_rejected" `Quick
         test_orphan_tool_result_is_rejected_before_request;
+      Alcotest.test_case "hallucinated_tool_calls_not_persisted" `Quick
+        test_hallucinated_tool_calls_not_persisted;
+      Alcotest.test_case "hallucinated_tool_calls_without_text" `Quick
+        test_hallucinated_tool_calls_without_text;
     ]
   ]
