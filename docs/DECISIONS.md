@@ -19,6 +19,7 @@
 | 2026-11-02 | 7 | 持久化执行语义：at-least-once + 显式恢复 + 原子控制流节点 | API 级 + 架构级 | 架构正确 |
 | 2026-11-03 | 8 | 持久化 invoke：批次检查点 + 显式恢复 + 运行名由调用方给 | API 级 + 架构级 | 架构正确（3 处 R2 妥协） |
 | 2026-11-03 | 9 | 注入的 event_bus 与内部持久化总线组合而非二选一 | API 级 | 架构正确 |
+| 2026-11-03 | 10 | 上下文窗口未知即跳过主动压缩；截断/请求边界统一修复 tool pair | API 级 + 架构级 | 架构正确（1 处 R2 妥协） |
 
 ---
 
@@ -443,6 +444,26 @@ MCP server 目前**不能**让模型直接调用其工具：`tool_registry.ml` �
 | 编码 agent 专项 | LangChain open-swe / ByteDance deer-flow / HKUDS OpenSpace / claude-code-from-scratch（`plan_mode` / `permission_mode` 模式核验） |
 | 架构审查 | 两轮 Oracle（架构审查 3m34s + 怀疑论终审 4m14s），§11 R1-R5 标注逐条验证 |
 | 自我修正 | E1（per-call skill 激活）原分析有误，Oracle 终审发现 `?context` + `Invoke_context.create ~skills` 已提供 race-free 路径，已公开修正 |
+
+---
+
+## #10: 上下文窗口未知即跳过压缩；tool pair 在截断/请求边界统一修复
+
+**日期**: 2026-11-03
+**触发**: 下游集成反馈（自研模型不在静态表内，长会话在 6–8K 被截断；一次畸形 tool args 让会话永久 400）
+
+### 决策
+
+1. **未知模型窗口 = 0，跳过主动压缩**。`default_context_window` 返回 0，引擎发 `Context_compression_skipped \`No_window_size` + 一次警告。真正的 provider context-length 错误仍触发 reactive 压缩。
+2. **`make_agent` 默认 `context_strategy = None`**，由 ratio gate 走按窗口推导预算的默认摘要；`Summarize { summary_model = None }` 表示使用当前 `agent.model`，不再退化为 truncate。
+3. **新增 `Conversation_repair`**：所有压缩/截断路径返回 provider-replay-valid 对话；请求前严格校验 Tool result 必须有匹配 tool_call，错误带 id/name。非对象 arguments 归一为 `{}`。
+4. **流式取消异常上移到 `Cancellation`**，provider 不得把它当 malformed SSE chunk 吞掉；OpenAI/Anthropic 均改为解析 try 之外调用 callback。
+
+**§11 R1 标注**: 1–4 全部为**架构正确**——修复的是实现与已文档化契约的偏离，并把不变量集中到一个边界，而不是逐个调用点打补丁。
+
+**§11 R2 范围妥协**: 阻塞读（无新 chunk）的即时取消仍不可用。根因是 cohttp-eio 的 `Eio.Flow.read_exact` 不响应 Eio 取消（`test/test_http_timeout.ml` 已记录）。长期方案是用裸 `Eio.Net` socket 重写 HTTP 栈，或等待上游修复。**退役触发**: 生产用户要求“连接卡死时也能立刻停”，或 cohttp-eio/Eio 修复 blocked-read cancellation。
+
+**回退方式**: 恢复未知窗口 8000 + 默认 `Summarize {max_tokens=8000}`；删除 `Conversation_repair` 的调用点（模块本身可保留）；恢复 provider 的吞异常行为需 revert 对应 catch 分支。
 
 ---
 

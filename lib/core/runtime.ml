@@ -142,7 +142,7 @@ let default_bash_confirm = Types.default_bash_confirm_config
 let make_agent ~id ?(system_prompt = stable_prompt "") ?(system_prompt_template = None)
     ~model ?(tools = []) ?(max_iterations = 1_000_000)
     ?(middleware = []) ?(retry_policy = None)
-    ?(context_strategy = Some (Types.Summarize { max_tokens = 8000; summary_model = None }))
+    ?(context_strategy = None)
     ?(resource_quota = None)
     ?(max_execution_time = None) ?(early_stopping_method = Force)
     ?(on_max_tokens = None) ?(max_continuation_chunks = None)

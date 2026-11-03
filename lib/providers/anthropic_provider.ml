@@ -343,7 +343,11 @@ let parse_llm_response json : (llm_response, error_category) result =
 let process_stream_event (evt_type, data_str) callback usage finish chunks current_tc_id =
   let open Yojson.Safe.Util in
   let log_exn ctx exn =
-    Logs.warn (fun m -> m "anthropic_provider: stream %s parse error: %s" ctx (Printexc.to_string exn))
+    match exn with
+    | Cancellation.Stream_cancelled_by_token -> raise exn
+    | Eio.Cancel.Cancelled _ -> raise exn
+    | _ ->
+      Logs.warn (fun m -> m "anthropic_provider: stream %s parse error: %s" ctx (Printexc.to_string exn))
   in
   try
     let json = Yojson.Safe.from_string data_str in
@@ -422,9 +426,13 @@ let process_stream_event (evt_type, data_str) callback usage finish chunks curre
       incr chunks
     | _ -> ()
   with exn ->
-    let preview = String.sub data_str 0 (min 200 (String.length data_str)) in
-    Logs.warn (fun m -> m "anthropic_provider: stream event dropped: %s — type: %s data: %s"
-      (Printexc.to_string exn) evt_type preview)
+    (match exn with
+     | Cancellation.Stream_cancelled_by_token -> raise exn
+     | Eio.Cancel.Cancelled _ -> raise exn
+     | _ ->
+       let preview = String.sub data_str 0 (min 200 (String.length data_str)) in
+       Logs.warn (fun m -> m "anthropic_provider: stream event dropped: %s — type: %s data: %s"
+         (Printexc.to_string exn) evt_type preview))
 
 (* -------------------------------------------------------------------------- *)
 (* LLM_SERVICE implementation                                            *)
@@ -565,6 +573,8 @@ let stream t model_config tools conversation _stream_config callback =
           (http_error_to_error_category
              (Http_client.map_http_status status body))
       | Eio.Io _ -> Result.Error (External_failure "Network error during Anthropic stream")
+      | Cancellation.Stream_cancelled_by_token as exn -> raise exn
+      | Eio.Cancel.Cancelled _ as exn -> raise exn
       | Failure msg -> Result.Error (Invalid_input msg)
       | exn -> Result.Error (Internal (Printexc.to_string exn)) )
 

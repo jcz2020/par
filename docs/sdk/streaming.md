@@ -329,9 +329,10 @@ Cancellation during streaming works at two levels: the OCaml `Cancellation_token
 When a `cancellation_token` is passed to `Runtime.invoke` with `?on_chunk`, the engine checks `Cancellation.is_cancelled` after each chunk's user callback fires. If the token is cancelled mid-stream:
 
 - The `on_chunk` callback finishes executing for the current chunk (the user callback always fires before the cancellation check).
+- The provider re-raises the cancellation exception instead of logging it as a malformed SSE chunk; both the OpenAI and Anthropic streaming loops keep callback invocation outside their JSON-parse error handler.
 - The assistant message is atomically materialized: either the full streamed content appears in the conversation, or nothing appears. There is no partial assistant message.
 
-The guard fires per-chunk, not per-token, so cancellation latency equals one chunk interval (typically 50-300 ms).
+The guard fires per-chunk, not per-token, so cancellation latency equals one chunk interval (typically 50-300 ms). **Known limitation**: if the connection stalls and no chunk arrives, cancellation cannot interrupt the blocked cohttp-eio read; it takes effect on the next chunk. `test/test_http_timeout.ml` documents the underlying Eio/cohttp limitation. Cancelling a genuinely stalled stream requires the raw-socket HTTP rewrite tracked separately.
 
 ### Python side
 

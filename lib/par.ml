@@ -2,7 +2,7 @@
 
     [open Par] brings all SDK modules into scope:
     Types, Runtime, Engine, Expression, Workflow_engine,
-    State_machine, Context_manager, Cancellation,
+    State_machine, Context_manager, Conversation_repair, Cancellation,
     Tool_registry, Openai_provider, Anthropic_provider,
      Sqlite_persistence, Noop_persistence,
      Event_bus, Persistence_writer, Builtin_tools,
@@ -26,6 +26,7 @@ module Expression = Expression
 module Workflow_engine = Workflow_engine
 module State_machine = State_machine
 module Context_manager = Context_manager
+module Conversation_repair = Conversation_repair
 module Message = Message
 module Cache_breakpoint = Cache_breakpoint
 module Cancellation = Cancellation

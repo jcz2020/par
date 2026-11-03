@@ -147,19 +147,28 @@ threshold AND the cooldown has elapsed, the configured `context_strategy` is app
 (or `Summarize` by default if `context_strategy = None`).
 
 The context window size is resolved via a 3-tier resolver:
-1. `context_window_override` (user-supplied, wins over everything)
+1. `context_window_override` (user-supplied per agent, wins over everything)
 2. `llm_service.context_window_fn` (provider capability function)
-3. Static lookup table (`default_context_window`): gpt-4o family=128K, claude-4 family=200K, gpt-3.5-turbo=16385, unknown=8000 (safe default)
+3. Static lookup table (`default_context_window`): gpt-4o family=128K, claude-4 family=200K, gpt-3.5-turbo=16385
+
+Unknown models resolve to `0` ("window unknown"). PAR then **skips proactive
+compression** and emits `Context_compression_skipped { reason = \`No_window_size }`
+plus a one-time warning, instead of guessing a small window and truncating a
+healthy conversation every turn. A real provider context-length error still
+triggers the reactive compression path.
 
 Two observability events fire:
 - `Context_compressed { trigger; tokens_before; tokens_after; messages_before; messages_after; strategy_used; elapsed_ms }` on successful compression
 - `Context_compression_skipped { reason }` when skipped, with typed reason: `` `Below_threshold of float ``, `` `Cooldown_active of int ``, `` `No_window_size ``, or `` `No_strategy ``
 
-**Default change (BREAKING in 0.x)**: `make_agent` default `context_strategy` switched from
-`Sliding_window { max_messages=100; max_tokens=200000 }` to `Summarize { max_tokens=8000; summary_model=None }`.
-Industry research confirmed every mainstream production agent framework that ships a default
-uses LLM-summarize (Letta, Anthropic, LangChain, CrewAI) — zero default to truncate-drop.
-To restore pre-v0.6.3 behavior, set `context_strategy = Some (Sliding_window {...})` explicitly.
+**Default**: `make_agent` leaves `context_strategy = None`. With the default
+`context_compression_threshold = Some 0.8`, the engine applies the window-derived
+default summarize path. Set an explicit strategy only when you want a fixed
+policy.
+
+`Summarize { summary_model = None }` means "summarize with the model that is
+running this conversation" (`agent.model`). It does **not** silently fall back
+to truncation. Set `summary_model = Some model` to use a cheaper summarizer.
 
 ### model_config
 

@@ -1,5 +1,7 @@
 open Types
 
+exception Stream_cancelled_by_token
+
 type t = cancellation_token
 
 val create_token : Eio.Switch.t -> cancellation_token

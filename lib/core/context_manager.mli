@@ -1,13 +1,19 @@
 open Types
 
-(** Apply a context management strategy to a conversation.
-
-    Returns [Ok conv] with the (possibly reduced) conversation,
-    or [Error _] on failure. *)
 val apply_strategy :
+  ?default_model:model_config ->
   context_strategy -> conversation -> llm_service option ->
   on_event:(event -> unit) option ->
   (conversation, error_category) result
+(** Apply a context management strategy to a conversation.
+
+    [default_model] is the model running the conversation. It is used when
+    [Summarize { summary_model = None }] asks PAR to summarize with "the
+    current model"; passing [None] keeps the old fallback-to-truncation
+    behaviour for callers that do not know a model.
+
+    Returns [Ok conv] with the (possibly reduced) conversation,
+    or [Error _] on failure. *)
 
 (** Rough token estimation for a conversation.
 
@@ -38,8 +44,10 @@ val truncate_conversation :
     and the user has not supplied [context_window_override].
 
     The match is case-insensitive substring on [model_config.model_name].
-    Unknown models return 8000 (safe conservative default — forces early
-    compression rather than risking [Context_length_exceeded]). *)
+    Unknown models return 0 ("window unknown").  Callers treat 0 as "skip
+    proactive compression": guessing a small window causes long conversations
+    to be compacted on every turn, which is worse than waiting for the
+    provider's real context-length error. *)
 val default_context_window : model_config -> int
 
 (** Three-tier context-window resolver: user_override → provider cap → static table.

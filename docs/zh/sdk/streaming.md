@@ -329,9 +329,10 @@ finally:
 当 `cancellation_token` 传给带 `?on_chunk` 的 `Runtime.invoke` 时，引擎在每个 chunk 的用户回调触发后检查 `Cancellation.is_cancelled`。如果令牌在流式传输中途被取消：
 
 - `on_chunk` 回调完成当前 chunk 的执行（用户回调总是在取消检查之前触发）。
+- provider 会重新抛出取消异常，而不是把它记成 malformed SSE chunk；OpenAI/Anthropic 的流循环都把回调调用移到了 JSON 解析错误处理之外。
 - assistant 消息被原子物化：要么完整的流式内容出现在对话中，要么什么都不出现。不存在部分 assistant 消息。
 
-保护在每个 chunk 触发，不是每个 token，因此取消延迟等于一个 chunk 间隔（典型 50-300 ms）。
+保护在每个 chunk 触发，不是每个 token，因此取消延迟等于一个 chunk 间隔（典型 50-300 ms）。**已知限制**：如果连接卡住、没有新 chunk，取消无法中断阻塞中的 cohttp-eio read，只能等到下一个 chunk 生效。`test/test_http_timeout.ml` 记录了底层 Eio/cohttp 限制；彻底取消卡死的流需要单独的裸 socket HTTP 重写。
 
 ### Python 端
 

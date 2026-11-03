@@ -69,6 +69,43 @@ let error_to_string = function
 let suite = [
   ("PAR-p70 engine integration", [
 
+    Alcotest.test_case "unknown_model_skips_proactive_compression" `Quick (fun () ->
+      let counter = ref 0 in
+      let events = ref [] in
+      let captured_len = ref 0 in
+      let llm =
+        { (mock_llm_tracked counter [ text_response "ok" ]) with
+          complete_fn = (fun _model _tools conv ->
+            captured_len := List.length conv.messages;
+            incr counter;
+            Ok (text_response "ok")) }
+      in
+      let agent = agent_with ~context_strategy:None
+        ~context_compression_threshold:(Some 0.8)
+        ~context_window_override:None () in
+      let long_conv : conversation = {
+        messages = List.init 12 (fun i ->
+          { role = (if i mod 2 = 0 then User else Assistant);
+            content_blocks = [Text_block { text = String.make 2000 'x'; cache_control = None }];
+            tool_calls = None; tool_call_id = None; name = None });
+        metadata = [];
+      } in
+      let collector evt = events := evt :: !events in
+      with_token (fun token ->
+        let reg = make_registry () in
+        (match Engine.run_agent ~conversation:long_conv
+                 ~on_tool_event:(Some collector) token agent "latest" llm reg with
+         | Ok _ -> ()
+         | Error (e, _) -> Alcotest.fail ("expected Ok: " ^ error_to_string e));
+        let compressed = List.exists (function
+          | Context_compressed _ -> true | _ -> false) !events in
+        let no_window = List.exists (function
+          | Context_compression_skipped { reason = `No_window_size } -> true
+          | _ -> false) !events in
+        Alcotest.(check bool) "no proactive compression" false compressed;
+        Alcotest.(check bool) "No_window_size emitted" true no_window;
+        Alcotest.(check bool) "history preserved" true (!captured_len >= 12)));
+
     Alcotest.test_case "manual_mode_threshold_none_no_skip_event" `Quick (fun () ->
       let counter = ref 0 in
       let events = ref [] in
@@ -88,7 +125,8 @@ let suite = [
       let counter = ref 0 in
       let events = ref [] in
       let llm = mock_llm_tracked counter [ text_response "ok" ] in
-      let agent = agent_with ~context_compression_threshold:(Some 0.99) () in
+      let agent = agent_with ~context_compression_threshold:(Some 0.99)
+        ~context_window_override:(Some 128000) () in
       let collector evt = events := evt :: !events in
       with_token (fun token ->
         let reg = make_registry () in

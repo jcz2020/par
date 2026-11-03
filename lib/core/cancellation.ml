@@ -1,5 +1,10 @@
 open Types
 
+(* Raised by the engine's streaming accumulator when the token has been
+   cancelled.  It lives here (not in Engine) so providers can re-raise it
+   instead of swallowing it in their per-event parse handlers. *)
+exception Stream_cancelled_by_token
+
 type t = cancellation_token
 
 let create_token switch = { switch; cancelled = false; reason = None }
