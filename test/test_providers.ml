@@ -32,7 +32,7 @@ let openai_model : model_config =
   ; max_tokens = Some 64
   ; top_p = None
   ; stop_sequences = None
-  ; thinking_budget_tokens = None
+  ; thinking_budget_tokens = None; context_window = None
   }
 
 let anthropic_model : model_config =
@@ -43,7 +43,7 @@ let anthropic_model : model_config =
   ; max_tokens = Some 64
   ; top_p = None
   ; stop_sequences = None
-  ; thinking_budget_tokens = None
+  ; thinking_budget_tokens = None; context_window = None
   }
 
 let user_only_conv : conversation =

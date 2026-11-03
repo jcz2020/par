@@ -182,6 +182,29 @@ let without_step_notifications ctx = { ctx with on_step_complete = None }
 (* Step execution — recursive dispatcher                                      *)
 (* -------------------------------------------------------------------------- *)
 
+(* Shared by workflow Agent_call steps and Runtime.invoke_parallel.  The
+   workflow path drops the conversation; invoke_parallel returns it so the
+   caller can take over a winning branch's history. *)
+let response_to_json (resp : llm_response) : Yojson.Safe.t =
+  let text_field = match resp.text with
+    | Some t -> ("text", `String t)
+    | None -> ("text", `Null) in
+  let tool_calls_field = match resp.tool_calls with
+    | Some tcs -> ("tool_calls", `List (List.map Types.tool_call_to_yojson tcs))
+    | None -> ("tool_calls", `Null) in
+  `Assoc [text_field; tool_calls_field]
+
+let run_agent_call ?conversation ctx ~agent_id ~prompt :
+    (Yojson.Safe.t * conversation, error_category) result =
+  match ctx.agent_resolver agent_id with
+  | None -> Result.Error (Invalid_input (Printf.sprintf "Agent not found: %s" agent_id))
+  | Some agent ->
+    (match Engine.run_agent ?conversation
+             ?net:(Option.map (fun n -> (Obj.obj n : _ Eio.Net.t)) ctx.net)
+             ctx.token agent prompt ctx.llm ctx.registry with
+     | Ok (resp, conv) -> Result.Ok (response_to_json resp, conv)
+     | Result.Error (err, _) -> Result.Error err)
+
 let rec execute_step ?(path=[]) ctx step =
   Cancellation.check_cancel ctx.token;
   match step with
@@ -192,16 +215,9 @@ let rec execute_step ?(path=[]) ctx step =
        let prompt = substitute prompt_template ctx.variables in
        (match response_schema with
         | None ->
-           (match Engine.run_agent ?net:(Option.map (fun n -> (Obj.obj n : _ Eio.Net.t)) ctx.net) ctx.token agent prompt ctx.llm ctx.registry with
-           | Ok (resp, _) ->
-             let text_field = match resp.text with
-               | Some t -> ("text", `String t)
-               | None -> ("text", `Null) in
-             let tool_calls_field = match resp.tool_calls with
-               | Some tcs -> ("tool_calls", `List (List.map Types.tool_call_to_yojson tcs))
-               | None -> ("tool_calls", `Null) in
-             Ok (`Assoc [text_field; tool_calls_field])
-           | Result.Error (err, _) -> Result.Error err)
+           (match run_agent_call ctx ~agent_id ~prompt with
+            | Ok (json, _) -> Ok json
+            | Result.Error err -> Result.Error err)
         | Some schema ->
           let run_fn =
             if agent.tools <> [] then
@@ -276,14 +292,14 @@ let rec execute_step ?(path=[]) ctx step =
             let deadline = Unix.gettimeofday () +. timeout_secs in
             while Unix.gettimeofday () < deadline
                   && Option.is_none !suspension_ref
-                  && not ctx.token.cancelled do
+                  && not (Cancellation.is_cancelled ctx.token) do
               Eio.Fiber.yield ()
             done);
         Approval_deadline.remove run_id;
         match !suspension_ref with
         | Some (p, roles, cp) -> raise (Workflow_suspended { prompt = p; allowed_roles = roles; checkpoint = cp })
         | None ->
-         if ctx.token.cancelled then
+         if Cancellation.is_cancelled ctx.token then
            Result.Error (Internal "Cancelled during human approval")
           else
             Result.Error (Timeout))

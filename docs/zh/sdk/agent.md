@@ -141,10 +141,11 @@ type agent_config = {
 `估算 tokens / context window` 比例。如果超过阈值且冷却已过，应用配置的 `context_strategy`
 （或 `context_strategy = None` 时默认用 `Summarize`）。
 
-Context window 大小通过三层 resolver 解析：
+Context window 大小通过四层 resolver 解析：
 1. `context_window_override`（用户 supplied，优先级最高）
-2. `llm_service.context_window_fn`（provider capability 函数）
-3. 静态查表（`default_context_window`）：gpt-4o 系列=128K，claude-4 系列=200K，gpt-3.5-turbo=16385
+2. `model_config.context_window`（按模型声明）
+3. `llm_service.context_window_fn`（provider capability 函数）
+4. 静态查表（`default_context_window`）：gpt-4o 系列=128K，claude-4 系列=200K，gpt-3.5-turbo=16385
 
 未知模型解析为 `0`（“window unknown”）。PAR 此时**跳过主动压缩**，发出
 `Context_compression_skipped { reason = \`No_window_size }` 并打印一次警告，而不是
@@ -175,10 +176,15 @@ type model_config = {
   top_p : float option;
   stop_sequences : string list option;
   thinking_budget_tokens : int option;  (* Anthropic extended thinking；None = 关闭 *)
+  context_window : int option;          (* 按模型声明 context window；None = provider/静态表回退 *)
 }
 ```
 
 `thinking_budget_tokens = Some n` 开启 Anthropic extended thinking，预算 `n` 个 token。Anthropic 要求 `n >= 1024` 且 `n < max_tokens`；适配器在本地就检查这两条并返回 `Invalid_input`，而不是让 provider 拒绝请求。Anthropic 不接受与 thinking 同时出现的 `temperature` 与 `top_p`，因此开启 thinking 时适配器会省略这两个字段。其他 provider 忽略该字段。
+
+`context_window = Some n` 直接声明该模型的上下文窗口。自定义模型或新发布模型
+推荐用它：resolver 会优先于 `llm_service.context_window_fn` 和静态表，PAR 不必猜。
+`None` 保留回退链。
 
 Provider 示例：
 
@@ -482,6 +488,8 @@ val Runtime.invoke_async :
   ?enable_handoff:bool ->
   ?system_prompt_appendix:string ->
   ?context:Invoke_context.invoke_context ->
+  ?update_current:bool ->
+  ?save:bool ->
   unit ->
   Invoke_context.invoke_handle
 ```

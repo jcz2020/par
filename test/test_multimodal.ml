@@ -332,7 +332,7 @@ let e2e_tests =
           | Ok rt ->
             let model = { provider = `Openai; model_name = "t"; api_base = None;
                           temperature = 0.7; max_tokens = None; top_p = None;
-                          stop_sequences = None; thinking_budget_tokens = None } in
+                          stop_sequences = None; thinking_budget_tokens = None ; context_window = None} in
             let agent = match Runtime.make_agent ~id:"t" ~system_prompt:(stable_prompt "sys") ~model () with
               | Ok a -> a
               | Error _ -> Alcotest.fail "make_agent failed"
@@ -376,7 +376,7 @@ let e2e_tests =
           | Ok rt ->
             let model = { provider = `Openai; model_name = "t"; api_base = None;
                           temperature = 0.7; max_tokens = None; top_p = None;
-                          stop_sequences = None; thinking_budget_tokens = None } in
+                          stop_sequences = None; thinking_budget_tokens = None ; context_window = None} in
             let agent = match Runtime.make_agent ~id:"t" ~system_prompt:(stable_prompt "sys") ~model () with
               | Ok a -> a
               | Error _ -> Alcotest.fail "make_agent failed"
@@ -414,7 +414,7 @@ let e2e_tests =
           | Ok rt ->
             let model = { provider = `Openai; model_name = "t"; api_base = None;
                           temperature = 0.7; max_tokens = None; top_p = None;
-                          stop_sequences = None; thinking_budget_tokens = None } in
+                          stop_sequences = None; thinking_budget_tokens = None ; context_window = None} in
             let agent = match Runtime.make_agent ~id:"t" ~system_prompt:(stable_prompt "sys") ~model () with
               | Ok a -> a
               | Error _ -> Alcotest.fail "make_agent failed"

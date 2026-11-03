@@ -9,7 +9,7 @@ open Types
 let dummy_model : model_config =
   { provider = `Openai; model_name = "mock"; api_base = None;
     temperature = 0.0; max_tokens = None; top_p = None;
-    stop_sequences = None; thinking_budget_tokens = None }
+    stop_sequences = None; thinking_budget_tokens = None ; context_window = None}
 
 let dummy_usage : usage_stats =
   { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0;
@@ -95,9 +95,9 @@ let create_runtime ?(llm = mock_llm [text_response "default"]) sw =
   | Ok rt -> rt
   | Error e -> Alcotest.failf "create_runtime: %s" (error_to_string e)
 
-let spec ?input ?workspace ?approval_handler ?(blocking_approval = false)
-    agent_id : Runtime.agent_dispatch_spec =
-  { agent_id; input; workspace; approval_handler; blocking_approval }
+let spec ?input ?workspace ?approval_handler ?conversation
+    ?(blocking_approval = false) agent_id : Runtime.agent_dispatch_spec =
+  { agent_id; input; workspace; approval_handler; blocking_approval; conversation }
 
 (* ======================================================================== *)
 (* Parallel dispatch — basic success                                        *)
@@ -478,8 +478,8 @@ let test_async_callback_suspends_branch () =
        with marker) or fails (in failures) — but must NOT crash invoke_parallel. *)
     (match Runtime.invoke_parallel ~rt ~specs () with
      | Ok result ->
-       let a_present = List.exists (fun (s, _) -> s.Runtime.agent_id = "A") result.successes in
-       let c_present = List.exists (fun (s, _) -> s.Runtime.agent_id = "C") result.successes in
+       let a_present = List.exists (fun (s : Runtime.parallel_success) -> s.spec.Runtime.agent_id = "A") result.successes in
+       let c_present = List.exists (fun (s : Runtime.parallel_success) -> s.spec.Runtime.agent_id = "C") result.successes in
        Alcotest.(check bool) "sibling A completed" true a_present;
        Alcotest.(check bool) "sibling C completed" true c_present;
        Alcotest.(check int) "no failures — B should suspend not fail" 0
@@ -522,8 +522,8 @@ let test_success_result_contains_agent_spec () =
     match Runtime.invoke_parallel ~rt ~specs:[my_spec] () with
     | Ok result ->
       (match result.successes with
-       | [(s, _json)] ->
-         Alcotest.(check string) "spec.agent_id" "A" s.Runtime.agent_id
+       | [s] ->
+         Alcotest.(check string) "spec.agent_id" "A" s.spec.Runtime.agent_id
        | _ -> Alcotest.fail "expected exactly one success")
     | Error e ->
       Alcotest.failf "expected Ok: %s" (error_to_string e))
@@ -559,6 +559,56 @@ let test_default_parallel_limit_allows_run () =
       Alcotest.failf "expected Ok: %s" (error_to_string e))
 
 (* ======================================================================== *)
+(* Branch conversations                                                     *)
+(* ======================================================================== *)
+
+let test_branch_conversation_roundtrip () =
+  with_switch (fun sw ->
+    let seen = ref None in
+    let llm = mock_llm_dynamic (fun conv ->
+      seen := Some conv;
+      text_response "branch answer") in
+    let rt = create_runtime ~llm sw in
+    let a = make_agent "A" "Agent A" in
+    (match Runtime.register_agent rt a with
+     | Ok () -> () | Error e -> Alcotest.failf "reg: %s" (error_to_string e));
+    let prior : conversation = {
+      messages = [
+        { role = System; content_blocks = Message.content_of_string "prior system";
+          tool_calls = None; tool_call_id = None; name = None };
+        { role = User; content_blocks = Message.content_of_string "previous context";
+          tool_calls = None; tool_call_id = None; name = None };
+      ];
+      metadata = [];
+    } in
+    let my_spec = spec ~conversation:prior "A" ~input:"new task" in
+    match Runtime.invoke_parallel ~rt ~specs:[my_spec] () with
+    | Error e -> Alcotest.failf "expected Ok: %s" (error_to_string e)
+    | Ok result ->
+      (match result.successes with
+       | [s] ->
+         Alcotest.(check bool) "spec carries the input conversation" true
+           (s.spec.conversation = Some prior);
+         let text = String.concat "\n"
+           (List.map Message.text_of_message s.conversation.messages) in
+         Alcotest.(check bool) "prior history reached the branch" true
+           (try ignore (Str.search_forward (Str.regexp_string "previous context") text 0); true
+            with Not_found -> false);
+         Alcotest.(check bool) "new prompt reached the branch" true
+           (try ignore (Str.search_forward (Str.regexp_string "new task") text 0); true
+            with Not_found -> false);
+         Alcotest.(check bool) "branch answer is in the returned conversation" true
+           (try ignore (Str.search_forward (Str.regexp_string "branch answer") text 0); true
+            with Not_found -> false);
+         (match !seen with
+          | Some c ->
+            Alcotest.(check bool) "engine saw the prior history" true
+              (List.exists (fun (m : message) ->
+                 Message.text_of_message m = "previous context") c.messages)
+          | None -> Alcotest.fail "LLM was not called")
+       | _ -> Alcotest.fail "expected exactly one success"))
+
+(* ======================================================================== *)
 (* Suite wiring                                                             *)
 (* ======================================================================== *)
 
@@ -573,6 +623,8 @@ let () =
         test_single_agent_succeeds;
       Alcotest.test_case "5 agents with default limit" `Quick
         test_default_parallel_limit_allows_run;
+      Alcotest.test_case "branch conversation roundtrip" `Quick
+        test_branch_conversation_roundtrip;
     ]);
     ("Failure policy", [
       Alcotest.test_case "Continue_on_failure: successes + failures reported" `Quick

@@ -41,6 +41,8 @@ let load_most_recent_conversation ?scope:_ t =
   ) t.conversations () in
   Ok !acc
 
+let load_conversations ?scope:_ _t _limit = Ok []
+
 let save_pending_approval _t ~run_id:_ ~agent_id:_ ~payload:_ ~expires_at:_ = Ok ()
 
 let load_pending_approval _t ~run_id:_ = Ok None

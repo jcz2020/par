@@ -408,6 +408,22 @@ class Runtime:
             raise PARToolError(f"Failed to register tool with handler: {name}")
         self._callback_ids.add(handler_id)
 
+    def set_tool_layer(self, name: str, layer: str) -> None:
+        """Move a registered tool between the always and searchable layers.
+
+        ``layer`` is ``"always"`` or ``"searchable"``. Searchable tools are
+        hidden from the provider when ``max_tool_schema_tokens`` triggers
+        progressive mode, until ``tool_search`` promotes them.
+
+        Raises:
+            PARToolError: If the tool is not registered.
+        """
+        self._check_handle()
+        result = _lib.par_set_tool_layer(
+            self._handle, _c_str(name), _c_str(layer))
+        if result != 0:
+            raise PARToolError(f"Failed to set layer for tool: {name}")
+
     def register_agent(self, config_json: str) -> None:
         """Register an agent from JSON config.
 
@@ -557,6 +573,33 @@ class Runtime:
         if rc == 0:
             return True
         return None
+
+    def list_conversations(self, *, scope: Optional[str] = None,
+                           limit: int = 50) -> list:
+        """List sessions from the conversations table, newest first.
+
+        Unlike event-based session listing, this includes sessions that were
+        saved but never emitted an event (for example a forked branch).
+
+        Args:
+            scope: Optional scope filter.
+            limit: Maximum number of rows (default 50).
+
+        Returns:
+            A list of ``{"session_id", "updated_at", "turn_count", "scope"}``
+            objects.
+        """
+        self._check_handle()
+        scope_bytes = _c_str(scope) if scope is not None else None
+        result_ptr = _lib.par_load_conversations(
+            self._handle, scope_bytes, limit)
+        raw = _py_str(result_ptr)
+        if not raw:
+            return []
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict) and "error" in parsed:
+            raise PARError(parsed["error"])
+        return parsed.get("conversations", [])
 
     def invoke(self, agent_id: str, message: str,
                *, save: bool = None, update_current: bool = None,

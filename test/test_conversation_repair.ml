@@ -32,7 +32,7 @@ let summary_llm : llm_service =
 let dummy_model : model_config =
   { provider = `Openai; model_name = "mock"; api_base = None;
     temperature = 0.0; max_tokens = None; top_p = None;
-    stop_sequences = None; thinking_budget_tokens = None }
+    stop_sequences = None; thinking_budget_tokens = None ; context_window = None}
 
 let tool_pair_conv () : conversation =
   { messages = [

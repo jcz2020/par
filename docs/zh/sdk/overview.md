@@ -215,6 +215,7 @@ SDK 是 PAR 的生产界面，所有功能均可通过 `Par.Runtime.*` 函数调
 | Core | `Par.Expression` | 表达式求值器（用于条件分支），支持变量引用和比较运算 |
 | Core | `Par.State_machine` | 任务状态机：9 种状态 + 合法转换校验 |
 | Core | `Par.Context_manager` | 上下文窗口管理：截断、摘要、滑动窗口 |
+| Core | `Par.Conversation_repair` | tool_call/tool_result 配对修复与请求前校验 |
 | Core | `Par.Cancellation` | 取消令牌：协作式取消、超时包装 |
 | Core | `Par.Tool_registry` | 工具处理器注册表（名称 -> handler 映射） |
 | Core | `Par.Template` | 系统提示词模板引擎 |

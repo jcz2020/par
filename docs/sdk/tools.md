@@ -703,6 +703,23 @@ Once you register 50+ tools, tool JSON schemas dominate the prompt. Every invoca
 
 **Always-layer floor**: registry-internal layering splits tools into `Always | Searchable`. The Always layer is a guaranteed floor, never trimmed. If the floor alone exceeds the threshold, a warning is logged and the floor is still sent in full. MCP tools registered through the existing pull model are searchable once registered.
 
+**Choosing the layer at registration**:
+
+```ocaml
+let tb = Runtime.register_tool rt
+  ~name:"convert_temperature"
+  ~description:"C / F / K conversion"
+  ~input_schema:(`Assoc [("type", `String "object")])
+  ~handler
+  ~layer:Tool_registry.Searchable
+  ()
+```
+
+`?layer` defaults to `Tool_registry.Always`. Use `Runtime.set_tool_layer rt ~name ~layer`
+to move an already-registered tool. Python: `rt.set_tool_layer("convert_temperature", "searchable")`.
+The layer only matters while `max_tool_schema_tokens` is set; otherwise every
+agent tool is advertised.
+
 **tool_search usage**:
 
 Input:

@@ -7,12 +7,12 @@ let default_stream_config : stream_config =
 let openai_model : model_config =
   { provider = `Openai; model_name = "gpt-4o-mini"; api_base = None;
     temperature = 0.0; max_tokens = None; top_p = None;
-    stop_sequences = None; thinking_budget_tokens = None }
+    stop_sequences = None; thinking_budget_tokens = None ; context_window = None}
 
 let anthropic_model : model_config =
   { provider = `Anthropic; model_name = "claude-3-5-sonnet-latest"; api_base = None;
     temperature = 0.0; max_tokens = None; top_p = None;
-    stop_sequences = None; thinking_budget_tokens = None }
+    stop_sequences = None; thinking_budget_tokens = None ; context_window = None}
 
 let user_conv : conversation =
   { messages = [

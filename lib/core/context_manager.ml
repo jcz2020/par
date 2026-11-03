@@ -213,11 +213,14 @@ let resolve_context_window ~llm ~model ~user_override =
   match user_override with
   | Some n -> n
   | None ->
-    match llm.context_window_fn with
-    | Some fn ->
-      let n = fn () in
-      if n > 0 then n else default_context_window model
-    | None -> default_context_window model
+    match model.context_window with
+    | Some n when n > 0 -> n
+    | _ ->
+      match llm.context_window_fn with
+      | Some fn ->
+        let n = fn () in
+        if n > 0 then n else default_context_window model
+      | None -> default_context_window model
 
 let estimated_tokens_with_margin conv =
   let raw = estimate_tokens conv in

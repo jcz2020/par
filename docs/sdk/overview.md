@@ -216,7 +216,7 @@ Every public module lives under one of the 9 sub-libraries below, plus the facad
 
 | Library | Public modules (excerpt) | Purpose |
 |---|---|---|
-| `lib/core` | `Par.Types`, `Par.Runtime`, `Par.Engine`, `Par.Workflow_engine`, `Par.Expression`, `Par.State_machine`, `Par.Context_manager`, `Par.Cancellation`, `Par.Tool_registry`, `Par.Template`, `Par.Steering_queue`, `Par.Hook`, `Par.Metrics`, `Par.Capability`, `Par.Invoke_context`, `Par.Deprecation` | Core types, runtime, ReAct loop, workflow, expression evaluator, state machine, context manager, cancellation tokens, tool registry, capability detection, per-call isolation, deprecation framework |
+| `lib/core` | `Par.Types`, `Par.Runtime`, `Par.Engine`, `Par.Workflow_engine`, `Par.Expression`, `Par.State_machine`, `Par.Context_manager`, `Par.Conversation_repair`, `Par.Cancellation`, `Par.Tool_registry`, `Par.Template`, `Par.Steering_queue`, `Par.Hook`, `Par.Metrics`, `Par.Capability`, `Par.Invoke_context`, `Par.Deprecation` | Core types, runtime, ReAct loop, workflow, expression evaluator, state machine, context manager, tool-pair repair/validation, cancellation tokens, tool registry, capability detection, per-call isolation, deprecation framework |
 | `lib/providers` | `Par.Openai_provider`, `Par.Anthropic_provider`, `Par.Mock_provider` | LLM provider implementations |
 | `lib/persistence` | `Par.Sqlite_persistence`, `Par.Noop_persistence` | Sqlite backend (dev), no-op (tests) |
 | `lib/event_bus` | `Par.Event_bus` | Eio-based event bus with DLQ |

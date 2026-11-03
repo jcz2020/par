@@ -13,7 +13,7 @@ let valid_model : Types.model_config = {
   temperature = 0.7;
   max_tokens = None;
   top_p = None;
-  stop_sequences = None; thinking_budget_tokens = None;
+  stop_sequences = None; thinking_budget_tokens = None; context_window = None;
 }
 
 let zone_tag_testable =

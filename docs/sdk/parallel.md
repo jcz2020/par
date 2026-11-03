@@ -25,9 +25,10 @@ val Runtime.invoke_parallel :
 ```
 
 > **Note on `cancellation_token`**: this is the record type
-> `Types.cancellation_token = { switch : Eio.Switch.t; mutable cancelled : bool }`,
-> **not** a bare `Eio.Switch.t`. The runtime reads the `cancelled` flag and stops
-> the embedded `switch` when cancellation is requested. See the
+> `Types.cancellation_token = { switch : Eio.Switch.t; cancelled : bool Atomic.t;
+> reason : cancel_reason option Atomic.t }`, **not** a bare `Eio.Switch.t`.
+> Construct it with `Cancellation.create_token`. The runtime reads the atomic
+> flag and stops the embedded `switch` when cancellation is requested. See the
 > [Cancellation](#cancellation) section below.
 
 ## `agent_dispatch_spec`
@@ -41,6 +42,7 @@ type agent_dispatch_spec = {
   workspace         : Workspace.workspace option;
   approval_handler  : Approval.approval_handler option;
   blocking_approval : bool;
+  conversation      : conversation option;
 }
 ```
 
@@ -51,26 +53,31 @@ type agent_dispatch_spec = {
 | `workspace` | Optional per-agent workspace. Overrides the runtime-level workspace for this agent's tool handlers. Useful for sandboxing parallel agents to different file-system roots. |
 | `approval_handler` | Optional per-agent handler override. Takes precedence over the handler set on `agent_config` when both are present. |
 | `blocking_approval` | Default `false`. When `true`, if this agent triggers an approval during execution, the entire parallel node waits for resolution. When `false` (default), only this agent's branch suspends; other branches continue. |
+| `conversation` | Start this branch from an existing conversation. `None` starts fresh. The updated branch conversation is returned in `parallel_success.conversation`. |
 
 ## `parallel_invoke_result`
 
 Returned after all branches complete (or after `Fail_fast` stops them):
 
 ```ocaml
+type parallel_success = {
+  spec         : agent_dispatch_spec;
+  result       : Yojson.Safe.t;
+  conversation : conversation;
+}
+
 type parallel_invoke_result = {
-  successes : (agent_dispatch_spec * Yojson.Safe.t) list;
+  successes : parallel_success list;
   failures  : (agent_dispatch_spec * error_category) list;
-  cancelled : agent_dispatch_spec list;
-  duration  : float;
+  merged    : Yojson.Safe.t option;
 }
 ```
 
 | Field | Description |
 |-------|-------------|
-| `successes` | Tuples of `(agent_dispatch_spec, Yojson.Safe.t)` for agents that completed successfully. The JSON is that agent's raw result — **not** an `invoke_result` record. Extract fields via Yojson pattern matching (see examples below). |
+| `successes` | One record per successful branch. `result` is that agent's raw JSON result — **not** an `invoke_result` record. `conversation` is the branch's updated history, including the input `conversation` when one was supplied. |
 | `failures` | Tuples of `(agent_dispatch_spec, error_category)` for agents that failed. |
-| `cancelled` | Specs for branches that were cancelled (via `cancellation_token` or `Fail_fast` policy). |
-| `duration` | Wall-clock seconds the whole parallel dispatch took. |
+| `merged` | The `merge_fn` output over the success results, or `None` when no `merge_fn` was supplied. |
 
 ## Controlling parallelism
 
@@ -139,11 +146,35 @@ let result =
     ~merge_fn:concat_merge
     ()
 in
-(* Iterate the (spec, json) successes directly — no `merged` field *)
-List.iter (fun (spec, json) ->
-  Logs.info (fun m -> m "agent %s: %s" spec.agent_id (Yojson.Safe.to_string json))
+(* Iterate the parallel_success records directly — no `merged` field *)
+List.iter (fun s ->
+  Logs.info (fun m -> m "agent %s: %s"
+    s.spec.agent_id (Yojson.Safe.to_string s.result))
 ) result.successes
 ```
+
+## Branch conversations
+
+Pass `conversation` to start a branch from existing history, and read
+`parallel_success.conversation` to take over the winning branch:
+
+```ocaml
+let specs = [
+  { agent_id = "analyst"; input = Some "Continue the investigation";
+    conversation = Some prior_conversation; workspace = None;
+    approval_handler = None; blocking_approval = false };
+] in
+match Runtime.invoke_parallel ~rt ~specs () with
+| Ok { successes = [winner]; _ } ->
+  (* Winner's history now contains prior_conversation + the new turn. *)
+  Runtime.save_conversation rt ~conversation:winner.conversation
+    ~scope:"investigation" ()
+| Ok _ -> ()
+| Error e -> ...
+```
+
+`invoke_parallel` does not save branch conversations automatically; the caller
+decides whether to persist the winner.
 
 ## Per-agent workspace isolation
 
@@ -174,31 +205,28 @@ Parallel dispatch integrates with the [HITL framework](hitl.md):
 ```ocaml
 let specs = [
   { agent_id = "safe_agent";    input = Some "Analyze data";
-    approval_handler = None; blocking_approval = false; ... };
+    approval_handler = None; blocking_approval = false; conversation = None; ... };
   { agent_id = "risky_agent";   input = Some "Send notification";
     approval_handler = Some webhook_handler;
-    blocking_approval = false; ... };  (* suspends independently *)
+    blocking_approval = false; conversation = None; ... };  (* suspends independently *)
 ]
 ```
 
 ## Cancellation
 
-Pass a `cancellation_token` (the record `{ switch : Eio.Switch.t; mutable cancelled : bool }` from `Types`) to cancel all branches mid-flight:
+Pass a `cancellation_token` (the record `{ switch : Eio.Switch.t; cancelled : bool Atomic.t; reason : cancel_reason option Atomic.t }` from `Types`, normally built with `Cancellation.create_token`) to cancel all branches mid-flight:
 
 ```ocaml
 Eio.Switch.run (fun cancel_switch ->
   (* Wrap the switch in a cancellation_token record *)
-  let token : Types.cancellation_token = {
-    switch = cancel_switch;
-    cancelled = false;
-  } in
+  let token = Cancellation.create_token cancel_switch in
   (* Start parallel dispatch in a background fiber *)
   let fiber = Eio.Fiber.fork_promise (fun () ->
     Runtime.invoke_parallel ~rt ~specs
       ~cancellation_token:token ())
   in
-  (* Later: signal cancellation by flipping the flag *)
-  token.cancelled <- true)
+  (* Later: request cancellation *)
+  Cancellation.request_cancel token User_cancelled)
 ```
 
 When cancelled, branches stop and partial results (if any) are collected.
@@ -229,7 +257,8 @@ let () = Eio_main.run (fun env ->
                 input = Some ("Summarize: " ^ topic);
                 workspace = None;
                 approval_handler = None;
-                blocking_approval = false }
+                blocking_approval = false;
+                conversation = None }
       ) ["AI safety"; "Quantum computing"; "Climate change"]
       in
       let result =
@@ -249,9 +278,9 @@ let () = Eio_main.run (fun env ->
       in
       Printf.printf "Successes: %d\n" (List.length result.successes);
       Printf.printf "Failures: %d\n" (List.length result.failures);
-      List.iter (fun (spec, json) ->
+      List.iter (fun s ->
         Logs.info (fun m -> m "agent %s produced: %s"
-                       spec.agent_id (Yojson.Safe.to_string json))
+                       s.spec.agent_id (Yojson.Safe.to_string s.result))
       ) result.successes;
       ignore (Runtime.close rt)))
 ```
@@ -260,7 +289,7 @@ let () = Eio_main.run (fun env ->
 
 The Python bindings expose parallel dispatch through ctypes. See the [Python FFI documentation](https://github.com/jcz2020/par/blob/main/bindings/python/) for:
 
-- `Runtime.invoke_parallel(specs: list[dict]) -> dict` where each spec dict has keys `agent_id`, `input`, `workspace`, `approval_handler`, `blocking_approval`.
+- `Runtime.invoke_parallel(specs: list[dict]) -> dict` where each spec dict has keys `agent_id`, `input`, `workspace`, `approval_handler`, `blocking_approval`, `conversation`.
 - Per-agent workspace and approval handler overrides work identically to the OCaml API.
 
 ## Relationship to Workflow API

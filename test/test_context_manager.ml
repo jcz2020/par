@@ -7,7 +7,13 @@ let dummy_msg role content =
 let dummy_model ~name =
   { Types.provider = `Openai; model_name = name; api_base = None;
     temperature = 0.0; max_tokens = None; top_p = None;
-    stop_sequences = None; thinking_budget_tokens = None }
+    stop_sequences = None; thinking_budget_tokens = None ; context_window = None}
+
+let dummy_model_with_window ~name ~context_window =
+  { Types.provider = `Openai; model_name = name; api_base = None;
+    temperature = 0.0; max_tokens = None; top_p = None;
+    stop_sequences = None; thinking_budget_tokens = None;
+    context_window = Some context_window }
 
 (* complete_fn is a failwith stub: the pure helpers under test never
    invoke it. If a test triggers an LLM call, the failure surfaces
@@ -115,6 +121,14 @@ let () =
         let model = dummy_model ~name:"some-unknown-model" in
         Alcotest.(check int) "provider cap 128000 wins over unknown table"
           128000
+          (Context_manager.resolve_context_window ~llm ~model
+             ~user_override:None));
+
+      Alcotest.test_case "model_context_window_wins_over_provider" `Quick (fun () ->
+        let llm = dummy_llm ~context_window_fn:(fun () -> 128000) () in
+        let model = dummy_model_with_window ~name:"some-unknown-model" ~context_window:64000 in
+        Alcotest.(check int) "model declaration 64000 wins over provider 128000"
+          64000
           (Context_manager.resolve_context_window ~llm ~model
              ~user_override:None));
 

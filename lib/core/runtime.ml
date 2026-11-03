@@ -8,10 +8,19 @@ type agent_dispatch_spec = {
   workspace : Workspace.workspace option;
   approval_handler : approval_context Approval.approval_handler option;
   blocking_approval : bool;  (* reserved for v0.8.1: true = block siblings until resolved *)
+  conversation : conversation option;
+  (* ^ Start this branch from an existing conversation. [None] creates a fresh
+       one. The updated conversation is returned in [parallel_success]. *)
+}
+
+type parallel_success = {
+  spec : agent_dispatch_spec;
+  result : Yojson.Safe.t;
+  conversation : conversation;
 }
 
 type parallel_invoke_result = {
-  successes : (agent_dispatch_spec * Yojson.Safe.t) list;
+  successes : parallel_success list;
   failures : (agent_dispatch_spec * error_category) list;
   merged : Yojson.Safe.t option;
 }
@@ -227,24 +236,38 @@ let list_agents rt =
   List.rev !acc
 
 let register_tool rt ~name ~description ~input_schema ~handler
-    ?output_schema ?(permission = Allow) ?timeout ?concurrency_limit ?(on_update = None) ?(cache_control = None) () =
+    ?output_schema ?(permission = Allow) ?timeout ?concurrency_limit
+    ?(on_update = None) ?(cache_control = None)
+    ?(layer = Tool_registry.Always) () =
   let descriptor = { Types.name; description; input_schema; output_schema; permission; timeout; concurrency_limit; on_update; cache_control } in
-  match Tool_registry.register rt.tool_registry descriptor handler with
+  let result = match layer with
+    | Tool_registry.Searchable -> Tool_registry.register_searchable rt.tool_registry descriptor handler
+    | Tool_registry.Always -> Tool_registry.register rt.tool_registry descriptor handler
+  in
+  match result with
   | Error (`Duplicate_tool n) ->
     Result.Error (Types.Invalid_input (Printf.sprintf "Tool already registered: %s" n))
   | Ok () ->
     Ok { descriptor; handler }
 
 let register_tool_typed rt ~name ~description ~input_schema ~handler
-    ?output_schema ?(permission = Allow) ?timeout ?concurrency_limit ?(on_update = None) () =
+    ?output_schema ?(permission = Allow) ?timeout ?concurrency_limit
+    ?(on_update = None) ?layer () =
   match input_schema with
   | `Assoc _ ->
     let wrapped = Jsonschema.to_strict_object_schema input_schema in
     register_tool rt ~name ~description ~input_schema:wrapped ~handler
-      ?output_schema ~permission ?timeout ?concurrency_limit ~on_update ()
+      ?output_schema ~permission ?timeout ?concurrency_limit ~on_update ?layer ()
   | _ ->
     Result.Error
       (Types.Internal "schema must be a JSON object")
+
+let set_tool_layer rt ~name ~layer =
+  match Tool_registry.resolve rt.tool_registry name with
+  | None -> Result.Error (Types.Invalid_input (Printf.sprintf "Tool not registered: %s" name))
+  | Some _ ->
+    Tool_registry.set_layer rt.tool_registry name layer;
+    Ok ()
 
 (* ─── Dynamic toolset API ──────────────────────────────────────────────
    These three functions enable runtime mutation of agent toolsets
@@ -950,7 +973,15 @@ let save_conversation rt ?(conversation : Types.conversation option) ?scope () =
     | Some c -> Some c
     | None -> Current_conversation.get rt
   in
-  match !(rt.session_id), conv with
+  (* A caller-supplied [Invoke_context] is the session boundary for a branch
+     or background run. Saving under [rt.session_id] would overwrite the
+     parent's conversation even when the branch was explicitly isolated. *)
+  let session_id =
+    match Invoke_context.get_current () with
+    | Some ctx -> Some ctx.Invoke_context.session_id
+    | None -> !(rt.session_id)
+  in
+  match session_id, conv with
   | Some sid, Some c -> rt.services.persistence.save_conversation_fn ?scope sid c
   | _ -> Ok ()
 
@@ -975,6 +1006,9 @@ let load_most_recent_conversation rt ?scope () =
     Ok (Some (sid, conv))
   | Ok None -> Ok None
   | Error _ as e -> e
+
+let list_conversations rt ?scope ?(limit = 50) () =
+  rt.services.persistence.load_conversations_fn ?scope limit
 
 (* The user turn a checkpointed conversation started from, used when recovery
    re-enters [invoke_content]: skills and the appendix are recomputed from it,
@@ -1390,6 +1424,7 @@ let invoke rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
 
 let invoke_async rt ~agent_id ~message ?workspace ?cancellation_token ?conversation
     ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix ?skills ?context
+    ?(update_current = true) ?(save = false)
     ?(durable = false) ?invoke_id () =
   let token = match cancellation_token with
     | Some t -> t
@@ -1398,7 +1433,8 @@ let invoke_async rt ~agent_id ~message ?workspace ?cancellation_token ?conversat
   Invoke_context.fork_invoke ~sw:rt.cancellation_root ~token (fun () ->
     invoke rt ~agent_id ~message ?workspace
       ~cancellation_token:token ?conversation ?on_tool_event ?on_chunk
-      ?enable_handoff ?system_prompt_appendix ?skills ?context ~durable ?invoke_id ())
+      ?enable_handoff ?system_prompt_appendix ?skills ?context
+      ~update_current ~save ~durable ?invoke_id ())
 
 let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
     ?(save = true) ?(update_current = true) ?on_tool_event ?on_chunk ?system_prompt_appendix () =
@@ -2191,11 +2227,6 @@ let invoke_parallel ~rt ~specs ?(parallel_limit = 4)
     } in
     let sem = Eio.Semaphore.make parallel_limit in
     let promises = List.map (fun (spec : agent_dispatch_spec) ->
-      let step = Agent_call {
-        agent_id = spec.agent_id;
-        prompt_template = Option.value spec.input ~default:"";
-        response_schema = None;
-      } in
       let branch_ctx = match spec.workspace with
         | Some ws ->
           let registry = per_call_registry ~rt ~workspace:ws in
@@ -2219,7 +2250,9 @@ let invoke_parallel ~rt ~specs ?(parallel_limit = 4)
         Fun.protect
           ~finally:(fun () -> Eio.Semaphore.release sem)
           (fun () ->
-            try Workflow_engine.execute_step branch_ctx step
+            try Workflow_engine.run_agent_call ?conversation:spec.conversation
+                  branch_ctx ~agent_id:spec.agent_id
+                  ~prompt:(Option.value spec.input ~default:"")
             with Engine.Approval_pending pl ->
               let persist_id =
                 Session_id.to_string (Session_id.create ()) in
@@ -2253,17 +2286,17 @@ let invoke_parallel ~rt ~specs ?(parallel_limit = 4)
                     pl.tool_name pl.agent_id;
                 allowed_roles = [];
               });
-              Result.Ok (`Assoc [
+              Result.Ok ((`Assoc [
                 ("status", `String "suspended");
                 ("run_id", `String persist_id);
                 ("agent_id", `String pl.agent_id);
                 ("tool_name", `String pl.tool_name);
                 ("expires_at", `Float pl.expires_at);
-              ]))
+              ]), pl.conv_snapshot))
       )
     ) specs in
     let results = List.map2 (fun spec promise ->
-      let result : (Yojson.Safe.t, error_category) result =
+      let result : (Yojson.Safe.t * conversation, error_category) result =
         match Eio.Promise.await promise with
         | Result.Ok (Result.Ok v) -> Result.Ok v
         | Result.Ok (Result.Error e) -> Result.Error e
@@ -2272,13 +2305,16 @@ let invoke_parallel ~rt ~specs ?(parallel_limit = 4)
       (spec, result)
     ) specs promises in
     let successes = List.filter_map (fun (spec, r) ->
-      match r with Result.Ok v -> Some (spec, v) | Result.Error _ -> None
+      match r with
+      | Result.Ok (result, conversation) ->
+        Some { spec; result; conversation }
+      | Result.Error _ -> None
     ) results in
     let failures = List.filter_map (fun (spec, r) ->
       match r with Result.Error e -> Some (spec, e) | Result.Ok _ -> None
     ) results in
     let merged = match merge_fn with
-      | Some fn -> Some (fn (List.map snd successes))
+      | Some fn -> Some (fn (List.map (fun (s : parallel_success) -> s.result) successes))
       | None -> None
     in
     match failures with
@@ -2565,6 +2601,7 @@ let noop_persistence : Types.persistence_service = {
   save_conversation_fn = (fun ?scope:_ _sid _conv -> Ok ());
   load_conversation_fn = (fun _sid -> Ok None);
   load_most_recent_conversation_fn = (fun ?scope:_ () -> Ok None);
+  load_conversations_fn = (fun ?scope:_ _limit -> Ok []);
   save_pending_approval_fn = (fun ~run_id:_ ~agent_id:_ ~payload:_ ~expires_at:_ -> Ok ());
   load_pending_approval_fn = (fun ~run_id:_ -> Ok None);
   delete_pending_approval_fn = (fun ~run_id:_ -> Ok ());

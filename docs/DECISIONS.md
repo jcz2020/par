@@ -20,6 +20,7 @@
 | 2026-11-03 | 8 | 持久化 invoke：批次检查点 + 显式恢复 + 运行名由调用方给 | API 级 + 架构级 | 架构正确（3 处 R2 妥协） |
 | 2026-11-03 | 9 | 注入的 event_bus 与内部持久化总线组合而非二选一 | API 级 | 架构正确 |
 | 2026-11-03 | 10 | 上下文窗口未知即跳过主动压缩；截断/请求边界统一修复 tool pair | API 级 + 架构级 | 架构正确（1 处 R2 妥协） |
+| 2026-11-03 | 11 | 分支会话/会话枚举/工具分层的 API 形状 | API 级 + 架构级 | 架构正确 |
 
 ---
 
@@ -467,6 +468,27 @@ MCP server 目前**不能**让模型直接调用其工具：`tool_registry.ml` �
 
 ---
 
+## #11: 分支会话 / 会话枚举 / 工具分层的 API 形状
+
+**日期**: 2026-11-03
+**触发**: 下游集成反馈（并行分支无法接管 history；事件维度看不到 fork 会话；自定义工具全在 Always 层）
+
+### 决策
+
+1. **模型窗口声明放在 `model_config.context_window`**。上下文窗口是模型属性，不是 provider 全局属性；resolver 顺序为 agent override → model → provider fn → 静态表 → 0。
+2. **`parallel_invoke_result.successes` 用 typed record `{spec; result; conversation}`**，而不是 tuple + 并行的 conversation 列表。类型严谨优先；旧文档里的 `cancelled`/`duration` 字段从未实现，本次一并删除。
+3. **会话枚举走 conversations 表**（`conversation_summary` + `load_conversations_fn` + `Runtime.list_conversations`），不把 scope 硬塞进 events。events 是可观测日志，不应该承担 session registry；fork 会话也可能没有 events。
+4. **工具层在注册时声明**（`Runtime.register_tool ?layer` + `set_tool_layer`），因为 registry 已有 `Always | Searchable`，只是没有在公共注册边界暴露。
+5. **save 的 session 边界是当前 `Invoke_context.session_id`**。`invoke_async` 的 `?save` 只有在这个边界正确时才能真正隔离分支；继续用 `rt.session_id` 会覆盖父会话。
+
+**§11 R1 标注**: 1–5 全部为**架构正确**。没有新增并行抽象；扩展的是已有原语（model_config、parallel result、conversations 表、tool_registry 层）。
+
+**§11 R2 范围妥协**: `blocking_approval` 仍未实现（字段保留自 v0.8.0）。**退役触发**: 下游需要 branch-level blocking approval 时单独实现。
+
+**回退方式**: 移除 `context_window` 字段 + resolver 分支；恢复 `successes` tuple；移除 `load_conversations_fn`（及 SQLite/FFI/Python 接线）；移除 `?layer`/`set_tool_layer`；恢复 `save_conversation` 使用 `rt.session_id`。
+
+---
+
 ## Phase 2 / Deferred Items
 
 以下项目在 v0.8.1/v0.8.2 中明确标注为延后，记录于此防止遗忘。每项含退役触发条件。
@@ -502,4 +524,4 @@ MCP server 目前**不能**让模型直接调用其工具：`tool_registry.ml` �
 
 ---
 
-**最后更新**: 2026-08-04
+**最后更新**: 2026-11-04

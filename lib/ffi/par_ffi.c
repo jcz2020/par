@@ -364,6 +364,21 @@ int par_register_tool_with_handler(par_runtime_t* rt, const char* name,
     CAMLreturnT(int, rc);
 }
 
+int par_set_tool_layer(par_runtime_t* rt, const char* name, const char* layer) {
+    CAMLparam0();
+    CAMLlocal2(c_name, c_layer);
+    c_name = caml_copy_string(name);
+    c_layer = caml_copy_string(layer);
+
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value result = call3_exn("par_set_tool_layer", rt->_ocaml_value,
+                             c_name, c_layer);
+    int is_exc = Is_exception_result(result);
+    int rc = is_exc ? -1 : Int_val(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLreturnT(int, rc);
+}
+
 int par_register_agent(par_runtime_t* rt, const char* config_json) {
     CAMLparam0();
     CAMLlocal1(c_config);
@@ -501,6 +516,20 @@ int par_load_conversation(par_runtime_t* rt, const char* session_id) {
     int rc = is_exc ? -1 : Int_val(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
     CAMLreturnT(int, rc);
+}
+
+char* par_load_conversations(par_runtime_t* rt, const char* scope, int limit) {
+    CAMLparam0();
+    CAMLlocal1(c_scope);
+    CAMLlocal1(c_limit);
+    c_scope = caml_copy_string(scope != NULL ? scope : "");
+    c_limit = Val_int(limit);
+
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value result = call3_exn("par_load_conversations", rt->_ocaml_value, c_scope, c_limit);
+    char* ret = extract_string(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLreturnT(char*, ret);
 }
 
 char* par_invoke(par_runtime_t* rt, const char* agent_id,

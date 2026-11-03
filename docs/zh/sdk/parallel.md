@@ -23,8 +23,9 @@ val Runtime.invoke_parallel :
 ```
 
 > **关于 `cancellation_token`**：这是 record 类型
-> `Types.cancellation_token = { switch : Eio.Switch.t; mutable cancelled : bool }`，
-> **不是**裸的 `Eio.Switch.t`。运行时读取 `cancelled` 字段，并在请求取消时停止内嵌的
+> `Types.cancellation_token = { switch : Eio.Switch.t; cancelled : bool Atomic.t;
+> reason : cancel_reason option Atomic.t }`，**不是**裸的 `Eio.Switch.t`。
+> 用 `Cancellation.create_token` 构造。运行时读取原子标志，并在请求取消时停止内嵌的
 > `switch`。详见下文「取消」一节。
 
 ## `agent_dispatch_spec`
@@ -38,6 +39,7 @@ type agent_dispatch_spec = {
   workspace         : Workspace.workspace option;
   approval_handler  : Approval.approval_handler option;
   blocking_approval : bool;
+  conversation      : conversation option;
 }
 ```
 
@@ -48,26 +50,31 @@ type agent_dispatch_spec = {
 | `workspace` | 可选的每 Agent 工作空间。覆盖运行时级别的工作空间，用于该 Agent 的工具处理器。适用于将并行 Agent 沙箱化到不同的文件系统根目录。 |
 | `approval_handler` | 可选的每 Agent 处理器覆盖。当同时存在 `agent_config` 上的处理器时，优先使用此处的处理器。 |
 | `blocking_approval` | 默认 `false`。设为 `true` 时，如果该 Agent 在执行期间触发审批，整个并行节点会等待解析。设为 `false`（默认）时，只有该 Agent 的分支挂起，其他分支继续运行。 |
+| `conversation` | 从已有对话开始该分支。`None` 表示新建。更新后的分支对话通过 `parallel_success.conversation` 返回。 |
 
 ## `parallel_invoke_result`
 
 所有分支完成（或 `Fail_fast` 停止它们）后返回：
 
 ```ocaml
+type parallel_success = {
+  spec         : agent_dispatch_spec;
+  result       : Yojson.Safe.t;
+  conversation : conversation;
+}
+
 type parallel_invoke_result = {
-  successes : (agent_dispatch_spec * Yojson.Safe.t) list;
+  successes : parallel_success list;
   failures  : (agent_dispatch_spec * error_category) list;
-  cancelled : agent_dispatch_spec list;
-  duration  : float;
+  merged    : Yojson.Safe.t option;
 }
 ```
 
 | 字段 | 描述 |
 |------|------|
-| `successes` | 成功完成的 Agent 的 `(agent_dispatch_spec, Yojson.Safe.t)` 元组列表。JSON 是该 Agent 的原始结果 —— **不是** `invoke_result` record。需通过 Yojson 模式匹配提取字段（见下方示例）。 |
+| `successes` | 每个成功分支一条记录。`result` 是该 Agent 的原始 JSON 结果 —— **不是** `invoke_result` record。`conversation` 是分支更新后的历史；如果 spec 提供了输入对话，它也会包含在内。 |
 | `failures` | 失败的 Agent 的 `(agent_dispatch_spec, error_category)` 元组列表。 |
-| `cancelled` | 被取消的分支的 spec（通过 `cancellation_token` 或 `Fail_fast` 策略触发）。 |
-| `duration` | 整个并行分发消耗的挂钟时间（秒）。 |
+| `merged` | `merge_fn` 对成功结果的合并输出；未提供 `merge_fn` 时为 `None`。 |
 
 ## 控制并行度
 
@@ -136,11 +143,33 @@ let result =
     ~merge_fn:concat_merge
     ()
 in
-(* 直接迭代 (spec, json) 元组 —— 没有 `merged` 字段 *)
-List.iter (fun (spec, json) ->
-  Logs.info (fun m -> m "agent %s: %s" spec.agent_id (Yojson.Safe.to_string json))
+(* 直接迭代 parallel_success 记录 —— 没有 `merged` 字段 *)
+List.iter (fun s ->
+  Logs.info (fun m -> m "agent %s: %s"
+    s.spec.agent_id (Yojson.Safe.to_string s.result))
 ) result.successes
 ```
+
+## 分支对话
+
+传 `conversation` 让分支从已有历史开始；通过 `parallel_success.conversation` 接管胜出分支：
+
+```ocaml
+let specs = [
+  { agent_id = "analyst"; input = Some "Continue the investigation";
+    conversation = Some prior_conversation; workspace = None;
+    approval_handler = None; blocking_approval = false };
+] in
+match Runtime.invoke_parallel ~rt ~specs () with
+| Ok { successes = [winner]; _ } ->
+  (* winner 的历史现在包含 prior_conversation + 本轮新消息。 *)
+  Runtime.save_conversation rt ~conversation:winner.conversation
+    ~scope:"investigation" ()
+| Ok _ -> ()
+| Error e -> ...
+```
+
+`invoke_parallel` 不会自动保存分支对话；由调用方决定是否持久化胜出者。
 
 ## 每 Agent 工作空间隔离
 
@@ -171,31 +200,28 @@ in
 ```ocaml
 let specs = [
   { agent_id = "safe_agent";    input = Some "Analyze data";
-    approval_handler = None; blocking_approval = false; ... };
+    approval_handler = None; blocking_approval = false; conversation = None; ... };
   { agent_id = "risky_agent";   input = Some "Send notification";
     approval_handler = Some webhook_handler;
-    blocking_approval = false; ... };  (* 独立挂起 *)
+    blocking_approval = false; conversation = None; ... };  (* 独立挂起 *)
 ]
 ```
 
 ## 取消
 
-传递 `cancellation_token`（即 `Types` 中的 record `{ switch : Eio.Switch.t; mutable cancelled : bool }`）来取消所有分支：
+传递 `cancellation_token`（即 `Types` 中的 record `{ switch : Eio.Switch.t; cancelled : bool Atomic.t; reason : cancel_reason option Atomic.t }`，通常用 `Cancellation.create_token` 构造）来取消所有分支：
 
 ```ocaml
 Eio.Switch.run (fun cancel_switch ->
   (* 将 switch 包装为 cancellation_token record *)
-  let token : Types.cancellation_token = {
-    switch = cancel_switch;
-    cancelled = false;
-  } in
+  let token = Cancellation.create_token cancel_switch in
   (* 在后台 fiber 中启动并行分发 *)
   let fiber = Eio.Fiber.fork_promise (fun () ->
     Runtime.invoke_parallel ~rt ~specs
       ~cancellation_token:token ())
   in
-  (* 稍后：通过置位标志通知取消 *)
-  token.cancelled <- true)
+  (* 稍后：请求取消 *)
+  Cancellation.request_cancel token User_cancelled)
 ```
 
 取消时，分支停止，部分结果（如果有）被收集。
@@ -226,7 +252,8 @@ let () = Eio_main.run (fun env ->
                 input = Some ("Summarize: " ^ topic);
                 workspace = None;
                 approval_handler = None;
-                blocking_approval = false }
+                blocking_approval = false;
+                conversation = None }
       ) ["AI safety"; "Quantum computing"; "Climate change"]
       in
       let result =
@@ -246,9 +273,9 @@ let () = Eio_main.run (fun env ->
       in
       Printf.printf "Successes: %d\n" (List.length result.successes);
       Printf.printf "Failures: %d\n" (List.length result.failures);
-      List.iter (fun (spec, json) ->
+      List.iter (fun s ->
         Logs.info (fun m -> m "agent %s produced: %s"
-                       spec.agent_id (Yojson.Safe.to_string json))
+                       s.spec.agent_id (Yojson.Safe.to_string s.result))
       ) result.successes;
       ignore (Runtime.close rt)))
 ```
@@ -257,7 +284,7 @@ let () = Eio_main.run (fun env ->
 
 Python 绑定通过 ctypes 暴露并行分发。详见 [Python FFI 文档](https://github.com/jcz2020/par/blob/main/bindings/python/)：
 
-- `Runtime.invoke_parallel(specs: list[dict]) -> dict`，每个 spec 字典包含 `agent_id`、`input`、`workspace`、`approval_handler`、`blocking_approval` 键。
+- `Runtime.invoke_parallel(specs: list[dict]) -> dict`，每个 spec 字典包含 `agent_id`、`input`、`workspace`、`approval_handler`、`blocking_approval`、`conversation` 键。
 - 每 Agent 的工作空间和审批处理器覆盖与 OCaml API 行为一致。
 
 ## 与 Workflow API 的关系

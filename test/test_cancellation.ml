@@ -5,7 +5,7 @@ open Runtime
 let dummy_model : model_config =
   { provider = `Openai; model_name = "mock"; api_base = None;
     temperature = 0.0; max_tokens = None; top_p = None;
-    stop_sequences = None; thinking_budget_tokens = None }
+    stop_sequences = None; thinking_budget_tokens = None ; context_window = None}
 
 let dummy_usage : usage_stats =
   { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0;

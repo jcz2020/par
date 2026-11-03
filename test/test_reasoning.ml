@@ -34,7 +34,7 @@ let model ?(thinking = None) ?(max_tokens = Some 4096) () : model_config = {
   max_tokens;
   top_p = Some 0.9;
   stop_sequences = None;
-  thinking_budget_tokens = thinking;
+  thinking_budget_tokens = thinking; context_window = None;
 }
 
 let conversation_of messages = { messages; metadata = [] }

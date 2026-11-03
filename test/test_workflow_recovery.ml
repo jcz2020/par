@@ -66,6 +66,8 @@ let persistence_of (sqlt : Sqlite_persistence.t) : persistence_service = {
   load_conversation_fn = (fun sid -> Sqlite_persistence.load_conversation sqlt sid);
   load_most_recent_conversation_fn =
     (fun ?scope () -> Sqlite_persistence.load_most_recent_conversation ?scope sqlt);
+  load_conversations_fn =
+    (fun ?scope limit -> Sqlite_persistence.load_conversations ?scope sqlt limit);
   save_pending_approval_fn =
     (fun ~run_id ~agent_id ~payload ~expires_at ->
       Sqlite_persistence.save_pending_approval sqlt ~run_id ~agent_id ~payload ~expires_at);
@@ -184,7 +186,7 @@ let recovery_agent (tb : tool_binding) : agent_config = {
   system_prompt_template = None;
   model = { provider = `Openai; model_name = "unused"; api_base = None;
             temperature = 0.0; max_tokens = None; top_p = None;
-            stop_sequences = None; thinking_budget_tokens = None };
+            stop_sequences = None; thinking_budget_tokens = None ; context_window = None};
   tools = [tb.descriptor];
   max_iterations = 1;
   middleware = [];

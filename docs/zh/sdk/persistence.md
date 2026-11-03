@@ -26,6 +26,7 @@ type persistence_service = {
   save_conversation_fn : ?scope:string -> string -> conversation -> (unit, error_category) result;
   load_conversation_fn : string -> (conversation option, error_category) result;
   load_most_recent_conversation_fn : ?scope:string -> unit -> ((string * conversation) option, error_category) result;
+  load_conversations_fn : ?scope:string -> int -> (conversation_summary list, error_category) result;
   close_fn : unit -> unit;
 }
 ```
@@ -142,6 +143,21 @@ type session_summary = {
 | `save_conversation_fn` | `?scope:string` | 为 session id 保存对话 |
 | `load_conversation_fn` | 无 | 按 session id 加载对话 |
 | `load_most_recent_conversation_fn` | `?scope:string` | 加载最近更新的对话，可按 scope 过滤 |
+| `load_conversations_fn` | `?scope:string` | 按更新时间倒序列出对话（`session_id`、`updated_at`、`turn_count`、`scope`） |
+
+`load_conversations_fn` 返回的 `conversation_summary` 类型：
+
+```ocaml
+type conversation_summary = {
+  session_id : string;
+  updated_at : float;
+  turn_count : int;
+  scope : string option;
+}
+```
+
+该列表来自 conversations 表，而不是事件日志。已保存但从未发过事件的会话（例如
+fork 分支）仍然可见。`load_sessions_fn` 仍是事件活动视图。
 
 公共 Runtime API 将这些暴露为：
 
@@ -153,12 +169,17 @@ val Runtime.save_conversation :
 val Runtime.load_most_recent_conversation :
   runtime -> ?scope:string ->
   unit -> ((string * Types.conversation) option, error_category) result
+
+val Runtime.list_conversations :
+  runtime -> ?scope:string -> ?limit:int -> unit ->
+  (Types.conversation_summary list, error_category) result
 ```
 
 ```python
 # Python 绑定
 rt.save_conversation(scope="workspace-123")
 rt.load_most_recent_conversation(scope="workspace-123")
+rt.list_conversations(scope="workspace-123", limit=20)
 ```
 
 设置 `scope` 时，对话存储在该分区下，只能通过相同 scope 的查询检索。省略时，对话存储为无 scope，对无 scope 的加载可见。scope 值对 runtime 来说是不透明的；使用一致的值（workspace id、tenant id、部署环境等）是应用层的职责。

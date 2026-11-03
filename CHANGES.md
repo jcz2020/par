@@ -1,5 +1,62 @@
 # CHANGES
 
+## Unreleased — branch sessions, conversation listing, tool layers
+
+> The API surface now covers the branch/background workflow that previously required app-level workarounds: per-model context windows, `invoke_async` isolation, branch conversations from `invoke_parallel`, a conversations-dimension session list, and registration-time tool layers. Beta-first: no version bump yet.
+
+### Added — per-model context window
+
+- `model_config.context_window : int option` declares a model's window directly. Resolver order is `agent.context_window_override` → `model_config.context_window` → `llm_service.context_window_fn` → static table → `0` (unknown, skip proactive compression).
+- FFI/Python model config accepts `"context_window"` and the derived JSON round-trips it.
+- `docs/sdk/agent.md` / `docs/zh/sdk/agent.md` document the 4-tier resolver.
+
+### Added — `invoke_async` isolation
+
+- `Runtime.invoke_async` gained `?save` and `?update_current`, mirroring `invoke`.
+- Saving inside an invoke now uses the active `Invoke_context`'s `session_id`, not the runtime's parent session id. A branch created with `Invoke_context.create ~session_id:"branch"` and `~save:true` persists under `branch` instead of overwriting the parent.
+- Cancellation token state is now atomic (`bool Atomic.t` / `cancel_reason option Atomic.t`); first-cause-wins is preserved across fibers.
+
+### Added — parallel branch conversations
+
+- `agent_dispatch_spec.conversation : conversation option` starts a branch from existing history.
+- `parallel_invoke_result.successes` is now `parallel_success list`, where each record carries `{ spec; result; conversation }`. The old `(spec, json)` tuple and the never-implemented `cancelled`/`duration` fields are gone.
+- `Workflow_engine.run_agent_call` is the shared agent-call helper; workflow `Agent_call` steps still drop the conversation, while `invoke_parallel` returns it.
+- FFI/Python success entries now include `"conversation"`, and Python specs may include a `"conversation"` object.
+
+### Added — conversation-dimension session listing
+
+- New `conversation_summary { session_id; updated_at; turn_count; scope }`.
+- New `persistence_service.load_conversations_fn` and `Runtime.list_conversations ?scope ?limit`.
+- `Sqlite_persistence.load_conversations` lists the conversations table newest-first, so a saved session with no events (e.g. a forked branch) is visible. `load_sessions_fn` remains the event-activity view.
+- SQLite, noop persistence, C FFI and Python (`rt.list_conversations`) are wired.
+
+### Added — tool layers at registration
+
+- `Runtime.register_tool` and `register_tool_typed` accept `?layer:Tool_registry.tool_layer` (default `Always`).
+- `Runtime.set_tool_layer rt ~name ~layer` moves an already-registered tool; `Invalid_input` for unknown names.
+- Python: `rt.set_tool_layer(name, "searchable" | "always")`. Layers only affect the request when `max_tool_schema_tokens` is set.
+- `docs/sdk/tools.md` / `docs/zh/sdk/tools.md` document registration-time layering.
+
+### Added — facade
+
+- `Par.Think_tag_strip` is now exported from the facade (previously the module existed but required an internal path).
+
+### Breaking relative to the previous beta
+
+- `model_config` gained `context_window`; record literals must add it.
+- `cancellation_token.cancelled` / `.reason` are now atomic values; construct tokens with `Cancellation.create_token`.
+- `agent_dispatch_spec` gained `conversation`; `parallel_invoke_result.successes` changed from tuples to `parallel_success` records.
+- `persistence_service` gained `load_conversations_fn`.
+
+### Tests
+
+- OCaml totals are **1718 tests**, 0 failures. Python is **204 passed / 20 skipped** (two new binding cases: `set_tool_layer`, `list_conversations`).
+- `test/test_context_manager.ml`: model declaration wins over provider capability; unknown still resolves to 0.
+- New `test/test_invoke_async_isolation.ml`: save/update_current flags, branch session persistence, atomic first-cause-wins.
+- `test/test_invoke_parallel.ml`: branch conversation roundtrip.
+- `test/test_sessions.ml`: eventless conversations listed, scope filter, limit.
+- New `test/test_tool_layers.ml`: searchable tool hidden until promoted, `set_tool_layer`, facade export.
+
 ## Unreleased — context safety, payload validation, streaming cancellation
 
 > A long conversation no longer gets compacted on the strength of a guessed 8K window, and a malformed tool call can no longer poison every later request. Cancellation now actually stops an active stream instead of being swallowed as a malformed SSE chunk. No version bump yet.

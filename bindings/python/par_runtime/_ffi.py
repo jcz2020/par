@@ -83,6 +83,12 @@ _lib.par_register_tool_with_handler.argtypes = [
 ]
 _lib.par_register_tool_with_handler.restype = ctypes.c_int
 
+# int par_set_tool_layer(par_runtime_t* rt, const char* name, const char* layer);
+_lib.par_set_tool_layer.argtypes = [
+    ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p
+]
+_lib.par_set_tool_layer.restype = ctypes.c_int
+
 # void par_store_python_handler(int handler_id, par_tool_callback fn);
 # par_tool_callback = char* (*)(int handler_id, const char* input_json)
 _PYTHON_TOOL_CALLBACK = ctypes.CFUNCTYPE(ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p)
@@ -192,6 +198,10 @@ _lib.par_save_conversation.restype = ctypes.c_int
 # int par_load_conversation(par_runtime_t* rt, const char* session_id);
 _lib.par_load_conversation.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_load_conversation.restype = ctypes.c_int
+# char* par_load_conversations(par_runtime_t* rt, const char* scope, int limit);
+# Caller MUST free() the returned string — returns c_void_p, not c_char_p
+_lib.par_load_conversations.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+_lib.par_load_conversations.restype = ctypes.c_void_p
 
 # char* par_invoke(par_runtime_t* rt, const char* agent_id, const char* message);
 # Caller MUST free() the returned string — returns c_void_p, not c_char_p

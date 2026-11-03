@@ -69,7 +69,7 @@ let with_runtime f =
 
 let model_config = {
   provider = `Openai; model_name = "mock"; api_base = None;
-  temperature = 0.0; max_tokens = None; top_p = None; stop_sequences = None; thinking_budget_tokens = None;
+  temperature = 0.0; max_tokens = None; top_p = None; stop_sequences = None; thinking_budget_tokens = None; context_window = None;
 }
 
 (* Builds a mock provider that first asks for [tool], then answers. *)

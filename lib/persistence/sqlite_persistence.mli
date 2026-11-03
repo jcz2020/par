@@ -31,6 +31,7 @@ val delete_invoke_checkpoint : t -> string -> (unit, error_category) result
 val save_conversation : ?scope:string -> t -> string -> conversation -> (unit, error_category) result
 val load_conversation : t -> string -> (conversation option, error_category) result
 val load_most_recent_conversation : ?scope:string -> t -> ((string * conversation) option, error_category) result
+val load_conversations : ?scope:string -> t -> int -> (conversation_summary list, error_category) result
 val transaction : t -> (t -> 'a) -> ('a, error_category) result
 
 val raw_sqlite3_db : t -> Sqlite3.db

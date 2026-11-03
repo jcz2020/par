@@ -859,8 +859,9 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
            warned_no_window := true;
            Logs.warn (fun m -> m
              "[engine] context window unknown for model %s; proactive \
-              compression disabled. Set agent.context_window_override or \
-              provide llm_service.context_window_fn."
+              compression disabled. Declare model_config.context_window, set \
+              agent.context_window_override, or provide \
+              llm_service.context_window_fn."
              agent.model.model_name)
          | _ -> ());
         (match skip_reason with

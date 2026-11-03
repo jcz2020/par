@@ -7,21 +7,27 @@ exception Stream_cancelled_by_token
 
 type t = cancellation_token
 
-let create_token switch = { switch; cancelled = false; reason = None }
+let create_token switch =
+  { switch; cancelled = Atomic.make false; reason = Atomic.make None }
 
-let is_cancelled token = token.cancelled
+let is_cancelled token = Atomic.get token.cancelled
 
 let check_cancel token =
-  if token.cancelled then raise (Eio.Cancel.Cancelled (Failure "cancelled"))
+  if is_cancelled token then raise (Eio.Cancel.Cancelled (Failure "cancelled"))
   else Eio.Fiber.yield ()
 
+(* First-cause-wins.  [cancelled] is published before [reason]; a reader that
+   observes the flag before the reason falls back to [User_cancelled]. *)
 let request_cancel token reason =
-  if not token.cancelled then begin
-    token.cancelled <- true;
-    token.reason <- Some reason
-  end
+  let rec publish () =
+    if Atomic.get token.cancelled then ()
+    else if Atomic.compare_and_set token.cancelled false true then
+      Atomic.set token.reason (Some reason)
+    else publish ()
+  in
+  publish ()
 
-let reason token = token.reason
+let reason token = Atomic.get token.reason
 
 let with_timeout seconds token f =
   let result = ref None in
@@ -31,12 +37,12 @@ let with_timeout seconds token f =
       let v = f token in
       result := Some (Ok v))
     (fun () ->
-      if token.cancelled then result := Some (Error `Cancelled)
+      if is_cancelled token then result := Some (Error `Cancelled)
       else begin
-        while Unix.gettimeofday () < deadline && not token.cancelled do
+        while Unix.gettimeofday () < deadline && not (is_cancelled token) do
           Eio.Fiber.yield ()
         done;
-        if token.cancelled then result := Some (Error `Cancelled)
+        if is_cancelled token then result := Some (Error `Cancelled)
         else result := Some (Error `Timeout)
       end);
   match !result with

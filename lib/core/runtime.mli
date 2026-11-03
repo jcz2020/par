@@ -8,10 +8,17 @@ type agent_dispatch_spec = {
   workspace : Workspace.workspace option;
   approval_handler : approval_context Approval.approval_handler option;
   blocking_approval : bool;
+  conversation : conversation option;
+}
+
+type parallel_success = {
+  spec : agent_dispatch_spec;
+  result : Yojson.Safe.t;
+  conversation : conversation;
 }
 
 type parallel_invoke_result = {
-  successes : (agent_dispatch_spec * Yojson.Safe.t) list;
+  successes : parallel_success list;
   failures : (agent_dispatch_spec * error_category) list;
   merged : Yojson.Safe.t option;
 }
@@ -130,8 +137,13 @@ val register_tool :
   ?concurrency_limit:int ->
   ?on_update:(string -> unit) option ->
   ?cache_control:cache_control option ->
+  ?layer:Tool_registry.tool_layer ->
   unit ->
   (tool_binding, error_category) result
+(** [layer] defaults to [Tool_registry.Always]. A [Searchable] tool is hidden
+    from the provider's tool list when [max_tool_schema_tokens] switches the
+    invoke into progressive mode; it becomes callable after [tool_search]
+    promotes it. Without a schema budget, the layer has no effect. *)
 
 val register_tool_typed :
   runtime ->
@@ -144,6 +156,7 @@ val register_tool_typed :
   ?timeout:float ->
   ?concurrency_limit:int ->
   ?on_update:(string -> unit) option ->
+  ?layer:Tool_registry.tool_layer ->
   unit ->
   (tool_binding, error_category) result
 (** Typed-input convenience wrapper around [register_tool].
@@ -190,6 +203,14 @@ val update_agent_tools :
 
     Returns [Error (Invalid_input "Agent not found: ...")] if [agent_id]
     is not registered. *)
+
+val set_tool_layer :
+  runtime ->
+  name:string ->
+  layer:Tool_registry.tool_layer ->
+  (unit, error_category) result
+(** Move an already-registered tool between [Always] and [Searchable].
+    Returns [Invalid_input] when [name] is not registered. *)
 
 val unregister_tool :
   runtime ->
@@ -330,7 +351,11 @@ val invoke :
 (** [invoke_async rt ...] runs [invoke] in a background fiber and returns
     immediately with an [Invoke_context.invoke_handle]. Use the handle to
     [await], [cancel], or poll [status]. The fiber is forked under
-    [rt.cancellation_root], mirroring [submit_workflow_async]. *)
+    [rt.cancellation_root], mirroring [submit_workflow_async].
+
+    [~save] and [~update_current] mirror {!invoke}: pass [~update_current:false]
+    and [~save:false] for a branch/background call that must not replace the
+    parent's current conversation or persist into its session. *)
 val invoke_async :
   runtime ->
   agent_id:string ->
@@ -344,6 +369,8 @@ val invoke_async :
   ?system_prompt_appendix:string ->
   ?skills:string list ->
   ?context:Invoke_context.invoke_context ->
+  ?update_current:bool ->
+  ?save:bool ->
   ?durable:bool ->
   ?invoke_id:string ->
   unit ->
@@ -670,6 +697,15 @@ val save_conversation : runtime -> ?conversation:conversation -> ?scope:string -
 val load_conversation : runtime -> string -> (Types.conversation option, error_category) result
 
 val load_most_recent_conversation : runtime -> ?scope:string -> unit -> ((string * Types.conversation) option, error_category) result
+
+val list_conversations :
+  runtime -> ?scope:string -> ?limit:int -> unit ->
+  (Types.conversation_summary list, error_category) result
+(** List sessions from the conversations table, newest first.
+
+    Unlike [Persistence.load_sessions], this does not require the session to
+    have events: a forked/branch conversation that was saved but never emitted
+    an event is still listed. [limit] defaults to 50. *)
 
 val register_llm_provider : runtime -> string -> llm_service -> (unit, error_category) result
 (** Add a provider under [id] to the runtime's provider registry. If [id]

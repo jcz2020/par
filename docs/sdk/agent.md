@@ -146,10 +146,11 @@ When `context_compression_threshold` is set (default `Some 0.8`), the engine che
 threshold AND the cooldown has elapsed, the configured `context_strategy` is applied
 (or `Summarize` by default if `context_strategy = None`).
 
-The context window size is resolved via a 3-tier resolver:
+The context window size is resolved via a 4-tier resolver:
 1. `context_window_override` (user-supplied per agent, wins over everything)
-2. `llm_service.context_window_fn` (provider capability function)
-3. Static lookup table (`default_context_window`): gpt-4o family=128K, claude-4 family=200K, gpt-3.5-turbo=16385
+2. `model_config.context_window` (per-model declaration)
+3. `llm_service.context_window_fn` (provider capability function)
+4. Static lookup table (`default_context_window`): gpt-4o family=128K, claude-4 family=200K, gpt-3.5-turbo=16385
 
 Unknown models resolve to `0` ("window unknown"). PAR then **skips proactive
 compression** and emits `Context_compression_skipped { reason = \`No_window_size }`
@@ -182,10 +183,16 @@ type model_config = {
   top_p : float option;
   stop_sequences : string list option;
   thinking_budget_tokens : int option;  (* Anthropic extended thinking; None = off *)
+  context_window : int option;          (* Per-model context window; None = provider/static fallback *)
 }
 ```
 
 `thinking_budget_tokens = Some n` turns on Anthropic extended thinking with an `n`-token budget. Anthropic requires `n >= 1024` and `n < max_tokens`; the adapter checks both locally and returns `Invalid_input` instead of letting the provider reject the request. Anthropic rejects `temperature` and `top_p` alongside thinking, so the adapter omits both when thinking is on. Other providers ignore the field.
+
+`context_window = Some n` declares this model's context window directly. It is
+the recommended way to support a custom or newly released model: the resolver
+prefers it over `llm_service.context_window_fn` and the static table, so PAR
+does not have to guess. `None` keeps the fallback chain.
 
 Provider examples:
 
@@ -193,25 +200,25 @@ Provider examples:
 (* OpenAI *)
 { provider = `Openai; model_name = "gpt-4"; api_base = None;
   temperature = 0.7; max_tokens = Some 4096; top_p = None;
-  stop_sequences = None; thinking_budget_tokens = None }
+  stop_sequences = None; thinking_budget_tokens = None; context_window = None }
 
 (* Anthropic with extended thinking: temperature/top_p are ignored by the
    adapter when a budget is set *)
 { provider = `Anthropic; model_name = "claude-sonnet-4-20250514";
   api_base = None;
   temperature = 1.0; max_tokens = Some 8192; top_p = None;
-  stop_sequences = None; thinking_budget_tokens = Some 2048 }
+  stop_sequences = None; thinking_budget_tokens = Some 2048; context_window = None }
 
 (* Ollama local model *)
 { provider = `Ollama; model_name = "llama3"; api_base = None;
   temperature = 0.8; max_tokens = None; top_p = None;
-  stop_sequences = None; thinking_budget_tokens = None }
+  stop_sequences = None; thinking_budget_tokens = None; context_window = None }
 
 (* Custom endpoint *)
 { provider = `Custom "my-provider"; model_name = "my-model";
   api_base = Some "http://localhost:8000/v1";
   temperature = 0.7; max_tokens = None; top_p = None;
-  stop_sequences = None; thinking_budget_tokens = None }
+  stop_sequences = None; thinking_budget_tokens = None; context_window = None }
 ```
 
 ### LLM provider configuration
@@ -491,6 +498,8 @@ val Runtime.invoke_async :
   ?enable_handoff:bool ->
   ?system_prompt_appendix:string ->
   ?context:Invoke_context.invoke_context ->
+  ?update_current:bool ->
+  ?save:bool ->
   unit ->
   Invoke_context.invoke_handle
 ```

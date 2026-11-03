@@ -336,6 +336,12 @@ type model_config = {
      temperature/top_p alongside thinking, so the adapter omits them when this
      is set, and [n] must be smaller than the request's max_tokens. *)
   thinking_budget_tokens : int option [@default None];
+  (* Model context window in tokens. [Some n] is the most specific
+     declaration (per model) and is preferred over the provider-level
+     [llm_service.context_window_fn]; [None] falls through to that
+     capability and then to the static lookup table. 0 is treated as
+     "unknown" at every tier. *)
+  context_window : int option [@default None];
 }
 [@@deriving yojson]
 
@@ -365,8 +371,8 @@ type tool_permission =
 
 type cancellation_token = {
   switch : Eio.Switch.t;
-  mutable cancelled : bool;
-  mutable reason : cancel_reason option;
+  cancelled : bool Atomic.t;
+  reason : cancel_reason option Atomic.t;
 }
 
 type tool_descriptor = {
@@ -1186,6 +1192,17 @@ type session_summary = {
 }
 [@@deriving yojson]
 
+(** Conversation-dimension session listing. Unlike [session_summary], this is
+    derived from the conversations table, so a session with no events (for
+    example a forked branch) is still visible. *)
+type conversation_summary = {
+  session_id : string;
+  updated_at : float;
+  turn_count : int;
+  scope : string option;
+}
+[@@deriving yojson]
+
 type llm_service = {
   complete_fn : model_config -> tool_descriptor list -> conversation -> (llm_response, error_category) result;
   stream_fn : model_config -> tool_descriptor list -> conversation -> stream_config ->
@@ -1376,6 +1393,7 @@ type persistence_service = {
   save_conversation_fn : ?scope:string -> string -> conversation -> (unit, error_category) result;
   load_conversation_fn : string -> (conversation option, error_category) result;
   load_most_recent_conversation_fn : ?scope:string -> unit -> ((string * conversation) option, error_category) result;
+  load_conversations_fn : ?scope:string -> int -> (conversation_summary list, error_category) result;
   (* HITL pending approvals (v0.8.0 A7). Persistent suspend state for
      async / webhook approval handlers. Lifecycle: save on suspend, load
      on resume, delete after outcome applied. Load auto-expires stale

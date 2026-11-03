@@ -123,11 +123,15 @@ val Runtime.invoke_async :
   ?enable_handoff:bool ->
   ?system_prompt_appendix:string ->
   ?context:Invoke_context.invoke_context ->
+  ?update_current:bool ->
+  ?save:bool ->
   unit ->
   Invoke_context.invoke_handle
 ```
 
 The signature mirrors `Runtime.invoke` except the return type: instead of blocking until completion, it returns an `invoke_handle` immediately.
+
+`?save` and `?update_current` mirror `Runtime.invoke`. For a background or branch call that must not disturb the parent session, pass `~update_current:false ~save:false`. If the branch also needs its own persisted session, pass `?context:(Invoke_context.create ~session_id:"branch-id" ())` and `~save:true`; the save uses the active invoke context's session id, not the runtime's parent session id.
 
 ### The invoke_handle type
 

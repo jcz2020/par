@@ -18,7 +18,7 @@ open Types
 let dummy_model : model_config =
   { provider = `Openai; model_name = "mock"; api_base = None;
     temperature = 0.0; max_tokens = None; top_p = None;
-    stop_sequences = None; thinking_budget_tokens = None }
+    stop_sequences = None; thinking_budget_tokens = None ; context_window = None}
 
 let dummy_usage : usage_stats =
   { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0 ; cached_tokens = 0; cache_creation_input_tokens = 0; cache_read_input_tokens = 0 }
@@ -141,6 +141,8 @@ let with_persisted_runtime ~llm ~agent (f : Par.Runtime.runtime -> 'a) : 'a =
             (fun sid -> Sqlite_persistence.load_conversation sqlt sid);
           load_most_recent_conversation_fn =
             (fun ?scope () -> Sqlite_persistence.load_most_recent_conversation ?scope sqlt);
+          load_conversations_fn =
+            (fun ?scope limit -> Sqlite_persistence.load_conversations ?scope sqlt limit);
           save_pending_approval_fn =
             (fun ~run_id ~agent_id ~payload ~expires_at ->
               Sqlite_persistence.save_pending_approval sqlt ~run_id ~agent_id ~payload ~expires_at);

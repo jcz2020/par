@@ -67,6 +67,7 @@ let test_runtime_create_persists_published_events () =
           save_conversation_fn = (fun ?scope sid conv -> Sqlite_persistence.save_conversation ?scope sqlt sid conv);
           load_conversation_fn = (fun sid -> Sqlite_persistence.load_conversation sqlt sid);
           load_most_recent_conversation_fn = (fun ?scope () -> Sqlite_persistence.load_most_recent_conversation ?scope sqlt);
+          load_conversations_fn = (fun ?scope limit -> Sqlite_persistence.load_conversations ?scope sqlt limit);
           save_pending_approval_fn = (fun ~run_id ~agent_id ~payload ~expires_at ->
             Sqlite_persistence.save_pending_approval sqlt ~run_id ~agent_id ~payload ~expires_at);
           load_pending_approval_fn = (fun ~run_id ->

@@ -696,6 +696,22 @@ let () = Eio_main.run (fun env ->
 
 **Always 层地板**：registry 内部把工具分为 `Always | Searchable` 两层。Always 层是保底地板，永不裁剪。如果仅地板自身就超过阈值，会记录警告日志，且地板仍然全量发送。通过现有 pull 模型注册的 MCP 工具一旦注册即为可搜索。
 
+**注册时选择层级**：
+
+```ocaml
+let tb = Runtime.register_tool rt
+  ~name:"convert_temperature"
+  ~description:"C / F / K conversion"
+  ~input_schema:(`Assoc [("type", `String "object")])
+  ~handler
+  ~layer:Tool_registry.Searchable
+  ()
+```
+
+`?layer` 默认 `Tool_registry.Always`。用 `Runtime.set_tool_layer rt ~name ~layer`
+移动已注册工具。Python：`rt.set_tool_layer("convert_temperature", "searchable")`。
+只有设置了 `max_tool_schema_tokens` 时层级才有意义；否则 agent 的工具会全部暴露。
+
 **tool_search 用法**：
 
 输入：

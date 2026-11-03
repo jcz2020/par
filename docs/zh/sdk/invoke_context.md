@@ -123,11 +123,15 @@ val Runtime.invoke_async :
   ?enable_handoff:bool ->
   ?system_prompt_appendix:string ->
   ?context:Invoke_context.invoke_context ->
+  ?update_current:bool ->
+  ?save:bool ->
   unit ->
   Invoke_context.invoke_handle
 ```
 
 签名与 `Runtime.invoke` 相同，只是返回类型不同：不是阻塞到完成，而是立即返回一个 `invoke_handle`。
+
+`?save` / `?update_current` 与 `Runtime.invoke` 一致。后台或分支调用如果不想打扰父会话，传 `~update_current:false ~save:false`。如果分支还需要自己的持久化会话，传 `?context:(Invoke_context.create ~session_id:"branch-id" ())` 和 `~save:true`；保存使用的是当前 invoke context 的 session id，而不是 runtime 的父 session id。
 
 ### invoke_handle 类型
 

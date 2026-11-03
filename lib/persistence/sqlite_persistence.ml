@@ -911,3 +911,49 @@ let load_most_recent_conversation ?scope t =
     let _ = Sqlite3.finalize stmt in
     result
   )
+
+let load_conversations ?scope t limit =
+  Eio.Mutex.use_ro t.mutex (fun () ->
+    let sql = match scope with
+      | Some _ ->
+        "SELECT session_id, updated_at, turn_count, scope \
+         FROM conversations WHERE scope = ? ORDER BY updated_at DESC LIMIT ?"
+      | None ->
+        "SELECT session_id, updated_at, turn_count, scope \
+         FROM conversations ORDER BY updated_at DESC LIMIT ?"
+    in
+    let stmt = Sqlite3.prepare t.db sql in
+    let next_idx = match scope with
+      | Some s -> ignore (Sqlite3.bind_text stmt 1 s); 2
+      | None -> 1
+    in
+    let _ = Sqlite3.bind_int stmt next_idx limit in
+    let acc = ref [] in
+    let result =
+      let stop = ref false in
+      let error = ref None in
+      while not !stop do
+        match Sqlite3.step stmt with
+        | Sqlite3.Rc.ROW ->
+          let session_id = Sqlite3.column_text stmt 0 in
+          let updated_at = Sqlite3.column_double stmt 1 in
+          let turn_count = Sqlite3.column_int stmt 2 in
+          let scope = match Sqlite3.column stmt 3 with
+            | Sqlite3.Data.NULL -> None
+            | Sqlite3.Data.TEXT s -> Some s
+            | _ -> None
+          in
+          acc := { session_id; updated_at; turn_count; scope } :: !acc
+        | Sqlite3.Rc.DONE -> stop := true
+        | rc ->
+          stop := true;
+          error := Some (Internal (Printf.sprintf
+            "Conversation list: %s" (Sqlite3.Rc.to_string rc)))
+      done;
+      match !error with
+      | Some e -> Result.Error e
+      | None -> Ok (List.rev !acc)
+    in
+    let _ = Sqlite3.finalize stmt in
+    result
+  )

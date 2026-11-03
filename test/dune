@@ -293,6 +293,16 @@
  (modules test_streaming_cancel))
 
 (test
+ (name test_invoke_async_isolation)
+ (libraries par eio_main alcotest)
+ (modules test_invoke_async_isolation))
+
+(test
+ (name test_tool_layers)
+ (libraries par eio_main alcotest)
+ (modules test_tool_layers))
+
+(test
  (name test_noop_persistence)
  (libraries par alcotest)
  (modules test_noop_persistence))

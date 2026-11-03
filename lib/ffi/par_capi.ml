@@ -356,6 +356,7 @@ let do_init (config_json : string) =
                   save_conversation_fn = (fun ?scope sid conv -> Par.Sqlite_persistence.save_conversation ?scope sqlt sid conv);
                   load_conversation_fn = (fun sid -> Par.Sqlite_persistence.load_conversation sqlt sid);
                   load_most_recent_conversation_fn = (fun ?scope () -> Par.Sqlite_persistence.load_most_recent_conversation ?scope sqlt);
+                  load_conversations_fn = (fun ?scope limit -> Par.Sqlite_persistence.load_conversations ?scope sqlt limit);
                   save_pending_approval_fn = (fun ~run_id ~agent_id ~payload ~expires_at ->
                     Par.Sqlite_persistence.save_pending_approval sqlt ~run_id ~agent_id ~payload ~expires_at);
                   load_pending_approval_fn = (fun ~run_id ->
@@ -634,10 +635,23 @@ let do_register_tool_with_handler (state_id : int) (name : string) (desc : strin
          | Yojson.Json_error _ -> Obj.repr (-2)
          | _ -> Obj.repr (-1)))
 
+let do_set_tool_layer (state_id : int) (name : string) (layer : string) : int =
+  match get_state state_id with
+  | None -> -1
+  | Some _ ->
+    let layer = match String.lowercase_ascii layer with
+      | "searchable" -> Par.Tool_registry.Searchable
+      | _ -> Par.Tool_registry.Always
+    in
+    let result = dispatch state_id (fun rt _env ->
+      match Par.Runtime.set_tool_layer rt ~name ~layer with
+      | Ok () -> Obj.repr 0
+      | Error _ -> Obj.repr (-1)) in
+    (Obj.obj result : int)
+
 (* -------------------------------------------------------------------------- *)
 (* Config parsers (unchanged from previous code)                              *)
 (* -------------------------------------------------------------------------- *)
-
 let parse_provider (s : string) : [> `Openai | `Anthropic | `Ollama | `Custom of string ] =
   match String.lowercase_ascii s with
   | "openai" -> `Openai
@@ -661,8 +675,9 @@ let parse_model_config (json : Yojson.Safe.t) : Par.Types.model_config =
     | _ -> []
   in
   let thinking_budget_tokens = json |> member "thinking_budget_tokens" |> to_int_option in
+  let context_window = json |> member "context_window" |> to_int_option in
   { provider; model_name; api_base; temperature; max_tokens; top_p;
-    stop_sequences = Some stop_sequences; thinking_budget_tokens }
+    stop_sequences = Some stop_sequences; thinking_budget_tokens; context_window }
 
 let parse_system_prompt_template (json : Yojson.Safe.t) : Par.Types.system_prompt_template =
   let open Yojson.Safe.Util in
@@ -1618,17 +1633,28 @@ let do_invoke_parallel (state_id : int) (specs_json : string) =
            let blocking_approval =
              item |> member "blocking_approval" |> to_bool_option
              |> Option.value ~default:false in
+           let conversation =
+             match item |> member "conversation" with
+             | `Null -> None
+             | j ->
+               (match Par.Types.conversation_of_yojson j with
+                | Ok c -> Some c
+                | Error msg -> failwith ("invalid conversation: " ^ msg))
+           in
            { Par.Runtime.agent_id; input; workspace = None;
-             approval_handler = None; blocking_approval }
+             approval_handler = None; blocking_approval; conversation }
          ) specs_list in
          match Par.Runtime.invoke_parallel
                  ~rt ~specs ~parallel_limit ~failure_policy () with
          | Ok par_result ->
            let successes_json = List.map
-             (fun (spec, result_json) ->
+             (fun (s : Par.Runtime.parallel_success) ->
+                let spec = s.Par.Runtime.spec in
                 `Assoc [
                   ("agent_id", `String spec.Par.Runtime.agent_id);
-                  ("result", result_json);
+                  ("result", s.Par.Runtime.result);
+                  ("conversation",
+                   Par.Types.conversation_to_yojson s.Par.Runtime.conversation);
                 ])
              par_result.Par.Runtime.successes in
            let failures_json = List.map
@@ -1951,6 +1977,12 @@ let () =
       do_register_tool_with_handler state_id name desc schema handler_id)
 
 let () =
+  Callback.register "par_set_tool_layer"
+    (fun (state_id_obj : Obj.t) (name : string) (layer : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_set_tool_layer state_id name layer)
+
+let () =
   Callback.register "par_register_agent"
     (fun (state_id_obj : Obj.t) (config_json : string) ->
       let state_id : int = Obj.magic state_id_obj in
@@ -2030,6 +2062,23 @@ let do_load_conversation (state_id : int) (sid : string) : int =
     | rc when Obj.magic rc = 1 -> 1
     | _ -> -1
 
+let do_load_conversations (state_id : int) (scope : string) (limit : int) : string =
+  match get_state state_id with
+  | None -> error_json "Invalid runtime handle"
+  | Some _ ->
+    let scope_opt = if scope = "" then None else Some scope in
+    let result = dispatch state_id (fun rt _env ->
+      match Runtime.list_conversations rt ?scope:scope_opt ~limit () with
+      | Ok summaries ->
+        Obj.repr (Yojson.Safe.to_string (`Assoc [
+          ("status", `String "ok");
+          ("conversations",
+           `List (List.map Par.Types.conversation_summary_to_yojson summaries));
+        ]))
+      | Error e ->
+        Obj.repr (error_json (Par.Types.string_of_error_category e))) in
+    Obj.obj result
+
 let do_list_llm_providers (state_id : int) : string =
   match get_state state_id with
   | None -> "[]"
@@ -2077,6 +2126,13 @@ let () =
     (fun (state_id_obj : Obj.t) (sid : string) ->
       let state_id : int = Obj.magic state_id_obj in
       do_load_conversation state_id sid)
+
+let () =
+  Callback.register "par_load_conversations"
+    (fun (state_id_obj : Obj.t) (scope : string) (limit_obj : Obj.t) ->
+      let state_id : int = Obj.magic state_id_obj in
+      let limit : int = Obj.magic limit_obj in
+      do_load_conversations state_id scope limit)
 
 let () =
   Callback.register "par_list_llm_providers"

@@ -22,6 +22,7 @@ int par_register_tool_with_handler(par_runtime_t* rt, const char* name,
                                     const char* description,
                                     const char* input_schema,
                                     int handler_id);
+int par_set_tool_layer(par_runtime_t* rt, const char* name, const char* layer);
 
 typedef char* (*par_tool_callback)(int handler_id, const char* input_json);
 void par_store_python_handler(int handler_id, par_tool_callback fn);
@@ -43,6 +44,7 @@ void par_set_session_id(par_runtime_t* rt, const char* session_id);
 char* par_get_session_id(par_runtime_t* rt);
 int par_save_conversation(par_runtime_t* rt, const char* scope);
 int par_load_conversation(par_runtime_t* rt, const char* session_id);
+char* par_load_conversations(par_runtime_t* rt, const char* scope, int limit);
 
 /* Synchronous invocation — returns JSON string, caller must free() */
 char* par_invoke(par_runtime_t* rt, const char* agent_id,

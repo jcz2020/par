@@ -116,6 +116,22 @@ class TestParSDKIntegration(unittest.TestCase):
         except PARToolError as e:
             self.fail(f"register_tool raised on a valid tool: {e}")
 
+    def test_set_tool_layer(self):
+        """set_tool_layer moves a registered tool and rejects unknown names."""
+        self.rt.register_tool(
+            "layer_tool",
+            "Tool for layer test",
+            '{"type": "object"}',
+        )
+        self.rt.set_tool_layer("layer_tool", "searchable")
+        self.rt.set_tool_layer("layer_tool", "always")
+        with self.assertRaises(PARToolError):
+            self.rt.set_tool_layer("missing_tool", "always")
+
+    def test_list_conversations_empty(self):
+        """list_conversations must cross the FFI on a fresh runtime."""
+        self.assertEqual(self.rt.list_conversations(), [])
+
     def test_register_tool_with_handler_stores_callback(self):
         """Regression: par_register_tool_with_handler stores a Python
         callback and the runtime remains queryable afterwards.

@@ -12,7 +12,7 @@ let config_json = {|{"persistence": ["Sqlite", ":memory:"], "event_bus": {"buffe
 let dummy_model : model_config =
   { provider = `Openai; model_name = "mock"; api_base = None;
     temperature = 0.0; max_tokens = None; top_p = None;
-    stop_sequences = None; thinking_budget_tokens = None }
+    stop_sequences = None; thinking_budget_tokens = None ; context_window = None}
 
 let err_str (e : error_category) =
   Yojson.Safe.to_string (Types.error_category_to_yojson e)

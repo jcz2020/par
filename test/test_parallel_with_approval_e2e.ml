@@ -22,7 +22,7 @@ let error_to_string (e : error_category) =
 
 let dummy_model : model_config = {
   provider = `Openai; model_name = "mock"; api_base = None;
-  temperature = 0.0; max_tokens = None; top_p = None; stop_sequences = None; thinking_budget_tokens = None;
+  temperature = 0.0; max_tokens = None; top_p = None; stop_sequences = None; thinking_budget_tokens = None; context_window = None;
 }
 
 let make_config () =
@@ -43,10 +43,12 @@ let make_approval_agent id prompt handler =
   | Error e -> Alcotest.failf "make_agent %s: %s" id (error_to_string e)
 
 let make_spec ?input ?approval_handler agent_id : Runtime.agent_dispatch_spec =
-  { agent_id; input; workspace = None; approval_handler; blocking_approval = false }
+  { agent_id; input; workspace = None; approval_handler; blocking_approval = false;
+    conversation = None }
 
 let _make_blocking_spec ?input ?approval_handler agent_id : Runtime.agent_dispatch_spec =
-  { agent_id; input; workspace = None; approval_handler; blocking_approval = true }
+  { agent_id; input; workspace = None; approval_handler; blocking_approval = true;
+    conversation = None }
 
 let test_parallel_three_agents_no_approval () =
   Eio_main.run (fun _env ->

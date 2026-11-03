@@ -20,6 +20,17 @@ let make_envelope i sid ts : event_envelope = {
   delivery_attempt = 0;
 }
 
+let sample_conversation : conversation = {
+  messages = [{
+    role = User;
+    content_blocks = Message.content_of_string "hello";
+    tool_calls = None;
+    tool_call_id = None;
+    name = None;
+  }];
+  metadata = [];
+}
+
 let () =
   Alcotest.run "sessions" [
     "sessions", [
@@ -94,6 +105,35 @@ let () =
             | Error _ -> Sqlite_persistence.close t; Alcotest.fail "load all failed"
             | Ok ss ->
               Alcotest.(check int) "no scope has all 3 sessions" 3 (List.length ss));
+           Sqlite_persistence.close t));
+
+      Alcotest.test_case "load_conversations_includes_eventless_sessions" `Quick (fun () ->
+        let db = tmp_db () in
+        (match Sqlite_persistence.create db with
+         | Error _ -> Alcotest.fail "create failed"
+         | Ok t ->
+           ignore (Sqlite_persistence.save_conversation ~scope:"A" t "conv-a" sample_conversation);
+           ignore (Sqlite_persistence.save_conversation t "conv-b" sample_conversation);
+           (match Sqlite_persistence.load_conversations t 10 with
+            | Error _ -> Sqlite_persistence.close t; Alcotest.fail "load_conversations failed"
+            | Ok ss ->
+              Alcotest.(check int) "both conversations listed" 2 (List.length ss);
+              (match List.find_opt (fun (s : conversation_summary) ->
+                       s.session_id = "conv-b") ss with
+               | Some s ->
+                 Alcotest.(check int) "turn_count" 1 s.turn_count;
+                 Alcotest.(check (option string)) "unscoped" None s.scope
+               | None -> Alcotest.fail "conv-b missing"));
+           (match Sqlite_persistence.load_conversations ~scope:"A" t 10 with
+            | Ok [s] ->
+              Alcotest.(check string) "scope filter" "conv-a" s.session_id;
+              Alcotest.(check (option string)) "scope recorded" (Some "A") s.scope
+            | Ok _ -> Alcotest.fail "expected exactly one scoped conversation"
+            | Error _ -> Alcotest.fail "scoped load failed");
+           (match Sqlite_persistence.load_conversations t 1 with
+            | Ok [_] -> ()
+            | Ok _ -> Alcotest.fail "limit not respected"
+            | Error _ -> Alcotest.fail "limited load failed");
            Sqlite_persistence.close t));
     ]
   ]

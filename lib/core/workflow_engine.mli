@@ -98,6 +98,16 @@ val execute_step :
   ?path:int list ->
   exec_context -> workflow_step -> (Yojson.Safe.t, error_category) result
 
+(** Run one plain [Agent_call] (no response schema) and return both its JSON
+    result and the updated conversation.  Used by [Runtime.invoke_parallel] so
+    a branch can start from, and hand back, its own history. *)
+val run_agent_call :
+  ?conversation:conversation ->
+  exec_context ->
+  agent_id:string ->
+  prompt:string ->
+  (Yojson.Safe.t * conversation, error_category) result
+
 (** Execute a complete workflow, recording timing and invoking on_complete callback.
     Returns [Ok workflow_result] on success or partial completion,
     [Error error_category] on unrecoverable failure.

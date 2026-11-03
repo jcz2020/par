@@ -113,7 +113,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - **Agent memory** — cross-session `Memory_service` (FTS5 keyword search) + 3 builtin tools. Scoped per-session via `invoke_context`. Pluggable like `llm_service`.
 - **Dynamic system prompt** — per-turn `system_prompt_appendix` via `invoke_context`. Appends after template + skill overlay + tool suffix. Covers invoke/generate/handoff paths.
 - **HITL approval** (Sync / Async / Webhook) — agents pause mid-execution for human approval, persist state to SQLite, and resume after external resolution. Approvals survive process restarts.
-- **Parallel multi-agent dispatch** — `Runtime.invoke_parallel` runs N agents concurrently with typed merge, per-agent workspace isolation, and per-agent approval handler overrides.
+- **Parallel multi-agent dispatch** — `Runtime.invoke_parallel` runs N agents concurrently with typed merge, per-agent workspace isolation, per-agent approval handler overrides, and per-branch conversations.
 - **Deprecation framework** — `warn_once` helper + `Deprecated_api_called` event + `[@@deprecated]` annotations + migration guides. Breaking changes no longer happen silently.
 - **Progressive tool loading** — set `max_tool_schema_tokens` and 50+ tool registrations stop bloating the prompt: the engine exposes an Always-layer floor plus a `tool_search` meta-tool, and the model promotes matched tools on demand per invocation. See [Tools](docs/sdk/tools.md).
 - **Python ctypes binding** — `par_runtime` package, thread-safe, no GIL contention with OCaml runtime. Persistent Eio domain per Runtime for full concurrency support.
