@@ -57,9 +57,9 @@
 - `test/test_sessions.ml`: eventless conversations listed, scope filter, limit.
 - New `test/test_tool_layers.ml`: searchable tool hidden until promoted, `set_tool_layer`, facade export.
 
-## Unreleased — context safety, payload validation, streaming cancellation
+## v0.14.1-beta.20261104 — context safety, payload validation, streaming cancellation
 
-> A long conversation no longer gets compacted on the strength of a guessed 8K window, and a malformed tool call can no longer poison every later request. Cancellation now actually stops an active stream instead of being swallowed as a malformed SSE chunk. No version bump yet.
+> Shipped from the `release/v0.14.1` maintenance branch; `main` carries the same fixes plus the unreleased v0.15 work above. A long conversation no longer gets compacted on the strength of a guessed 8K window, a malformed tool call can no longer poison every later request, and streaming cancellation actually stops the stream. **1714 OCaml tests, 0 failures; 198 Python tests passing with 20 pre-existing skips.** Beta-first: the stable line remains v0.10.0.
 
 ### Fixed — unknown models no longer silently truncate at 8K
 
