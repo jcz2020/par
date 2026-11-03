@@ -1,8 +1,8 @@
 # CHANGES
 
-## Unreleased — context safety, payload validation, streaming cancellation
+## v0.14.1-beta.20261104 — context safety, payload validation, streaming cancellation
 
-> A long conversation no longer gets compacted on the strength of a guessed 8K window, and a malformed tool call can no longer poison every later request. Cancellation now actually stops an active stream instead of being swallowed as a malformed SSE chunk. No version bump yet.
+> A long conversation no longer gets compacted on the strength of a guessed 8K window, and a malformed tool call can no longer poison every later request. Cancellation now actually stops an active stream instead of being swallowed as a malformed SSE chunk. **1714 OCaml tests, 0 failures; 198 Python tests passing with 20 pre-existing skips.** Beta-first: the stable line remains v0.10.0.
 
 ### Fixed — unknown models no longer silently truncate at 8K
 
