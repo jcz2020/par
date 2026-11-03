@@ -1,8 +1,57 @@
 # CHANGES
 
-## Unreleased — branch sessions, conversation listing, tool layers
+## v0.15.0-beta.20261104 — durable invokes, branch sessions, conversation listing, tool layers
 
-> The API surface now covers the branch/background workflow that previously required app-level workarounds: per-model context windows, `invoke_async` isolation, branch conversations from `invoke_parallel`, a conversations-dimension session list, and registration-time tool layers. Beta-first: no version bump yet.
+> This MINOR release combines the durable-invoke work with the branch/session API additions and carries the v0.14.1 context-safety fixes. A crashed agent loop can be recovered, a parallel branch can hand back its conversation, sessions can be listed from the conversations table, and tools can be registered as searchable. **1735 OCaml tests, 0 failures; 204 Python tests passing with 20 pre-existing skips.** Beta-first: the stable line remains v0.10.0.
+
+### Durable agent invokes
+
+> An interrupted agent loop can now be recovered instead of silently losing its completed tool calls. Durability is opt-in, checkpoints after iteration zero and after every completed tool batch, and the row is deleted on every terminal outcome — so a row that outlives the process was left by a writer that stopped without finishing. A crash re-runs the iteration that was in progress (its assistant turn was never persisted); completed batches do not re-run. Also fixes the defect that made crash notifications unobservable: an injected `~event_bus` was discarded whenever persistence was on.
+
+### Added — durable invokes (PAR-mrr)
+
+- **NEW** `Runtime.invoke ~durable:true` checkpoints the invoke after iteration zero and after every completed tool batch. `~invoke_id:"order-42"` names the run and implies durability: a minted id is only returned in `invoke_result.invoke_id`, which a crashed process never returns, so the caller must be able to name the run it wants to recover. Durability requires a real persistence backend; the noop service is rejected instead of silently checkpointing into nothing.
+- **NEW** `Runtime.recover_invoke rt ~invoke_id` re-enters the loop with the checkpointed conversation, iteration count and elapsed execution budget (and accepts `?cancellation_token`). Eligibility mirrors `recover_workflow`: only ids rehydrated at startup, claimed in one critical section, because recovering a live run would execute it twice. A parallel tool batch is atomic — the checkpoint is written once, after every result is folded into the conversation, so a crash inside the batch re-runs that iteration as a whole. A checkpoint whose `schema_version` is newer than the runtime understands is refused.
+- **NEW** `Runtime.list_orphaned_invokes` returns the `(invoke_id, agent_id)` pairs rehydrated at startup. `Runtime.create` emits `Invoke_orphaned` once per row; the event is published during `create`, so a subscriber must be attached beforehand (or the caller reads `list_orphaned_invokes`), and nothing resumes automatically.
+- **NEW** `invoke_checkpoints` table (`invoke_id`, `state_json`, `updated_at`). A row exists only while the invoke is in flight. Undecodable rows are dropped at startup with a log line instead of taking the process down or re-reporting at every start.
+- `invoke_result` gains `invoke_id : string option`.
+- Python: `Runtime.invoke(..., durable=True, invoke_id=...)`, `Runtime.recover_invoke(invoke_id)` and `Runtime.list_orphaned_invokes()`, backed by `par_invoke_durable`, `par_recover_invoke` and `par_list_orphaned_invokes`.
+- The resumed run replays the checkpointed system prompt and static tool set verbatim rather than recomputing skills and the invoke appendix, so recovery cannot drift from the context the crashed run actually saw (dynamic `tool_search` promotions are not replayed). The checkpoint also records the agent that is actually running the batch: after a handoff that is the target, so recovery continues with the target's tools rather than the caller's original agent.
+- An intentional cancellation (including one that unwinds by exception) removes the checkpoint — a cancelled run is finished, not an orphan. An unexpected exception keeps it: that is the crash path recovery exists for.
+- Re-using an orphan's id for a fresh invoke is refused with a pointer to `recover_invoke`, instead of silently overwriting the recoverable checkpoint.
+- A failed checkpoint write is logged and published as `Invoke_checkpoint_failed`; the run continues, and that step is simply not recoverable. `Runtime.close` closes the persistence handle, so it should be called when the runtime is idle.
+- A run suspended for approval is not recoverable through `recover_invoke`: the `approvals` row owns that state, `resume_approval` is its resume path, and that row expires (300 seconds by default).
+
+### Fixed — an injected event bus was dropped when persistence was on (PAR-tqf)
+
+- `Runtime.create` built an internal bus for the persistence writer and discarded the caller's `~event_bus` outright, so an injected bus received no runtime events at all — including `Workflow_orphaned` and `Invoke_orphaned`. The two now compose: events go to the internal bus first (persistence must see them even if a caller handler raises), then to the caller's bus, and `set_session_id` updates both. Subscriptions stay delegated to the caller's bus. This is what makes the orphan notification observable, and it is a prerequisite for recovery being usable rather than merely present.
+
+### Fixed — recovery contract under handoff, retry, and branches
+
+- `Engine.on_step_complete` now receives the running `agent_config`, not just its id. A handoff checkpoint records the target agent's tool set instead of the origin's.
+- Handoff and resolved-approval batches call `report_step` before continuing, so completed side-effecting batches are checkpointed and are not re-run after a crash.
+- Recovery replays the agent's unfiltered tool set by the recorded names, not the current skill-filtered set; a recorded tool that is no longer registered is logged.
+- A failed recovery keeps its checkpoint so a transient provider error can be retried; cancellation removes both the checkpoint and the orphan entry.
+- `~update_current:false` no longer writes `rt.session_id` on fresh or resumed invokes, and the event-bus session is restored after the invoke. `Runtime.save_conversation` gained `?session_id`; invoke paths pass the active context session explicitly.
+- `par_set_tool_layer` rejects unknown layer strings and catches dispatch exceptions instead of reporting false success.
+
+### Breaking relative to the published beta
+
+- `invoke_result` gained `invoke_id`; record literals and record patterns that spell out every field must add it.
+- `event` gained `Invoke_orphaned` and `Invoke_checkpoint_failed`; exhaustive matches must handle them.
+- `persistence_service` gained four checkpoint fields: `save_invoke_checkpoint_fn`, `load_invoke_checkpoint_fn`, `list_invoke_checkpoints_fn`, `delete_invoke_checkpoint_fn`.
+- `Engine.run_agent` gained optional parameters (`?on_step_complete`, `?resume`, `?resume_iteration`, `?resume_elapsed`); existing calls are unaffected.
+- `Engine.run_agent`'s `?on_step_complete` callback now receives the running `agent_config`, so the type changed from `conversation -> string -> int -> unit` to `conversation -> agent_config -> int -> unit`.
+- `model_config` gained `context_window`; record literals must add it.
+- `cancellation_token.cancelled` / `.reason` are now atomic values; construct tokens with `Cancellation.create_token`.
+- `agent_dispatch_spec` gained `conversation`; `parallel_invoke_result.successes` changed from `(spec, json)` tuples to `parallel_success` records carrying `{ spec; result; conversation }`.
+- `persistence_service` gained `load_conversations_fn` in addition to the four checkpoint fields.
+- `Runtime.save_conversation` gained an optional `?session_id` (additive; the default still uses the active invoke context or `rt.session_id`).
+
+### Tests
+
+- Durable-invoke cases are included in the 1735 total: checkpoint lifecycle, recovery from a checkpoint, newer-schema refusal, live-run refusal, orphan id reuse, handoff target agent and tool set, failed-run deletion, failed-recovery checkpoint retention, approval suspension, cancellation, and the event-bus composition.
+- Python totals are **204 passed / 20 skipped**, including four durable binding cases: the id is echoed, a successful run leaves no row, the durable flag mints an id, and an unknown id is refused by `recover_invoke`.
 
 ### Added — per-model context window
 
@@ -90,41 +139,6 @@
 - New `test/test_streaming_cancel.ml` (OpenAI and Anthropic cancellation and generic callback exceptions abort after the first chunk; non-streaming malformed arguments normalize to `{}`; engine maps cancellation to `Cancelled`).
 - `test/test_handoff.ml` asserts the carried conversation contains the `<handoff>` result and is provider-valid.
 - `test/test_context_manager.ml` / `test/test_context_compression.ml` / `test/test_make_agent.ml` updated for the new window and strategy defaults, including the window-derived summarize budget and explicit-strategy-without-window path.
-
-## Unreleased — durable agent invokes
-
-> An interrupted agent loop can now be recovered instead of silently losing its completed tool calls. Durability is opt-in, checkpoints after iteration zero and after every completed tool batch, and the row is deleted on every terminal outcome — so a row that outlives the process was left by a writer that stopped without finishing. A crash re-runs the iteration that was in progress (its assistant turn was never persisted); completed batches do not re-run. Also fixes the defect that made crash notifications unobservable: an injected `~event_bus` was discarded whenever persistence was on. **1691 OCaml tests across 126 suites, 0 failures; 202 Python tests passing with 20 pre-existing skips.** No version bump yet: the next release is a MINOR because a public record and the event type changed.
-
-### Added — durable invokes (PAR-mrr)
-
-- **NEW** `Runtime.invoke ~durable:true` checkpoints the invoke after iteration zero and after every completed tool batch. `~invoke_id:"order-42"` names the run and implies durability: a minted id is only returned in `invoke_result.invoke_id`, which a crashed process never returns, so the caller must be able to name the run it wants to recover. Durability requires a real persistence backend; the noop service is rejected instead of silently checkpointing into nothing.
-- **NEW** `Runtime.recover_invoke rt ~invoke_id` re-enters the loop with the checkpointed conversation, iteration count and elapsed execution budget (and accepts `?cancellation_token`). Eligibility mirrors `recover_workflow`: only ids rehydrated at startup, claimed in one critical section, because recovering a live run would execute it twice. A parallel tool batch is atomic — the checkpoint is written once, after every result is folded into the conversation, so a crash inside the batch re-runs that iteration as a whole. A checkpoint whose `schema_version` is newer than the runtime understands is refused.
-- **NEW** `Runtime.list_orphaned_invokes` returns the `(invoke_id, agent_id)` pairs rehydrated at startup. `Runtime.create` emits `Invoke_orphaned` once per row; the event is published during `create`, so a subscriber must be attached beforehand (or the caller reads `list_orphaned_invokes`), and nothing resumes automatically.
-- **NEW** `invoke_checkpoints` table (`invoke_id`, `state_json`, `updated_at`). A row exists only while the invoke is in flight. Undecodable rows are dropped at startup with a log line instead of taking the process down or re-reporting at every start.
-- `invoke_result` gains `invoke_id : string option`.
-- Python: `Runtime.invoke(..., durable=True, invoke_id=...)`, `Runtime.recover_invoke(invoke_id)` and `Runtime.list_orphaned_invokes()`, backed by `par_invoke_durable`, `par_recover_invoke` and `par_list_orphaned_invokes`.
-- The resumed run replays the checkpointed system prompt and static tool set verbatim rather than recomputing skills and the invoke appendix, so recovery cannot drift from the context the crashed run actually saw (dynamic `tool_search` promotions are not replayed). The checkpoint also records the agent that is actually running the batch: after a handoff that is the target, so recovery continues with the target's tools rather than the caller's original agent.
-- An intentional cancellation (including one that unwinds by exception) removes the checkpoint — a cancelled run is finished, not an orphan. An unexpected exception keeps it: that is the crash path recovery exists for.
-- Re-using an orphan's id for a fresh invoke is refused with a pointer to `recover_invoke`, instead of silently overwriting the recoverable checkpoint.
-- A failed checkpoint write is logged and published as `Invoke_checkpoint_failed`; the run continues, and that step is simply not recoverable. `Runtime.close` closes the persistence handle, so it should be called when the runtime is idle.
-- A run suspended for approval is not recoverable through `recover_invoke`: the `approvals` row owns that state, `resume_approval` is its resume path, and that row expires (300 seconds by default).
-
-### Fixed — an injected event bus was dropped when persistence was on (PAR-tqf)
-
-- `Runtime.create` built an internal bus for the persistence writer and discarded the caller's `~event_bus` outright, so an injected bus received no runtime events at all — including `Workflow_orphaned` and `Invoke_orphaned`. The two now compose: events go to the internal bus first (persistence must see them even if a caller handler raises), then to the caller's bus, and `set_session_id` updates both. Subscriptions stay delegated to the caller's bus. This is what makes the orphan notification observable, and it is a prerequisite for recovery being usable rather than merely present.
-
-### Breaking relative to the published beta
-
-- `invoke_result` gained `invoke_id`; record literals and record patterns that spell out every field must add it.
-- `event` gained `Invoke_orphaned` and `Invoke_checkpoint_failed`; exhaustive matches must handle them.
-- `persistence_service` gained four checkpoint fields: `save_invoke_checkpoint_fn`, `load_invoke_checkpoint_fn`, `list_invoke_checkpoints_fn`, `delete_invoke_checkpoint_fn`.
-- `Engine.run_agent` gained optional parameters (`?on_step_complete`, `?resume`, `?resume_iteration`, `?resume_elapsed`); existing calls are unaffected.
-- `Engine.run_agent`'s `?on_step_complete` callback now also receives the agent that is running the batch, so the type changed from `conversation -> int -> unit` to `conversation -> string -> int -> unit`.
-
-### Tests
-
-- OCaml totals are **1691 tests across 126 suites**, 0 failures. Thirteen new cases: the checkpoint exists while the tool runs and is gone after success; recovery replays the checkpointed conversation without re-running the completed tool; a newer schema is refused; a run started in this process is refused; a corrupt row does not crash startup and is dropped; an injected bus sees `Workflow_orphaned` while persistence is on; durable without a persistence backend is rejected; a handoff checkpoint names the target agent; a duplicate invoke id is refused; an orphan id cannot be reused; a failed run removes its checkpoint; an approval suspension removes it; a cancelled run removes it. Five mutations were run and each killed the relevant cases: disabling `~resume`, removing the iteration-zero checkpoint, removing the terminal delete, disabling the bus composition, and recording the caller's agent instead of the running one.
-- Python totals are **202 passed / 20 skipped**, including four binding cases: the id is echoed, a successful run leaves no row, the durable flag mints an id, and an unknown id is refused by `recover_invoke`.
 
 ## v0.14.0-beta.20261102 — durable workflow execution
 

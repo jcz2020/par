@@ -12,7 +12,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
 > **Status**: v0.10.0 — first-class cancellation + actionable tool errors. 1551 tests passing.
-> **Latest pre-release**: [v0.14.1-beta.20261104](https://github.com/jcz2020/par/releases/tag/v0.14.1-beta.20261104) — context-window safety, provider-valid tool pairing, and reliable streaming cancellation; 1714 OCaml tests at the tag. Install explicitly with `pip install --index-url https://pypi.org/simple par-runtime==0.14.1b20261104`.
+> **Latest pre-release**: [v0.15.0-beta.20261104](https://github.com/jcz2020/par/releases/tag/v0.15.0-beta.20261104) — durable agent invokes, branch conversations, conversation-dimension session listing, and registration-time tool layers; 1735 OCaml tests at the tag. Install explicitly with `pip install --index-url https://pypi.org/simple par-runtime==0.15.0b20261104`.
 
 ---
 
@@ -152,7 +152,7 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 **Current**: v0.10.0 — first-class cancellation (`cancel_reason` ADT, replay-valid recovery with synthetic tool results, dispatch/chunk-granularity cooperative checks, cancellable Python `invoke_start`/`invoke_poll`/`invoke_cancel`) + actionable tool validation errors (teach-at-rejection markers `[workspace]`/`[bash-policy]`, edit no-op fix).
 
-**Latest beta**: v0.14.1-beta.20261104 (GitHub pre-release and PyPI prerelease) fixes the context-window and payload-safety defects that could make a session unusable: unknown models no longer silently truncate at 8K, tool-call/tool-result pairing survives every compression cut, malformed tool arguments never reach a provider as `null`, and streaming cancellation actually stops the stream. It builds on v0.14.0, which made workflows durable. 1714 OCaml tests and 198 Python tests pass. The stable default remains v0.10.0.
+**Latest beta**: v0.15.0-beta.20261104 (GitHub pre-release and PyPI prerelease) adds durable agent invokes (checkpointed ReAct runs, explicit recovery, orphan notifications), per-model context windows, branch conversations from `invoke_parallel`, conversation-dimension session listing, and registration-time tool layers. It also carries the v0.14.1 context-window, payload-pairing, and streaming-cancellation fixes. 1735 OCaml tests and 204 Python tests pass. The stable default remains v0.10.0.
 
 **In development**: the next round is not yet scoped. What is left on the runtime side is tool-execution isolation and durable execution; both need a design pass before code. Submission to the package repository remains a separate human action.
 
