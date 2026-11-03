@@ -783,6 +783,10 @@ type event =
      writer died. Emitted once per row at startup; nothing is resumed
      automatically. *)
   | Invoke_orphaned of { invoke_id : string; agent_id : string }
+  (* A durable checkpoint write failed: the run can no longer be recovered from
+     the step that could not be persisted. Best-effort by design — the run keeps
+     going, but the durability guarantee is degraded and this event says so. *)
+  | Invoke_checkpoint_failed of { invoke_id : string; error : error_category }
   | Approval_requested of { prompt : string; allowed_roles : string list }
   | Approval_granted of { approver : string }
   | Approval_timeout
@@ -1238,6 +1242,14 @@ let htbl_get tbl key =
 let htbl_set tbl key value =
   Eio.Mutex.use_rw ~protect:false tbl.mutex (fun () -> Hashtbl.replace tbl.data key value)
 
+(* Check-and-insert in one critical section. [htbl_get] followed by [htbl_set]
+   is two critical sections; a fiber can yield between them and a second
+   claimant can pass the same check. *)
+let htbl_claim tbl key =
+  Eio.Mutex.use_rw ~protect:false tbl.mutex (fun () ->
+    if Hashtbl.mem tbl.data key then false
+    else (Hashtbl.replace tbl.data key (); true))
+
 let htbl_remove tbl key =
   Eio.Mutex.use_rw ~protect:false tbl.mutex (fun () -> Hashtbl.remove tbl.data key)
 
@@ -1325,6 +1337,7 @@ type invoke_checkpoint = {
   iteration : int;
   elapsed : float;
   enable_handoff : bool;
+  tool_names : string list [@default []];
   conversation : conversation;
   updated_at : float;
 }

@@ -338,13 +338,14 @@ match Runtime.invoke rt ~agent_id:"my-agent" ~message:"Hello!" () with
 
 ### 持久化 invoke 与崩溃恢复
 
-持久化 invoke 会在第 0 次迭代后、以及每个完成的工具批次后写一次会话检查点。任何终止结果都会删除检查点，因此活过进程的行必然属于已死的写入者。
+持久化 invoke 会在第 0 次迭代后、以及每个完成的工具批次后写一次会话检查点。任何终止结果（成功、失败、主动取消、因审批挂起）都会删除它，因此活过进程的行是「没有跑完就停止的写入者」留下的。
 
 ```ocaml
 val Runtime.recover_invoke :
   runtime ->
   invoke_id:string ->
   ?workspace:Workspace.workspace ->
+  ?cancellation_token:cancellation_token ->
   ?on_tool_event:(event -> unit) ->
   ?on_chunk:(llm_response_chunk -> unit) option ->
   ?update_current:bool ->
@@ -364,7 +365,7 @@ match Runtime.invoke rt ~agent_id:"ops" ~message:"reconcile accounts"
 | Error (err, _) -> (* ... *)
 ```
 
-重启后，`Runtime.create` 会读回遗留的行，并对每行发一次 `Invoke_orphaned`；`list_orphaned_invokes` 以 `(invoke_id, agent_id)` 返回它们。不会自动恢复：重跑一个有副作用的工具应由调用方决定。
+重启后，`Runtime.create` 会读回遗留的行，并对每行发一次 `Invoke_orphaned`；`list_orphaned_invokes` 以 `(invoke_id, agent_id)` 返回它们。该事件在 `create` 期间发布，所以要在创建 runtime 之前订阅注入的 bus，或者在创建之后调用 `list_orphaned_invokes`。不会自动恢复：重跑一个有副作用的工具应由调用方决定。
 
 ```ocaml
 List.iter (fun (invoke_id, _agent_id) ->
@@ -376,12 +377,19 @@ List.iter (fun (invoke_id, _agent_id) ->
 
 恢复语义：
 
-- **at-least-once**——进程死亡时正在执行的工具会重跑；
-- 并行工具批次是原子的：仅在全部结果折入会话后写一次检查点，批次内部崩溃会整批重跑；
+- **at-least-once**——崩溃时正在进行的那一轮会重跑。检查点是在批次完成后写的，因此被中断那一轮的 assistant 消息从未落盘：模型会被重新询问，可能选择不同的工具调用。已完成的批次不会重跑；
+- 并行工具批次是原子的：仅在全部结果折入会话后写一次检查点，批次内部崩溃会整轮重跑；
 - 只有启动时重水化的 id 才有资格；本进程仍在运行的 invoke 会被拒绝，因为恢复它会导致双重执行；
+- 用孤儿的 id 发起新 invoke 同样会被拒绝——应调用 `recover_invoke`，或换一个新 id；
+- 检查点记录的是**实际在跑**的 agent，因此 handoff 之后恢复的运行会以目标 agent 继续；
+- 系统提示词与静态工具集按记录重放，因此崩溃与恢复之间修改 skill 不会改变恢复后的运行所见（`tool_search` 的动态提升不会重放）；
 - `schema_version` 比运行时能理解的新时，检查点被拒绝。
 
-因审批挂起的运行不走这条路：`approvals` 行拥有那个状态，恢复入口是 `Runtime.resume_approval`。Python 侧对应 `invoke(..., durable=True, invoke_id=...)`、`recover_invoke(invoke_id)` 与 `list_orphaned_invokes()`。
+因审批挂起的运行不走这条路：`approvals` 行拥有那个状态，恢复入口是 `Runtime.resume_approval`，而该行带过期时间（默认 300 秒）。检查点写入是 best-effort：失败会记录日志并发布 `Invoke_checkpoint_failed`，但运行继续，那一步不可恢复。
+
+Durability 覆盖 `invoke` 与 `invoke_content`（`invoke_async` 透传）。`invoke_structured`、`invoke_generate`、`invoke_parallel` 与 workflow 的 `Agent_call` 步不走这套检查点。`save=false` 的运行如果开了 durability，仍会把会话写进检查点表。
+
+Python 侧对应 `invoke(..., durable=True, invoke_id=...)`、`recover_invoke(invoke_id)` 与 `list_orphaned_invokes()`。
 
 ### 结构化输出
 

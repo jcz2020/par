@@ -762,11 +762,13 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
      that caused the original bug (Stop/Content_filter path forgot). *)
   (* Durable invoke checkpoint boundary (PAR-mrr): a step is one completed
      tool batch, after its results are folded into the conversation. Parallel
-     batches report once — a crash inside one replays the whole batch, the same
-     rule the workflow engine uses for its atomic subtrees. *)
-  let report_step conv iteration =
+     batches report once — a crash inside one re-runs the same iteration, since
+     the assistant turn was never persisted. [step_agent] is the agent that
+     actually runs the batch: after a handoff it is the target, and recovery
+     must re-enter as that agent, not as the one the caller named. *)
+  let report_step conv step_agent iteration =
     match on_step_complete with
-    | Some f -> f conv iteration
+    | Some f -> f conv step_agent iteration
     | None -> ()
   in
   let rec loop ~agent ~global_max conv iterations =
@@ -1351,7 +1353,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
            | [] ->
              (match approvals with
               | [] ->
-                report_step conv (iterations + 1);
+                report_step conv agent.id (iterations + 1);
                 loop ~agent ~global_max conv (iterations + 1)
               | [(call, (Approval_required _ as ar))] ->
                 execute_approval call ar
@@ -1563,7 +1565,7 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
   (* Iteration zero is a checkpoint too: a crash before the first tool batch
      would otherwise leave a run with nothing to resume from. Recovery skips
      this write, because the row it loaded is already the same state. *)
-  if not resume then report_step conv 0;
+  if not resume then report_step conv agent.id 0;
   match loop ~agent ~global_max:0 conv resume_iteration with
   | Result.Error e -> Result.Error e
   | Result.Ok (resp, conv_pre) ->

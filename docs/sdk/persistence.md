@@ -124,7 +124,7 @@ Workflow persistence handles checkpoints, suspended workflows, and workflow defi
 
 ### Invoke checkpoints
 
-Durable invokes (`Runtime.invoke ~durable:true`) keep one row per in-flight run. The row exists only while the invoke is running: it is upserted after iteration zero and after every completed tool batch, and deleted on every terminal outcome. A row found at startup therefore belongs to a dead writer, which is what `Runtime.recover_invoke` and `Runtime.list_orphaned_invokes` consume.
+Durable invokes (`Runtime.invoke ~durable:true`) keep one row per in-flight run. The row exists only while the invoke is running: it is upserted after iteration zero and after every completed tool batch, and deleted on every terminal outcome (including an intentional cancellation and an approval suspension). A row found at startup therefore belongs to a writer that stopped without finishing, which is what `Runtime.recover_invoke` and `Runtime.list_orphaned_invokes` consume. Checkpoints are keyed by `invoke_id` and are not partitioned by `scope`; they belong to the single runtime that owns the database. Checkpoint writes are synchronous; a failed write is logged and published as `Invoke_checkpoint_failed`, and the run continues with that step unprotected. `Runtime.close` closes the handle, so call it when the runtime is idle.
 
 | Function | Description |
 |----------|-------------|

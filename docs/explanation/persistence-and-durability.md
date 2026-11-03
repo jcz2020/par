@@ -26,20 +26,24 @@ Sub-workflows are not independently recoverable yet: a crashed child leaves only
 
 ## Recovering an interrupted invoke
 
-The agent loop has its own crash story, and it is opt-in. `Runtime.invoke ~durable:true` (or naming the run with `~invoke_id`) writes a checkpoint after iteration zero and after every completed tool batch, into the `invoke_checkpoints` table. The row is deleted on every terminal outcome — success, failure, cancellation, and suspension for approval — so a row that outlives the process belongs to a dead writer.
+The agent loop has its own crash story, and it is opt-in. `Runtime.invoke ~durable:true` (or naming the run with `~invoke_id`) writes a checkpoint after iteration zero and after every completed tool batch, into the `invoke_checkpoints` table. The row exists only while the run is in flight: every terminal outcome removes it — success, failure, an intentional cancellation, and suspension for approval — so a row that outlives the process was left by a writer that stopped without finishing.
 
-Name the run yourself when you need to recover it: `~invoke_id:"order-42"`. A minted id is only returned in `invoke_result.invoke_id`, which a crashed process never returns. After a restart, `Runtime.create` loads leftover rows, emits `Invoke_orphaned` once per row, and `Runtime.list_orphaned_invokes` lists them. `Runtime.recover_invoke rt ~invoke_id` re-enters the loop with the checkpointed conversation, the recorded iteration count and the elapsed execution budget.
+Name the run yourself when you need to recover it: `~invoke_id:"order-42"`. A minted id is only returned in `invoke_result.invoke_id`, which a crashed process never returns. After a restart, `Runtime.create` rehydrates leftover rows and emits `Invoke_orphaned` once per row; `Runtime.list_orphaned_invokes` lists them as `(invoke_id, agent_id)`. The event is published while `create` runs, so a subscriber must be attached before the runtime is created — or call `list_orphaned_invokes` after it. `Runtime.recover_invoke rt ~invoke_id` re-enters the loop with the checkpointed conversation, iteration count and elapsed execution budget.
 
 The semantics match workflows:
 
-- **at-least-once**: a tool that was executing when the process died runs again;
-- **explicit**: nothing resumes automatically, and only ids rehydrated at startup are eligible — a run still in flight in this process is refused, because recovering it would execute it twice;
-- **atomic batches**: a parallel tool batch checkpoints once, after all its results are folded into the conversation. A crash inside a batch replays the whole batch;
+- **at-least-once**: the iteration that was in progress runs again. The checkpoint is taken after a completed batch, so the assistant turn of the interrupted iteration was never persisted — the model is asked again and may choose a different tool call. Completed batches do not re-run.
+- **explicit**: nothing resumes automatically, and only ids rehydrated at startup are eligible — a run still in flight in this process is refused, because recovering it would execute it twice. Re-using an orphan's id for a fresh invoke is refused too: recovery is explicit, and a new run must choose a new id.
+- **atomic batches**: a parallel tool batch checkpoints once, after all its results are folded into the conversation, so a crash inside the batch re-runs that iteration as a whole.
 - **schema-checked**: a checkpoint from a newer `schema_version` is refused rather than guessed at.
 
-Two honest limits. The system prompt is replayed from the checkpoint rather than recomputed, so a skill or appendix change between the crash and the recovery does not take effect. And a run suspended for approval is not recoverable this way: the `approvals` row owns that state and `Runtime.resume_approval` is its resume path.
+The checkpoint records the agent that is actually running. After a handoff, that is the target agent, so recovery re-enters with the target's tools rather than the ones the caller named.
 
-Checkpoints are written synchronously on the invoke fiber, not through the batched event writer. That is deliberate — a checkpoint that might still be in a buffer when the process dies is not a checkpoint — and it is why durability is opt-in: a long tool loop pays one conversation-sized write per batch.
+Three honest limits. The system prompt is replayed from the checkpoint rather than recomputed, and the static tool set is replayed as recorded (skill-driven filters included) — a skill or appendix change between the crash and the recovery does not take effect. Dynamic promotions from `tool_search` are not replayed: the recovered run starts from the checkpointed static set. A run suspended for approval is not recoverable this way: the `approvals` row owns that state, `resume_approval` is its resume path, and that row carries an expiry (300 seconds by default), after which the run cannot be resumed. And checkpoint writes are best-effort: a write failure is logged and published as `Invoke_checkpoint_failed`, but the run continues, so the step that could not be persisted is simply not recoverable.
+
+Checkpoints are written synchronously on the invoke fiber, not through the batched event writer. That is deliberate — a checkpoint that might still be in a buffer when the process dies is not a checkpoint — and it is why durability is opt-in: a long tool loop pays one conversation-sized write per batch. It also means `Runtime.close` should be called when the runtime is idle: it closes the persistence handle, and a checkpoint write or delete that lands after that fails (and is reported as above).
+
+Durability covers `invoke` and `invoke_content` (and `invoke_async`, which forwards). `invoke_structured`, `invoke_generate`, `invoke_parallel` and workflow `Agent_call` steps have their own paths or none; a durable checkpoint is created only by the entry points above. If a caller set `save=false`, a durable run still writes its conversation to the checkpoint table — durability is a separate persistence decision from conversation saving.
 
 ## Two persistence tiers
 

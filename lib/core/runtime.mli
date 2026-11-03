@@ -556,6 +556,7 @@ val recover_invoke :
   runtime ->
   invoke_id:string ->
   ?workspace:Workspace.workspace ->
+  ?cancellation_token:cancellation_token ->
   ?on_tool_event:(event -> unit) ->
   ?on_chunk:(llm_response_chunk -> unit) option ->
   ?update_current:bool ->

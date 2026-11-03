@@ -87,7 +87,6 @@ type runtime = {
      advertises to the model; the handlers are what the per-call registry
      resolves. Both come from this one list so they cannot disagree. *)
   mutable mcp_tools : (Types.tool_descriptor * Tool_registry.handler_fn) list;
-  event_bus_instance : Event_bus.t option;
   persistence_writer : Persistence_writer.t option;
   mutable default_provider_id : string option;
   cancel_stream_requested : bool ref;
@@ -1022,22 +1021,52 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
   in
   let empty_conv = { Types.messages = []; metadata = [] } in
   let error_conv = Option.value conversation ~default:empty_conv in
-  let already_in_flight = match invoke_id with
-    | Some id -> htbl_get rt.active_invokes id <> None
-    | None -> false
+  (* A row that outlives its writer is a recovery input, not scratch space.
+     Starting a fresh run under the same id would overwrite it silently. *)
+  let is_startup_orphan = match resume with
+    | Some _ -> false
+    | None ->
+      (match invoke_id with
+       | Some id -> htbl_get rt.orphaned_invokes id <> None
+       | None -> false)
+  in
+  let release_active () =
+    match invoke_id with
+    | Some id -> htbl_remove rt.active_invokes id
+    | None -> ()
+  in
+  let delete_checkpoint () =
+    match invoke_id with
+    | Some id ->
+      (match rt.services.persistence.delete_invoke_checkpoint_fn id with
+       | Ok () -> ()
+       | Error e ->
+         Logs.err (fun m -> m "[invoke] delete_invoke_checkpoint failed (id=%s): %s"
+                     id (string_of_error_category e)))
+    | None -> ()
   in
   if durable && rt.persistence_is_noop then
     Result.Error (Invalid_input
       "durable invoke requires a persistence backend (the noop service cannot checkpoint)",
       error_conv)
-  else if already_in_flight then
-    Result.Error (Invalid_input
-      (Printf.sprintf "Invoke id '%s' is already in flight in this process"
-         (Option.value invoke_id ~default:"")), error_conv)
   else if List.exists (function Tool_use_block _ | Tool_result_block _ -> true | _ -> false) content then
     Result.Error (Invalid_input "user content accepts only text and image blocks",
       Option.value conversation ~default:empty_conv)
+  else if is_startup_orphan then
+    Result.Error (Invalid_input
+      (Printf.sprintf
+         "Invoke id '%s' was left unfinished by a previous process; call \
+          Runtime.recover_invoke ~invoke_id:%S to resume it, or start with a new id"
+         (Option.value invoke_id ~default:"") (Option.value invoke_id ~default:"")),
+      error_conv)
+  else if not (match invoke_id with
+               | Some id -> htbl_claim rt.active_invokes id
+               | None -> true) then
+    Result.Error (Invalid_input
+      (Printf.sprintf "Invoke id '%s' is already in flight in this process"
+         (Option.value invoke_id ~default:"")), error_conv)
   else
+  Fun.protect ~finally:release_active (fun () ->
   let text_part = Message.string_of_content content in
   let effective_workspace = Option.value workspace ~default:rt.workspace in
   let ctx = match context with
@@ -1067,15 +1096,6 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
   in
   rt.services.event_bus.set_session_id_fn ctx.session_id;
   Invoke_context.with_context ctx (fun () ->
-  (match invoke_id with
-   | Some id -> htbl_set rt.active_invokes id ()
-   | None -> ());
-  Fun.protect
-    ~finally:(fun () ->
-      match invoke_id with
-      | Some id -> htbl_remove rt.active_invokes id
-      | None -> ())
-    (fun () ->
   let result =
   let agent = htbl_get rt.agents agent_id in
   match agent with
@@ -1126,6 +1146,22 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
             | Some desc -> { td with Types.description = desc }
             | None -> td
           ) config.tools }
+    in
+    (* Recovery replays the tool set the crashed run actually saw. Recomputing
+       skill effects from the checkpointed conversation can pick a different
+       filter (the last user turn may be steering, and the activated-skill list
+       is the current runtime's), which would silently change the model's
+       available tools mid-run. *)
+    let config =
+      match resume with
+      | Some cp when cp.tool_names <> [] ->
+        { config with tools =
+            List.filter (fun (td : Types.tool_descriptor) ->
+              List.mem td.name cp.tool_names) config.tools }
+      | _ -> config
+    in
+    let effective_tool_names =
+      List.map (fun (td : Types.tool_descriptor) -> td.name) config.tools
     in
     let after_tool_count = List.length config.tools in
     (match active_effects with
@@ -1182,19 +1218,20 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
             ?net:(Option.map (fun n -> (Obj.obj n : _ Eio.Net.t)) rt.net)
             ?budget_threshold:rt.services.config.max_tool_schema_tokens
             ~user_content:content
-            ~on_step_complete:(Some (fun conv iteration ->
+            ~on_step_complete:(Some (fun conv step_agent_id iteration ->
               match invoke_id with
               | None -> ()
               | Some id ->
                 let now = Unix.gettimeofday () in
                 let cp : Types.invoke_checkpoint = {
                   invoke_id = id;
-                  agent_id;
+                  agent_id = step_agent_id;
                   session_id = ctx.session_id;
                   schema_version = 1;
                   iteration;
                   elapsed = base_elapsed +. (now -. invoke_start);
                   enable_handoff = Option.value enable_handoff ~default:false;
+                  tool_names = effective_tool_names;
                   conversation = conv;
                   updated_at = now;
                 } in
@@ -1203,7 +1240,10 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
                  | Error e ->
                    Logs.err (fun m -> m
                      "[invoke] save_invoke_checkpoint failed (id=%s iter=%d): %s"
-                     id iteration (string_of_error_category e)))))
+                     id iteration (string_of_error_category e));
+                   (* The run continues, but that step is no longer recoverable.
+                      Say so on the bus instead of leaving it in a log file. *)
+                   publish_event rt (Invoke_checkpoint_failed { invoke_id = id; error = e }))))
             ~resume:(resume <> None)
             ~resume_iteration:(match resume with Some cp -> cp.iteration | None -> 0)
             ~resume_elapsed:base_elapsed
@@ -1310,19 +1350,19 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
                 if update_current then Current_conversation.set rt (Some conv);
                 Result.Error (err, conv)))
     in
-    try_providers all_ids
+    (* A cancellation that unwinds by exception is an intentional stop, not a
+       crash: drop the checkpoint before re-raising so the next startup does not
+       announce a cancelled run as an orphan. Unexpected exceptions keep it -
+       that is the crash path recovery is for. *)
+    (try try_providers all_ids
+     with (Eio.Cancel.Cancelled _ as ex) ->
+       delete_checkpoint ();
+       raise ex)
   in
   (* A checkpoint row means "in flight", so every terminal outcome removes it.
      A run suspended for approval also removes it: the approvals row owns that
      state and [resume_approval] is its recovery path. *)
-  (match invoke_id with
-   | Some id ->
-     (match rt.services.persistence.delete_invoke_checkpoint_fn id with
-      | Ok () -> ()
-      | Error e ->
-        Logs.err (fun m -> m "[invoke] delete_invoke_checkpoint failed (id=%s): %s"
-                    id (string_of_error_category e)))
-   | None -> ());
+  delete_checkpoint ();
   Metrics.merge_into ~target:rt.metrics ~source:ctx.metrics_accumulator;
   result))
 
@@ -2442,24 +2482,24 @@ let list_orphaned_invokes rt =
 (** Resume a durable invoke whose writer died. Mirrors [recover_workflow]:
     only startup orphans are eligible (a live invoke would run twice), the
     caller must decide, and a checkpoint from a newer schema is refused. *)
-let recover_invoke rt ~invoke_id ?workspace ?on_tool_event ?on_chunk
+let recover_invoke rt ~invoke_id ?workspace ?cancellation_token ?on_tool_event ?on_chunk
     ?(update_current = true) ?(save = false) () =
   let empty_conv = { Types.messages = []; metadata = [] } in
-  if htbl_get rt.recovering_invokes invoke_id <> None then
+  if not (Types.htbl_claim rt.recovering_invokes invoke_id) then
     Result.Error (Invalid_input "Recovery for this invoke is already in progress", empty_conv)
-  else if htbl_get rt.active_invokes invoke_id <> None then
-    Result.Error (Invalid_input
-      ("Invoke is running in this process; recovery is only for runs whose writer died"),
-      empty_conv)
-  else if htbl_get rt.orphaned_invokes invoke_id = None then
-    Result.Error (Invalid_input
-      ("Invoke was not recorded as an orphan at startup; recovery only accepts runs \
-        rehydrated by Runtime.create"), empty_conv)
   else
   Fun.protect
     ~finally:(fun () -> htbl_remove rt.recovering_invokes invoke_id)
     (fun () ->
-    htbl_set rt.recovering_invokes invoke_id ();
+    if htbl_get rt.active_invokes invoke_id <> None then
+      Result.Error (Invalid_input
+        ("Invoke is running in this process; recovery is only for runs whose writer died"),
+        empty_conv)
+    else if htbl_get rt.orphaned_invokes invoke_id = None then
+      Result.Error (Invalid_input
+        ("Invoke was not recorded as an orphan at startup; recovery only accepts runs \
+          rehydrated by Runtime.create"), empty_conv)
+    else
     match rt.services.persistence.load_invoke_checkpoint_fn invoke_id with
     | Error e -> Result.Error (e, empty_conv)
     | Ok None ->
@@ -2478,7 +2518,7 @@ let recover_invoke rt ~invoke_id ?workspace ?on_tool_event ?on_chunk
           empty_conv)
       else
         match invoke_content_internal rt ~agent_id:cp.agent_id ~content:[]
-                ?workspace ?on_tool_event ?on_chunk
+                ?workspace ?cancellation_token ?on_tool_event ?on_chunk
                 ~resume:cp ~update_current ~save () with
         | Ok _ as ok ->
           (* A recovered run is no longer an orphan. Keep the entry on failure
@@ -2583,7 +2623,7 @@ let create ?(persistence = noop_persistence)
        two now compose: events go to both, and the caller keeps ownership of
        subscriptions and session ids. *)
     let caller_has_bus = event_bus != noop_event_bus_service in
-    let (event_bus_service, event_bus_instance, persistence_writer) =
+    let (event_bus_service, persistence_writer) =
       if not persistence_is_noop then begin
         let bus = Event_bus.create default_event_bus_config in
         Event_bus.start_dispatcher bus switch;
@@ -2619,9 +2659,9 @@ let create ?(persistence = noop_persistence)
             start_dispatcher_fn = event_bus.start_dispatcher_fn;
           }
         in
-        (service, Some bus, Some writer)
+        (service, Some writer)
       end else
-        (event_bus, None, None)
+        (event_bus, None)
     in
     let publish_event_fn = event_bus_service.publish_fn in
     let llm_providers_registry = Provider_registry.create () in
@@ -2681,7 +2721,6 @@ let create ?(persistence = noop_persistence)
       workspace;
       mcp_servers = { data = Hashtbl.create 4; mutex = Eio.Mutex.create () };
       mcp_tools = [];
-      event_bus_instance;
       persistence_writer;
       default_provider_id = None;
       cancel_stream_requested = ref false;

@@ -263,6 +263,7 @@ let seed_checkpoint ?(schema_version = 1) ~invoke_id ~agent_id sqlt =
     iteration = 1;
     elapsed = 0.5;
     enable_handoff = false;
+    tool_names = ["echo"];
     conversation = seeded_conversation ();
     updated_at = Unix.gettimeofday ();
   } in
@@ -385,6 +386,253 @@ let test_a_live_run_is_not_recoverable () =
    | Error (e, _) -> Alcotest.failf "async invoke: %s" (error_to_string e))
 
 (* -------------------------------------------------------------------------- *)
+(* Cross-subsystem: handoff, concurrency, cancellation, approvals             *)
+(* -------------------------------------------------------------------------- *)
+
+(* A handoff moves the loop to the target agent. The checkpoint must record the
+   agent that will actually continue the run: recovering as the origin would
+   hand the resumed loop the origin's tool set while the conversation carries
+   the target's system prompt. *)
+let test_handoff_checkpoint_records_the_active_agent () =
+  Eio_main.run @@ fun _env ->
+  Eio.Switch.run @@ fun sw ->
+  with_sqlite @@ fun sqlt persist ->
+  let seen_agent = ref None in
+  let target_calls = ref 0 in
+  let rt = match create_runtime ~persistence:persist
+                   ~llm:(scripted_llm [
+                       tool_call_response [{ id = "tc-1"; name = "delegate";
+                                             arguments = `Assoc [] }];
+                       tool_call_response [{ id = "tc-2"; name = "target_tool";
+                                             arguments = `Assoc [] }];
+                       (* A second target batch: the checkpoint written after
+                          the first one is what the second call can observe. *)
+                       tool_call_response [{ id = "tc-3"; name = "target_tool";
+                                             arguments = `Assoc [] }];
+                       text_response "done";
+                     ]) sw with
+    | Ok rt -> rt
+    | Error e -> Alcotest.failf "create: %s" (error_to_string e)
+  in
+  Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) @@ fun () ->
+  let delegate = match Runtime.register_tool rt ~name:"delegate"
+                   ~description:"hands off" ~input_schema:(`Assoc [])
+                   ~handler:(fun _ _ ->
+                     Handoff { target_agent_id = "target"; carry_context = true;
+                               task = None }) () with
+    | Ok tb -> tb
+    | Error e -> Alcotest.failf "register_tool delegate: %s" (error_to_string e)
+  in
+  let target_tool = match Runtime.register_tool rt ~name:"target_tool"
+                       ~description:"target only" ~input_schema:(`Assoc [])
+                       ~handler:(fun _ _ ->
+                         incr target_calls;
+                         if !target_calls = 2 then
+                           seen_agent :=
+                             (match Sqlite_persistence.load_invoke_checkpoint sqlt "handoff-1" with
+                              | Ok (Some cp) -> Some cp.agent_id
+                              | _ -> None);
+                         Success (`String "target done")) () with
+    | Ok tb -> tb
+    | Error e -> Alcotest.failf "register_tool target_tool: %s" (error_to_string e)
+  in
+  ignore (Runtime.register_agent rt (make_agent ~max_iterations:5 ~tools:[delegate] "origin"));
+  ignore (Runtime.register_agent rt (make_agent ~max_iterations:5 ~tools:[target_tool] "target"));
+  (match Runtime.invoke rt ~agent_id:"origin" ~message:"go" ~invoke_id:"handoff-1"
+          ~enable_handoff:true () with
+   | Ok _ -> ()
+   | Error (e, _) -> Alcotest.failf "invoke: %s" (error_to_string e));
+  Alcotest.(check (option string)) "the checkpoint names the target agent"
+    (Some "target") !seen_agent
+
+(* Two fibers racing for the same id must not both run. The claim is a single
+   critical section; before that, the check and the registration were separate
+   and a yield between them let both through. *)
+let test_duplicate_invoke_id_is_refused () =
+  Eio_main.run @@ fun _env ->
+  Eio.Switch.run @@ fun sw ->
+  with_sqlite @@ fun _sqlt persist ->
+  let started = ref false in
+  let release = ref false in
+  let rt = match create_runtime ~persistence:persist
+                   ~llm:(scripted_llm [
+                       tool_call_response [{ id = "tc-1"; name = "gate";
+                                             arguments = `Assoc [] }];
+                       text_response "done";
+                     ]) sw with
+    | Ok rt -> rt
+    | Error e -> Alcotest.failf "create: %s" (error_to_string e)
+  in
+  Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) @@ fun () ->
+  let gate = match Runtime.register_tool rt ~name:"gate" ~description:"blocks"
+               ~input_schema:(`Assoc [])
+               ~handler:(fun _ _ ->
+                 started := true;
+                 while not !release do Eio.Fiber.yield () done;
+                 Success (`String "released")) () with
+    | Ok tb -> tb
+    | Error e -> Alcotest.failf "register_tool: %s" (error_to_string e)
+  in
+  ignore (Runtime.register_agent rt (make_agent ~tools:[gate] "dup-agent"));
+  let handle = Runtime.invoke_async rt ~agent_id:"dup-agent" ~message:"hi"
+                 ~invoke_id:"dup-1" () in
+  while not !started do Eio.Fiber.yield () done;
+  (match Runtime.invoke rt ~agent_id:"dup-agent" ~message:"hi"
+          ~invoke_id:"dup-1" () with
+   | Ok _ -> Alcotest.fail "a second run with the same id must be refused"
+   | Error (Invalid_input msg, _) ->
+     Alcotest.(check bool) "explains the collision" true (contains msg "already in flight")
+   | Error (e, _) -> Alcotest.failf "expected Invalid_input, got %s" (error_to_string e));
+  release := true;
+  (match Invoke_context.invoke_handle_await handle with
+   | Ok _ -> ()
+   | Error (e, _) -> Alcotest.failf "first run: %s" (error_to_string e))
+
+(* Re-using an orphan's id used to overwrite its checkpoint silently. Recovery
+   is explicit; a retry with the same business key must be told so. *)
+let test_orphan_id_cannot_be_reused () =
+  Eio_main.run @@ fun _env ->
+  Eio.Switch.run @@ fun sw ->
+  with_sqlite @@ fun sqlt persist ->
+  seed_checkpoint ~invoke_id:"orphan-2" ~agent_id:"durable-agent" sqlt;
+  let rt = match create_runtime ~persistence:persist
+                   ~llm:(scripted_llm [text_response "unused"]) sw with
+    | Ok rt -> rt
+    | Error e -> Alcotest.failf "create: %s" (error_to_string e)
+  in
+  Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) @@ fun () ->
+  ignore (Runtime.register_agent rt (make_agent "durable-agent"));
+  (match Runtime.invoke rt ~agent_id:"durable-agent" ~message:"again"
+          ~invoke_id:"orphan-2" () with
+   | Ok _ -> Alcotest.fail "an orphan id must not be reused for a fresh run"
+   | Error (Invalid_input msg, _) ->
+     Alcotest.(check bool) "points at recovery" true (contains msg "recover_invoke")
+   | Error (e, _) -> Alcotest.failf "expected Invalid_input, got %s" (error_to_string e));
+  (match Sqlite_persistence.load_invoke_checkpoint sqlt "orphan-2" with
+   | Ok (Some cp) -> Alcotest.(check int) "the orphan checkpoint is intact" 1 cp.iteration
+   | Ok None -> Alcotest.fail "the orphan checkpoint was deleted"
+   | Error e -> Alcotest.failf "load: %s" (error_to_string e))
+
+let test_failed_run_removes_the_checkpoint () =
+  Eio_main.run @@ fun _env ->
+  Eio.Switch.run @@ fun sw ->
+  with_sqlite @@ fun sqlt persist ->
+  let calls = ref 0 in
+  let llm : llm_service = {
+    complete_fn = (fun _model _tools _conv ->
+      let n = !calls in
+      incr calls;
+      if n = 0 then
+        Ok (tool_call_response [{ id = "tc-1"; name = "echo"; arguments = `Assoc [] }])
+      else Error (Internal "provider down"));
+    stream_fn = (fun _ _tools _ _ _ -> Ok {
+        final_usage = dummy_usage; finish_reason = Stop; chunks_received = 0 });
+    close_fn = (fun () -> ());
+    complete_structured_fn = None;
+    list_models_fn = None;
+    supports_native_tools_fn = None;
+    context_window_fn = None; cache_control_fn = None;
+  } in
+  let rt = match create_runtime ~persistence:persist ~llm sw with
+    | Ok rt -> rt
+    | Error e -> Alcotest.failf "create: %s" (error_to_string e)
+  in
+  Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) @@ fun () ->
+  let echo = match Runtime.register_tool rt ~name:"echo" ~description:"echoes"
+               ~input_schema:(`Assoc [])
+               ~handler:(fun _ _ -> Success (`String "A")) () with
+    | Ok tb -> tb
+    | Error e -> Alcotest.failf "register_tool: %s" (error_to_string e)
+  in
+  ignore (Runtime.register_agent rt (make_agent ~tools:[echo] "durable-agent"));
+  (match Runtime.invoke rt ~agent_id:"durable-agent" ~message:"hi"
+          ~invoke_id:"fail-1" () with
+   | Ok _ -> Alcotest.fail "expected the provider failure to surface"
+   | Error _ -> ());
+  (match Sqlite_persistence.load_invoke_checkpoint sqlt "fail-1" with
+   | Ok None -> ()
+   | Ok (Some _) -> Alcotest.fail "a failed run left its checkpoint behind"
+   | Error e -> Alcotest.failf "load: %s" (error_to_string e))
+
+(* The approvals row owns a suspended run, so the durable row is removed. The
+   approvals row has a TTL (300s by default); the SDK docs state that a
+   suspended run is not covered by durable recovery. *)
+let test_approval_suspension_removes_the_checkpoint () =
+  Eio_main.run @@ fun _env ->
+  Eio.Switch.run @@ fun sw ->
+  with_sqlite @@ fun sqlt persist ->
+  let rt = match create_runtime ~persistence:persist
+                   ~llm:(scripted_llm [
+                       tool_call_response [{ id = "tc-1"; name = "needs_approval";
+                                             arguments = `Assoc [] }];
+                     ]) sw with
+    | Ok rt -> rt
+    | Error e -> Alcotest.failf "create: %s" (error_to_string e)
+  in
+  Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) @@ fun () ->
+  let approval_tool = match Runtime.register_tool rt ~name:"needs_approval"
+                        ~description:"asks" ~input_schema:(`Assoc [])
+                        ~handler:(fun _ _ ->
+                          Approval_required {
+                            tool_name = "needs_approval"; tool_input = `Assoc [];
+                            prompt = "ok?"; timeout = None; allowed_roles = [];
+                          }) () with
+    | Ok tb -> tb
+    | Error e -> Alcotest.failf "register_tool: %s" (error_to_string e)
+  in
+  let agent = { (make_agent ~tools:[approval_tool] "approval-agent") with
+                approval_handler =
+                  Some (Approval.Async_callback (fun _ -> failwith "not awaited")) } in
+  ignore (Runtime.register_agent rt agent);
+  (match Runtime.invoke rt ~agent_id:"approval-agent" ~message:"hi"
+          ~invoke_id:"approve-1" () with
+   | Ok r ->
+     Alcotest.(check bool) "the invoke suspended" true (r.approval_pending <> None)
+   | Error (e, _) -> Alcotest.failf "invoke: %s" (error_to_string e));
+  (match Sqlite_persistence.load_invoke_checkpoint sqlt "approve-1" with
+   | Ok None -> ()
+   | Ok (Some _) -> Alcotest.fail "a suspended run must not keep the durable row"
+   | Error e -> Alcotest.failf "load: %s" (error_to_string e))
+
+(* Cancellation is an intentional stop, so the row must not survive as a
+   pseudo-crash. Whether the cancellation unwinds by exception or is converted
+   by the engine, the checkpoint is gone afterwards. *)
+let test_cancelled_invoke_removes_the_checkpoint () =
+  Eio_main.run @@ fun _env ->
+  Eio.Switch.run @@ fun sw ->
+  with_sqlite @@ fun sqlt persist ->
+  let token = Cancellation.create_token sw in
+  let llm : llm_service = {
+    complete_fn = (fun _model _tools _conv ->
+      raise (Eio.Cancel.Cancelled (Failure "cancelled")));
+    stream_fn = (fun _ _tools _ _ _ -> Ok {
+        final_usage = dummy_usage; finish_reason = Stop; chunks_received = 0 });
+    close_fn = (fun () -> ());
+    complete_structured_fn = None;
+    list_models_fn = None;
+    supports_native_tools_fn = None;
+    context_window_fn = None; cache_control_fn = None;
+  } in
+  let rt = match create_runtime ~persistence:persist ~llm sw with
+    | Ok rt -> rt
+    | Error e -> Alcotest.failf "create: %s" (error_to_string e)
+  in
+  Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) @@ fun () ->
+  ignore (Runtime.register_agent rt (make_agent "cancel-agent"));
+  (match
+     try Some (Runtime.invoke rt ~agent_id:"cancel-agent" ~message:"hi"
+                 ~cancellation_token:token ~invoke_id:"cancel-1" ())
+     with Eio.Cancel.Cancelled _ -> None
+   with
+   | None -> ()
+   | Some (Error _) -> ()
+   | Some (Ok _) -> Alcotest.fail "expected the cancellation to surface");
+  (match Sqlite_persistence.load_invoke_checkpoint sqlt "cancel-1" with
+   | Ok None -> ()
+   | Ok (Some _) -> Alcotest.fail "a cancelled run left an orphan row behind"
+   | Error e -> Alcotest.failf "load: %s" (error_to_string e))
+
+(* -------------------------------------------------------------------------- *)
 (* Guards and resilience                                                      *)
 (* -------------------------------------------------------------------------- *)
 
@@ -425,7 +673,11 @@ let test_corrupt_row_does_not_crash_startup () =
   in
   Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) @@ fun () ->
   Alcotest.(check (list (pair string string))) "nothing recoverable" []
-    (Runtime.list_orphaned_invokes rt)
+    (Runtime.list_orphaned_invokes rt);
+  (match Sqlite_persistence.load_invoke_checkpoint sqlt "corrupt-1" with
+   | Ok None -> ()
+   | Ok (Some _) -> Alcotest.fail "the undecodable row was not dropped"
+   | Error e -> Alcotest.failf "load: %s" (error_to_string e))
 
 (* -------------------------------------------------------------------------- *)
 
@@ -442,6 +694,20 @@ let () =
         test_newer_schema_is_refused;
       Alcotest.test_case "a run started in this process is refused" `Quick
         test_a_live_run_is_not_recoverable;
+      Alcotest.test_case "an orphan id cannot be reused" `Quick
+        test_orphan_id_cannot_be_reused;
+    ];
+    "cross-subsystem", [
+      Alcotest.test_case "a handoff checkpoint names the active agent" `Quick
+        test_handoff_checkpoint_records_the_active_agent;
+      Alcotest.test_case "a duplicate invoke id is refused" `Quick
+        test_duplicate_invoke_id_is_refused;
+      Alcotest.test_case "a failed run removes its checkpoint" `Quick
+        test_failed_run_removes_the_checkpoint;
+      Alcotest.test_case "an approval suspension removes it" `Quick
+        test_approval_suspension_removes_the_checkpoint;
+      Alcotest.test_case "a cancelled run removes it" `Quick
+        test_cancelled_invoke_removes_the_checkpoint;
     ];
     "guards", [
       Alcotest.test_case "durable requires a persistence backend" `Quick

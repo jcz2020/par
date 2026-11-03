@@ -22,6 +22,7 @@ let extract_task_id : event -> string = function
   | Workflow_failed { workflow_run_id; _ } -> Workflow_run_id.to_string workflow_run_id
   | Workflow_orphaned { workflow_run_id } -> Workflow_run_id.to_string workflow_run_id
   | Invoke_orphaned _ -> ""
+  | Invoke_checkpoint_failed _ -> ""
   | Approval_requested _ -> ""
   | Approval_granted _ -> ""
   | Approval_timeout -> ""

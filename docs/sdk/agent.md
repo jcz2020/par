@@ -346,13 +346,14 @@ match Runtime.invoke rt ~agent_id:"my-agent" ~message:"Hello!" () with
 
 ### Durable invokes and crash recovery
 
-A durable invoke checkpoints the conversation after iteration zero and after every completed tool batch. The checkpoint is deleted on every terminal outcome, so a row that outlives the process belongs to a dead writer.
+A durable invoke checkpoints the conversation after iteration zero and after every completed tool batch. The checkpoint is deleted on every terminal outcome (success, failure, an intentional cancellation, and suspension for approval), so a row that outlives the process was left by a writer that stopped without finishing.
 
 ```ocaml
 val Runtime.recover_invoke :
   runtime ->
   invoke_id:string ->
   ?workspace:Workspace.workspace ->
+  ?cancellation_token:cancellation_token ->
   ?on_tool_event:(event -> unit) ->
   ?on_chunk:(llm_response_chunk -> unit) option ->
   ?update_current:bool ->
@@ -372,7 +373,7 @@ match Runtime.invoke rt ~agent_id:"ops" ~message:"reconcile accounts"
 | Error (err, _) -> (* ... *)
 ```
 
-After a restart, `Runtime.create` rehydrates leftover rows and emits `Invoke_orphaned` once per row; `list_orphaned_invokes` returns them as `(invoke_id, agent_id)`. Nothing resumes automatically, because replaying a tool with side effects is the caller's decision:
+After a restart, `Runtime.create` rehydrates leftover rows and emits `Invoke_orphaned` once per row; `list_orphaned_invokes` returns them as `(invoke_id, agent_id)`. The event is published while `create` runs, so subscribe on the injected bus before creating the runtime, or call `list_orphaned_invokes` afterwards. Nothing resumes automatically, because replaying a tool with side effects is the caller's decision:
 
 ```ocaml
 List.iter (fun (invoke_id, _agent_id) ->
@@ -384,12 +385,19 @@ List.iter (fun (invoke_id, _agent_id) ->
 
 Recovery semantics:
 
-- **at-least-once** — a tool that was executing when the process died runs again;
-- a parallel tool batch is atomic: it checkpoints once, after every result is folded into the conversation, so a crash inside the batch replays the batch;
+- **at-least-once** — the iteration that was in progress runs again. The checkpoint is taken after a completed batch, so the interrupted iteration's assistant turn was never persisted: the model is asked again and may choose a different tool call. Completed batches do not re-run;
+- a parallel tool batch is atomic: it checkpoints once, after every result is folded into the conversation, so a crash inside the batch re-runs that iteration as a whole;
 - only ids rehydrated at startup are eligible; an invoke still in flight in this process is refused, because recovering it would execute it twice;
+- re-using an orphan's id for a fresh invoke is refused as well — call `recover_invoke`, or start with a new id;
+- the checkpoint records the agent actually running the batch, so a run recovered after a handoff continues as the target agent;
+- the system prompt and the static tool set are replayed as recorded, so a skill change between crash and recovery does not alter what the resumed run sees (dynamic `tool_search` promotions are not replayed);
 - a checkpoint whose `schema_version` is newer than the runtime understands is refused.
 
-A run suspended for approval is not recoverable this way: the approvals row owns that state, and `Runtime.resume_approval` is its resume path. In Python, the method surface is `invoke(..., durable=True, invoke_id=...)`, `recover_invoke(invoke_id)`, and `list_orphaned_invokes()`.
+A run suspended for approval is not recoverable this way: the approvals row owns that state, `Runtime.resume_approval` is its resume path, and that row expires (300 seconds by default). Checkpoint writes are best-effort: a failure is logged and published as `Invoke_checkpoint_failed`, but the run continues and that step is not recoverable.
+
+Durability covers `invoke` and `invoke_content` (and `invoke_async`, which forwards). `invoke_structured`, `invoke_generate`, `invoke_parallel` and workflow `Agent_call` steps are not checkpointed by this mechanism. A `save=false` run that uses durability still writes its conversation to the checkpoint table.
+
+In Python, the method surface is `invoke(..., durable=True, invoke_id=...)`, `recover_invoke(invoke_id)`, and `list_orphaned_invokes()`.
 
 ### Structured output
 

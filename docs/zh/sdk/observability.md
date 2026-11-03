@@ -144,7 +144,7 @@ type event_envelope = {
 | 工具 | `Tool_invoked`、`Tool_completed`、`Tool_failed`、`Tool_progress` | `tool_name`、`duration_ms`、`result_preview` |
 | Bash 工具 | `Bash_invoked`、`Bash_completed` | `argv`、`cwd`、`exit_code`、`risk` |
 | 工作流 | `Workflow_started`、`Workflow_step_completed`、`Workflow_completed`、`Workflow_failed` | `workflow_run_id`、`step_id` |
-| 持久化 | `Workflow_orphaned`、`Invoke_orphaned` | `workflow_run_id`、`invoke_id`、`agent_id` |
+| 持久化 | `Workflow_orphaned`、`Invoke_orphaned`、`Invoke_checkpoint_failed` | `workflow_run_id`、`invoke_id`、`agent_id` |
 | 审批 | `Approval_requested`、`Approval_granted`、`Approval_timeout` | `prompt`、`allowed_roles`、`approver` |
 | 关闭 | `Shutdown_initiated`、`Shutdown_completed` | `exit_code` |
 | MCP | `Mcp_server_started`、`Mcp_server_failed`、`Mcp_server_stopped`、`Mcp_tool_invoked`、`Mcp_tool_completed`、`Mcp_resource_read`、`Mcp_prompt_rendered` | `server_id`、`tool_name`、`uri` |

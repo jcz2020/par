@@ -28,20 +28,24 @@ PAR 把持久化视为*最终一致的审计日志*，而非事务性状态存�
 
 ## 恢复被中断的 invoke
 
-Agent 循环有自己的崩溃恢复路径，而且是可选的。`Runtime.invoke ~durable:true`（或给运行起名 `~invoke_id`）会在第 0 次迭代后、以及每个完成的工具批次后，往 `invoke_checkpoints` 表写一次检查点。任何终止结果——成功、失败、取消、因审批挂起——都会删除该行，因此活过进程的行必然属于已死的写入者。
+Agent 循环有自己的崩溃恢复路径，而且是可选的。`Runtime.invoke ~durable:true`（或给运行起名 `~invoke_id`）会在第 0 次迭代后、以及每个完成的工具批次后，往 `invoke_checkpoints` 表写一次检查点。该行只在运行期间存在：任何终止结果——成功、失败、主动取消、因审批挂起——都会删除它，因此活过进程的行是「没有跑完就停止的写入者」留下的。
 
-需要恢复时请自己给运行起名：`~invoke_id:"order-42"`。自动生成的 id 只出现在 `invoke_result.invoke_id` 里，而崩溃的进程永远返回不了它。重启后，`Runtime.create` 读回遗留的行、对每行发一次 `Invoke_orphaned`，`Runtime.list_orphaned_invokes` 列出它们。`Runtime.recover_invoke rt ~invoke_id` 带着检查点里的会话、迭代计数与已耗时预算重新进入循环。
+需要恢复时请自己给运行起名：`~invoke_id:"order-42"`。自动生成的 id 只出现在 `invoke_result.invoke_id` 里，而崩溃的进程永远返回不了它。重启后，`Runtime.create` 读回遗留的行、对每行发一次 `Invoke_orphaned`；`Runtime.list_orphaned_invokes` 以 `(invoke_id, agent_id)` 返回它们。该事件在 `create` 执行期间发布，所以订阅必须在创建 runtime 之前挂好——或者在创建之后直接调用 `list_orphaned_invokes`。`Runtime.recover_invoke rt ~invoke_id` 带着检查点里的会话、迭代计数与已耗时预算重新进入循环。
 
 语义与工作流一致：
 
-- **at-least-once**：进程死亡时正在执行的工具会重跑；
-- **显式**：不会自动恢复，且只有启动时重水化的 id 才有资格——本进程仍在运行的 invoke 会被拒绝，因为恢复它会导致双重执行；
-- **批次原子**：并行工具批次只在全部结果折入会话后写一次检查点。批次内部崩溃会整批重跑；
-- **schema 校验**：`schema_version` 更新的检查点被拒绝，而不是猜测。
+- **at-least-once**：崩溃时正在进行的那一轮会重跑。检查点是在批次完成后写的，因此被中断那一轮的 assistant 消息从未落盘——模型会被重新询问，可能选择不同的工具调用。已完成的批次不会重跑。
+- **显式**：不会自动恢复，且只有启动时重水化的 id 才有资格——本进程仍在运行的 invoke 会被拒绝，因为恢复它会导致双重执行。用孤儿的 id 发起新 invoke 同样被拒绝：恢复是显式的，新运行必须换一个 id。
+- **批次原子**：并行工具批次只在全部结果折入会话后写一次检查点，批次内部崩溃会整轮重跑。
+- **schema 校验**：`schema_version` 比运行时能理解的新时，检查点被拒绝，而不是猜测。
 
-两条需要如实说明的限制。系统提示词从检查点原样重放，而不是重新计算，因此崩溃与恢复之间修改 skill 或 appendix 不会生效。因审批挂起的运行不走这条路：`approvals` 行拥有那个状态，恢复入口是 `Runtime.resume_approval`。
+检查点记录的是**实际在跑**的 agent。handoff 之后就是目标 agent，因此恢复时使用的是目标 agent 的工具，而不是调用方最初指定的那套。
 
-检查点在 invoke 所在的 fiber 上同步写入，不经过批量事件写入器。这是刻意的——进程死亡时可能还在缓冲区里的检查点不算检查点——也是持久化必须可选的原因：长工具循环每个批次都要付一次会话大小的写入。
+三条需要如实说明的限制。系统提示词从检查点原样重放，而不是重新计算，静态工具集也按记录重放（包含 skill 驱动的过滤）——崩溃与恢复之间修改 skill 或 appendix 不会生效。`tool_search` 的动态提升不会重放：恢复后的运行从检查点里的静态工具集开始。因审批挂起的运行不走这条路：`approvals` 行拥有那个状态，恢复入口是 `Runtime.resume_approval`，而该行带过期时间（默认 300 秒），过期后无法再恢复。检查点写入是 best-effort：写失败会记录日志并发布 `Invoke_checkpoint_failed`，但运行继续，因此那一步不可恢复。
+
+检查点在 invoke 所在的 fiber 上同步写入，不经过批量事件写入器。这是刻意的——进程死亡时可能还在缓冲区里的检查点不算检查点——也是持久化必须可选的原因：长工具循环每个批次都要付一次会话大小的写入。这也意味着 `Runtime.close` 应在 runtime 空闲时调用：它会关闭持久化句柄，之后落地的检查点写入或删除都会失败（并按上面所述上报）。
+
+Durability 覆盖 `invoke` 与 `invoke_content`（`invoke_async` 透传）。`invoke_structured`、`invoke_generate`、`invoke_parallel` 与 workflow 的 `Agent_call` 步各有自己的路径或没有：只有上面这三个入口会创建 durable 检查点。如果调用方设了 `save=false`，durable 运行仍会把会话写进检查点表——durability 与「保存对话」是两个独立的持久化决定。
 
 ## 两个持久化层级
 

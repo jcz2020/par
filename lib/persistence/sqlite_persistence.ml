@@ -721,12 +721,13 @@ let load_invoke_checkpoint t invoke_id =
     workflow lesson), so it is logged and skipped; the remaining rows are still
     reported. *)
 let list_invoke_checkpoints t =
-  Eio.Mutex.use_ro t.mutex (fun () ->
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
     let stmt =
       Sqlite3.prepare t.db
         "SELECT invoke_id, state_json FROM invoke_checkpoints ORDER BY updated_at ASC"
     in
     let acc = ref [] in
+    let corrupt = ref [] in
     let result =
       let stop = ref false in
       let error = ref None in
@@ -741,8 +742,9 @@ let list_invoke_checkpoints t =
            with
            | Ok cp -> acc := cp :: !acc
            | Error msg ->
+             corrupt := invoke_id :: !corrupt;
              Logs.err (fun m -> m
-               "sqlite_persistence: skipping undecodable invoke checkpoint %s: %s"
+               "sqlite_persistence: dropping undecodable invoke checkpoint %s: %s"
                invoke_id msg))
         | Sqlite3.Rc.DONE -> stop := true
         | rc ->
@@ -755,6 +757,14 @@ let list_invoke_checkpoints t =
       | None -> Ok (List.rev !acc)
     in
     let _ = Sqlite3.finalize stmt in
+    (* An undecodable row can never be recovered. Leaving it would re-report the
+       same failure at every startup. *)
+    List.iter (fun invoke_id ->
+      let stmt = Sqlite3.prepare t.db "DELETE FROM invoke_checkpoints WHERE invoke_id = ?" in
+      let _ = Sqlite3.bind_text stmt 1 invoke_id in
+      let _ = Sqlite3.step stmt in
+      let _ = Sqlite3.finalize stmt in ()
+    ) !corrupt;
     result
   )
 

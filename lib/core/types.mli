@@ -650,6 +650,10 @@ type event =
       its writer died. Emitted once per row at startup; nothing is resumed
       automatically. *)
   | Invoke_orphaned of { invoke_id : string; agent_id : string }
+  (** A durable checkpoint write failed. The run continues (durability is
+      best-effort at that moment), but the step that could not be persisted is
+      not recoverable. *)
+  | Invoke_checkpoint_failed of { invoke_id : string; error : error_category }
   | Approval_requested of { prompt : string; allowed_roles : string list }
   | Approval_granted of { approver : string }
   | Approval_timeout
@@ -1047,6 +1051,10 @@ type invoke_checkpoint = {
   (* Recorded because it changes loop behavior: a checkpoint taken with
      handoff enabled must resume with handoff enabled. *)
   enable_handoff : bool;
+  (* The tool set the model actually saw, after skill filters and description
+     overrides. Recovery replays it instead of recomputing skill effects from a
+     conversation that may have grown since. Empty means "not recorded". *)
+  tool_names : string list [@default []];
   conversation : conversation;
   updated_at : float;
 }
@@ -1166,6 +1174,11 @@ type ('k, 'v) protected_hashtbl = {
 
 val htbl_get : ('k, 'v) protected_hashtbl -> 'k -> 'v option
 val htbl_set : ('k, 'v) protected_hashtbl -> 'k -> 'v -> unit
+(** [htbl_claim tbl key] inserts [()] and returns [true] only if [key] was
+    absent, in one critical section. Use it wherever "check then register"
+    is a correctness boundary: two separate calls can interleave and both see
+    an empty slot. *)
+val htbl_claim : (string, unit) protected_hashtbl -> string -> bool
 val htbl_remove : ('k, 'v) protected_hashtbl -> 'k -> unit
 val htbl_iter : ('k, 'v) protected_hashtbl -> ('k -> 'v -> unit) -> unit
 
