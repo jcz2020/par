@@ -151,11 +151,13 @@ The context window size is resolved via a 3-tier resolver:
 2. `llm_service.context_window_fn` (provider capability function)
 3. Static lookup table (`default_context_window`): gpt-4o family=128K, claude-4 family=200K, gpt-3.5-turbo=16385
 
-Unknown models resolve to `0` ("window unknown"). PAR then **skips proactive
-compression** and emits `Context_compression_skipped { reason = \`No_window_size }`
-plus a one-time warning, instead of guessing a small window and truncating a
-healthy conversation every turn. A real provider context-length error still
-triggers the reactive compression path.
+Unknown models resolve to `0` ("window unknown"). PAR then **skips the
+window-derived proactive compression** and emits
+`Context_compression_skipped { reason = \`No_window_size }` plus a one-time
+warning, instead of guessing a small window and truncating a healthy
+conversation every turn. An explicit `context_strategy` is still applied (see
+below). A real provider context-length error still triggers the reactive
+compression path.
 
 Two observability events fire:
 - `Context_compressed { trigger; tokens_before; tokens_after; messages_before; messages_after; strategy_used; elapsed_ms }` on successful compression
@@ -656,6 +658,13 @@ The agent execution core is `Par.Engine.run_agent`:
    - Append the tool result to the conversation.
 7. Recurse until `finish_reason` is `Stop` or `max_iterations` is reached.
 
+Before each provider request the engine normalizes non-object tool arguments to
+`{}` and validates tool-call/tool-result pairing. This check is provider-agnostic:
+a custom provider that would accept an unpaired history is still rejected,
+because the same conversation may later be replayed through OpenAI or Anthropic.
+A malformed caller-supplied conversation returns `Invalid_input` with the
+offending tool_call id/name instead of a provider 400.
+
 ### max_iterations behavior
 
 When the iteration count reaches `max_iterations`, `run_agent` returns `Result.Error (Internal "Max iterations exceeded")`.
@@ -800,7 +809,7 @@ type context_strategy =
 
 `Summarize` compresses earlier turns into a summary message using a second LLM call. `max_tokens` bounds the summary length. `summary_model` optionally routes the summarization call to a cheaper or faster model than the agent's primary model; `None` reuses the agent's own `model_config`. This is the right choice when early context genuinely matters but token budget is tight, at the cost of an extra LLM round trip per summarization.
 
-`Sliding_window` keeps the most recent `max_messages` messages and drops everything older, subject to a `max_tokens` ceiling. It is the cheapest strategy because it never calls another model, and it preserves the tail of the conversation verbatim. Pre-v0.6.3 this was the default; from v0.6.3 onward the default is `Summarize` (see "Auto context compression" above).
+`Sliding_window` keeps the most recent `max_messages` messages and drops everything older, subject to a `max_tokens` ceiling. It is the cheapest strategy because it never calls another model, and it preserves the tail of the conversation verbatim. An explicit strategy is applied even when the model's context window is unknown; only the ratio-based auto path needs a window.
 
 ### How the Engine applies a strategy
 
@@ -808,6 +817,7 @@ Before each LLM round trip, the Engine calls `Context_manager.apply_strategy` on
 
 ```ocaml
 val Context_manager.apply_strategy :
+  ?default_model:Types.model_config ->
   Types.context_strategy -> Types.conversation ->
   Types.llm_service option ->
   on_event:(Types.event -> unit) option ->
@@ -818,17 +828,16 @@ val Context_manager.estimate_tokens : Types.conversation -> int
 
 `estimate_tokens` is a rough character-divided-by-four heuristic. It is not a tokenizer. Treat the number as advisory when reasoning about budgets.
 
-### The v0.5.1 default
+### The default
 
-As of v0.5.1, a runtime with no explicit `context_strategy` gets:
+`make_agent` leaves `context_strategy = None`. With the default
+`context_compression_threshold = Some 0.8`, the engine uses the window-derived
+default summarize path. Set an explicit strategy only when you want a fixed
+policy. `Summarize { summary_model = None }` uses the running agent model.
 
-```ocaml
-Some (Sliding_window { max_messages = 100; max_tokens = 200000 })
-```
-
-This is a deliberate change from earlier betas, which left the strategy unset and let conversations grow unbounded until the provider rejected them. The 200K token ceiling matches the largest current production models, and the 100 message ceiling keeps the conversation from sprawling even when individual messages are short. If you previously relied on unbounded growth (for example, summarizing yourself outside the runtime), set `context_strategy = None` explicitly to restore the old behavior.
-
-For agents that talk to models with smaller windows, lower both numbers. A 4K-token model paired with `max_messages = 100` will still trip provider limits, because `max_messages` is checked before token estimation.
+For a fixed policy on a small-window model, set an explicit
+`Sliding_window`/`Truncate_oldest`; it is applied even if PAR cannot resolve
+the model's window.
 
 ## Cancellation
 

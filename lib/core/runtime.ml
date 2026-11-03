@@ -1654,14 +1654,30 @@ let resume_approval ~rt ~run_id ~outcome ~approver =
              context (user request, prior tool calls) because Engine.run_agent
              would start a fresh conversation with only the continue message. *)
           let resumed_conv =
-            (* Extract the orphaned tool_call id + name from the snapshot's
-               last assistant message. Approval_pending is only raised for a
-               single approval in a batch, so there is exactly one tool_call. *)
-            let tool_call_id, tool_name_from_snapshot =
+            (* The engine raises Approval_pending after appending any normal
+               tool results from the same batch, so the snapshot's last message
+               may be a Tool message rather than the assistant tool_call.  Read
+               the id/name from the persisted pending payload; fall back to
+               scanning only for older snapshots. *)
+            let engine_pending = member "engine_pending_payload" stored_payload in
+            let payload_id = match member "tool_call_id" engine_pending with
+              | `String s when s <> "" -> Some s
+              | _ -> None
+            in
+            let payload_name = match member "tool_name" engine_pending with
+              | `String s when s <> "" -> Some s
+              | _ -> None
+            in
+            let fallback () =
               match List.rev conv_snapshot.messages with
               | { role = Assistant; tool_calls = Some (tc :: _); _ } :: _ ->
                 tc.id, tc.name
               | _ -> "unknown", tool_name
+            in
+            let tool_call_id, tool_name_from_snapshot =
+              match payload_id with
+              | Some id -> id, Option.value payload_name ~default:tool_name
+              | None -> fallback ()
             in
             let synth_content = match (outcome : Approval.approval_outcome) with
               | Approved ->

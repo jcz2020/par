@@ -164,6 +164,94 @@ let test_engine_maps_callback_cancel_to_cancelled () =
       (Types.string_of_error_category e)
   | Ok _ -> Alcotest.fail "expected Error, got Ok"
 
+let test_openai_generic_callback_exception () =
+  Mirage_crypto_rng_unix.use_default ();
+  Eio_main.run @@ fun env ->
+  let response = http_response openai_sse_body in
+  with_mock_http_server env ~response (fun url ->
+    let net = (Eio.Stdenv.net env :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
+    match Openai_provider.create
+            (Openai { api_key = "sk-test"; base_url = Some url;
+                      organization = None; embedding_model = None;
+                      prompt_cache_key = None }) with
+    | Error e -> Alcotest.failf "create: %s" (Types.string_of_error_category e)
+    | Ok t ->
+      Openai_provider.set_network t net;
+      let chunks = ref 0 in
+      let callback _ =
+        incr chunks;
+        if !chunks = 1 then failwith "boom"
+      in
+      (match Openai_provider.stream t openai_model [] user_conv
+               default_stream_config callback with
+       | Error (Internal msg) ->
+         Alcotest.(check bool) "message carries callback failure" true
+           (try ignore (Str.search_forward (Str.regexp_string "boom") msg 0); true
+            with Not_found -> false);
+         Alcotest.(check int) "stopped after the first chunk" 1 !chunks
+       | Error e -> Alcotest.failf "expected Internal, got %s"
+           (Types.string_of_error_category e)
+       | Ok _ -> Alcotest.fail "expected callback failure to abort the stream"))
+
+let test_anthropic_generic_callback_exception () =
+  Mirage_crypto_rng_unix.use_default ();
+  Eio_main.run @@ fun env ->
+  let response = http_response anthropic_sse_body in
+  with_mock_http_server env ~response (fun url ->
+    let net = (Eio.Stdenv.net env :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
+    match Anthropic_provider.create
+            (Anthropic { api_key = "sk-ant-test"; base_url = Some url }) with
+    | Error e -> Alcotest.failf "create: %s" (Types.string_of_error_category e)
+    | Ok t ->
+      Anthropic_provider.set_network t net;
+      let chunks = ref 0 in
+      let callback _ =
+        incr chunks;
+        if !chunks = 1 then failwith "boom"
+      in
+      (match Anthropic_provider.stream t anthropic_model [] user_conv
+               default_stream_config callback with
+       | Error (Internal msg) ->
+         Alcotest.(check bool) "message carries callback failure" true
+           (try ignore (Str.search_forward (Str.regexp_string "boom") msg 0); true
+            with Not_found -> false);
+         Alcotest.(check int) "stopped after the first chunk" 1 !chunks
+       | Error e -> Alcotest.failf "expected Internal, got %s"
+           (Types.string_of_error_category e)
+       | Ok _ -> Alcotest.fail "expected callback failure to abort the stream"))
+
+let test_openai_nonstreaming_malformed_args () =
+  let json = `Assoc [
+    ("model", `String "mock");
+    ("choices", `List [
+      `Assoc [
+        ("message", `Assoc [
+          ("content", `String "calling");
+          ("tool_calls", `List [
+            `Assoc [
+              ("id", `String "tc_bad");
+              ("function", `Assoc [
+                ("name", `String "probe");
+                ("arguments", `String "{not json");
+              ]);
+            ];
+          ]);
+        ]);
+        ("finish_reason", `String "tool_calls");
+      ];
+    ]);
+  ] in
+  match Openai_provider.parse_llm_response json with
+  | Error e -> Alcotest.failf "parse failed: %s"
+      (Types.string_of_error_category e)
+  | Ok resp ->
+    (match resp.tool_calls with
+     | Some [tc] ->
+       Alcotest.(check string) "malformed arguments normalized" "{}"
+         (Yojson.Safe.to_string tc.arguments)
+     | Some tcs -> Alcotest.failf "expected one call, got %d" (List.length tcs)
+     | None -> Alcotest.fail "tool call was dropped")
+
 let () =
   Alcotest.run "streaming_cancel" [
     "streaming_cancel", [
@@ -171,6 +259,12 @@ let () =
         test_openai_callback_exception_propagates;
       Alcotest.test_case "anthropic_callback_exception_propagates" `Quick
         test_anthropic_callback_exception_propagates;
+      Alcotest.test_case "openai_generic_callback_exception" `Quick
+        test_openai_generic_callback_exception;
+      Alcotest.test_case "anthropic_generic_callback_exception" `Quick
+        test_anthropic_generic_callback_exception;
+      Alcotest.test_case "openai_nonstreaming_malformed_args" `Quick
+        test_openai_nonstreaming_malformed_args;
       Alcotest.test_case "engine_maps_callback_cancel_to_cancelled" `Quick
         test_engine_maps_callback_cancel_to_cancelled;
     ]

@@ -1,5 +1,15 @@
 open Types
 
+(* A callback exception is not a malformed SSE event.  Wrap it so the parse
+   handler can re-raise it instead of logging-and-continuing. *)
+exception Callback_raised of exn
+
+let invoke_callback cb chunk =
+  try cb chunk with
+  | Cancellation.Stream_cancelled_by_token as exn -> raise exn
+  | Eio.Cancel.Cancelled _ as exn -> raise exn
+  | exn -> raise (Callback_raised exn)
+
 let default_embedding_model = "text-embedding-3-small"
 
 type t = {
@@ -385,16 +395,44 @@ let parse_usage json =
   ; cache_read_input_tokens = 0
   }
 
+let parse_tool_arguments ~id ~name (raw : Yojson.Safe.t) : Yojson.Safe.t =
+  match raw with
+  | `Assoc _ as obj -> obj
+  | `String s ->
+    (try
+       match Yojson.Safe.from_string s with
+       | `Assoc _ as obj -> obj
+       | other ->
+         Logs.warn (fun m -> m
+           "openai_provider: tool_call %s (%s) arguments are not an object (%s); using {}"
+           id name (Yojson.Safe.to_string other));
+         `Assoc []
+     with exn ->
+       Logs.warn (fun m -> m
+         "openai_provider: tool_call %s (%s) arguments are not valid JSON (%s); using {}"
+         id name (Printexc.to_string exn));
+       `Assoc [])
+  | other ->
+    Logs.warn (fun m -> m
+      "openai_provider: tool_call %s (%s) arguments are not an object (%s); using {}"
+      id name (Yojson.Safe.to_string other));
+    `Assoc []
+
 let parse_tool_calls json =
   let open Yojson.Safe.Util in
-  List.map
+  List.filter_map
     (fun tc ->
-      let fn = tc |> member "function" in
-      let args_str = fn |> member "arguments" |> to_string in
-      { id = tc |> member "id" |> to_string
-      ; name = fn |> member "name" |> to_string
-      ; arguments = Yojson.Safe.from_string args_str
-      })
+      try
+        let fn = tc |> member "function" in
+        let id = tc |> member "id" |> to_string in
+        let name = fn |> member "name" |> to_string in
+        let arguments = parse_tool_arguments ~id ~name (fn |> member "arguments") in
+        Some { id; name; arguments }
+      with exn ->
+        Logs.warn (fun m -> m
+          "openai_provider: dropping malformed tool_call: %s"
+          (Printexc.to_string exn));
+        None)
     (json |> to_list)
 
 let parse_llm_response json : (llm_response, error_category) result =
@@ -585,6 +623,7 @@ let stream t model_config tools conversation _stream_config callback =
   match t.net with
   | None -> Result.Error (Internal "Network not initialized; call set_network first")
   | Some net ->
+    let callback = invoke_callback callback in
     let url = Http_client.parse_url t.base_url in
     let body = build_request_body ~model_config ~tools ~conversation ~stream:true ?prompt_cache_key:t.prompt_cache_key () in
     let headers = build_auth_headers t in
@@ -671,6 +710,7 @@ let stream t model_config tools conversation _stream_config callback =
       | Eio.Io _ -> Result.Error (External_failure "Network error during OpenAI stream")
       | Cancellation.Stream_cancelled_by_token as exn -> raise exn
       | Eio.Cancel.Cancelled _ as exn -> raise exn
+      | Callback_raised exn -> Result.Error (Internal (Printexc.to_string exn))
       | Failure msg when (try Str.search_forward (Str.regexp "timed out") msg 0 >= 0 with _ -> false) -> Result.Error Timeout
      | Failure msg -> Result.Error (Invalid_input msg)
       | exn -> Result.Error (Internal (Printexc.to_string exn)) )

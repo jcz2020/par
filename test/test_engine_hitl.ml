@@ -644,6 +644,53 @@ let test_resume_approved_completes () =
           | Error e ->
             Alcotest.failf "resume_approval failed: %s" (error_to_string e))))
 
+let test_resume_mixed_batch () =
+  with_switch (fun sw ->
+    let ok_tool = make_tool ~name:"ok_tool" (fun _ _ ->
+      Success (`String "ok-result")) in
+    let guarded = approval_tool () in
+    let llm = mock_llm_dynamic (fun conv ->
+      let has_continue = List.exists (fun (m : message) ->
+        m.role = User &&
+        str_contains (Message.text_of_message m) "Approval resolved"
+      ) conv.messages in
+      if has_continue then text_response "mixed batch complete"
+      else tool_call_response [
+        tool_call ~id:"tc-ok" ~name:"ok_tool" ();
+        tool_call ~id:"tc-g" ~name:"guarded_tool" ();
+      ])
+    in
+    let agent = make_agent "A" "You are A"
+      ~approval_handler:(Some (Async_callback (fun _ctx ->
+        Eio.Promise.create_resolved Approval.Approved)))
+      ~tools:[ok_tool; guarded] in
+    let rt = create_runtime ~llm sw in
+    (match Runtime.register_agent rt agent with
+     | Ok () -> () | Error e -> Alcotest.failf "register_agent: %s" (error_to_string e));
+    (match Runtime.register_tool rt ~name:"ok_tool"
+            ~description:"ok tool" ~input_schema:(`Assoc [])
+            ~handler:(fun _input _tok -> Success (`String "ok-result")) () with
+     | Ok _ -> () | Error e -> Alcotest.failf "register ok_tool: %s" (error_to_string e));
+    (match Runtime.register_tool rt ~name:"guarded_tool"
+            ~description:"approval tool" ~input_schema:(`Assoc [])
+            ~handler:(fun _input _tok ->
+              Approval_required {
+                tool_name = "guarded_tool"; tool_input = `Assoc [];
+                prompt = "Approve?"; timeout = Some 60.0; allowed_roles = []
+              }) () with
+     | Ok _ -> () | Error e -> Alcotest.failf "register_tool: %s" (error_to_string e));
+    match Runtime.invoke rt ~agent_id:"A" ~message:"do it" () with
+    | Error (e, _) -> Alcotest.failf "invoke failed: %s" (error_to_string e)
+    | Ok result ->
+      (match result.approval_pending with
+       | None -> Alcotest.fail "expected approval_pending"
+       | Some info ->
+         (match Runtime.resume_approval ~rt ~run_id:info.run_id
+                 ~outcome:Approval.Approved ~approver:"test-user" with
+          | Ok () -> ()
+          | Error e ->
+            Alcotest.failf "resume_approval failed: %s" (error_to_string e))))
+
 let test_resume_preserves_original_context () =
   with_switch (fun sw ->
     let saw_original_in_resume = ref false in
@@ -957,6 +1004,8 @@ let () =
     ("Runtime.resume_approval", [
       Alcotest.test_case "Approved → re-dispatches, conversation completes" `Quick
         test_resume_approved_completes;
+      Alcotest.test_case "mixed batch resume keeps the real tool result" `Quick
+        test_resume_mixed_batch;
       Alcotest.test_case "Rejected → no re-dispatch, returns Ok" `Quick
         test_resume_rejected_no_redispatch;
       Alcotest.test_case "Timeout → no re-dispatch, returns Ok" `Quick

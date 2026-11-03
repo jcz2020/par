@@ -347,7 +347,7 @@ MCP server 目前**不能**让模型直接调用其工具：`tool_registry.ml` �
 
 1. **未知模型窗口 = 0，跳过主动压缩**。`default_context_window` 返回 0，引擎发 `Context_compression_skipped \`No_window_size` + 一次警告。真正的 provider context-length 错误仍触发 reactive 压缩。
 2. **`make_agent` 默认 `context_strategy = None`**，由 ratio gate 走按窗口推导预算的默认摘要；`Summarize { summary_model = None }` 表示使用当前 `agent.model`，不再退化为 truncate。
-3. **新增 `Conversation_repair`**：所有压缩/截断路径返回 provider-replay-valid 对话；请求前严格校验 Tool result 必须有匹配 tool_call，错误带 id/name。非对象 arguments 归一为 `{}`。
+3. **新增 `Conversation_repair`**：同时识别 `tool_calls` 字段与 `Tool_use_block`/`Tool_result_block` content；所有压缩/截断路径返回 provider-replay-valid 对话；请求前严格校验 result ↔ call，错误带 id/name。非对象 arguments 归一为 `{}`。handoff call 在切换 agent 前补 `<handoff>` result。
 4. **流式取消异常上移到 `Cancellation`**，provider 不得把它当 malformed SSE chunk 吞掉；OpenAI/Anthropic 均改为解析 try 之外调用 callback。
 
 **§11 R1 标注**: 1–4 全部为**架构正确**——修复的是实现与已文档化契约的偏离，并把不变量集中到一个边界，而不是逐个调用点打补丁。

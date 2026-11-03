@@ -25,7 +25,12 @@ val estimate_tokens : conversation -> int
 
     Drops oldest non-system messages until under [max_tokens].
     Always keeps at least [min_messages].  When [keep_system] is
-    true (default), system messages are preserved at the front. *)
+    true (default), system messages are preserved at the front.
+
+    The result is provider-replay valid: orphan tool results are dropped and a
+    dangling tool_call gets a synthetic result.  Repair can add a small number
+    of messages, so the result may exceed [max_tokens] slightly; validity wins
+    over the exact budget. *)
 val truncate_conversation :
   ?keep_system:bool -> min_messages:int -> max_tokens:int ->
   conversation -> conversation

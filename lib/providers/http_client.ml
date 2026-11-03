@@ -484,8 +484,11 @@ let do_request_streaming net url request k =
       k ~status ~headers:headers_str ~read_line:(fun () ->
         let result =
           try Some (Eio.Buf_read.line r)
-          with Failure msg when (try Str.search_forward (Str.regexp "timed out") msg 0 >= 0 with _ -> false) ->
+          with
+          | Failure msg when (try Str.search_forward (Str.regexp "timed out") msg 0 >= 0 with _ -> false) ->
             raise (Failure msg)
+          | Eio.Cancel.Cancelled _ as exn -> raise exn
+          | Eio.Io _ as exn -> raise exn
           | _ -> None
         in
         (match reset_opt with Some reset -> reset () | None -> ());

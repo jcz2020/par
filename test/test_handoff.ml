@@ -132,7 +132,75 @@ let () =
               let has_assistant = List.exists (fun (m : message) ->
                 m.role = Assistant) conv.messages in
               Alcotest.check Alcotest.bool "B saw user history" true has_user;
-              Alcotest.check Alcotest.bool "B saw assistant history" true has_assistant));
+              Alcotest.check Alcotest.bool "B saw assistant history" true has_assistant;
+              let has_handoff_result = List.exists (fun (m : message) ->
+                m.role = Tool && m.tool_call_id = Some "tc-handoff"
+                && Message.text_of_message m = "<handoff>") conv.messages in
+              Alcotest.check Alcotest.bool "B saw the handoff result" true
+                has_handoff_result;
+              (match Conversation_repair.validate conv with
+               | Ok () -> ()
+               | Error msg ->
+                 Alcotest.fail ("carried conversation is not provider-valid: " ^ msg))));
+
+      Alcotest.test_case "handoff with queued steering stays provider-valid" `Quick (fun () ->
+        let b_conv = ref None in
+        let llm = mock_llm_dynamic (fun conv ->
+          match system_prompt_of conv with
+          | Some "You are B" ->
+              b_conv := Some conv;
+              text_response "B response"
+          | _ -> tool_call_response [ handoff_call () ])
+        in
+        let handoff_tool = make_tool ~name:"handoff" (fun _ _ ->
+          Handoff { target_agent_id = "B"; carry_context = true; task = None })
+        in
+        let agent_a = make_agent "A" "You are A" [ handoff_tool ] in
+        let agent_b = make_agent "B" "You are B" [] in
+        let reg = make_registry [ handoff_tool ] in
+        let resolver = function "B" -> Some agent_b | _ -> None in
+        let steering = Steering_queue.create () in
+        Steering_queue.enqueue steering "steering message";
+        with_token (fun token ->
+          check_ok_text
+            (Engine.run_agent ~steering:(Some steering)
+               ~agent_resolver:resolver ~enable_handoff:true
+               token agent_a "user question" llm reg)
+            "B response";
+          match !b_conv with
+          | None -> Alcotest.fail "agent B was never called"
+          | Some conv ->
+            (match Conversation_repair.validate conv with
+             | Ok () -> ()
+             | Error msg ->
+               Alcotest.fail ("handoff+steering conversation invalid: " ^ msg))));
+
+      Alcotest.test_case "handoff to tool-less agent strips hallucinated calls" `Quick (fun () ->
+        let llm = mock_llm_dynamic (fun conv ->
+          match system_prompt_of conv with
+          | Some "You are B" ->
+              tool_call_response [ handoff_call ~id:"tc-ghost" ~name:"ghost" () ]
+          | _ -> tool_call_response [ handoff_call () ])
+        in
+        let handoff_tool = make_tool ~name:"handoff" (fun _ _ ->
+          Handoff { target_agent_id = "B"; carry_context = true; task = None })
+        in
+        let agent_a = make_agent "A" "You are A" [ handoff_tool ] in
+        let agent_b = make_agent "B" "You are B" [] in
+        let reg = make_registry [ handoff_tool ] in
+        let resolver = function "B" -> Some agent_b | _ -> None in
+        with_token (fun token ->
+          match Engine.run_agent ~agent_resolver:resolver ~enable_handoff:true
+                  token agent_a "user question" llm reg with
+          | Error (e, _) -> Alcotest.fail ("expected Ok: " ^ error_to_string e)
+          | Ok (_, conv) ->
+            (match Conversation_repair.validate conv with
+             | Ok () -> ()
+             | Error msg -> Alcotest.fail ("handoff conversation invalid: " ^ msg));
+            let calls = List.concat_map (fun (m : message) ->
+              match m.tool_calls with Some cs -> cs | None -> []) conv.messages in
+            Alcotest.(check bool) "ghost call stripped" false
+              (List.exists (fun (tc : tool_call) -> tc.id = "tc-ghost") calls)));
 
       Alcotest.test_case "carry_context=false with task starts fresh" `Quick (fun () ->
         let b_conv = ref None in

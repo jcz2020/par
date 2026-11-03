@@ -14,6 +14,14 @@ let estimate_tokens conv =
         ) 0 tcs
       | None -> 0
     in
+    let block_tc_len =
+      List.fold_left (fun acc -> function
+        | Tool_use_block { id; name; arguments; _ } ->
+          acc + String.length id + String.length name
+            + String.length (Yojson.Safe.to_string arguments)
+        | _ -> acc
+      ) 0 msg.content_blocks
+    in
     let name_len = match msg.name with
       | Some s -> String.length s
       | None -> 0
@@ -22,7 +30,7 @@ let estimate_tokens conv =
       | Some s -> String.length s
       | None -> 0
     in
-    acc + content_len + tc_len + name_len + tcid_len
+    acc + content_len + tc_len + block_tc_len + name_len + tcid_len
   ) 0 conv.messages in
   char_count / chars_per_token
 
@@ -83,11 +91,16 @@ let apply_summarize ?default_model max_tokens summary_model conv llm_opt ~on_eve
     let recent_count = if keep_recent >= total then total else keep_recent in
     let to_summarize, to_keep =
       let initial_n = total - recent_count in
+      let carries_result (m : message) =
+        m.role = Tool ||
+        List.exists (function Tool_result_block _ -> true | _ -> false)
+          m.content_blocks
+      in
       let rec balance_boundary n =
         if n <= 0 then 0
         else
           match List.nth_opt conv.messages n with
-          | Some { role = Tool; _ } -> balance_boundary (n - 1)
+          | Some m when carries_result m -> balance_boundary (n - 1)
           | _ -> n
       in
       let n = balance_boundary initial_n in

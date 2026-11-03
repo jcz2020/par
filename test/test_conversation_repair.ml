@@ -12,6 +12,23 @@ let msg ?(calls = []) ?tool_call_id ?name role text : message =
 let call ?(args = `Assoc []) id name : tool_call =
   { id; name; arguments = args }
 
+let block_call ?(args = `Assoc []) id name : content_block =
+  Tool_use_block { id; name; arguments = args; cache_control = None }
+
+let block_result id content : content_block =
+  Tool_result_block { tool_use_id = id; content; cache_control = None }
+
+let block_pair_conv () : conversation =
+  { messages = [
+      msg User "hi";
+      { role = Assistant; content_blocks = [block_call "tu1" "search"];
+        tool_calls = None; tool_call_id = None; name = None };
+      { role = User; content_blocks = [block_result "tu1" "ok"];
+        tool_calls = None; tool_call_id = None; name = None };
+    ];
+    metadata = [];
+  }
+
 let dummy_usage : usage_stats =
   { prompt_tokens = 0; completion_tokens = 0; total_tokens = 0;
     cached_tokens = 0; cache_creation_input_tokens = 0;
@@ -81,6 +98,21 @@ let () =
           (Yojson.Safe.to_string (args_of "tc1"));
         Alcotest.(check string) "valid object preserved" {|{"q":"ok"}|}
           (Yojson.Safe.to_string (args_of "tc4")));
+
+      Alcotest.test_case "non_object_tool_use_block_becomes_empty_object" `Quick (fun () ->
+        let conv = { messages = [
+            { role = Assistant;
+              content_blocks = [block_call ~args:`Null "tu1" "search"];
+              tool_calls = None; tool_call_id = None; name = None };
+            { role = User; content_blocks = [block_result "tu1" "ok"];
+              tool_calls = None; tool_call_id = None; name = None };
+          ]; metadata = [] } in
+        let conv' = Conversation_repair.normalize_arguments conv in
+        match conv'.messages with
+        | { content_blocks = [Tool_use_block { arguments; _ }]; _ } :: _ ->
+          Alcotest.(check string) "block arguments normalized" "{}"
+            (Yojson.Safe.to_string arguments)
+        | _ -> Alcotest.fail "expected a Tool_use_block");
     ]);
 
     ("repair_tool_pairs", [
@@ -116,6 +148,27 @@ let () =
         let repaired = Conversation_repair.repair_tool_pairs conv in
         Alcotest.(check int) "message count unchanged"
           (List.length conv.messages) (List.length repaired.messages));
+
+      Alcotest.test_case "block_pairing_is_unchanged" `Quick (fun () ->
+        let conv = block_pair_conv () in
+        let repaired = Conversation_repair.repair_tool_pairs conv in
+        Alcotest.(check int) "block message count unchanged"
+          (List.length conv.messages) (List.length repaired.messages);
+        Alcotest.(check bool) "block pairing valid" true
+          (Conversation_repair.validate repaired = Ok ()));
+
+      Alcotest.test_case "synthesizes_missing_block_result" `Quick (fun () ->
+        let conv = { messages = [
+            msg User "hi";
+            { role = Assistant;
+              content_blocks = [block_call "tu1" "search"];
+              tool_calls = None; tool_call_id = None; name = None };
+          ]; metadata = [] } in
+        let repaired = Conversation_repair.repair_tool_pairs conv in
+        Alcotest.(check int) "synthetic result inserted" 3
+          (List.length repaired.messages);
+        Alcotest.(check bool) "repaired block pairing valid" true
+          (Conversation_repair.validate repaired = Ok ()));
     ]);
 
     ("validate", [
@@ -133,13 +186,33 @@ let () =
         | Error msg ->
           Alcotest.(check bool) "mentions id" true (contains "tc_orphan" msg));
 
-      Alcotest.test_case "accepts_dangling_call_for_handoff" `Quick (fun () ->
+      Alcotest.test_case "accepts_block_tool_use_and_result" `Quick (fun () ->
+        Alcotest.(check bool) "valid block representation" true
+          (Conversation_repair.validate (block_pair_conv ()) = Ok ()));
+
+      Alcotest.test_case "rejects_dangling_call_with_id_and_name" `Quick (fun () ->
         let conv = { messages = [
             msg User "hi";
             msg ~calls:[call "tc_handoff" "handoff"] Assistant "";
           ]; metadata = [] } in
-        Alcotest.(check bool) "handoff call without result is allowed" true
-          (Conversation_repair.validate conv = Ok ()));
+        match Conversation_repair.validate conv with
+        | Ok () -> Alcotest.fail "expected Error"
+        | Error msg ->
+          Alcotest.(check bool) "mentions id" true (contains "tc_handoff" msg);
+          Alcotest.(check bool) "mentions name" true (contains "name=handoff" msg));
+
+      Alcotest.test_case "rejects_dangling_tool_use_block" `Quick (fun () ->
+        let conv = { messages = [
+            msg User "hi";
+            { role = Assistant;
+              content_blocks = [block_call "tu_missing" "search"];
+              tool_calls = None; tool_call_id = None; name = None };
+          ]; metadata = [] } in
+        match Conversation_repair.validate conv with
+        | Ok () -> Alcotest.fail "expected Error"
+        | Error msg ->
+          Alcotest.(check bool) "mentions block id" true
+            (contains "tu_missing" msg));
 
       Alcotest.test_case "rejects_non_object_arguments" `Quick (fun () ->
         let conv = { messages = [
@@ -169,6 +242,23 @@ let () =
                   max_tokens min_messages keep_system msg
             ) [true; false]
           done
+        done);
+
+      Alcotest.test_case "block_conversation_cut_is_provider_valid" `Quick (fun () ->
+        let conv = block_pair_conv () in
+        let conv = { conv with messages =
+          List.map (fun (m : message) ->
+            if m.role = User then
+              { m with content_blocks = [block_result "tu1" (String.make 4000 'x')] }
+            else m) conv.messages } in
+        for max_tokens = 1 to 400 do
+          let truncated = Context_manager.truncate_conversation
+            ~keep_system:true ~min_messages:1 ~max_tokens conv in
+          match Conversation_repair.validate truncated with
+          | Ok () -> ()
+          | Error msg ->
+            Alcotest.failf "block truncate max_tokens=%d invalid: %s"
+              max_tokens msg
         done);
 
       Alcotest.test_case "sliding_window_result_is_provider_valid" `Quick (fun () ->
