@@ -1106,6 +1106,11 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
   Fun.protect ~finally:release_active (fun () ->
   let text_part = Message.string_of_content content in
   let effective_workspace = Option.value workspace ~default:rt.workspace in
+  (* Capture this before building the context: minting a session below writes
+     [rt.session_id] when [update_current] is true, and reading it afterwards
+     would restore the invoke's own session instead of the caller's prior
+     state. *)
+  let previous_bus_session = !(rt.session_id) in
   let ctx = match context with
     | Some c -> c
     | None ->
@@ -1132,13 +1137,15 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
         ?on_tool_event
         ()
   in
-  let previous_bus_session = !(rt.session_id) in
   rt.services.event_bus.set_session_id_fn ctx.session_id;
   Fun.protect
     ~finally:(fun () ->
+      (* An unset prior session is restored to the bus's explicit empty state;
+         leaving the invoke's session behind would tag later events with a run
+         that already finished. *)
       match previous_bus_session with
       | Some sid -> rt.services.event_bus.set_session_id_fn sid
-      | None -> ())
+      | None -> rt.services.event_bus.set_session_id_fn "")
     (fun () -> Invoke_context.with_context ctx (fun () ->
   let result =
   let agent = htbl_get rt.agents agent_id in

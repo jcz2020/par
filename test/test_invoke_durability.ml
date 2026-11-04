@@ -250,6 +250,35 @@ let test_durable_writes_then_clears_the_checkpoint () =
    | Ok (Some _) -> Alcotest.fail "the checkpoint survived a successful run"
    | Error e -> Alcotest.failf "load: %s" (error_to_string e))
 
+(* The injected bus must not stay on a finished invoke's session. A runtime
+   with no prior session restores the bus's explicit empty state. *)
+let test_event_bus_session_is_restored_when_unset () =
+  Eio_main.run @@ fun _env ->
+  Eio.Switch.run @@ fun sw ->
+  with_sqlite @@ fun _sqlt persist ->
+  let sessions = ref [] in
+  let bus : event_bus_service = {
+    publish_fn = (fun _ -> ());
+    subscribe_fn = (fun _ -> "");
+    unsubscribe_fn = (fun _ -> ());
+    set_session_id_fn = (fun sid -> sessions := sid :: !sessions);
+    start_dispatcher_fn = (fun _ -> ());
+  } in
+  let rt = match create_runtime ~event_bus:bus ~persistence:persist
+                   ~llm:(scripted_llm [text_response "ok"]) sw with
+    | Ok rt -> rt
+    | Error e -> Alcotest.failf "create: %s" (error_to_string e)
+  in
+  Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) @@ fun () ->
+  ignore (Runtime.register_agent rt (make_agent "bus-agent"));
+  (match Runtime.invoke rt ~agent_id:"bus-agent" ~message:"hi" () with
+   | Ok _ -> ()
+   | Error (e, _) -> Alcotest.failf "invoke: %s" (error_to_string e));
+  match !sessions with
+  | last :: _ ->
+    Alcotest.(check string) "bus session restored to empty" "" last
+  | [] -> Alcotest.fail "the bus session was never set"
+
 (* The checkpoint must carry the context the run actually used. Recovery
    replays these values; a row without them silently falls back to runtime
    defaults, which is the drift schema version 2 exists to prevent. *)
@@ -913,6 +942,8 @@ let () =
         test_durable_writes_then_clears_the_checkpoint;
       Alcotest.test_case "checkpoint records the replay context" `Quick
         test_checkpoint_records_replay_context;
+      Alcotest.test_case "event bus session is restored when the runtime had none" `Quick
+        test_event_bus_session_is_restored_when_unset;
     ];
     "recovery", [
       Alcotest.test_case "resumes from the checkpoint without re-running tools" `Quick
