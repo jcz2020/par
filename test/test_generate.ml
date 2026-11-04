@@ -403,6 +403,33 @@ let test_invoke_generate_skill_overlay_applied () =
       (Some "original") capture.captured_system)
 
 (* -------------------------------------------------------------------------- *)
+(* Test 7: invoke_generate_update_current_false                              *)
+(* -------------------------------------------------------------------------- *)
+(* update_current:false controls the runtime's current session, not the
+   session this run uses. Two background runs therefore mint different ids;
+   with the default true, the second run reuses the first one's id. *)
+
+let test_invoke_generate_update_current_false () =
+  let counter = ref 0 in
+  let llm = mock_llm_tracked counter (List.init 4 (fun _ -> text_response "ok")) in
+  let agent = make_agent "generate-session-agent" "generate session fixture" in
+  with_invoke_runtime ~llm ~agent (fun rt ->
+    let run ?(update_current = true) () =
+      match Runtime.invoke_generate rt ~agent_id:"generate-session-agent"
+              ~message:"hi" ~save:false ~update_current () with
+      | Ok r -> r.session_id
+      | Error (e, _) -> Alcotest.failf "generate: %s" (error_to_string e)
+    in
+    let background_1 = run ~update_current:false () in
+    let background_2 = run ~update_current:false () in
+    Alcotest.(check bool) "each background run minted its own session"
+      true (background_1 <> background_2);
+    let current_1 = run () in
+    let current_2 = run () in
+    Alcotest.(check string) "update_current keeps the current session"
+      current_1 current_2)
+
+(* -------------------------------------------------------------------------- *)
 (* Test suite                                                                *)
 (* -------------------------------------------------------------------------- *)
 
@@ -430,5 +457,9 @@ let () =
     ("invoke_generate_skill_overlay_applied", [
       Alcotest.test_case "skill system_prompt_override applied" `Quick
         test_invoke_generate_skill_overlay_applied;
+    ]);
+    ("invoke_generate_update_current_false", [
+      Alcotest.test_case "background runs do not replace the current session" `Quick
+        test_invoke_generate_update_current_false;
     ]);
   ]

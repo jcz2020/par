@@ -1469,7 +1469,10 @@ let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
     | Some sid -> sid
     | None ->
       let new_sid = Session_id.to_string (Session_id.create ()) in
-      rt.session_id := Some new_sid;
+      (* [update_current] controls the runtime's current session, not the
+         session this run uses: a background generate must still report the id
+         it ran under. *)
+      if update_current then rt.session_id := Some new_sid;
       new_sid
   in
   rt.services.event_bus.set_session_id_fn session_id;
@@ -1527,7 +1530,7 @@ let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
       Result.Error (err, { Types.messages = []; metadata = [] })
     | Ok llm_svc ->
       let result = Generate.run
-        ~session_id:(Option.value !(rt.session_id) ~default:"unknown")
+        ~session_id
         ~agent:config
         ~message
         ?max_output_tokens

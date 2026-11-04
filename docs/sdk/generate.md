@@ -70,8 +70,11 @@ val Runtime.invoke_generate :
   message:string ->
   ?max_output_tokens:int ->
   ?total_timeout:float ->
+  ?save:bool ->
+  ?update_current:bool ->
   ?on_tool_event:(Types.event -> unit) ->
   ?on_chunk:(Types.llm_response_chunk -> unit) ->
+  ?system_prompt_appendix:string ->
   unit ->
   (Types.generate_result, Types.error_category * Types.conversation) result
 ```
@@ -82,6 +85,9 @@ Parameters:
 - `message` is the prompt or user message.
 - `max_output_tokens` is an optional per-call cap on the initial response. Continuations accumulate beyond this until a Stop condition fires. When omitted, the agent's `model.max_tokens` (or the provider default) applies.
 - `total_timeout` is an optional wall-clock cap on the entire generation, continuations included. When omitted, the generation runs unbounded (bounded only by the diminishing-returns guard and natural Stop).
+- `save` (default `true`) persists the generated conversation under the run's session. `save=false` leaves the conversation store untouched.
+- `update_current` (default `true`) makes the run's session the runtime's current session. Pass `false` for a background run: `generate_result.session_id` still reports the session it used, but the runtime's current session is not replaced, so two background runs mint separate sessions.
+- `system_prompt_appendix` appends text to the system prompt for this run only.
 - `on_tool_event` is an observation callback. It fires for `Llm_request_sent`, `Llm_response_received`, `Llm_response_truncated`, and `Generate_continuation`. No tool events fire because the generate path does not dispatch tools.
 - `on_chunk` is an optional streaming callback. It fires for each `llm_response_chunk` the provider emits, mirroring the `?on_chunk` shape on `Runtime.invoke`. Use it for live UIs that want to render text as it lands.
 

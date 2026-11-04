@@ -65,8 +65,11 @@ val Runtime.invoke_generate :
   message:string ->
   ?max_output_tokens:int ->
   ?total_timeout:float ->
+  ?save:bool ->
+  ?update_current:bool ->
   ?on_tool_event:(Types.event -> unit) ->
   ?on_chunk:(Types.llm_response_chunk -> unit) ->
+  ?system_prompt_appendix:string ->
   unit ->
   (Types.generate_result, Types.error_category * Types.conversation) result
 ```
@@ -77,6 +80,9 @@ val Runtime.invoke_generate :
 - `message` 是提示词或用户消息。
 - `max_output_tokens` 是可选的每次调用初始响应上限。续写在超过这个值后继续累积，直到触发 Stop 条件。省略时使用 agent 的 `model.max_tokens`（或 provider 默认值）。
 - `total_timeout` 是可选的对整个生成（包含续写）的 wall-clock 上限。省略时生成无界运行（只受递减收益保护和自然 Stop 约束）。
+- `save`（默认 `true`）把生成的会话持久化到本次运行的 session；`save=false` 不写会话存储。
+- `update_current`（默认 `true`）把本次运行的 session 设为 runtime 的当前 session。后台运行应传 `false`：`generate_result.session_id` 仍然报告本次使用的 session，但不会替换当前 session，因此两次后台运行会各自得到不同的 session。
+- `system_prompt_appendix` 仅对本次运行追加到系统提示词。
 - `on_tool_event` 是观察回调。它在 `Llm_request_sent`、`Llm_response_received`、`Llm_response_truncated`、`Generate_continuation` 时触发。不会触发任何工具事件，因为生成路径不分发工具。
 - `on_chunk` 是可选的流式回调。它在 provider 发出的每个 `llm_response_chunk` 上触发，形态与 `Runtime.invoke` 的 `?on_chunk` 一致。用于想让文本落地时实时渲染的 UI。
 
