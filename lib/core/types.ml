@@ -1355,10 +1355,19 @@ type invoke_checkpoint = {
   elapsed : float;
   enable_handoff : bool;
   tool_names : string list [@default []];
+  workspace_roots : string list option [@default None];
+  workspace_sensitive_prefixes : string list option [@default None];
+  system_prompt_appendix : string option [@default None];
+  skills : string list option [@default None];
   conversation : conversation;
   updated_at : float;
 }
 [@@deriving yojson]
+
+(** Current schema version written for invoke checkpoints. Version 2 adds the
+    workspace, appendix and skill snapshot that recovery replays; a v1 reader
+    would silently fall back to its own defaults, so it must refuse instead. *)
+let invoke_checkpoint_schema_version = 2
 
 type workflow_status =
   | Wf_pending

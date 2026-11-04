@@ -1277,11 +1277,16 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
                   invoke_id = id;
                   agent_id = step_agent.id;
                   session_id = ctx.session_id;
-                  schema_version = 1;
+                  schema_version = Types.invoke_checkpoint_schema_version;
                   iteration;
                   elapsed = base_elapsed +. (now -. invoke_start);
                   enable_handoff = Option.value enable_handoff ~default:false;
                   tool_names = List.map (fun (td : Types.tool_descriptor) -> td.name) step_agent.tools;
+                  workspace_roots = Some effective_workspace.Workspace.roots;
+                  workspace_sensitive_prefixes =
+                    Some effective_workspace.Workspace.policy.Workspace.sensitive_prefixes;
+                  system_prompt_appendix = ctx.system_prompt_appendix;
+                  skills = Some ctx.user_activated_skills_snapshot;
                   conversation = conv;
                   updated_at = now;
                 } in
@@ -2554,10 +2559,31 @@ let list_orphaned_invokes rt =
     acc := (id, agent_id) :: !acc);
   List.rev !acc
 
+(** Rebuild the workspace recorded by a checkpoint. A root that no longer
+    exists is an error, not a reason to fall back to a different root: the
+    recovered run would admit different paths. *)
+let workspace_of_checkpoint (cp : Types.invoke_checkpoint) =
+  match cp.workspace_roots with
+  | None -> Ok None
+  | Some roots ->
+    let policy =
+      match cp.workspace_sensitive_prefixes with
+      | Some sensitive_prefixes -> Workspace.make_policy ~sensitive_prefixes
+      | None -> Workspace.default_policy ()
+    in
+    (match Workspace.of_dirs ~policy roots with
+     | Ok ws -> Ok (Some ws)
+     | Error e ->
+       Result.Error (Invalid_input
+         (Printf.sprintf
+            "Cannot restore the checkpointed workspace [%s]: %s"
+            (String.concat ", " roots) (string_of_error_category e))))
+
 (** Resume a durable invoke whose writer died. Mirrors [recover_workflow]:
     only startup orphans are eligible (a live invoke would run twice), the
     caller must decide, and a checkpoint from a newer schema is refused. *)
-let recover_invoke rt ~invoke_id ?workspace ?cancellation_token ?on_tool_event ?on_chunk
+let recover_invoke rt ~invoke_id ?workspace ?system_prompt_appendix ?skills
+    ?cancellation_token ?on_tool_event ?on_chunk
     ?(update_current = true) ?(save = false) () =
   let empty_conv = { Types.messages = []; metadata = [] } in
   if not (Types.htbl_claim rt.recovering_invokes invoke_id) then
@@ -2588,11 +2614,11 @@ let recover_invoke rt ~invoke_id ?workspace ?cancellation_token ?on_tool_event ?
           (Printf.sprintf "Invoke %s is recorded as an orphan but has no checkpoint" invoke_id),
           empty_conv)
     | Ok (Some cp) ->
-      if cp.schema_version > 1 then
+      if cp.schema_version > Types.invoke_checkpoint_schema_version then
         Result.Error (Invalid_input
           (Printf.sprintf
-             "Checkpoint schema_version %d is newer than this runtime understands (1)"
-             cp.schema_version), empty_conv)
+             "Checkpoint schema_version %d is newer than this runtime understands (%d)"
+             cp.schema_version Types.invoke_checkpoint_schema_version), empty_conv)
       else if htbl_get rt.orphaned_invokes invoke_id = None then
         Result.Error (Invalid_input
           ("Invoke was not recorded as an orphan at startup; recovery only accepts runs \
@@ -2602,21 +2628,39 @@ let recover_invoke rt ~invoke_id ?workspace ?cancellation_token ?on_tool_event ?
           (Printf.sprintf "Agent '%s' is not registered (needed for recovery)" cp.agent_id),
           empty_conv)
       else
-        match invoke_content_internal rt ~agent_id:cp.agent_id ~content:[]
-                ?workspace ?cancellation_token ?on_tool_event ?on_chunk
-                ~resume:cp ~update_current ~save () with
-        | Ok _ as ok ->
-          (* A recovered run is no longer an orphan. Keep the entry on failure
-             so a transient cause (agent not registered yet) can be fixed and
-             retried. *)
-          htbl_remove rt.orphaned_invokes invoke_id;
-          ok
-        | Error (Cancelled _, _) as e ->
-          (* Cancellation is terminal: the checkpoint was removed above, so
-             the orphan entry must go too. *)
-          htbl_remove rt.orphaned_invokes invoke_id;
-          e
-        | Error _ as e -> e)
+        (* An explicit argument wins; otherwise replay what the checkpoint
+           recorded. A v1 row has no recorded values, so the runtime defaults
+           remain the only honest choice for it. *)
+        let workspace_result =
+          match workspace with
+          | Some _ -> Ok workspace
+          | None -> workspace_of_checkpoint cp
+        in
+        let system_prompt_appendix =
+          match system_prompt_appendix with
+          | Some _ -> system_prompt_appendix
+          | None -> cp.system_prompt_appendix
+        in
+        let skills = match skills with Some _ -> skills | None -> cp.skills in
+        match workspace_result with
+        | Error e -> Result.Error (e, empty_conv)
+        | Ok workspace ->
+          match invoke_content_internal rt ~agent_id:cp.agent_id ~content:[]
+                  ?workspace ?system_prompt_appendix ?skills
+                  ?cancellation_token ?on_tool_event ?on_chunk
+                  ~resume:cp ~update_current ~save () with
+          | Ok _ as ok ->
+            (* A recovered run is no longer an orphan. Keep the entry on failure
+               so a transient cause (agent not registered yet) can be fixed and
+               retried. *)
+            htbl_remove rt.orphaned_invokes invoke_id;
+            ok
+          | Error (Cancelled _, _) as e ->
+            (* Cancellation is terminal: the checkpoint was removed above, so
+               the orphan entry must go too. *)
+            htbl_remove rt.orphaned_invokes invoke_id;
+            e
+          | Error _ as e -> e)
 
 let approve_workflow rt wf_id ~approver =
   match htbl_get rt.workflows wf_id with

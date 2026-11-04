@@ -21,6 +21,7 @@
 | 2026-11-03 | 9 | 注入的 event_bus 与内部持久化总线组合而非二选一 | API 级 | 架构正确 |
 | 2026-11-03 | 10 | 上下文窗口未知即跳过主动压缩；截断/请求边界统一修复 tool pair | API 级 + 架构级 | 架构正确（1 处 R2 妥协） |
 | 2026-11-03 | 11 | 分支会话/会话枚举/工具分层的 API 形状 | API 级 + 架构级 | 架构正确 |
+| 2026-11-04 | 12 | invoke 检查点 schema v2：重放 workspace/appendix/skills | API 级 + 架构级 | 架构正确 |
 
 ---
 
@@ -486,6 +487,28 @@ MCP server 目前**不能**让模型直接调用其工具：`tool_registry.ml` �
 **§11 R2 范围妥协**: `blocking_approval` 仍未实现（字段保留自 v0.8.0）。**退役触发**: 下游需要 branch-level blocking approval 时单独实现。
 
 **回退方式**: 移除 `context_window` 字段 + resolver 分支；恢复 `successes` tuple；移除 `load_conversations_fn`（及 SQLite/FFI/Python 接线）；移除 `?layer`/`set_tool_layer`；恢复 `save_conversation` 使用 `rt.session_id`。
+
+---
+
+## #12: invoke 检查点 schema v2——重放 workspace/appendix/skills
+
+**日期**: 2026-11-04
+**触发**: v0.15 review 发现 `recover_invoke` 重建了全新的 `Invoke_context`：崩溃前使用的 workspace、`system_prompt_appendix`、已激活 skill 快照全部丢失，恢复后的运行会静默改用 runtime 默认值。
+
+### 决策
+
+1. **在 `invoke_checkpoint` 中记录运行上下文**：`workspace_roots`、`workspace_sensitive_prefixes`、`system_prompt_appendix`、`skills`。恢复时优先使用调用方显式传入的参数，否则重放检查点记录值。
+2. **workspace 记录 roots + policy，而不是只记录主目录**。多根 workspace 与自定义 sensitive-prefix 策略都会影响路径放行；只存一个路径会改变安全语义。恢复用 `Workspace.of_dirs ~policy` 重建。
+3. **记录中的 workspace 根目录不存在时拒绝恢复**，不回退到 runtime 默认 workspace。回退会放行与崩溃前不同的路径集合，属于静默安全漂移。
+4. **invoke checkpoint schema 升到 2**。新增字段对旧 reader 是可忽略的，这恰恰意味着旧 runtime 会静默丢掉上下文；升版本让旧 runtime 走“拒绝而不是猜测”的既有路径（配合同批的“保留更新版行”修复）。
+
+**§11 R1 标注**: **架构正确**。恢复语义的完整性属于持久化执行原语的一部分，不是新功能；扩展的是已有 checkpoint 类型与已有 `Invoke_context` 字段，没有引入并行抽象。schema bump 也复用已有的版本校验机制。
+
+**§11 R2 范围妥协**: 无新增妥协。明确不持久化、也不假装持久化的内容：`tool_search` 动态提升、调用方回调（`on_tool_event`/`on_chunk`）、steering/follow-up 队列。它们要么是每进程状态，要么可由调用方在 `recover_invoke` 时重新传入。
+
+**影响范围**: `types.ml/.mli`（字段 + 版本常量）、`runtime.ml/.mli`（写入与恢复路径、`?system_prompt_appendix`/`?skills`）、`sqlite_persistence.ml`（版本判断）、`test_invoke_durability.ml`、文档 EN+ZH。
+
+**回退方式**: 删除四个字段与版本常量，恢复 `recover_invoke` 的旧签名；已写入的 v2 行会被回退后的 runtime 以“更新 schema”拒绝，这正是期望行为，不需要数据迁移。
 
 ---
 

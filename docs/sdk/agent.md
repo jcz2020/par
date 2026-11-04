@@ -371,6 +371,8 @@ val Runtime.recover_invoke :
   runtime ->
   invoke_id:string ->
   ?workspace:Workspace.workspace ->
+  ?system_prompt_appendix:string ->
+  ?skills:string list ->
   ?cancellation_token:cancellation_token ->
   ?on_tool_event:(event -> unit) ->
   ?on_chunk:(llm_response_chunk -> unit) option ->
@@ -408,7 +410,7 @@ Recovery semantics:
 - only ids rehydrated at startup are eligible for recovery; an invoke still in flight in this process is refused, because recovering it would execute it twice;
 - re-using an orphan's id for a fresh invoke is refused as well — call `recover_invoke`, or start with a new id;
 - the checkpoint records the agent actually running the batch, so a run recovered after a handoff continues as the target agent;
-- the system prompt and the static tool set are replayed as recorded, so a skill change between crash and recovery does not alter what the resumed run sees (dynamic `tool_search` promotions are not replayed);
+- the system prompt, static tool set, workspace, appendix and skill snapshot are replayed as recorded (`schema_version` 2), so recovery keeps the same path admission and prompt composition; a recorded workspace root that no longer exists refuses recovery instead of falling back to a different workspace (dynamic `tool_search` promotions and caller steering queues are not replayed);
 - a checkpoint whose `schema_version` is newer than the runtime understands is refused; if its shape cannot be decoded, the row is kept at startup and the refusal names the version.
 
 A run suspended for approval is not recoverable this way: the approvals row owns that state, `Runtime.resume_approval` is its resume path, and that row expires (300 seconds by default). Checkpoint writes are best-effort: a failure is logged and published as `Invoke_checkpoint_failed`, but the run continues and that step is not recoverable.

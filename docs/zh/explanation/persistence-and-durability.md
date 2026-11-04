@@ -30,7 +30,7 @@ PAR 把持久化视为*最终一致的审计日志*，而非事务性状态存�
 
 Agent 循环有自己的崩溃恢复路径，而且是可选的。`Runtime.invoke ~durable:true`（或给运行起名 `~invoke_id`）会在第 0 次迭代后、以及每个完成的工具批次后，往 `invoke_checkpoints` 表写一次检查点。该行只在运行期间存在：任何终止结果——成功、失败、主动取消、因审批挂起——都会删除它，因此活过进程的行是「没有跑完就停止的写入者」留下的。
 
-需要恢复时请自己给运行起名：`~invoke_id:"order-42"`。自动生成的 id 只出现在 `invoke_result.invoke_id` 里，而崩溃的进程永远返回不了它。重启后，`Runtime.create` 读回遗留的行、对每行发一次 `Invoke_orphaned`；`Runtime.list_orphaned_invokes` 以 `(invoke_id, agent_id)` 返回它们。该事件在 `create` 执行期间发布，所以订阅必须在创建 runtime 之前挂好——或者在创建之后直接调用 `list_orphaned_invokes`。`Runtime.recover_invoke rt ~invoke_id` 带着检查点里的会话、迭代计数与已耗时预算重新进入循环。
+需要恢复时请自己给运行起名：`~invoke_id:"order-42"`。自动生成的 id 只出现在 `invoke_result.invoke_id` 里，而崩溃的进程永远返回不了它。重启后，`Runtime.create` 读回遗留的行、对每行发一次 `Invoke_orphaned`；`Runtime.list_orphaned_invokes` 以 `(invoke_id, agent_id)` 返回它们。该事件在 `create` 执行期间发布，所以订阅必须在创建 runtime 之前挂好——或者在创建之后直接调用 `list_orphaned_invokes`。`Runtime.recover_invoke rt ~invoke_id` 带着检查点里的会话、迭代计数、已耗时预算、workspace、appendix 与 skill 快照重新进入循环。
 
 语义与工作流一致：
 
@@ -41,7 +41,7 @@ Agent 循环有自己的崩溃恢复路径，而且是可选的。`Runtime.invok
 
 检查点记录的是**实际在跑**的 agent。handoff 之后就是目标 agent，因此恢复时使用的是目标 agent 的工具，而不是调用方最初指定的那套。
 
-三条需要如实说明的限制。系统提示词从检查点原样重放，而不是重新计算，静态工具集也按记录重放（包含 skill 驱动的过滤）——崩溃与恢复之间修改 skill 或 appendix 不会生效。`tool_search` 的动态提升不会重放：恢复后的运行从检查点里的静态工具集开始。因审批挂起的运行不走这条路：`approvals` 行拥有那个状态，恢复入口是 `Runtime.resume_approval`，而该行带过期时间（默认 300 秒），过期后无法再恢复。检查点写入是 best-effort：写失败会记录日志并发布 `Invoke_checkpoint_failed`，但运行继续，因此那一步不可恢复。
+需要如实说明的限制。上下文按记录重放而不是重新计算：系统提示词与静态工具集来自检查点（包含 skill 驱动的过滤），`schema_version` 2 还会记录 invoke 使用的 workspace、appendix 与 skill 快照，因此恢复后的运行会放行相同的路径、重组相同的提示词。记录中的 workspace 根目录若已不存在，恢复会被拒绝，而不是回退到另一个 workspace。仍有两项不会重放：`tool_search` 的动态提升（恢复后的运行从检查点里的静态工具集开始），以及调用方回调与 steering/follow-up 队列（需要在 `recover_invoke` 时重新传入）。因审批挂起的运行不走这条路：`approvals` 行拥有那个状态，恢复入口是 `Runtime.resume_approval`，而该行带过期时间（默认 300 秒），过期后无法再恢复。检查点写入是 best-effort：写失败会记录日志并发布 `Invoke_checkpoint_failed`，但运行继续，因此那一步不可恢复。
 
 检查点在 invoke 所在的 fiber 上同步写入，不经过批量事件写入器。这是刻意的——进程死亡时可能还在缓冲区里的检查点不算检查点——也是持久化必须可选的原因：长工具循环每个批次都要付一次会话大小的写入。这也意味着 `Runtime.close` 应在 runtime 空闲时调用：它会关闭持久化句柄，之后落地的检查点写入或删除都会失败（并按上面所述上报）。
 

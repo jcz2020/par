@@ -1072,10 +1072,25 @@ type invoke_checkpoint = {
      overrides. Recovery replays it instead of recomputing skill effects from a
      conversation that may have grown since. Empty means "not recorded". *)
   tool_names : string list [@default []];
+  (* Workspace in effect for the run. Recovery reconstructs it so file and
+     bash tools keep admitting the same roots; [None] on v1 rows means the
+     runtime default is the only honest choice. *)
+  workspace_roots : string list option [@default None];
+  workspace_sensitive_prefixes : string list option [@default None];
+  (* Effective invoke context values. The checkpointed conversation already
+     carries the appendix in its system message, but a mid-recovery handoff
+     recomposes the new agent's prompt from the context, so it is recorded
+     explicitly. [None] on v1 rows. *)
+  system_prompt_appendix : string option [@default None];
+  skills : string list option [@default None];
   conversation : conversation;
   updated_at : float;
 }
 [@@deriving yojson]
+
+val invoke_checkpoint_schema_version : int
+(** Schema version this runtime writes. A checkpoint with a higher number is
+    refused rather than guessed at. *)
 
 type workflow_status =
   | Wf_pending

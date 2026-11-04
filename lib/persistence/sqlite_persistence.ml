@@ -705,8 +705,8 @@ let newer_invoke_schema_error invoke_id version =
   Result.Error (Invalid_input
     (Printf.sprintf
        "Checkpoint %s was written with schema_version %d, newer than this \
-        runtime understands (1)"
-       invoke_id version))
+        runtime understands (%d)"
+       invoke_id version invoke_checkpoint_schema_version))
 
 (** A row that cannot be decoded is reported, not guessed at: recovery must not
     resume from a checkpoint this runtime does not understand. A newer schema
@@ -729,7 +729,7 @@ let load_invoke_checkpoint t invoke_id =
          | Ok cp -> Ok (Some cp)
          | Error msg ->
            (match raw_invoke_schema_version state_json with
-            | Some version when version > 1 ->
+            | Some version when version > invoke_checkpoint_schema_version ->
               newer_invoke_schema_error invoke_id version
             | _ ->
               Result.Error (Internal
@@ -770,7 +770,7 @@ let list_invoke_checkpoints t =
            | Ok cp -> acc := cp :: !acc
            | Error msg ->
              (match raw_invoke_schema_version state_json with
-              | Some version when version > 1 ->
+              | Some version when version > invoke_checkpoint_schema_version ->
                 (* Written by a newer runtime: keep the row so that runtime can
                    still recover it, and so this one can explain the refusal. *)
                 Logs.warn (fun m -> m

@@ -583,6 +583,8 @@ val recover_invoke :
   runtime ->
   invoke_id:string ->
   ?workspace:Workspace.workspace ->
+  ?system_prompt_appendix:string ->
+  ?skills:string list ->
   ?cancellation_token:cancellation_token ->
   ?on_tool_event:(event -> unit) ->
   ?on_chunk:(llm_response_chunk -> unit) option ->
@@ -597,7 +599,14 @@ val recover_invoke :
     Only ids rehydrated at [Runtime.create] time are eligible, and an invoke
     still in flight in this process is refused, because recovering a live run
     would execute it twice. A checkpoint from a newer schema is refused rather
-    than guessed at. *)
+    than guessed at.
+
+    The checkpointed workspace, [system_prompt_appendix] and skill list are
+    replayed so the resumed run keeps admitting and composing the same context.
+    Explicit arguments win; a recorded workspace whose root no longer exists is
+    an error rather than a silent fallback to the runtime default. Caller
+    callbacks ([on_tool_event], [on_chunk]), steering and follow-up queues are
+    not part of the checkpoint and must be supplied again when needed. *)
 
 val tool_registry : runtime -> Tool_registry.t
 

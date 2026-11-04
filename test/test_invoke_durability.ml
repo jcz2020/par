@@ -94,6 +94,14 @@ let with_sqlite f =
        | Error e -> Alcotest.failf "sqlite create: %s" (error_to_string e)
        | Ok sqlt -> f sqlt (persistence_of sqlt))
 
+let with_temp_dir f =
+  let dir = Filename.temp_file "par_invoke_ws" "" in
+  Sys.remove dir;
+  Unix.mkdir dir 0o755;
+  Fun.protect
+    ~finally:(fun () -> try Unix.rmdir dir with Unix.Unix_error _ -> ())
+    (fun () -> f dir)
+
 (* -------------------------------------------------------------------------- *)
 (* Fixtures                                                                   *)
 (* -------------------------------------------------------------------------- *)
@@ -242,6 +250,60 @@ let test_durable_writes_then_clears_the_checkpoint () =
    | Ok (Some _) -> Alcotest.fail "the checkpoint survived a successful run"
    | Error e -> Alcotest.failf "load: %s" (error_to_string e))
 
+(* The checkpoint must carry the context the run actually used. Recovery
+   replays these values; a row without them silently falls back to runtime
+   defaults, which is the drift schema version 2 exists to prevent. *)
+let test_checkpoint_records_replay_context () =
+  Eio_main.run @@ fun _env ->
+  Eio.Switch.run @@ fun sw ->
+  with_sqlite @@ fun sqlt persist ->
+  with_temp_dir @@ fun dir ->
+  let ws = match Workspace.of_dir dir with
+    | Ok ws -> ws
+    | Error e -> Alcotest.failf "workspace: %s" (error_to_string e)
+  in
+  let seen = ref None in
+  let rt = match create_runtime ~persistence:persist
+                   ~llm:(scripted_llm [
+                       tool_call_response [{ id = "tc-1"; name = "probe";
+                                             arguments = `Assoc [] }];
+                       text_response "done";
+                     ]) sw with
+    | Ok rt -> rt
+    | Error e -> Alcotest.failf "create: %s" (error_to_string e)
+  in
+  Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) @@ fun () ->
+  let tb = match Runtime.register_tool rt ~name:"probe"
+                  ~description:"inspects the in-flight row"
+                  ~input_schema:(`Assoc [])
+                  ~handler:(fun _ _ ->
+                    seen := Sqlite_persistence.load_invoke_checkpoint sqlt "ctx-1"
+                            |> Result.to_option |> Option.join;
+                    Success (`String "ok")) () with
+    | Ok tb -> tb
+    | Error e -> Alcotest.failf "register_tool: %s" (error_to_string e)
+  in
+  ignore (Runtime.register_agent rt (make_agent ~tools:[tb] "durable-agent"));
+  (match Runtime.invoke rt ~agent_id:"durable-agent" ~message:"hi"
+           ~invoke_id:"ctx-1" ~workspace:ws
+           ~system_prompt_appendix:"APPENDIX-TEXT" ~skills:["skill-a"] () with
+   | Ok _ -> ()
+   | Error (e, _) -> Alcotest.failf "invoke: %s" (error_to_string e));
+  match !seen with
+  | None -> Alcotest.fail "no checkpoint existed while the tool was running"
+  | Some cp ->
+    Alcotest.(check int) "current schema"
+      Types.invoke_checkpoint_schema_version cp.schema_version;
+    Alcotest.(check (option (list string))) "workspace roots"
+      (Some ws.Workspace.roots) cp.workspace_roots;
+    Alcotest.(check (option (list string))) "workspace policy"
+      (Some ws.Workspace.policy.Workspace.sensitive_prefixes)
+      cp.workspace_sensitive_prefixes;
+    Alcotest.(check (option string)) "appendix" (Some "APPENDIX-TEXT")
+      cp.system_prompt_appendix;
+    Alcotest.(check (option (list string))) "skills" (Some ["skill-a"])
+      cp.skills
+
 (* -------------------------------------------------------------------------- *)
 (* Crash recovery                                                             *)
 (* -------------------------------------------------------------------------- *)
@@ -256,7 +318,9 @@ let seeded_conversation () : conversation = {
   metadata = [];
 }
 
-let seed_checkpoint ?(schema_version = 1) ~invoke_id ~agent_id sqlt =
+let seed_checkpoint ?(schema_version = 1) ?workspace_roots
+    ?workspace_sensitive_prefixes ?system_prompt_appendix ?skills
+    ~invoke_id ~agent_id sqlt =
   let cp : invoke_checkpoint = {
     invoke_id;
     agent_id;
@@ -266,6 +330,10 @@ let seed_checkpoint ?(schema_version = 1) ~invoke_id ~agent_id sqlt =
     elapsed = 0.5;
     enable_handoff = false;
     tool_names = ["echo"];
+    workspace_roots;
+    workspace_sensitive_prefixes;
+    system_prompt_appendix;
+    skills;
     conversation = seeded_conversation ();
     updated_at = Unix.gettimeofday ();
   } in
@@ -331,7 +399,7 @@ let test_newer_schema_is_refused () =
   Eio_main.run @@ fun _env ->
   Eio.Switch.run @@ fun sw ->
   with_sqlite @@ fun sqlt persist ->
-  seed_checkpoint ~schema_version:2 ~invoke_id:"future-1"
+  seed_checkpoint ~schema_version:3 ~invoke_id:"future-1"
     ~agent_id:"durable-agent" sqlt;
   let rt = match create_runtime ~persistence:persist
                    ~llm:(scripted_llm []) sw with
@@ -344,6 +412,77 @@ let test_newer_schema_is_refused () =
   | Ok _ -> Alcotest.fail "a newer checkpoint schema must be refused"
   | Error (Invalid_input msg, _) ->
     Alcotest.(check bool) "explains the version" true (contains msg "schema_version")
+  | Error (e, _) -> Alcotest.failf "expected Invalid_input, got %s" (error_to_string e)
+
+(* Recovery must re-enter with the workspace, appendix and skill snapshot the
+   checkpoint recorded, not with whatever the fresh runtime happens to hold. *)
+let test_recovery_replays_workspace_appendix_and_skills () =
+  Eio_main.run @@ fun _env ->
+  Eio.Switch.run @@ fun sw ->
+  with_sqlite @@ fun sqlt persist ->
+  with_temp_dir @@ fun dir ->
+  let ws = match Workspace.of_dir dir with
+    | Ok ws -> ws
+    | Error e -> Alcotest.failf "workspace: %s" (error_to_string e)
+  in
+  seed_checkpoint ~schema_version:Types.invoke_checkpoint_schema_version
+    ~workspace_roots:ws.Workspace.roots
+    ~workspace_sensitive_prefixes:ws.Workspace.policy.Workspace.sensitive_prefixes
+    ~system_prompt_appendix:"APP" ~skills:["skill-a"]
+    ~invoke_id:"ctx-2" ~agent_id:"durable-agent" sqlt;
+  let seen_ctx = ref None in
+  let llm_called = ref false in
+  let rebuilt_ws = ref None in
+  let rt = match create_runtime ~persistence:persist
+                   ~llm:(mock_llm (fun _conv ->
+                       llm_called := true;
+                       seen_ctx := Invoke_context.get_current ();
+                       text_response "resumed")) sw with
+    | Ok rt -> rt
+    | Error e -> Alcotest.failf "create: %s" (error_to_string e)
+  in
+  Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) @@ fun () ->
+  ignore (Runtime.register_agent rt (make_agent "durable-agent"));
+  Runtime.register_file_tools_rebuild rt (fun ws ->
+    rebuilt_ws := Some ws.Workspace.roots;
+    []);
+  (match Runtime.recover_invoke rt ~invoke_id:"ctx-2" () with
+   | Ok _ -> ()
+   | Error (e, _) -> Alcotest.failf "recover: %s" (error_to_string e));
+  Alcotest.(check (option (list string)))
+    "the per-call registry received the checkpointed workspace"
+    (Some ws.Workspace.roots) !rebuilt_ws;
+  (if not !llm_called then Alcotest.fail "the model was not called");
+  match !seen_ctx with
+  | None -> Alcotest.fail "the model ran outside an invoke context"
+  | Some ctx ->
+    Alcotest.(check (option string)) "appendix replayed" (Some "APP")
+      ctx.Invoke_context.system_prompt_appendix;
+    Alcotest.(check (list string)) "skills replayed" ["skill-a"]
+      ctx.Invoke_context.user_activated_skills_snapshot
+
+(* A recorded root that no longer exists must fail closed. Falling back to the
+   runtime default would admit a different set of paths than the crashed run. *)
+let test_recovery_refuses_a_missing_workspace_root () =
+  Eio_main.run @@ fun _env ->
+  Eio.Switch.run @@ fun sw ->
+  with_sqlite @@ fun sqlt persist ->
+  let missing = Filename.temp_file "par_missing_ws" "" in
+  Sys.remove missing;
+  seed_checkpoint ~schema_version:Types.invoke_checkpoint_schema_version
+    ~workspace_roots:[missing] ~invoke_id:"ctx-3" ~agent_id:"durable-agent" sqlt;
+  let rt = match create_runtime ~persistence:persist
+                   ~llm:(scripted_llm [text_response "unused"]) sw with
+    | Ok rt -> rt
+    | Error e -> Alcotest.failf "create: %s" (error_to_string e)
+  in
+  Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) @@ fun () ->
+  ignore (Runtime.register_agent rt (make_agent "durable-agent"));
+  match Runtime.recover_invoke rt ~invoke_id:"ctx-3" () with
+  | Ok _ -> Alcotest.fail "a missing workspace root must refuse recovery"
+  | Error (Invalid_input msg, _) ->
+    Alcotest.(check bool) "names the workspace" true
+      (contains msg "Cannot restore the checkpointed workspace")
   | Error (e, _) -> Alcotest.failf "expected Invalid_input, got %s" (error_to_string e)
 
 (* A run created by this process is live, not an orphan. Recovering it would
@@ -706,7 +845,7 @@ let test_newer_schema_undecodable_row_is_preserved () =
   let db = Sqlite_persistence.raw_sqlite3_db sqlt in
   let state_json =
     {|{"invoke_id":"future-2","agent_id":"durable-agent","session_id":"sess-1",|} ^
-    {|"schema_version":2,"iteration":1,"elapsed":0.5,"enable_handoff":false,|} ^
+    {|"schema_version":3,"iteration":1,"elapsed":0.5,"enable_handoff":false,|} ^
     {|"tool_names":[],"conversation":{"messages":"not-a-list","metadata":[]},|} ^
     {|"updated_at":1.0}|}
   in
@@ -772,6 +911,8 @@ let () =
     "lifecycle", [
       Alcotest.test_case "checkpoint written in flight, cleared on success" `Quick
         test_durable_writes_then_clears_the_checkpoint;
+      Alcotest.test_case "checkpoint records the replay context" `Quick
+        test_checkpoint_records_replay_context;
     ];
     "recovery", [
       Alcotest.test_case "resumes from the checkpoint without re-running tools" `Quick
@@ -780,6 +921,10 @@ let () =
         test_newer_schema_is_refused;
       Alcotest.test_case "newer undecodable row is preserved and refused" `Quick
         test_newer_schema_undecodable_row_is_preserved;
+      Alcotest.test_case "replays workspace, appendix and skills" `Quick
+        test_recovery_replays_workspace_appendix_and_skills;
+      Alcotest.test_case "a missing workspace root fails closed" `Quick
+        test_recovery_refuses_a_missing_workspace_root;
       Alcotest.test_case "a run started in this process is refused" `Quick
         test_a_live_run_is_not_recoverable;
       Alcotest.test_case "an orphan id cannot be reused" `Quick

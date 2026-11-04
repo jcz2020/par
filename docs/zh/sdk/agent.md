@@ -359,6 +359,8 @@ val Runtime.recover_invoke :
   runtime ->
   invoke_id:string ->
   ?workspace:Workspace.workspace ->
+  ?system_prompt_appendix:string ->
+  ?skills:string list ->
   ?cancellation_token:cancellation_token ->
   ?on_tool_event:(event -> unit) ->
   ?on_chunk:(llm_response_chunk -> unit) option ->
@@ -396,7 +398,7 @@ List.iter (fun (invoke_id, _agent_id) ->
 - 只有启动时重水化的 id 才有资格恢复；本进程仍在运行的 invoke 会被拒绝，因为恢复它会导致双重执行；
 - 用孤儿的 id 发起新 invoke 同样会被拒绝——应调用 `recover_invoke`，或换一个新 id；
 - 检查点记录的是**实际在跑**的 agent，因此 handoff 之后恢复的运行会以目标 agent 继续；
-- 系统提示词与静态工具集按记录重放，因此崩溃与恢复之间修改 skill 不会改变恢复后的运行所见（`tool_search` 的动态提升不会重放）；
+- 系统提示词、静态工具集、workspace、appendix 与 skill 快照按记录重放（`schema_version` 2），恢复后的运行保持相同的路径放行与提示词组合；记录中的 workspace 根目录若已不存在，恢复会被拒绝而不是回退到另一个 workspace（`tool_search` 的动态提升与调用方 steering 队列不会重放）；
 - `schema_version` 比运行时能理解的新时，检查点被拒绝；如果其形状无法解码，启动时会保留该行，拒绝信息会说明版本。
 
 因审批挂起的运行不走这条路：`approvals` 行拥有那个状态，恢复入口是 `Runtime.resume_approval`，而该行带过期时间（默认 300 秒）。检查点写入是 best-effort：失败会记录日志并发布 `Invoke_checkpoint_failed`，但运行继续，那一步不可恢复。
