@@ -687,8 +687,30 @@ let save_invoke_checkpoint t (cp : invoke_checkpoint) =
                                 (Sqlite3.Rc.to_string rc)))
   )
 
+(** The raw schema version is readable even when the rest of the payload is
+    not: a writer that bumped the schema may also have changed a shape this
+    runtime cannot decode. Such a row is newer, not corrupt. *)
+let raw_invoke_schema_version state_json =
+  match
+    try Some (Yojson.Safe.from_string state_json)
+    with Yojson.Json_error _ -> None
+  with
+  | Some (`Assoc _ as json) ->
+    (match Yojson.Safe.Util.member "schema_version" json with
+     | `Int n -> Some n
+     | _ -> None)
+  | _ -> None
+
+let newer_invoke_schema_error invoke_id version =
+  Result.Error (Invalid_input
+    (Printf.sprintf
+       "Checkpoint %s was written with schema_version %d, newer than this \
+        runtime understands (1)"
+       invoke_id version))
+
 (** A row that cannot be decoded is reported, not guessed at: recovery must not
-    resume from a checkpoint this runtime does not understand. *)
+    resume from a checkpoint this runtime does not understand. A newer schema
+    is called out as such instead of being misreported as corruption. *)
 let load_invoke_checkpoint t invoke_id =
   Eio.Mutex.use_ro t.mutex (fun () ->
     let stmt =
@@ -706,8 +728,13 @@ let load_invoke_checkpoint t invoke_id =
          with
          | Ok cp -> Ok (Some cp)
          | Error msg ->
-           Result.Error (Internal
-             (Printf.sprintf "load_invoke_checkpoint decode (%s): %s" invoke_id msg)))
+           (match raw_invoke_schema_version state_json with
+            | Some version when version > 1 ->
+              newer_invoke_schema_error invoke_id version
+            | _ ->
+              Result.Error (Internal
+                (Printf.sprintf "load_invoke_checkpoint decode (%s): %s"
+                   invoke_id msg))))
       | Sqlite3.Rc.DONE -> Ok None
       | rc ->
         Result.Error (Internal (Printf.sprintf "load_invoke_checkpoint: %s"
@@ -742,10 +769,19 @@ let list_invoke_checkpoints t =
            with
            | Ok cp -> acc := cp :: !acc
            | Error msg ->
-             corrupt := invoke_id :: !corrupt;
-             Logs.err (fun m -> m
-               "sqlite_persistence: dropping undecodable invoke checkpoint %s: %s"
-               invoke_id msg))
+             (match raw_invoke_schema_version state_json with
+              | Some version when version > 1 ->
+                (* Written by a newer runtime: keep the row so that runtime can
+                   still recover it, and so this one can explain the refusal. *)
+                Logs.warn (fun m -> m
+                  "sqlite_persistence: preserving invoke checkpoint %s with \
+                   newer schema_version %d"
+                  invoke_id version)
+              | _ ->
+                corrupt := invoke_id :: !corrupt;
+                Logs.err (fun m -> m
+                  "sqlite_persistence: dropping undecodable invoke checkpoint %s: %s"
+                  invoke_id msg)))
         | Sqlite3.Rc.DONE -> stop := true
         | rc ->
           stop := true;
@@ -757,8 +793,9 @@ let list_invoke_checkpoints t =
       | None -> Ok (List.rev !acc)
     in
     let _ = Sqlite3.finalize stmt in
-    (* An undecodable row can never be recovered. Leaving it would re-report the
-       same failure at every startup. *)
+    (* A corrupt row can never be recovered. Leaving it would re-report the same
+       failure at every startup. Newer-schema rows are not in this list: they
+       may be recoverable by the runtime that wrote them, so they stay. *)
     List.iter (fun invoke_id ->
       let stmt = Sqlite3.prepare t.db "DELETE FROM invoke_checkpoints WHERE invoke_id = ?" in
       let _ = Sqlite3.bind_text stmt 1 invoke_id in

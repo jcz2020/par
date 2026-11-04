@@ -696,6 +696,50 @@ let test_durable_requires_a_backend () =
       (contains msg "persistence backend")
   | Error (e, _) -> Alcotest.failf "expected Invalid_input, got %s" (error_to_string e)
 
+(* A newer writer may change a shape this runtime cannot decode. The row must
+   survive startup (the newer runtime still owns it) and recovery must say the
+   schema is newer rather than claiming the row is missing. *)
+let test_newer_schema_undecodable_row_is_preserved () =
+  Eio_main.run @@ fun _env ->
+  Eio.Switch.run @@ fun sw ->
+  with_sqlite @@ fun sqlt persist ->
+  let db = Sqlite_persistence.raw_sqlite3_db sqlt in
+  let state_json =
+    {|{"invoke_id":"future-2","agent_id":"durable-agent","session_id":"sess-1",|} ^
+    {|"schema_version":2,"iteration":1,"elapsed":0.5,"enable_handoff":false,|} ^
+    {|"tool_names":[],"conversation":{"messages":"not-a-list","metadata":[]},|} ^
+    {|"updated_at":1.0}|}
+  in
+  let sql =
+    Printf.sprintf
+      "INSERT INTO invoke_checkpoints (invoke_id, state_json, updated_at) \
+       VALUES ('future-2', '%s', 1.0)" state_json
+  in
+  (match Sqlite3.exec db sql with
+   | Sqlite3.Rc.OK -> ()
+   | rc -> Alcotest.failf "seed newer row: %s" (Sqlite3.Rc.to_string rc));
+  let rt = match create_runtime ~persistence:persist
+                   ~llm:(scripted_llm []) sw with
+    | Ok rt -> rt
+    | Error e -> Alcotest.failf "create: %s" (error_to_string e)
+  in
+  Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) @@ fun () ->
+  ignore (Runtime.register_agent rt (make_agent "durable-agent"));
+  Alcotest.(check (list (pair string string))) "not offered as a v1 orphan" []
+    (Runtime.list_orphaned_invokes rt);
+  (match Sqlite_persistence.load_invoke_checkpoint sqlt "future-2" with
+   | Ok None -> Alcotest.fail "the newer-schema row was deleted at startup"
+   | Ok (Some _) -> Alcotest.fail "a shape-incompatible v2 row was decoded as v1"
+   | Error (Invalid_input msg) ->
+     Alcotest.(check bool) "names the schema version" true
+       (contains msg "schema_version")
+   | Error e -> Alcotest.failf "expected Invalid_input, got %s" (error_to_string e));
+  match Runtime.recover_invoke rt ~invoke_id:"future-2" () with
+  | Ok _ -> Alcotest.fail "a newer checkpoint schema must be refused"
+  | Error (Invalid_input msg, _) ->
+    Alcotest.(check bool) "explains the version" true (contains msg "schema_version")
+  | Error (e, _) -> Alcotest.failf "expected Invalid_input, got %s" (error_to_string e)
+
 (* A corrupt row must not take startup down (the v0.14 lesson), and it must not
    be reported as recoverable either. *)
 let test_corrupt_row_does_not_crash_startup () =
@@ -734,6 +778,8 @@ let () =
         test_recovery_resumes_from_the_checkpoint;
       Alcotest.test_case "newer checkpoint schema is refused" `Quick
         test_newer_schema_is_refused;
+      Alcotest.test_case "newer undecodable row is preserved and refused" `Quick
+        test_newer_schema_undecodable_row_is_preserved;
       Alcotest.test_case "a run started in this process is refused" `Quick
         test_a_live_run_is_not_recoverable;
       Alcotest.test_case "an orphan id cannot be reused" `Quick

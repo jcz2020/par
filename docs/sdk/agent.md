@@ -405,11 +405,11 @@ Recovery semantics:
 
 - **at-least-once** — the iteration that was in progress runs again. The checkpoint is taken after a completed batch, so the interrupted iteration's assistant turn was never persisted: the model is asked again and may choose a different tool call. Completed batches do not re-run;
 - a parallel tool batch is atomic: it checkpoints once, after every result is folded into the conversation, so a crash inside the batch re-runs that iteration as a whole;
-- only ids rehydrated at startup are eligible; an invoke still in flight in this process is refused, because recovering it would execute it twice;
+- only ids rehydrated at startup are eligible for recovery; an invoke still in flight in this process is refused, because recovering it would execute it twice;
 - re-using an orphan's id for a fresh invoke is refused as well — call `recover_invoke`, or start with a new id;
 - the checkpoint records the agent actually running the batch, so a run recovered after a handoff continues as the target agent;
 - the system prompt and the static tool set are replayed as recorded, so a skill change between crash and recovery does not alter what the resumed run sees (dynamic `tool_search` promotions are not replayed);
-- a checkpoint whose `schema_version` is newer than the runtime understands is refused.
+- a checkpoint whose `schema_version` is newer than the runtime understands is refused; if its shape cannot be decoded, the row is kept at startup and the refusal names the version.
 
 A run suspended for approval is not recoverable this way: the approvals row owns that state, `Runtime.resume_approval` is its resume path, and that row expires (300 seconds by default). Checkpoint writes are best-effort: a failure is logged and published as `Invoke_checkpoint_failed`, but the run continues and that step is not recoverable.
 

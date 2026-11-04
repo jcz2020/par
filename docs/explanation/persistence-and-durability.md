@@ -35,7 +35,7 @@ The semantics match workflows:
 - **at-least-once**: the iteration that was in progress runs again. The checkpoint is taken after a completed batch, so the assistant turn of the interrupted iteration was never persisted — the model is asked again and may choose a different tool call. Completed batches do not re-run.
 - **explicit**: nothing resumes automatically, and only ids rehydrated at startup are eligible — a run still in flight in this process is refused, because recovering it would execute it twice. Re-using an orphan's id for a fresh invoke is refused too: recovery is explicit, and a new run must choose a new id.
 - **atomic batches**: a parallel tool batch checkpoints once, after all its results are folded into the conversation, so a crash inside the batch re-runs that iteration as a whole.
-- **schema-checked**: a checkpoint from a newer `schema_version` is refused rather than guessed at.
+- **schema-checked**: a checkpoint from a newer `schema_version` is refused rather than guessed at. If the newer shape cannot even be decoded, the row is preserved at startup and the refusal names the version — an older runtime must not destroy a newer writer's state.
 
 The checkpoint records the agent that is actually running. After a handoff, that is the target agent, so recovery re-enters with the target's tools rather than the ones the caller named.
 

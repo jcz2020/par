@@ -2570,23 +2570,33 @@ let recover_invoke rt ~invoke_id ?workspace ?cancellation_token ?on_tool_event ?
       Result.Error (Invalid_input
         ("Invoke is running in this process; recovery is only for runs whose writer died"),
         empty_conv)
-    else if htbl_get rt.orphaned_invokes invoke_id = None then
-      Result.Error (Invalid_input
-        ("Invoke was not recorded as an orphan at startup; recovery only accepts runs \
-          rehydrated by Runtime.create"), empty_conv)
     else
+    (* Load before the orphan gate: a checkpoint written by a newer schema may
+       not decode here at all, and the loader can still name that reason. It is
+       safe to read a live run's row because [active_invokes] was checked
+       above, and a run in another process is refused below for not being a
+       startup orphan. *)
     match rt.services.persistence.load_invoke_checkpoint_fn invoke_id with
     | Error e -> Result.Error (e, empty_conv)
     | Ok None ->
-      Result.Error (Invalid_input
-        (Printf.sprintf "Invoke %s is recorded as an orphan but has no checkpoint" invoke_id),
-        empty_conv)
+      if htbl_get rt.orphaned_invokes invoke_id = None then
+        Result.Error (Invalid_input
+          ("Invoke was not recorded as an orphan at startup; recovery only accepts runs \
+            rehydrated by Runtime.create"), empty_conv)
+      else
+        Result.Error (Invalid_input
+          (Printf.sprintf "Invoke %s is recorded as an orphan but has no checkpoint" invoke_id),
+          empty_conv)
     | Ok (Some cp) ->
       if cp.schema_version > 1 then
         Result.Error (Invalid_input
           (Printf.sprintf
              "Checkpoint schema_version %d is newer than this runtime understands (1)"
              cp.schema_version), empty_conv)
+      else if htbl_get rt.orphaned_invokes invoke_id = None then
+        Result.Error (Invalid_input
+          ("Invoke was not recorded as an orphan at startup; recovery only accepts runs \
+            rehydrated by Runtime.create"), empty_conv)
       else if htbl_get rt.agents cp.agent_id = None then
         Result.Error (Invalid_input
           (Printf.sprintf "Agent '%s' is not registered (needed for recovery)" cp.agent_id),

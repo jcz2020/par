@@ -125,13 +125,13 @@ Workflow persistence handles checkpoints, suspended workflows, and workflow defi
 
 ### Invoke checkpoints
 
-Durable invokes (`Runtime.invoke ~durable:true`) keep one row per in-flight run. The row exists only while the invoke is running: it is upserted after iteration zero and after every completed tool batch, and deleted on every terminal outcome (including an intentional cancellation and an approval suspension). A row found at startup therefore belongs to a writer that stopped without finishing, which is what `Runtime.recover_invoke` and `Runtime.list_orphaned_invokes` consume. Checkpoints are keyed by `invoke_id` and are not partitioned by `scope`; they belong to the single runtime that owns the database. Checkpoint writes are synchronous; a failed write is logged and published as `Invoke_checkpoint_failed`, and the run continues with that step unprotected. `Runtime.close` closes the handle, so call it when the runtime is idle.
+Durable invokes (`Runtime.invoke ~durable:true`) keep one row per in-flight run. The row exists only while the invoke is running: it is upserted after iteration zero and after every completed tool batch, and deleted on every terminal outcome (including an intentional cancellation and an approval suspension). A row found at startup therefore belongs to a writer that stopped without finishing, which is what `Runtime.recover_invoke` and `Runtime.list_orphaned_invokes` consume. Checkpoints are keyed by `invoke_id` and are not partitioned by `scope`; they belong to the single runtime that owns the database. Checkpoint writes are synchronous; a failed write is logged and published as `Invoke_checkpoint_failed`, and the run continues with that step unprotected. `Runtime.close` closes the handle, so call it when the runtime is idle. A row written by a newer `schema_version` is kept at startup even when its payload cannot be decoded: only genuinely corrupt rows are deleted, so an older runtime cannot destroy a newer writer's state. `Runtime.recover_invoke` reports such an id as a schema-version refusal.
 
 | Function | Description |
 |----------|-------------|
 | `save_invoke_checkpoint_fn` | Upsert the checkpoint for an in-flight invoke |
-| `load_invoke_checkpoint_fn` | Load a checkpoint by invoke id; a decode failure is an error, not `None` |
-| `list_invoke_checkpoints_fn` | List leftover rows for startup rehydration (undecodable rows are logged and skipped) |
+| `load_invoke_checkpoint_fn` | Load a checkpoint by invoke id; a decode failure is an error, not `None`, and a row from a newer schema is reported as a schema-version refusal |
+| `list_invoke_checkpoints_fn` | List leftover rows for startup rehydration (corrupt rows are logged and deleted; rows with a newer `schema_version` are kept) |
 | `delete_invoke_checkpoint_fn` | Remove a checkpoint on terminal outcome |
 
 ### Conversation history
