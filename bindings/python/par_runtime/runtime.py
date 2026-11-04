@@ -613,20 +613,33 @@ class Runtime:
         ``invoke_id`` field, or pass your own business key here. Durability
         requires a real persistence backend and is rejected on the noop one.
 
-        Durable invokes do not take ``save``/``update_current``; the checkpoint
-        is the persistence, and it is keyed by ``invoke_id``.
+        ``save`` and ``update_current`` are independent of durability and are
+        forwarded to the runtime when supplied (the runtime defaults are
+        ``save=False`` and ``update_current=True``). The Python binding does
+        not expose ``cancellation_token``, ``on_chunk`` or ``on_tool_event`` on
+        this method; use :meth:`invoke_stream` for incremental output.
         """
         self._check_handle()
+        save_flag = bool(save) if save is not None else False
+        update_flag = bool(update_current) if update_current is not None else True
         if durable or invoke_id is not None:
-            result_ptr = _lib.par_invoke_durable(
-                self._handle, _c_str(agent_id), _c_str(message),
-                _c_str(invoke_id or ""),
-            )
+            if save is None and update_current is None:
+                result_ptr = _lib.par_invoke_durable(
+                    self._handle, _c_str(agent_id), _c_str(message),
+                    _c_str(invoke_id or ""),
+                )
+            else:
+                result_ptr = _lib.par_invoke_durable_ext(
+                    self._handle, _c_str(agent_id), _c_str(message),
+                    _c_str(invoke_id or ""),
+                    ctypes.c_int(1 if save_flag else 0),
+                    ctypes.c_int(1 if update_flag else 0),
+                )
         elif save is not None or update_current is not None:
             result_ptr = _lib.par_invoke_ext(
                 self._handle, _c_str(agent_id), _c_str(message),
-                ctypes.c_int(1 if save else 0),
-                ctypes.c_int(1 if update_current else 0),
+                ctypes.c_int(1 if save_flag else 0),
+                ctypes.c_int(1 if update_flag else 0),
             )
         else:
             result_ptr = _lib.par_invoke(
@@ -643,7 +656,8 @@ class Runtime:
             pass
         return result
 
-    def recover_invoke(self, invoke_id: str) -> str:
+    def recover_invoke(self, invoke_id: str, *,
+                       save: bool = None, update_current: bool = None) -> str:
         """Resume a durable invoke that was interrupted by a crash.
 
         Only ids rehydrated at runtime startup are eligible, and a run still in
@@ -652,10 +666,27 @@ class Runtime:
         checkpoint do not run again, a tool that was executing when the process
         died runs again.
 
+        ``save`` and ``update_current`` are forwarded to the runtime when
+        supplied (the runtime defaults are ``save=False`` and
+        ``update_current=True``). The Python binding does not expose
+        ``cancellation_token``, ``on_chunk``, ``on_tool_event``, ``workspace``
+        or ``system_prompt_appendix`` here; recovery uses the runtime defaults
+        and returns the final envelope.
+
         Returns the same JSON envelope as ``invoke``.
         """
         self._check_handle()
-        result_ptr = _lib.par_recover_invoke(self._handle, _c_str(invoke_id))
+        save_flag = bool(save) if save is not None else False
+        update_flag = bool(update_current) if update_current is not None else True
+        if save is None and update_current is None:
+            result_ptr = _lib.par_recover_invoke(
+                self._handle, _c_str(invoke_id))
+        else:
+            result_ptr = _lib.par_recover_invoke_ext(
+                self._handle, _c_str(invoke_id),
+                ctypes.c_int(1 if save_flag else 0),
+                ctypes.c_int(1 if update_flag else 0),
+            )
         result = _py_str(result_ptr)
         if not result:
             raise PARInvokeError(f"recover_invoke failed for id: {invoke_id}")

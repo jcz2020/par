@@ -1010,13 +1010,13 @@ let do_invoke (state_id : int) (agent_id : string) (message : string)
 
 (* Recovery of a durable invoke whose writer died (PAR-mrr). Eligibility is
    enforced in the runtime: only ids rehydrated at startup, never a live run. *)
-let do_recover_invoke (state_id : int) (invoke_id : string) =
+let do_recover_invoke ?save ?update_current (state_id : int) (invoke_id : string) =
   match get_state state_id with
   | None -> None
   | Some _ ->
     let result = dispatch state_id (fun rt _env ->
       (try
-         let result = Par.Runtime.recover_invoke rt ~invoke_id () in
+         let result = Par.Runtime.recover_invoke rt ~invoke_id ?save ?update_current () in
          Obj.repr (Some (invoke_result_json ~label:"Recovery" result))
        with e -> Obj.repr (Some (error_json (Printexc.to_string e))))) in
     (Obj.obj result : string option)
@@ -2199,10 +2199,27 @@ let () =
        unwrap (do_invoke state_id agent_id message ~durable:true ?invoke_id ()))
 
 let () =
+  Callback.register "par_invoke_durable_ext"
+    (fun (state_id_obj : Obj.t) (agent_id : string) (message : string)
+         (invoke_id : string) (save_int : int) (update_int : int) ->
+       let state_id : int = Obj.magic state_id_obj in
+       let invoke_id = if invoke_id = "" then None else Some invoke_id in
+       unwrap (do_invoke state_id agent_id message ~durable:true ?invoke_id
+                 ~save:(save_int <> 0) ~update_current:(update_int <> 0) ()))
+
+let () =
   Callback.register "par_recover_invoke"
     (fun (state_id_obj : Obj.t) (invoke_id : string) ->
        let state_id : int = Obj.magic state_id_obj in
        unwrap (do_recover_invoke state_id invoke_id))
+
+let () =
+  Callback.register "par_recover_invoke_ext"
+    (fun (state_id_obj : Obj.t) (invoke_id : string)
+         (save_int : int) (update_int : int) ->
+       let state_id : int = Obj.magic state_id_obj in
+       unwrap (do_recover_invoke state_id invoke_id
+                 ~save:(save_int <> 0) ~update_current:(update_int <> 0)))
 
 let () =
   Callback.register "par_list_orphaned_invokes"

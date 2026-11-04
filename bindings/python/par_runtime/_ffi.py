@@ -224,9 +224,22 @@ _lib.par_invoke_durable.argtypes = [
 ]
 _lib.par_invoke_durable.restype = ctypes.c_void_p
 
+# Durable invoke with explicit save/update_current flags.
+_lib.par_invoke_durable_ext.argtypes = [
+    ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p,
+    ctypes.c_int, ctypes.c_int,
+]
+_lib.par_invoke_durable_ext.restype = ctypes.c_void_p
+
 # Resume a durable invoke whose writer died; only startup orphans are eligible.
 _lib.par_recover_invoke.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_recover_invoke.restype = ctypes.c_void_p
+
+# Recovery with explicit save/update_current flags.
+_lib.par_recover_invoke_ext.argtypes = [
+    ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_int,
+]
+_lib.par_recover_invoke_ext.restype = ctypes.c_void_p
 
 # JSON array of {"invoke_id","agent_id"} rehydrated at startup as orphans.
 _lib.par_list_orphaned_invokes.argtypes = [ctypes.c_void_p]

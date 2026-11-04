@@ -415,7 +415,7 @@ A run suspended for approval is not recoverable this way: the approvals row owns
 
 Durability covers `invoke` and `invoke_content` (and `invoke_async`, which forwards). `invoke_structured`, `invoke_generate`, `invoke_parallel` and workflow `Agent_call` steps are not checkpointed by this mechanism. A `save=false` run that uses durability still writes its conversation to the checkpoint table.
 
-In Python, the method surface is `invoke(..., durable=True, invoke_id=...)`, `recover_invoke(invoke_id)`, and `list_orphaned_invokes()`.
+In Python, the method surface is `invoke(..., durable=True, invoke_id=..., save=..., update_current=...)`, `recover_invoke(invoke_id, save=..., update_current=...)`, and `list_orphaned_invokes()`. `save` and `update_current` mean the same thing as in OCaml. The Python binding does not expose `cancellation_token`, `on_chunk`, `on_tool_event`, `workspace` or `system_prompt_appendix` on these calls; use `invoke_stream` for incremental output.
 
 ### Structured output
 

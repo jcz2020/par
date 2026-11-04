@@ -598,6 +598,25 @@ char* par_invoke_durable(par_runtime_t* rt, const char* agent_id,
     CAMLreturnT(char*, ret);
 }
 
+char* par_invoke_durable_ext(par_runtime_t* rt, const char* agent_id,
+                             const char* message, const char* invoke_id,
+                             int save, int update_current) {
+    if (rt == NULL || agent_id == NULL || message == NULL) return NULL;
+    CAMLparam0();
+    CAMLlocal3(c_aid, c_msg, c_iid);
+    c_aid = caml_copy_string(agent_id);
+    c_msg = caml_copy_string(message);
+    c_iid = caml_copy_string(invoke_id == NULL ? "" : invoke_id);
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value args[6] = { rt->_ocaml_value, c_aid, c_msg, c_iid,
+                      Val_int(save), Val_int(update_current) };
+    const value* cb = lookup_cb("par_invoke_durable_ext");
+    value result = caml_callbackN_exn(*cb, 6, args);
+    char* ret = extract_string(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLreturnT(char*, ret);
+}
+
 char* par_recover_invoke(par_runtime_t* rt, const char* invoke_id) {
     if (rt == NULL || invoke_id == NULL) return NULL;
     CAMLparam0();
@@ -607,6 +626,22 @@ char* par_recover_invoke(par_runtime_t* rt, const char* invoke_id) {
     value args[2] = { rt->_ocaml_value, c_iid };
     const value* cb = lookup_cb("par_recover_invoke");
     value result = caml_callbackN_exn(*cb, 2, args);
+    char* ret = extract_string(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLreturnT(char*, ret);
+}
+
+char* par_recover_invoke_ext(par_runtime_t* rt, const char* invoke_id,
+                             int save, int update_current) {
+    if (rt == NULL || invoke_id == NULL) return NULL;
+    CAMLparam0();
+    CAMLlocal1(c_iid);
+    c_iid = caml_copy_string(invoke_id);
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value args[4] = { rt->_ocaml_value, c_iid,
+                      Val_int(save), Val_int(update_current) };
+    const value* cb = lookup_cb("par_recover_invoke_ext");
+    value result = caml_callbackN_exn(*cb, 4, args);
     char* ret = extract_string(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
     CAMLreturnT(char*, ret);

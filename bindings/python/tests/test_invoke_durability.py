@@ -108,3 +108,82 @@ def test_non_durable_envelope_has_no_id(durable_runtime):
     envelope = json.loads(runtime.invoke("durable", "hi"))
     assert envelope["status"] == "ok"
     assert envelope["invoke_id"] is None
+
+
+def _count_conversations(db_path):
+    with sqlite3.connect(db_path) as conn:
+        return conn.execute("SELECT COUNT(*) FROM conversations").fetchone()[0]
+
+
+def _latest_session(db_path):
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT session_id FROM conversations ORDER BY updated_at DESC LIMIT 1"
+        ).fetchone()
+    return row[0] if row else None
+
+
+def test_durable_invoke_honors_save_and_update_current(durable_runtime):
+    runtime, db_path = durable_runtime
+    envelope = json.loads(runtime.invoke(
+        "durable", "hi", durable=True, save=True, update_current=False))
+    assert envelope["status"] == "ok"
+    assert _count_conversations(db_path) == 1
+    saved_session = _latest_session(db_path)
+    # update_current=False leaves the runtime's current session unset, so the
+    # lazy getter mints an id instead of returning the saved one.
+    assert runtime.get_session_id() != saved_session
+
+
+def test_durable_invoke_update_current_defaults_true(durable_runtime):
+    runtime, db_path = durable_runtime
+    json.loads(runtime.invoke("durable", "hi", durable=True, save=True))
+    assert runtime.get_session_id() == _latest_session(db_path)
+
+
+def _seed_orphan(db_path, invoke_id, session_id):
+    state = {
+        "invoke_id": invoke_id,
+        "agent_id": "durable",
+        "session_id": session_id,
+        "schema_version": 1,
+        "iteration": 0,
+        "elapsed": 0.0,
+        "enable_handoff": False,
+        "tool_names": [],
+        "conversation": {"messages": [], "metadata": []},
+        "updated_at": 1.0,
+    }
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO invoke_checkpoints (invoke_id, state_json, updated_at) "
+            "VALUES (?, ?, ?)",
+            (invoke_id, json.dumps(state), 1.0),
+        )
+
+
+def test_recover_invoke_honors_save_and_update_current(tmp_path):
+    server, worker, _requests = _mock_provider()
+    db_path = tmp_path / "durable.db"
+    try:
+        base_url = f"http://127.0.0.1:{server.server_port}/v1"
+        config = _config_with_db(tmp_path, base_url)
+        # The first open creates the schema. Close it before seeding so the row
+        # exists when the runtime that will recover it starts.
+        with Runtime(config) as setup:
+            setup.register_agent(_agent())
+        _seed_orphan(db_path, "py-orphan-1", "recovered-session")
+        with Runtime(config) as runtime:
+            runtime.register_agent(_agent())
+            assert runtime.list_orphaned_invokes() == [
+                {"invoke_id": "py-orphan-1", "agent_id": "durable"}]
+            envelope = json.loads(runtime.recover_invoke(
+                "py-orphan-1", save=True, update_current=False))
+            assert envelope["status"] == "ok"
+            assert _count_conversations(db_path) == 1
+            assert _latest_session(db_path) == "recovered-session"
+            assert runtime.get_session_id() != "recovered-session"
+    finally:
+        server.shutdown()
+        worker.join(timeout=5)
+        server.server_close()

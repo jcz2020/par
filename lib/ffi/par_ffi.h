@@ -68,10 +68,21 @@ char* par_invoke_content(par_runtime_t* rt, const char* agent_id,
 char* par_invoke_durable(par_runtime_t* rt, const char* agent_id,
                          const char* message, const char* invoke_id);
 
+/* Durable invocation with the same save/update_current contract as
+   par_invoke_ext. Durability and conversation saving are separate decisions:
+   save=0 still writes checkpoints while the run is in flight. */
+char* par_invoke_durable_ext(par_runtime_t* rt, const char* agent_id,
+                             const char* message, const char* invoke_id,
+                             int save, int update_current);
+
 /* Resume a durable invoke whose writer died. Only ids rehydrated at runtime
    startup are eligible; a live run is refused. Returns the same envelope and
    owned string as par_invoke. */
 char* par_recover_invoke(par_runtime_t* rt, const char* invoke_id);
+
+/* Resume with save/update_current control, matching the OCaml entry point. */
+char* par_recover_invoke_ext(par_runtime_t* rt, const char* invoke_id,
+                             int save, int update_current);
 
 /* Durable invokes rehydrated at startup as orphans, as a JSON array of
    {"invoke_id","agent_id"} objects. Caller must free() the returned string. */

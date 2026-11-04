@@ -403,7 +403,7 @@ List.iter (fun (invoke_id, _agent_id) ->
 
 Durability 覆盖 `invoke` 与 `invoke_content`（`invoke_async` 透传）。`invoke_structured`、`invoke_generate`、`invoke_parallel` 与 workflow 的 `Agent_call` 步不走这套检查点。`save=false` 的运行如果开了 durability，仍会把会话写进检查点表。
 
-Python 侧对应 `invoke(..., durable=True, invoke_id=...)`、`recover_invoke(invoke_id)` 与 `list_orphaned_invokes()`。
+Python 侧对应 `invoke(..., durable=True, invoke_id=..., save=..., update_current=...)`、`recover_invoke(invoke_id, save=..., update_current=...)` 与 `list_orphaned_invokes()`。`save` 与 `update_current` 的语义与 OCaml 一致。Python binding 在这两个调用上不暴露 `cancellation_token`、`on_chunk`、`on_tool_event`、`workspace` 或 `system_prompt_appendix`；需要增量输出请用 `invoke_stream`。
 
 ### 结构化输出
 
