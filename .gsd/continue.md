@@ -1,46 +1,49 @@
 # Continue — Next Session
 
-## Current state
+## Current state (2026-11-04)
 
-- v0.7.4 stable released and pushed (tag `v0.7.4`)
-- 1387 tests passing, build clean, origin/main up to date
-- All docs synced (README EN+ZH, STRATEGY.md changelog, agent.md structured output section EN+ZH)
+- `v0.15.0-beta.20261104` is released and pushed (tag `v0.15.0-beta.20261104`).
+- Unreleased on `main`: the five v0.15 review follow-ups are closed.
+- OCaml: 1741 tests, 0 failures. Python: full-suite run is order-sensitive
+  (`test_http_timeout.py` segfaults in a combined run — the known domain
+  registration issue); every file passes when run on its own.
+- Invoke checkpoints are now `schema_version = 2`.
 
-## What was done this session
+## What shipped after the release
 
-1. Fixed 38 audit issues from `docs/audit/v0.7.x-findings.md` (v0.7.3)
-2. Fixed json_extract think-tag + fence ordering bug (v0.7.4)
-3. Implemented `Engine.run_agent_structured` — two-phase ReAct loop + structured output
-4. Updated all documentation (README, STRATEGY.md §8 changelog, SDK docs EN+ZH)
+1. `PAR-pcb` — newer-schema checkpoint rows are preserved at startup instead of
+   deleted; `recover_invoke` reports the schema version even when the payload
+   cannot be decoded.
+2. `PAR-ikt` — Python `invoke(durable=True, save=..., update_current=...)` and
+   `recover_invoke(..., save=..., update_current=...)` forward the flags through
+   `par_invoke_durable_ext` / `par_recover_invoke_ext`; docs state the remaining
+   OCaml-only parameters.
+3. `PAR-37b` — checkpoint schema 2 records workspace roots + policy, the system
+   prompt appendix and the skill snapshot. Recovery replays them; a missing
+   workspace root fails closed. Decision #12 in `docs/DECISIONS.md`.
+4. `PAR-0o5` — `invoke_generate` honors `update_current:false` and reports the
+   session it actually used.
+5. `PAR-48p` — the invoke event-bus restore captures the prior session before
+   context creation mints one, and restores the empty state when there was none.
 
-## Next directions (user to choose)
+## Next directions
 
-1. **Wire up `complete_structured_fn` for real providers** — OpenAI (`openai_provider.ml:449`) and Anthropic (`anthropic_provider.ml:342`) both have `complete_structured` implemented, but `par_capi.ml` L180/195/210/225 sets `complete_structured_fn = None` for all real providers. Wiring them to `Some` enables native structured output (OpenAI `response_format: json_schema`, Anthropic `output_config`) instead of the text-injection fallback.
-
-2. **Windows native build** — `par_ffi.c:121` `caml_startup(caml_argv)` triggers MinGW pointer-type incompatibility. Windows CI removed from matrix. CHANGES.md v0.7.2 promised fix "in v0.7.3" — slipped. Needs MinGW-specific cast or `#ifdef _WIN32` guard.
-
-3. **Python binding CI** — Python tests (`bindings/python/tests/`) not in CI matrix. Need GitHub Actions workflow to run `pytest` against the built `.so`.
-
-4. **External vector stores** — Qdrant/Milvus adapter for `Vector_store` interface. Currently only sqlite-vec (vec0) supported.
-
-5. **`.docx` support** — No maintained OCaml library exists for Word files. Options: shell out to `pandoc`, or use a Python sidecar via the existing FFI.
-
-6. **Multimodal image tools** — Image input/output tools. `content_block` type already has `Image_block` variant but no tools consume it.
-
-## Key files
-
-- `docs/STRATEGY.md` §8 — changelog (all decisions with §11 R1-R5 analysis)
-- `docs/audit/v0.7.x-findings.md` — marked "all resolved v0.7.3"
-- `lib/core/engine.ml` — `run_agent_structured` at end of file (L1083+)
-- `lib/core/engine.mli` — `run_agent_structured` signature at L119
-- `lib/core/runtime.ml` — `invoke_structured` routing at L970 (tools → two-phase, no tools → lightweight)
-
-## Open threads (noticed but not acted on)
-
-- **Python binding 集成测试未做** — `run_agent_structured` 改变了 `invoke_structured` 的内部路由（有工具时走两阶段），但 Python 侧（`bindings/python/par-runtime/runtime.py:799` `invoke_structured`）没有新增集成测试验证两阶段路径。C ABI 层 `par_invoke_structured` 返回值签名不变，现有测试应该能过，但没有覆盖"agent 有工具 + invoke_structured"这个新组合。下次应加一个 Python 端测试：注册带工具的 agent → 调 `invoke_structured` → 验证工具被执行 + 返回结构化 JSON。
+1. **`PAR-188`** — apply the same bus-session restore to `invoke_generate` and
+   `invoke_structured` (same class as `PAR-48p`, deliberately not bundled).
+2. **`PAR-tgy`** — the `?sandbox` mechanism itself (bwrap/landlock/seatbelt/job
+   object). The design and the five honest limits are in
+   `docs/explanation/sandbox-model.md`; the remaining work is the platform
+   implementation, not another design pass.
+3. P2 feature backlog (`bd ready`): URL fetch/JS rendering, web-search
+   aggregation, workflow-management tools, prompt optimization, code
+   interpreter, memory strategies, MCP sampling routing.
 
 ## Do not
 
-- Do NOT bump version without explicit user instruction (project rule)
-- Do NOT touch `spikes/sqlite_vec_win_spike/` (untracked, experimental)
-- Do NOT remove the `per_call_registry_isolation spawn cwd` test failure — it's a known CI environment issue (cwd resolution differences), pre-existing
+- Do NOT bump the version (including refreshing the beta date) without explicit
+  user instruction. The next release is MINOR: schema 2, new C entry points and
+  new optional `recover_invoke` parameters.
+- Do NOT touch `spikes/sqlite_vec_win_spike/` (untracked, experimental).
+- Do NOT read the `test_http_timeout.py` full-suite segfault as a regression:
+  the file passes alone, and the failure is the documented OCaml-domain /
+  Python-thread issue.
