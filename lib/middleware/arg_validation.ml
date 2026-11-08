@@ -59,6 +59,7 @@ let validation ?(strict = false) () : middleware_hook =
         (match result with
          | Success `Null -> None (* null is OK *)
          | Success _ -> None
+         | Success_content _ -> None
          | Error _ -> None
          | Handoff _ -> None
          | Approval_required _ -> None)

@@ -252,6 +252,9 @@ let rec execute_step ?(path=[]) ctx step =
            (match handler substituted_input ctx.token with
             | Success json -> Ok json
             | Types.Error { category; _ } -> Result.Error category
+            | Types.Success_content _ ->
+              Result.Error (Invalid_input
+                "Rich tool content is not supported in a workflow Tool_call step")
             | Types.Handoff _ -> Result.Error (Invalid_input "Handoff not supported in workflow step")
             | Types.Approval_required _ -> Result.Error (Invalid_input "Approval not supported in workflow Tool_call step"))))
 

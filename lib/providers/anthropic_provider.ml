@@ -136,11 +136,29 @@ let build_message_json msg =
               | _ -> None)
          |> String.concat "\n"
        in
+       (* A tool that produced content (an image, say) needs the array form:
+          Anthropic's tool_result content is either a string or a list of
+          blocks, and an image block only exists in the list form. *)
+       let image_blocks =
+         msg.content_blocks
+         |> List.filter_map (function
+              | (Image_block _ as b) -> Some (emit_block_with_cache b)
+              | _ -> None)
+       in
+       let content =
+         if image_blocks = [] then `String result_text
+         else
+           let text_part =
+             if result_text = "" then []
+             else [`Assoc [("type", `String "text"); ("text", `String result_text)]]
+           in
+           `List (text_part @ image_blocks)
+       in
        `Assoc [("role", `String "user");
                ("content", `List [
                   `Assoc [("type", `String "tool_result");
                           ("tool_use_id", `String tu_id);
-                          ("content", `String result_text)]
+                          ("content", content)]
                 ])]
      | None ->
        (* Fallback: no tool_call_id (shouldn't happen in normal flow) *)

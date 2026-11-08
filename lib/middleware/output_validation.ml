@@ -17,7 +17,7 @@ let validation ?(strict = false) () : middleware_hook =
 
  on_after_tool = Some (fun (call, result) ->
  match result with
- | Success _ ->
+ | Success _ | Success_content _ ->
  begin match Hashtbl.find_opt invalid_outputs call.name with
  | Some () ->
  Hashtbl.remove invalid_outputs call.name;

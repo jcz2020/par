@@ -167,12 +167,24 @@ let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
              metadata = [("output_schema_violation", `Bool true)];
             })
          | None -> result)
+       | Success_content _ ->
+         (* An output schema describes a JSON payload. Rich content has no
+            payload to validate, so say so instead of pretending it passed. *)
+         (match descriptor.output_schema with
+          | Some _ ->
+            Logs.warn (fun m ->
+              m "[engine] tool %s returned rich content; its output_schema was not validated"
+              descriptor.name);
+            result
+          | None -> result)
        | Error _ -> result
        | Handoff _ -> result
        | Approval_required _ -> result
       in
       (match result with
        | Success _ -> progress (Printf.sprintf "Tool %s succeeded" descriptor.name)
+       | Success_content _ ->
+         progress (Printf.sprintf "Tool %s succeeded with rich content" descriptor.name)
        | Error _ -> progress (Printf.sprintf "Tool %s failed" descriptor.name)
        | Handoff _ -> progress (Printf.sprintf "Tool %s handoff" descriptor.name)
        | Approval_required _ -> progress (Printf.sprintf "Tool %s approval required" descriptor.name));
@@ -305,15 +317,20 @@ let add_assistant_message_if_nonempty conv resp =
   if response_has_content resp then add_assistant_message conv resp else conv
 
 let add_tool_result_message conv (call : tool_call) result =
-  let content = match result with
-    | Success json -> Yojson.Safe.to_string json
-    | Error e -> e.message
-    | Handoff _ -> "<handoff>"
-    | Approval_required _ -> "<approval_required>"
+  (* Rich content goes into the conversation as blocks, so the model can look
+     at what the tool produced instead of reading a flattened string. *)
+  let content_blocks =
+    match result with
+    | Success json -> Message.content_of_string (Yojson.Safe.to_string json)
+    | Success_content blocks ->
+      (match blocks with [] -> Message.content_of_string "" | _ -> blocks)
+    | Error e -> Message.content_of_string e.message
+    | Handoff _ -> Message.content_of_string "<handoff>"
+    | Approval_required _ -> Message.content_of_string "<approval_required>"
   in
   let msg = {
     role = Tool;
-    content_blocks = Message.content_of_string content;
+    content_blocks;
     tool_calls = None;
     tool_call_id = Some call.id;
     name = Some call.name;
@@ -1155,6 +1172,12 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
                                         tool_name = event_tool_name;
                                         duration_ms;
                                         result_preview = preview })
+               | _, Success_content _ ->
+                 (* Rich content has no JSON payload to preview. *)
+                 fire (Tool_completed { task_id = event_task_id;
+                                        tool_name = event_tool_name;
+                                        duration_ms;
+                                        result_preview = None })
                | _, Error { category; _ } ->
                  fire (Tool_failed { task_id = event_task_id;
                                      tool_name = event_tool_name;

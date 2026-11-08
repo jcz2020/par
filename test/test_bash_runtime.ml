@@ -173,7 +173,8 @@ let policy_rejects ~policy_name ~policy_mod ~argv =
     | Handoff _ ->
       Alcotest.failf "%s: unexpected handoff for policy %s"
         policy_name policy_name
-    | Approval_required _ -> Alcotest.fail "unexpected approval request")
+    | Approval_required _ -> Alcotest.fail "unexpected approval request"
+    | Success_content _ -> Alcotest.fail "unexpected rich content")
 
 let policy_enforcement_suite =
   "policy_enforcement", [
@@ -228,7 +229,7 @@ let bash_stdout rt argv =
      | None -> Alcotest.fail "bash result has no stdout")
   | Error { category; message; _ } ->
     Alcotest.failf "bash failed: %s (%s)" (error_to_string category) message
-  | Handoff _ | Approval_required _ ->
+  | Handoff _ | Approval_required _ | Success_content _ ->
     Alcotest.fail "bash returned a non-execution result"
 
 (* These cases execute a real process, so they need a clock: without one the
@@ -438,7 +439,8 @@ let timeout_suite =
              Alcotest.failf "expected Timeout, got %s" (error_to_string other)
            | Success _ -> Alcotest.fail "expected Timeout error, got Success"
            | Handoff _ -> Alcotest.fail "unexpected Handoff"
-           | Approval_required _ -> Alcotest.fail "unexpected Approval_required");
+           | Approval_required _ -> Alcotest.fail "unexpected Approval_required"
+           | Success_content _ -> Alcotest.fail "unexpected rich content");
           let elapsed = Unix.gettimeofday () -. t0 in
           Alcotest.(check bool) "waited for the timer, then returned"
             true (elapsed >= 0.4 && elapsed < 10.0);

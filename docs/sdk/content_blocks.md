@@ -372,6 +372,69 @@ The OCaml `image_file` helper also closes its channel on failed reads.
 
 The `` `Ollama `` adapter inherits the OpenAI encoding.
 
+## Tool results that carry content
+
+A tool used to return one JSON payload, which the runtime flattened into text
+before the model saw it. A tool that produces something the model has to look
+at — a screenshot, a chart, a rendered page — can return content blocks
+instead:
+
+```ocaml
+let tb = Runtime.register_tool rt ~name:"shot" ~description:"Takes a screenshot"
+  ~input_schema:(`Assoc [])
+  ~handler:(fun _ _ ->
+    Success_content [
+      Message.text "a screenshot of the dashboard";
+      Message.image_file "assets/dashboard.png" ();
+    ]) ()
+```
+
+`Success_content` is a new `handler_result` constructor. The blocks become the
+tool result in the conversation, so the next model call carries them. A tool
+that returns `Success json` — the usual case — is unchanged: its payload is
+still flattened into a text block.
+
+Provider wire formats for a tool result that carries an image:
+
+| Provider | Tool result encoding |
+|----------|----------------------|
+| `` `Openai `` | The tool message switches to the array content form, with the image as an `image_url` part. The model must support vision. |
+| `` `Anthropic `` | `tool_result.content` becomes the array form: a text part plus an `{"type":"image","source":{...}}` part. |
+
+Middleware applies to rich content as well: `pii_mask` and
+`sanitize_tool_output` scrub the text blocks (image payloads are binary and are
+left alone), and `logging` records the success. A tool that declares an
+`output_schema` and returns rich content is logged as unvalidated — the schema
+describes a JSON payload, and there is none to check.
+
+### Python handlers
+
+A Python tool handler returns JSON, so rich content travels through one
+envelope that both languages read:
+
+```python
+import json
+from par_runtime import text, image_file, tool_content
+
+def shot(_input_json: str) -> str:
+    return json.dumps(tool_content(
+        text("a screenshot of the dashboard"),
+        image_file("assets/dashboard.png"),
+    ))
+
+rt.register_tool_with_handler("shot", "Takes a screenshot", '{"type": "object"}', shot)
+```
+
+The envelope key is `Types.tool_content_key` (`_par_content`) and the blocks
+use the same tagged-array JSON as everywhere else, so a payload built in Python
+is read by the OCaml runtime unchanged.
+
+### Not supported
+
+Rich content is a tool-result shape. A workflow `Tool_call` step rejects it
+with `Invalid_input`: a workflow step's output is a JSON value the engine
+stores and returns.
+
 ## Migration from string
 
 The old `message` type had `content : string option`. The new type, used by `Runtime.create` and all agent interactions, replaces this with `content_blocks : content_block list`. Here's how to migrate:

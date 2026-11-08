@@ -774,6 +774,7 @@ let middleware_suite =
             | Some (Error _) -> Alcotest.fail "expected Success, not Error"
             | Some (Handoff _) -> Alcotest.fail "unexpected handoff"
             | Some (Approval_required _) -> Alcotest.fail "unexpected approval request"
+            | Some (Success_content _) -> Alcotest.fail "unexpected rich content"
             | None -> Alcotest.fail "should return Some (injection detected)")
        | None -> Alcotest.fail "on_after_tool should be Some"));
 
@@ -815,6 +816,7 @@ let middleware_suite =
             | Some (Error _) -> Alcotest.fail "expected Success, not Error"
             | Some (Handoff _) -> Alcotest.fail "unexpected handoff"
             | Some (Approval_required _) -> Alcotest.fail "unexpected approval request"
+            | Some (Success_content _) -> Alcotest.fail "unexpected rich content"
             | None -> Alcotest.fail "should return Some (injection detected)")
        | None -> Alcotest.fail "on_after_tool should be Some"));
 
@@ -837,6 +839,7 @@ let middleware_suite =
             | Some (Error _) -> Alcotest.fail "expected Success, not Error"
             | Some (Handoff _) -> Alcotest.fail "unexpected handoff"
             | Some (Approval_required _) -> Alcotest.fail "unexpected approval request"
+            | Some (Success_content _) -> Alcotest.fail "unexpected rich content"
             | None -> Alcotest.fail "block mode should return Some (blocked)")
        | None -> Alcotest.fail "on_after_tool should be Some"));
 
@@ -859,6 +862,7 @@ let middleware_suite =
             | Some (Error _) -> Alcotest.fail "expected Success, not Error"
             | Some (Handoff _) -> Alcotest.fail "unexpected handoff"
             | Some (Approval_required _) -> Alcotest.fail "unexpected approval request"
+            | Some (Success_content _) -> Alcotest.fail "unexpected rich content"
             | None -> Alcotest.fail "tag mode should return Some (tagged)")
        | None -> Alcotest.fail "on_after_tool should be Some"));
 
@@ -878,6 +882,7 @@ let middleware_suite =
             | Some (Success _) -> Alcotest.fail "expected Error result"
             | Some (Handoff _) -> Alcotest.fail "unexpected handoff"
             | Some (Approval_required _) -> Alcotest.fail "unexpected approval request"
+            | Some (Success_content _) -> Alcotest.fail "unexpected rich content"
             | None -> Alcotest.fail "should return Some (injection in error)")
        | None -> Alcotest.fail "on_after_tool should be Some"));
 

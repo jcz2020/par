@@ -83,28 +83,6 @@ let string_of_error_category (e : error_category) =
   | Embedding_unsupported -> "Embedding_unsupported"
   | Cancelled _ -> "Cancelled"
 
-type handler_result =
-  | Success of Yojson.Safe.t
-  | Error of {
-      category : error_category;
-      message : string;
-      retryable : bool;
-      metadata : (string * Yojson.Safe.t) list;
-    }
-  | Handoff of {
-      target_agent_id : string;
-      carry_context : bool;
-      task : string option;
-    }
-  | Approval_required of {
-      tool_name : string;
-      tool_input : Yojson.Safe.t;
-      prompt : string;
-      timeout : float option;
-      allowed_roles : string list;
-    }
-[@@deriving yojson]
-
 (* -------------------------------------------------------------------------- *)
 (* LLM response types                                                   *)
 (* -------------------------------------------------------------------------- *)
@@ -199,6 +177,68 @@ type content_block =
       cache_control : cache_control option;
     }
 [@@deriving yojson]
+
+type handler_result =
+  | Success of Yojson.Safe.t
+  | Success_content of content_block list
+  (* A tool that produced content for the model rather than a JSON payload:
+     text, images, or both. The blocks go into the conversation as the tool
+     result, so a model can look at what the tool produced. *)
+  | Error of {
+      category : error_category;
+      message : string;
+      retryable : bool;
+      metadata : (string * Yojson.Safe.t) list;
+    }
+  | Handoff of {
+      target_agent_id : string;
+      carry_context : bool;
+      task : string option;
+    }
+  | Approval_required of {
+      tool_name : string;
+      tool_input : Yojson.Safe.t;
+      prompt : string;
+      timeout : float option;
+      allowed_roles : string list;
+    }
+[@@deriving yojson]
+
+(* -------------------------------------------------------------------------- *)
+(* Rich tool results                                                     *)
+(* -------------------------------------------------------------------------- *)
+
+(** Wire envelope for a tool handler that returns content blocks instead of a
+    JSON payload. A handler on the other side of the FFI bridge cannot build
+    an OCaml variant, so this envelope is the single wire form of
+    [Success_content]. Both sides share the key and the block encoding, so a
+    payload built by one is understood by the other. *)
+let tool_content_key = "_par_content"
+
+let tool_content_to_yojson (blocks : content_block list) : Yojson.Safe.t =
+  `Assoc [ (tool_content_key, `List (List.map content_block_to_yojson blocks)) ]
+
+(** [tool_content_of_yojson json] reads the envelope written by
+    [tool_content_to_yojson]. Anything else is an error: a plain JSON payload
+    is not rich content, and treating one as such would silently drop it. *)
+let tool_content_of_yojson (json : Yojson.Safe.t) : (content_block list, string) result =
+  match json with
+  | `Assoc fields ->
+    (match List.assoc_opt tool_content_key fields with
+     | Some (`List raw_blocks) ->
+       List.fold_left
+         (fun acc raw ->
+            match acc with
+            | Result.Error _ -> acc
+            | Result.Ok blocks ->
+              (match content_block_of_yojson raw with
+               | Result.Ok block -> Result.Ok (blocks @ [ block ])
+               | Result.Error msg -> Result.Error msg))
+         (Result.Ok []) raw_blocks
+     | Some _ ->
+       Result.Error "tool content envelope must hold a list of content blocks"
+     | None -> Result.Error "not a tool content envelope")
+  | _ -> Result.Error "not a tool content envelope"
 
 type llm_response = {
   text : string option;

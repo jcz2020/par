@@ -614,14 +614,21 @@ let do_register_tool_with_handler (state_id : int) (name : string) (desc : strin
                      metadata = [];
                    }
                  else
-                   (try Success (Yojson.Safe.from_string result_str)
-                    with _ ->
-                      Error {
-                        category = Internal "invalid JSON from Python handler";
-                        message = "Python handler returned invalid JSON";
-                        retryable = false;
-                        metadata = [];
-                      })
+                   (try
+                       let json = Yojson.Safe.from_string result_str in
+                       (* A Python tool can hand the model rich content (an
+                          image, say) through the shared envelope; anything
+                          else is an ordinary JSON payload. *)
+                       (match Par.Types.tool_content_of_yojson json with
+                        | Result.Ok blocks -> Success_content blocks
+                        | Result.Error _ -> Success json)
+                     with _ ->
+                       Error {
+                         category = Internal "invalid JSON from Python handler";
+                         message = "Python handler returned invalid JSON";
+                         retryable = false;
+                         metadata = [];
+                       })
                in
                (match Par.Runtime.register_tool rt
                   ~name ~description:desc

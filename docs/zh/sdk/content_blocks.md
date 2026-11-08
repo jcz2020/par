@@ -367,6 +367,63 @@ provider 前抛出 `PARInvokeError`。用户输入只接受文本和图像块，
 
 `` `Ollama `` 适配器沿用 OpenAI 的编码方式。
 
+## 携带内容的工具结果
+
+过去工具只能返回一个 JSON 载荷，runtime 会在模型看到之前把它拍平成文本。
+产出「模型必须亲眼看」的东西的工具——截图、图表、渲染出来的页面——现在可以
+直接返回内容块：
+
+```ocaml
+let tb = Runtime.register_tool rt ~name:"shot" ~description:"Takes a screenshot"
+  ~input_schema:(`Assoc [])
+  ~handler:(fun _ _ ->
+    Success_content [
+      Message.text "a screenshot of the dashboard";
+      Message.image_file "assets/dashboard.png" ();
+    ]) ()
+```
+
+`Success_content` 是 `handler_result` 的新构造子。这些块成为会话中的工具
+结果，下一次模型调用就会带上它们。返回 `Success json` 的工具（常见情形）
+行为不变：载荷仍被拍平成文本块。
+
+携带图片的工具结果在线路格式上：
+
+| Provider | 工具结果编码 |
+|----------|--------------|
+| `` `Openai `` | tool 消息切换为数组 content 形式，图片作为 `image_url` 部件。模型必须支持视觉。 |
+| `` `Anthropic `` | `tool_result.content` 变成数组形式：一个文本部件加一个 `{"type":"image","source":{...}}` 部件。 |
+
+中间件同样作用于富内容：`pii_mask` 与 `sanitize_tool_output` 会清洗文本块
+（图片是二进制载荷，不动），`logging` 记录这次成功。声明了 `output_schema`
+却返回富内容的工具会被记为「未校验」——schema 描述的是 JSON 载荷，而这里
+没有载荷可校验。
+
+### Python handler
+
+Python 的工具 handler 返回 JSON，因此富内容通过一个两侧共读的信封传递：
+
+```python
+import json
+from par_runtime import text, image_file, tool_content
+
+def shot(_input_json: str) -> str:
+    return json.dumps(tool_content(
+        text("a screenshot of the dashboard"),
+        image_file("assets/dashboard.png"),
+    ))
+
+rt.register_tool_with_handler("shot", "Takes a screenshot", '{"type": "object"}', shot)
+```
+
+信封的键是 `Types.tool_content_key`（`_par_content`），块沿用与其他地方完全
+相同的 tagged-array JSON，因此 Python 构造的载荷能被 OCaml runtime 原样读取。
+
+### 不支持
+
+富内容是工具结果的形状。workflow 的 `Tool_call` 步会以 `Invalid_input` 拒绝
+它：workflow 步的输出是 engine 存储并返回的 JSON 值。
+
 ## 从 string 迁移
 
 旧的 `message` 类型有 `content : string option`。新的类型用 `content_blocks : content_block list` 替代。迁移方法：

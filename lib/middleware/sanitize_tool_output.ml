@@ -74,6 +74,20 @@ let sanitize_tool_output ?(config = default_config) () : middleware_hook =
         let cleaned = sanitize_json config.patterns config.action json in
         if cleaned = json then None
         else Some (Success cleaned)
+      | Success_content blocks ->
+        (* The filter applies to the text the model will read. Images are
+           binary payloads and are left alone. *)
+        let cleaned_blocks = List.map (function
+          | Text_block { text; cache_control } ->
+            let cleaned =
+              match apply_action config.patterns config.action text with
+              | Some t -> t
+              | None -> "[SANITIZED: blocked by injection filter]"
+            in
+            Text_block { text = cleaned; cache_control }
+          | other -> other) blocks in
+        if cleaned_blocks = blocks then None
+        else Some (Success_content cleaned_blocks)
       | Error err ->
         (match apply_action config.patterns config.action err.message with
          | None ->

@@ -37,6 +37,10 @@ type tool_descriptor = {
 | exec | 1 | `bash`（v0.3.1 新增，**唯一带安全策略**） |
 | memory | 3 | `recall_memory` / `remember_memory` / `search_history`（v0.7.1 新增，**需配置 `Memory_service`**） |
 
+用 `Runtime.register_tool` 注册的自定义工具既可以返回 JSON 载荷
+（`Success json`，常见情形），也可以在「模型必须亲眼看工具产出」时返回内容块
+（`Success_content`）——见内容块文档中的「工具结果携带内容」一节。
+
 除 `bash` 外，所有工具的 `permission = Allow`。文件路径类工具（`read` / `ls` / `find` / `grep` / `write` / `edit`）拒绝绝对路径与含 `:` 的路径。Memory 工具（`recall_memory` / `remember_memory` / `search_history`）需要配置 `Memory_service`，从 `Invoke_context.get_current_exn().session_id` 读取 scope。
 
 ## 快速索引

@@ -58,28 +58,6 @@ val string_of_error_category : error_category -> string
 (** A short human-readable rendering of an error category. Lives here so any
     module can describe an error without depending on the runtime. *)
 
-type handler_result =
-  | Success of Yojson.Safe.t
-  | Error of {
-      category : error_category;
-      message : string;
-      retryable : bool;
-      metadata : (string * Yojson.Safe.t) list;
-    }
-  | Handoff of {
-      target_agent_id : string;
-      carry_context : bool;
-      task : string option;
-    }
-  | Approval_required of {
-      tool_name : string;
-      tool_input : Yojson.Safe.t;
-      prompt : string;
-      timeout : float option;
-      allowed_roles : string list;
-    }
-[@@deriving yojson]
-
 (* -------------------------------------------------------------------------- *)
 (* LLM response types                                                   *)
 (* -------------------------------------------------------------------------- *)
@@ -165,6 +143,45 @@ type content_block =
       cache_control : cache_control option;
     }
 [@@deriving yojson]
+
+type handler_result =
+  | Success of Yojson.Safe.t
+  | Success_content of content_block list
+  (* A tool that produced content for the model rather than a JSON payload:
+     text, images, or both. The blocks go into the conversation as the tool
+     result, so a model can look at what the tool produced. *)
+  | Error of {
+      category : error_category;
+      message : string;
+      retryable : bool;
+      metadata : (string * Yojson.Safe.t) list;
+    }
+  | Handoff of {
+      target_agent_id : string;
+      carry_context : bool;
+      task : string option;
+    }
+  | Approval_required of {
+      tool_name : string;
+      tool_input : Yojson.Safe.t;
+      prompt : string;
+      timeout : float option;
+      allowed_roles : string list;
+    }
+[@@deriving yojson]
+
+(* -------------------------------------------------------------------------- *)
+(* Rich tool results                                                     *)
+(* -------------------------------------------------------------------------- *)
+
+val tool_content_key : string
+(** Wire envelope key for a tool handler that returns content blocks. *)
+
+val tool_content_to_yojson : content_block list -> Yojson.Safe.t
+(** Encode content blocks as the envelope a foreign tool handler returns. *)
+
+val tool_content_of_yojson : Yojson.Safe.t -> (content_block list, string) result
+(** Decode the envelope. A plain JSON payload is an error, not rich content. *)
 
 type llm_response = {
   text : string option;

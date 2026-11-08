@@ -42,6 +42,11 @@ The tools fall into five categories by purpose:
 | exec | 1 | `bash` (added in v0.3.1, **the only one with a security policy**) |
 | memory | 3 | `recall_memory` / `remember_memory` / `search_history` (added in v0.7.1, **require `Memory_service`**) |
 
+A custom tool registered with `Runtime.register_tool` returns either a JSON
+payload (`Success json`, the usual case) or content blocks
+(`Success_content`) when the model has to look at what the tool produced — see
+[Tool results that carry content](content_blocks.md#tool-results-that-carry-content).
+
 All tools except `bash` use `permission = Allow`. The file-path tools (`read` / `ls` / `find` / `grep` / `write` / `edit`) reject absolute paths and any path containing `:`. The memory tools (`recall_memory` / `remember_memory` / `search_history`) require a configured `Memory_service` and read scope from `Invoke_context.get_current_exn().session_id`.
 
 ## Quick Index

@@ -20,6 +20,8 @@ let logging = {
   on_after_tool = Some (fun (call, result) ->
     (match result with
      | Success _ -> Logs.info (fun m -> m "Tool success: %s" call.name)
+     | Success_content _ ->
+       Logs.info (fun m -> m "Tool success (rich content): %s" call.name)
      | Error e -> Logs.warn (fun m -> m "Tool error: %s — %s" call.name e.message)
      | Handoff _ -> Logs.info (fun m -> m "Tool handoff signaled")
      | Approval_required _ -> Logs.info (fun m -> m "Tool approval required"));

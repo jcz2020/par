@@ -27,14 +27,19 @@ let with_tools_in dir f =
       let token = Cancellation.create_token sw in
       f tools token))
 
-let is_success = function Success _ -> true | Error _ | Handoff _ | Approval_required _ -> false
-let is_error = function Error _ -> true | Success _ | Handoff _ | Approval_required _ -> false
+let is_success = function
+  | Success _ -> true
+  | Success_content _ | Error _ | Handoff _ | Approval_required _ -> false
+let is_error = function
+  | Error _ -> true
+  | Success _ | Success_content _ | Handoff _ | Approval_required _ -> false
 
 let get_success_json = function
   | Success j -> j
   | Error { message; _ } -> failwith ("expected Success, got Error: " ^ message)
   | Handoff _ -> failwith "expected Success, got Handoff"
   | Approval_required _ -> failwith "expected Success, got Approval_required"
+  | Success_content _ -> failwith "expected Success, got rich content"
 
 let str_field json key =
   match json with
@@ -390,7 +395,8 @@ let web_search_suite =
         let handler = find_tool "web_search" tools in
         let result = handler (`Assoc [("query", `String "test")]) token in
         Alcotest.check Alcotest.bool "result valid" true
-          (match result with Success _ | Error _ | Handoff _ | Approval_required _ -> true)));
+          (match result with
+             Success _ | Success_content _ | Error _ | Handoff _ | Approval_required _ -> true)));
   ])
 
 let read_suite =

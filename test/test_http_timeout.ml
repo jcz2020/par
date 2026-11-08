@@ -114,6 +114,9 @@ let test_fetch_url_times_out () =
         Unix._exit 1
      | Approval_required _ ->
         Printf.eprintf "FAIL: fetch_url returned Approval_required\n%!";
+        Unix._exit 1
+     | Success_content _ ->
+        Printf.eprintf "FAIL: fetch_url returned rich content\n%!";
         Unix._exit 1))
 
 (* -------------------------------------------------------------------------- *)

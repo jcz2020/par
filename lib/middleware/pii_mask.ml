@@ -75,6 +75,18 @@ let pii_mask ?(patterns = default_patterns) ?(replacement = "[REDACTED]") () : m
           let masked = mask_json_val json in
           if masked = json then result
           else Success masked
+        | Success_content blocks ->
+          (* Rich content carries text the model will read, so the same
+             patterns apply to its text blocks. Image payloads are not text
+             and are left alone. *)
+          let masked_blocks = List.map (function
+            | Text_block { text; cache_control } ->
+              Text_block { text = mask_text text; cache_control }
+            | Tool_result_block { tool_use_id; content; cache_control } ->
+              Tool_result_block { tool_use_id; content = mask_text content; cache_control }
+            | other -> other) blocks in
+          if masked_blocks = blocks then result
+          else Success_content masked_blocks
         | Error e ->
           let masked_msg = mask_text e.message in
           if masked_msg = e.message then result

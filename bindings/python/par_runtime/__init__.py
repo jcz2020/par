@@ -27,6 +27,7 @@ from par_runtime.content import (
     image_file,
     image_url,
     text,
+    tool_content,
 )
 
 __version__ = "0.15.0-beta.20261104"
@@ -42,6 +43,7 @@ __all__ = [
     "image_url",
     "image_base64",
     "image_file",
+    "tool_content",
     "Done",
     "Event",
     "TextDelta",

@@ -164,3 +164,23 @@ def image_file(
     return image_base64(
         encoded, media_type=media_type, detail=detail, max_bytes=max_bytes,
     )
+
+
+def tool_content(*blocks: ContentBlock) -> dict[str, Any]:
+    """Wrap content blocks as the envelope a tool handler returns.
+
+    A Python tool handler returns JSON. Returning this envelope instead of a
+    plain payload hands the blocks to the model as the tool result, so the
+    model can see what the tool produced::
+
+        runtime.register_tool_with_handler(
+            "shot", "Takes a screenshot", "{\"type\": \"object\"}",
+            lambda _input: json.dumps(tool_content(
+                text("a screenshot"), image_file("shot.png"),
+            )),
+        )
+
+    The payload is the same one the OCaml side reads, so both languages can
+    hand the model the same content.
+    """
+    return {"_par_content": [list(block) for block in blocks]}
