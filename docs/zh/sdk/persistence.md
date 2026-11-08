@@ -134,6 +134,23 @@ type session_summary = {
 | `list_invoke_checkpoints_fn` | 列出启动重水化所需的遗留行（损坏行记录日志后删除；`schema_version` 更新的行会保留） |
 | `delete_invoke_checkpoint_fn` | 终止结果时删除检查点 |
 
+### Invoke 租约
+
+检查点行只有在写入它的 runtime 已经消失之后才可恢复。运行在途期间，它的
+runtime 持有该 invoke id 的租约，因此共用同一个数据库的另一个 runtime 不会
+把这行当成遗留行，去恢复一个仍在运行的运行。
+
+租约记录持有者（runtime 实例 id 与进程号）与过期时间。租约过期、或持有者的进程
+已经消失时可以被接管——死掉的进程什么也持有不了，因此崩溃的运行可以立即恢复。
+接管是 compare-and-swap：两个 runtime 不可能同时成功。持有者会在运行推进时刷新
+租约，正常关闭（`Runtime.close`）也会释放它。
+
+| 函数 | 说明 |
+|------|------|
+| `claim_invoke_lease_fn` | 取得在途 invoke 的所有权；租约空闲、过期、已属于自己、或持有进程已消失时成功 |
+| `release_invoke_lease_fn` | 交还租约（终止结果、正常关闭） |
+| `list_invoke_leases_fn` | 列出数据库中的租约（启动时用来区分「仍在运行」与「遗留行」） |
+
 ### 对话历史
 
 对话存储一个 session id 的完整消息历史。每次保存会替换该 session id 之前的对话。

@@ -408,6 +408,7 @@ Recovery semantics:
 - **at-least-once** — the iteration that was in progress runs again. The checkpoint is taken after a completed batch, so the interrupted iteration's assistant turn was never persisted: the model is asked again and may choose a different tool call. Completed batches do not re-run;
 - a parallel tool batch is atomic: it checkpoints once, after every result is folded into the conversation, so a crash inside the batch re-runs that iteration as a whole;
 - only ids rehydrated at startup are eligible for recovery; an invoke still in flight in this process is refused, because recovering it would execute it twice;
+- a run another runtime is still executing is not recoverable here: its owner holds a lease on the invoke id, and a lease whose holder is gone is released, so a crashed run becomes recoverable at once;
 - re-using an orphan's id for a fresh invoke is refused as well — call `recover_invoke`, or start with a new id;
 - the checkpoint records the agent actually running the batch, so a run recovered after a handoff continues as the target agent;
 - the system prompt and static tool set are replayed as recorded, and `schema_version` 2 checkpoints also replay the workspace, appendix and skill snapshot, so recovery keeps the same path admission and prompt composition; a recorded workspace root that no longer exists refuses recovery instead of falling back to a different workspace (dynamic `tool_search` promotions and caller steering queues are not replayed);

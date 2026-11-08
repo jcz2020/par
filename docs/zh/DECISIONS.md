@@ -25,6 +25,7 @@
 | 2026-11-03 | 10 | 上下文窗口未知即跳过主动压缩；截断/请求边界统一修复 tool pair | API 级 + 架构级 | 架构正确（1 处 R2 妥协） |
 | 2026-11-03 | 11 | 分支会话/会话枚举/工具分层的 API 形状 | API 级 + 架构级 | 架构正确 |
 | 2026-11-04 | 12 | invoke 检查点 schema v2：重放 workspace/appendix/skills | API 级 + 架构级 | 架构正确 |
+| 2026-11-09 | 13 | durable invoke 的跨 runtime 所有权（租约） | API 级 + 架构级 | 架构正确 |
 
 ---
 
@@ -512,6 +513,28 @@ MCP server 目前**不能**让模型直接调用其工具：`tool_registry.ml` �
 **影响范围**: `types.ml/.mli`（字段 + 版本常量）、`runtime.ml/.mli`（写入与恢复路径、`?system_prompt_appendix`/`?skills`）、`sqlite_persistence.ml`（版本判断）、`test_invoke_durability.ml`、文档 EN+ZH。
 
 **回退方式**: 删除四个字段与版本常量，恢复 `recover_invoke` 的旧签名；已写入的 v2 行会被回退后的 runtime 以「更新 schema」拒绝，这正是期望行为，不需要数据迁移。
+
+---
+
+## #14: durable invoke 的跨 runtime 所有权（租约）
+
+**日期**: 2026-11-09
+**触发**: `PAR-53d`——两个 runtime 共用一个 SQLite 文件时，各自会把对方**仍在运行**的 invoke 当成遗留行并恢复，导致同一批工具被执行两次。
+
+### 决策
+
+1. **新增 `invoke_leases` 表**（`invoke_id` / `owner` / `pid` / `expires_at`）。运行在途期间，持有者对该 invoke id 持有租约；启动时重水化会跳过「被他人持有且持有者存活」的行。
+2. **租约的接管是 compare-and-swap**（先读旧值，再按旧值 UPDATE），两个 runtime 不可能同时拿到同一把租约。
+3. **存活性以进程为主信号**：持有者进程消失即释放租约，因此崩溃的运行可以立即恢复，不受过期时间拖累。过期时间（300 秒）是退路——没有进程探针的平台（Windows）与 pid 复用时靠它兜底。
+4. **持有者随运行刷新租约**（每次写检查点时），正常关闭（`Runtime.close`）释放租约。
+
+**§11 R1 标注**: **架构正确**。扩展的是已有原语（invoke 检查点与其生命周期），没有引入进程间协调框架；判定「对方是否还在跑」用的是操作系统已有的事实（进程是否活着），不是新造的协议。
+
+**§11 R2 范围妥协**: 租约刷新挂在检查点写入上，没有独立心跳 fiber；因此在没有进程探针的平台上，一次超过 TTL 的长工具调用可能让租约过期。**退役触发**：出现可移植的进程存活原语（文件锁等）时改为锁，或需要在无探针平台上做到秒级恢复时引入心跳。
+
+**影响范围**: `types.ml/.mli`（`invoke_lease` + 三个持久化函数）、`sqlite_persistence.ml`（表与三个函数）、`noop_persistence.ml`、`runtime.ml`（持有、刷新、启动过滤、关闭释放）、`invoke_lease.ml`（新模块：存活判定）、FFI、测试 `test_invoke_lease.ml`、文档 EN+ZH。
+
+**回退方式**: 删除 `invoke_leases` 表与三个持久化函数，恢复「启动时把所有遗留行当孤儿」的旧行为；不需要数据迁移（表是新建的）。
 
 ---
 

@@ -134,6 +134,26 @@ Durable invokes (`Runtime.invoke ~durable:true`) keep one row per in-flight run.
 | `list_invoke_checkpoints_fn` | List leftover rows for startup rehydration (corrupt rows are logged and deleted; rows with a newer `schema_version` are kept) |
 | `delete_invoke_checkpoint_fn` | Remove a checkpoint on terminal outcome |
 
+### Invoke leases
+
+A leftover checkpoint row is only recoverable once the runtime that wrote it
+is gone. While a run is in flight its runtime holds a lease on the invoke id,
+so a second runtime over the same database does not treat the row as a
+leftover and recover a run that is still running.
+
+A lease names the holder (runtime instance id and process) and an expiry. It
+can be taken over when it has expired, or when the holder's process is gone —
+a process that died holds nothing, so a crashed run is recoverable at once.
+The takeover is a compare-and-swap: two runtimes cannot both win it. The
+holder refreshes its lease as the run works, and a clean `Runtime.close`
+releases it.
+
+| Function | Description |
+|----------|-------------|
+| `claim_invoke_lease_fn` | Take ownership of an in-flight invoke; succeeds when the lease is free, expired, already ours, or held by a process that is gone |
+| `release_invoke_lease_fn` | Give the lease back (terminal outcome, clean shutdown) |
+| `list_invoke_leases_fn` | List the leases in the database (used at startup to tell a live run from a leftover row) |
+
 ### Conversation history
 
 Conversations store the full message history for a session. Each save replaces the previous conversation for that session id.

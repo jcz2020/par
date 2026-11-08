@@ -53,6 +53,12 @@ type runtime = {
      the same defect v0.14 fixed for workflows. *)
   orphaned_invokes : (string, string) protected_hashtbl;
   recovering_invokes : (string, unit) protected_hashtbl;
+  (* Durable invokes this runtime owns, in the shared database. Another
+     runtime must not recover a run that is still in flight. *)
+  held_leases : (string, unit) protected_hashtbl;
+  (* Invoke ids another runtime owns, read at startup: their rows are live,
+     not leftovers. *)
+  mutable held_by_others : string list;
   active_invokes : (string, unit) protected_hashtbl;
   persistence_is_noop : bool;
   workflow_defs : (string, workflow) protected_hashtbl;
@@ -1021,6 +1027,42 @@ let last_user_content (conv : Types.conversation) =
     if m.role = Types.User then m.content_blocks else acc
   ) [] conv.messages
 
+(* -------------------------------------------------------------------------- *)
+(* Durable invoke ownership (PAR-53d)                                        *)
+(* -------------------------------------------------------------------------- *)
+
+(* How long a lease stays valid without a refresh. The holder refreshes it as
+   the run works, so this only decides what happens when the holder stops:
+   a crashed run, or a platform without a process probe. *)
+let invoke_lease_ttl = 300.0
+
+(* Take ownership of an in-flight invoke. Another runtime that holds the lease
+   keeps it: recovering a live run would execute it twice. *)
+let acquire_invoke_lease rt invoke_id =
+  match rt.services.persistence.claim_invoke_lease_fn
+          ~invoke_id ~owner:rt.runtime_id ~pid:(Unix.getpid ())
+          ~ttl:invoke_lease_ttl with
+  | Ok true ->
+    Types.htbl_set rt.held_leases invoke_id ();
+    Ok true
+  | Ok false ->
+    Result.Error (Invalid_input
+      (Printf.sprintf
+         "Invoke '%s' is owned by another runtime; it cannot be started or recovered here"
+         invoke_id))
+  | Error e -> Result.Error e
+
+let release_invoke_lease rt invoke_id =
+  Types.htbl_remove rt.held_leases invoke_id;
+  ignore (rt.services.persistence.release_invoke_lease_fn
+            ~invoke_id ~owner:rt.runtime_id)
+
+(* Refresh the lease of a run that is still working. *)
+let refresh_invoke_lease rt invoke_id =
+  ignore (rt.services.persistence.claim_invoke_lease_fn
+            ~invoke_id ~owner:rt.runtime_id ~pid:(Unix.getpid ())
+            ~ttl:invoke_lease_ttl)
+
 let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token ?conversation
     ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix
     ?(skills : string list option)
@@ -1103,7 +1145,23 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
       (Printf.sprintf "Invoke id '%s' is already in flight in this process"
          (Option.value invoke_id ~default:"")), error_conv)
   else
-  Fun.protect ~finally:release_active (fun () ->
+  (* A named run is owned for its lifetime: another runtime over the same
+     database must not treat it as a leftover row. *)
+  let lease_result =
+    match invoke_id with
+    | None -> Ok true
+    | Some id -> acquire_invoke_lease rt id
+  in
+  match lease_result with
+  | Error e -> Result.Error (e, error_conv)
+  | Ok _ ->
+  Fun.protect
+    ~finally:(fun () ->
+      (match invoke_id with
+       | Some id -> release_invoke_lease rt id
+       | None -> ());
+      release_active ())
+    (fun () ->
   let text_part = Message.string_of_content content in
   let effective_workspace = Option.value workspace ~default:rt.workspace in
   (* Capture this before building the context: minting a session below writes
@@ -1297,6 +1355,9 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
                   conversation = conv;
                   updated_at = now;
                 } in
+                (match invoke_id with
+                 | Some id -> refresh_invoke_lease rt id
+                 | None -> ());
                 (match rt.services.persistence.save_invoke_checkpoint_fn cp with
                  | Ok () -> ()
                  | Error e ->
@@ -2717,6 +2778,9 @@ let noop_persistence : Types.persistence_service = {
   load_invoke_checkpoint_fn = (fun _id -> Ok None);
   list_invoke_checkpoints_fn = (fun () -> Ok []);
   delete_invoke_checkpoint_fn = (fun _id -> Ok ());
+  claim_invoke_lease_fn = (fun ~invoke_id:_ ~owner:_ ~pid:_ ~ttl:_ -> Ok true);
+  release_invoke_lease_fn = (fun ~invoke_id:_ ~owner:_ -> Ok ());
+  list_invoke_leases_fn = (fun () -> Ok []);
   close_fn = ignore;
 }
 
@@ -2842,6 +2906,8 @@ let create ?(persistence = noop_persistence)
       recovering_workflow_runs = { data = Hashtbl.create 8; mutex = Eio.Mutex.create () };
       orphaned_invokes = { data = Hashtbl.create 8; mutex = Eio.Mutex.create () };
       recovering_invokes = { data = Hashtbl.create 8; mutex = Eio.Mutex.create () };
+      held_leases = { data = Hashtbl.create 8; mutex = Eio.Mutex.create () };
+      held_by_others = [];
       active_invokes = { data = Hashtbl.create 8; mutex = Eio.Mutex.create () };
       persistence_is_noop = persistence_is_noop;
       workflow_defs = { data = Hashtbl.create 16; mutex = Eio.Mutex.create () };
@@ -2914,13 +2980,34 @@ let create ?(persistence = noop_persistence)
      | Error e ->
        Logs.err (fun m -> m "Runtime.create: rehydration failed: %s"
                     (string_of_error_category e)));
+    (* A leftover row is an orphan unless another runtime still owns it: that
+       runtime is running the invoke, and recovering it would execute it
+       twice. *)
+    (match rt.services.persistence.list_invoke_leases_fn () with
+     | Ok leases ->
+       let now = Unix.gettimeofday () in
+       rt.held_by_others <-
+         List.fold_left
+           (fun acc (l : Types.invoke_lease) ->
+             if l.owner = rt.runtime_id || Invoke_lease.is_takeable ~now l then acc
+             else l.invoke_id :: acc)
+           [] leases
+     | Error e ->
+       Logs.err (fun m -> m "Runtime.create: invoke leases rehydration failed: %s"
+                    (string_of_error_category e)));
     (match rt.services.persistence.list_invoke_checkpoints_fn () with
      | Ok checkpoints ->
        List.iter (fun (cp : Types.invoke_checkpoint) ->
-         Types.htbl_set rt.orphaned_invokes cp.invoke_id cp.agent_id;
-         publish_event rt (Invoke_orphaned {
-           invoke_id = cp.invoke_id; agent_id = cp.agent_id;
-         })
+         if List.mem cp.invoke_id rt.held_by_others then
+           Logs.info (fun m ->
+             m "Runtime.create: invoke %s is owned by another runtime; not an orphan"
+             cp.invoke_id)
+         else begin
+           Types.htbl_set rt.orphaned_invokes cp.invoke_id cp.agent_id;
+           publish_event rt (Invoke_orphaned {
+             invoke_id = cp.invoke_id; agent_id = cp.agent_id;
+           })
+         end
        ) checkpoints
      | Error e ->
        Logs.err (fun m -> m "Runtime.create: invoke checkpoints rehydration failed: %s"
@@ -3004,6 +3091,18 @@ let close rt =
   );
   Steering_queue.close rt.steering_queue;
   Steering_queue.close rt.followup_queue;
+  (* A clean shutdown hands the runs back: another runtime may recover them
+     right away instead of waiting for the lease to expire. *)
+  (match rt.services.persistence.list_invoke_leases_fn () with
+   | Ok leases ->
+     List.iter (fun (l : Types.invoke_lease) ->
+       if l.owner = rt.runtime_id then
+         ignore (rt.services.persistence.release_invoke_lease_fn
+                   ~invoke_id:l.invoke_id ~owner:rt.runtime_id))
+       leases
+   | Error e ->
+     Logs.err (fun m -> m "Runtime.close: invoke lease release failed: %s"
+                 (string_of_error_category e)));
   Eio.Mutex.use_rw ~protect:false rt.shutdown_mutex (fun () ->
     rt.shutdown_requested := true
   );

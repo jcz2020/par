@@ -85,6 +85,12 @@ let init_schema db =
          state_json   TEXT NOT NULL,
          updated_at   REAL NOT NULL
        )|};
+    {|CREATE TABLE IF NOT EXISTS invoke_leases (
+         invoke_id    TEXT PRIMARY KEY,
+         owner        TEXT NOT NULL,
+         pid          INTEGER NOT NULL,
+         expires_at   REAL NOT NULL
+       )|};
   ] in
   (match List.find_map (fun sql ->
      match exec_sql db sql with
@@ -150,6 +156,127 @@ let close t =
 
 let extract_task_id = Persistence_common.extract_task_id
 let extract_session_id = Persistence_common.extract_session_id
+
+(* -------------------------------------------------------------------------- *)
+(* Invoke leases (PAR-53d)                                                 *)
+(* -------------------------------------------------------------------------- *)
+
+(* Ownership of an in-flight durable invoke. A lease is claimed when it is
+   free, expired, already ours, or held by a process that is gone; the
+   takeover is a compare-and-swap so two runtimes cannot both win it. *)
+
+let list_invoke_leases t =
+  Eio.Mutex.use_ro t.mutex (fun () ->
+    let stmt =
+      Sqlite3.prepare t.db
+        "SELECT invoke_id, owner, pid, expires_at FROM invoke_leases \
+         ORDER BY expires_at ASC"
+    in
+    let acc = ref [] in
+    let stop = ref false in
+    let error = ref None in
+    while not !stop do
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.ROW ->
+        let lease : invoke_lease = {
+          invoke_id = Sqlite3.column_text stmt 0;
+          owner = Sqlite3.column_text stmt 1;
+          pid = Sqlite3.column_int stmt 2;
+          expires_at = Sqlite3.column_double stmt 3;
+        } in
+        acc := lease :: !acc
+      | Sqlite3.Rc.DONE -> stop := true
+      | rc ->
+        stop := true;
+        error := Some (Result.Error (Internal
+            (Printf.sprintf "list_invoke_leases: %s" (Sqlite3.Rc.to_string rc))))
+    done;
+    let _ = Sqlite3.finalize stmt in
+    match !error with
+    | Some e -> e
+    | None -> Ok (List.rev !acc)
+  )
+
+let release_invoke_lease t ~invoke_id ~owner =
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
+    let stmt =
+      Sqlite3.prepare t.db
+        "DELETE FROM invoke_leases WHERE invoke_id = ? AND owner = ?"
+    in
+    let _ = Sqlite3.bind_text stmt 1 invoke_id in
+    let _ = Sqlite3.bind_text stmt 2 owner in
+    let _ = Sqlite3.step stmt in
+    let _ = Sqlite3.finalize stmt in
+    Ok ()
+  )
+
+let claim_invoke_lease t ~invoke_id ~owner ~pid ~ttl =
+  Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
+    let now = Unix.gettimeofday () in
+    let expires_at = now +. ttl in
+    let read_row () =
+      let stmt =
+        Sqlite3.prepare t.db
+          "SELECT owner, pid, expires_at FROM invoke_leases WHERE invoke_id = ?"
+      in
+      let _ = Sqlite3.bind_text stmt 1 invoke_id in
+      let row =
+        match Sqlite3.step stmt with
+        | Sqlite3.Rc.ROW ->
+          Some (Sqlite3.column_text stmt 0,
+                Sqlite3.column_int stmt 1,
+                Sqlite3.column_double stmt 2)
+        | _ -> None
+      in
+      let _ = Sqlite3.finalize stmt in
+      row
+    in
+    let update_where expected_owner expected_expires =
+      (* Compare-and-swap: if another runtime claimed in the meantime, the
+         row no longer matches and this update changes nothing. *)
+      let stmt =
+        Sqlite3.prepare t.db
+          "UPDATE invoke_leases SET owner = ?, pid = ?, expires_at = ? \
+           WHERE invoke_id = ? AND owner = ? AND expires_at = ?"
+      in
+      let _ = Sqlite3.bind_text stmt 1 owner in
+      let _ = Sqlite3.bind_int stmt 2 pid in
+      let _ = Sqlite3.bind_double stmt 3 expires_at in
+      let _ = Sqlite3.bind_text stmt 4 invoke_id in
+      let _ = Sqlite3.bind_text stmt 5 expected_owner in
+      let _ = Sqlite3.bind_double stmt 6 expected_expires in
+      let _ = Sqlite3.step stmt in
+      let changed = Sqlite3.changes t.db in
+      let _ = Sqlite3.finalize stmt in
+      changed > 0
+    in
+    let insert () =
+      let stmt =
+        Sqlite3.prepare t.db
+          "INSERT OR IGNORE INTO invoke_leases \
+           (invoke_id, owner, pid, expires_at) VALUES (?, ?, ?, ?)"
+      in
+      let _ = Sqlite3.bind_text stmt 1 invoke_id in
+      let _ = Sqlite3.bind_text stmt 2 owner in
+      let _ = Sqlite3.bind_int stmt 3 pid in
+      let _ = Sqlite3.bind_double stmt 4 expires_at in
+      let _ = Sqlite3.step stmt in
+      let changed = Sqlite3.changes t.db in
+      let _ = Sqlite3.finalize stmt in
+      changed > 0
+    in
+    match read_row () with
+    | None -> Ok (insert ())
+    | Some (current_owner, current_pid, current_expires) ->
+      let lease : invoke_lease = {
+        invoke_id; owner = current_owner; pid = current_pid;
+        expires_at = current_expires;
+      } in
+      if Invoke_lease.is_owned_by ~owner lease
+         || Invoke_lease.is_takeable ~now lease then
+        Ok (update_where current_owner current_expires)
+      else Ok false
+  )
 
 (* -------------------------------------------------------------------------- *)
 (* Write operations                                                      *)

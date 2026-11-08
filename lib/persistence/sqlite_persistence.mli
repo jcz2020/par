@@ -28,6 +28,12 @@ val save_invoke_checkpoint : t -> invoke_checkpoint -> (unit, error_category) re
 val load_invoke_checkpoint : t -> string -> (invoke_checkpoint option, error_category) result
 val list_invoke_checkpoints : t -> (invoke_checkpoint list, error_category) result
 val delete_invoke_checkpoint : t -> string -> (unit, error_category) result
+val claim_invoke_lease : t -> invoke_id:string -> owner:string -> pid:int -> ttl:float -> (bool, error_category) result
+(** Take ownership of an in-flight invoke. Succeeds when the lease is free,
+    expired, already ours, or held by a process that is gone. The takeover is
+    a compare-and-swap, so two runtimes cannot both win. *)
+val release_invoke_lease : t -> invoke_id:string -> owner:string -> (unit, error_category) result
+val list_invoke_leases : t -> (invoke_lease list, error_category) result
 val save_conversation : ?scope:string -> t -> string -> conversation -> (unit, error_category) result
 val load_conversation : t -> string -> (conversation option, error_category) result
 val load_most_recent_conversation : ?scope:string -> t -> ((string * conversation) option, error_category) result

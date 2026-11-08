@@ -204,6 +204,17 @@ type handler_result =
     }
 [@@deriving yojson]
 
+(** Ownership of an in-flight durable invoke, for runtimes that share one
+    database. The row exists while a runtime is running the invoke; another
+    runtime must not recover it while the holder is alive. *)
+type invoke_lease = {
+  invoke_id : string;
+  owner : string;      (* runtime instance id *)
+  pid : int;           (* process holding the lease *)
+  expires_at : float;  (* wall-clock deadline; the fallback liveness signal *)
+}
+[@@deriving yojson]
+
 (* -------------------------------------------------------------------------- *)
 (* Rich tool results                                                     *)
 (* -------------------------------------------------------------------------- *)
@@ -1463,6 +1474,17 @@ type persistence_service = {
     unit -> (invoke_checkpoint list, error_category) result;
   delete_invoke_checkpoint_fn :
     string -> (unit, error_category) result;
+  (* Ownership of an in-flight durable invoke, so that two runtimes over one
+     database cannot both treat the same run as recoverable. A lease is
+     claimable when it is free, expired, already ours, or held by a process
+     that is gone. *)
+  claim_invoke_lease_fn :
+    invoke_id:string -> owner:string -> pid:int -> ttl:float ->
+    (bool, error_category) result;
+  release_invoke_lease_fn :
+    invoke_id:string -> owner:string -> (unit, error_category) result;
+  list_invoke_leases_fn :
+    unit -> (invoke_lease list, error_category) result;
   close_fn : unit -> unit;
 }
 

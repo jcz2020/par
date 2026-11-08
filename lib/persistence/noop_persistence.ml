@@ -60,3 +60,10 @@ let load_invoke_checkpoint (_ : t) (_invoke_id : string) = Ok None
 let list_invoke_checkpoints (_ : t) = Ok []
 
 let delete_invoke_checkpoint (_ : t) (_invoke_id : string) = Ok ()
+
+(* The noop backend has no shared state, so there is nothing to own. *)
+let claim_invoke_lease (_ : t) ~invoke_id:_ ~owner:_ ~pid:_ ~ttl:_ = Ok true
+
+let release_invoke_lease (_ : t) ~invoke_id:_ ~owner:_ = Ok ()
+
+let list_invoke_leases (_ : t) = Ok []

@@ -137,6 +137,10 @@ let with_persisted_runtime (f : Runtime.runtime -> 'a) : 'a =
           load_invoke_checkpoint_fn = (fun id -> Sqlite_persistence.load_invoke_checkpoint sqlt id);
           list_invoke_checkpoints_fn = (fun () -> Sqlite_persistence.list_invoke_checkpoints sqlt);
           delete_invoke_checkpoint_fn = (fun id -> Sqlite_persistence.delete_invoke_checkpoint sqlt id);
+    claim_invoke_lease_fn = (fun ~invoke_id ~owner ~pid ~ttl -> Sqlite_persistence.claim_invoke_lease sqlt ~invoke_id ~owner ~pid ~ttl);
+          release_invoke_lease_fn = (fun ~invoke_id ~owner -> Sqlite_persistence.release_invoke_lease sqlt ~invoke_id ~owner);
+          list_invoke_leases_fn = (fun () -> Sqlite_persistence.list_invoke_leases sqlt);
+
           close_fn = (fun () -> Sqlite_persistence.close sqlt);
         } in
         match Runtime.create ~llm:mock_llm ~persistence:persist

@@ -367,6 +367,11 @@ let do_init (config_json : string) =
                   load_invoke_checkpoint_fn = (fun id -> Par.Sqlite_persistence.load_invoke_checkpoint sqlt id);
                   list_invoke_checkpoints_fn = (fun () -> Par.Sqlite_persistence.list_invoke_checkpoints sqlt);
                   delete_invoke_checkpoint_fn = (fun id -> Par.Sqlite_persistence.delete_invoke_checkpoint sqlt id);
+                  claim_invoke_lease_fn = (fun ~invoke_id ~owner ~pid ~ttl ->
+                    Par.Sqlite_persistence.claim_invoke_lease sqlt ~invoke_id ~owner ~pid ~ttl);
+                  release_invoke_lease_fn = (fun ~invoke_id ~owner ->
+                    Par.Sqlite_persistence.release_invoke_lease sqlt ~invoke_id ~owner);
+                  list_invoke_leases_fn = (fun () -> Par.Sqlite_persistence.list_invoke_leases sqlt);
                   close_fn = (fun () -> Par.Sqlite_persistence.close sqlt);
                 }
              | Error e ->

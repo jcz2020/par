@@ -33,7 +33,7 @@ Name the run yourself when you need to recover it: `~invoke_id:"order-42"`. A mi
 The semantics match workflows:
 
 - **at-least-once**: the iteration that was in progress runs again. The checkpoint is taken after a completed batch, so the assistant turn of the interrupted iteration was never persisted — the model is asked again and may choose a different tool call. Completed batches do not re-run.
-- **explicit**: nothing resumes automatically, and only ids rehydrated at startup are eligible — a run still in flight in this process is refused, because recovering it would execute it twice. Re-using an orphan's id for a fresh invoke is refused too: recovery is explicit, and a new run must choose a new id.
+- **explicit**: nothing resumes automatically, and only ids rehydrated at startup are eligible — a run still in flight in this process is refused, because recovering it would execute it twice. A run another runtime is still executing is refused as well: while a run is in flight its owner holds a lease on the invoke id, and the lease is released when the holder's process is gone, so a crashed run becomes recoverable at once. Re-using an orphan's id for a fresh invoke is refused too: recovery is explicit, and a new run must choose a new id.
 - **atomic batches**: a parallel tool batch checkpoints once, after all its results are folded into the conversation, so a crash inside the batch re-runs that iteration as a whole.
 - **schema-checked**: a checkpoint from a newer `schema_version` is refused rather than guessed at. If the newer shape cannot even be decoded, the row is preserved at startup and the refusal names the version — an older runtime must not destroy a newer writer's state.
 
