@@ -204,6 +204,17 @@ type handler_result =
     }
 [@@deriving yojson]
 
+(** A run waiting for an approval decision. The approvals row owns the
+    decision; the checkpoint only records that the run is waiting, so a
+    recovery attempt can say so instead of re-running the tool silently. *)
+type pending_approval = {
+  approval_id : string;   (* the approvals row id *)
+  agent_id : string;
+  tool_name : string;
+  expires_at : float;
+}
+[@@deriving yojson]
+
 (** Ownership of an in-flight durable invoke, for runtimes that share one
     database. The row exists while a runtime is running the invoke; another
     runtime must not recover it while the holder is alive. *)
@@ -1410,6 +1421,9 @@ type invoke_checkpoint = {
   workspace_sensitive_prefixes : string list option [@default None];
   system_prompt_appendix : string option [@default None];
   skills : string list option [@default None];
+  (* Set when the run suspended for an approval decision. The approvals row
+     owns the decision; this says the run is waiting for it. *)
+  pending_approval : pending_approval option [@default None];
   conversation : conversation;
   updated_at : float;
 }

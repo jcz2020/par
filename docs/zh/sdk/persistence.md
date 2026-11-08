@@ -125,7 +125,7 @@ type session_summary = {
 
 ### Invoke 检查点
 
-持久化 invoke（`Runtime.invoke ~durable:true`）为每个在途运行保留一行。该行仅在 invoke 运行期间存在：第 0 次迭代后、以及每个完成的工具批次后更新，任何终止结果（包括主动取消与审批挂起）都会删除。因此启动时发现的行属于「没有跑完就停止的写入者」，正是 `Runtime.recover_invoke` 与 `Runtime.list_orphaned_invokes` 的输入。检查点以 `invoke_id` 为键，不按 `scope` 分区；它们属于拥有该数据库的单个 runtime。Schema 版本 2 会记录 workspace 根目录与策略、系统提示词 appendix 以及已激活 skill 快照，因此恢复时重放同一上下文，而不是回退到运行时默认值。检查点是同步写入；写失败会记录日志并发布 `Invoke_checkpoint_failed`，运行继续，但那一步不受保护。`Runtime.close` 会关闭句柄，因此应在 runtime 空闲时调用。由更新 `schema_version` 写入的行即使无法解码也会在启动时保留：只删除真正的损坏行，旧运行时不得销毁新写入者的状态。`Runtime.recover_invoke` 会把这样的 id 报告为 schema 版本过新。
+持久化 invoke（`Runtime.invoke ~durable:true`）为每个在途运行保留一行。该行仅在 invoke 运行期间存在：第 0 次迭代后、以及每个完成的工具批次后更新，任何终止结果（包括主动取消与审批挂起）都会删除。因此启动时发现的行属于「没有跑完就停止的写入者」，正是 `Runtime.recover_invoke` 与 `Runtime.list_orphaned_invokes` 的输入。检查点以 `invoke_id` 为键，不按 `scope` 分区；它们属于拥有该数据库的单个 runtime。Schema 版本 2 会记录 workspace 根目录与策略、系统提示词 appendix 以及已激活 skill 快照，因此恢复时重放同一上下文，而不是回退到运行时默认值。因审批决定而挂起的运行会保留检查点，并在 `pending_approval` 里记录该决定：决定归 `approvals` 行所有，因此决定开放期间恢复会拒绝该运行，并指向 `Runtime.resume_approval`。检查点是同步写入；写失败会记录日志并发布 `Invoke_checkpoint_failed`，运行继续，但那一步不受保护。`Runtime.close` 会关闭句柄，因此应在 runtime 空闲时调用。由更新 `schema_version` 写入的行即使无法解码也会在启动时保留：只删除真正的损坏行，旧运行时不得销毁新写入者的状态。`Runtime.recover_invoke` 会把这样的 id 报告为 schema 版本过新。
 
 | 函数 | 说明 |
 |------|------|

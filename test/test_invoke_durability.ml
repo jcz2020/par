@@ -88,6 +88,20 @@ let persistence_of (sqlt : Sqlite_persistence.t) : persistence_service = {
   close_fn = (fun () -> Sqlite_persistence.close sqlt);
 }
 
+(* Two connections on one database: a second runtime, like a second process
+   would be. Each runtime closes its own handle. *)
+let with_sqlite_pair f =
+  let path = Filename.temp_file "par_invoke_recovery" ".db" in
+  Fun.protect
+    ~finally:(fun () -> try Sys.remove path with Sys_error _ -> ())
+    (fun () ->
+       match Sqlite_persistence.create path with
+       | Error e -> Alcotest.failf "sqlite create: %s" (error_to_string e)
+       | Ok a ->
+         (match Sqlite_persistence.create path with
+          | Error e -> Alcotest.failf "sqlite create (second): %s" (error_to_string e)
+          | Ok b -> f a b))
+
 (* One database, used by a "dead" writer first and a fresh runtime second. *)
 let with_sqlite f =
   let path = Filename.temp_file "par_invoke_recovery" ".db" in
@@ -367,6 +381,7 @@ let seed_checkpoint ?(schema_version = 1) ?workspace_roots
     workspace_sensitive_prefixes;
     system_prompt_appendix;
     skills;
+    pending_approval = None;
     conversation = seeded_conversation ();
     updated_at = Unix.gettimeofday ();
   } in
@@ -771,10 +786,15 @@ let test_failed_recovery_keeps_the_checkpoint () =
 (* The approvals row owns a suspended run, so the durable row is removed. The
    approvals row has a TTL (300s by default); the SDK docs state that a
    suspended run is not covered by durable recovery. *)
-let test_approval_suspension_removes_the_checkpoint () =
+(* A run suspended for approval is not finished. It keeps its checkpoint and
+   says what it waits for, so a crash while it waits does not lose the run.
+   Recovery refuses it while the decision is open — the approvals row owns
+   that — and applying the decision clears the checkpoint. *)
+let test_approval_suspension_keeps_the_checkpoint () =
   Eio_main.run @@ fun _env ->
   Eio.Switch.run @@ fun sw ->
-  with_sqlite @@ fun sqlt persist ->
+  with_sqlite_pair @@ fun sqlt sqlt2 ->
+  let persist = persistence_of sqlt in
   let rt = match create_runtime ~persistence:persist
                    ~llm:(scripted_llm [
                        tool_call_response [{ id = "tc-1"; name = "needs_approval";
@@ -798,14 +818,50 @@ let test_approval_suspension_removes_the_checkpoint () =
                 approval_handler =
                   Some (Approval.Async_callback (fun _ -> failwith "not awaited")) } in
   ignore (Runtime.register_agent rt agent);
+  let approval_id = ref None in
   (match Runtime.invoke rt ~agent_id:"approval-agent" ~message:"hi"
           ~invoke_id:"approve-1" () with
    | Ok r ->
-     Alcotest.(check bool) "the invoke suspended" true (r.approval_pending <> None)
+     Alcotest.(check bool) "the invoke suspended" true (r.approval_pending <> None);
+     (match r.approval_pending with
+      | Some info -> approval_id := Some info.run_id
+      | None -> ())
    | Error (e, _) -> Alcotest.failf "invoke: %s" (error_to_string e));
+  (* The checkpoint survives and says what the run waits for. *)
+  (match Sqlite_persistence.load_invoke_checkpoint sqlt "approve-1" with
+   | Ok None -> Alcotest.fail "a suspended run must keep its checkpoint"
+   | Ok (Some cp) ->
+     (match cp.pending_approval with
+      | Some pa ->
+        Alcotest.(check string) "names the tool" "needs_approval" pa.tool_name;
+        Alcotest.(check string) "names the agent" "approval-agent" pa.agent_id
+      | None -> Alcotest.fail "the checkpoint does not say what it waits for")
+   | Error e -> Alcotest.failf "load: %s" (error_to_string e));
+  (* A fresh runtime sees the leftover row, and recovery refuses it while the
+     decision is open. *)
+  let rt2 = match create_runtime ~persistence:(persistence_of sqlt2)
+                    ~llm:(scripted_llm []) sw with
+    | Ok rt -> rt
+    | Error e -> Alcotest.failf "create (second): %s" (error_to_string e)
+  in
+  (match Runtime.recover_invoke rt2 ~invoke_id:"approve-1" () with
+   | Ok _ -> Alcotest.fail "a run waiting for a decision must not be recovered"
+   | Error (Invalid_input msg, _) ->
+     Alcotest.(check bool) "points at resume_approval" true
+       (contains msg "resume_approval")
+   | Error (e, _) -> Alcotest.failf "expected Invalid_input, got %s" (error_to_string e));
+  ignore (Runtime.close rt2);
+  (* Applying the decision supersedes the durable state. *)
+  (match !approval_id with
+   | Some run_id ->
+     (match Runtime.resume_approval ~rt ~run_id
+              ~outcome:(Approval.Rejected { reason = "no" }) ~approver:"tester" with
+      | Ok () -> ()
+      | Error e -> Alcotest.failf "resume_approval: %s" (error_to_string e))
+   | None -> Alcotest.fail "the invoke did not report a run id");
   (match Sqlite_persistence.load_invoke_checkpoint sqlt "approve-1" with
    | Ok None -> ()
-   | Ok (Some _) -> Alcotest.fail "a suspended run must not keep the durable row"
+   | Ok (Some _) -> Alcotest.fail "the checkpoint survived the approval decision"
    | Error e -> Alcotest.failf "load: %s" (error_to_string e))
 
 (* Cancellation is an intentional stop, so the row must not survive as a
@@ -974,8 +1030,8 @@ let () =
         test_failed_run_removes_the_checkpoint;
       Alcotest.test_case "a failed recovery keeps its checkpoint" `Quick
         test_failed_recovery_keeps_the_checkpoint;
-      Alcotest.test_case "an approval suspension removes it" `Quick
-        test_approval_suspension_removes_the_checkpoint;
+      Alcotest.test_case "an approval suspension keeps the checkpoint" `Quick
+        test_approval_suspension_keeps_the_checkpoint;
       Alcotest.test_case "a cancelled run removes it" `Quick
         test_cancelled_invoke_removes_the_checkpoint;
     ];

@@ -1317,6 +1317,45 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
          on suspension. The returned tuple is unified to
          (resp, conv, approval_info) at the boundary. *)
       let approval_info_ref = ref None in
+      (* The last completed batch: what a suspension checkpoint records. *)
+      let last_iteration = ref 0 in
+      (* One writer for the checkpoint: the normal path (a batch completed)
+         and the approval suspension (the batch never completed). *)
+      let write_checkpoint ~(agent : agent_config) ~conversation ~iteration
+          ~pending_approval () =
+        match invoke_id with
+        | None -> ()
+        | Some id ->
+          let now = Unix.gettimeofday () in
+          let cp : Types.invoke_checkpoint = {
+            invoke_id = id;
+            agent_id = agent.id;
+            session_id = ctx.session_id;
+            schema_version = Types.invoke_checkpoint_schema_version;
+            iteration;
+            elapsed = base_elapsed +. (now -. invoke_start);
+            enable_handoff = Option.value enable_handoff ~default:false;
+            tool_names = List.map (fun (td : Types.tool_descriptor) -> td.name) agent.tools;
+            workspace_roots = Some effective_workspace.Workspace.roots;
+            workspace_sensitive_prefixes =
+              Some effective_workspace.Workspace.policy.Workspace.sensitive_prefixes;
+            system_prompt_appendix = ctx.system_prompt_appendix;
+            skills = Some ctx.user_activated_skills_snapshot;
+            pending_approval;
+            conversation;
+            updated_at = now;
+          } in
+          refresh_invoke_lease rt id;
+          (match rt.services.persistence.save_invoke_checkpoint_fn cp with
+           | Ok () -> ()
+           | Error e ->
+             Logs.err (fun m ->
+               m "[invoke] save_invoke_checkpoint failed (id=%s iter=%d): %s"
+               id iteration (string_of_error_category e));
+             (* The run continues, but that step is not recoverable. Say so on
+                the bus instead of leaving it in a log file. *)
+             publish_event rt (Invoke_checkpoint_failed { invoke_id = id; error = e }))
+      in
       let result =
         (try Engine.run_agent ~steering:(Some ctx.steering_queue)
             ~followup:(Some ctx.followup_queue)
@@ -1334,39 +1373,9 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
             ?budget_threshold:rt.services.config.max_tool_schema_tokens
             ~user_content:content
             ~on_step_complete:(Some (fun conv step_agent iteration ->
-              match invoke_id with
-              | None -> ()
-              | Some id ->
-                let now = Unix.gettimeofday () in
-                let cp : Types.invoke_checkpoint = {
-                  invoke_id = id;
-                  agent_id = step_agent.id;
-                  session_id = ctx.session_id;
-                  schema_version = Types.invoke_checkpoint_schema_version;
-                  iteration;
-                  elapsed = base_elapsed +. (now -. invoke_start);
-                  enable_handoff = Option.value enable_handoff ~default:false;
-                  tool_names = List.map (fun (td : Types.tool_descriptor) -> td.name) step_agent.tools;
-                  workspace_roots = Some effective_workspace.Workspace.roots;
-                  workspace_sensitive_prefixes =
-                    Some effective_workspace.Workspace.policy.Workspace.sensitive_prefixes;
-                  system_prompt_appendix = ctx.system_prompt_appendix;
-                  skills = Some ctx.user_activated_skills_snapshot;
-                  conversation = conv;
-                  updated_at = now;
-                } in
-                (match invoke_id with
-                 | Some id -> refresh_invoke_lease rt id
-                 | None -> ());
-                (match rt.services.persistence.save_invoke_checkpoint_fn cp with
-                 | Ok () -> ()
-                 | Error e ->
-                   Logs.err (fun m -> m
-                     "[invoke] save_invoke_checkpoint failed (id=%s iter=%d): %s"
-                     id iteration (string_of_error_category e));
-                   (* The run continues, but that step is no longer recoverable.
-                      Say so on the bus instead of leaving it in a log file. *)
-                   publish_event rt (Invoke_checkpoint_failed { invoke_id = id; error = e }))))
+              last_iteration := iteration;
+              write_checkpoint ~agent:step_agent ~conversation:conv
+                ~iteration ~pending_approval:None ()))
             ~resume:(resume <> None)
             ~resume_iteration:(match resume with Some cp -> cp.iteration | None -> 0)
             ~resume_elapsed:base_elapsed
@@ -1381,6 +1390,7 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
             let stored_payload = `Assoc [
               ("persist_id", `String persist_id);
               ("runtime_run_id", `String payload.run_id);
+              ("invoke_id", `String (Option.value invoke_id ~default:""));
               ("agent_id", `String payload.agent_id);
               ("tool_name", `String payload.tool_name);
               ("tool_input", payload.tool_input);
@@ -1422,6 +1432,21 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
               tool_name = payload.tool_name;
               expires_at = payload.expires_at;
             };
+            (* The run is waiting for a decision, not finished: keep its
+               checkpoint, so a crash while it waits does not lose the run.
+               The approvals row owns the decision; the checkpoint says which
+               decision the run is waiting for. *)
+            (match invoke_id with
+             | None -> ()
+             | Some _ ->
+               write_checkpoint ~agent:config ~conversation:payload.conv_snapshot
+                 ~iteration:!last_iteration
+                 ~pending_approval:(Some {
+                     approval_id = persist_id;
+                     agent_id = payload.agent_id;
+                     tool_name = payload.tool_name;
+                     expires_at = payload.expires_at;
+                   }) ());
             if update_current then Current_conversation.set rt (Some payload.conv_snapshot);
             Ok (suspended_resp, payload.conv_snapshot))
       in
@@ -1491,6 +1516,9 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
   (match result, resume with
    | Result.Error (Cancelled _, _), _ -> delete_checkpoint ()
    | Result.Error _, Some _ -> ()
+   (* A run suspended for approval is not finished: its checkpoint stays, so
+      the run survives a crash while it waits for a decision. *)
+   | Result.Ok { approval_pending = Some _; _ }, _ -> ()
    | _ -> delete_checkpoint ());
   Metrics.merge_into ~target:rt.metrics ~source:ctx.metrics_accumulator;
   result)))
@@ -1919,6 +1947,16 @@ let resume_approval ~rt ~run_id ~outcome ~approver =
         | Ok () -> ()
         | Error e -> Logs.err (fun m -> m "resume_approval: delete failed: %s"
                                   (string_of_error_category e)));
+       (* The decision is applied: the durable state of that run is superseded
+          by the resumed run, so the checkpoint goes with it. *)
+       (match member "invoke_id" stored_payload with
+        | `String id when id <> "" ->
+          (match rt.services.persistence.delete_invoke_checkpoint_fn id with
+           | Ok () -> ()
+           | Error e -> Logs.err (fun m ->
+               m "resume_approval: checkpoint delete failed (id=%s): %s"
+               id (string_of_error_category e)))
+        | _ -> ());
        if not needs_redispatch then Ok ()
        else begin
          (* Wave 3 re-dispatch: replace approval_handler with a Sync_local
@@ -2694,6 +2732,22 @@ let recover_invoke rt ~invoke_id ?workspace ?system_prompt_appendix ?skills
         Result.Error (Invalid_input
           ("Invoke was not recorded as an orphan at startup; recovery only accepts runs \
             rehydrated by Runtime.create"), empty_conv)
+      else if (match cp.pending_approval with
+               | Some pa -> pa.expires_at > Unix.gettimeofday ()
+               | None -> false) then
+        (* The run is waiting for a decision that is still open: the approvals
+           row owns it, and re-running the batch would ask again. *)
+        Result.Error (Invalid_input
+          (Printf.sprintf
+             "Invoke %s is waiting for an approval decision (%s on %s);               apply it with Runtime.resume_approval"
+             invoke_id
+             (match cp.pending_approval with
+              | Some pa -> pa.tool_name
+              | None -> "a tool")
+             (match cp.pending_approval with
+              | Some pa -> pa.agent_id
+              | None -> cp.agent_id)),
+          empty_conv)
       else if htbl_get rt.agents cp.agent_id = None then
         Result.Error (Invalid_input
           (Printf.sprintf "Agent '%s' is not registered (needed for recovery)" cp.agent_id),

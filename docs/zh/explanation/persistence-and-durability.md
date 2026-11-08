@@ -41,7 +41,7 @@ Agent 循环有自己的崩溃恢复路径，而且是可选的。`Runtime.invok
 
 检查点记录的是**实际在跑**的 agent。handoff 之后就是目标 agent，因此恢复时使用的是目标 agent 的工具，而不是调用方最初指定的那套。
 
-需要如实说明的限制。上下文按记录重放而不是重新计算：系统提示词与静态工具集来自检查点（包含 skill 驱动的过滤），`schema_version` 2 还会记录 invoke 使用的 workspace、appendix 与 skill 快照，因此恢复后的运行会放行相同的路径、重组相同的提示词。记录中的 workspace 根目录若已不存在，恢复会被拒绝，而不是回退到另一个 workspace。仍有两项不会重放：`tool_search` 的动态提升（恢复后的运行从检查点里的静态工具集开始），以及调用方回调与 steering/follow-up 队列（需要在 `recover_invoke` 时重新传入）。因审批挂起的运行不走这条路：`approvals` 行拥有那个状态，恢复入口是 `Runtime.resume_approval`，而该行带过期时间（默认 300 秒），过期后无法再恢复。检查点写入是 best-effort：写失败会记录日志并发布 `Invoke_checkpoint_failed`，但运行继续，因此那一步不可恢复。
+需要如实说明的限制。上下文按记录重放而不是重新计算：系统提示词与静态工具集来自检查点（包含 skill 驱动的过滤），`schema_version` 2 还会记录 invoke 使用的 workspace、appendix 与 skill 快照，因此恢复后的运行会放行相同的路径、重组相同的提示词。记录中的 workspace 根目录若已不存在，恢复会被拒绝，而不是回退到另一个 workspace。仍有两项不会重放：`tool_search` 的动态提升（恢复后的运行从检查点里的静态工具集开始），以及调用方回调与 steering/follow-up 队列（需要在 `recover_invoke` 时重新传入）。因审批挂起的运行会保留检查点，并记录它在等什么，因此等待期间的崩溃不会丢掉这个运行。`approvals` 行仍然拥有那个决定，入口是 `Runtime.resume_approval`；在该决定仍然开放期间，恢复会拒绝这个运行并指向 `resume_approval`，而不是重跑批次再问一次。决定过期后，批次会重跑并重新发起审批。检查点写入是 best-effort：写失败会记录日志并发布 `Invoke_checkpoint_failed`，但运行继续，因此那一步不可恢复。
 
 检查点在 invoke 所在的 fiber 上同步写入，不经过批量事件写入器。这是刻意的——进程死亡时可能还在缓冲区里的检查点不算检查点——也是持久化必须可选的原因：长工具循环每个批次都要付一次会话大小的写入。这也意味着 `Runtime.close` 应在 runtime 空闲时调用：它会关闭持久化句柄，之后落地的检查点写入或删除都会失败（并按上面所述上报）。
 

@@ -23,6 +23,7 @@
 | 2026-11-03 | 11 | 分支会话/会话枚举/工具分层的 API 形状 | API 级 + 架构级 | 架构正确 |
 | 2026-11-04 | 12 | invoke 检查点 schema v2：重放 workspace/appendix/skills | API 级 + 架构级 | 架构正确 |
 | 2026-11-09 | 13 | durable invoke 的跨 runtime 所有权（租约） | API 级 + 架构级 | 架构正确 |
+| 2026-11-09 | 14 | 审批挂起与崩溃恢复合流（一个恢复入口） | API 级 + 架构级 | 架构正确 |
 
 ---
 
@@ -532,6 +533,27 @@ MCP server 目前**不能**让模型直接调用其工具：`tool_registry.ml` �
 **影响范围**: `types.ml/.mli`（`invoke_lease` + 三个持久化函数）、`sqlite_persistence.ml`（表与三个函数）、`noop_persistence.ml`、`runtime.ml`（持有、刷新、启动过滤、关闭释放）、`invoke_lease.ml`（新模块：存活判定）、FFI、测试 `test_invoke_lease.ml`、文档 EN+ZH。
 
 **回退方式**: 删除 `invoke_leases` 表与三个持久化函数，恢复「启动时把所有遗留行当孤儿」的旧行为；不需要数据迁移（表是新建的）。
+
+---
+
+## #15: 审批挂起与崩溃恢复合流（一个恢复入口）
+
+**日期**: 2026-11-09
+**触发**: `PAR-1g9`——durable invoke 落地后有两条「中途暂停」路径：`invoke_checkpoints`（崩溃恢复）与 `approvals`（等人审批）。两者互不感知：因审批挂起的运行会删掉 durable 检查点，等待期间进程崩溃则整个运行丢失。
+
+### 决策
+
+1. **审批挂起时保留检查点**，并在检查点里记录 `pending_approval`（决定 id、agent、工具、过期时间）。挂起不是终止，运行不该在这里被丢掉。
+2. **决定归 `approvals` 行所有**：决定仍然开放时，`recover_invoke` 拒绝该运行并指向 `resume_approval`，而不是重跑批次再问一次审批。决定过期后批次重跑，审批重新发起。
+3. **决定落地时删除检查点**：恢复后的运行取代了旧的 durable 状态，两者不能同时存在。`resume_approval` 因此需要知道它对应哪个 invoke——`approvals` 载荷里记下 `invoke_id`。
+
+**§11 R1 标注**: **架构正确**。没有新增恢复入口：崩溃恢复仍是 `recover_invoke`，审批仍是 `resume_approval`，两者通过检查点里的 `pending_approval` 互相说明对方的状态。扩展的是已有 checkpoint 记录与已有的 approvals 行。
+
+**§11 R2 范围妥协**: 无新增妥协。明确不做的是「恢复时自动重新发起审批」——决定仍然开放时直接拒绝，避免无人值守地反复骚扰审批人。
+
+**影响范围**: `types.ml/.mli`（`pending_approval`）、`runtime.ml`（挂起写检查点、终态判定、恢复拒绝、决定落地删除）、`test_invoke_durability.ml`、文档 EN+ZH。
+
+**回退方式**: 删除 `pending_approval` 字段与相关分支，恢复「审批挂起即删除检查点」的旧行为；`approvals` 载荷里的 `invoke_id` 多余字段可忽略。
 
 ---
 

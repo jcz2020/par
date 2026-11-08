@@ -241,7 +241,7 @@ let test_a_dead_holder_releases_the_lease () =
        schema_version = Types.invoke_checkpoint_schema_version;
        iteration = 0; elapsed = 0.0; enable_handoff = false; tool_names = [];
        workspace_roots = None; workspace_sensitive_prefixes = None;
-       system_prompt_appendix = None; skills = None;
+       system_prompt_appendix = None; skills = None; pending_approval = None;
        conversation = { messages = []; metadata = [] };
        updated_at = Unix.gettimeofday ();
      } with

@@ -402,7 +402,7 @@ List.iter (fun (invoke_id, _agent_id) ->
 - 系统提示词与静态工具集按记录重放；`schema_version` 2 的检查点还会重放 workspace、appendix 与 skill 快照，恢复后的运行保持相同的路径放行与提示词组合；记录中的 workspace 根目录若已不存在，恢复会被拒绝而不是回退到另一个 workspace（`tool_search` 的动态提升与调用方 steering 队列不会重放）；
 - `schema_version` 比运行时能理解的新时，检查点被拒绝；如果其形状无法解码，启动时会保留该行，拒绝信息会说明版本。
 
-因审批挂起的运行不走这条路：`approvals` 行拥有那个状态，恢复入口是 `Runtime.resume_approval`，而该行带过期时间（默认 300 秒）。检查点写入是 best-effort：失败会记录日志并发布 `Invoke_checkpoint_failed`，但运行继续，那一步不可恢复。
+因审批挂起的运行会保留检查点，并记录它在等哪个决定，因此等待期间的崩溃不会丢掉这个运行。`approvals` 行拥有那个决定，入口是 `Runtime.resume_approval`；决定仍然开放时，`recover_invoke` 会拒绝该运行并指向 `resume_approval`。决定落地后检查点被删除。检查点写入是 best-effort：失败会记录日志并发布 `Invoke_checkpoint_failed`，但运行继续，那一步不可恢复。
 
 Durability 覆盖 `invoke` 与 `invoke_content`（`invoke_async` 透传）。`invoke_structured`、`invoke_generate`、`invoke_parallel` 与 workflow 的 `Agent_call` 步不走这套检查点。`save=false` 的运行如果开了 durability，仍会把会话写进检查点表。
 
