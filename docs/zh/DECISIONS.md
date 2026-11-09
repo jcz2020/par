@@ -27,6 +27,7 @@
 | 2026-11-04 | 12 | invoke 检查点 schema v2：重放 workspace/appendix/skills | API 级 + 架构级 | 架构正确 |
 | 2026-11-09 | 13 | durable invoke 的跨 runtime 所有权（租约） | API 级 + 架构级 | 架构正确 |
 | 2026-11-09 | 14 | 审批挂起与崩溃恢复合流（一个恢复入口） | API 级 + 架构级 | 架构正确 |
+| 2026-11-09 | 15 | 可取消阻塞读：机制已验证，传输层重写推迟到 v0.17 | 范围级 | **范围妥协** |
 
 ---
 
@@ -557,6 +558,27 @@ MCP server 目前**不能**让模型直接调用其工具：`tool_registry.ml` �
 **影响范围**: `types.ml/.mli`（`pending_approval`）、`runtime.ml`（挂起写检查点、终态判定、恢复拒绝、决定落地删除）、`test_invoke_durability.ml`、文档 EN+ZH。
 
 **回退方式**: 删除 `pending_approval` 字段与相关分支，恢复「审批挂起即删除检查点」的旧行为；`approvals` 载荷里的 `invoke_id` 多余字段可忽略。
+
+---
+
+## #16: 可取消阻塞读——机制已验证，传输层重写推迟到 v0.17
+
+**日期**: 2026-11-09
+**触发**: `PAR-9km`。流式取消只在下一个 chunk 生效；连接卡死、没有新 chunk 时打不断 HTTP 读。
+
+### 决策
+
+1. **本版不重写 HTTP 传输层**。`cohttp-eio` 仍负责全部 HTTP（provider / MCP transport / fetch_url）。
+2. **机制已验证**：自有 `Eio.Net` socket 上，另一 fiber 调用 `Eio.Flow.shutdown sock \`All` 能在 0.20s 内打断阻塞读（`End_of_file`）。spike 结论：自有 `Eio.Net` socket 上另一 fiber 调用 `Eio.Flow.shutdown`，阻塞读在 0.20s 内以 `End_of_file` 返回（本地 spike 笔记，不随仓库发布）。
+3. **长期方案已定**：新建 `http_transport.ml`（`Eio.Net` + `tls-eio`，先只做 `Connection: close`），迁移顺序 provider 非流式 → provider 流式 → MCP transport → fetch_url，每步保留回退开关；全部迁移后删除 cohttp-eio 依赖。
+
+**§11 R1 标注**: **范围妥协**（明确标注，不伪装成架构决策）。原因是传输层重写是 provider / MCP / fetch_url 三条关键路径的共同底座，与三个已落地的大改动同版风险不成比例。
+
+**§11 R2 退役计划**: 长期方案见上；**退役触发**：生产需要「连接卡死时立即停止」，或 v0.17 排期启动。spike 已把未知技术验证消除，v0.17 可以直接实现而不是再调研。
+
+**影响范围**: 本版只新增 spike 笔记与 bd 记录，不改代码。
+
+**回退方式**: 不适用（未改代码）。
 
 ---
 
