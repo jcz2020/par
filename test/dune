@@ -714,6 +714,11 @@
   (modules test_invoke_durability))
 
 (test
+  (name test_invoke_session_restore)
+  (libraries par eio_main alcotest yojson)
+  (modules test_invoke_session_restore))
+
+(test
   (name test_reasoning)
   (libraries par eio_main alcotest yojson logs)
   (modules test_reasoning))

@@ -1063,6 +1063,21 @@ let refresh_invoke_lease rt invoke_id =
             ~invoke_id ~owner:rt.runtime_id ~pid:(Unix.getpid ())
             ~ttl:invoke_lease_ttl)
 
+(* Tag events with the run's session while [f] runs, then put the caller's
+   session back: leaving the run's session behind would tag events published
+   after it finished with a run that no longer exists. [previous_session] must
+   be captured before the run mints its session - reading [rt.session_id] here
+   would restore the run's own session instead of the caller's state. An unset
+   prior session is restored to the bus's explicit empty state. *)
+let with_bus_session rt ~previous_session ~session_id f =
+  rt.services.event_bus.set_session_id_fn session_id;
+  Fun.protect
+    ~finally:(fun () ->
+      match previous_session with
+      | Some sid -> rt.services.event_bus.set_session_id_fn sid
+      | None -> rt.services.event_bus.set_session_id_fn "")
+    f
+
 let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token ?conversation
     ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix
     ?(skills : string list option)
@@ -1195,15 +1210,8 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
         ?on_tool_event
         ()
   in
-  rt.services.event_bus.set_session_id_fn ctx.session_id;
-  Fun.protect
-    ~finally:(fun () ->
-      (* An unset prior session is restored to the bus's explicit empty state;
-         leaving the invoke's session behind would tag later events with a run
-         that already finished. *)
-      match previous_bus_session with
-      | Some sid -> rt.services.event_bus.set_session_id_fn sid
-      | None -> rt.services.event_bus.set_session_id_fn "")
+  with_bus_session rt ~previous_session:previous_bus_session
+    ~session_id:ctx.session_id
     (fun () -> Invoke_context.with_context ctx (fun () ->
   let result =
   let agent = htbl_get rt.agents agent_id in
@@ -1561,6 +1569,9 @@ let invoke_async rt ~agent_id ~message ?workspace ?cancellation_token ?conversat
 
 let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
     ?(save = true) ?(update_current = true) ?on_tool_event ?on_chunk ?system_prompt_appendix () =
+  (* Capture the caller's session before minting one below: [update_current]
+     would otherwise make us restore this run's own session. *)
+  let previous_bus_session = !(rt.session_id) in
   let session_id = match !(rt.session_id) with
     | Some sid -> sid
     | None ->
@@ -1571,7 +1582,7 @@ let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
       if update_current then rt.session_id := Some new_sid;
       new_sid
   in
-  rt.services.event_bus.set_session_id_fn session_id;
+  with_bus_session rt ~previous_session:previous_bus_session ~session_id (fun () ->
   match htbl_get rt.agents agent_id with
   | None -> Result.Error (Invalid_input (Printf.sprintf "Unknown agent: %s" agent_id),
                            { Types.messages = []; metadata = [] })
@@ -1647,19 +1658,20 @@ let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
         | Error (err, conv) ->
           record_llm_error rt err;
           if update_current then Current_conversation.set rt (Some conv);
-          Result.Error (err, conv)))
+          Result.Error (err, conv))))
 
 let invoke_structured rt ~agent_id ~message ~response_schema
     ?(max_repair_attempts = 3) ?cancellation_token ?conversation
     ?system_prompt_appendix
     ?on_tool_event ?on_repair_attempt () =
+  let previous_bus_session = !(rt.session_id) in
   let session_id = Session_id.to_string (Session_id.create ()) in
-  rt.services.event_bus.set_session_id_fn session_id;
   let ctx = Invoke_context.create
     ~session_id
     ~metrics:(Metrics.empty ())
     ?system_prompt_appendix
     () in
+  with_bus_session rt ~previous_session:previous_bus_session ~session_id (fun () ->
   Invoke_context.with_context ctx (fun () ->
   let agent = htbl_get rt.agents agent_id in
   match agent with
@@ -1734,7 +1746,7 @@ let invoke_structured rt ~agent_id ~message ~response_schema
          task_id = Task_id.create ();
        } in
        publish_event rt evt;
-       Result.Error (err, conv)))
+       Result.Error (err, conv))))
 
 let embed rt messages =
   match rt.services.embeddings with
