@@ -6,7 +6,7 @@
 - `v0.16` work is on `main`, unreleased: vision tool results, DB leases,
   approval/crash recovery merge; the HTTP cancellation spike is done and the
   transport rewrite is explicitly deferred to v0.17.
-- OCaml: 1750 tests, 0 failures. Python: full suite green excluding the known
+- OCaml: 1752 tests, 0 failures. Python: full suite green excluding the known
   order-sensitive `test_http_timeout.py` segfault (passes alone).
 
 ## What shipped after v0.15
@@ -34,6 +34,9 @@
    points at `resume_approval`; applying the decision clears it.
 9. **`PAR-9km` spike** — `Eio.Flow.shutdown` on an owned socket interrupts a
    blocked read in 0.20s. See `docs/plans/v0.16-http-cancellation-spike.md`.
+10. `PAR-188` — `invoke_generate` and `invoke_structured` restore the event-bus
+    session through the shared `with_bus_session`; one regression test per
+    entry point (`test_invoke_session_restore.ml`).
 
 ## Next directions
 
@@ -41,14 +44,12 @@
    `Eio.Net` + `tls-eio`, `Connection: close` only; migrate provider non-stream
    → provider stream → MCP transport → fetch_url, keeping a cohttp-eio fallback
    until the last step.
-2. **`PAR-188`** — apply the same bus-session restore to `invoke_generate` and
-   `invoke_structured`.
-3. **Release v0.16** — needs explicit user authorization for the version bump.
+2. **Release v0.16** — needs explicit user authorization for the version bump.
    Next release is MINOR: schema 2, new variant, new persistence fields, new
    optional `recover_invoke` parameters.
-4. **`PAR-tgy`** — the `?sandbox` mechanism (design is in
+3. **`PAR-tgy`** — the `?sandbox` mechanism (design is in
    `docs/explanation/sandbox-model.md`).
-5. Remaining P2 feature backlog (`bd ready`) is `out-of-par` per DECISIONS #6
+4. Remaining P2 feature backlog (`bd ready`) is `out-of-par` per DECISIONS #6
    except MCP sampling routing (`PAR-wn7`) and the Python FFI gaps
    (`PAR-h4m`, `PAR-0ls`).
 
