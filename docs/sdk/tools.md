@@ -346,7 +346,7 @@ Lists directory contents.
 
 ### find
 
-Glob match on filenames (`**` crosses directories; `*` crosses a single path component and does not include `/`).
+Glob match on filenames (`**` crosses directories; `*` crosses a single path component and does not include `/`). Patterns are matched against the path relative to `path`, so `**/*.ml` matches files at any depth while `*.ml` matches only the search root.
 
 **Input**:
 ```json
@@ -360,7 +360,7 @@ Glob match on filenames (`**` crosses directories; `*` crosses a single path com
 
 ### grep
 
-Regex search across file contents. The `path` directory is searched recursively; `glob` filters by filename.
+Regex search across file contents. The `path` directory is searched recursively; `glob` filters by filename. `glob` defaults to `*`; omitting it (or passing an empty string) searches every file.
 
 **Input**:
 ```json

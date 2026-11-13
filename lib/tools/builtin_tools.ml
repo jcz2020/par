@@ -76,7 +76,7 @@ type find_input = {
 type grep_input = {
   pattern : string;
   path : string;
-  glob : string [@default ""];
+  glob : string [@default "*"];
 } [@@deriving yojson { strict = false }, jsonschema]
 
 type convert_temperature_input = {
@@ -89,6 +89,43 @@ type url_encode_input = {
   text : string;
   decode : bool [@default false];
 } [@@deriving yojson { strict = false }, jsonschema]
+
+(* Glob -> Str regex. `*` matches inside one path component, `**` crosses
+   components (`**/` also matches zero directories) and `?` matches one
+   non-slash character. Everything else is a literal, so a pattern like
+   `*.ml` cannot accidentally become a regex with a stray backslash. *)
+let glob_to_regex glob =
+  let b = Buffer.create (String.length glob * 2) in
+  let n = String.length glob in
+  let quote c = Buffer.add_char b '\\'; Buffer.add_char b c in
+  let rec go i =
+    if i >= n then ()
+    else
+      match glob.[i] with
+      | '*' when i + 1 < n && glob.[i + 1] = '*' ->
+        let j = ref (i + 1) in
+        while !j + 1 < n && glob.[!j + 1] = '*' do incr j done;
+        if !j + 1 < n && glob.[!j + 1] = '/' then begin
+          Buffer.add_string b "\\(.*/\\)?";
+          go (!j + 2)
+        end else begin
+          Buffer.add_string b ".*";
+          go (!j + 1)
+        end
+      | '*' -> Buffer.add_string b "[^/]*"; go (i + 1)
+      | '?' -> Buffer.add_string b "[^/]"; go (i + 1)
+      | ('.' | '+' | '(' | ')' | '[' | ']' | '^' | '$' | '|' | '\\') as c ->
+        quote c; go (i + 1)
+      | c -> Buffer.add_char b c; go (i + 1)
+  in
+  go 0;
+  Buffer.contents b
+
+let glob_match pattern path =
+  try
+    let re = Str.regexp (glob_to_regex pattern) in
+    Str.string_match re path 0 && Str.match_end () = String.length path
+  with _ -> false
 
 let bash_tool_descriptor : Types.tool_descriptor =
   { Types.name = "bash"
@@ -524,21 +561,8 @@ let builtin_tools ~switch ~net ~workspace =
        | Result.Error (`Msg msg) -> failwith ("TLS configuration error: " ^ msg))
   in
 
-  let tls_host_of_string host =
-    match Domain_name.of_string host with
-    | Error _ -> None
-    | Ok dn -> (match Domain_name.host dn with Ok h -> Some h | Error _ -> None)
-  in
-
   let https_fn uri flow =
-    let cfg = Lazy.force tls_config in
-    let host = Uri.host uri in
-    (match host with
-     | Some h ->
-       (match tls_host_of_string h with
-        | Some dh -> Tls_eio.client_of_flow cfg ~host:dh flow
-        | None -> failwith ("Cannot parse hostname for TLS SNI: " ^ h))
-     | None -> failwith "No host in URL for TLS connection")
+    Tls_client.connect ~cfg:(Lazy.force tls_config) uri flow
   in
 
   let _http_client = Cohttp_eio.Client.make ~https:(Some https_fn) net in
@@ -925,25 +949,21 @@ let builtin_tools ~switch ~net ~workspace =
       }
     in
     let skip_dirs = [".git"; "node_modules"; "_build"; "_opam"] in
-    let glob_match pattern name =
-      let pat = Str.regexp (Str.quote pattern |> Str.global_replace (Str.regexp "\\*\\*") ".*" |> Str.global_replace (Str.regexp "\\*") "[^/]*") in
-      try Str.search_forward pat name 0 >= 0
-      with Not_found -> false
-    in
-    let rec walk pattern dir acc =
+    let rec walk pattern rel dir acc =
       try
         let entries = Sys.readdir dir in
         Array.fold_left (fun acc name ->
           let full = Filename.concat dir name in
+          let rel' = if rel = "" then name else rel ^ "/" ^ name in
           let is_dir = try
             let stat = Unix.LargeFile.lstat full in
             stat.Unix.LargeFile.st_kind = Unix.S_DIR
           with _ -> false in
           let acc = if is_dir && List.mem name skip_dirs then acc
-                    else if glob_match pattern (Filename.basename full) then full :: acc
+                    else if glob_match pattern rel' then full :: acc
                     else acc in
           if is_dir && not (List.mem name skip_dirs) then
-            walk pattern full acc
+            walk pattern rel' full acc
           else acc
         ) acc entries
       with _ -> acc
@@ -966,7 +986,7 @@ let builtin_tools ~switch ~net ~workspace =
           | Ok sandboxed ->
             let full_path = Workspace.to_string sandboxed in
             try
-              let results = walk pattern full_path [] in
+              let results = walk pattern "" full_path [] in
               let sorted = List.sort String.compare results in
               let cwd = Workspace.root workspace in
               let cwd_len = String.length cwd + 1 in
@@ -1009,8 +1029,8 @@ let builtin_tools ~switch ~net ~workspace =
           | None -> "."
         in
         let glob = match input |> member "glob" |> to_string_option with
-          | Some g -> g
-          | None -> "*"
+          | Some g when g <> "" -> g
+          | _ -> "*"
         in
         let _context_lines = match input |> member "context_lines" |> to_int_option with
           | Some n -> max 0 n
@@ -1029,7 +1049,6 @@ let builtin_tools ~switch ~net ~workspace =
             with _ -> raise (Invalid_argument "Invalid regex pattern")
           in
           let results = ref [] in
-          let glob_re = Str.regexp (Str.quote glob |> Str.global_replace (Str.regexp "\\*") ".*") in
           let rec search dir =
             try
               let entries = Sys.readdir dir in
@@ -1041,7 +1060,7 @@ let builtin_tools ~switch ~net ~workspace =
                     stat.Unix.LargeFile.st_kind = Unix.S_DIR
                   with _ -> false in
                   if is_dir then search full
-                  else if Str.string_match glob_re name 0 then begin
+                  else if glob_match glob name then begin
                     try
                       let ic = open_in full in
                       Fun.protect (fun () ->
@@ -1051,7 +1070,15 @@ let builtin_tools ~switch ~net ~workspace =
                              incr line_no;
                              let line = input_line ic in
                               if Str.string_match regex line 0 then begin
-                                let display_path = String.sub full (String.length (Filename.concat root_prefix "") + 1) (String.length full - String.length (Filename.concat root_prefix "") - 1) in
+                                let prefix = Filename.concat root_prefix "" in
+                                let prefix_len = String.length prefix in
+                                let display_path =
+                                  if String.length full > prefix_len
+                                     && String.sub full 0 prefix_len = prefix
+                                  then String.sub full prefix_len
+                                         (String.length full - prefix_len)
+                                  else full
+                                in
                                results := Printf.sprintf "%s:%d:%s" display_path (!line_no) line :: !results
                               end
                             done

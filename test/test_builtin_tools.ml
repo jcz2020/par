@@ -27,6 +27,49 @@ let with_tools_in dir f =
       let token = Cancellation.create_token sw in
       f tools token))
 
+let rec rm_rf path =
+  match Unix.lstat path with
+  | { Unix.st_kind = Unix.S_DIR; _ } ->
+    Array.iter (fun name -> rm_rf (Filename.concat path name)) (Sys.readdir path);
+    Unix.rmdir path
+  | _ -> Unix.unlink path
+  | exception Unix.Unix_error _ -> ()
+
+(* A small tree with one file at the root, one in a subdirectory and one in a
+   nested directory, so glob depth semantics are observable. *)
+let with_temp_tree f =
+  let dir = Filename.temp_file "par_builtin_tools" "" in
+  Sys.remove dir;
+  Unix.mkdir dir 0o755;
+  let write rel content =
+    let path = Filename.concat dir rel in
+    let rec mkdirs d =
+      if not (Sys.file_exists d) then begin
+        mkdirs (Filename.dirname d);
+        Unix.mkdir d 0o755
+      end
+    in
+    mkdirs (Filename.dirname path);
+    let oc = open_out path in
+    output_string oc content;
+    close_out oc
+  in
+  Fun.protect
+    ~finally:(fun () -> rm_rf dir)
+    (fun () ->
+       write "a.ml" "needle root\n";
+       write "b.txt" "needle text\n";
+       write "sub/c.ml" "needle sub\n";
+       write "sub/deep/d.ml" "no match here\n";
+       f dir)
+
+let list_of_success = function
+  | Success (`List items) ->
+    List.map (function `String s -> s | _ -> failwith "expected a string") items
+  | Success _ -> failwith "expected a JSON list"
+  | Error { message; _ } -> failwith ("expected Success, got Error: " ^ message)
+  | _ -> failwith "unexpected handler result"
+
 let is_success = function
   | Success _ -> true
   | Success_content _ | Error _ | Handoff _ | Approval_required _ -> false
@@ -518,6 +561,39 @@ let find_suite =
         match result with
         | Success _ -> ()
         | _ -> Alcotest.fail "expected Success"));
+
+    Alcotest.test_case "double star matches every depth" `Quick (fun () ->
+      with_temp_tree @@ fun dir ->
+      with_tools_in dir @@ fun tools token ->
+      let handler = find_tool "find" tools in
+      let result = handler (`Assoc [
+        ("pattern", `String "**/*.ml");
+        ("path", `String ".");
+      ]) token in
+      Alcotest.(check (list string)) "all .ml files"
+        ["a.ml"; "sub/c.ml"; "sub/deep/d.ml"] (list_of_success result));
+
+    Alcotest.test_case "single star stays in one component" `Quick (fun () ->
+      with_temp_tree @@ fun dir ->
+      with_tools_in dir @@ fun tools token ->
+      let handler = find_tool "find" tools in
+      let result = handler (`Assoc [
+        ("pattern", `String "*.ml");
+        ("path", `String ".");
+      ]) token in
+      Alcotest.(check (list string)) "root-level .ml only"
+        ["a.ml"] (list_of_success result));
+
+    Alcotest.test_case "directory component in the pattern" `Quick (fun () ->
+      with_temp_tree @@ fun dir ->
+      with_tools_in dir @@ fun tools token ->
+      let handler = find_tool "find" tools in
+      let result = handler (`Assoc [
+        ("pattern", `String "sub/*.ml");
+        ("path", `String ".");
+      ]) token in
+      Alcotest.(check (list string)) "sub/*.ml matches sub/c.ml"
+        ["sub/c.ml"] (list_of_success result));
   ])
 
 let grep_suite =
@@ -553,6 +629,55 @@ let grep_suite =
         match result with
         | Success (`List l) -> Alcotest.(check int) "no matches" 0 (List.length l)
         | _ -> Alcotest.fail "expected Success with empty list"));
+
+    Alcotest.test_case "default glob searches every file" `Quick (fun () ->
+      with_temp_tree @@ fun dir ->
+      with_tools_in dir @@ fun tools token ->
+      let handler = find_tool "grep" tools in
+      let result = handler (`Assoc [
+        ("pattern", `String "needle");
+        ("path", `String ".");
+      ]) token in
+      Alcotest.(check int) "three files matched" 3
+        (List.length (list_of_success result)));
+
+    Alcotest.test_case "empty glob behaves like the default" `Quick (fun () ->
+      with_temp_tree @@ fun dir ->
+      with_tools_in dir @@ fun tools token ->
+      let handler = find_tool "grep" tools in
+      let result = handler (`Assoc [
+        ("pattern", `String "needle");
+        ("path", `String ".");
+        ("glob", `String "");
+      ]) token in
+      Alcotest.(check int) "three files matched" 3
+        (List.length (list_of_success result)));
+
+    Alcotest.test_case "glob filters by filename" `Quick (fun () ->
+      with_temp_tree @@ fun dir ->
+      with_tools_in dir @@ fun tools token ->
+      let handler = find_tool "grep" tools in
+      let result = handler (`Assoc [
+        ("pattern", `String "needle");
+        ("path", `String ".");
+        ("glob", `String "*.ml");
+      ]) token in
+      let lines = list_of_success result in
+      Alcotest.(check int) "only .ml files" 2 (List.length lines);
+      Alcotest.(check bool) "a.ml is present" true
+        (List.exists (fun l -> String.length l >= 4 && String.sub l 0 4 = "a.ml") lines));
+
+    Alcotest.test_case "txt glob excludes .ml" `Quick (fun () ->
+      with_temp_tree @@ fun dir ->
+      with_tools_in dir @@ fun tools token ->
+      let handler = find_tool "grep" tools in
+      let result = handler (`Assoc [
+        ("pattern", `String "needle");
+        ("path", `String ".");
+        ("glob", `String "*.txt");
+      ]) token in
+      Alcotest.(check (list string)) "only b.txt"
+        ["b.txt:1:needle text"] (list_of_success result));
   ])
 
 let write_suite =
