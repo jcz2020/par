@@ -1,13 +1,14 @@
 # Continue — Next Session
 
-## Current state (2026-11-10)
+## Current state (2026-11-14)
 
 - `v0.15.0-beta.20261104` is released and pushed.
 - `v0.16` work is on `main`, unreleased: vision tool results, DB leases,
   approval/crash recovery merge; the HTTP cancellation spike is done and the
   transport rewrite is explicitly deferred to v0.17.
-- OCaml: 1752 tests, 0 failures. Python: full suite green excluding the known
-  order-sensitive `test_http_timeout.py` segfault (passes alone).
+- OCaml: 1764 tests, 0 failures. Python: full suite green (209 passed /
+  20 skipped); the order-sensitive `test_http_timeout.py` segfault did not
+  reproduce in this run (it passes alone when it does).
 - Local switch upgraded on 2026-11-11: sqlite3 5.4.2 (GC-rooting fix), tls /
   tls-eio 2.1.5, x509 1.2.0, mirage-crypto* 2.4.1 (security/stability fixes),
   then eio 1.6, cohttp / cohttp-eio 6.3.0 and dune 3.24.2. OCaml stays at
@@ -42,6 +43,21 @@
 10. `PAR-188` — `invoke_generate` and `invoke_structured` restore the event-bus
     session through the shared `with_bus_session`; one regression test per
     entry point (`test_invoke_session_restore.ml`).
+11. **`PAR-cxp` TLS identity** — `Tls_client` is the single TLS entry point for
+    providers, MCP HTTP and built-in HTTP tools. IP literals now use
+    `Tls_eio.client_of_flow ~ip` (tls-eio >= 2.1.5); a host that is neither a
+    domain nor an IP fails closed instead of connecting without identity
+    validation. `ipaddr` is a direct dependency now.
+12. **`PAR-p2x` (GitHub #32) find/grep** — globs are translated char-by-char
+    (`*` within a component, `**` across, `**/` matches zero directories,
+    `?`); `find` matches the path relative to `path`; `grep` treats an omitted
+    or empty glob as `*`; grep's `path:line:text` output no longer drops the
+    first character of the relative path.
+13. **`PAR-f5h` bus-session review follow-ups** — `with_bus_session` now takes
+    a `prepare` callback so capture and minting cannot be ordered wrongly;
+    generate/structured validate the agent before minting a session;
+    error/exception paths covered by tests; concurrent-run event attribution
+    limitation documented in `docs/sdk/generate.md` (EN+ZH).
 
 ## Next directions
 
