@@ -360,7 +360,7 @@ Glob match on filenames (`**` crosses directories; `*` crosses a single path com
 
 ### grep
 
-Regex search across file contents. The `path` directory is searched recursively; `glob` filters by filename. `glob` defaults to `*`; omitting it (or passing an empty string) searches every file.
+Regex search across file contents. The `path` directory is searched recursively. The regex is searched anywhere in the line, so a leading `^` is only needed to anchor at the start. `glob` filters files: a glob without `/` matches the file name at any depth (`*.ml` selects nested files too), while a glob with `/` matches the path relative to `path` (`sub/*.ml`, `**/*.ml`). `glob` defaults to `*`; omitting it (or passing an empty string) searches every file.
 
 **Input**:
 ```json

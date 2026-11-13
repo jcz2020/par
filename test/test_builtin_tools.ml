@@ -61,6 +61,8 @@ let with_temp_tree f =
        write "b.txt" "needle text\n";
        write "sub/c.ml" "needle sub\n";
        write "sub/deep/d.ml" "no match here\n";
+       (* The token starts mid-line: a grep that anchors at offset 0 cannot see it. *)
+       write "sub/deep/tokens.md" "# prefix mid_line_token suffix\n";
        f dir)
 
 let list_of_success = function
@@ -678,6 +680,44 @@ let grep_suite =
       ]) token in
       Alcotest.(check (list string)) "only b.txt"
         ["b.txt:1:needle text"] (list_of_success result));
+
+    Alcotest.test_case "matches a token that starts mid-line" `Quick (fun () ->
+      with_temp_tree @@ fun dir ->
+      with_tools_in dir @@ fun tools token ->
+      let handler = find_tool "grep" tools in
+      let result = handler (`Assoc [
+        ("pattern", `String "mid_line_token");
+        ("path", `String ".");
+      ]) token in
+      Alcotest.(check (list string)) "one mid-line hit"
+        ["sub/deep/tokens.md:1:# prefix mid_line_token suffix"]
+        (list_of_success result));
+
+    Alcotest.test_case "glob with a directory component matches the relative path"
+      `Quick (fun () ->
+      with_temp_tree @@ fun dir ->
+      with_tools_in dir @@ fun tools token ->
+      let handler = find_tool "grep" tools in
+      let result = handler (`Assoc [
+        ("pattern", `String "needle");
+        ("path", `String ".");
+        ("glob", `String "sub/*.ml");
+      ]) token in
+      Alcotest.(check (list string)) "only sub/c.ml"
+        ["sub/c.ml:1:needle sub"] (list_of_success result));
+
+    Alcotest.test_case "double-star glob matches at every depth" `Quick (fun () ->
+      with_temp_tree @@ fun dir ->
+      with_tools_in dir @@ fun tools token ->
+      let handler = find_tool "grep" tools in
+      let result = handler (`Assoc [
+        ("pattern", `String "needle");
+        ("path", `String ".");
+        ("glob", `String "**/*.ml");
+      ]) token in
+      Alcotest.(check (list string)) ".ml files at any depth"
+        ["a.ml:1:needle root"; "sub/c.ml:1:needle sub"]
+        (List.sort String.compare (list_of_success result)));
   ])
 
 let write_suite =

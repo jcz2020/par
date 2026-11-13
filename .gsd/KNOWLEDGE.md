@@ -42,7 +42,7 @@
 
 - **Never `Str.quote` a glob and then patch the wildcards.** `Str.quote` inserts a backslash before `*`, and replacing the `*` leaves the backslash behind, producing a regex that requires a literal backslash in the name. Translate character by character instead.
 - **Glob semantics in PAR:** `*` → `[^/]*`, `?` → `[^/]`, `**` → `.*`, `**/` → `\\(.*/\\)?` (zero directories allowed). Match the whole string: `Str.string_match re s 0 && Str.match_end () = String.length s`.
-- **`find` matches the path relative to its `path` argument; `grep` matches the filename.** `*.ml` is root-only for `find`; use `**/*.ml` for every depth.
+- **`find` matches the path relative to its `path` argument.** `*.ml` is root-only for `find`; use `**/*.ml` for every depth. **`grep` is recursive:** a glob without `/` filters by file name at any depth (`*.ml` finds nested files), and a glob with `/` matches the path relative to the searched directory, like `find`. `grep` must search the line (`Str.search_forward`), not anchor at offset 0.
 - **`grep` display paths:** strip exactly `Filename.concat root ""` (which already includes the trailing separator). The old code added one more byte and dropped the first character of every path.
 
 ## Dependencies / release

@@ -127,6 +127,16 @@ let glob_match pattern path =
     Str.string_match re path 0 && Str.match_end () = String.length path
   with _ -> false
 
+(* `grep` walks its `path` recursively. A glob without a slash filters by file
+   name at any depth (`*.ml` finds nested files, as before); a glob with a slash
+   is matched against the path relative to the searched directory, so a
+   directory component works the same way as in `find`. *)
+let glob_matches_file glob rel_path =
+  let subject =
+    if String.contains glob '/' then rel_path else Filename.basename rel_path
+  in
+  glob_match glob subject
+
 let bash_tool_descriptor : Types.tool_descriptor =
   { Types.name = "bash"
   ; description = "Execute a system command (e.g. git, npm, docker, make). \
@@ -1049,18 +1059,19 @@ let builtin_tools ~switch ~net ~workspace =
             with _ -> raise (Invalid_argument "Invalid regex pattern")
           in
           let results = ref [] in
-          let rec search dir =
+          let rec search rel dir =
             try
               let entries = Sys.readdir dir in
               Array.iter (fun name ->
                 if not (List.mem name [".git"; "node_modules"; "_build"; "_opam"]) then begin
                   let full = Filename.concat dir name in
+                  let rel' = if rel = "" then name else rel ^ "/" ^ name in
                   let is_dir = try
                     let stat = Unix.LargeFile.lstat full in
                     stat.Unix.LargeFile.st_kind = Unix.S_DIR
                   with _ -> false in
-                  if is_dir then search full
-                  else if glob_match glob name then begin
+                  if is_dir then search rel' full
+                  else if glob_matches_file glob rel' then begin
                     try
                       let ic = open_in full in
                       Fun.protect (fun () ->
@@ -1069,7 +1080,14 @@ let builtin_tools ~switch ~net ~workspace =
                            while true do
                              incr line_no;
                              let line = input_line ic in
-                              if Str.string_match regex line 0 then begin
+                              (* `Str.string_match` anchors at offset 0, so it
+                                 only finds a match that starts the line. A
+                                 content search must look anywhere in it. *)
+                              let matches =
+                                try ignore (Str.search_forward regex line 0); true
+                                with Not_found -> false
+                              in
+                              if matches then begin
                                 let prefix = Filename.concat root_prefix "" in
                                 let prefix_len = String.length prefix in
                                 let display_path =
@@ -1096,7 +1114,7 @@ let builtin_tools ~switch ~net ~workspace =
                  m "find/grep: failed to read dir: %s"
                    (Printexc.to_string e))
            in
-          search full_path;
+          search "" full_path;
           let sorted = List.rev (List.sort compare !results) in
           Success (`List (List.map (fun s -> `String s) sorted))
         )

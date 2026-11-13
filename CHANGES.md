@@ -1,5 +1,20 @@
 # CHANGES
 
+## Unreleased — `grep` finds mid-line matches and directory globs (GitHub #32)
+
+> v0.16 fixed the glob translation, but `grep` still missed every match that did not start at column 0 and could not use a glob with a directory component. Both are fixed; no version bump yet.
+
+### Fixed — `grep` line matching anchored at offset 0
+
+- The line test used `Str.string_match re line 0`, which only accepts a match beginning at the start of the line, so a search for `distiller_agent_id` never saw `let distiller_agent_id = ...`. It now uses `Str.search_forward`, so the pattern is found anywhere in the line.
+- A line that does not match is skipped without affecting the rest of the file, and the exact `path:line:text` result set is now covered by tests rather than only a `Success` shape.
+
+### Fixed — `grep` globs with a directory component never matched
+
+- A glob containing `/` is matched against the path relative to the searched directory, the same way `find` matches, so `sub/*.ml` and `**/*.ml` select files instead of being compared with a bare file name.
+- A glob without `/` still filters by file name at any depth (`*.ml` keeps finding nested files), and the default `*` is unchanged.
+- `docs/sdk/tools.md` (EN + ZH) documents the two glob forms.
+
 ## v0.16.0-beta.20261114 — vision tool results, cross-runtime leases, approval recovery, TLS identity
 
 > A tool can now hand the model an image instead of a flattened string, a durable run is owned by one runtime even when two share a SQLite file, and a run suspended for an approval survives a crash. This release also closes two silent-wrong-answer defects: TLS endpoints addressed by IP literal skipped certificate identity validation, and the built-in `find` / `grep` tools matched nothing at all. **1764 OCaml tests, 0 failures; 209 Python passed / 20 skipped.** Beta-first: the stable line remains v0.10.0.
