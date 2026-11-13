@@ -429,3 +429,11 @@ or input-entry design. No additional version bump or tag is authorized here.
 | 4 | 永久 soft-fail(模板有 volatile builtin 时静默跳过) | **范围妥协**(把类型保证降级成 runtime hint) | v0.6.4 soft 过渡 → v0.6.5 hard fail(构造期拒绝) |
 
 用户挑战后,4 条全部翻盘,scope 扩大。此案例确立 §11 原则,避免复发。
+
+### 11.5 历史教训(2026-11 v0.16 发布周期)
+
+1. **依赖升级不等于安全修复已生效。** tls 2.1.5 提供了 `~ip`，也让 x509 按 RFC 9525 校验 SAN；但如果调用点在 `Domain_name` 解析失败后不传 `~host`/`~ip`，证书身份仍然完全不校验。升级依赖时必须逐条检查**调用点**是否真的走到新行为，尤其是 fail-open 的 fallback 分支。
+2. **发布完成以「实际产物可安装」为准，不以 workflow 结论为准。** PyPI publish 显示 success、GitHub asset 也在，但本机 `pip` 默认走镜像源（阿里云）尚未同步，`pip install <version>` 仍报找不到。发布后必须在全新 venv 里从 `https://pypi.org/simple` 安装并打印版本；预发布版本要看 PyPI JSON 的 `releases[version]`，`info.version` 会停留在上一个 stable。
+3. **只断言 `Success` 的测试会放过「返回空结果」的缺陷。** `find`/`grep` 的 glob 完全匹配不到任何文件，旧测试只检查 handler 返回 `Success` 所以一直绿。新测试用临时目录树断言**精确结果集**；修复逻辑做变异验证（删掉实现，用例必须失败）。
+4. **全局可变状态要有显式契约和并发限制。** 事件总线的 session 是 runtime 级单值；恢复契约、捕获顺序（`prepare` 回调）和「并发运行不按 run 归属事件」必须写进文档，否则下一个入口会重新引入 PAR-48p 的排序 bug。
+5. **review 要覆盖「没有 diff 的变更」。** 本次两批依赖升级没有代码 diff，但 review 从 TLS 调用点里挖出了 HIGH 级证书身份缺口。review 的输入是行为，不是 `git diff`。

@@ -579,6 +579,50 @@ MCP server 目前**不能**让模型直接调用其工具：`tool_registry.ml` �
 
 ---
 
+## #17: TLS 证书身份校验统一入口（IP 端点与 fail closed）
+
+**日期**: 2026-11-14
+**触发**: v0.16 安全 review。provider 的 TLS 包装层先用 `Domain_name.host` 解析 URL host；IP 字面量会被它拒绝，随后代码调用 `Tls_eio.client_of_flow` 时既不传 `~host` 也不传 `~ip`。链路证书仍然校验，但证书身份不再校验——以 `https://<ip>` 访问的端点可被任意合法证书 MITM。MCP HTTP 和内置 HTTP 工具各自复制了一份 host 解析，行为也在漂移。
+
+### 决策
+
+1. **单一入口**：新增 `Par.Tls_client`，provider HTTP、MCP HTTP、内置 HTTP 工具全部经 `Tls_client.connect`；不再各自解析 host。
+2. **IP 身份**：先 `Ipaddr.of_string`，IP 字面量传 `~ip`（tls-eio >= 2.1.5 提供）；域名走 `Domain_name.host` 传 `~host`。
+3. **失败关闭**：既不是域名也不是 IP 的 host 直接 `failwith`，绝不退化为「只校验证书链、不校验身份」。
+4. **依赖下限**：`tls-eio >= 2.1.5`（`~ip` API + 内存泄漏修复）；`ipaddr` 成为直接依赖。
+
+**§11 R1 标注**: **架构正确**。TLS 身份校验只有一个正确位置；把三份 host 解析收敛到 `Tls_client` 消除了漂移源。没有新增平行抽象，只是把已有的 provider/MCP/fetch_url 三条路径接到同一个原语上。
+
+**§11 R2 范围妥协**: 无新增。剩余 fail-open 分支是 `Ca_certs.authenticator ()` 失败时回退 `no_auth`（provider / MCP / builtin 三处），已记录为 `PAR-is4`，退役触发 = 下一次安全收口或任何生产部署报告 CA store 不可用。
+
+**影响范围**: `lib/core/tls_client.ml`（新）、`lib/providers/http_client.ml/.mli`、`lib/mcp/mcp_transport_http.ml`、`lib/tools/builtin_tools.ml`、`lib/par.ml`、`dune-project`/`par.opam`、`lib/dune`、`test/test_tls_client.ml`。
+
+**回退方式**: 删除 `Tls_client` 并把三处恢复为各自的 host 解析；`tls-eio` 下限和 `ipaddr` 可保留（它们不改变 API）。
+
+---
+
+## #18: 事件总线 session 契约（prepare 回调 + 并发归属限制）
+
+**日期**: 2026-11-14
+**触发**: `PAR-188` 与 v0.16 review。`invoke_generate` / `invoke_structured` 给总线打上运行 session 后从不恢复；生成的 session 也可能在 agent 校验之前写入 `rt.session_id`。此外，`with_bus_session` 原先由调用方传入「先前的 session」，正是 PAR-48p 修过的排序 bug 的入口。
+
+### 决策
+
+1. **一个契约覆盖三个入口**：`Runtime.invoke`、`invoke_generate`、`invoke_structured` 都在运行期间给总线打运行 session，结束后恢复调用方 session；原来没有 session 时恢复为空串。
+2. **`with_bus_session ~prepare`**：`prepare` 接收调用方 session，返回运行 session 与 `f` 需要的状态。捕获与 mint 在同一处发生，新入口无法把顺序写反。
+3. **先校验再 mint**：generate/structured 在创建 session 之前校验 agent；失败路径不再留下一个从未运行的 `rt.session_id`。
+4. **并发归属限制**：总线 session 是 runtime 级单值，不是 fiber 级。并发后台运行无法按运行归属事件；`generate.md`（EN+ZH）明确写出，并指向 `on_tool_event` / `on_chunk`。
+
+**§11 R1 标注**: **架构正确**（在当前事件总线 API 内）。恢复契约与 session 生命周期一致；`prepare` 把 PAR-48p 的隐式顺序要求变成结构性约束。
+
+**§11 R2 范围妥协**: 并发运行的事件归属仍受 runtime 级总线限制。**长期方案**：`publish_event` 从 fiber-local 的 `Invoke_context` 取 session。**退役触发**：有消费方需要并发运行的事件按 run 归属（例如多分支 UI 实时订阅）。
+
+**影响范围**: `lib/core/runtime.ml`、`test/test_invoke_session_restore.ml`、`docs/sdk/generate.md` + `docs/zh/sdk/generate.md`。
+
+**回退方式**: 恢复调用方捕获 `previous_session`，或让 generate/structured 回到「只设置不恢复」的旧行为（不建议，会重新引入错误事件归属）。
+
+---
+
 ## Phase 2 / Deferred Items
 
 以下项目在 v0.8.1/v0.8.2 中明确标注为延后，记录于此防止遗忘。每项含退役触发条件。
@@ -614,4 +658,4 @@ MCP server 目前**不能**让模型直接调用其工具：`tool_registry.ml` �
 
 ---
 
-**最后更新**: 2026-11-04
+**最后更新**: 2026-11-14
