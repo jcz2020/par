@@ -1,5 +1,77 @@
 # CHANGES
 
+## v0.16.0-beta.20261114 — vision tool results, cross-runtime leases, approval recovery, TLS identity
+
+> A tool can now hand the model an image instead of a flattened string, a durable run is owned by one runtime even when two share a SQLite file, and a run suspended for an approval survives a crash. This release also closes two silent-wrong-answer defects: TLS endpoints addressed by IP literal skipped certificate identity validation, and the built-in `find` / `grep` tools matched nothing at all. **1764 OCaml tests, 0 failures; 209 Python passed / 20 skipped.** Beta-first: the stable line remains v0.10.0.
+
+### Added — tools can return rich content (vision closure)
+
+- **NEW** `Types.handler_result.Success_content of content_block list`. The blocks become the tool result in the conversation, so the next model call carries text and images exactly as the tool produced them. `Success json` keeps the previous behaviour.
+- Anthropic's `tool_result` uses the array form when the result carries an image; OpenAI's tool message already used the array form for image-bearing messages.
+- The FFI bridge reads the envelope a Python handler writes (`Types.tool_content_key`), so OCaml and Python tools hand the model the same content shape.
+- Middleware (`pii_mask`, `sanitize_tool_output`) scrubs text blocks of rich content and leaves binary image payloads alone.
+- A workflow `Tool_call` step rejects rich content: a step's output is a JSON value the engine stores and returns.
+
+### Added — cross-runtime invoke leases (PAR-53d)
+
+- **NEW** `invoke_leases` table. A durable run names its holder (runtime instance id, pid, expiry); while the run is in flight the owner holds a compare-and-swap lease, so another runtime over the same database does not treat it as an orphan and execute the tools twice.
+- Liveness checks the holder's process first, so a crashed run is recoverable immediately; expiry is the fallback for platforms without a process probe and for pid reuse. The holder refreshes the lease as it works and releases it on clean close.
+- `persistence_service` gained `claim_invoke_lease_fn`, `release_invoke_lease_fn` and `list_invoke_leases_fn`; the SQLite and noop services implement them.
+
+### Fixed — approval suspension and crash recovery share one recovery entry (PAR-1g9)
+
+- A run suspended for an approval keeps its durable checkpoint and records `pending_approval` (decision id, agent, tool, expiry). Suspension is not termination, so a crash while it waits no longer loses the run.
+- The `approvals` row still owns the decision. While it is open, `recover_invoke` refuses the run and points at `resume_approval` instead of re-running the batch and asking again. Once the decision expires, the batch re-runs and the approval is requested afresh.
+- Applying the decision removes the checkpoint: the resumed run supersedes the old durable state. The approvals payload now carries `invoke_id` so `resume_approval` can find it.
+
+### Fixed — event-bus session contract for generate and structured (PAR-188)
+
+- `invoke_generate` and `invoke_structured` tag the event bus with the run's session and restore the caller's session when the run ends, matching `Runtime.invoke`. Before, events published after either call carried a finished run's session.
+- Both entry points validate the target agent before minting a session, so an unknown agent or a tool-bearing generate target no longer leaves `rt.session_id` pointing at a run that never happened.
+- `with_bus_session` now takes a `prepare` callback that receives the caller's session and returns the run's session plus the state to run with; the capture-before-minting order cannot be written backwards.
+- Documented: the event bus stores one session per runtime, so concurrent background runs do not get per-run event attribution. Use `on_tool_event` / `on_chunk` when that matters.
+
+### Security — TLS certificate identity for IP-literal endpoints
+
+- **HIGH** Provider HTTPS addresses whose host was an IPv4 or IPv6 literal were connected to without certificate identity validation: `Domain_name` rejects IP literals, and the wrapper then called `Tls_eio.client_of_flow` with neither `~host` nor `~ip`, accepting a certificate issued for any name. IP literals now use `~ip`; a host that is neither a domain nor an IP fails closed.
+- New `Par.Tls_client` is the single TLS entry point for provider HTTP, MCP HTTP and the built-in HTTP tools. `tls-eio >= 2.1.5` is now the floor, and `ipaddr` is a direct dependency.
+- `x509 1.2.0` validates hostnames against SubjectAlternativeName only (RFC 9525); certificates that relied on a CN without a SAN are rejected. This is intentional.
+
+### Fixed — `find` / `grep` matched nothing (GitHub #32)
+
+- `Str.quote` escaped the wildcard in a glob and the substitution left the escape backslash behind, so every pattern required a literal backslash in the file name. `find` returned `[]` for every glob; `grep`'s default `*` scanned no file. Both returned `Ok []`, which an agent reads as "nothing found".
+- Globs are now translated character by character: `*` and `?` stay inside one path component, `**` crosses components, and `**/` also matches zero directories. Matching is against the whole string.
+- `find` matches the path relative to its `path` argument, so the documented `**/*.ml` example works; `*.ml` stays at the search root. `grep` keeps matching the filename and treats an omitted or empty glob as `*`.
+- `grep` no longer drops the first character of the relative path in `path:line:text` output.
+
+### Changed — dependency floor
+
+- Local and CI resolution now use `sqlite3 5.4.2` (GC-rooting fix around runtime-released SQLite calls), `tls` / `tls-eio 2.1.5`, `x509 1.2.0`, `mirage-crypto* 2.4.1` (security fixes), `eio 1.6`, `cohttp` / `cohttp-eio 6.3.0` and `dune 3.24.2`. OCaml stays at 5.4.1; the OCaml 5.5 upgrade remains a separate trial.
+- `tls-eio` gets a `>= 2.1.5` lower bound because the IP-identity fix needs `~ip`; `ipaddr` is now a direct package dependency.
+
+### Breaking relative to v0.15.0-beta
+
+- `Types.handler_result` gained `Success_content`; exhaustive matches must handle it.
+- `Types.invoke_checkpoint` gained `pending_approval : pending_approval option`; record literals and patterns must add it.
+- `persistence_service` gained the three lease fields.
+- `Runtime.recover_invoke` refuses a checkpoint whose approval decision is still open and points at `resume_approval`; it no longer deletes that checkpoint.
+- `Http_client.tls_host_of_string` was removed from the interface; `Par.Tls_client` replaces the duplicated host parsing. `Par.Tls_client` is OCaml-only: the Python bindings inherit the fix through the shared provider/MCP code and need no configuration surface.
+- `find` with `*.ml` now matches only the search root (documented semantics); use `**/*.ml` for every depth.
+
+### Known issues
+
+- A completely stalled HTTP read still cannot be interrupted on the current cohttp-eio transport; cancellation takes effect on the next chunk. The owned-socket transport (`PAR-9km`) is deferred to v0.17.
+- `blocking_approval` in `agent_dispatch_spec` remains an unimplemented field (`PAR-e68`).
+- Recovery replays the system prompt, static tool set, workspace/appendix and skill snapshot, but not `tool_search` promotions or steering queues.
+- `list_orphaned_invokes` still returns only `(invoke_id, agent_id)`.
+- `test_http_timeout.py` can segfault when the Python suite runs in one process; it passes alone. This is the documented OCaml-domain / Python-thread interaction, not a v0.16 regression.
+
+### Tests
+
+- OCaml totals are **1764 tests**, 0 failures. New: `test_tool_rich_content.ml`, `test_invoke_lease.ml`, `test_invoke_session_restore.ml`, `test_tls_client.ml`, plus the approval/recovery cases in `test_invoke_durability.ml` and the exact glob assertions in `test_builtin_tools.ml`.
+- The TLS, lease, approval-terminal-rule, rich-content, glob and session-restore cases were mutation-checked: removing the implementation makes the relevant cases fail.
+- Python totals are **209 passed / 20 skipped**, including the rich-content envelope through the C bridge and durable-invoke flag forwarding.
+
 ## v0.15.0-beta.20261104 — durable invokes, branch sessions, conversation listing, tool layers
 
 > This MINOR release combines the durable-invoke work with the branch/session API additions and carries the v0.14.1 context-safety fixes. A crashed agent loop can be recovered, a parallel branch can hand back its conversation, sessions can be listed from the conversations table, and tools can be registered as searchable. **1735 OCaml tests, 0 failures; 204 Python tests passing with 20 pre-existing skips.** Beta-first: the stable line remains v0.10.0.
