@@ -9,9 +9,10 @@
 - OCaml: 1752 tests, 0 failures. Python: full suite green excluding the known
   order-sensitive `test_http_timeout.py` segfault (passes alone).
 - Local switch upgraded on 2026-11-11: sqlite3 5.4.2 (GC-rooting fix), tls /
-  tls-eio 2.1.5, x509 1.2.0, mirage-crypto* 2.4.1 (all security/stability
-  fixes). OCaml 5.4.1, eio 1.4, cohttp 6.2.1 and dune 3.23.1 are unchanged.
-  Re-verified: 1752 OCaml tests / 0 failures, 209 Python passed / 20 skipped.
+  tls-eio 2.1.5, x509 1.2.0, mirage-crypto* 2.4.1 (security/stability fixes),
+  then eio 1.6, cohttp / cohttp-eio 6.3.0 and dune 3.24.2. OCaml stays at
+  5.4.1. Re-verified after both batches: 1752 OCaml tests / 0 failures,
+  209 Python passed / 20 skipped.
 
 ## What shipped after v0.15
 
@@ -56,15 +57,15 @@
 4. Remaining P2 feature backlog (`bd ready`) is `out-of-par` per DECISIONS #6
    except MCP sampling routing (`PAR-wn7`) and the Python FFI gaps
    (`PAR-h4m`, `PAR-0ls`).
-5. Dependency batch 2 — eio 1.6, cohttp 6.3.0, dune 3.24.2. Do it before
-   `PAR-9km`: the transport rewrite can use `Eio.Net.connect ?options`.
-   OCaml 5.5.2 is a separate trial-switch project; the pinned
-   `ppx_deriving_jsonschema 0.0.1` is the compatibility risk.
-6. Watch cohttp 6.4 — its unreleased `dev` fixes cohttp-eio body chunks that are
+5. Watch cohttp 6.4 — its unreleased `dev` fixes cohttp-eio body chunks that are
    replayed from offset 0 when a chunk needs three or more partial
-   `single_read`s. PAR's 4096-byte readers normally avoid it; a long response
-   header that grows cohttp's internal buffer can make a body chunk large
-   enough to trigger it.
+   `single_read`s. A local spike (100 KB header, 64 KB chunk, 4096-byte reader)
+   read every byte correctly on 6.3.0: cohttp never delivered a chunk larger
+   than twice the reader's request in the normal `Buf_read` path. No workaround
+   is needed; upgrade when 6.4 ships.
+6. OCaml 5.5.2 stays a separate trial-switch project; the pinned
+   `ppx_deriving_jsonschema 0.0.1` is the compatibility risk.
+   `Eio.Net.connect ?options` (new in 1.6) is available for `PAR-9km`.
 
 ## Do not
 
