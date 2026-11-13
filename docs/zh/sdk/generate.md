@@ -82,6 +82,7 @@ val Runtime.invoke_generate :
 - `total_timeout` 是可选的对整个生成（包含续写）的 wall-clock 上限。省略时生成无界运行（只受递减收益保护和自然 Stop 约束）。
 - `save`（默认 `true`）把生成的会话持久化到本次运行的 session；`save=false` 不写会话存储。
 - `update_current`（默认 `true`）把本次运行的 session 设为 runtime 的当前 session。后台运行应传 `false`：`generate_result.session_id` 仍然报告本次使用的 session，但不会替换当前 session，因此两次后台运行会各自得到不同的 session。
+- 运行期间发布的事件携带本次运行的 session；运行结束后事件总线恢复为调用方的 session。总线在单个 runtime 上只保存一个 session，因此并发运行（例如两个后台 generate）无法按运行归属事件：其中一个结束后，另一个的事件不再带它的 session。需要按运行归属时请使用 `on_tool_event` / `on_chunk`。
 - `system_prompt_appendix` 仅对本次运行追加到系统提示词。
 - `on_tool_event` 是观察回调。它在 `Llm_request_sent`、`Llm_response_received`、`Llm_response_truncated`、`Generate_continuation` 时触发。不会触发任何工具事件，因为生成路径不分发工具。
 - `on_chunk` 是可选的流式回调。它在 provider 发出的每个 `llm_response_chunk` 上触发，形态与 `Runtime.invoke` 的 `?on_chunk` 一致。用于想让文本落地时实时渲染的 UI。

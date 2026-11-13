@@ -139,7 +139,17 @@ let test_invoke_generate_restores_bus_session () =
   case ~update_current:true "update_current";
   (* Background generate: the runtime's current session is deliberately left
      alone, so a leaked bus session would be the only trace of the run. *)
-  case ~update_current:false "update_current:false"
+  case ~update_current:false "update_current:false";
+  (* An invalid target is rejected before a session is minted, so the bus is
+     not touched at all. *)
+  let sessions = ref [] in
+  let bus = recording_bus sessions in
+  let llm = mock_llm [] in
+  with_runtime ~llm ~bus @@ fun rt ->
+  (match Runtime.invoke_generate rt ~agent_id:"missing" ~message:"hi" () with
+   | Error _ -> ()
+   | Ok _ -> Alcotest.fail "an unknown agent must fail");
+  Alcotest.(check (list string)) "bus untouched" [] !sessions
 
 (* -------------------------------------------------------------------------- *)
 (* invoke_structured                                                          *)
@@ -176,6 +186,32 @@ let test_invoke_structured_restores_bus_session () =
    | Error (e, _) -> Alcotest.failf "invoke_structured: %s" (error_to_string e));
   check_tagged_then_restored ~expected:"prior-session" "prior session" sessions
 
+let test_invoke_structured_error_paths_restore () =
+  (* Unknown target: validation happens before minting, so the bus is not
+     touched. *)
+  let sessions = ref [] in
+  let bus = recording_bus sessions in
+  let llm = mock_llm [] in
+  with_runtime ~llm ~bus @@ fun rt ->
+  (match Runtime.invoke_structured rt ~agent_id:"missing"
+           ~message:"hi" ~response_schema () with
+   | Error _ -> ()
+   | Ok _ -> Alcotest.fail "an unknown agent must fail");
+  Alcotest.(check (list string)) "bus untouched" [] !sessions;
+  (* An exception unwinds through [with_bus_session] but must still restore. *)
+  let sessions = ref [] in
+  let bus = recording_bus sessions in
+  let llm = { (mock_llm []) with
+              complete_fn = (fun _ _ _ -> failwith "boom") } in
+  with_runtime ~llm ~bus @@ fun rt ->
+  register_agent rt "structured-agent";
+  (try
+     ignore (Runtime.invoke_structured rt ~agent_id:"structured-agent"
+               ~message:"hi" ~response_schema ());
+     Alcotest.fail "the provider exception must propagate"
+   with Failure _ -> ());
+  check_tagged_then_restored ~expected:"" "exception" sessions
+
 (* -------------------------------------------------------------------------- *)
 (* Test suite                                                                 *)
 (* -------------------------------------------------------------------------- *)
@@ -189,5 +225,7 @@ let () =
     ("invoke_structured", [
       Alcotest.test_case "restores the event-bus session" `Quick
         test_invoke_structured_restores_bus_session;
+      Alcotest.test_case "error paths still restore" `Quick
+        test_invoke_structured_error_paths_restore;
     ]);
   ]

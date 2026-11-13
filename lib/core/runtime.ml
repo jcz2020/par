@@ -1065,18 +1065,21 @@ let refresh_invoke_lease rt invoke_id =
 
 (* Tag events with the run's session while [f] runs, then put the caller's
    session back: leaving the run's session behind would tag events published
-   after it finished with a run that no longer exists. [previous_session] must
-   be captured before the run mints its session - reading [rt.session_id] here
-   would restore the run's own session instead of the caller's state. An unset
-   prior session is restored to the bus's explicit empty state. *)
-let with_bus_session rt ~previous_session ~session_id f =
+   after it finished with a run that no longer exists. [prepare] receives the
+   session the caller had before the run and returns the session the run uses
+   plus the state [f] needs. Capture and minting live in one place, so a caller
+   cannot capture the "previous" value after minting by mistake. An unset prior
+   session is restored to the bus's explicit empty state. *)
+let with_bus_session rt ~prepare f =
+  let previous = !(rt.session_id) in
+  let session_id, state = prepare previous in
   rt.services.event_bus.set_session_id_fn session_id;
   Fun.protect
     ~finally:(fun () ->
-      match previous_session with
+      match previous with
       | Some sid -> rt.services.event_bus.set_session_id_fn sid
       | None -> rt.services.event_bus.set_session_id_fn "")
-    f
+    (fun () -> f state)
 
 let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token ?conversation
     ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix
@@ -1179,40 +1182,36 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
     (fun () ->
   let text_part = Message.string_of_content content in
   let effective_workspace = Option.value workspace ~default:rt.workspace in
-  (* Capture this before building the context: minting a session below writes
-     [rt.session_id] when [update_current] is true, and reading it afterwards
-     would restore the invoke's own session instead of the caller's prior
-     state. *)
-  let previous_bus_session = !(rt.session_id) in
-  let ctx = match context with
-    | Some c -> c
-    | None ->
-      let session_id = match resume with
-        | Some cp when cp.session_id <> "" -> cp.session_id
-        | _ ->
-          (match !(rt.session_id) with
-           | Some sid -> sid
-           | None ->
-             let new_sid = Session_id.to_string (Session_id.create ()) in
-             if update_current then rt.session_id := Some new_sid;
-             new_sid)
+  with_bus_session rt
+    ~prepare:(fun previous ->
+      let ctx = match context with
+        | Some c -> c
+        | None ->
+          let session_id = match resume with
+            | Some cp when cp.session_id <> "" -> cp.session_id
+            | _ ->
+              (match previous with
+               | Some sid -> sid
+               | None ->
+                 let new_sid = Session_id.to_string (Session_id.create ()) in
+                 if update_current then rt.session_id := Some new_sid;
+                 new_sid)
+          in
+          (match resume with
+           | Some cp when cp.session_id <> "" ->
+             if update_current then rt.session_id := Some cp.session_id
+           | _ -> ());
+          Invoke_context.create
+            ~session_id
+            ~metrics:(Metrics.empty ())
+            ~hooks:rt.tool_call_hooks
+            ~skills:(Option.value skills ~default:rt.user_activated_skills)
+            ?system_prompt_appendix
+            ?on_tool_event
+            ()
       in
-      (match resume with
-       | Some cp when cp.session_id <> "" ->
-         if update_current then rt.session_id := Some cp.session_id
-       | _ -> ());
-      Invoke_context.create
-        ~session_id
-        ~metrics:(Metrics.empty ())
-        ~hooks:rt.tool_call_hooks
-        ~skills:(Option.value skills ~default:rt.user_activated_skills)
-        ?system_prompt_appendix
-        ?on_tool_event
-        ()
-  in
-  with_bus_session rt ~previous_session:previous_bus_session
-    ~session_id:ctx.session_id
-    (fun () -> Invoke_context.with_context ctx (fun () ->
+      (ctx.session_id, ctx))
+    (fun ctx -> Invoke_context.with_context ctx (fun () ->
   let result =
   let agent = htbl_get rt.agents agent_id in
   match agent with
@@ -1569,20 +1568,6 @@ let invoke_async rt ~agent_id ~message ?workspace ?cancellation_token ?conversat
 
 let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
     ?(save = true) ?(update_current = true) ?on_tool_event ?on_chunk ?system_prompt_appendix () =
-  (* Capture the caller's session before minting one below: [update_current]
-     would otherwise make us restore this run's own session. *)
-  let previous_bus_session = !(rt.session_id) in
-  let session_id = match !(rt.session_id) with
-    | Some sid -> sid
-    | None ->
-      let new_sid = Session_id.to_string (Session_id.create ()) in
-      (* [update_current] controls the runtime's current session, not the
-         session this run uses: a background generate must still report the id
-         it ran under. *)
-      if update_current then rt.session_id := Some new_sid;
-      new_sid
-  in
-  with_bus_session rt ~previous_session:previous_bus_session ~session_id (fun () ->
   match htbl_get rt.agents agent_id with
   | None -> Result.Error (Invalid_input (Printf.sprintf "Unknown agent: %s" agent_id),
                            { Types.messages = []; metadata = [] })
@@ -1591,6 +1576,20 @@ let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
       "Agent '%s' has tools but generate mode requires tools=[]" agent_id),
       { Types.messages = []; metadata = [] })
   | Some config ->
+    with_bus_session rt
+      ~prepare:(fun previous ->
+        let session_id = match previous with
+          | Some sid -> sid
+          | None ->
+            let new_sid = Session_id.to_string (Session_id.create ()) in
+            (* [update_current] controls the runtime's current session, not the
+               session this run uses: a background generate must still report
+               the id it ran under. *)
+            if update_current then rt.session_id := Some new_sid;
+            new_sid
+        in
+        (session_id, session_id))
+      (fun session_id ->
     let token = Cancellation.create_token rt.cancellation_root in
     let combined_tool_event evt =
       publish_event rt evt;
@@ -1664,20 +1663,21 @@ let invoke_structured rt ~agent_id ~message ~response_schema
     ?(max_repair_attempts = 3) ?cancellation_token ?conversation
     ?system_prompt_appendix
     ?on_tool_event ?on_repair_attempt () =
-  let previous_bus_session = !(rt.session_id) in
-  let session_id = Session_id.to_string (Session_id.create ()) in
-  let ctx = Invoke_context.create
-    ~session_id
-    ~metrics:(Metrics.empty ())
-    ?system_prompt_appendix
-    () in
-  with_bus_session rt ~previous_session:previous_bus_session ~session_id (fun () ->
-  Invoke_context.with_context ctx (fun () ->
-  let agent = htbl_get rt.agents agent_id in
-  match agent with
+  match htbl_get rt.agents agent_id with
   | None -> Result.Error (Invalid_input (Printf.sprintf "Agent not found: %s" agent_id),
                            { Types.messages = []; metadata = [] })
   | Some config ->
+    with_bus_session rt
+      ~prepare:(fun _ ->
+        let session_id = Session_id.to_string (Session_id.create ()) in
+        (session_id, session_id))
+      (fun session_id ->
+    let ctx = Invoke_context.create
+      ~session_id
+      ~metrics:(Metrics.empty ())
+      ?system_prompt_appendix
+      () in
+    Invoke_context.with_context ctx (fun () ->
     let token = match cancellation_token with
       | Some t -> t
       | None -> Cancellation.create_token rt.cancellation_root
