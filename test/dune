@@ -719,6 +719,11 @@
   (modules test_invoke_session_restore))
 
 (test
+  (name test_tls_client)
+  (libraries par alcotest ipaddr domain-name)
+  (modules test_tls_client))
+
+(test
   (name test_reasoning)
   (libraries par eio_main alcotest yojson logs)
   (modules test_reasoning))

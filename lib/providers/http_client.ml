@@ -232,25 +232,8 @@ let with_idle_timeout sw f =
       loop ());
     f (Some reset)
 
-let tls_host_of_string host =
-  match Domain_name.of_string host with
-  | Error _ -> None
-  | Ok dn -> ( match Domain_name.host dn with Ok h -> Some h | Error _ -> None )
-
-(* -------------------------------------------------------------------------- *)
-(* HTTP via cohttp-eio (handles Content-Length, chunked encoding, TLS properly) *)
-(* -------------------------------------------------------------------------- *)
-
 let tls_https_wrapper ?(cfg = Lazy.force tls_config) uri raw_flow =
-  match Uri.host uri with
-  | None -> Tls_eio.client_of_flow cfg raw_flow
-  | Some host ->
-    (match Domain_name.of_string host with
-     | Ok dn ->
-       (match Domain_name.host dn with
-        | Ok h -> Tls_eio.client_of_flow cfg ~host:h raw_flow
-        | Error _ -> Tls_eio.client_of_flow cfg raw_flow)
-     | Error _ -> Tls_eio.client_of_flow cfg raw_flow)
+  Tls_client.connect ~cfg uri raw_flow
 
 let cohttp_client_of_net net =
   Cohttp_eio.Client.make ~https:(Some (tls_https_wrapper)) net

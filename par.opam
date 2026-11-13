@@ -25,11 +25,12 @@ depends: [
   "ppx_compare"
   "sqlite3"
   "logs"
-  "tls-eio"
+  "tls-eio" {>= "2.1.5"}
   "cohttp-eio"
   "lambdasoup"
   "ca-certs"
   "x509"
+  "ipaddr"
   "mirage-crypto-rng"
   "base64"
   "digestif"

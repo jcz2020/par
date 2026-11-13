@@ -26,8 +26,6 @@ val map_http_status : int -> string -> http_error
 
 val tls_config : Tls.Config.client lazy_t
 
-val tls_host_of_string : string -> [ `host ] Domain_name.t option
-
 val do_request :
   [ `Generic] Eio.Net.ty Eio.Net.t -> parsed_url -> string -> string
 

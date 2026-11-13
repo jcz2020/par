@@ -35,19 +35,8 @@ let tls_config_lazy : Tls.Config.client Lazy.t =
      | Ok cfg -> cfg
      | Result.Error (`Msg msg) -> failwith ("TLS configuration error: " ^ msg))
 
-let tls_hosts_of_string host =
-  match Domain_name.of_string host with
-  | Error _ -> None
-  | Ok dn -> (match Domain_name.host dn with Ok h -> Some h | Error _ -> None)
-
 let upgrade_https uri flow =
-  let cfg = Lazy.force tls_config_lazy in
-  match Uri.host uri with
-  | Some h ->
-    (match tls_hosts_of_string h with
-     | Some dh -> Tls_eio.client_of_flow cfg ~host:dh flow
-     | None -> failwith ("Cannot parse hostname for TLS SNI: " ^ h))
-  | None -> failwith "No host in URL for TLS connection"
+  Tls_client.connect ~cfg:(Lazy.force tls_config_lazy) uri flow
 
 let create ~url ~net ~sw =
   let uri = Uri.of_string url in
