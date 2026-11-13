@@ -2,13 +2,14 @@
 
 ## Current state (2026-11-14)
 
-- `v0.15.0-beta.20261104` is released and pushed.
-- `v0.16` work is on `main`, unreleased: vision tool results, DB leases,
-  approval/crash recovery merge; the HTTP cancellation spike is done and the
-  transport rewrite is explicitly deferred to v0.17.
-- OCaml: 1764 tests, 0 failures. Python: full suite green (209 passed /
-  20 skipped); the order-sensitive `test_http_timeout.py` segfault did not
-  reproduce in this run (it passes alone when it does).
+- `v0.16.0-beta.20261114` is released and pushed: GitHub pre-release with the
+  source tarball + `par.opam`, both wheels, and checksums; the two wheels are
+  on PyPI as `0.16.0b20261114`. Tag `v0.16.0-beta.20261114` points at
+  `9f2e786`. Release, opam publish, PyPI publish, CI, CodeQL and Docs all
+  passed. The stable line remains `v0.10.0`.
+- Main now carries the v0.16 work plus the post-review TLS / find-grep /
+  bus-session fixes; nothing is waiting on the remote.
+- OCaml: 1764 tests, 0 failures. Python: 209 passed / 20 skipped.
 - Local switch upgraded on 2026-11-11: sqlite3 5.4.2 (GC-rooting fix), tls /
   tls-eio 2.1.5, x509 1.2.0, mirage-crypto* 2.4.1 (security/stability fixes),
   then eio 1.6, cohttp / cohttp-eio 6.3.0 and dune 3.24.2. OCaml stays at
@@ -65,21 +66,18 @@
    `Eio.Net` + `tls-eio`, `Connection: close` only; migrate provider non-stream
    → provider stream → MCP transport → fetch_url, keeping a cohttp-eio fallback
    until the last step.
-2. **Release v0.16** — needs explicit user authorization for the version bump.
-   Next release is MINOR: schema 2, new variant, new persistence fields, new
-   optional `recover_invoke` parameters.
-3. **`PAR-tgy`** — the `?sandbox` mechanism (design is in
+2. **`PAR-tgy`** — the `?sandbox` mechanism (design is in
    `docs/explanation/sandbox-model.md`).
-4. Remaining P2 feature backlog (`bd ready`) is `out-of-par` per DECISIONS #6
+3. Remaining P2 feature backlog (`bd ready`) is `out-of-par` per DECISIONS #6
    except MCP sampling routing (`PAR-wn7`) and the Python FFI gaps
    (`PAR-h4m`, `PAR-0ls`).
-5. Watch cohttp 6.4 — its unreleased `dev` fixes cohttp-eio body chunks that are
+4. Watch cohttp 6.4 — its unreleased `dev` fixes cohttp-eio body chunks that are
    replayed from offset 0 when a chunk needs three or more partial
    `single_read`s. A local spike (100 KB header, 64 KB chunk, 4096-byte reader)
    read every byte correctly on 6.3.0: cohttp never delivered a chunk larger
    than twice the reader's request in the normal `Buf_read` path. No workaround
    is needed; upgrade when 6.4 ships.
-6. OCaml 5.5.2 stays a separate trial-switch project; the pinned
+5. OCaml 5.5.2 stays a separate trial-switch project; the pinned
    `ppx_deriving_jsonschema 0.0.1` is the compatibility risk.
    `Eio.Net.connect ?options` (new in 1.6) is available for `PAR-9km`.
 
