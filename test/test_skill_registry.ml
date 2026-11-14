@@ -111,6 +111,30 @@ let test_replace_existing () =
     (Option.is_some (Skill_registry.resolve reg "x"));
   Alcotest.(check (list string)) "still one entry" ["x"] (Skill_registry.list reg)
 
+let test_replace_binding_updates_descriptor () =
+  let reg = Skill_registry.create () in
+  let d1 = make_skill "x" "X v1" "first" in
+  ignore (Skill_registry.register reg (make_binding d1));
+  let d2 = make_skill "x" "X v2" "second" in
+  let replaced =
+    Skill_registry.replace_binding reg
+      { descriptor = d2;
+        activate = (fun () -> { system_prompt_override = None;
+                                tool_filter_overlay = All_tools }) }
+  in
+  Alcotest.(check (result unit string)) "replace existing" (Ok ())
+    (match replaced with
+     | Ok () -> Ok ()
+     | Error (`Not_found _) -> Error "not found");
+  Alcotest.(check (option string)) "descriptor rewritten" (Some "X v2")
+    (Option.map (fun (d : Types.skill_descriptor) -> d.name)
+       (List.find_opt (fun (d : Types.skill_descriptor) -> d.id = "x")
+          (Skill_registry.list_descriptors reg)));
+  Alcotest.(check (result unit string)) "unknown id rejected" (Error "missing")
+    (match Skill_registry.replace_binding reg (make_binding (make_skill "y" "Y" "d")) with
+     | Ok () -> Ok ()
+     | Error (`Not_found _) -> Error "missing")
+
 let test_find_descriptor () =
   let skills : Types.skill_descriptor list = [
     make_skill "a" "Alpha" "first";
@@ -146,6 +170,8 @@ let () =
       Alcotest.test_case "remove non-existent" `Quick test_remove_nonexistent;
       Alcotest.test_case "register three list all" `Quick test_register_three_list_all;
       Alcotest.test_case "replace existing" `Quick test_replace_existing;
+      Alcotest.test_case "replace_binding updates the descriptor" `Quick
+        test_replace_binding_updates_descriptor;
       Alcotest.test_case "find_descriptor" `Quick test_find_descriptor;
       Alcotest.test_case "keyword trigger storage" `Quick test_keyword_trigger_storage;
     ]);

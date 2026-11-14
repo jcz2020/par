@@ -5,7 +5,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from tests.test_runtime import _test_config
-from par_runtime import Runtime
+from par_runtime import PARError, Runtime
 
 
 class TestSkillRegistration(unittest.TestCase):
@@ -56,6 +56,54 @@ class TestSkillRegistration(unittest.TestCase):
             self.assertEqual(s["id"], "field-test")
             self.assertEqual(s["name"], "Field Test")
             self.assertIn("description", s)
+
+
+class TestSkillReload(unittest.TestCase):
+    """Replace/unregister make a rewritten skill set apply without a restart."""
+
+    def test_replace_updates_the_descriptor(self):
+        with Runtime(_test_config()) as rt:
+            rt.register_skill(json.dumps({
+                "schema_version": 1,
+                "id": "rewrite-me",
+                "name": "Old Name",
+                "description": "old description",
+            }))
+            rt.replace_skill(json.dumps({
+                "schema_version": 1,
+                "id": "rewrite-me",
+                "name": "New Name",
+                "description": "new description",
+            }))
+            match = [s for s in rt.list_skills() if s["id"] == "rewrite-me"]
+            self.assertEqual(len(match), 1)
+            self.assertEqual(match[0]["name"], "New Name")
+
+    def test_replace_unknown_id_raises(self):
+        with Runtime(_test_config()) as rt:
+            with self.assertRaises(PARError):
+                rt.replace_skill(json.dumps({
+                    "schema_version": 1,
+                    "id": "not-registered",
+                    "name": "Nope",
+                    "description": "missing",
+                }))
+
+    def test_unregister_removes_the_skill(self):
+        with Runtime(_test_config()) as rt:
+            rt.register_skill(json.dumps({
+                "schema_version": 1,
+                "id": "gone",
+                "name": "Gone",
+                "description": "will be removed",
+            }))
+            rt.unregister_skill("gone")
+            self.assertEqual([s for s in rt.list_skills() if s["id"] == "gone"], [])
+
+    def test_unregister_unknown_id_raises(self):
+        with Runtime(_test_config()) as rt:
+            with self.assertRaises(PARError):
+                rt.unregister_skill("never-registered")
 
 
 class TestSkillActivation(unittest.TestCase):

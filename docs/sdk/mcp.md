@@ -161,6 +161,31 @@ type startup_policy =
 - **`Fail_fast`** (default): right for production, where every server must be available.
 - **`Log_and_continue`**: right for development or optional capabilities (a linter server, for example). Detect failures through the `Mcp_server_failed` event.
 
+### Reloading servers
+
+`Runtime.reload_mcp_servers` reconciles the running set with a new config list without restarting the process (GitHub #35). Servers are keyed by `server_config.name`:
+
+```ocaml
+match Runtime.reload_mcp_servers rt ~servers:[mcp_fs_config; mcp_lint_config] with
+| Ok descriptors ->
+  (* agents keep their own tool lists: merge the new MCP descriptors in *)
+  Runtime.update_agent_tools rt ~agent_id:"fs-agent"
+    ~remove:old_mcp_tool_names ~add:new_mcp_bindings |> ignore
+| Error e -> ...
+```
+
+- An unchanged config keeps its running instance. A new or changed config is spawned; a removed or changed config's old instance is stopped once the new set is up.
+- The call is transactional for additions: if any new server fails to spawn, the instances spawned by this call are stopped and the previous set keeps running. This holds regardless of the `mcp_startup_policy` passed to `create`.
+- The returned list is the full descriptor set now exposed by MCP. Agents keep their own `~tools` lists, so merge it with `update_agent_tools` (pass the previous MCP names in `~remove` and the new bindings in `~add`), or rebuild the agent.
+- An in-flight invoke keeps the registry snapshot it started with. A tool whose server is stopped by the reload fails through the MCP transport error path; there is nothing to cancel.
+- Duplicate server names are an `Invalid_input` error. Reload needs the same create-time dependencies its configs use (`mcp_clock`, plus `mcp_process_mgr` for stdio and `mcp_net` for HTTP); the Python binding supplies them automatically.
+
+Python:
+
+```python
+tools = runtime.reload_mcp_servers([fs_config, lint_config])
+```
+
 ### Shutdown
 
 `Runtime.close` is the master switch: it closes every MCP server first, then the event bus and persistence layer. Each server emits one `Mcp_server_stopped` event as it shuts down.

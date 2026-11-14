@@ -102,6 +102,16 @@ type runtime = {
      advertises to the model; the handlers are what the per-call registry
      resolves. Both come from this one list so they cannot disagree. *)
   mutable mcp_tools : (Types.tool_descriptor * Tool_registry.handler_fn) list;
+  (* Reload support (GitHub #35): the create-time dependencies and the managed
+     config set, retained so [reload_mcp_servers] can spawn and stop servers
+     after startup. The three dependency values are polymorphic in their
+     create signature, so they are stored erased (same treatment as [net]). *)
+  mcp_switch : Eio.Switch.t;
+  mcp_process_mgr : Obj.t option;
+  mcp_net : Obj.t option;
+  mcp_clock : Obj.t option;
+  mcp_reload_mu : Eio.Mutex.t;
+  mutable mcp_configs : Mcp_types.server_config list;
   persistence_writer : Persistence_writer.t option;
   mutable default_provider_id : string option;
   cancel_stream_requested : bool ref;
@@ -353,6 +363,29 @@ let register_skill rt (descriptor : Types.skill_descriptor) =
   | Error (`Duplicate_skill id) ->
     Result.Error (Types.Invalid_input (Printf.sprintf "Skill already registered: %s" id))
   | Ok () -> Ok binding
+
+let replace_skill rt (descriptor : Types.skill_descriptor) =
+  let activate : Skill_registry.activate_fn =
+    fun () ->
+      { Types.system_prompt_override = descriptor.Types.system_prompt_override;
+        tool_filter_overlay = descriptor.Types.tool_filter }
+  in
+  let binding = { Types.descriptor; activate } in
+  match Skill_registry.replace_binding rt.skills binding with
+  | Ok () -> Ok binding
+  | Error (`Not_found id) ->
+    Result.Error (Types.Invalid_input
+      (Printf.sprintf "Skill not registered: %s" id))
+
+let unregister_skill rt id =
+  match Skill_registry.remove rt.skills id with
+  | Ok () ->
+    rt.user_activated_skills <-
+      List.filter (fun existing -> existing <> id) rt.user_activated_skills;
+    Ok ()
+  | Error (`Not_found id) ->
+    Result.Error (Types.Invalid_input
+      (Printf.sprintf "Skill not registered: %s" id))
 
 let list_skills rt = Skill_registry.list_descriptors rt.skills
 
@@ -789,6 +822,150 @@ let per_call_registry ~(rt : runtime) ~(workspace : Workspace.workspace) : Tool_
     already in every per-call registry. Names are the server's own, so a name
     an explicitly registered tool already uses is skipped by the registry. *)
 let mcp_tool_descriptors rt = List.map fst rt.mcp_tools
+
+(* Reconcile the managed MCP server set with [servers], keyed by server name.
+   New and changed servers are spawned before anything is stopped: if a spawn
+   fails, the instances spawned by this call are stopped and the runtime keeps
+   its previous servers, tools and configs. On success the new tool list is
+   installed before the removed/changed instances stop, so an invoke starting
+   during a reload sees either the old set with live servers or the new set.
+
+   In-flight invokes keep the registry snapshot they started with; tools that
+   belong to a stopped server fail through the MCP transport error path. *)
+let reload_mcp_servers rt ~(servers : Mcp_types.server_config list) :
+    (Types.tool_descriptor list, error_category) result =
+  Eio.Mutex.use_rw rt.mcp_reload_mu ~protect:true (fun () ->
+    let names = List.map Mcp_types.server_name servers in
+    let rec duplicate = function
+      | [] -> None
+      | n :: rest -> if List.mem n rest then Some n else duplicate rest
+    in
+    match duplicate names with
+    | Some n ->
+      Result.Error (Invalid_input
+        (Printf.sprintf "reload_mcp_servers: duplicate server name: %s" n))
+    | None ->
+    match
+      List.find_map (fun cfg ->
+        match Mcp_types.server_id_of_string (Mcp_types.server_name cfg) with
+        | Ok _ -> None
+        | Error e -> Some e) servers
+    with
+    | Some e -> Result.Error e
+    | None ->
+      let needs_stdio =
+        List.exists
+          (function Mcp_types.Stdio_server _ -> true | _ -> false) servers
+      in
+      let needs_http =
+        List.exists
+          (function Mcp_types.Http_server _ -> true | _ -> false) servers
+      in
+      if servers <> [] && rt.mcp_clock = None then
+        Result.Error (Invalid_input
+          "reload_mcp_servers: runtime was created without ?mcp_clock")
+      else if needs_stdio && rt.mcp_process_mgr = None then
+        Result.Error (Invalid_input
+          "reload_mcp_servers: stdio servers require ?mcp_process_mgr at Runtime.create")
+      else if needs_http && rt.mcp_net = None then
+        Result.Error (Invalid_input
+          "reload_mcp_servers: HTTP servers require ?mcp_net at Runtime.create")
+      else begin
+        let process_mgr =
+          Option.map (fun v -> (Obj.obj v : _ Eio.Process.mgr)) rt.mcp_process_mgr
+        in
+        let net = Option.map (fun v -> (Obj.obj v : _ Eio.Net.t)) rt.mcp_net in
+        let same_name a b = Mcp_types.server_name a = Mcp_types.server_name b in
+        let old = rt.mcp_configs in
+        let old_for cfg = List.find_opt (same_name cfg) old in
+        let next_for cfg = List.find_opt (same_name cfg) servers in
+        let changed cfg = match old_for cfg with
+          | Some prev -> prev <> cfg
+          | None -> true
+        in
+        let removed_or_changed cfg = match next_for cfg with
+          | Some next -> next <> cfg
+          | None -> true
+        in
+        let to_spawn = List.filter changed servers in
+        let to_stop = List.filter removed_or_changed old in
+        let spawned = ref [] in
+        let rec spawn_all = function
+          | [] -> Ok ()
+          | cfg :: rest ->
+            let clock =
+              (Obj.obj (Option.get rt.mcp_clock) : _ Eio.Time.clock)
+            in
+            match Mcp_server.spawn ~sw:rt.mcp_switch
+                    ?process_mgr ?net ~clock cfg with
+            | Ok server ->
+              spawned := (cfg, server) :: !spawned;
+              spawn_all rest
+            | Error e ->
+              List.iter
+                (fun (_, server) -> ignore (Mcp_server.stop server)) !spawned;
+              publish_event rt (Mcp_server_failed {
+                server_id = Mcp_types.server_name cfg; error = e });
+              Result.Error e
+        in
+        match spawn_all to_spawn with
+        | Error e -> Result.Error e
+        | Ok () ->
+          let spawned = List.rev !spawned in
+          let spawned_by_name =
+            List.map
+              (fun (cfg, server) -> (Mcp_types.server_name cfg, server))
+              spawned
+          in
+          let live_by_name name =
+            let found = ref None in
+            Types.htbl_iter rt.mcp_servers (fun _ server ->
+              if !found = None && Mcp_server.name server = name then
+                found := Some server);
+            !found
+          in
+          let ordered_servers =
+            List.filter_map (fun cfg ->
+              let name = Mcp_types.server_name cfg in
+              match List.assoc_opt name spawned_by_name with
+              | Some server -> Some server
+              | None -> live_by_name name) servers
+          in
+          let new_tools =
+            Mcp_tools.entries
+              (List.map
+                 (fun server -> (Mcp_server.id server, server))
+                 ordered_servers)
+          in
+          (* Install the new tool list before stopping the old instances. *)
+          rt.mcp_tools <- new_tools;
+          rt.mcp_configs <- servers;
+          List.iter (fun cfg ->
+            let name = Mcp_types.server_name cfg in
+            let doomed = ref [] in
+            Types.htbl_iter rt.mcp_servers (fun sid server ->
+              if Mcp_server.name server = name then
+                doomed := (sid, server) :: !doomed);
+            List.iter (fun (sid, server) ->
+              (match Mcp_server.stop server with
+               | Ok () ->
+                 Types.htbl_remove rt.mcp_servers sid;
+                 publish_event rt (Mcp_server_stopped {
+                   server_id = Mcp_types.server_id_to_string sid })
+               | Error e ->
+                 (* Keep the table row so Runtime.close retries the stop. *)
+                 Logs.err (fun m ->
+                   m "reload_mcp_servers: stop %s failed: %s" name
+                     (string_of_error_category e)))) !doomed)
+            to_stop;
+          List.iter (fun (_, server) ->
+            let sid = Mcp_server.id server in
+            Types.htbl_set rt.mcp_servers sid server;
+            publish_event rt (Mcp_server_started {
+              server_id = Mcp_types.server_id_to_string sid;
+              server_name = Mcp_server.name server })) spawned;
+          Ok (List.map fst new_tools)
+      end)
 
 let register_file_tools_rebuild rt rebuild =
   rt.file_tools_rebuild <- Some rebuild
@@ -3012,6 +3189,12 @@ let create ?(persistence = noop_persistence)
       workspace;
       mcp_servers = { data = Hashtbl.create 4; mutex = Eio.Mutex.create () };
       mcp_tools = [];
+      mcp_switch = switch;
+      mcp_process_mgr = Option.map Obj.repr mcp_process_mgr;
+      mcp_net = Option.map Obj.repr mcp_net;
+      mcp_clock = Option.map Obj.repr mcp_clock;
+      mcp_reload_mu = Eio.Mutex.create ();
+      mcp_configs = [];
       persistence_writer;
       default_provider_id = None;
       cancel_stream_requested = ref false;
@@ -3116,7 +3299,7 @@ let create ?(persistence = noop_persistence)
             publish_event rt (Mcp_server_stopped { server_id = Mcp_types.server_id_to_string (Mcp_server.id server) })
           )
         in
-        let spawned : (Mcp_types.server_id * Mcp_server.t) list ref = ref [] in
+        let spawned : (Mcp_types.server_config * Mcp_server.t) list ref = ref [] in
         let rec loop = function
           | [] ->
             if !mcp_errors <> [] && mcp_startup_policy = Mcp_types.Fail_fast then begin
@@ -3126,7 +3309,12 @@ let create ?(persistence = noop_persistence)
               (* The servers are up, so their tools can be listed now. This is
                  the only point where every server is reachable, and it keeps
                  the descriptors and their handlers in one list. *)
-              rt.mcp_tools <- Mcp_tools.entries (List.rev !spawned);
+              let ordered = List.rev !spawned in
+              rt.mcp_tools <-
+                Mcp_tools.entries
+                  (List.map (fun (_, server) -> (Mcp_server.id server, server))
+                     ordered);
+              rt.mcp_configs <- List.map fst ordered;
               Ok rt
             end
           | cfg :: rest ->
@@ -3134,7 +3322,7 @@ let create ?(persistence = noop_persistence)
             | Ok server ->
               let sid = Mcp_server.id server in
               Types.htbl_set rt.mcp_servers sid server;
-              spawned := (sid, server) :: !spawned;
+              spawned := (cfg, server) :: !spawned;
               publish_event rt (Mcp_server_started { server_id = Mcp_types.server_id_to_string sid; server_name = Mcp_server.name server });
               loop rest
             | Error e ->

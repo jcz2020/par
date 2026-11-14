@@ -11,6 +11,13 @@ val register :
 val replace : t -> string -> activate_fn -> unit
 (** Replace an existing activate_fn by skill id. *)
 
+val replace_binding :
+  t -> Types.skill_binding ->
+  (unit, [ `Not_found of string ]) result
+(** Replace the whole binding (descriptor and activate_fn) for an existing
+    skill id. Unlike {!replace}, a rewritten descriptor's frontmatter (prompt
+    override, tool filter, trigger) takes effect too. *)
+
 val resolve : t -> string -> activate_fn option
 
 val find_descriptor :

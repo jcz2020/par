@@ -283,6 +283,17 @@ let build_embed_from_provider provider_cfg net =
 (* do_init: spawns persistent Eio domain, blocks until runtime ready.         *)
 (* -------------------------------------------------------------------------- *)
 
+(* MCP server configs share one JSON shape between Runtime.create's config
+   object and Runtime.reload_mcp_servers' payload. *)
+let server_configs_of_list = function
+  | `Null -> []
+  | `List entries ->
+    List.map (fun entry ->
+      match Par.Mcp_types.server_config_of_yojson entry with
+      | Ok server -> server
+      | Error msg -> failwith ("Invalid MCP server config: " ^ msg)) entries
+  | _ -> failwith "MCP servers must be a JSON list"
+
 let do_init (config_json : string) =
   fd_log "[do_init] enter";
   let json = Yojson.Safe.from_string config_json in
@@ -297,14 +308,7 @@ let do_init (config_json : string) =
      entry is the shape [Mcp_types.server_config_of_yojson] accepts, which is
      also what the OCaml docs call a server config. *)
   let mcp_servers =
-    match json |> Yojson.Safe.Util.member "mcp_servers" with
-    | `Null -> []
-    | `List entries ->
-      List.map (fun entry ->
-        match Par.Mcp_types.server_config_of_yojson entry with
-        | Ok server -> server
-        | Error msg -> failwith ("Invalid mcp_servers entry: " ^ msg)) entries
-    | _ -> failwith "Invalid config JSON: mcp_servers must be a list"
+    server_configs_of_list (json |> Yojson.Safe.Util.member "mcp_servers")
   in
   if mcp_servers <> [] then
     fd_log (Printf.sprintf "[do_init] mcp_servers=%d" (List.length mcp_servers));
@@ -940,6 +944,38 @@ let do_register_skill (state_id : int) (json_str : string) =
          fd_log ("[do_register_skill] EXCEPTION: " ^ Printexc.to_string exc);
          Obj.repr (-1)))
 
+let do_replace_skill (state_id : int) (json_str : string) =
+  match get_state state_id with
+  | None -> Obj.repr (-1)
+  | Some _ ->
+    dispatch state_id (fun rt _env ->
+      (try
+         let json = Yojson.Safe.from_string json_str in
+         match parse_skill_descriptor json with
+         | None -> Obj.repr (-2)
+         | Some descriptor ->
+           (match Par.Runtime.replace_skill rt descriptor with
+            | Ok _ -> Obj.repr 0
+            | Error _ -> Obj.repr (-4))
+       with
+       | exc ->
+         fd_log ("[do_replace_skill] EXCEPTION: " ^ Printexc.to_string exc);
+         Obj.repr (-1)))
+
+let do_unregister_skill (state_id : int) (skill_id : string) =
+  match get_state state_id with
+  | None -> Obj.repr (-1)
+  | Some _ ->
+    dispatch state_id (fun rt _env ->
+      (try
+         match Par.Runtime.unregister_skill rt skill_id with
+         | Ok () -> Obj.repr 0
+         | Error _ -> Obj.repr (-4)
+       with
+       | exc ->
+         fd_log ("[do_unregister_skill] EXCEPTION: " ^ Printexc.to_string exc);
+         Obj.repr (-1)))
+
 let do_list_skills (state_id : int) : string =
   match get_state state_id with
   | None -> "[]"
@@ -1452,6 +1488,30 @@ let do_mcp_tool_descriptors (state_id : int) : string option =
            `Assoc [ ("tools", `List (List.map mcp_descriptor_json descriptors)) ]
          in
          Obj.repr (Some (Yojson.Safe.to_string json))
+       with e ->
+         Obj.repr (Some (error_json (Printexc.to_string e))))) in
+    (Obj.obj result : string option)
+
+let do_reload_mcp_servers (state_id : int) (configs_json : string) : string option =
+  match get_state state_id with
+  | None -> Some (error_json "Invalid runtime handle")
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      (try
+         let servers =
+           server_configs_of_list (Yojson.Safe.from_string configs_json)
+         in
+         match Par.Runtime.reload_mcp_servers rt ~servers with
+         | Ok descriptors ->
+           let json =
+             `Assoc
+               [ ("tools", `List (List.map mcp_descriptor_json descriptors)) ]
+           in
+           Obj.repr (Some (Yojson.Safe.to_string json))
+         | Error e ->
+           Obj.repr (Some (error_json
+             ("reload_mcp_servers: " ^
+              Par.Types.string_of_error_category e)))
        with e ->
          Obj.repr (Some (error_json (Printexc.to_string e))))) in
     (Obj.obj result : string option)
@@ -2019,6 +2079,18 @@ let () =
       do_register_skill state_id json)
 
 let () =
+  Callback.register "par_replace_skill"
+    (fun (state_id_obj : Obj.t) (json : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_replace_skill state_id json)
+
+let () =
+  Callback.register "par_unregister_skill"
+    (fun (state_id_obj : Obj.t) (skill_id : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_unregister_skill state_id skill_id)
+
+let () =
   Callback.register "par_list_skills"
     (fun (state_id_obj : Obj.t) ->
        let state_id : int = Obj.magic state_id_obj in
@@ -2346,6 +2418,12 @@ let () =
     (fun (state_id_obj : Obj.t) ->
       let state_id : int = Obj.magic state_id_obj in
       unwrap (do_mcp_tool_descriptors state_id))
+
+let () =
+  Callback.register "par_reload_mcp_servers"
+    (fun (state_id_obj : Obj.t) (configs_json : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      unwrap (do_reload_mcp_servers state_id configs_json))
 
 let () =
   Callback.register "par_workflow_status"

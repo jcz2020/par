@@ -1,5 +1,31 @@
 # CHANGES
 
+## Unreleased — reload MCP servers and rewrite skills without a restart (GitHub #35)
+
+> A host could configure MCP servers and skills only at startup: `mcp_tools` was private, `register_skill` rejected duplicate ids, and there was no unregister. Editing a config therefore required a process restart. `Runtime.reload_mcp_servers` now reconciles the managed server set in place and returns the new descriptor list, and `Runtime.replace_skill` / `Runtime.unregister_skill` apply a rewritten skill definition. Both surfaces are exposed to Python.
+
+### Added — `Runtime.reload_mcp_servers`
+
+- Declarative reconcile keyed by `Mcp_types.server_name`. An unchanged config keeps its running instance; a new or changed config is spawned; a removed or changed config's old instance is stopped once the new set is up.
+- The call is transactional for additions: if any new/changed server fails to spawn, the instances spawned by the call are stopped and the previous servers, tools and configs keep running, regardless of `mcp_startup_policy`.
+- New tools are installed before old instances stop, so an invoke that starts during a reload sees either the old set with live servers or the new set.
+- Returns the full new descriptor list. Agents keep their own `~tools` lists, so merge with `update_agent_tools` (old names in `~remove`, new bindings in `~add`) or rebuild the agent.
+- In-flight invokes keep the registry snapshot they started with; a tool whose server is stopped fails through the MCP transport error path.
+- Duplicate server names return `Invalid_input`. The runtime now retains the create-time switch, `mcp_process_mgr`/`mcp_net`/`mcp_clock` and the managed config list so reload can spawn servers after startup.
+- Python: `Runtime.reload_mcp_servers(servers)` returns the descriptor list.
+
+### Added — skill replace and unregister
+
+- `Runtime.replace_skill` replaces the whole binding (descriptor and activation), so a rewritten prompt override, tool filter or trigger takes effect. `Skill_registry.replace` previously swapped only the activation function and left the descriptor stale.
+- `Runtime.unregister_skill` removes the skill and drops it from the manually activated list.
+- Python: `Runtime.replace_skill(descriptor_json)` and `Runtime.unregister_skill(skill_id)`.
+
+### Tests
+
+- OCaml totals are **1787 tests**, 0 failures; Python totals are **216 passed / 20 skipped**.
+- OCaml: `test_mcp_reload.ml` covers spawn, unchanged-instance reuse, changed-instance replacement, removal, duplicate names, spawn-failure rollback, and a reloaded tool being callable through `Runtime.invoke`; skill replace/unregister are covered at the registry and runtime levels.
+- Python: MCP reload (add/empty/duplicate) and skill replace/unregister through the C bridge.
+
 ## v0.16.2-beta.20261114 — tool-call hooks gate every agent and tool path (GitHub #33)
 
 > A runtime tool-call hook was only consulted by `Runtime.invoke`. Workflow `Agent_call` steps, `invoke_parallel`, `invoke_structured`, nested agent tools, workflow `Tool_call` steps and the `resume_approval` re-dispatch ran tools without it, so an application approval gate could be bypassed by routing the same tool through one of those paths. All of them now run the chain. **1776 OCaml tests, 0 failures; 209 Python passed / 20 skipped.** Beta-first: the stable line remains v0.10.0.

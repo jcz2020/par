@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from par_runtime import PARInitError, Runtime
+from par_runtime import PARError, PARInitError, Runtime
 
 
 def _config(mcp_servers=None) -> str:
@@ -110,3 +110,28 @@ def test_a_malformed_server_entry_fails_the_init():
     bad = {"type": "stdio", "name": "broken"}  # no command
     with pytest.raises(PARInitError):
         Runtime(_config([bad]))
+
+
+def test_reload_adds_a_server_without_restart():
+    with Runtime(_config()) as runtime:
+        assert runtime.mcp_tool_descriptors() == []
+        descriptors = runtime.reload_mcp_servers([_mock_server_config()])
+        names = sorted(d["name"] for d in descriptors)
+        assert names == ["add", "echo"]
+        assert sorted(d["name"] for d in runtime.mcp_tool_descriptors()) == names
+
+
+def test_reload_empty_stops_managed_servers(mcp_runtime):
+    assert mcp_runtime.mcp_tool_descriptors()
+    assert mcp_runtime.reload_mcp_servers([]) == []
+    assert mcp_runtime.mcp_tool_descriptors() == []
+
+
+def test_reload_rejects_duplicate_names():
+    with Runtime(_config()) as runtime:
+        with pytest.raises(PARError, match="duplicate"):
+            runtime.reload_mcp_servers([
+                _mock_server_config(),
+                _mock_server_config(),
+            ])
+        assert runtime.mcp_tool_descriptors() == []

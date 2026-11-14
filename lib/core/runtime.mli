@@ -254,6 +254,22 @@ val replace_tool :
 val register_skill :
   runtime -> Types.skill_descriptor ->
   (Types.skill_binding, error_category) result
+(** Register a skill. A duplicate id is an [Invalid_input] error; use
+    {!replace_skill} to apply a rewritten definition. *)
+
+val replace_skill :
+  runtime -> Types.skill_descriptor ->
+  (Types.skill_binding, error_category) result
+(** Replace an existing skill's descriptor and activation function. Unlike
+    {!Skill_registry.replace}, the rewritten frontmatter (prompt override,
+    tool filter, trigger) takes effect too. An unknown id is an
+    [Invalid_input] error. *)
+
+val unregister_skill : runtime -> string -> (unit, error_category) result
+(** Remove a skill by id and drop it from the manually activated list. An
+    unknown id is an [Invalid_input] error. This is the counterpart of
+    {!register_skill} that makes a rewritten skill set apply without a
+    process restart. *)
 
 val list_skills : runtime -> Types.skill_descriptor list
 
@@ -644,6 +660,35 @@ val mcp_tool_descriptors : runtime -> Types.tool_descriptor list
     Selection is explicit on purpose: MCP servers can expose many tools, and
     advertising all of them to every agent would work against
     [max_tool_schema_tokens]. *)
+
+val reload_mcp_servers :
+  runtime ->
+  servers:Mcp_types.server_config list ->
+  (Types.tool_descriptor list, error_category) result
+(** Reconcile the managed MCP server set with [servers] (GitHub #35).
+
+    Servers are keyed by [Mcp_types.server_name]; duplicate names are an
+    [Invalid_input] error. An unchanged config keeps its running instance; a
+    new or changed config is spawned, and a removed or changed config's old
+    instance is stopped after the new set is up.
+
+    The call is transactional for additions: if any new/changed server fails
+    to spawn, the instances spawned by this call are stopped and the runtime
+    keeps its previous servers, tools and configs. This holds regardless of the
+    [mcp_startup_policy] passed to [create].
+
+    On success the returned list is the full descriptor set now exposed by the
+    MCP servers. Agents keep their own [~tools] lists, so merge the change with
+    {!update_agent_tools} — pass the previous descriptors in [~remove] and the
+    returned ones in [~add], or rebuild the agent.
+
+    In-flight invokes keep the registry snapshot they started with. A tool
+    whose server is stopped by the reload fails through the MCP transport error
+    path; the caller does not need to cancel anything.
+
+    Requires the runtime to have been created with the MCP dependencies its
+    configs need ([?mcp_clock], plus [?mcp_process_mgr] for stdio and
+    [?mcp_net] for HTTP). *)
 
 val publish_event : runtime -> event -> unit
 

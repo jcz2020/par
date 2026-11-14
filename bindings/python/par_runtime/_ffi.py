@@ -165,6 +165,14 @@ _lib.par_register_agent_as_tool.restype = ctypes.c_int
 _lib.par_register_skill.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 _lib.par_register_skill.restype = ctypes.c_int
 
+# int par_replace_skill(par_runtime_t* rt, const char* json);
+_lib.par_replace_skill.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_replace_skill.restype = ctypes.c_int
+
+# int par_unregister_skill(par_runtime_t* rt, const char* skill_id);
+_lib.par_unregister_skill.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_unregister_skill.restype = ctypes.c_int
+
 # char* par_list_skills(par_runtime_t* rt);
 _lib.par_list_skills.argtypes = [ctypes.c_void_p]
 _lib.par_list_skills.restype = ctypes.c_void_p
@@ -320,6 +328,10 @@ _lib.par_mcp_list_tools.restype = ctypes.c_void_p
 # char* par_mcp_tool_descriptors(par_runtime_t* rt);
 _lib.par_mcp_tool_descriptors.argtypes = [ctypes.c_void_p]
 _lib.par_mcp_tool_descriptors.restype = ctypes.c_void_p
+
+# char* par_reload_mcp_servers(par_runtime_t* rt, const char* configs_json);
+_lib.par_reload_mcp_servers.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+_lib.par_reload_mcp_servers.restype = ctypes.c_void_p
 
 # char* par_workflow_status(par_runtime_t* rt, const char* run_id);
 _lib.par_workflow_status.argtypes = [ctypes.c_void_p, ctypes.c_char_p]

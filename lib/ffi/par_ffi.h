@@ -31,6 +31,13 @@ void par_store_python_handler(int handler_id, par_tool_callback fn);
 int par_register_agent(par_runtime_t* rt, const char* config_json);
 int par_register_agent_as_tool(par_runtime_t* rt, const char* config_json);
 int par_register_skill(par_runtime_t* rt, const char* json);
+/** Replace an existing skill (descriptor + activation) by its JSON descriptor.
+ *  Returns 0 on success, -1 on an exception, -2 on a bad descriptor,
+ *  -4 when the skill id is not registered. */
+int par_replace_skill(par_runtime_t* rt, const char* json);
+/** Remove a skill by id. Returns 0 on success, -1 on an exception, -4 when the
+ *  id is not registered. */
+int par_unregister_skill(par_runtime_t* rt, const char* skill_id);
 char* par_list_skills(par_runtime_t* rt);
 int par_set_user_activated_skills(par_runtime_t* rt, const char* skills_json);
 char* par_get_user_activated_skills(par_runtime_t* rt);
@@ -146,6 +153,9 @@ char* par_mcp_list_tools(par_runtime_t* rt, const char* server_id);
 /** Tool descriptors for every configured MCP server, as the same JSON shape
  *  register_agent accepts. Pass them straight through, or pick a subset. */
 char* par_mcp_tool_descriptors(par_runtime_t* rt);
+/** Reconcile the managed MCP server set with a JSON array of server configs.
+ *  Returns {"tools": [...]} on success or {"error": "..."} on failure. */
+char* par_reload_mcp_servers(par_runtime_t* rt, const char* configs_json);
 
 /* Workflow status/cancel */
 char* par_workflow_status(par_runtime_t* rt, const char* run_id);

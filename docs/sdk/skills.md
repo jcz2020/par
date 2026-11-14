@@ -261,6 +261,16 @@ rt.register_skill(json.dumps({
 skills = rt.list_skills()
 for s in skills:
     print(f"  {s['id']}: {s['description']}")
+
+# A rewritten definition: replace the descriptor + activation, or remove it.
+# (register_skill rejects a duplicate id; replace_skill requires an existing id.)
+rt.replace_skill(json.dumps({
+    "schema_version": 1,
+    "id": "my-skill",
+    "name": "My Skill v2",
+    "description": "Rewritten prompts and filters apply immediately.",
+}))
+rt.unregister_skill("my-skill")
 ```
 
 ### OCaml
@@ -283,6 +293,11 @@ let _ = Par.Runtime.register_skill rt descriptor
 (* List all skills *)
 let skills = Par.Runtime.list_skills rt
 List.iter (fun s -> Printf.printf "  %s: %s\n" s.Par.Types.id s.Par.Types.description) skills
+
+(* A rewritten definition: replace descriptor + activation, or remove it.
+   register_skill rejects a duplicate id; replace_skill requires an existing one. *)
+let _ = Par.Runtime.replace_skill rt rewritten_descriptor
+let _ = Par.Runtime.unregister_skill rt "my-skill"
 ```
 
 ---

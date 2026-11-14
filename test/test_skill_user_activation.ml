@@ -186,5 +186,53 @@ let () =
            | Some r ->
              check string "no skill effect without ?skills" "ORIGINAL"
                (first_message_content r.Mock_provider.conversation))));
+
+    test_case "replace_skill applies a rewritten descriptor" `Quick (fun () ->
+      with_runtime (fun rt _history ->
+        let old = match Runtime.make_skill ~id:"rw" ~description:"old"
+                    ~system_prompt_override:(Stable_prompt "OLD")
+                    ~trigger:Manual () with
+          | Ok s -> s | Error _ -> failwith "make_skill old" in
+        (match Runtime.register_skill rt old with
+         | Ok _ -> () | Error _ -> failwith "register");
+        Runtime.set_user_activated_skills rt ["rw"];
+        let rewritten = match Runtime.make_skill ~id:"rw" ~description:"new"
+                          ~system_prompt_override:(Stable_prompt "NEW")
+                          ~trigger:Manual () with
+          | Ok s -> s | Error _ -> failwith "make_skill new" in
+        (match Runtime.replace_skill rt rewritten with
+         | Ok _ -> () | Error _ -> failwith "replace_skill");
+        let effects = Runtime.compute_active_skill_effects rt "hello" in
+        let composed = Runtime.compose_skill_effects effects in
+        check (option string) "rewritten override applied" (Some "NEW")
+          (Option.map zone_str composed.system_prompt_override);
+        check bool "rewritten description visible" true
+          (List.exists (fun (d : skill_descriptor) ->
+             d.id = "rw" && d.description = "new")
+             (Runtime.list_skills rt));
+        (match Runtime.replace_skill rt
+                 { rewritten with id = "missing" } with
+         | Error _ -> ()
+         | Ok _ -> failwith "replace_skill should reject an unknown id")));
+
+    test_case "unregister_skill removes the skill and its activation" `Quick (fun () ->
+      with_runtime (fun rt _history ->
+        let sk = match Runtime.make_skill ~id:"gone" ~description:"d"
+                   ~system_prompt_override:(Stable_prompt "GONE") ~trigger:Manual () with
+          | Ok s -> s | Error _ -> failwith "make_skill" in
+        (match Runtime.register_skill rt sk with
+         | Ok _ -> () | Error _ -> failwith "register");
+        Runtime.set_user_activated_skills rt ["gone"];
+        (match Runtime.unregister_skill rt "gone" with
+         | Ok () -> () | Error _ -> failwith "unregister");
+        check int "skill list empty" 0
+          (List.length (Runtime.list_skills rt));
+        check (list string) "activation dropped" []
+          (Runtime.get_user_activated_skills rt);
+        check int "no effect after unregister" 0
+          (List.length (Runtime.compute_active_skill_effects rt "hello"));
+        (match Runtime.unregister_skill rt "gone" with
+         | Error _ -> ()
+         | Ok () -> failwith "unregister should reject an unknown id")));
   ] in
   run "skill_user_activation" [ "skill_user_activation", tests ]

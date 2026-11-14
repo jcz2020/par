@@ -478,6 +478,34 @@ class Runtime:
         if result != 0:
             raise PARError(f"Failed to register skill (code {result})")
 
+    def replace_skill(self, descriptor_json: str) -> None:
+        """Replace an existing skill (descriptor and activation).
+
+        Unlike a re-``register_skill``, this applies a rewritten skill's
+        frontmatter (prompt override, tool filter, trigger). The id must
+        already exist.
+
+        Raises:
+            PARError: If the runtime handle is invalid, the descriptor is
+                malformed, or the id is not registered.
+        """
+        self._check_handle()
+        result = _lib.par_replace_skill(self._handle, _c_str(descriptor_json))
+        if result != 0:
+            raise PARError(f"Failed to replace skill (code {result})")
+
+    def unregister_skill(self, skill_id: str) -> None:
+        """Remove a skill by id so a rewritten definition can be registered.
+
+        Raises:
+            PARError: If the runtime handle is invalid or the id is not
+                registered.
+        """
+        self._check_handle()
+        result = _lib.par_unregister_skill(self._handle, _c_str(skill_id))
+        if result != 0:
+            raise PARError(f"Failed to unregister skill (code {result})")
+
     def list_skills(self) -> list:
         self._check_handle()
         ptr = _lib.par_list_skills(self._handle)
@@ -1378,6 +1406,38 @@ class Runtime:
         """
         self._check_handle()
         result_ptr = _lib.par_mcp_tool_descriptors(self._handle)
+        result = _py_str(result_ptr)
+        parsed = json.loads(result)
+        if "error" in parsed:
+            raise PARError(parsed["error"])
+        return parsed.get("tools", [])
+
+    def reload_mcp_servers(self, servers: list) -> list:
+        """Reconcile the managed MCP server set with ``servers``.
+
+        Servers are keyed by their ``name``. Unchanged configs keep running;
+        new or changed configs are spawned, and removed or changed old
+        instances are stopped. The call is transactional for additions: if a
+        new server fails to start, the previous set is left running.
+
+        Agents keep their own tool lists, so merge the returned descriptors
+        into each agent (``register_agent`` with the new list, or the OCaml
+        ``update_agent_tools`` equivalent).
+
+        Args:
+            servers: list of server config dicts, the same shape accepted by
+                ``Runtime``'s ``mcp_servers`` config entry.
+
+        Returns:
+            list of tool descriptor dicts now exposed by the MCP servers.
+
+        Raises:
+            PARError: If the runtime handle is invalid, a name is duplicated,
+                or a new server fails to start.
+        """
+        self._check_handle()
+        result_ptr = _lib.par_reload_mcp_servers(
+            self._handle, _c_str(json.dumps(servers)))
         result = _py_str(result_ptr)
         parsed = json.loads(result)
         if "error" in parsed:

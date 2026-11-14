@@ -418,6 +418,32 @@ int par_register_skill(par_runtime_t* rt, const char* json) {
     CAMLreturnT(int, rc);
 }
 
+int par_replace_skill(par_runtime_t* rt, const char* json) {
+    CAMLparam0();
+    CAMLlocal1(c_json);
+    c_json = caml_copy_string(json);
+
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value result = call2_exn("par_replace_skill", rt->_ocaml_value, c_json);
+    int is_exc = Is_exception_result(result);
+    int rc = is_exc ? -1 : Int_val(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLreturnT(int, rc);
+}
+
+int par_unregister_skill(par_runtime_t* rt, const char* skill_id) {
+    CAMLparam0();
+    CAMLlocal1(c_sid);
+    c_sid = caml_copy_string(skill_id);
+
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value result = call2_exn("par_unregister_skill", rt->_ocaml_value, c_sid);
+    int is_exc = Is_exception_result(result);
+    int rc = is_exc ? -1 : Int_val(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLreturnT(int, rc);
+}
+
 char* par_list_skills(par_runtime_t* rt) {
     PAR_MUTEX_LOCK(ocaml_lock);
     value result = call1_exn("par_list_skills", rt->_ocaml_value);
@@ -1198,6 +1224,17 @@ char* par_mcp_tool_descriptors(par_runtime_t* rt) {
     char* ret = extract_string(result);
     PAR_MUTEX_UNLOCK(ocaml_lock);
     return ret;
+}
+
+char* par_reload_mcp_servers(par_runtime_t* rt, const char* configs_json) {
+    CAMLparam0();
+    CAMLlocal1(c_json);
+    c_json = caml_copy_string(configs_json);
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value result = call2_exn("par_reload_mcp_servers", rt->_ocaml_value, c_json);
+    char* ret = extract_string(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLreturnT(char*, ret);
 }
 
 char* par_workflow_status(par_runtime_t* rt, const char* run_id) {

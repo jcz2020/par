@@ -8,20 +8,22 @@
   `da2cf1a`. Release, opam publish, PyPI publish, CI, CodeQL, Docs and Release
   acceptance all passed; a fresh venv install from PyPI reports
   `0.16.2-beta.20261114`. The stable line remains `v0.10.0`.
-- `v0.16.1-beta.20261114` (tag `dff10e6`) was the previous beta; `v0.16.2` is
-  the GitHub #33 security patch (tool-call hooks on every entry point).
-- `v0.16.0-beta.20261114` (tag `9f2e786`) was the previous beta; `v0.16.1` is a
-  same-day patch for the GitHub #32 follow-up.
-- Main now carries the v0.16 work plus the post-review TLS / find-grep /
-  bus-session fixes and the Chinese DECISIONS #17/#18 sync; nothing is waiting
-  on the remote.
-- OCaml: 1767 tests, 0 failures. Python: 209 passed / 20 skipped.
+- Main now also carries the GitHub #35 reload work: `Runtime.reload_mcp_servers`
+  (declarative reconcile, transactional additions, descriptors returned) and
+  `Runtime.replace_skill` / `unregister_skill`, with Python parity. It is
+  committed on main and awaiting the next release.
+- `v0.16.0-beta.20261114` (tag `9f2e786`) was the previous beta; `v0.16.1` was
+  the GitHub #32 `grep` follow-up and `v0.16.2` the GitHub #33 security patch.
+- Nothing is waiting on the remote; the v0.16 post-review TLS / find-grep /
+  bus-session fixes and the Chinese DECISIONS #17/#18 sync are published.
+- OCaml: 1787 tests, 0 failures. Python: 216 passed / 20 skipped.
 - Local switch upgraded on 2026-11-11: sqlite3 5.4.2 (GC-rooting fix), tls /
   tls-eio 2.1.5, x509 1.2.0, mirage-crypto* 2.4.1 (security/stability fixes),
   then eio 1.6, cohttp / cohttp-eio 6.3.0 and dune 3.24.2. OCaml stays at
   5.4.1. Re-verified after both batches: 1752 OCaml tests / 0 failures, then
-  1764 after the review fixes, then 1767 after the grep follow-up; 209 Python
-  passed / 20 skipped throughout.
+  1764 after the review fixes, 1767 after the grep follow-up, 1776 after the
+  hook-coverage patch and 1787 after the MCP reload work; Python
+  209 → 216 passed / 20 skipped.
 - Lessons recorded on 2026-11-14: `.gsd/KNOWLEDGE.md` (TLS/HTTP, event bus,
   glob, dependency and PyPI traps), `docs/STRATEGY.md` §11.5, and
   `docs/rules/release.md` post-publish verification. Decisions #17 (TLS entry
@@ -84,17 +86,27 @@
     a workflow or parallel run) and the `resume_approval` re-dispatch now run
     the runtime chain. Eight cases in `test_hook_coverage.ml`, one in
     `test_engine_hitl.ml`, all mutation-checked.
+17. **GitHub #35 MCP/skill reload** — `Runtime.reload_mcp_servers` reconciles
+    the managed set by name (transactional additions, unchanged instances
+    kept, descriptors returned); `Runtime.replace_skill` /
+    `unregister_skill` apply a rewritten skill definition. Python parity for
+    all three. Eight `test_mcp_reload.ml` cases, plus registry/runtime skill
+    tests and seven Python cases. On main, not yet released.
 
 ## Next directions
 
-1. **`PAR-is4` (P1, next patch)** — `Ca_certs.authenticator ()` failure still
+1. **GitHub #35 release decision** — the reload work adds public API
+    (`reload_mcp_servers`, `replace_skill`, `unregister_skill`), so the next
+    release is a MINOR (`v0.17.0-beta`); wait for explicit user instruction
+    before bumping.
+2. **`PAR-is4` (P1, next patch)** — `Ca_certs.authenticator ()` failure still
    falls back to `no_auth` in provider/MCP/builtin TLS configs. Change it to
    fail closed, then verify the three wrappers still construct `Tls.Config`.
-2. **`PAR-9km` implementation (v0.17)** — `lib/providers/http_transport.ml` on
+3. **`PAR-9km` implementation (v0.17)** — `lib/providers/http_transport.ml` on
    `Eio.Net` + `tls-eio`, `Connection: close` only; migrate provider non-stream
    → provider stream → MCP transport → fetch_url, keeping a cohttp-eio fallback
    until the last step.
-3. **`PAR-tgy`** — the `?sandbox` mechanism (design is in
+4. **`PAR-tgy`** — the `?sandbox` mechanism (design is in
    `docs/explanation/sandbox-model.md`).
 4. Remaining P2 feature backlog (`bd ready`) is `out-of-par` per DECISIONS #6
    except MCP sampling routing (`PAR-wn7`) and the Python FFI gaps

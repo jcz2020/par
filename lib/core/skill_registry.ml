@@ -20,6 +20,14 @@ let replace (tbl : t) id (h : activate_fn) =
     Hashtbl.replace tbl id { binding with activate = h }
   | None -> ()
 
+let replace_binding (tbl : t) (binding : skill_binding) =
+  let id = binding.descriptor.id in
+  if Hashtbl.mem tbl id then begin
+    Hashtbl.replace tbl id binding;
+    Result.Ok ()
+  end
+  else Result.Error (`Not_found id)
+
 let resolve tbl skill_id =
   match Hashtbl.find_opt tbl skill_id with
   | Some binding -> Some binding.activate
