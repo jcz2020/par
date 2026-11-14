@@ -1,8 +1,8 @@
 # CHANGES
 
-## Unreleased — tool-call hooks gate every agent and tool path (GitHub #33)
+## v0.16.2-beta.20261114 — tool-call hooks gate every agent and tool path (GitHub #33)
 
-> A runtime tool-call hook was only consulted by `Runtime.invoke`. Workflow `Agent_call` steps, `invoke_parallel`, `invoke_structured`, nested agent tools, workflow `Tool_call` steps and the `resume_approval` re-dispatch ran tools without it, so an application approval gate could be bypassed by routing the same tool through one of those paths. All of them now run the chain. **1776 OCaml tests, 0 failures.** No version bump yet.
+> A runtime tool-call hook was only consulted by `Runtime.invoke`. Workflow `Agent_call` steps, `invoke_parallel`, `invoke_structured`, nested agent tools, workflow `Tool_call` steps and the `resume_approval` re-dispatch ran tools without it, so an application approval gate could be bypassed by routing the same tool through one of those paths. All of them now run the chain. **1776 OCaml tests, 0 failures; 209 Python passed / 20 skipped.** Beta-first: the stable line remains v0.10.0.
 
 ### Fixed — hooks were skipped outside `Runtime.invoke`
 
@@ -11,12 +11,22 @@
 - `Runtime.invoke_structured` seeds its `Invoke_context` with the runtime hooks and passes them to `run_agent_structured` (the Phase 1 ReAct loop).
 - Nested `register_agent_as_tool` children pass the inherited snapshot to `Engine.run_agent`; the snapshot was already in the child context but was never read. When the parent run has no ambient `Invoke_context` (a workflow step or an `invoke_parallel` branch), the child falls back to the runtime's current chain instead of an empty list.
 - `Runtime.resume_approval` re-dispatch passes the runtime hooks, so tools called after an approved tool are gated too.
-- Tests: eight handler-not-executed cases in `test_hook_coverage.ml` (including a nested agent tool under a workflow and under `invoke_parallel`, and a `Tool_call` `Modify`) plus one in `test_engine_hitl.ml`. Each was mutation-checked — removing the threading makes the case fail.
+- Tests: eight cases in `test_hook_coverage.ml` (seven assert the handler did not run; one asserts a hook `Modify` reaches the handler) plus one in `test_engine_hitl.ml`. Each was mutation-checked — removing the threading or the Modify branch makes the relevant case fail.
 - `docs/sdk/invoke_context.md` (EN + ZH) documents the coverage guarantee.
+
+### Known issues
+
+- Unchanged from v0.16.1: a completely stalled HTTP read still cannot be interrupted on the current cohttp-eio transport (`PAR-9km`, v0.17); `blocking_approval` remains unimplemented (`PAR-e68`); recovery does not replay `tool_search` promotions or steering queues; `list_orphaned_invokes` still returns only `(invoke_id, agent_id)`; `test_http_timeout.py` can segfault in a single-process Python run but passes alone.
 
 ### Breaking relative to v0.16.1-beta
 
 - `Workflow_engine.exec_context` gained `tool_call_hooks : Hook.tool_call_hook list`. Code that constructs the record (custom dispatch loops, tests) must supply the field; reading an existing context is unaffected.
+
+### Tests
+
+- OCaml totals are **1776 tests**, 0 failures (eight new hook-coverage cases plus one resume case).
+- Seven hook cases assert the tool handler did not run; the `Modify` case asserts the modified input reaches it. The threading (and the Modify branch) was removed for each path and the relevant case failed, so the gate is mutation-checked rather than assumed.
+- Python totals are **209 passed / 20 skipped**, unchanged; each test file is run separately, as in CI.
 
 ## v0.16.1-beta.20261114 — `grep` finds mid-line matches and directory globs (GitHub #32)
 

@@ -12,7 +12,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
 > **Status**: v0.10.0 — first-class cancellation + actionable tool errors. 1551 tests passing.
-> **Latest pre-release**: [v0.16.1-beta.20261114](https://github.com/jcz2020/par/releases/tag/v0.16.1-beta.20261114) — `grep` now finds matches anywhere in a line and accepts globs with a directory component (`sub/*.ml`, `**/*.ml`), completing the GitHub #32 repair; 1767 OCaml tests at the tag. Install explicitly with `pip install --index-url https://pypi.org/simple par-runtime==0.16.1b20261114`.
+> **Latest pre-release**: [v0.16.2-beta.20261114](https://github.com/jcz2020/par/releases/tag/v0.16.2-beta.20261114) — runtime tool-call hooks now gate workflow `Agent_call` / `Tool_call` steps, `invoke_parallel`, `invoke_structured`, nested agent tools and the `resume_approval` re-dispatch, closing the GitHub #33 approval bypass; 1776 OCaml tests at the tag. Install explicitly with `pip install --index-url https://pypi.org/simple par-runtime==0.16.2b20261114`.
 
 ---
 
@@ -152,11 +152,11 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 **Current**: v0.10.0 — first-class cancellation (`cancel_reason` ADT, replay-valid recovery with synthetic tool results, dispatch/chunk-granularity cooperative checks, cancellable Python `invoke_start`/`invoke_poll`/`invoke_cancel`) + actionable tool validation errors (teach-at-rejection markers `[workspace]`/`[bash-policy]`, edit no-op fix).
 
-**Latest beta**: v0.16.1-beta.20261114 (GitHub pre-release and PyPI prerelease) completes the GitHub #32 `find` / `grep` repair: `grep` now searches the whole line instead of anchoring at column 0, and globs with a directory component such as `sub/*.ml` or `**/*.ml` select files (a glob without `/` still filters by file name at any depth). It builds on v0.16.0, which lets a tool return images and text to the model (`handler_result.Success_content`), gives each durable run a cross-runtime lease so two runtimes sharing a database cannot execute it twice, keeps an approval-suspended run recoverable across a crash, and validates TLS certificate identity for IP-literal endpoints. 1767 OCaml tests and 209 Python tests pass. The stable default remains v0.10.0.
+**Latest beta**: v0.16.2-beta.20261114 (GitHub pre-release and PyPI prerelease) makes the runtime tool-call hook chain a gate on every path that can call a tool: workflow `Agent_call` and `Tool_call` steps, `invoke_parallel`, `invoke_structured`, nested agent tools (including under a workflow or parallel run) and the `resume_approval` re-dispatch. Before, only `Runtime.invoke` consulted the chain, so an application approval policy could be bypassed by routing the same tool through one of those paths (GitHub #33). It builds on v0.16.1 (`grep` mid-line matches and directory globs) and v0.16.0 (vision tool results, cross-runtime leases, approval recovery, TLS identity). 1776 OCaml tests and 209 Python tests pass. The stable default remains v0.10.0.
 
 **In development**: v0.17 replaces the cohttp-eio transport with an owned-socket HTTP layer so a stalled read can be interrupted (`PAR-9km`); the OCaml 5.5 compiler upgrade remains a separate trial project.
 
-**Recent releases**: v0.8.4 (test_mcp_runtime mock-path portability fix) → v0.8.5 (test mock-path portability fix round 2) → v0.8.6 (Streaming HTTP error propagation fix) → v0.9.0 (Skill activation API completion) → v0.9.1 (tool_call_id correlation fixes) → v0.10.0 (first-class cancellation + actionable tool errors) → v0.15.0-beta (durable invokes, branch sessions) → v0.16.0-beta (vision tool results, invoke leases, approval recovery, TLS identity) → v0.16.1-beta (grep mid-line matches and directory globs).
+**Recent releases**: v0.8.4 (test_mcp_runtime mock-path portability fix) → v0.8.5 (test mock-path portability fix round 2) → v0.8.6 (Streaming HTTP error propagation fix) → v0.9.0 (Skill activation API completion) → v0.9.1 (tool_call_id correlation fixes) → v0.10.0 (first-class cancellation + actionable tool errors) → v0.15.0-beta (durable invokes, branch sessions) → v0.16.0-beta (vision tool results, invoke leases, approval recovery, TLS identity) → v0.16.1-beta (grep mid-line matches and directory globs) → v0.16.2-beta (tool-call hooks on every agent and tool path).
 
 ## Getting help
 
