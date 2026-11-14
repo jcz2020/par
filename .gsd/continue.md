@@ -2,17 +2,14 @@
 
 ## Current state (2026-11-14)
 
-- `v0.16.1-beta.20261114` is released and pushed: GitHub pre-release with the
+- `v0.16.2-beta.20261114` is released and pushed: GitHub pre-release with the
   source tarball + `par.opam`, both wheels, and checksums; the two wheels are
-  on PyPI as `0.16.1b20261114`. Tag `v0.16.1-beta.20261114` points at
-  `dff10e6`. Release, opam publish, PyPI publish, CI, CodeQL, Docs and Release
+  on PyPI as `0.16.2b20261114`. Tag `v0.16.2-beta.20261114` points at
+  `da2cf1a`. Release, opam publish, PyPI publish, CI, CodeQL, Docs and Release
   acceptance all passed; a fresh venv install from PyPI reports
-  `0.16.1-beta.20261114`. The stable line remains `v0.10.0`.
-- Main now also carries the GitHub #33 fix: tool-call hooks now gate workflow
-  `Agent_call` / `Tool_call`, `invoke_parallel`, `invoke_structured`, nested
-  agent tools and the `resume_approval` re-dispatch. It is committed on main
-  and awaiting the next patch release; nothing on main is designed for a minor
-  bump.
+  `0.16.2-beta.20261114`. The stable line remains `v0.10.0`.
+- `v0.16.1-beta.20261114` (tag `dff10e6`) was the previous beta; `v0.16.2` is
+  the GitHub #33 security patch (tool-call hooks on every entry point).
 - `v0.16.0-beta.20261114` (tag `9f2e786`) was the previous beta; `v0.16.1` is a
   same-day patch for the GitHub #32 follow-up.
 - Main now carries the v0.16 work plus the post-review TLS / find-grep /
@@ -90,18 +87,14 @@
 
 ## Next directions
 
-1. **`PAR-57u` (P1, security, next patch)** — the GitHub #33 hook-coverage fix
-   is on main and should ship before anything else: an approval gate that is
-   skipped on workflow / parallel / structured / agent-tool / resume paths is a
-   security hole in a published version.
-2. **`PAR-is4` (P1, next patch)** — `Ca_certs.authenticator ()` failure still
+1. **`PAR-is4` (P1, next patch)** — `Ca_certs.authenticator ()` failure still
    falls back to `no_auth` in provider/MCP/builtin TLS configs. Change it to
    fail closed, then verify the three wrappers still construct `Tls.Config`.
-3. **`PAR-9km` implementation (v0.17)** — `lib/providers/http_transport.ml` on
+2. **`PAR-9km` implementation (v0.17)** — `lib/providers/http_transport.ml` on
    `Eio.Net` + `tls-eio`, `Connection: close` only; migrate provider non-stream
    → provider stream → MCP transport → fetch_url, keeping a cohttp-eio fallback
    until the last step.
-4. **`PAR-tgy`** — the `?sandbox` mechanism (design is in
+3. **`PAR-tgy`** — the `?sandbox` mechanism (design is in
    `docs/explanation/sandbox-model.md`).
 4. Remaining P2 feature backlog (`bd ready`) is `out-of-par` per DECISIONS #6
    except MCP sampling routing (`PAR-wn7`) and the Python FFI gaps
