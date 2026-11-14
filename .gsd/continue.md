@@ -83,9 +83,10 @@
     check is back to 100%.
 16. **`PAR-57u` (GitHub #33) hook coverage** — `Workflow_engine.exec_context`
     carries `tool_call_hooks`; workflow `Agent_call` / `Tool_call`,
-    `invoke_parallel`, `invoke_structured`, nested agent tools and the
-    `resume_approval` re-dispatch now run the runtime chain. Five cases in
-    `test_hook_coverage.ml`, one in `test_engine_hitl.ml`, all mutation-checked.
+    `invoke_parallel`, `invoke_structured`, nested agent tools (including under
+    a workflow or parallel run) and the `resume_approval` re-dispatch now run
+    the runtime chain. Eight cases in `test_hook_coverage.ml`, one in
+    `test_engine_hitl.ml`, all mutation-checked.
 
 ## Next directions
 

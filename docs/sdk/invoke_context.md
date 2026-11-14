@@ -71,7 +71,7 @@ The binding propagates automatically. When Engine's parallel tool dispatch forks
 
 ### Tool-call hooks apply to every entry point
 
-The chain registered with `Runtime.register_tool_call_hook` is a runtime-wide gate, not an `invoke`-only feature. It runs before every tool call that an agent or a workflow can make: `Runtime.invoke` / `invoke_content`, `invoke_structured`, `invoke_parallel`, workflow `Agent_call` and `Tool_call` steps (including `resume_workflow` and `recover_workflow`), nested `register_agent_as_tool` children, and the `resume_approval` re-dispatch. Each entry point snapshots the chain when it starts, so hooks registered later do not change a run already in flight. If a gate must cover an application's tool calls, registering it once on the runtime is enough; there is no entry point that silently skips it.
+The chain registered with `Runtime.register_tool_call_hook` is a runtime-wide gate, not an `invoke`-only feature. It runs before every tool call that an agent or a workflow can make: `Runtime.invoke` / `invoke_content`, `invoke_structured`, `invoke_parallel`, workflow `Agent_call` and `Tool_call` steps (including `resume_workflow` and `recover_workflow`), nested `register_agent_as_tool` children, and the `resume_approval` re-dispatch. Each entry point snapshots the chain when it starts, so hooks registered later do not change a run already in flight. A nested agent tool whose parent run has no ambient context (a workflow step or an `invoke_parallel` branch) uses the runtime's current chain. If a gate must cover an application's tool calls, registering it once on the runtime is enough; there is no entry point that silently skips it.
 
 ### Reentrancy safety
 

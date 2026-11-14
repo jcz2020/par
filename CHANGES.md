@@ -2,16 +2,16 @@
 
 ## Unreleased — tool-call hooks gate every agent and tool path (GitHub #33)
 
-> A runtime tool-call hook was only consulted by `Runtime.invoke`. Workflow `Agent_call` steps, `invoke_parallel`, `invoke_structured`, nested agent tools, workflow `Tool_call` steps and the `resume_approval` re-dispatch ran tools without it, so an application approval gate could be bypassed by routing the same tool through one of those paths. All of them now run the chain. **1773 OCaml tests, 0 failures.** No version bump yet.
+> A runtime tool-call hook was only consulted by `Runtime.invoke`. Workflow `Agent_call` steps, `invoke_parallel`, `invoke_structured`, nested agent tools, workflow `Tool_call` steps and the `resume_approval` re-dispatch ran tools without it, so an application approval gate could be bypassed by routing the same tool through one of those paths. All of them now run the chain. **1776 OCaml tests, 0 failures.** No version bump yet.
 
 ### Fixed — hooks were skipped outside `Runtime.invoke`
 
 - `Workflow_engine.exec_context` now carries `tool_call_hooks`, snapshotted from the runtime when `submit_workflow`, `submit_workflow_async`, `invoke_parallel`, `resume_workflow` or `recover_workflow` builds its context. `run_agent_call` and the structured `Agent_call` path pass it to `Engine.run_agent` / `Engine.run_agent_structured`.
 - Workflow `Tool_call` steps run the chain before the handler, honouring `Block` and `Modify` exactly like an engine tool call.
 - `Runtime.invoke_structured` seeds its `Invoke_context` with the runtime hooks and passes them to `run_agent_structured` (the Phase 1 ReAct loop).
-- Nested `register_agent_as_tool` children pass the inherited snapshot to `Engine.run_agent`; the snapshot was already in the child context but was never read.
+- Nested `register_agent_as_tool` children pass the inherited snapshot to `Engine.run_agent`; the snapshot was already in the child context but was never read. When the parent run has no ambient `Invoke_context` (a workflow step or an `invoke_parallel` branch), the child falls back to the runtime's current chain instead of an empty list.
 - `Runtime.resume_approval` re-dispatch passes the runtime hooks, so tools called after an approved tool are gated too.
-- Tests: five handler-not-executed cases in `test_hook_coverage.ml` plus one in `test_engine_hitl.ml`. Each was mutation-checked — removing the threading makes the case fail.
+- Tests: eight handler-not-executed cases in `test_hook_coverage.ml` (including a nested agent tool under a workflow and under `invoke_parallel`, and a `Tool_call` `Modify`) plus one in `test_engine_hitl.ml`. Each was mutation-checked — removing the threading makes the case fail.
 - `docs/sdk/invoke_context.md` (EN + ZH) documents the coverage guarantee.
 
 ### Breaking relative to v0.16.1-beta

@@ -841,7 +841,11 @@ let register_agent_as_tool rt ~agent_id ?(tool_name = "agent_" ^ agent_id) ?desc
         let child_metrics = Metrics.empty () in
         let parent_hooks = match Invoke_context.get_current () with
           | Some ctx -> ctx.tool_call_hooks_snapshot
-          | None -> []
+          (* Workflow steps and invoke_parallel branches run without a fiber
+             context, so a nested agent tool has no per-run snapshot to read.
+             Fall back to the runtime's current chain: a gate must not be
+             skipped just because the parent run was started by a workflow. *)
+          | None -> rt.tool_call_hooks
         in
         let child_ctx = Invoke_context.create
           ~session_id:child_session_id

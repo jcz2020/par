@@ -3,7 +3,8 @@
    used to run Engine.run_agent without hooks, so an application approval gate
    was silently bypassed. The same class of gap existed on invoke_structured,
    agent-as-tool children and workflow Tool_call steps; this suite covers those
-   five paths, and test_engine_hitl.ml covers the resume_approval re-dispatch.
+   five paths once each (plus nested agent tools under a workflow and a parallel
+   run), and test_engine_hitl.ml covers the resume_approval re-dispatch.
 
    Every case asserts that the tool *handler did not run* when the hook
    blocked it. A test that only checks the returned text would pass even when
@@ -158,11 +159,11 @@ let test_invoke_parallel_honors_hooks () =
 (* Workflow Agent_call step                                                  *)
 (* -------------------------------------------------------------------------- *)
 
-let workflow_with_agent_call () : workflow =
-  { def = { id = "wf-hook-gate"; name = "Hook gate";
+let workflow_with_agent_call ?(id = "wf-hook-gate") ?(agent_id = "A") () : workflow =
+  { def = { id; name = "Hook gate";
             version = 1;
             steps = Sequential [
-              Agent_call { agent_id = "A"; prompt_template = "go";
+              Agent_call { agent_id; prompt_template = "go";
                            response_schema = None };
             ];
             variables = []; failure_policy = Fail_fast;
@@ -193,8 +194,7 @@ let test_workflow_agent_call_honors_hooks () =
 (* Workflow Tool_call step                                                   *)
 (* -------------------------------------------------------------------------- *)
 
-let test_workflow_tool_call_honors_hooks () =
-  with_switch (fun sw ->
+let test_workflow_tool_call_honors_hooks () =  with_switch (fun sw ->
     let executed = ref false in
     let rt = create_runtime sw in
     register_danger_tool rt executed;
@@ -224,6 +224,47 @@ let test_workflow_tool_call_honors_hooks () =
         | Error e -> Alcotest.failf "get_workflow_status: %s" (error_to_string e))
      | Error e -> Alcotest.failf "submit_workflow: %s" (error_to_string e));
     Alcotest.(check bool) "danger tool handler did not run" false !executed;
+    ignore (Runtime.close rt))
+
+(* -------------------------------------------------------------------------- *)
+(* Workflow Tool_call hook — Modify                                           *)
+(* -------------------------------------------------------------------------- *)
+
+let test_workflow_tool_call_hook_modifies_input () =
+  with_switch (fun sw ->
+    let seen = ref `Null in
+    let rt = create_runtime sw in
+    let echo : tool_binding =
+      { descriptor = { (descriptor ()) with name = "echo_input" };
+        handler = (fun input _tok -> seen := input; Success `Null) } in
+    (match Runtime.register_tool rt ~name:"echo_input"
+            ~description:"records its input" ~input_schema:(`Assoc [])
+            ~handler:(fun input _tok -> seen := input; Success `Null) () with
+     | Ok _ -> ()
+     | Error e -> Alcotest.failf "register echo_input: %s" (error_to_string e));
+    register_agent rt (make_agent ~tools:[echo] "A" "Agent A");
+    Runtime.register_tool_call_hook rt (fun (ctx : Hook.tool_call_context) ->
+      if ctx.tool_name = "echo_input" then
+        Hook.Modify { input = `Assoc [("patched", `Bool true)] }
+      else Hook.Allow);
+    let wf : workflow =
+      { def = { id = "wf-tool-modify"; name = "Tool modify";
+                version = 1;
+                steps = Sequential [
+                  Tool_call { tool_name = "echo_input";
+                              input = `Assoc [("original", `Bool true)] };
+                ];
+                variables = []; failure_policy = Fail_fast;
+                parallel_limit = 4; timeout = 300.0 };
+        on_complete = None } in
+    (match Runtime.register_workflow rt wf with
+     | Ok () -> ()
+     | Error e -> Alcotest.failf "register_workflow: %s" (error_to_string e));
+    (match Runtime.submit_workflow rt wf with
+     | Ok _ -> ()
+     | Error e -> Alcotest.failf "submit_workflow: %s" (error_to_string e));
+    Alcotest.(check string) "handler saw the modified input"
+      "{\"patched\":true}" (Yojson.Safe.to_string !seen);
     ignore (Runtime.close rt))
 
 (* -------------------------------------------------------------------------- *)
@@ -275,28 +316,66 @@ let mock_llm_for_agent_tool () : llm_service =
     supports_native_tools_fn = None;
     context_window_fn = None; cache_control_fn = None }
 
+let setup_agent_tool_rt sw executed =
+  let rt = create_runtime ~llm:(mock_llm_for_agent_tool ()) sw in
+  register_danger_tool rt executed;
+  register_agent rt (make_agent ~tools:[danger_binding executed] "child"
+                       "You are the child.");
+  (match Runtime.register_agent_as_tool rt ~agent_id:"child" () with
+   | Ok () -> ()
+   | Error e -> Alcotest.failf "register_agent_as_tool: %s" (error_to_string e));
+  let child_tool : tool_binding =
+    { descriptor = { (descriptor ()) with name = "agent_child";
+                     description = "Invoke child" };
+      handler = (fun _input _tok -> Success (`String "noop")) } in
+  register_agent rt (make_agent ~tools:[child_tool] "parent"
+                       "You are the parent.");
+  block_danger_hook rt;
+  rt
+
 let test_agent_as_tool_child_honors_hooks () =
   with_switch (fun sw ->
     let executed = ref false in
-    let rt = create_runtime ~llm:(mock_llm_for_agent_tool ()) sw in
-    register_danger_tool rt executed;
-    register_agent rt (make_agent ~tools:[danger_binding executed] "child"
-                         "You are the child.");
-    (match Runtime.register_agent_as_tool rt ~agent_id:"child" () with
-     | Ok () -> ()
-     | Error e -> Alcotest.failf "register_agent_as_tool: %s" (error_to_string e));
-    let child_tool : tool_binding =
-      { descriptor = { (descriptor ()) with name = "agent_child";
-                       description = "Invoke child" };
-        handler = (fun _input _tok -> Success (`String "noop")) } in
-    register_agent rt (make_agent ~tools:[child_tool] "parent"
-                         "You are the parent.");
-    block_danger_hook rt;
+    let rt = setup_agent_tool_rt sw executed in
     (match Runtime.invoke rt ~agent_id:"parent" ~message:"go"
              ~update_current:false () with
      | Ok _ -> ()
      | Error (e, _) -> Alcotest.failf "invoke parent: %s" (error_to_string e));
     Alcotest.(check bool) "child danger tool handler did not run" false !executed;
+    ignore (Runtime.close rt))
+
+(* Workflow steps and invoke_parallel branches run without an ambient
+   Invoke_context; the nested agent tool must fall back to the runtime chain
+   instead of running ungated. *)
+let test_workflow_nested_agent_tool_honors_hooks () =
+  with_switch (fun sw ->
+    let executed = ref false in
+    let rt = setup_agent_tool_rt sw executed in
+    let wf = workflow_with_agent_call ~agent_id:"parent" ~id:"wf-nested-hook" () in
+    (match Runtime.register_workflow rt wf with
+     | Ok () -> ()
+     | Error e -> Alcotest.failf "register_workflow: %s" (error_to_string e));
+    (match Runtime.submit_workflow rt wf with
+     | Ok _ -> ()
+     | Error e -> Alcotest.failf "submit_workflow: %s" (error_to_string e));
+    Alcotest.(check bool) "nested child danger tool handler did not run"
+      false !executed;
+    ignore (Runtime.close rt))
+
+let test_invoke_parallel_nested_agent_tool_honors_hooks () =
+  with_switch (fun sw ->
+    let executed = ref false in
+    let rt = setup_agent_tool_rt sw executed in
+    let spec : Runtime.agent_dispatch_spec =
+      { agent_id = "parent"; input = Some "go"; workspace = None;
+        approval_handler = None; blocking_approval = false;
+        conversation = None } in
+    (match Runtime.invoke_parallel ~rt ~specs:[spec] () with
+     | Ok result ->
+       Alcotest.(check int) "one success" 1 (List.length result.successes)
+     | Error e -> Alcotest.failf "invoke_parallel: %s" (error_to_string e));
+    Alcotest.(check bool) "nested child danger tool handler did not run"
+      false !executed;
     ignore (Runtime.close rt))
 
 let () =
@@ -308,9 +387,15 @@ let () =
         test_workflow_agent_call_honors_hooks;
       Alcotest.test_case "workflow Tool_call honors runtime hooks" `Quick
         test_workflow_tool_call_honors_hooks;
+      Alcotest.test_case "workflow Tool_call applies a hook Modify" `Quick
+        test_workflow_tool_call_hook_modifies_input;
       Alcotest.test_case "invoke_structured honors runtime hooks" `Quick
         test_invoke_structured_honors_hooks;
       Alcotest.test_case "agent-as-tool child honors runtime hooks" `Quick
         test_agent_as_tool_child_honors_hooks;
+      Alcotest.test_case "workflow nested agent tool honors runtime hooks" `Quick
+        test_workflow_nested_agent_tool_honors_hooks;
+      Alcotest.test_case "invoke_parallel nested agent tool honors runtime hooks" `Quick
+        test_invoke_parallel_nested_agent_tool_honors_hooks;
     ]);
   ]
