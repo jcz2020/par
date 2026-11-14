@@ -61,6 +61,7 @@ type exec_context = {
   registry : Tool_registry.t;
   parallel_limit : int;
   failure_policy : failure_policy;
+  tool_call_hooks : Hook.tool_call_hook list;
   workflow_resolver : string -> workflow option;
   on_step_complete : (step_completion -> unit) option;
   workflow_run_id : Workflow_run_id.t option;
@@ -200,6 +201,7 @@ let run_agent_call ?conversation ctx ~agent_id ~prompt :
   | None -> Result.Error (Invalid_input (Printf.sprintf "Agent not found: %s" agent_id))
   | Some agent ->
     (match Engine.run_agent ?conversation
+             ~tool_call_hooks:(Some ctx.tool_call_hooks)
              ?net:(Option.map (fun n -> (Obj.obj n : _ Eio.Net.t)) ctx.net)
              ctx.token agent prompt ctx.llm ctx.registry with
      | Ok (resp, conv) -> Result.Ok (response_to_json resp, conv)
@@ -222,6 +224,7 @@ let rec execute_step ?(path=[]) ctx step =
           let run_fn =
             if agent.tools <> [] then
               Engine.run_agent_structured ~response_schema:schema
+                ~tool_call_hooks:(Some ctx.tool_call_hooks)
                 ?net:(Option.map (fun n -> (Obj.obj n : _ Eio.Net.t)) ctx.net)
                 ctx.llm ctx.token agent prompt ctx.registry
             else
@@ -249,14 +252,35 @@ let rec execute_step ?(path=[]) ctx step =
         | None -> Result.Error (Internal (Printf.sprintf "Tool handler not registered: %s" tool_name))
         | Some handler ->
            let substituted_input = json_substitute ctx.variables input in
-           (match handler substituted_input ctx.token with
-            | Success json -> Ok json
-            | Types.Error { category; _ } -> Result.Error category
-            | Types.Success_content _ ->
-              Result.Error (Invalid_input
-                "Rich tool content is not supported in a workflow Tool_call step")
-            | Types.Handoff _ -> Result.Error (Invalid_input "Handoff not supported in workflow step")
-            | Types.Approval_required _ -> Result.Error (Invalid_input "Approval not supported in workflow Tool_call step"))))
+           (* A workflow Tool_call is a tool call like any other: the runtime's
+              hook chain must see it, or an approval gate would be bypassable
+              by routing the same tool through a workflow step. *)
+           let hook_result =
+             Hook.run_chain ctx.tool_call_hooks {
+               Hook.tool_name;
+               tool_call_id =
+                 Printf.sprintf "workflow[%s]:%s"
+                   (String.concat "." (List.map string_of_int path)) tool_name;
+               input = substituted_input;
+               has_ui = false;
+             }
+           in
+           let invoke allow_input =
+             match handler allow_input ctx.token with
+             | Success json -> Ok json
+             | Types.Error { category; _ } -> Result.Error category
+             | Types.Success_content _ ->
+               Result.Error (Invalid_input
+                 "Rich tool content is not supported in a workflow Tool_call step")
+             | Types.Handoff _ -> Result.Error (Invalid_input "Handoff not supported in workflow step")
+             | Types.Approval_required _ -> Result.Error (Invalid_input "Approval not supported in workflow Tool_call step")
+           in
+           (match hook_result with
+            | Hook.Final_allow -> invoke substituted_input
+            | Hook.Final_modify modified_input -> invoke modified_input
+            | Hook.Final_block reason ->
+              Result.Error (Permission_denied
+                (Printf.sprintf "tool '%s' blocked by hook: %s" tool_name reason)))))
 
   | Sequential steps ->
     execute_sequential ~path ctx steps

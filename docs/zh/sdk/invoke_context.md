@@ -69,6 +69,10 @@ val create :
 
 绑定会自动传播。当 Engine 的并行工具分发通过 `Eio.Fiber.fork_promise` 生成子 fiber 时，这些子 fiber 继承相同的 `invoke_context`。这意味着同一调用内的所有工具看到相同的 session id、相同的 hooks 和相同的 metrics 计数器。
 
+### 工具调用 hooks 覆盖所有入口
+
+`Runtime.register_tool_call_hook` 注册的链是运行时级门禁，不是 `invoke` 专属功能。它在 agent 或 workflow 可以发起的每次工具调用之前运行：`Runtime.invoke` / `invoke_content`、`invoke_structured`、`invoke_parallel`、workflow 的 `Agent_call` 与 `Tool_call` 步骤（含 `resume_workflow` / `recover_workflow`）、`register_agent_as_tool` 的嵌套子 agent，以及 `resume_approval` 的重新分发。每个入口在开始时对链做快照，之后再注册的 hook 不会改变已在运行的调用。需要覆盖应用全部工具调用的门禁只需在运行时注册一次，不存在静默跳过它的入口。
+
 ### 重入安全性
 
 因为每次 `Runtime.invoke` 都创建自己的上下文，同一运行时上的两次并发调用不会互相干扰。调用 A 的 metrics 留在调用 A 的计数器中。调用 B 的转向队列与调用 A 的不同。调用 A 的 session id 不会泄漏到调用 B。

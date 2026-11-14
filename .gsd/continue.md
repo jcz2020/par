@@ -8,6 +8,11 @@
   `dff10e6`. Release, opam publish, PyPI publish, CI, CodeQL, Docs and Release
   acceptance all passed; a fresh venv install from PyPI reports
   `0.16.1-beta.20261114`. The stable line remains `v0.10.0`.
+- Main now also carries the GitHub #33 fix: tool-call hooks now gate workflow
+  `Agent_call` / `Tool_call`, `invoke_parallel`, `invoke_structured`, nested
+  agent tools and the `resume_approval` re-dispatch. It is committed on main
+  and awaiting the next patch release; nothing on main is designed for a minor
+  bump.
 - `v0.16.0-beta.20261114` (tag `9f2e786`) was the previous beta; `v0.16.1` is a
   same-day patch for the GitHub #32 follow-up.
 - Main now carries the v0.16 work plus the post-review TLS / find-grep /
@@ -76,17 +81,26 @@
 15. **Chinese DECISIONS sync** — `docs/zh/DECISIONS.md` gained #17 (TLS single
     entry point) and #18 (bus-session prepare contract); the translation sync
     check is back to 100%.
+16. **`PAR-57u` (GitHub #33) hook coverage** — `Workflow_engine.exec_context`
+    carries `tool_call_hooks`; workflow `Agent_call` / `Tool_call`,
+    `invoke_parallel`, `invoke_structured`, nested agent tools and the
+    `resume_approval` re-dispatch now run the runtime chain. Five cases in
+    `test_hook_coverage.ml`, one in `test_engine_hitl.ml`, all mutation-checked.
 
 ## Next directions
 
-1. **`PAR-is4` (P1, next patch)** — `Ca_certs.authenticator ()` failure still
+1. **`PAR-57u` (P1, security, next patch)** — the GitHub #33 hook-coverage fix
+   is on main and should ship before anything else: an approval gate that is
+   skipped on workflow / parallel / structured / agent-tool / resume paths is a
+   security hole in a published version.
+2. **`PAR-is4` (P1, next patch)** — `Ca_certs.authenticator ()` failure still
    falls back to `no_auth` in provider/MCP/builtin TLS configs. Change it to
    fail closed, then verify the three wrappers still construct `Tls.Config`.
-2. **`PAR-9km` implementation (v0.17)** — `lib/providers/http_transport.ml` on
+3. **`PAR-9km` implementation (v0.17)** — `lib/providers/http_transport.ml` on
    `Eio.Net` + `tls-eio`, `Connection: close` only; migrate provider non-stream
    → provider stream → MCP transport → fetch_url, keeping a cohttp-eio fallback
    until the last step.
-3. **`PAR-tgy`** — the `?sandbox` mechanism (design is in
+4. **`PAR-tgy`** — the `?sandbox` mechanism (design is in
    `docs/explanation/sandbox-model.md`).
 4. Remaining P2 feature backlog (`bd ready`) is `out-of-par` per DECISIONS #6
    except MCP sampling routing (`PAR-wn7`) and the Python FFI gaps

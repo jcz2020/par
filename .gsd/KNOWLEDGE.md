@@ -45,6 +45,12 @@
 - **`find` matches the path relative to its `path` argument.** `*.ml` is root-only for `find`; use `**/*.ml` for every depth. **`grep` is recursive:** a glob without `/` filters by file name at any depth (`*.ml` finds nested files), and a glob with `/` matches the path relative to the searched directory, like `find`. `grep` must search the line (`Str.search_forward`), not anchor at offset 0.
 - **`grep` display paths:** strip exactly `Filename.concat root ""` (which already includes the trailing separator). The old code added one more byte and dropped the first character of every path.
 
+## Gates / approval hooks
+
+- **A gate threaded through one entry point is not a gate.** `Runtime.register_tool_call_hook` used to be passed only by `Runtime.invoke`; workflow `Agent_call`, `invoke_parallel`, `invoke_structured`, nested agent tools, workflow `Tool_call` and the `resume_approval` re-dispatch all ran tools without it. When adding a per-call policy, enumerate every `Engine.run_agent` call site and every direct handler invocation, not just the path in the report.
+- **`exec_context` is the workflow's per-run carrier.** Workflow hooks belong there next to `registry` and `workspace`, seeded from the runtime when the context is built, so every step type inherits them.
+- **Hook regression tests must assert the handler did not run.** A returned-error assertion can pass while the tool still executed; assert the side effect directly.
+
 ## Dependencies / release
 
 - **CI installs latest dependencies; a long-lived local switch can lag.** Upgrade the switch to the CI-resolved versions and re-run the full suites; otherwise local green and CI green are proving different dependency sets.

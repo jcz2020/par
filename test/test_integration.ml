@@ -243,6 +243,7 @@ let workflow_engine_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        tool_call_hooks = [];
         on_approval_pending = None;
         net = None;
         } in
@@ -279,6 +280,7 @@ let workflow_engine_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        tool_call_hooks = [];
         on_approval_pending = None;
         net = None;
         } in
@@ -317,6 +319,7 @@ let workflow_engine_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        tool_call_hooks = [];
         on_approval_pending = None;
         net = None;
         } in
@@ -360,6 +363,7 @@ let workflow_engine_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        tool_call_hooks = [];
         on_approval_pending = None;
         net = None;
         } in
@@ -393,6 +397,7 @@ let workflow_engine_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        tool_call_hooks = [];
         on_approval_pending = None;
         net = None;
         } in
@@ -433,6 +438,7 @@ let workflow_persistence_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        tool_call_hooks = [];
         on_approval_pending = None;
         net = None;
         } in
@@ -478,6 +484,7 @@ let workflow_persistence_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        tool_call_hooks = [];
         on_approval_pending = None;
         net = None;
         } in
@@ -530,6 +537,7 @@ let workflow_persistence_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        tool_call_hooks = [];
         on_approval_pending = None;
         net = None;
         } in
@@ -571,6 +579,7 @@ let workflow_persistence_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        tool_call_hooks = [];
         on_approval_pending = None;
         net = None;
         } in
@@ -613,6 +622,7 @@ let workflow_persistence_suite =
         workspace_overrides = [];
         approval_handler_overrides = [];
         per_call_registry_fn = None;
+        tool_call_hooks = [];
         on_approval_pending = None;
         net = None;
         } in

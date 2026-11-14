@@ -906,6 +906,7 @@ let register_agent_as_tool rt ~agent_id ?(tool_name = "agent_" ^ agent_id) ?desc
             Engine.run_agent
               ~quota:None
               ~parallel:rt.parallel_tool_execution
+              ~tool_call_hooks:(Some child_ctx.Invoke_context.tool_call_hooks_snapshot)
               ~on_progress:(Some on_progress_counter)
               ~on_tool_event:None
               ~conversation:child_conv
@@ -1675,6 +1676,7 @@ let invoke_structured rt ~agent_id ~message ~response_schema
     let ctx = Invoke_context.create
       ~session_id
       ~metrics:(Metrics.empty ())
+      ~hooks:rt.tool_call_hooks
       ?system_prompt_appendix
       () in
     Invoke_context.with_context ctx (fun () ->
@@ -1709,6 +1711,7 @@ let invoke_structured rt ~agent_id ~message ~response_schema
             ~on_before_llm:(Some on_before_llm_hook)
             ~on_after_llm:(Some on_after_llm_hook)
             ~on_tool_event:(Some combined_tool_event)
+            ~tool_call_hooks:(Some ctx.tool_call_hooks_snapshot)
             ~quota:(Some rt.task_semaphore)
             ~parallel:rt.parallel_tool_execution
             ?on_repair_attempt
@@ -2058,6 +2061,7 @@ let resume_approval ~rt ~run_id ~outcome ~approver =
               ~runtime_id:rt.runtime_id
               ~quota:(Some rt.task_semaphore)
               ~parallel:rt.parallel_tool_execution
+              ~tool_call_hooks:(Some rt.tool_call_hooks)
               ~enable_handoff:false
               ~conversation:resumed_conv
               ?net:(Option.map (fun n -> (Obj.obj n : _ Eio.Net.t)) rt.net)
@@ -2150,6 +2154,7 @@ let submit_workflow rt ?workspace ?(inputs = []) wf =
                  registry = call_registry;
                   parallel_limit = wf.def.parallel_limit;
                   failure_policy = wf.def.failure_policy;
+                 tool_call_hooks = rt.tool_call_hooks;
                  workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
                  on_step_complete = None;
     workflow_run_id = Some id;
@@ -2175,6 +2180,7 @@ let submit_workflow rt ?workspace ?(inputs = []) wf =
     registry = call_registry;
     parallel_limit = wf.def.parallel_limit;
     failure_policy = wf.def.failure_policy;
+    tool_call_hooks = rt.tool_call_hooks;
     workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
     on_step_complete = Some checkpoint_cb;
     workflow_run_id = Some id;
@@ -2256,6 +2262,7 @@ let submit_workflow_async rt ?workspace ?(inputs = []) wf =
                  registry = call_registry;
                  parallel_limit = wf.def.parallel_limit;
                  failure_policy = wf.def.failure_policy;
+                 tool_call_hooks = rt.tool_call_hooks;
                  workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
                  on_step_complete = None;
     workflow_run_id = Some id;
@@ -2280,6 +2287,7 @@ let submit_workflow_async rt ?workspace ?(inputs = []) wf =
     registry = call_registry;
     parallel_limit = wf.def.parallel_limit;
     failure_policy = wf.def.failure_policy;
+    tool_call_hooks = rt.tool_call_hooks;
     workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
     on_step_complete = Some checkpoint_cb;
     workflow_run_id = Some id;
@@ -2379,6 +2387,7 @@ let invoke_parallel ~rt ~specs ?(parallel_limit = 4)
       registry = base_registry;
       parallel_limit;
       failure_policy;
+      tool_call_hooks = rt.tool_call_hooks;
       workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
       on_step_complete = None;
       workflow_run_id = None;
@@ -2553,6 +2562,7 @@ let run_from_checkpoint rt ~(wf_id : Workflow_run_id.t) ~(wf : workflow)
     registry = rt.tool_registry;
     parallel_limit = wf.def.parallel_limit;
     failure_policy = wf.def.failure_policy;
+    tool_call_hooks = rt.tool_call_hooks;
     workflow_resolver = (fun wid -> htbl_get rt.workflow_defs wid);
     on_step_complete = Some checkpoint_cb;
     workflow_run_id = Some wf_id;

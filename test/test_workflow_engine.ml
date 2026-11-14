@@ -108,6 +108,7 @@ let make_ctx ?(variables = []) ?(failure_policy = Fail_fast)
     workspace_overrides = [];
     approval_handler_overrides = [];
     per_call_registry_fn = None;
+    tool_call_hooks = [];
     on_approval_pending = None;
         net = None;
   }

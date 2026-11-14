@@ -747,8 +747,67 @@ let test_resume_preserves_original_context () =
           | Error e ->
             Alcotest.failf "resume_approval failed: %s" (error_to_string e))))
 
-let test_resume_rejected_no_redispatch () =
+let test_resume_approval_honors_tool_call_hooks () =
   with_switch (fun sw ->
+    let danger_executed = ref false in
+    let after_resume = ref false in
+    let llm = mock_llm_dynamic (fun conv ->
+      let has_approval_resolved = List.exists (fun (m : message) ->
+        m.role = User && str_contains (Message.text_of_message m) "Approval resolved"
+      ) conv.messages in
+      if not has_approval_resolved then
+        tool_call_response [ tool_call () ]
+      else if not !after_resume then begin
+        after_resume := true;
+        tool_call_response [ tool_call ~id:"tc-danger" ~name:"danger_tool" () ]
+      end else
+        text_response "danger blocked"
+    ) in
+    let guarded = approval_tool () in
+    let danger = make_tool ~name:"danger_tool" (fun _ _ ->
+      danger_executed := true;
+      Success (`String "danger-ran")) in
+    let agent = make_agent "A" "You are A"
+      ~approval_handler:(Some (Async_callback (fun _ctx ->
+        Eio.Promise.create_resolved Approval.Approved)))
+      ~tools:[guarded; danger] in
+    let rt = create_runtime ~llm sw in
+    (match Runtime.register_agent rt agent with
+     | Ok () -> () | Error e -> Alcotest.failf "register_agent: %s" (error_to_string e));
+    (match Runtime.register_tool rt ~name:"guarded_tool"
+            ~description:"approval tool" ~input_schema:(`Assoc [])
+            ~handler:(fun _input _tok ->
+              Approval_required {
+                tool_name = "guarded_tool"; tool_input = `Assoc [];
+                prompt = "Approve?"; timeout = Some 60.0; allowed_roles = []
+              }) () with
+     | Ok _ -> () | Error e -> Alcotest.failf "register_tool: %s" (error_to_string e));
+    (match Runtime.register_tool rt ~name:"danger_tool"
+            ~description:"tool the hook blocks" ~input_schema:(`Assoc [])
+            ~handler:(fun _input _tok ->
+              danger_executed := true;
+              Success (`String "danger-ran")) () with
+     | Ok _ -> () | Error e -> Alcotest.failf "register danger_tool: %s" (error_to_string e));
+    Runtime.register_tool_call_hook rt (fun (ctx : Hook.tool_call_context) ->
+      if ctx.tool_name = "danger_tool" then
+        Hook.Block { reason = "approval required" }
+      else Hook.Allow);
+    match Runtime.invoke rt ~agent_id:"A" ~message:"do it" () with
+    | Error (e, _) -> Alcotest.failf "invoke failed: %s" (error_to_string e)
+    | Ok result ->
+      (match result.approval_pending with
+       | None -> Alcotest.fail "expected approval_pending"
+       | Some info ->
+         (match Runtime.resume_approval ~rt ~run_id:info.run_id
+                 ~outcome:Approval.Approved ~approver:"test-user" with
+          | Ok () ->
+            Alcotest.(check bool)
+              "danger tool stayed blocked during resume re-dispatch"
+              false !danger_executed
+          | Error e ->
+            Alcotest.failf "resume_approval failed: %s" (error_to_string e))))
+
+let test_resume_rejected_no_redispatch () =  with_switch (fun sw ->
     let llm = mock_llm [
       tool_call_response [ tool_call () ];
       text_response "unused";
@@ -1035,5 +1094,7 @@ let () =
         test_resume_approval_missing_agent_emits_handler_missing;
       Alcotest.test_case "resume preserves original user message in conv" `Quick
         test_resume_preserves_original_context;
+      Alcotest.test_case "resume re-dispatch honors runtime tool-call hooks" `Quick
+        test_resume_approval_honors_tool_call_hooks;
     ]);
   ]

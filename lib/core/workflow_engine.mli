@@ -48,6 +48,12 @@ type exec_context = {
   registry : Tool_registry.t;
   parallel_limit : int;
   failure_policy : failure_policy;
+  tool_call_hooks : Hook.tool_call_hook list;
+  (** Snapshot of [Runtime.tool_call_hooks] taken when the context is built.
+      Every tool call started by this context — an agent run in a workflow
+      [Agent_call] step, a [Runtime.invoke_parallel] branch, or a direct
+      workflow [Tool_call] step — runs the chain, so an application approval
+      gate applies on these paths exactly as it does in [Runtime.invoke]. *)
   workflow_resolver : string -> workflow option;
   (** Invoked after each *resume-safe* step completes. Only children of a
       Sequential chain report: Parallel, Map_reduce, Sub_workflow and

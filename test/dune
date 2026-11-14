@@ -92,6 +92,11 @@
  (modules test_tool_call_hooks))
 
 (test
+ (name test_hook_coverage)
+ (libraries par eio_main alcotest)
+ (modules test_hook_coverage))
+
+(test
  (name test_tool_progress)
  (libraries par eio_main alcotest)
  (modules test_tool_progress))

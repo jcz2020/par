@@ -1,5 +1,23 @@
 # CHANGES
 
+## Unreleased — tool-call hooks gate every agent and tool path (GitHub #33)
+
+> A runtime tool-call hook was only consulted by `Runtime.invoke`. Workflow `Agent_call` steps, `invoke_parallel`, `invoke_structured`, nested agent tools, workflow `Tool_call` steps and the `resume_approval` re-dispatch ran tools without it, so an application approval gate could be bypassed by routing the same tool through one of those paths. All of them now run the chain. **1773 OCaml tests, 0 failures.** No version bump yet.
+
+### Fixed — hooks were skipped outside `Runtime.invoke`
+
+- `Workflow_engine.exec_context` now carries `tool_call_hooks`, snapshotted from the runtime when `submit_workflow`, `submit_workflow_async`, `invoke_parallel`, `resume_workflow` or `recover_workflow` builds its context. `run_agent_call` and the structured `Agent_call` path pass it to `Engine.run_agent` / `Engine.run_agent_structured`.
+- Workflow `Tool_call` steps run the chain before the handler, honouring `Block` and `Modify` exactly like an engine tool call.
+- `Runtime.invoke_structured` seeds its `Invoke_context` with the runtime hooks and passes them to `run_agent_structured` (the Phase 1 ReAct loop).
+- Nested `register_agent_as_tool` children pass the inherited snapshot to `Engine.run_agent`; the snapshot was already in the child context but was never read.
+- `Runtime.resume_approval` re-dispatch passes the runtime hooks, so tools called after an approved tool are gated too.
+- Tests: five handler-not-executed cases in `test_hook_coverage.ml` plus one in `test_engine_hitl.ml`. Each was mutation-checked — removing the threading makes the case fail.
+- `docs/sdk/invoke_context.md` (EN + ZH) documents the coverage guarantee.
+
+### Breaking relative to v0.16.1-beta
+
+- `Workflow_engine.exec_context` gained `tool_call_hooks : Hook.tool_call_hook list`. Code that constructs the record (custom dispatch loops, tests) must supply the field; reading an existing context is unaffected.
+
 ## v0.16.1-beta.20261114 — `grep` finds mid-line matches and directory globs (GitHub #32)
 
 > v0.16 fixed the glob translation, but `grep` still missed every match that did not start at column 0 and could not use a glob with a directory component. Both are fixed. **1767 OCaml tests, 0 failures; 209 Python passed / 20 skipped.** Beta-first: the stable line remains v0.10.0.
