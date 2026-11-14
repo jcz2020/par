@@ -2,19 +2,24 @@
 
 ## Current state (2026-11-14)
 
-- `v0.16.0-beta.20261114` is released and pushed: GitHub pre-release with the
+- `v0.16.1-beta.20261114` is released and pushed: GitHub pre-release with the
   source tarball + `par.opam`, both wheels, and checksums; the two wheels are
-  on PyPI as `0.16.0b20261114`. Tag `v0.16.0-beta.20261114` points at
-  `9f2e786`. Release, opam publish, PyPI publish, CI, CodeQL and Docs all
-  passed. The stable line remains `v0.10.0`.
+  on PyPI as `0.16.1b20261114`. Tag `v0.16.1-beta.20261114` points at
+  `dff10e6`. Release, opam publish, PyPI publish, CI, CodeQL, Docs and Release
+  acceptance all passed; a fresh venv install from PyPI reports
+  `0.16.1-beta.20261114`. The stable line remains `v0.10.0`.
+- `v0.16.0-beta.20261114` (tag `9f2e786`) was the previous beta; `v0.16.1` is a
+  same-day patch for the GitHub #32 follow-up.
 - Main now carries the v0.16 work plus the post-review TLS / find-grep /
-  bus-session fixes; nothing is waiting on the remote.
-- OCaml: 1764 tests, 0 failures. Python: 209 passed / 20 skipped.
+  bus-session fixes and the Chinese DECISIONS #17/#18 sync; nothing is waiting
+  on the remote.
+- OCaml: 1767 tests, 0 failures. Python: 209 passed / 20 skipped.
 - Local switch upgraded on 2026-11-11: sqlite3 5.4.2 (GC-rooting fix), tls /
   tls-eio 2.1.5, x509 1.2.0, mirage-crypto* 2.4.1 (security/stability fixes),
   then eio 1.6, cohttp / cohttp-eio 6.3.0 and dune 3.24.2. OCaml stays at
   5.4.1. Re-verified after both batches: 1752 OCaml tests / 0 failures, then
-  1764 after the review fixes; 209 Python passed / 20 skipped.
+  1764 after the review fixes, then 1767 after the grep follow-up; 209 Python
+  passed / 20 skipped throughout.
 - Lessons recorded on 2026-11-14: `.gsd/KNOWLEDGE.md` (TLS/HTTP, event bus,
   glob, dependency and PyPI traps), `docs/STRATEGY.md` §11.5, and
   `docs/rules/release.md` post-publish verification. Decisions #17 (TLS entry
@@ -63,6 +68,14 @@
     generate/structured validate the agent before minting a session;
     error/exception paths covered by tests; concurrent-run event attribution
     limitation documented in `docs/sdk/generate.md` (EN+ZH).
+14. **`PAR-mye` (GitHub #32 follow-up, v0.16.1)** — `grep` searches the whole
+    line with `Str.search_forward` instead of anchoring at offset 0; a glob
+    with `/` matches the path relative to `path` (`sub/*.ml`, `**/*.ml`), while
+    a glob without `/` keeps filtering by file name at any depth. Three exact
+    result-set tests; the mid-line and `sub/*.ml` cases were mutation-checked.
+15. **Chinese DECISIONS sync** — `docs/zh/DECISIONS.md` gained #17 (TLS single
+    entry point) and #18 (bus-session prepare contract); the translation sync
+    check is back to 100%.
 
 ## Next directions
 

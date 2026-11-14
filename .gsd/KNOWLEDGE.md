@@ -52,4 +52,5 @@
 - **`eio 1.6` exposes `Eio.Net.connect ?bind_to ?options` and `Eio_unix.File`; `Eio.Flow.shutdown` is unchanged.** These are the enablers for the v0.17 owned-socket transport (`PAR-9km`).
 - **Pre-release PyPI verification:** `pip` may use a mirror that lags PyPI (this machine defaults to Aliyun). Install from `--index-url https://pypi.org/simple` in a fresh venv. Also, PyPI's `info.version` stays on the last stable when only a pre-release is uploaded; inspect `releases["<version>"]` instead.
 - **Verify published assets, not workflow conclusions.** `gh release view TAG --json isPrerelease,assets` must show the tarball, `par.opam`, every wheel and checksums; then install the wheel from PyPI and print the version.
+- **`make release-beta` does not forward `FORCE`.** The target calls `scripts/release-bump.sh beta $(BUMP_TYPE)` without `--force`, so a same-day patch whose version is not in a roadmap file must run `bash scripts/release-bump.sh beta patch --force` and then `make install-dev` (the recipe does that step after the script). Record the reason in the release commit.
 
