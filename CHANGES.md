@@ -1,8 +1,8 @@
 # CHANGES
 
-## Unreleased — `grep` finds mid-line matches and directory globs (GitHub #32)
+## v0.16.1-beta.20261114 — `grep` finds mid-line matches and directory globs (GitHub #32)
 
-> v0.16 fixed the glob translation, but `grep` still missed every match that did not start at column 0 and could not use a glob with a directory component. Both are fixed; no version bump yet.
+> v0.16 fixed the glob translation, but `grep` still missed every match that did not start at column 0 and could not use a glob with a directory component. Both are fixed. **1767 OCaml tests, 0 failures; 209 Python passed / 20 skipped.** Beta-first: the stable line remains v0.10.0.
 
 ### Fixed — `grep` line matching anchored at offset 0
 
@@ -14,6 +14,16 @@
 - A glob containing `/` is matched against the path relative to the searched directory, the same way `find` matches, so `sub/*.ml` and `**/*.ml` select files instead of being compared with a bare file name.
 - A glob without `/` still filters by file name at any depth (`*.ml` keeps finding nested files), and the default `*` is unchanged.
 - `docs/sdk/tools.md` (EN + ZH) documents the two glob forms.
+
+### Known issues
+
+- Unchanged from v0.16.0: a completely stalled HTTP read still cannot be interrupted on the current cohttp-eio transport (`PAR-9km`, v0.17); `blocking_approval` remains unimplemented (`PAR-e68`); recovery does not replay `tool_search` promotions or steering queues; `list_orphaned_invokes` still returns only `(invoke_id, agent_id)`; `test_http_timeout.py` can segfault in a single-process Python run but passes alone.
+
+### Tests
+
+- OCaml totals are **1767 tests**, 0 failures (three new cases: a mid-line token, a directory-component glob, and `**/*.ml` on a temp tree).
+- The mid-line and `sub/*.ml` cases fail when the implementation is reverted to `Str.string_match` and base-name matching, so the regression is mutation-checked.
+- Python totals are **209 passed / 20 skipped**, unchanged; each test file is run separately, as in CI.
 
 ## v0.16.0-beta.20261114 — vision tool results, cross-runtime leases, approval recovery, TLS identity
 
