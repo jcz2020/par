@@ -5,6 +5,14 @@
    switch cleanup starts, avoiding the Eio switch-cleanup deadlock on
    uncancellable reads.
 
+   SUPERSEDED — do not call [request_with_timeout]. v0.16.3 moved MCP HTTP
+   and the web builtins back to cohttp-eio because this path built a
+   malformed request (headers after the terminating CRLF, no Content-Length,
+   body dropped) and rejected every TLS URL (GitHub #36/#37). The raw path
+   is kept as scaffolding for the v0.17 owned-socket transport (PAR-9km),
+   which must add TLS, chunked decoding, SSE and a correct timeout before
+   taking production traffic.
+
    This module has NO .mli — all values are public. *)
 
 [@@@warning "-5-32"]
