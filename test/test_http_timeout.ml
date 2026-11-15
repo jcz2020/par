@@ -21,9 +21,12 @@
    This is NOT a PAR bug — it's a fundamental Eio limitation: switch
    cleanup is synchronous and waits for all fibers. An uncancellable read
    (cohttp-eio's wrapped TCP socket) causes indefinite hang.
-   FIX DIRECTION (needs separate effort): rewrite HTTP calls using raw
-   Eio.Net sockets with explicit Eio.Flow.close on timeout (bypassing
-   cohttp-eio's connection management), OR use process-level isolation. *)
+   FIX DIRECTION (v0.17, PAR-9km): an owned-socket HTTP transport with
+   explicit Eio.Flow.close on timeout (bypassing cohttp-eio's connection
+   management). A first raw-socket attempt (2026-06-28) was reverted in
+   v0.16.3 because it sent malformed requests and did not support TLS
+   (GitHub #36/#37); the replacement must handle TLS, chunked bodies and
+   SSE before it can carry MCP and the web builtins. *)
 
 open Par
 open Types

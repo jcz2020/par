@@ -185,6 +185,11 @@
  (deps mcp_mock_server.exe))
 
 (test
+ (name test_http_transport_e2e)
+ (libraries par alcotest eio eio_main yojson logs)
+ (modules test_http_transport_e2e))
+
+(test
  (name test_mcp_reload)
  (libraries par alcotest eio eio_main yojson logs)
  (modules test_mcp_reload)

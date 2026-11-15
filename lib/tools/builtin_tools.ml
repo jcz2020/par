@@ -575,7 +575,7 @@ let builtin_tools ~switch ~net ~workspace =
     Tls_client.connect ~cfg:(Lazy.force tls_config) uri flow
   in
 
-  let _http_client = Cohttp_eio.Client.make ~https:(Some https_fn) net in
+  let http_client = Cohttp_eio.Client.make ~https:(Some https_fn) net in
 
   let validate_url url =
     let uri = Uri.of_string url in
@@ -589,18 +589,22 @@ let builtin_tools ~switch ~net ~workspace =
     match validate_url url with
     | Error msg -> Error msg
     | Ok uri ->
-      let host = match Uri.host uri with Some h -> h | None -> "localhost" in
-      let port = match Uri.port uri with Some p -> p | None -> if Uri.scheme uri = Some "https" then 443 else 80 in
-      let use_tls = Uri.scheme uri = Some "https" in
-      let path = let p = Uri.path uri in if p = "" then "/" else p in
       (try
-         let (status, _hdrs, body) =
-           Http_timeout.request_with_timeout
-             ~timeout:15.0 ~net ~host ~port ~use_tls
-             ~method_:"GET" ~path ~request_headers:(Cohttp.Header.to_list default_headers)
-             ~max_body_size:max_download_size ()
-         in
-         Ok (status, body)
+         Eio.Switch.run (fun sw_inner ->
+           Http_client.with_timeout_for ~timeout:15.0 sw_inner (fun () ->
+             let resp, body =
+               Cohttp_eio.Client.get http_client ~sw:sw_inner
+                 ~headers:default_headers uri
+             in
+             let status =
+               (resp.Http.Response.status :> Cohttp.Code.status_code)
+               |> Cohttp.Code.code_of_status
+             in
+             let body_str =
+               Eio.Buf_read.parse_exn ~max_size:max_download_size
+                 Eio.Buf_read.take_all body
+             in
+             Ok (status, body_str)))
        with
        | Eio.Buf_read.Buffer_limit_exceeded ->
          Error (Printf.sprintf
