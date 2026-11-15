@@ -30,6 +30,8 @@
 - **Use `Par.Tls_client` for all TLS.** Provider HTTP, MCP HTTP and the built-in HTTP tools share it; do not re-implement host parsing at a new call site.
 - **Current fail-open remains:** `Ca_certs.authenticator ()` failure falls back to `no_auth` in the provider/MCP/builtin TLS configs (tracked as `PAR-is4`). Do not add new call sites before that is changed to fail closed.
 - **cohttp-eio 6.3.0 body-chunk trap:** `Reader_flow.send` copies from offset 0 on the second and later partial `single_read` in a chunk. Corruption needs a chunk more than twice the reader's free buffer; PAR's 4096-byte readers normally avoid it. The fix is in cohttp's unreleased `dev`; upgrade when 6.4 ships. A local spike with a 100 KB header and 64 KB chunk read every byte correctly.
+- **Never trust a hand-written HTTP client without a wire test.** The 2026-06 raw `Http_timeout.raw_request` put the terminating CRLF right after `Host`, so every other header and the body were dropped (no `Content-Length`); it also rejected TLS and never decoded chunked bodies. MCP HTTP and three web builtins were unusable for months. A local server that records the raw request, plus JSON/SSE/HTTPS cases, catches this class before merge. The path was reverted to cohttp-eio in v0.16.3; the owned-socket replacement (`PAR-9km`) must pass those tests first.
+- **Hotfix a released defect from a branch cut at the tag.** v0.16.3 was made on `release/v0.16.3` from the v0.16.2 tag (no unreleased #35 in the artifact), then merged back to main. Do not tag a hotfix from main when main already carries unreleased features.
 
 ## Event bus / sessions
 
