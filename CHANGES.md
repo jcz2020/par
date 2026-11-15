@@ -26,6 +26,40 @@
 - OCaml: `test_mcp_reload.ml` covers spawn, unchanged-instance reuse, changed-instance replacement, removal, duplicate names, spawn-failure rollback, and a reloaded tool being callable through `Runtime.invoke`; skill replace/unregister are covered at the registry and runtime levels.
 - Python: MCP reload (add/empty/duplicate) and skill replace/unregister through the C bridge.
 
+## v0.16.3-beta.20261115 — restore the HTTP transport for MCP and the web builtins
+
+> The raw-socket HTTP path used by MCP HTTP and `fetch_url` / `read_webpage` / `web_search` sent a malformed request (the terminating CRLF came right after `Host`, so every other header and the body were dropped), rejected every TLS URL, and never decoded chunked bodies or parsed SSE. Both surfaces are back on cohttp-eio, which handles TLS, chunked responses and `text/event-stream`. **1779 OCaml tests, 0 failures; 209 Python passed / 20 skipped.** Beta-first: the stable line remains v0.10.0.
+
+### Fixed — HTTP requests were malformed and HTTPS was unsupported
+
+- `Http_timeout.raw_request` built `POST /mcp HTTP/1.1\r\nHost: ...\r\n\r\n` and only then appended `Content-Type`, `Accept`, `Connection` and the body, with no `Content-Length`. A local server saw only the `Host` header and an empty body. Captured request:
+  `POST /mcp HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\nContent-Type: application/json\r\nAccept: ...\r\nConnection: close\r\n\r\n{...}`
+- The same path raised `Failure("TLS in raw_request not yet supported")` for `https://`, so `fetch_url`, `read_webpage` and `web_search` (DuckDuckGo lite is HTTPS) could not fetch anything over TLS. Chunked transfer encoding was also unsupported.
+- `Http_timeout` is no longer on any production path: it is kept only as scaffolding for the v0.17 owned-socket transport (`PAR-9km`) and is marked superseded.
+
+### Fixed — MCP HTTP uses the cohttp-eio transport again
+
+- `Mcp_transport_http.request_response` / `notify` / `post_sampling_response` use the cohttp-eio client that was already built for the connection. JSON responses are parsed as JSON; `text/event-stream` responses go through `parse_sse_response`. The initialize request reaches the server with its headers, params and body.
+- Session-id capture reads the `Mcp-Session-Id` response header as before.
+
+### Fixed — the web builtins use the cohttp client again
+
+- `fetch_url`, `read_webpage` and `web_search` share `http_get`, which uses `Cohttp_eio.Client.get` and `Http_client.with_timeout_for`. Request headers (including the user agent) and response bodies are sent/read correctly, and HTTPS works again.
+- Known limitation returns: a completely stalled cohttp read cannot be interrupted until the next chunk; the owned-socket transport that fixes this is v0.17 (`PAR-9km`).
+
+### Tests
+
+- New `test_http_transport_e2e.ml` starts a local HTTP server and covers MCP initialize/tools-list over `application/json`, the same over `text/event-stream`, and `fetch_url` request headers plus body. All three cases fail on the raw path (body dropped, SSE unparsed, user agent missing) and pass on the restored transport.
+- **1779 OCaml tests, 0 failures; 209 Python passed / 20 skipped.**
+
+### Known issues
+
+- A completely stalled HTTP read still cannot be interrupted on cohttp-eio; cancellation takes effect on the next chunk. The owned-socket transport (`PAR-9km`) is deferred to v0.17.
+- `blocking_approval` in `agent_dispatch_spec` remains an unimplemented field (`PAR-e68`).
+- Recovery replays the system prompt, static tool set, workspace/appendix and skill snapshot, but not `tool_search` promotions or steering queues.
+- `list_orphaned_invokes` still returns only `(invoke_id, agent_id)`.
+- `test_http_timeout.py` can segfault when the Python suite runs in one process; it passes alone. This is the documented OCaml-domain / Python-thread interaction.
+
 ## v0.16.2-beta.20261114 — tool-call hooks gate every agent and tool path (GitHub #33)
 
 > A runtime tool-call hook was only consulted by `Runtime.invoke`. Workflow `Agent_call` steps, `invoke_parallel`, `invoke_structured`, nested agent tools, workflow `Tool_call` steps and the `resume_approval` re-dispatch ran tools without it, so an application approval gate could be bypassed by routing the same tool through one of those paths. All of them now run the chain. **1776 OCaml tests, 0 failures; 209 Python passed / 20 skipped.** Beta-first: the stable line remains v0.10.0.
