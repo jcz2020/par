@@ -1,8 +1,8 @@
 # CHANGES
 
-## Unreleased — every MCP message carries `"jsonrpc":"2.0"` (GitHub #38)
+## Unreleased — MCP JSON-RPC conformance and tool bindings (GitHub #38, #39)
 
-> A streamable-HTTP MCP request omitted the mandatory `"jsonrpc":"2.0"` member, so spec-compliant servers answered 400; under a log-and-continue startup policy the server was silently dropped. **1797 OCaml tests, 0 failures.** No version bump yet.
+> A streamable-HTTP MCP request omitted the mandatory `"jsonrpc":"2.0"` member, so spec-compliant servers answered 400; under a log-and-continue startup policy the server was silently dropped. Separately, `reload_mcp_servers` returned descriptors but there was no public accessor for the matching handlers, so a reloaded tool could not be added to an agent that was already registered. **1798 OCaml tests, 0 failures.** No version bump yet.
 
 ### Fixed — every JSON-RPC message carries `"jsonrpc":"2.0"` (GitHub #38)
 
@@ -10,11 +10,17 @@
 - The matching `*_of_yojson` parsers reject a missing member or a version other than `2.0`, so a writer regression fails the round-trip tests instead of passing silently.
 - `Mcp_types.jsonrpc_version` exposes the constant.
 
+### Added — `Runtime.mcp_tool_bindings` (GitHub #39)
+
+- Returns the descriptors paired with their MCP handlers, ready for `Runtime.update_agent_tools ~add`. Read it after `reload_mcp_servers` to install a newly added tool on an already-registered agent without a restart.
+- OCaml-only: the Python binding has no `update_agent_tools` and rebuilds the agent from `mcp_tool_descriptors` instead.
+
 ### Tests
 
-- OCaml totals are **1797 tests**, 0 failures.
+- OCaml totals are **1798 tests**, 0 failures.
 - `test_mcp_types.ml` asserts the exact wire JSON for requests, notifications and responses, and rejects a missing/non-2.0 member.
 - `test_http_transport_e2e.ml`'s mock server now answers 400 to a message without the member, so the HTTP path would fail if the writer regressed.
+- `test_mcp_reload.ml` registers an agent before the server exists, reloads, merges `mcp_tool_bindings`, and invokes the new tool.
 
 ## v0.17.0-beta.20261117 — reload MCP servers and rewrite skills without a restart (GitHub #35)
 

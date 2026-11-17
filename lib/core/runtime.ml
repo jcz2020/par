@@ -823,6 +823,12 @@ let per_call_registry ~(rt : runtime) ~(workspace : Workspace.workspace) : Tool_
     an explicitly registered tool already uses is skipped by the registry. *)
 let mcp_tool_descriptors rt = List.map fst rt.mcp_tools
 
+let mcp_tool_bindings rt =
+  List.map
+    (fun ((descriptor : Types.tool_descriptor), handler) ->
+      ({ Types.descriptor; handler } : Types.tool_binding))
+    rt.mcp_tools
+
 (* Reconcile the managed MCP server set with [servers], keyed by server name.
    New and changed servers are spawned before anything is stopped: if a spawn
    fails, the instances spawned by this call are stopped and the runtime keeps

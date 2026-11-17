@@ -258,6 +258,56 @@ let test_reloaded_tool_is_callable () =
       Alcotest.(check bool) "echo tool ran through the reloaded handler" true
         (contains tool_text "reload-echo-ok"))
 
+(* GitHub #39: an agent registered before the server existed must be able to
+   pick up the new tools without a restart. Descriptors alone are not enough —
+   update_agent_tools needs the handler too. *)
+let test_mcp_tool_bindings_merge_into_existing_agent () =
+  let llm = mock_llm [
+    tool_call_response
+      { id = "tc-echo"; name = "echo";
+        arguments = `Assoc [("message", `String "binding-echo-ok")] };
+    text_response "done";
+  ] in
+  with_runtime ~llm (fun rt ->
+    let agent : agent_config =
+      { id = "A"; system_prompt = stable_prompt "You are A";
+        system_prompt_template = None;
+        model = dummy_model; tools = []; max_iterations = 5;
+        middleware = []; retry_policy = None; context_strategy = None;
+        resource_quota = None; max_execution_time = None; tool_timeout = None;
+        early_stopping_method = Force; on_max_tokens = Some Return_partial;
+        max_continuation_chunks = Some 3;
+        context_compression_threshold = None;
+        compression_cooldown_messages = None;
+        context_window_override = None; cache_strategy = No_caching;
+        approval_handler = None }
+    in
+    (match Par.Runtime.register_agent rt agent with
+     | Ok () -> ()
+     | Error e -> Alcotest.failf "register_agent: %s" (error_to_string e));
+    let descriptors = reload rt [mock_config ()] in
+    let bindings = Par.Runtime.mcp_tool_bindings rt in
+    Alcotest.(check int) "one binding per descriptor"
+      (List.length descriptors) (List.length bindings);
+    Alcotest.(check (list string)) "binding names match"
+      (List.map (fun (d : tool_descriptor) -> d.name) descriptors)
+      (List.map (fun (b : tool_binding) -> b.descriptor.name) bindings);
+    (match Par.Runtime.update_agent_tools rt ~agent_id:"A"
+             ~remove:[] ~add:bindings with
+     | Ok () -> ()
+     | Error e -> Alcotest.failf "update_agent_tools: %s" (error_to_string e));
+    match Par.Runtime.invoke rt ~agent_id:"A" ~message:"go" () with
+    | Error (e, _) -> Alcotest.failf "invoke: %s" (error_to_string e)
+    | Ok result ->
+      let tool_text =
+        result.conversation.messages
+        |> List.filter_map (fun (m : message) ->
+             if m.role = Tool then Some (Message.text_of_message m) else None)
+        |> String.concat "\n"
+      in
+      Alcotest.(check bool) "merged MCP binding is callable" true
+        (contains tool_text "binding-echo-ok"))
+
 let () =
   Alcotest.run "mcp_reload" [
     ("mcp_reload", [
@@ -277,5 +327,7 @@ let () =
         test_reload_spawn_failure_keeps_old_set;
       Alcotest.test_case "reloaded tool is callable" `Quick
         test_reloaded_tool_is_callable;
+      Alcotest.test_case "mcp_tool_bindings merge into a pre-existing agent" `Quick
+        test_mcp_tool_bindings_merge_into_existing_agent;
     ]);
   ]

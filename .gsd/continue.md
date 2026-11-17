@@ -13,10 +13,10 @@
   transport hotfix; `v0.16.2-beta.20261114` the GitHub #33 security patch;
   `v0.16.1` the GitHub #32 `grep` follow-up and `v0.16.0` the
   vision/lease/approval/TLS release.
-- Main is at the v0.17.0 release commit with nothing unreleased; the reload
-  work (#35) is shipped, GitHub issue #35 closed. The stable line remains
-  `v0.10.0`.
-- OCaml: 1790 tests, 0 failures. Python: 216 passed / 20 skipped.
+- Main is at the v0.17.0 release commit plus an unreleased MCP fix
+  (GitHub #38/#39, no version bump yet); the reload work (#35) is shipped,
+  GitHub issue #35 closed. The stable line remains `v0.10.0`.
+- OCaml: 1798 tests, 0 failures. Python: 216 passed / 20 skipped.
 - Local switch upgraded on 2026-11-11: sqlite3 5.4.2 (GC-rooting fix), tls /
   tls-eio 2.1.5, x509 1.2.0, mirage-crypto* 2.4.1 (security/stability fixes),
   then eio 1.6, cohttp / cohttp-eio 6.3.0 and dune 3.24.2. OCaml stays at
@@ -99,6 +99,14 @@
     cohttp-eio; `test_http_transport_e2e.ml` covers MCP JSON, MCP SSE and
     fetch_url headers/body. Shipped in **v0.16.3-beta.20261115**;
     `Http_timeout` remains only as v0.17+ scaffolding for `PAR-9km`.
+19. **GitHub #38/#39 MCP conformance (unreleased)** — every JSON-RPC writer
+    now emits `"jsonrpc":"2.0"` and every parser rejects a missing/other
+    version, fixing HTTP MCP against strict servers (stdio had hidden it).
+    `Runtime.mcp_tool_bindings` exposes descriptor+handler pairs so a host can
+    merge a reloaded tool into an already-registered agent; `update_agent_tools`
+    now has what `reload_mcp_servers` docs always assumed. Seven wire-format
+    cases, a strict-400 HTTP fixture and one reload-merge test. **Do not
+    release without user instruction.**
 
 ## Next directions
 

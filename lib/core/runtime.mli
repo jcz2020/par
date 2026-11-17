@@ -661,6 +661,18 @@ val mcp_tool_descriptors : runtime -> Types.tool_descriptor list
     advertising all of them to every agent would work against
     [max_tool_schema_tokens]. *)
 
+val mcp_tool_bindings : runtime -> Types.tool_binding list
+(** The bindings backing {!mcp_tool_descriptors}: each descriptor paired with
+    its MCP handler, ready for {!update_agent_tools} [~add] (GitHub #39).
+
+    Read this *after* {!reload_mcp_servers}: the list reflects the current
+    server set, and each handler routes to the instance that set owns. Merge
+    the result with [~remove:(previous MCP tool names)] so a reloaded server's
+    fresh handler replaces the stale one.
+
+    OCaml-only. The Python binding has no [update_agent_tools]; a Python host
+    rebuilds the agent from {!mcp_tool_descriptors} instead. *)
+
 val reload_mcp_servers :
   runtime ->
   servers:Mcp_types.server_config list ->
@@ -679,8 +691,8 @@ val reload_mcp_servers :
 
     On success the returned list is the full descriptor set now exposed by the
     MCP servers. Agents keep their own [~tools] lists, so merge the change with
-    {!update_agent_tools} — pass the previous descriptors in [~remove] and the
-    returned ones in [~add], or rebuild the agent.
+    {!update_agent_tools} — pass the previous descriptor names in [~remove]
+    and {!mcp_tool_bindings} in [~add], or rebuild the agent.
 
     In-flight invokes keep the registry snapshot they started with. A tool
     whose server is stopped by the reload fails through the MCP transport error

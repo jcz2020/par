@@ -163,15 +163,16 @@ type startup_policy =
 ```ocaml
 match Runtime.reload_mcp_servers rt ~servers:[mcp_fs_config; mcp_lint_config] with
 | Ok descriptors ->
-  (* agent 各自持有 tools 列表：把新的 MCP descriptor 合并进去 *)
+  (* agent 各自持有 tools 列表：把新的 MCP handler 合并进去 *)
   Runtime.update_agent_tools rt ~agent_id:"fs-agent"
-    ~remove:old_mcp_tool_names ~add:new_mcp_bindings |> ignore
+    ~remove:old_mcp_tool_names
+    ~add:(Runtime.mcp_tool_bindings rt) |> ignore
 | Error e -> ...
 ```
 
 - 配置未变的 server 保持原实例；新增或变更的配置会启动新实例，删除或变更的旧实例在新集合就绪后停止。
 - 新增是事务性的：任一新 server 启动失败时，本次调用启动的实例会被停止，旧集合继续运行；这与 `create` 时的 `mcp_startup_policy` 无关。
-- 返回值是 MCP 当前暴露的完整 descriptor 集合。agent 仍然持有自己的 `~tools` 列表，调用方需要用 `update_agent_tools` 合并（旧 MCP 名称放 `~remove`，新 binding 放 `~add`），或重建 agent。
+- 返回值是 MCP 当前暴露的完整 descriptor 集合。agent 仍然持有自己的 `~tools` 列表，调用方需要用 `update_agent_tools` 合并：旧 MCP 名称放 `~remove`，`Runtime.mcp_tool_bindings rt` 放 `~add`（该访问器把当前 descriptor 与 handler 配对，GitHub #39），或重建 agent。
 - 进行中的 invoke 保留启动时的 registry 快照；被停止 server 的工具走 MCP transport 错误路径干净失败，无需取消任何运行。
 - 重名返回 `Invalid_input`。reload 需要与配置匹配的创建期依赖（`mcp_clock`，stdio 还需 `mcp_process_mgr`，HTTP 还需 `mcp_net`）；Python 绑定会自动提供。
 
