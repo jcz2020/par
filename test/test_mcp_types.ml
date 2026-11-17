@@ -227,20 +227,29 @@ let test_notification_roundtrip () =
 
 let test_request_id_int_parse () =
   let r = must_ok "int" (T.jsonrpc_request_of_yojson
-    (`Assoc ["id", `Int 99; "method", `String "ping"])) in
+    (`Assoc [
+      "jsonrpc", `String "2.0";
+      "id", `Int 99;
+      "method", `String "ping";
+    ])) in
   match r.id with
   | Int_id 99 -> ()
   | _ -> Alcotest.fail "expected Int_id 99"
 
 let test_request_id_string_parse () =
   let r = must_ok "str" (T.jsonrpc_request_of_yojson
-    (`Assoc ["id", `String "req-001"; "method", `String "ping"])) in
+    (`Assoc [
+      "jsonrpc", `String "2.0";
+      "id", `String "req-001";
+      "method", `String "ping";
+    ])) in
   match r.id with
   | String_id "req-001" -> ()
   | _ -> Alcotest.fail "expected String_id \"req-001\""
 
 let test_response_rejects_both_result_and_error () =
   let j = `Assoc [
+    "jsonrpc", `String "2.0";
     "id", `Int 1;
     "result", `Null;
     "error", `Assoc ["code", `Int (-32603); "message", `String "oops"];
@@ -248,20 +257,72 @@ let test_response_rejects_both_result_and_error () =
   must_err "both" (T.response_of_yojson j)
 
 let test_response_rejects_neither_result_nor_error () =
-  let j = `Assoc ["id", `Int 1] in
+  let j = `Assoc ["jsonrpc", `String "2.0"; "id", `Int 1] in
   must_err "neither" (T.response_of_yojson j)
 
 let test_notification_rejects_with_id () =
   let j = `Assoc [
+    "jsonrpc", `String "2.0";
     "id", `Int 1;
     "method", `String "notifications/cancelled";
   ] in
   must_err "with id" (T.notification_of_yojson j)
 
 let test_notification_accepts_no_id () =
-  let j = `Assoc ["method", `String "notifications/progress"] in
+  let j = `Assoc [
+    "jsonrpc", `String "2.0";
+    "method", `String "notifications/progress";
+  ] in
   let n = must_ok "no id" (T.notification_of_yojson j) in
   Alcotest.(check string) "method" "notifications/progress" n.method_
+
+(* GitHub #38: every message PAR writes must carry "jsonrpc":"2.0", or strict
+   streamable-HTTP servers answer 400. The exact-JSON assertions are deliberate:
+   a round-trip test alone passes while the member is missing on both sides. *)
+let test_request_wire_format () =
+  let r : T.jsonrpc_request = {
+    id = Int_id 0;
+    method_ = "initialize";
+    params = Some (`Assoc []);
+  } in
+  Alcotest.(check string) "exact JSON"
+    {|{"jsonrpc":"2.0","id":0,"method":"initialize","params":{}}|}
+    (Yojson.Safe.to_string (T.request_to_yojson r))
+
+let test_notification_wire_format () =
+  let n : T.jsonrpc_notification = {
+    method_ = "notifications/initialized";
+    params = None;
+  } in
+  Alcotest.(check string) "exact JSON"
+    {|{"jsonrpc":"2.0","method":"notifications/initialized"}|}
+    (Yojson.Safe.to_string (T.notification_to_yojson n))
+
+let test_response_wire_format () =
+  let r : T.jsonrpc_response = { id = Int_id 7; result = Ok (`String "hello") } in
+  Alcotest.(check string) "exact JSON"
+    {|{"jsonrpc":"2.0","id":7,"result":"hello"}|}
+    (Yojson.Safe.to_string (T.jsonrpc_response_to_yojson r))
+
+let test_request_rejects_missing_jsonrpc () =
+  must_err "missing" (T.jsonrpc_request_of_yojson
+    (`Assoc ["id", `Int 1; "method", `String "ping"]))
+
+let test_request_rejects_wrong_jsonrpc () =
+  must_err "1.0" (T.jsonrpc_request_of_yojson
+    (`Assoc [
+      "jsonrpc", `String "1.0";
+      "id", `Int 1;
+      "method", `String "ping";
+    ]))
+
+let test_response_rejects_missing_jsonrpc () =
+  must_err "missing" (T.response_of_yojson
+    (`Assoc ["id", `Int 1; "result", `Null]))
+
+let test_notification_rejects_missing_jsonrpc () =
+  must_err "missing" (T.notification_of_yojson
+    (`Assoc ["method", `String "notifications/progress"]))
 
 let test_tool_missing_input_schema_defaults () =
   let j = `Assoc ["name", `String "no_schema"] in
@@ -381,6 +442,17 @@ let request_id_suite =
     Alcotest.test_case "parses str id"  `Quick test_request_id_string_parse;
   ])
 
+let jsonrpc_version_suite =
+  ("jsonrpc 2.0 wire format", [
+    Alcotest.test_case "request carries jsonrpc 2.0"       `Quick test_request_wire_format;
+    Alcotest.test_case "notification carries jsonrpc 2.0"  `Quick test_notification_wire_format;
+    Alcotest.test_case "response carries jsonrpc 2.0"      `Quick test_response_wire_format;
+    Alcotest.test_case "request rejects missing jsonrpc"   `Quick test_request_rejects_missing_jsonrpc;
+    Alcotest.test_case "request rejects jsonrpc 1.0"       `Quick test_request_rejects_wrong_jsonrpc;
+    Alcotest.test_case "response rejects missing jsonrpc"  `Quick test_response_rejects_missing_jsonrpc;
+    Alcotest.test_case "notification rejects missing jsonrpc" `Quick test_notification_rejects_missing_jsonrpc;
+  ])
+
 let response_validation_suite =
   ("response validation", [
     Alcotest.test_case "rejects both result & error"  `Quick test_response_rejects_both_result_and_error;
@@ -419,6 +491,7 @@ let () =
     server_id_suite;
     roundtrip_suite;
     request_id_suite;
+    jsonrpc_version_suite;
     response_validation_suite;
     notification_validation_suite;
     decoder_defaults_suite;

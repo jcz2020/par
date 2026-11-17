@@ -51,16 +51,31 @@ let jsonrpc_response ~id result =
     "result", result;
   ])
 
+let jsonrpc_member body =
+  try
+    match Yojson.Safe.from_string body with
+    | `Assoc fields ->
+      (match List.assoc_opt "jsonrpc" fields with
+       | Some (`String v) -> Some v
+       | _ -> None)
+    | _ -> None
+  with _ -> None
+
 let response_for_body ~sse body =
   match jsonrpc_method body with
+  (* GitHub #38: a spec-compliant streamable-HTTP server rejects a message
+     that omits "jsonrpc":"2.0" with 400. Model that instead of tolerating it
+     so the wire format cannot regress. *)
+  | Some _ when jsonrpc_member body <> Some "2.0" ->
+    (400, "text/plain", "missing jsonrpc 2.0")
   | Some "initialize" ->
     let json = jsonrpc_response ~id:(`Int 0) (`Assoc [
       "protocolVersion", `String Mcp_types.protocol_version;
       "capabilities", `Assoc [("tools", `Assoc [])];
       "serverInfo", `Assoc [("name", `String "local"); ("version", `String "1")];
     ]) in
-    if sse then ("text/event-stream", "data: " ^ json ^ "\n\n")
-    else ("application/json", json)
+    if sse then (200, "text/event-stream", "data: " ^ json ^ "\n\n")
+    else (200, "application/json", json)
   | Some "tools/list" ->
     let json = jsonrpc_response ~id:(`Int 1) (`Assoc [
       "tools", `List [
@@ -71,10 +86,10 @@ let response_for_body ~sse body =
         ];
       ];
     ]) in
-    if sse then ("text/event-stream", "data: " ^ json ^ "\n\n")
-    else ("application/json", json)
-  | Some _ -> ("application/json", "{}")   (* notifications/initialized *)
-  | None -> ("text/plain", "hello-from-fetch")
+    if sse then (200, "text/event-stream", "data: " ^ json ^ "\n\n")
+    else (200, "application/json", json)
+  | Some _ -> (200, "application/json", "{}")   (* notifications/initialized *)
+  | None -> (200, "text/plain", "hello-from-fetch")
 
 let with_server env ~sse f =
   Eio.Switch.run @@ fun sw ->
@@ -117,9 +132,10 @@ let with_server env ~sse f =
               else ""
             in
             requests := (request_line, !headers, body) :: !requests;
-            let ctype, resp_body = response_for_body ~sse body in
+            let status, ctype, resp_body = response_for_body ~sse body in
             let response = Printf.sprintf
-                "HTTP/1.1 200 OK\r\nContent-Type: %s\r\nContent-Length: %d\r\nConnection: close\r\n\r\n%s"
+                "HTTP/1.1 %d %s\r\nContent-Type: %s\r\nContent-Length: %d\r\nConnection: close\r\n\r\n%s"
+                status (if status = 400 then "Bad Request" else "OK")
                 ctype (String.length resp_body) resp_body in
             Eio.Flow.copy (Eio.Flow.string_source response) flow
           with _ -> ())
@@ -180,6 +196,8 @@ let test_mcp_http_json () =
             (Option.is_some (header_value headers "content-type"));
           Alcotest.(check bool) "content-length sent" true
             (Option.is_some (header_value headers "content-length"));
+          Alcotest.(check (option string)) "jsonrpc 2.0 member sent" (Some "2.0")
+            (jsonrpc_member body);
           Alcotest.(check bool) "initialize params sent" true
             (try
                ignore (Str.search_forward

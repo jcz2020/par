@@ -1,5 +1,21 @@
 # CHANGES
 
+## Unreleased — every MCP message carries `"jsonrpc":"2.0"` (GitHub #38)
+
+> A streamable-HTTP MCP request omitted the mandatory `"jsonrpc":"2.0"` member, so spec-compliant servers answered 400; under a log-and-continue startup policy the server was silently dropped. **1797 OCaml tests, 0 failures.** No version bump yet.
+
+### Fixed — every JSON-RPC message carries `"jsonrpc":"2.0"` (GitHub #38)
+
+- `Mcp_types.request_to_yojson`, `notification_to_yojson` and `jsonrpc_response_to_yojson` emit the version member. This fixes the HTTP transport, whose requests strict servers rejected with 400; stdio had tolerated the omission.
+- The matching `*_of_yojson` parsers reject a missing member or a version other than `2.0`, so a writer regression fails the round-trip tests instead of passing silently.
+- `Mcp_types.jsonrpc_version` exposes the constant.
+
+### Tests
+
+- OCaml totals are **1797 tests**, 0 failures.
+- `test_mcp_types.ml` asserts the exact wire JSON for requests, notifications and responses, and rejects a missing/non-2.0 member.
+- `test_http_transport_e2e.ml`'s mock server now answers 400 to a message without the member, so the HTTP path would fail if the writer regressed.
+
 ## v0.17.0-beta.20261117 — reload MCP servers and rewrite skills without a restart (GitHub #35)
 
 > A host could configure MCP servers and skills only at startup: `mcp_tools` was private, `register_skill` rejected duplicate ids, and there was no unregister. Editing a config therefore required a process restart. `Runtime.reload_mcp_servers` now reconciles the managed server set in place and returns the new descriptor list, and `Runtime.replace_skill` / `Runtime.unregister_skill` apply a rewritten skill definition. Both surfaces are exposed to Python. **1790 OCaml tests, 0 failures; 216 Python passed / 20 skipped.** Beta-first: the stable line remains v0.10.0.

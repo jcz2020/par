@@ -112,6 +112,9 @@ val jsonrpc_response_to_yojson : jsonrpc_response -> Yojson.Safe.t
 val response_of_yojson        : Yojson.Safe.t -> (jsonrpc_response, string) result
 val notification_to_yojson    : jsonrpc_notification -> Yojson.Safe.t
 val notification_of_yojson    : Yojson.Safe.t -> (jsonrpc_notification, string) result
+(** The three writers emit the mandatory ["jsonrpc":"2.0"] member (GitHub
+    #38). The three parsers reject a message whose member is missing or is
+    not ["2.0"], so a writer regression cannot pass a round-trip test. *)
 val tool_of_yojson            : Yojson.Safe.t -> (mcp_tool, string) result
 val resource_of_yojson        : Yojson.Safe.t -> (mcp_resource, string) result
 val prompt_of_yojson          : Yojson.Safe.t -> (mcp_prompt, string) result
@@ -135,3 +138,6 @@ val method_tools_list_changed        : string
 val method_sampling_create           : string
 
 val protocol_version : string
+
+val jsonrpc_version : string
+(** The JSON-RPC version member value every message must carry, ["2.0"]. *)

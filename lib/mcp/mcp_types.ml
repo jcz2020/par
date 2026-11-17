@@ -265,6 +265,19 @@ let error_field = "error"
 let id_field = "id"
 let method_field = "method"
 let params_field = "params"
+let jsonrpc_field = "jsonrpc"
+let jsonrpc_version = "2.0"
+
+(* GitHub #38: the JSON-RPC version member is mandatory on every message.
+   Validating on decode keeps a writer regression from passing unnoticed
+   (round-trips alone would accept a message that is missing it). *)
+let check_jsonrpc_version fields =
+  match List.assoc_opt jsonrpc_field fields with
+  | Some (`String v) when v = jsonrpc_version -> Ok ()
+  | Some (`String v) ->
+    Error (Printf.sprintf "jsonrpc must be %S (got %S)" jsonrpc_version v)
+  | Some _ -> Error "jsonrpc must be a string"
+  | None -> Error (Printf.sprintf "jsonrpc: missing %S member" jsonrpc_version)
 
 let jsonrpc_error_to_yojson (e : jsonrpc_error) : Yojson.Safe.t =
   let base = [
@@ -305,37 +318,42 @@ let jsonrpc_error_of_yojson (j : Yojson.Safe.t) : (jsonrpc_error, string) result
   | _ -> Error "jsonrpc_error must be a JSON object"
 
 let jsonrpc_response_to_yojson (r : jsonrpc_response) : Yojson.Safe.t =
-  let id_j = request_id_to_yojson r.id in
+  let base = [
+    jsonrpc_field, `String jsonrpc_version;
+    id_field, request_id_to_yojson r.id;
+  ] in
   match r.result with
-  | Ok res ->
-    `Assoc [id_field, id_j; result_field, res]
-  | Error err ->
-    `Assoc [id_field, id_j; error_field, jsonrpc_error_to_yojson err]
+  | Ok res -> `Assoc (base @ [result_field, res])
+  | Error err -> `Assoc (base @ [error_field, jsonrpc_error_to_yojson err])
 
 let response_of_yojson (j : Yojson.Safe.t) : (jsonrpc_response, string) result =
   match j with
   | `Assoc fields ->
-    (match List.assoc_opt id_field fields with
-     | None -> Error "response: missing id"
-     | Some id_j ->
-       match request_id_of_yojson id_j with
-       | Error e -> Error e
-       | Ok id ->
-         let has_result = List.mem_assoc result_field fields in
-         let has_error = List.mem_assoc error_field fields in
-         match has_result, has_error with
-         | true, true -> Error "response: both result and error present"
-         | false, false -> Error "response: neither result nor error present"
-         | true, false ->
-           Ok { id; result = Ok (List.assoc result_field fields) }
-         | false, true ->
-           match jsonrpc_error_of_yojson (List.assoc error_field fields) with
-           | Error e -> Error e
-           | Ok err -> Ok { id; result = Error err })
+    (match check_jsonrpc_version fields with
+     | Error e -> Error ("response: " ^ e)
+     | Ok () ->
+       match List.assoc_opt id_field fields with
+       | None -> Error "response: missing id"
+       | Some id_j ->
+         match request_id_of_yojson id_j with
+         | Error e -> Error e
+         | Ok id ->
+           let has_result = List.mem_assoc result_field fields in
+           let has_error = List.mem_assoc error_field fields in
+           match has_result, has_error with
+           | true, true -> Error "response: both result and error present"
+           | false, false -> Error "response: neither result nor error present"
+           | true, false ->
+             Ok { id; result = Ok (List.assoc result_field fields) }
+           | false, true ->
+             match jsonrpc_error_of_yojson (List.assoc error_field fields) with
+             | Error e -> Error e
+             | Ok err -> Ok { id; result = Error err })
   | _ -> Error "response: must be a JSON object"
 
 let request_to_yojson (r : jsonrpc_request) : Yojson.Safe.t =
   let base = [
+    jsonrpc_field, `String jsonrpc_version;
     id_field, request_id_to_yojson r.id;
     method_field, `String r.method_;
   ] in
@@ -346,12 +364,46 @@ let request_to_yojson (r : jsonrpc_request) : Yojson.Safe.t =
 let jsonrpc_request_of_yojson (j : Yojson.Safe.t) : (jsonrpc_request, string) result =
   match j with
   | `Assoc fields ->
-    (match List.assoc_opt id_field fields with
-     | None -> Error "request: missing id"
-     | Some id_j ->
-       match request_id_of_yojson id_j with
-       | Error e -> Error e
-       | Ok id ->
+    (match check_jsonrpc_version fields with
+     | Error e -> Error ("request: " ^ e)
+     | Ok () ->
+       match List.assoc_opt id_field fields with
+       | None -> Error "request: missing id"
+       | Some id_j ->
+         match request_id_of_yojson id_j with
+         | Error e -> Error e
+         | Ok id ->
+           match List.assoc_opt method_field fields with
+           | Some (`String m) ->
+             let params =
+               match List.assoc_opt params_field fields with
+               | None | Some `Null -> None
+               | Some p -> Some p
+             in
+             Ok { id; method_ = m; params }
+           | Some _ -> Error "request: method must be a string"
+           | None -> Error "request: missing method")
+  | _ -> Error "request: must be a JSON object"
+
+let notification_to_yojson (n : jsonrpc_notification) : Yojson.Safe.t =
+  let base = [
+    jsonrpc_field, `String jsonrpc_version;
+    method_field, `String n.method_;
+  ] in
+  match n.params with
+  | None -> `Assoc base
+  | Some p -> `Assoc (base @ [params_field, p])
+
+let notification_of_yojson (j : Yojson.Safe.t)
+    : (jsonrpc_notification, string) result =
+  match j with
+  | `Assoc fields ->
+    (match check_jsonrpc_version fields with
+     | Error e -> Error ("notification: " ^ e)
+     | Ok () ->
+       if List.mem_assoc id_field fields then
+         Error "notification: must not carry an id field"
+       else
          match List.assoc_opt method_field fields with
          | Some (`String m) ->
            let params =
@@ -359,33 +411,9 @@ let jsonrpc_request_of_yojson (j : Yojson.Safe.t) : (jsonrpc_request, string) re
              | None | Some `Null -> None
              | Some p -> Some p
            in
-           Ok { id; method_ = m; params }
-         | Some _ -> Error "request: method must be a string"
-         | None -> Error "request: missing method")
-  | _ -> Error "request: must be a JSON object"
-
-let notification_to_yojson (n : jsonrpc_notification) : Yojson.Safe.t =
-  match n.params with
-  | None -> `Assoc [method_field, `String n.method_]
-  | Some p -> `Assoc [method_field, `String n.method_; params_field, p]
-
-let notification_of_yojson (j : Yojson.Safe.t)
-    : (jsonrpc_notification, string) result =
-  match j with
-  | `Assoc fields ->
-    if List.mem_assoc id_field fields then
-      Error "notification: must not carry an id field"
-    else
-      match List.assoc_opt method_field fields with
-      | Some (`String m) ->
-        let params =
-          match List.assoc_opt params_field fields with
-          | None | Some `Null -> None
-          | Some p -> Some p
-        in
-        Ok { method_ = m; params }
-      | Some _ -> Error "notification: method must be a string"
-      | None -> Error "notification: missing method"
+           Ok { method_ = m; params }
+         | Some _ -> Error "notification: method must be a string"
+         | None -> Error "notification: missing method")
   | _ -> Error "notification: must be a JSON object"
 
 let tool_of_yojson (j : Yojson.Safe.t) : (mcp_tool, string) result =
