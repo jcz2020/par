@@ -13,9 +13,10 @@
   `6fd8cfb`) was the HTTP transport hotfix; `v0.16.2-beta.20261114` the GitHub
   #33 security patch; `v0.16.1` the GitHub #32 `grep` follow-up and `v0.16.0`
   the vision/lease/approval/TLS release.
-- Main is at the v0.17.1 release commit with nothing unreleased; GitHub issues
-  #35, #38 and #39 are closed. The stable line remains `v0.10.0`.
-- OCaml: 1798 tests, 0 failures. Python: 216 passed / 20 skipped.
+- Main is at the v0.17.1 release commit plus unreleased bash fixes (GitHub
+  #40/#41, no version bump yet); GitHub issues #35, #38 and #39 are closed.
+  The stable line remains `v0.10.0`.
+- OCaml: 1807 tests, 0 failures. Python: 216 passed / 20 skipped.
 - Local switch upgraded on 2026-11-11: sqlite3 5.4.2 (GC-rooting fix), tls /
   tls-eio 2.1.5, x509 1.2.0, mirage-crypto* 2.4.1 (security/stability fixes),
   then eio 1.6, cohttp / cohttp-eio 6.3.0 and dune 3.24.2. OCaml stays at
@@ -108,6 +109,12 @@
     Seven wire-format cases, a strict-400 HTTP fixture and one reload-merge
     test. Shipped as a PATCH (finishing the v0.17.0 reload surface) in
     **v0.17.1-beta.20261117**.
+20. **GitHub #40/#41 bash fixes (unreleased)** — integer `timeout` is accepted
+    at both handler sites (JSON has one number type), and the three
+    substitution blacklist rules apply only when argv invokes a shell with
+    `-c`, so literal `$(...)`/backticks under direct exec pass. Nine new
+    cases across bash blacklist/policy/runtime/builtin tests. **Do not
+    release without user instruction.**
 
 ## Next directions
 

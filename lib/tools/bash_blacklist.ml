@@ -7,6 +7,21 @@ type entry = {
   description : string;
 }
 
+(* Eval-injection rules whose text is only dangerous when a shell evaluates
+   it. The bash tool normally execs argv directly (Bash_safe_command.Exec),
+   so "$(...)" and backticks in an argument are literal; these rules are
+   applied only when argv explicitly invokes a shell with -c (GitHub #41). *)
+let bash_eval_entry =
+  { name = "bash-eval";      regex = Str.regexp "eval[ \t]+\\$";             description = "eval $var executes arbitrary code from a variable" }
+
+let backtick_entry =
+  { name = "backtick-subst"; regex = Str.regexp "`.*`";                      description = "backtick substitution executes the enclosed command" }
+
+let dollar_paren_entry =
+  { name = "dollar-paren";   regex = Str.regexp "\\$\\(.*\\)";               description = "$(...) command substitution executes the enclosed command" }
+
+let shell_eval_only = [ bash_eval_entry; backtick_entry; dollar_paren_entry ]
+
 let all = [
   (* Disk destruction (5) *)
   { name = "rm-rf-root";     regex = Str.regexp "rm[ \t]+-rf[ \t]+/";         description = "rm -rf / wipes the root filesystem" };
@@ -40,10 +55,10 @@ let all = [
   { name = "chmod-suid";     regex = Str.regexp "chmod[ \t]+[0-9]*[4-7][4-7][4-7][4-7]*[0-9]*[ \t]+/"; description = "chmod with 3+ setuid/setgid bits on /" };
   { name = "chown-recursive";regex = Str.regexp "chown[ \t]+-R";             description = "chown -R changes ownership recursively" };
 
-  (* Eval injection vectors (3) *)
-  { name = "bash-eval";      regex = Str.regexp "eval[ \t]+\\$";             description = "eval $var executes arbitrary code from a variable" };
-  { name = "backtick-subst"; regex = Str.regexp "`.*`";                      description = "backtick substitution executes the enclosed command" };
-  { name = "dollar-paren";   regex = Str.regexp "\\$\\(.*\\)";               description = "$(...) command substitution executes the enclosed command" };
+  (* Eval injection vectors (3) — only when a shell evaluates the text *)
+  bash_eval_entry;
+  backtick_entry;
+  dollar_paren_entry;
 
   (* Filesystem loops (2) *)
   { name = "mount-bind";     regex = Str.regexp "mount[ \t]+--bind";         description = "mount --bind can create filesystem loops" };
@@ -60,11 +75,37 @@ let all = [
   { name = "killall-broad";  regex = Str.regexp "killall[ \t]+-9";           description = "killall -9 kills all processes with a name" };
 ]
 
+let shell_basenames = ["sh"; "bash"; "dash"; "zsh"; "ksh"; "mksh"; "ash"]
+
+(* True when some argv element is a shell and a later short-option cluster
+   contains 'c' (bash -c, sh -ec, /bin/sh -c). The shell need not be argv0,
+   so wrappers like "env bash -c" stay covered. Over-blocking a literal "-c"
+   after a shell name is acceptable for this tripwire. *)
+let invokes_shell_command argv =
+  let rec has_c = function
+    | [] -> false
+    | a :: rest ->
+      (String.length a >= 2
+       && a.[0] = '-'
+       && a.[1] <> '-'
+       && String.contains a 'c')
+      || has_c rest
+  in
+  let rec find_shell = function
+    | [] -> false
+    | a :: rest ->
+      if List.mem (Filename.basename a) shell_basenames then has_c rest
+      else find_shell rest
+  in
+  find_shell argv
+
 let matches ~argv =
   let joined = String.concat " " argv in
+  let shell_evaluates = invokes_shell_command argv in
   List.filter (fun (entry : entry) ->
-    try ignore (Str.search_forward entry.regex joined 0); true
-    with Not_found -> false
+    (shell_evaluates || not (List.memq entry shell_eval_only))
+    && (try ignore (Str.search_forward entry.regex joined 0); true
+        with Not_found -> false)
   ) all
 
 let names_of entries = List.map (fun (e : entry) -> e.name) entries

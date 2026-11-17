@@ -193,6 +193,13 @@ let coder_suite = "Coder", [
   test_case "rejects shutdown" `Quick (fun () ->
     Alcotest.(check bool) "Coder rejects shutdown" false
       (test_filter_accepts "Coder" (ok_cmd ["shutdown"; "-h"; "now"])));
+  test_case "accepts literal $(...) under direct argv execution" `Quick (fun () ->
+    (* GitHub #41: no shell is involved, so this is inert text. *)
+    Alcotest.(check bool) "Coder accepts a literal substitution" true
+      (test_filter_accepts "Coder" (ok_cmd ["echo"; "$(whoami)"])));
+  test_case "rejects $(...) inside bash -c" `Quick (fun () ->
+    Alcotest.(check bool) "Coder rejects shell-evaluated substitution" false
+      (test_filter_accepts "Coder" (ok_cmd ["bash"; "-c"; "echo $(whoami)"])));
   test_case "sanitizes env on accepted command" `Quick (fun () ->
     let p = (module Bash_policy.Coder : Bash_policy.POLICY) in
     let module P = (val p : Bash_policy.POLICY) in

@@ -1196,11 +1196,44 @@ let apply_patch_suite =
       Fun.protect ~finally:cleanup run);
   ])
 
+(* GitHub #40: the builtin bash handler is a placeholder replaced by
+   Runtime.install_bash_tool, but it still parses the arguments first. An
+   integer timeout must reach the placeholder error instead of raising. *)
+let bash_argument_suite =
+  ("bash arguments", [
+    Alcotest.test_case "integer timeout reaches the placeholder error" `Quick (fun () ->
+      with_tools (fun tools token ->
+        let handler = find_tool "bash" tools in
+        let result = handler
+          (`Assoc [
+            ("argv", `List [`String "echo"; `String "x"]);
+            ("timeout", `Int 30);
+          ]) token in
+        match result with
+        | Error { category = Internal _; _ } ->
+          Alcotest.check Alcotest.bool "mentions install_bash_tool" true
+            (error_contains result "install_bash_tool")
+        | Error { category; message; _ } ->
+          Alcotest.failf "expected Internal placeholder error, got %s: %s"
+            (match category with
+             | Invalid_input s -> "Invalid_input " ^ s
+             | External_failure s -> "External_failure " ^ s
+             | Permission_denied s -> "Permission_denied " ^ s
+             | Rate_limited -> "Rate_limited"
+             | Timeout -> "Timeout"
+             | Internal s -> "Internal " ^ s
+             | Embedding_unsupported -> "Embedding_unsupported"
+             | Cancelled _ -> "cancelled")
+            message
+        | _ -> Alcotest.fail "expected an Error result"));
+  ])
+
 let () =
   Alcotest.run "Builtin Tools" [
     calculator_suite;
     get_time_suite;
     echo_suite;
+    bash_argument_suite;
     generate_uuid_suite;
     hash_text_suite;
     generate_password_suite;

@@ -497,6 +497,8 @@ Executes shell commands with three layers of defense:
 2. **Policy layer**: `POLICY.filter` validates at runtime. Pick `Coder` / `ReadOnly` / `ReadOnlyNoNet` to fit the use case
 3. **Blacklist layer**: 31 regex rules in `Bash_blacklist` as a final safety net (catches `rm -rf /`, `dd of=/dev/sda`, fork bombs, and similar)
 
+   The three command-substitution rules (`bash-eval`, `backtick-subst`, `dollar-paren`) apply only when `argv` invokes a shell with `-c`; direct argv execution treats `$(...)` and backticks as literal text (GitHub #41).
+
 ### Input
 
 ```json

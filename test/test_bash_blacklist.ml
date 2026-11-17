@@ -34,8 +34,8 @@ let positive : (string list * string) list = [
   ["chmod"; "4755"; "/usr/bin/foo"], "chmod-suid";
   ["chown"; "-R"; "user:user"; "/"], "chown-recursive";
   ["bash"; "-c"; "eval $CMD"], "bash-eval";
-  ["echo"; "`ls`"], "backtick-subst";
-  ["bash"; "-c"; "echo $(whoami)"], "dollar-paren";
+  ["/bin/sh"; "-c"; "echo `whoami`"], "backtick-subst";
+  ["bash"; "-ec"; "echo $(whoami)"], "dollar-paren";
   ["mount"; "--bind"; "/a"; "/b"], "mount-bind";
   ["umount"; "-f"; "/mnt"], "umount-force";
   ["xmrig"], "xmrig";
@@ -67,6 +67,13 @@ let negative : (string list * string) list = [
   ["eval"; "x"], "bash-eval";  (* no $ after eval *)
   ["echo"; "hello"], "backtick-subst";  (* no backticks *)
   ["echo"; "hello"], "dollar-paren";  (* no $( *)
+  (* GitHub #41: the bash tool execs argv directly, so these are literal text
+     and must not be treated as substitution. *)
+  ["echo"; "`ls`"], "backtick-subst";
+  ["echo"; "$(whoami)"], "dollar-paren";
+  ["ps"; "-p"; "$(pgrep"; "-f"; "par)"], "dollar-paren";
+  ["eval"; "$(opam env)"], "bash-eval";
+  ["git"; "commit"; "-m"; "explain `foo`"], "backtick-subst";
   ["bash"; "-c"], "fork-bomb";  (* no fork bomb *)
   ["ls"; "/dev"], "bash-reverse";  (* no /dev/tcp/ *)
   ["cat"; "/etc/passwd"], "rm-rf-root";  (* no rm -rf / *)

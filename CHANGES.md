@@ -1,5 +1,25 @@
 # CHANGES
 
+## Unreleased — bash tool accepts integer timeouts and literal substitutions (GitHub #40, #41)
+
+> A model sending `{"timeout": 30}` crashed the bash handler before spawning: JSON has one number type, and Yojson's `to_float_option` raises on `Int`. Separately, the blacklist rejected literal `$(...)` and backticks even though argv is executed without a shell. Both are fixed. **1807 OCaml tests, 0 failures.** No version bump yet.
+
+### Fixed — integer timeout (GitHub #40)
+
+- `Runtime.make_bash_handler` and the builtin placeholder `bash_tool` accept `Int` or `Float` for `timeout`; zero, negative and non-numeric values still fall back to 30 s.
+- Regression tests execute a command with `timeout: 30` and exercise the builtin parser up to its placeholder error.
+
+### Fixed — literal substitution under direct argv execution (GitHub #41)
+
+- `Bash_blacklist` applies `bash-eval`, `backtick-subst` and `dollar-paren` only when an argv element is a shell and a later short-option cluster contains `c` (`bash -c`, `sh -ec`, `/bin/sh -c`). The bash tool execs argv directly, so in every other case that text is literal.
+- The other 28 rules are unchanged. `bash -c 'echo $(whoami)'` stays blocked; ``echo '`ls`'``, `echo '$(whoami)'` and `eval $(opam env)` pass the blacklist (the last one then fails because `eval` is a shell builtin, not an executable).
+- Blacklist positives/negatives and Coder policy cases cover both sides; the docs note the shell-only scope of the three rules (EN+ZH).
+
+### Tests
+
+- OCaml totals are **1807 tests**, 0 failures.
+- The Python surface is untouched; the v0.17.1 run remains 216 passed / 20 skipped.
+
 ## v0.17.1-beta.20261117 — MCP JSON-RPC conformance and tool bindings (GitHub #38, #39)
 
 > A streamable-HTTP MCP request omitted the mandatory `"jsonrpc":"2.0"` member, so spec-compliant servers answered 400; under a log-and-continue startup policy the server was silently dropped. Separately, `reload_mcp_servers` returned descriptors but there was no public accessor for the matching handlers, so a reloaded tool could not be added to an agent that was already registered. **1798 OCaml tests, 0 failures; 216 Python passed / 20 skipped.** Beta-first: the stable line remains v0.10.0.

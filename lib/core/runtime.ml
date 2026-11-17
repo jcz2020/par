@@ -592,7 +592,14 @@ let make_bash_handler rt mgr clock fs input tok : Types.handler_result =
     | None -> "."
   in
   let timeout =
-    let t = Yojson.Safe.Util.(input |> member "timeout" |> to_float_option) in
+    let t =
+      (* JSON has one number type, so a model may send {"timeout": 30} as an
+         Int. Yojson's to_float_option raises on Int (GitHub #40). *)
+      match Yojson.Safe.Util.(input |> member "timeout") with
+      | `Int i -> Some (float_of_int i)
+      | `Float f -> Some f
+      | _ -> None
+    in
     (* Clamped: the tool description promises a hard cap, and a model asking
        for an unbounded run is exactly the case the cap exists for. *)
     match t with

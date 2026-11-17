@@ -1471,8 +1471,13 @@ let builtin_tools ~switch ~net ~workspace =
         let cwd_str = match Yojson.Safe.Util.(input |> member "cwd" |> to_string_option) with
           | Some s -> s | None -> "."
         in
-        let timeout = match Yojson.Safe.Util.(input |> member "timeout" |> to_float_option) with
-          | Some t when t > 0.0 -> t | _ -> 30.0
+        let timeout =
+          (* Accept an integer: JSON has one number type and models send
+             {"timeout": 30} (GitHub #40). *)
+          match Yojson.Safe.Util.(input |> member "timeout") with
+          | `Int i -> if i > 0 then float_of_int i else 30.0
+          | `Float f -> if f > 0.0 then f else 30.0
+          | _ -> 30.0
         in
         if argv = [] then
           Error { category = Invalid_input "Empty argv"; message = "argv is required"; retryable = false; metadata = [] }

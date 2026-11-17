@@ -491,6 +491,8 @@ LLM 调用 shell 是**最危险的内置工具**。v0.3.0 故意没做 bash，�
 2. **策略层**：`POLICY.filter` 在运行时校验，可基于用户场景选择 `Coder` / `ReadOnly` / `ReadOnlyNoNet`
 3. **黑名单层**：`Bash_blacklist` 31 条正则兜底（`rm -rf /`、`dd of=/dev/sda`、fork bomb 等）
 
+   三条命令替换规则（`bash-eval`、`backtick-subst`、`dollar-paren`）只在 `argv` 显式调用带 `-c` 的 shell 时生效；直接执行 argv 时 `$(...)` 与反引号只是普通文本（GitHub #41）。
+
 ### 输入
 
 ```json

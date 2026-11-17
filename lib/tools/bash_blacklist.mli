@@ -16,7 +16,12 @@ type entry = {
 
 val all : entry list
 
-(** Returns entries whose regex matches the joined argv (space-separated). *)
+(** Returns entries whose regex matches the joined argv (space-separated).
+
+    The eval-injection rules ([bash-eval], [backtick-subst], [dollar-paren])
+    apply only when [argv] invokes a shell with a short-option cluster
+    containing [c] ([bash -c], [sh -ec], ...). The bash tool otherwise execs
+    argv directly, so that text is literal and cannot execute (GitHub #41). *)
 val matches : argv:string list -> entry list
 
 (** Extract just the names from a list of entries (for error messages). *)

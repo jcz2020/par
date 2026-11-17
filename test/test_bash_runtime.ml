@@ -451,6 +451,31 @@ let timeout_suite =
             (sleep_97_alive ())));
   ]
 
+(* GitHub #40: JSON has one number type, so a model legitimately sends
+   {"timeout": 30}. to_float_option raises on `Int and used to kill the
+   handler before the command was spawned. *)
+let timeout_argument_suite =
+  "timeout_argument", [
+    Alcotest.test_case "integer timeout executes the command" `Quick (fun () ->
+      with_exec_runtime (fun rt ->
+        let h = bash_handler rt in
+        let input = `Assoc [
+          ("argv", `List [`String "echo"; `String "integer-timeout-ok"]);
+          ("timeout", `Int 30);
+        ] in
+        let token = Cancellation.create_token (Runtime.cancellation_root rt) in
+        match h input token with
+        | Success json ->
+          (match Yojson.Safe.Util.(json |> member "stdout" |> to_string_option) with
+           | Some s ->
+             Alcotest.(check bool) "command ran with an integer timeout" true
+               (contains s "integer-timeout-ok")
+           | None -> Alcotest.fail "bash success has no stdout")
+        | Error { message; _ } ->
+          Alcotest.failf "integer timeout failed before running: %s" message
+        | _ -> Alcotest.fail "unexpected result"));
+  ]
+
 let () =
   if Sys.os_type = "Win32" then begin
     print_endline "[SKIP] Process spawning tests skipped on Windows";
@@ -462,6 +487,7 @@ let () =
     install_suite;
     policy_enforcement_suite;
     env_isolation_suite;
+    timeout_argument_suite;
     output_capture_suite;
     timeout_suite;
   ]
