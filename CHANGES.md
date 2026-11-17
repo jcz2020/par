@@ -1,8 +1,8 @@
 # CHANGES
 
-## Unreleased — MCP JSON-RPC conformance and tool bindings (GitHub #38, #39)
+## v0.17.1-beta.20261117 — MCP JSON-RPC conformance and tool bindings (GitHub #38, #39)
 
-> A streamable-HTTP MCP request omitted the mandatory `"jsonrpc":"2.0"` member, so spec-compliant servers answered 400; under a log-and-continue startup policy the server was silently dropped. Separately, `reload_mcp_servers` returned descriptors but there was no public accessor for the matching handlers, so a reloaded tool could not be added to an agent that was already registered. **1798 OCaml tests, 0 failures.** No version bump yet.
+> A streamable-HTTP MCP request omitted the mandatory `"jsonrpc":"2.0"` member, so spec-compliant servers answered 400; under a log-and-continue startup policy the server was silently dropped. Separately, `reload_mcp_servers` returned descriptors but there was no public accessor for the matching handlers, so a reloaded tool could not be added to an agent that was already registered. **1798 OCaml tests, 0 failures; 216 Python passed / 20 skipped.** Beta-first: the stable line remains v0.10.0.
 
 ### Fixed — every JSON-RPC message carries `"jsonrpc":"2.0"` (GitHub #38)
 
@@ -21,6 +21,15 @@
 - `test_mcp_types.ml` asserts the exact wire JSON for requests, notifications and responses, and rejects a missing/non-2.0 member.
 - `test_http_transport_e2e.ml`'s mock server now answers 400 to a message without the member, so the HTTP path would fail if the writer regressed.
 - `test_mcp_reload.ml` registers an agent before the server exists, reloads, merges `mcp_tool_bindings`, and invokes the new tool.
+
+### Known issues
+
+- A completely stalled HTTP read cannot be interrupted on the cohttp-eio transport; cancellation takes effect on the next chunk. The owned-socket transport (`PAR-9km`) is deferred past this release.
+- `Ca_certs.authenticator ()` failure still falls back to `no_auth` in the provider/MCP/builtin TLS configs (`PAR-is4`, P1).
+- `blocking_approval` in `agent_dispatch_spec` remains an unimplemented field (`PAR-e68`).
+- Recovery replays the system prompt, static tool set, workspace/appendix and skill snapshot, but not `tool_search` promotions or steering queues.
+- `list_orphaned_invokes` still returns only `(invoke_id, agent_id)`.
+- `test_http_timeout.py` can segfault when the Python suite runs in one process; it passes alone.
 
 ## v0.17.0-beta.20261117 — reload MCP servers and rewrite skills without a restart (GitHub #35)
 
