@@ -1,8 +1,8 @@
 # CHANGES
 
-## Unreleased — bash tool accepts integer timeouts and literal substitutions (GitHub #40, #41)
+## Unreleased — bash and Python accept integer numbers; literal substitutions (GitHub #40, #41)
 
-> A model sending `{"timeout": 30}` crashed the bash handler before spawning: JSON has one number type, and Yojson's `to_float_option` raises on `Int`. Separately, the blacklist rejected literal `$(...)` and backticks even though argv is executed without a shell. Both are fixed. **1807 OCaml tests, 0 failures.** No version bump yet.
+> A model sending `{"timeout": 30}` crashed the bash handler before spawning: JSON has one number type, and Yojson's `to_float_option` raises on `Int`. The same misuse in the Python C bridge made `temperature=1` fail to register an agent. Separately, the blacklist rejected literal `$(...)` and backticks even though argv is executed without a shell. All three are fixed. **1807 OCaml tests, 0 failures; 221 Python passed / 20 skipped.** No version bump yet.
 
 ### Fixed — integer timeout (GitHub #40)
 
@@ -15,10 +15,16 @@
 - The other 28 rules are unchanged. `bash -c 'echo $(whoami)'` stays blocked; ``echo '`ls`'``, `echo '$(whoami)'` and `eval $(opam env)` pass the blacklist (the last one then fails because `eval` is a shell builtin, not an executable).
 - Blacklist positives/negatives and Coder policy cases cover both sides; the docs note the shell-only scope of the three rules (EN+ZH).
 
+### Fixed — Python configs accept integer numbers (GitHub #40 class)
+
+- The C bridge routes float config fields through one helper that accepts `Int` and `Float`: model `temperature` / `top_p`, tool `timeout`, agent `max_execution_time`, `context_compression_threshold`, workflow `timeout` and approval-webhook `timeout_sec`. Non-numeric values keep the previous raise.
+- Natural Python values such as `temperature=1`, `top_p=0`, `max_execution_time=60` and a tool `timeout=30` no longer fail with `PARError: Failed to register agent`.
+- Five Python cases cover the agent-model, per-agent and tool-descriptor paths.
+
 ### Tests
 
 - OCaml totals are **1807 tests**, 0 failures.
-- The Python surface is untouched; the v0.17.1 run remains 216 passed / 20 skipped.
+- Python totals are **221 passed / 20 skipped** (+5 cases).
 
 ## v0.17.1-beta.20261117 — MCP JSON-RPC conformance and tool bindings (GitHub #38, #39)
 

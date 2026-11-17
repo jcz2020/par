@@ -127,6 +127,49 @@ class TestContextStrategyField(unittest.TestCase):
                 rt.register_agent(json.dumps(cfg))
 
 
+class TestIntegerNumbersForFloatFields(unittest.TestCase):
+    """JSON has one number type, so ints are valid values for float fields.
+
+    Same class as GitHub #40: the C bridge used to_float_option, which raises
+    on `Int`, so a natural Python value like temperature=1 failed to register.
+    """
+
+    def test_temperature_int_succeeds(self):
+        with Runtime(_runtime_config()) as rt:
+            cfg = _minimal_agent()
+            cfg["model"]["temperature"] = 1
+            rt.register_agent(json.dumps(cfg))
+
+    def test_top_p_int_succeeds(self):
+        with Runtime(_runtime_config()) as rt:
+            cfg = _minimal_agent()
+            cfg["model"]["top_p"] = 0
+            rt.register_agent(json.dumps(cfg))
+
+    def test_max_execution_time_int_succeeds(self):
+        with Runtime(_runtime_config()) as rt:
+            cfg = _minimal_agent()
+            cfg["max_execution_time"] = 60
+            rt.register_agent(json.dumps(cfg))
+
+    def test_context_compression_threshold_int_succeeds(self):
+        with Runtime(_runtime_config()) as rt:
+            cfg = _minimal_agent()
+            cfg["context_compression_threshold"] = 1
+            rt.register_agent(json.dumps(cfg))
+
+    def test_tool_timeout_int_succeeds(self):
+        with Runtime(_runtime_config()) as rt:
+            cfg = _minimal_agent()
+            cfg["tools"] = [{
+                "name": "noop",
+                "description": "noop",
+                "input_schema": {"type": "object"},
+                "timeout": 30,
+            }]
+            rt.register_agent(json.dumps(cfg))
+
+
 class TestAllFieldsCombined(unittest.TestCase):
     def test_all_new_fields_together(self):
         with Runtime(_runtime_config()) as rt:

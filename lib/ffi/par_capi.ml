@@ -681,15 +681,25 @@ let parse_provider (s : string) : [> `Openai | `Anthropic | `Ollama | `Custom of
   | "ollama" -> `Ollama
   | s -> `Custom s
 
+(* JSON has one number type: a Python int such as temperature=1 arrives as
+   `Int, while Yojson's to_float_option raises on it (GitHub #40 class). Accept
+   both numeric tags; keep the old raise for non-numeric values. *)
+let float_option_of_json (j : Yojson.Safe.t) : float option =
+  match j with
+  | `Int i -> Some (float_of_int i)
+  | `Float f -> Some f
+  | `Null -> None
+  | j -> Yojson.Safe.Util.to_float_option j
+
 let parse_model_config (json : Yojson.Safe.t) : Par.Types.model_config =
   let open Yojson.Safe.Util in
   let provider_str = json |> member "provider" |> to_string_option |> Option.value ~default:"openai" in
   let provider = parse_provider provider_str in
   let model_name = json |> member "model_name" |> to_string in
   let api_base = json |> member "api_base" |> to_string_option in
-  let temperature = json |> member "temperature" |> to_float_option |> Option.value ~default:0.7 in
+  let temperature = json |> member "temperature" |> float_option_of_json |> Option.value ~default:0.7 in
   let max_tokens = json |> member "max_tokens" |> to_int_option in
-  let top_p = json |> member "top_p" |> to_float_option in
+  let top_p = json |> member "top_p" |> float_option_of_json in
   let stop_sequences =
     match json |> member "stop_sequences" with
     | `Null -> []
@@ -714,7 +724,7 @@ let parse_tool_descriptor (json : Yojson.Safe.t) : Par.Types.tool_descriptor =
   let description = json |> member "description" |> to_string in
   let input_schema = json |> member "input_schema" in
   let permission = Par.Types.Allow in
-  let timeout = json |> member "timeout" |> to_float_option in
+  let timeout = json |> member "timeout" |> float_option_of_json in
   let concurrency_limit = json |> member "concurrency_limit" |> to_int_option in
   { name; description; input_schema; output_schema = None; permission; timeout; concurrency_limit; on_update = None; cache_control = None }
 
@@ -792,7 +802,7 @@ let parse_agent_config (json : Yojson.Safe.t) : Par.Types.agent_config =
     | `Assoc _ as v -> Some (parse_resource_quota v)
     | _ -> None
   in
-  let max_execution_time = json |> member "max_execution_time" |> to_float_option in
+  let max_execution_time = json |> member "max_execution_time" |> float_option_of_json in
   let early_stopping_method =
     match json |> member "early_stopping_method" |> to_string_option with
     | Some "generate" | Some "Generate" -> Par.Types.Generate
@@ -810,7 +820,7 @@ let parse_agent_config (json : Yojson.Safe.t) : Par.Types.agent_config =
   in
   let max_continuation_chunks = json |> member "max_continuation_chunks" |> to_int_option in
   (* PAR-p70 new fields — all optional, None means "use make_agent default" *)
-  let context_compression_threshold = json |> member "context_compression_threshold" |> to_float_option in
+  let context_compression_threshold = json |> member "context_compression_threshold" |> float_option_of_json in
   let compression_cooldown_messages = json |> member "compression_cooldown_messages" |> to_int_option in
   let context_window_override = json |> member "context_window_override" |> to_int_option in
   (* omitted -> None = Auto *)
@@ -1358,7 +1368,7 @@ let parse_workflow (json : Yojson.Safe.t) : Par.Types.workflow =
   let variables_json = json |> member "variables" |> to_assoc |> List.map (fun (k, v) -> (k, v)) in
   let failure_policy = Par.Types.Fail_fast in
   let parallel_limit = json |> member "parallel_limit" |> to_int_option |> Option.value ~default:4 in
-  let timeout = json |> member "timeout" |> to_float_option |> Option.value ~default:3600.0 in
+  let timeout = json |> member "timeout" |> float_option_of_json |> Option.value ~default:3600.0 in
   let on_complete = None in
   { def = { id; name; version; steps; variables = variables_json;
             failure_policy; parallel_limit; timeout };
@@ -1639,7 +1649,7 @@ let do_register_approval_handler (state_id : int) (config_json : string) =
              let url = json |> member "url" |> to_string in
              let secret = json |> member "secret" |> to_string_option
                            |> Option.value ~default:"" in
-             let timeout_sec = json |> member "timeout_sec" |> to_float_option
+             let timeout_sec = json |> member "timeout_sec" |> float_option_of_json
                                |> Option.value ~default:300.0 in
              Par.Approval.Webhook { url; secret; timeout_sec }
            | other ->
