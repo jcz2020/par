@@ -1,8 +1,8 @@
 # CHANGES
 
-## Unreleased — reload MCP servers and rewrite skills without a restart (GitHub #35)
+## v0.17.0-beta.20261117 — reload MCP servers and rewrite skills without a restart (GitHub #35)
 
-> A host could configure MCP servers and skills only at startup: `mcp_tools` was private, `register_skill` rejected duplicate ids, and there was no unregister. Editing a config therefore required a process restart. `Runtime.reload_mcp_servers` now reconciles the managed server set in place and returns the new descriptor list, and `Runtime.replace_skill` / `Runtime.unregister_skill` apply a rewritten skill definition. Both surfaces are exposed to Python.
+> A host could configure MCP servers and skills only at startup: `mcp_tools` was private, `register_skill` rejected duplicate ids, and there was no unregister. Editing a config therefore required a process restart. `Runtime.reload_mcp_servers` now reconciles the managed server set in place and returns the new descriptor list, and `Runtime.replace_skill` / `Runtime.unregister_skill` apply a rewritten skill definition. Both surfaces are exposed to Python. **1790 OCaml tests, 0 failures; 216 Python passed / 20 skipped.** Beta-first: the stable line remains v0.10.0.
 
 ### Added — `Runtime.reload_mcp_servers`
 
@@ -22,9 +22,18 @@
 
 ### Tests
 
-- OCaml totals are **1787 tests**, 0 failures; Python totals are **216 passed / 20 skipped**.
+- OCaml totals are **1790 tests**, 0 failures; Python totals are **216 passed / 20 skipped**.
 - OCaml: `test_mcp_reload.ml` covers spawn, unchanged-instance reuse, changed-instance replacement, removal, duplicate names, spawn-failure rollback, and a reloaded tool being callable through `Runtime.invoke`; skill replace/unregister are covered at the registry and runtime levels.
 - Python: MCP reload (add/empty/duplicate) and skill replace/unregister through the C bridge.
+
+### Known issues
+
+- A completely stalled HTTP read cannot be interrupted on the cohttp-eio transport; cancellation takes effect on the next chunk. The owned-socket transport (`PAR-9km`) is deferred past this release.
+- `Ca_certs.authenticator ()` failure still falls back to `no_auth` in the provider/MCP/builtin TLS configs (`PAR-is4`, P1).
+- `blocking_approval` in `agent_dispatch_spec` remains an unimplemented field (`PAR-e68`).
+- Recovery replays the system prompt, static tool set, workspace/appendix and skill snapshot, but not `tool_search` promotions or steering queues.
+- `list_orphaned_invokes` still returns only `(invoke_id, agent_id)`.
+- `test_http_timeout.py` can segfault when the Python suite runs in one process; it passes alone.
 
 ## v0.16.3-beta.20261115 — restore the HTTP transport for MCP and the web builtins
 
