@@ -1,29 +1,29 @@
 # Continue — Next Session
 
-## Current state (2026-11-15)
+## Current state (2026-11-17)
 
-- `v0.16.3-beta.20261115` is released and pushed: GitHub pre-release with the
+- `v0.17.0-beta.20261117` is released and pushed: GitHub pre-release with the
   source tarball + `par.opam`, both wheels, and checksums; the two wheels are
-  on PyPI as `0.16.3b20261115`. Tag `v0.16.3-beta.20261115` points at
-  `993af51` (cut from the v0.16.2 tag on `release/v0.16.3`, merged back to
-  main as `6fd8cfb`). Release, opam publish, PyPI publish and Release
-  acceptance passed; a fresh venv install from PyPI reports
-  `0.16.3-beta.20261115`. The stable line remains `v0.10.0`.
-- Main also carries the GitHub #35 reload work: `Runtime.reload_mcp_servers`
-  (declarative reconcile, transactional additions, descriptors returned) and
-  `Runtime.replace_skill` / `unregister_skill`, with Python parity. It is
-  committed on main and awaiting the v0.17 release.
-- `v0.16.2-beta.20261114` was the GitHub #33 security patch; `v0.16.1` the
-  GitHub #32 `grep` follow-up and `v0.16.0` the vision/lease/approval/TLS release.
-- OCaml: 1790 tests on main / 1779 at the v0.16.3 tag, 0 failures.
-  Python: 216 passed / 20 skipped on main / 209 at the tag.
+  on PyPI as `0.17.0b20261117`. Tag `v0.17.0-beta.20261117` points at
+  `fa567ef`. Release, opam publish, PyPI publish, CI, CodeQL, Docs and
+  Release acceptance passed; a fresh venv install from PyPI reports
+  `0.17.0-beta.20261117` and the published wheel exposes
+  `reload_mcp_servers` / `replace_skill` / `unregister_skill`.
+- `v0.16.3-beta.20261115` (tag `993af51`, merged as `6fd8cfb`) was the HTTP
+  transport hotfix; `v0.16.2-beta.20261114` the GitHub #33 security patch;
+  `v0.16.1` the GitHub #32 `grep` follow-up and `v0.16.0` the
+  vision/lease/approval/TLS release.
+- Main is at the v0.17.0 release commit with nothing unreleased; the reload
+  work (#35) is shipped, GitHub issue #35 closed. The stable line remains
+  `v0.10.0`.
+- OCaml: 1790 tests, 0 failures. Python: 216 passed / 20 skipped.
 - Local switch upgraded on 2026-11-11: sqlite3 5.4.2 (GC-rooting fix), tls /
   tls-eio 2.1.5, x509 1.2.0, mirage-crypto* 2.4.1 (security/stability fixes),
   then eio 1.6, cohttp / cohttp-eio 6.3.0 and dune 3.24.2. OCaml stays at
-  5.4.1. Re-verified after both batches: 1752 OCaml tests / 0 failures, then
+  5.4.1. Re-verified after every batch: 1752 OCaml tests / 0 failures, then
   1764 after the review fixes, 1767 after the grep follow-up, 1776 after the
-  hook-coverage patch, 1787 after the MCP reload work and 1790 after the
-  HTTP transport hotfix; Python 209 → 216 passed / 20 skipped.
+  hook-coverage patch, 1787 after the MCP reload work, 1779 at the v0.16.3
+  tag and 1790 on main after the hotfix; Python 209 → 216 passed / 20 skipped.
 - Lessons recorded on 2026-11-14: `.gsd/KNOWLEDGE.md` (TLS/HTTP, event bus,
   glob, dependency and PyPI traps), `docs/STRATEGY.md` §11.5, and
   `docs/rules/release.md` post-publish verification. Decisions #17 (TLS entry
@@ -91,29 +91,27 @@
     kept, descriptors returned); `Runtime.replace_skill` /
     `unregister_skill` apply a rewritten skill definition. Python parity for
     all three. Eight `test_mcp_reload.ml` cases, plus registry/runtime skill
-    tests and seven Python cases. On main, not yet released (v0.17).
+    tests and seven Python cases. Shipped in **v0.17.0-beta.20261117**.
 18. **v0.16.3 HTTP transport hotfix (GitHub #36/#37)** — the raw-socket
     `Http_timeout` path sent malformed requests (headers after the terminating
     CRLF, no `Content-Length`, body dropped), rejected TLS and never parsed
     SSE. MCP HTTP and `fetch_url` / `read_webpage` / `web_search` are back on
     cohttp-eio; `test_http_transport_e2e.ml` covers MCP JSON, MCP SSE and
-    fetch_url headers/body. `Http_timeout` is superseded v0.17 scaffolding.
+    fetch_url headers/body. Shipped in **v0.16.3-beta.20261115**;
+    `Http_timeout` remains only as v0.17+ scaffolding for `PAR-9km`.
 
 ## Next directions
 
-1. **v0.17.0-beta** — the next MINOR release: #35 reload (public API) plus
-   `PAR-9km` owned-socket HTTP transport (TLS, chunked, SSE, timeout
-   cancellation) and `PAR-is4` fail-closed CA store. Wait for explicit user
-   instruction before bumping.
-2. **`PAR-9km` implementation (v0.17)** — `lib/providers/http_transport.ml` on
-   `Eio.Net` + `tls-eio`, `Connection: close` only; migrate provider non-stream
-   → provider stream → MCP transport → fetch_url, keeping a cohttp-eio fallback
-   until the last step. Must beat the reverted raw path on TLS, chunked
-   bodies, SSE and timeout cancellation before taking production traffic.
-3. **`PAR-is4` (P1)** — `Ca_certs.authenticator ()` failure still falls back
+1. **`PAR-9km` (next feature train)** — the owned-socket HTTP transport:
+   `lib/providers/http_transport.ml` on `Eio.Net` + `tls-eio`,
+   `Connection: close` only; migrate provider non-stream → provider stream →
+   MCP transport → fetch_url, keeping a cohttp-eio fallback until the last
+   step. Must beat the reverted raw path on TLS, chunked bodies, SSE and
+   timeout cancellation. Wait for explicit user direction on the version.
+2. **`PAR-is4` (P1)** — `Ca_certs.authenticator ()` failure still falls back
    to `no_auth` in provider/MCP/builtin TLS configs. Change it to fail closed,
    then verify the three wrappers still construct `Tls.Config`.
-4. **`PAR-tgy`** — the `?sandbox` mechanism (design is in
+3. **`PAR-tgy`** — the `?sandbox` mechanism (design is in
    `docs/explanation/sandbox-model.md`).
 4. Remaining P2 feature backlog (`bd ready`) is `out-of-par` per DECISIONS #6
    except MCP sampling routing (`PAR-wn7`) and the Python FFI gaps
