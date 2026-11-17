@@ -2,20 +2,19 @@
 
 ## Current state (2026-11-17)
 
-- `v0.17.0-beta.20261117` is released and pushed: GitHub pre-release with the
+- `v0.17.1-beta.20261117` is released and pushed: GitHub pre-release with the
   source tarball + `par.opam`, both wheels, and checksums; the two wheels are
-  on PyPI as `0.17.0b20261117`. Tag `v0.17.0-beta.20261117` points at
-  `fa567ef`. Release, opam publish, PyPI publish, CI, CodeQL, Docs and
-  Release acceptance passed; a fresh venv install from PyPI reports
-  `0.17.0-beta.20261117` and the published wheel exposes
-  `reload_mcp_servers` / `replace_skill` / `unregister_skill`.
-- `v0.16.3-beta.20261115` (tag `993af51`, merged as `6fd8cfb`) was the HTTP
-  transport hotfix; `v0.16.2-beta.20261114` the GitHub #33 security patch;
-  `v0.16.1` the GitHub #32 `grep` follow-up and `v0.16.0` the
-  vision/lease/approval/TLS release.
-- Main is at the v0.17.0 release commit plus an unreleased MCP fix
-  (GitHub #38/#39, no version bump yet); the reload work (#35) is shipped,
-  GitHub issue #35 closed. The stable line remains `v0.10.0`.
+  on PyPI as `0.17.1b20261117`. Tag `v0.17.1-beta.20261117` points at
+  `f618c6a`. Release, opam publish, PyPI publish, CI, CodeQL, Docs and the
+  three-container release dry-run passed; a fresh venv install from PyPI
+  reports `0.17.1-beta.20261117` and imports `Runtime`.
+- `v0.17.0-beta.20261117` (tag `fa567ef`) shipped runtime reload for MCP
+  servers and skills (#35); `v0.16.3-beta.20261115` (tag `993af51`, merged as
+  `6fd8cfb`) was the HTTP transport hotfix; `v0.16.2-beta.20261114` the GitHub
+  #33 security patch; `v0.16.1` the GitHub #32 `grep` follow-up and `v0.16.0`
+  the vision/lease/approval/TLS release.
+- Main is at the v0.17.1 release commit with nothing unreleased; GitHub issues
+  #35, #38 and #39 are closed. The stable line remains `v0.10.0`.
 - OCaml: 1798 tests, 0 failures. Python: 216 passed / 20 skipped.
 - Local switch upgraded on 2026-11-11: sqlite3 5.4.2 (GC-rooting fix), tls /
   tls-eio 2.1.5, x509 1.2.0, mirage-crypto* 2.4.1 (security/stability fixes),
@@ -23,7 +22,8 @@
   5.4.1. Re-verified after every batch: 1752 OCaml tests / 0 failures, then
   1764 after the review fixes, 1767 after the grep follow-up, 1776 after the
   hook-coverage patch, 1787 after the MCP reload work, 1779 at the v0.16.3
-  tag and 1790 on main after the hotfix; Python 209 → 216 passed / 20 skipped.
+  tag, 1790 on main after the hotfix and 1798 at v0.17.1; Python 209 → 216
+  passed / 20 skipped.
 - Lessons recorded on 2026-11-14: `.gsd/KNOWLEDGE.md` (TLS/HTTP, event bus,
   glob, dependency and PyPI traps), `docs/STRATEGY.md` §11.5, and
   `docs/rules/release.md` post-publish verification. Decisions #17 (TLS entry
@@ -99,14 +99,15 @@
     cohttp-eio; `test_http_transport_e2e.ml` covers MCP JSON, MCP SSE and
     fetch_url headers/body. Shipped in **v0.16.3-beta.20261115**;
     `Http_timeout` remains only as v0.17+ scaffolding for `PAR-9km`.
-19. **GitHub #38/#39 MCP conformance (unreleased)** — every JSON-RPC writer
-    now emits `"jsonrpc":"2.0"` and every parser rejects a missing/other
-    version, fixing HTTP MCP against strict servers (stdio had hidden it).
-    `Runtime.mcp_tool_bindings` exposes descriptor+handler pairs so a host can
-    merge a reloaded tool into an already-registered agent; `update_agent_tools`
-    now has what `reload_mcp_servers` docs always assumed. Seven wire-format
-    cases, a strict-400 HTTP fixture and one reload-merge test. **Do not
-    release without user instruction.**
+19. **GitHub #38/#39 MCP conformance (v0.17.1-beta.20261117)** — every
+    JSON-RPC writer now emits `"jsonrpc":"2.0"` and every parser rejects a
+    missing/other version, fixing HTTP MCP against strict servers (stdio had
+    hidden it). `Runtime.mcp_tool_bindings` exposes descriptor+handler pairs so
+    a host can merge a reloaded tool into an already-registered agent;
+    `update_agent_tools` now has what `reload_mcp_servers` docs always assumed.
+    Seven wire-format cases, a strict-400 HTTP fixture and one reload-merge
+    test. Shipped as a PATCH (finishing the v0.17.0 reload surface) in
+    **v0.17.1-beta.20261117**.
 
 ## Next directions
 
