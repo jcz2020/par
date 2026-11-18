@@ -596,7 +596,7 @@ MCP server 目前**不能**让模型直接调用其工具：`tool_registry.ml` �
 
 **§11 R1 标注**: **架构正确**。TLS 身份校验只有一个正确位置；把三份 host 解析收敛到 `Tls_client` 消除了漂移源。没有新增平行抽象，只是把已有的 provider/MCP/fetch_url 三条路径接到同一个原语上。
 
-**§11 R2 范围妥协**: 无新增。剩余 fail-open 分支是 `Ca_certs.authenticator ()` 失败时回退 `no_auth`（provider / MCP / builtin 三处），已记录为 `PAR-is4`，退役触发 = 下一次安全收口或任何生产部署报告 CA store 不可用。
+**§11 R2 范围妥协**: 无新增。剩余 fail-open 分支是 `Ca_certs.authenticator ()` 失败时回退 `no_auth`（provider / MCP / builtin 三处），已记录为 `PAR-is4`，退役触发 = 下一次安全收口或任何生产部署报告 CA store 不可用。**2026-11-19 已退役**：三处 fallback 合并到 `Tls_client.config`，CA 加载失败直接报错，连接中止（`PAR-is4` 修复）。
 
 **影响范围**: `lib/core/tls_client.ml`（新）、`lib/providers/http_client.ml/.mli`、`lib/mcp/mcp_transport_http.ml`、`lib/tools/builtin_tools.ml`、`lib/par.ml`、`dune-project`/`par.opam`、`lib/dune`、`test/test_tls_client.ml`。
 

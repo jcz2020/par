@@ -140,9 +140,11 @@
    sampling routing (`PAR-wn7`) on stdio and HTTP. W4 `PAR-9km` (owned-socket
    HTTP) runs in parallel and does not block the version. Wait for explicit
    user direction on the version.
-2. **`PAR-is4` (P1, do before W1)** — `Ca_certs.authenticator ()` failure still
-   falls back to `no_auth` in provider/MCP/builtin TLS configs. Change it to
-   fail closed, then verify the three wrappers still construct `Tls.Config`.
+2. **`PAR-is4` (P1) — fixed 2026-11-19.** The three TLS configs
+   (provider/MCP/builtin) now share `Par.Tls_client.config`; a failed
+   `Ca_certs.authenticator ()` raises instead of falling back to `no_auth`.
+   `test_tls_client.ml` pins both branches. Not released yet at the time of
+   this note.
 3. **`PAR-tgy`** — the `?sandbox` mechanism (design is in
    `docs/explanation/sandbox-model.md`).
 4. Remaining P2 feature backlog (`bd ready`) is `out-of-par` per DECISIONS #6
@@ -161,8 +163,9 @@
 
 - Do NOT bump the version (including refreshing the beta date) without explicit
   user instruction.
-- Do NOT add a TLS call site that bypasses `Par.Tls_client`, and do not copy the
-  existing `Ca_certs` failure fallback: it is fail-open (`PAR-is4`).
+- Do NOT add a TLS call site that bypasses `Par.Tls_client`. The CA trust store
+  is loaded once there and fails closed; a local `Ca_certs` copy would
+  reintroduce the `PAR-is4` fail-open class.
 - Do NOT touch `spikes/sqlite_vec_win_spike/` (untracked, experimental).
 - Do NOT read the `test_http_timeout.py` full-suite segfault as a regression:
   the file passes alone; it is the documented OCaml-domain/Python-thread issue.

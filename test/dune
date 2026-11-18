@@ -736,7 +736,7 @@
 
 (test
   (name test_tls_client)
-  (libraries par alcotest ipaddr domain-name)
+  (libraries par alcotest ipaddr domain-name x509)
   (modules test_tls_client))
 
 (test

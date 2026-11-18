@@ -43,6 +43,36 @@ let test_unparseable_host_fails_closed () =
   | Ok _ ->
     Alcotest.fail "an unparseable host must not be used for TLS without identity validation"
 
+let contains haystack needle =
+  let n = String.length needle in
+  let rec go i =
+    i + n <= String.length haystack
+    && (String.sub haystack i n = needle || go (i + 1))
+  in
+  go 0
+
+(* PAR-is4: a trust-store failure used to fall back to an authenticator that
+   accepts every chain. That is a silent MITM downgrade; the TLS config must be
+   an error instead. *)
+let test_ca_failure_fails_closed () =
+  match Tls_client.config_of_ca_result (Error (`Msg "no trust store found")) with
+  | Ok _ ->
+    Alcotest.fail
+      "a CA load failure must not produce a usable TLS client config"
+  | Error msg ->
+    Alcotest.(check bool) "mentions refusing" true (contains msg "refusing");
+    Alcotest.(check bool) "keeps the cause" true
+      (contains msg "no trust store found")
+
+let test_ca_success_builds_config () =
+  let authenticator : X509.Authenticator.t =
+    fun ?ip:_ ~host:_ _certs -> Ok None
+  in
+  match Tls_client.config_of_ca_result (Ok authenticator) with
+  | Ok _ -> ()
+  | Error msg ->
+    Alcotest.failf "a usable authenticator was rejected: %s" msg
+
 let () =
   Alcotest.run "test_tls_client" [
     ("classify_host", [
@@ -51,5 +81,11 @@ let () =
       Alcotest.test_case "domain name" `Quick test_domain;
       Alcotest.test_case "unparseable fails closed" `Quick
         test_unparseable_host_fails_closed;
+    ]);
+    ("ca_trust_store", [
+      Alcotest.test_case "load failure fails closed" `Quick
+        test_ca_failure_fails_closed;
+      Alcotest.test_case "load success builds config" `Quick
+        test_ca_success_builds_config;
     ]);
   ]

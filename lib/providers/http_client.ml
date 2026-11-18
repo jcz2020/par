@@ -166,19 +166,10 @@ let map_http_status status body =
 (* TLS setup                                                                  *)
 (* -------------------------------------------------------------------------- *)
 
-let tls_config =
-  lazy
-    (match Ca_certs.authenticator () with
-    | Ok auth ->
-      (match Tls.Config.client ~authenticator:auth () with
-      | Ok cfg -> cfg
-      | Result.Error (`Msg msg) -> failwith ("TLS configuration error: " ^ msg))
-    | Result.Error (`Msg msg) ->
-      Logs.warn (fun m -> m "Ca_certs: %s — falling back to no_auth (INSECURE)" msg);
-      let no_auth ?ip:_ ~host:_ _certs = Ok None in
-      (match Tls.Config.client ~authenticator:no_auth () with
-      | Ok cfg -> cfg
-      | Result.Error (`Msg msg) -> failwith ("TLS configuration error: " ^ msg)))
+(* The trust store is loaded by [Tls_client.config], which fails closed: a
+   missing or unreadable CA bundle aborts the connection instead of silently
+   accepting any certificate. *)
+let tls_config = Tls_client.config
 
 let clock_ref : Obj.t option ref = ref None
 

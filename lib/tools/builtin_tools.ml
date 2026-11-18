@@ -557,19 +557,10 @@ let builtin_tools ~switch ~net ~workspace =
 
   let default_headers = Http.Header.of_list [("user-agent", "P-A-R/0.1 (OCaml agent runtime)")] in
 
-  let tls_config =
-    lazy
-      (let authenticator =
-         match Ca_certs.authenticator () with
-         | Ok auth -> auth
-         | Error (`Msg msg) ->
-           Printf.eprintf "Warning: failed to load system CA certs: %s, using no-auth\n" msg;
-           (fun ?ip:_ ~host:_ _certs -> Ok None)
-       in
-       match Tls.Config.client ~authenticator () with
-       | Ok cfg -> cfg
-       | Result.Error (`Msg msg) -> failwith ("TLS configuration error: " ^ msg))
-  in
+  (* The trust store is loaded by [Tls_client.config], which fails closed: a
+     missing or unreadable CA bundle aborts the fetch instead of silently
+     accepting any certificate. *)
+  let tls_config = Tls_client.config in
 
   let https_fn uri flow =
     Tls_client.connect ~cfg:(Lazy.force tls_config) uri flow

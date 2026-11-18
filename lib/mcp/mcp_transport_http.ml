@@ -20,19 +20,10 @@ type t = {
   sampling_handler : (Yojson.Safe.t -> (Yojson.Safe.t, Types.error_category) result) option ref;
 }
 
-let tls_config_lazy : Tls.Config.client Lazy.t =
-  lazy
-    (let authenticator =
-       match Ca_certs.authenticator () with
-       | Ok auth -> auth
-       | Error (`Msg msg) ->
-         Logs.warn (fun m ->
-           m "mcp_transport_http: failed to load CA certs: %s; TLS validation disabled" msg);
-         (fun ?ip:_ ~host:_ _certs -> Ok None)
-     in
-     match Tls.Config.client ~authenticator () with
-     | Ok cfg -> cfg
-     | Result.Error (`Msg msg) -> failwith ("TLS configuration error: " ^ msg))
+(* The trust store is loaded by [Tls_client.config], which fails closed: a
+   missing or unreadable CA bundle aborts the connection instead of silently
+   accepting any certificate. *)
+let tls_config_lazy = Tls_client.config
 
 let upgrade_https uri flow =
   Tls_client.connect ~cfg:(Lazy.force tls_config_lazy) uri flow

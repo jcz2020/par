@@ -28,6 +28,32 @@ let classify_host host =
                "TLS: %S is neither a domain name nor an IP address; refusing to connect without certificate identity validation"
                host)
 
+(* System trust anchors. A failure to load them means the certificate chain
+   cannot be validated at all. The only safe outcome is to refuse the
+   connection: falling back to an authenticator that accepts every chain would
+   turn a broken trust store into a silent MITM downgrade. *)
+let config_of_ca_result :
+    (X509.Authenticator.t, [> `Msg of string ]) result ->
+    (Tls.Config.client, string) result = function
+  | Error (`Msg msg) ->
+    Error
+      (Printf.sprintf
+         "TLS: cannot load the system CA certificates (%s); refusing to connect without certificate validation"
+         msg)
+  | Ok authenticator ->
+    (match Tls.Config.client ~authenticator () with
+     | Ok cfg -> Ok cfg
+     | Error (`Msg msg) -> Error ("TLS configuration error: " ^ msg))
+
+(* Shared by every TLS entry point (provider HTTP, MCP HTTP, built-in HTTP
+   tools). Lazily loaded once per process; a failure raises at connection time
+   instead of degrading certificate validation. *)
+let config : Tls.Config.client Lazy.t =
+  lazy
+    (match config_of_ca_result (Ca_certs.authenticator ()) with
+     | Ok cfg -> cfg
+     | Error msg -> failwith msg)
+
 let connect ~cfg uri flow =
   match Uri.host uri with
   | None ->
