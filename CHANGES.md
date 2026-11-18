@@ -29,6 +29,20 @@
 - `stream` polls the per-stream handle without a worker thread, so the event
   loop is never blocked longer than one 10 ms C poll.
 
+### Added — typed tracing (W2)
+
+- `Par.Tracing`: `span`, `tracer`, `noop`, `with_root` / `with_span`, W3C
+  `traceparent` helpers. `Runtime.create ?tracer` is the injection point;
+  `Runtime.set_tracer` exists for the C bridge.
+- Spans: `invoke` (root), `llm.complete`, `tool.call`, `mcp.call` and
+  `workflow.step`, with a frozen attribute set (`gen_ai.system`,
+  `gen_ai.request.model`, `tool.name`, `mcp.server`).
+- Outbound provider HTTP, MCP HTTP, approval webhooks and the built-in web
+  tools inject `traceparent`; malformed inbound headers are ignored.
+- Python: `Runtime.set_trace_callbacks`, plus the optional
+  `par-runtime[otel]` extra (`OTelTracer`) with trace-id and parent-link
+  preservation. The base package stays dependency-free.
+
 ### Changed — type checking and docs (W1-S4)
 
 - `mypy --strict par_runtime` is clean and runs as its own CI job.

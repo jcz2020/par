@@ -188,6 +188,86 @@ Runtime.default_event_bus_config
 (* buffer_capacity = 10000, DLQ enabled, exponential backoff *)
 ```
 
+## Distributed tracing
+
+> Added in v0.18.0-beta.
+
+The runtime produces spans; the host decides where they go. `Par.Tracing.noop`
+is the default, so an application that does not opt in pays one physical
+equality check per boundary.
+
+```ocaml
+type span = {
+  trace_id : string;                (* 32 lowercase hex, W3C *)
+  span_id : string;                 (* 16 lowercase hex, W3C *)
+  parent_span_id : string option;
+  name : string;
+  kind : [ `Internal | `Client | `Server ];
+  started_at : float;               (* Unix epoch seconds *)
+  attributes : (string * string) list;
+}
+
+type tracer = {
+  on_start : span -> unit;
+  on_end : span -> status:string -> unit;   (* "ok" | "error" | "cancelled" *)
+}
+```
+
+Inject one at creation:
+
+```ocaml
+let tracer = { Tracing.on_start = record_start; on_end = record_end } in
+match Runtime.create ~tracer ~config switch with
+| Ok rt -> ...
+```
+
+The tree follows engine boundaries, not provider internals:
+
+| Span | Kind | Frozen attributes |
+|---|---|---|
+| `invoke` | root | `par.agent_id` |
+| `llm.complete` | `Client` | `gen_ai.system`, `gen_ai.request.model` |
+| `tool.call` | `Internal` | `tool.name`, `par.tool.call_id` |
+| `mcp.call` | `Client` | `mcp.server`, `mcp.tool` |
+| `workflow.step` | `Internal` | `par.workflow.path` |
+
+Child spans share the root `trace_id`; `parent_span_id` points at the
+enclosing span. Parallel fibers inherit the binding, so concurrent tool calls
+attach to the span that started them.
+
+### W3C Trace Context
+
+Outbound provider HTTP, MCP HTTP transport, approval webhooks and the built-in
+`fetch_url` / `read_webpage` / `web_search` tools add a `traceparent` header
+(`00-<trace_id>-<span_id>-01`) when a span is active. `Tracing.parse_traceparent`
+parses an inbound header; malformed and all-zero ids are ignored rather than
+fatal.
+
+### Python
+
+`Runtime.set_trace_callbacks(on_start, on_end)` installs a Python tracer; spans
+arrive as dicts. The optional extra wraps OpenTelemetry:
+
+```python
+from opentelemetry.sdk.trace import TracerProvider
+from par_runtime import Runtime, RuntimeConfig
+from par_runtime.otel import OTelTracer
+
+otel = OTelTracer(TracerProvider().get_tracer("my-service"))
+with Runtime(RuntimeConfig()) as rt:
+    otel.attach(rt)
+    ...
+```
+
+```bash
+pip install "par-runtime[otel]"
+```
+
+The adapter keeps PAR's trace id and parent links; OTel assigns its own span
+ids, so the root span has a synthetic remote parent that pins the trace id.
+Installing the extra is optional: the base package imports neither
+`opentelemetry-api` nor `opentelemetry-sdk`.
+
 ## Python FFI surface
 
 PAR's Python binding exposes health, metrics, and workflow status as plain dict-returning methods. The C entrypoints live in `lib/ffi/par_ffi.h`; the OCaml implementations are in `lib/ffi/par_capi.ml`. Phase B.2 fixed a callback-handle bug that previously broke repeated calls to these methods from the same `Runtime`; the fix is verified by `bindings/python/tests/test_runtime.py::TestCallbackHandleSurvival`.
@@ -302,7 +382,7 @@ The `events_dropped` counter is the one to alert on. Anything above zero means a
 
 - **Counters only.** No gauges, no histograms. Derive latency from `duration_ms` fields on events if you need it.
 - **No Prometheus exposition.** PAR does not serve `/metrics`. Pipe the dict from `rt.metrics()` into your own exporter.
-- **No distributed tracing spans.** Events carry `task_id` and `workflow_run_id` for correlation, but there is no OpenTelemetry exporter. Hook the event bus if you want to emit spans.
+- **No built-in exporter.** The runtime emits spans through `Par.Tracing`; exporting is the host's job (Python users can install `par-runtime[otel]`). There is no OCaml OTLP client or Prometheus endpoint, by design.
 - **`par_event_subscribe` is a stub.** Python callers cannot yet receive events push-style. Poll metrics in the meantime.
 - **`workflow_status` always returns `"unknown"`.** The method shape is stable; the implementation is not.
 - **Single-process scope.** Metrics and the event bus live in the runtime that created them. Two `Runtime` instances in one process do not share counters. For multi-process aggregation, scrape each runtime and merge externally.

@@ -583,9 +583,13 @@ let builtin_tools ~switch ~net ~workspace =
       (try
          Eio.Switch.run (fun sw_inner ->
            Http_client.with_timeout_for ~timeout:15.0 sw_inner (fun () ->
+             let headers =
+               Http.Header.add_list default_headers
+                 (Tracing.outgoing_headers ())
+             in
              let resp, body =
                Cohttp_eio.Client.get http_client ~sw:sw_inner
-                 ~headers:default_headers uri
+                 ~headers uri
              in
              let status =
                (resp.Http.Response.status :> Cohttp.Code.status_code)

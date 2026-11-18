@@ -38,6 +38,9 @@ let parse_url url =
 (* -------------------------------------------------------------------------- *)
 
 let build_http_request ~host ~path ~headers ~body =
+  (* W3C propagation: every provider request carries the active span. Absent
+     (empty list) when the host injected no tracer. *)
+  let headers = Tracing.outgoing_headers () @ headers in
   let custom_headers =
     List.map (fun (k, v) -> Printf.sprintf "%s: %s\r\n" k v) headers
     |> String.concat ""
@@ -54,6 +57,7 @@ let build_http_request ~host ~path ~headers ~body =
     path host custom_headers (String.length body) body
 
 let build_http_get ~host ~path ~headers =
+  let headers = Tracing.outgoing_headers () @ headers in
   let custom_headers =
     List.map (fun (k, v) -> Printf.sprintf "%s: %s\r\n" k v) headers
     |> String.concat ""

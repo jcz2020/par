@@ -2480,3 +2480,26 @@ let () =
     (fun (state_id_obj : Obj.t) (specs_json : string) ->
       let state_id : int = Obj.magic state_id_obj in
       unwrap (do_invoke_parallel state_id specs_json))
+
+(* v0.18 W2-S4: install a Python tracer after par_init. The callbacks are
+   stored in the C bridge by id; each span is serialized with
+   [Tracing.span_to_yojson] and delivered as (json, status). *)
+external caml_trace_emit : int -> string -> string -> unit = "caml_par_trace_emit"
+
+let () =
+  Callback.register "par_set_tracer_callbacks"
+    (fun (state_id_obj : Obj.t) (start_id : int) (end_id : int) ->
+      let state_id : int = Obj.magic state_id_obj in
+      let _ = dispatch state_id (fun rt _env ->
+        let emit id span status =
+          caml_trace_emit id
+            (Yojson.Safe.to_string (Par.Tracing.span_to_yojson span))
+            status
+        in
+        Par.Runtime.set_tracer rt {
+          Par.Tracing.on_start = (fun span -> emit start_id span "");
+          on_end = (fun span ~status -> emit end_id span status);
+        };
+        Obj.repr 0)
+      in
+      Obj.repr 0)

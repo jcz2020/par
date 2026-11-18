@@ -29,11 +29,12 @@ let send_webhook_approval
         (fun () ->
           `Ok (Eio.Switch.run (fun sw ->
             let client = Cohttp_eio.Client.make ~https:None net in
-            let headers = Cohttp.Header.of_list [
+            let headers = Cohttp.Header.of_list
+              (Tracing.outgoing_headers () @ [
               ("Content-Type", "application/json");
               ("X-PAR-Signature", Printf.sprintf "sha256=%s" signature);
               ("Content-Length", string_of_int (String.length body_str));
-            ] in
+            ]) in
             let body = Cohttp_eio.Body.of_string body_str in
             let resp, resp_body = Cohttp_eio.Client.call ~sw
               ~headers ~body client `POST uri in

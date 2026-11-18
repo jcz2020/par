@@ -97,6 +97,15 @@ class AsyncRuntime:
         runtime = await self._ensure()
         runtime.register_tool_with_handler(name, description, input_schema, handler)
 
+    async def set_trace_callbacks(
+        self,
+        on_start: Callable[[Dict[str, Any]], None],
+        on_end: Callable[[Dict[str, Any], str], None],
+    ) -> None:
+        """Install a host tracer; see :meth:`Runtime.set_trace_callbacks`."""
+        runtime = await self._ensure()
+        runtime.set_trace_callbacks(on_start, on_end)
+
     async def invoke(
         self,
         agent_id: str,

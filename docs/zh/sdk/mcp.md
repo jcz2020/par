@@ -666,6 +666,10 @@ MCP 子进程**不会**经过 PAR 的 `Bash_policy.sanitize_env` 脱敏。`env` 
 
 ---
 
+## 追踪
+
+安装 tracer 后（`Runtime.create ?tracer`），每次 MCP `tools/call` 都会产生一个 `mcp.call` client span，属性为 `mcp.server` 与 `mcp.tool`，作为外层 `tool.call` 的子 span。出站 MCP HTTP 请求会携带由当前 span 派生的 W3C `traceparent` 头。参见[可观测性](observability.md)。
+
 ## 当前限制
 
 v0.3.1 是 MCP 集成的最小可用版本。下列能力**尚未实现**：

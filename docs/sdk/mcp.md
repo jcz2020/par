@@ -683,6 +683,14 @@ MCP child processes do **not** go through PAR's `Bash_policy.sanitize_env`. The 
 
 ---
 
+## Tracing
+
+When a tracer is installed (`Runtime.create ?tracer`), every MCP `tools/call`
+emits an `mcp.call` client span with `mcp.server` and `mcp.tool` attributes,
+as a child of the enclosing `tool.call`. Outbound MCP HTTP requests carry a W3C
+`traceparent` header derived from the active span. See
+[Observability](observability.md#distributed-tracing).
+
 ## Current Limitations
 
 v0.3.1 is the minimum viable MCP integration. The following capabilities are **not yet implemented**:

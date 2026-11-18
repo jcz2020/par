@@ -749,3 +749,8 @@
   (libraries par eio_main alcotest yojson logs)
   (modules test_mcp_tools)
   (deps mcp_mock_server.exe))
+
+(test
+  (name test_tracing)
+  (libraries par eio_main alcotest)
+  (modules test_tracing))

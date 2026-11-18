@@ -82,7 +82,7 @@ let apply_on_error hooks conv err next =
 let find_tool (agent : agent_config) tool_name =
   List.find_opt (fun (td : tool_descriptor) -> td.name = tool_name) agent.tools
 
-let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
+let execute_tool_impl (token : cancellation_token) (descriptor : tool_descriptor)
     handler input middleware on_progress ~tool_call_id ~tool_timeout =
   match Validation.validate_tool_input_result descriptor.input_schema input with
   | Error category ->
@@ -193,11 +193,28 @@ let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
       )
     )
 
+(* v0.18 W2: one span per tool handler invocation. MCP-backed tools also
+   carry [mcp.call] from [Mcp_client.call_tool] as a child, so a host sees the
+   local dispatch and the remote call separately. *)
+let execute_tool (token : cancellation_token) (descriptor : tool_descriptor)
+    handler input middleware on_progress ~tool_call_id ~tool_timeout =
+  Tracing.with_span ~kind:`Internal ~name:"tool.call"
+    ~attributes:[
+      ("tool.name", descriptor.name);
+      ("par.tool.call_id", tool_call_id);
+    ]
+    ~status:(function
+      | Error _ -> `Error
+      | Success _ | Success_content _ | Handoff _ | Approval_required _ -> `Ok)
+    (fun () ->
+       execute_tool_impl token descriptor handler input middleware on_progress
+         ~tool_call_id ~tool_timeout)
+
 (* -------------------------------------------------------------------------- *)
 (* Agent executor — ReAct loop                                           *)
 (* -------------------------------------------------------------------------- *)
 
-let run_llm_with_optional_streaming ?token llm agent_model agent_tools conv user_cb =
+let run_llm_with_optional_streaming_impl ?token llm agent_model agent_tools conv user_cb =
   let conv = Conversation_repair.normalize_arguments conv in
   match Conversation_repair.validate conv with
   | Error msg -> Result.Error (Invalid_input msg)
@@ -282,6 +299,31 @@ let run_llm_with_optional_streaming ?token llm agent_model agent_tools conv user
          | None -> User_cancelled
        in
        Error (Cancelled reason))
+
+let provider_label (p : [ `Openai | `Anthropic | `Ollama | `Custom of string ]) =
+  match p with
+  | `Openai -> "openai"
+  | `Anthropic -> "anthropic"
+  | `Ollama -> "ollama"
+  | `Custom name -> name
+
+(* v0.18 W2: one client span per LLM call, with the frozen attribute subset
+   [gen_ai.system] / [gen_ai.request.model]. Streaming and non-streaming share
+   the span name; the provider only decides how the response arrives. *)
+let run_llm_with_optional_streaming ?token llm (agent_model : model_config) agent_tools conv user_cb =
+  Tracing.with_span ~kind:`Client ~name:"llm.complete"
+    ~attributes:[
+      ("gen_ai.system", provider_label agent_model.provider);
+      ("gen_ai.request.model", agent_model.model_name);
+    ]
+    ~status:(fun (r : (llm_response, error_category) result) ->
+      match r with
+      | Ok _ -> `Ok
+      | Error (Cancelled _) -> `Cancelled
+      | Error _ -> `Error)
+    (fun () ->
+       run_llm_with_optional_streaming_impl ?token llm agent_model agent_tools
+         conv user_cb)
 
 let make_conversation ?(user_content = []) system_prompt user_message =
   let sys = { role = System; content_blocks = Message.content_of_string system_prompt; tool_calls = None; tool_call_id = None; name = None } in

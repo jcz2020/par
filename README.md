@@ -118,6 +118,7 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 - **Parallel multi-agent dispatch** — `Runtime.invoke_parallel` runs N agents concurrently with typed merge, per-agent workspace isolation, per-agent approval handler overrides, and per-branch conversations.
 - **Deprecation framework** — `warn_once` helper + `Deprecated_api_called` event + `[@@deprecated]` annotations + migration guides. Breaking changes no longer happen silently.
 - **Progressive tool loading** — set `max_tool_schema_tokens` and 50+ tool registrations stop bloating the prompt: the engine exposes an Always-layer floor plus a `tool_search` meta-tool, and the model promotes matched tools on demand per invocation. See [Tools](docs/sdk/tools.md).
+- **Distributed tracing** — `Par.Tracing` spans at invoke / LLM / tool / MCP / workflow boundaries, W3C `traceparent` propagation on outbound HTTP, and an optional Python `par-runtime[otel]` adapter; the runtime never bundles an exporter.
 - **Python ctypes binding** — `par_runtime` package, thread-safe, no GIL contention with OCaml runtime. Persistent Eio domain per Runtime for full concurrency support.
 - **OCaml and Python regression suites** — test totals and release-specific coverage are recorded in [CHANGES.md](CHANGES.md).
 - **Skill system** — drop a `skill.md` in `~/.par/skills/<id>/` and it auto-activates during `Runtime.invoke` based on trigger conditions (Auto / Manual / Keyword). Auto-trigger skills no longer replace the system prompt. See [Skills API](docs/sdk/skills.md).

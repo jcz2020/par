@@ -30,6 +30,7 @@ from par_runtime._ffi import (
     _free,
     _PYTHON_TOOL_CALLBACK,
     _STREAM_CALLBACK,
+    _TRACE_CALLBACK,
     _PAR_STREAM_DONE,
 )
 from par_runtime._errors import (
@@ -487,6 +488,45 @@ class Runtime:
             Runtime._callbacks.pop(handler_id, None)
             raise PARToolError(f"Failed to register tool with handler: {name}")
         self._callback_ids.add(handler_id)
+
+    def set_trace_callbacks(
+        self,
+        on_start: Callable[[Dict[str, Any]], None],
+        on_end: Callable[[Dict[str, Any], str], None],
+    ) -> None:
+        """Install a host tracer (v0.18 W2). Spans arrive as decoded dicts.
+
+        ``on_start`` receives the span; ``on_end`` receives it plus one of
+        ``"ok"``, ``"error"`` or ``"cancelled"``. The default runtime tracer is
+        a no-op, so not calling this keeps the zero-overhead path. Callbacks
+        run on the runtime's OCaml domain and must not call back into the FFI.
+        """
+        self._check_handle()
+
+        def _start(payload: bytes, _status: bytes) -> None:
+            try:
+                on_start(json.loads(payload.decode("utf-8")))
+            except Exception:
+                pass
+
+        def _end(payload: bytes, status: bytes) -> None:
+            try:
+                on_end(json.loads(payload.decode("utf-8")),
+                       status.decode("utf-8"))
+            except Exception:
+                pass
+
+        c_start = _TRACE_CALLBACK(_start)
+        c_end = _TRACE_CALLBACK(_end)
+        start_id = next(Runtime._callback_counter)
+        end_id = next(Runtime._callback_counter)
+        Runtime._callbacks[start_id] = c_start
+        Runtime._callbacks[end_id] = c_end
+        self._callback_ids.add(start_id)
+        self._callback_ids.add(end_id)
+        _lib.par_store_trace_handler(start_id, c_start)
+        _lib.par_store_trace_handler(end_id, c_end)
+        _lib.par_set_tracer_callbacks(self._handle, start_id, end_id)
 
     def set_tool_layer(self, name: str, layer: str) -> None:
         """Move a registered tool between the always and searchable layers.

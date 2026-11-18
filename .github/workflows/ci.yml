@@ -154,17 +154,27 @@ jobs:
           exit $FAILED
 
   python-types:
-    name: Python type check (mypy strict)
+    name: Python type check + OTel adapter
+    needs: ocaml
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: par-capi-ubuntu-22.04
+          path: _build/default/lib/ffi/
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - run: pip install mypy==2.4.1
+      - run: pip install mypy==2.4.1 pytest "opentelemetry-api>=1.20" "opentelemetry-sdk>=1.20"
 
       - run: |
           cd bindings/python
           mypy --strict par_runtime
+
+      - run: |
+          cd bindings/python
+          python3 -m pytest tests/test_otel.py -v --tb=short

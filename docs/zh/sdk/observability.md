@@ -188,6 +188,74 @@ Runtime.default_event_bus_config
 (* buffer_capacity = 10000, DLQ enabled, exponential backoff *)
 ```
 
+## 分布式追踪
+
+> v0.18.0-beta 新增。
+
+runtime 产生 span，导出位置由宿主决定。默认是 `Par.Tracing.noop`，未开启追踪的应用在每个边界只付一次物理相等检查的代价。
+
+```ocaml
+type span = {
+  trace_id : string;                (* 32 位小写十六进制，W3C *)
+  span_id : string;                 (* 16 位小写十六进制，W3C *)
+  parent_span_id : string option;
+  name : string;
+  kind : [ `Internal | `Client | `Server ];
+  started_at : float;               (* Unix 纪元秒 *)
+  attributes : (string * string) list;
+}
+
+type tracer = {
+  on_start : span -> unit;
+  on_end : span -> status:string -> unit;   (* "ok" | "error" | "cancelled" *)
+}
+```
+
+创建时注入：
+
+```ocaml
+let tracer = { Tracing.on_start = record_start; on_end = record_end } in
+match Runtime.create ~tracer ~config switch with
+| Ok rt -> ...
+```
+
+span 树跟随引擎边界，而不是 provider 内部：
+
+| Span | Kind | 冻结属性 |
+|---|---|---|
+| `invoke` | root | `par.agent_id` |
+| `llm.complete` | `Client` | `gen_ai.system`、`gen_ai.request.model` |
+| `tool.call` | `Internal` | `tool.name`、`par.tool.call_id` |
+| `mcp.call` | `Client` | `mcp.server`、`mcp.tool` |
+| `workflow.step` | `Internal` | `par.workflow.path` |
+
+子 span 与根共享 `trace_id`；`parent_span_id` 指向包裹它的 span。并行 fiber 继承绑定，因此并发工具调用会挂到启动它们的 span 上。
+
+### W3C Trace Context
+
+有活动 span 时，出站 provider HTTP、MCP HTTP transport、审批 webhook 以及内置 `fetch_url` / `read_webpage` / `web_search` 工具都会带上 `traceparent` 头（`00-<trace_id>-<span_id>-01`）。`Tracing.parse_traceparent` 解析入站头；格式错误或全零的 id 会被忽略而不是报错。
+
+### Python
+
+`Runtime.set_trace_callbacks(on_start, on_end)` 安装 Python tracer；span 以 dict 形式到达。可选 extra 提供 OpenTelemetry 封装：
+
+```python
+from opentelemetry.sdk.trace import TracerProvider
+from par_runtime import Runtime, RuntimeConfig
+from par_runtime.otel import OTelTracer
+
+otel = OTelTracer(TracerProvider().get_tracer("my-service"))
+with Runtime(RuntimeConfig()) as rt:
+    otel.attach(rt)
+    ...
+```
+
+```bash
+pip install "par-runtime[otel]"
+```
+
+adapter 保留 PAR 的 trace id 与父子关系；OTel 分配自己的 span id，因此根 span 带一个合成的远端 parent 来固定 trace id。该 extra 完全可选：基础包不导入 `opentelemetry-api` 或 `opentelemetry-sdk`。
+
 ## Python FFI 接口
 
 PAR 的 Python 绑定将健康、指标和工作流状态暴露为返回 dict 的普通方法。C 入口点在 `lib/ffi/par_ffi.h` 中；OCaml 实现在 `lib/ffi/par_capi.ml` 中。Phase B.2 修复了一个回调句柄 bug，该 bug 之前导致从同一个 `Runtime` 重复调用这些方法失败；修复由 `bindings/python/tests/test_runtime.py::TestCallbackHandleSurvival` 验证。
@@ -302,7 +370,7 @@ with Runtime(config_json) as rt:
 
 - **仅计数器。** 没有 gauge，没有直方图。如果需要延迟，从事件的 `duration_ms` 字段派生。
 - **没有 Prometheus 暴露。** PAR 不提供 `/metrics`。将 `rt.metrics()` 的 dict 管道到你自己的 exporter。
-- **没有分布式追踪 span。** 事件携带 `task_id` 和 `workflow_run_id` 用于关联，但没有 OpenTelemetry exporter。如果你想发射 span，钩住事件总线。
+- **没有内置 exporter。** runtime 通过 `Par.Tracing` 产生 span，导出是宿主的职责（Python 用户可安装 `par-runtime[otel]`）。按设计不提供 OCaml OTLP 客户端或 Prometheus 端点。
 - **`par_event_subscribe` 是桩。** Python 调用者还不能以推送方式接收事件。同时轮询指标。
 - **`workflow_status` 始终返回 `"unknown"`。** 方法形状稳定；实现不稳定。
 - **单进程范围。** 指标和事件总线存在于创建它们的 runtime 中。一个进程中的两个 `Runtime` 实例不共享计数器。对于多进程聚合，抓取每个 runtime 并外部合并。

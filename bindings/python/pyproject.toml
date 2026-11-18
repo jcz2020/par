@@ -9,6 +9,9 @@ description = "Python bindings for P-A-R (Programmable Agent Runtime)"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 
+[project.optional-dependencies]
+otel = ["opentelemetry-api>=1.20", "opentelemetry-sdk>=1.20"]
+
 [tool.setuptools.packages.find]
 where = ["."]
 

@@ -51,6 +51,7 @@ module Jsonschema = Jsonschema
 module Tool_prompt = Tool_prompt
 module Http_timeout = Http_timeout
 module Tls_client = Tls_client
+module Tracing = Tracing
 
 module Openai_provider = Openai_provider
 module Anthropic_provider = Anthropic_provider

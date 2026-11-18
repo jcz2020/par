@@ -95,6 +95,16 @@ _PYTHON_TOOL_CALLBACK = ctypes.CFUNCTYPE(ctypes.c_char_p, ctypes.c_int, ctypes.c
 _lib.par_store_python_handler.argtypes = [ctypes.c_int, _PYTHON_TOOL_CALLBACK]
 _lib.par_store_python_handler.restype = None
 
+# Tracing: span JSON + status ("" for on_start, "ok"/"error"/"cancelled" for
+# on_end). Callbacks are stored by id in the C bridge.
+_TRACE_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_char_p, ctypes.c_char_p)
+_lib.par_store_trace_handler.argtypes = [ctypes.c_int, _TRACE_CALLBACK]
+_lib.par_store_trace_handler.restype = None
+_lib.par_set_tracer_callbacks.argtypes = [
+    ctypes.c_void_p, ctypes.c_int, ctypes.c_int
+]
+_lib.par_set_tracer_callbacks.restype = None
+
 # char* par_invoke_stream(par_runtime_t* rt, const char* agent_id,
 #                         const char* message,
 #                         par_chunk_callback cb, void* user_data);

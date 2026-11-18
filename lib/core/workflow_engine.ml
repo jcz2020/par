@@ -208,6 +208,15 @@ let run_agent_call ?conversation ctx ~agent_id ~prompt :
      | Result.Error (err, _) -> Result.Error err)
 
 let rec execute_step ?(path=[]) ctx step =
+  Tracing.with_span ~name:"workflow.step"
+    ~attributes:[
+      ("par.workflow.path",
+       String.concat "." (List.map string_of_int path));
+    ]
+    ~status:(function Ok _ -> `Ok | Error _ -> `Error)
+    (fun () -> execute_step_impl ~path ctx step)
+
+and execute_step_impl ?(path=[]) ctx step =
   Cancellation.check_cancel ctx.token;
   match step with
   | Agent_call { agent_id; prompt_template; response_schema } ->

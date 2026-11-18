@@ -34,10 +34,11 @@ let create ~url ~net ~sw =
   { uri; session_id = ref None; client; sw; closed = false; sampling_handler = ref None }
 
 let base_headers () =
-  Http.Header.of_list [
-    "Content-Type", "application/json";
-    "Accept", "application/json, text/event-stream";
-  ]
+  Http.Header.of_list
+    (Tracing.outgoing_headers () @ [
+       "Content-Type", "application/json";
+       "Accept", "application/json, text/event-stream";
+     ])
 
 let build_headers t extra =
   let h = Http.Header.add_list (base_headers ()) extra in

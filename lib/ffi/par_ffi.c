@@ -99,6 +99,27 @@ void par_store_python_handler(int handler_id, par_tool_callback fn) {
     }
 }
 
+#define MAX_TRACE_HANDLERS 256
+static par_trace_callback trace_handler_table[MAX_TRACE_HANDLERS];
+
+void par_store_trace_handler(int handler_id, par_trace_callback fn) {
+    if (handler_id >= 0 && handler_id < MAX_TRACE_HANDLERS) {
+        trace_handler_table[handler_id] = fn;
+    }
+}
+
+CAMLprim value caml_par_trace_emit(value v_handler_id, value v_span_json,
+                                   value v_status) {
+    CAMLparam3(v_handler_id, v_span_json, v_status);
+    int handler_id = Int_val(v_handler_id);
+    if (handler_id >= 0 && handler_id < MAX_TRACE_HANDLERS &&
+        trace_handler_table[handler_id] != NULL) {
+        trace_handler_table[handler_id](String_val(v_span_json),
+                                        String_val(v_status));
+    }
+    CAMLreturn(Val_unit);
+}
+
 value caml_invoke_python_handler(value v_handler_id, value v_input_json) {
     CAMLparam2(v_handler_id, v_input_json);
     CAMLlocal1(v_result);
@@ -313,6 +334,23 @@ par_runtime_t* par_init(const char* config_json) {
     handle->_ocaml_value = rt_val;
     caml_register_generational_global_root(&handle->_ocaml_value);
     CAMLreturnT(par_runtime_t*, handle);
+}
+
+void par_set_tracer_callbacks(par_runtime_t* rt, int start_id, int end_id) {
+    if (!rt) return;
+    CAMLparam0();
+    CAMLlocal2(c_start, c_end);
+    c_start = Val_int(start_id);
+    c_end = Val_int(end_id);
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value args[3] = { rt->_ocaml_value, c_start, c_end };
+    const value* cb = lookup_cb("par_set_tracer_callbacks");
+    value result = caml_callbackN_exn(*cb, 3, args);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    if (Is_exception_result(result)) {
+        fprintf(stderr, "P-A-R FFI: par_set_tracer_callbacks raised\n");
+    }
+    CAMLdrop;
 }
 
 void par_shutdown(par_runtime_t* rt) {

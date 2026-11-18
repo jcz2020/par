@@ -51,7 +51,21 @@ let call_tool t ~name ~arguments :
     "name", `String name;
     "arguments", arguments;
   ] in
-  Mcp_server.call_method t.server ~method_:Mcp_types.method_tools_call ~params
+  (* v0.18 W2: the remote call is its own client span so a trace distinguishes
+     local tool dispatch from the server round trip. *)
+  Tracing.with_span ~kind:`Client ~name:"mcp.call"
+    ~attributes:[
+      ("mcp.server", Mcp_server.name t.server);
+      ("mcp.tool", name);
+    ]
+    ~status:(fun (r : (Yojson.Safe.t, Types.error_category) result) ->
+      match r with
+      | Ok _ -> `Ok
+      | Error (Types.Cancelled _) -> `Cancelled
+      | Error _ -> `Error)
+    (fun () ->
+       Mcp_server.call_method t.server ~method_:Mcp_types.method_tools_call
+         ~params)
 
 (* --- Resources --- *)
 

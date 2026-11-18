@@ -30,6 +30,7 @@ val default_bash_confirm : bash_confirm_config
 
 val create :
   ?persistence:persistence_service ->
+  ?tracer:Tracing.tracer ->
   ?event_bus:Types.event_bus_service ->
   ?llm:llm_service ->
   ?embeddings:embedding_service ->
@@ -48,6 +49,10 @@ val create :
   (runtime, error_category) result
 
 val close : runtime -> int
+
+val set_tracer : runtime -> Tracing.tracer -> unit
+(** Replace the span producer. Used by the C bridge to install a Python
+    tracer after [par_init]; hosts should prefer [create ?tracer]. *)
 
 val install_bash_tool :
   ?process_mgr:[> [> `Generic ] Eio.Process.mgr_ty ] Eio.Resource.t ->

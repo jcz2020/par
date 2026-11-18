@@ -27,6 +27,12 @@ int par_set_tool_layer(par_runtime_t* rt, const char* name, const char* layer);
 typedef char* (*par_tool_callback)(int handler_id, const char* input_json);
 void par_store_python_handler(int handler_id, par_tool_callback fn);
 
+/* Trace callbacks: [status] is "" for on_start and "ok"/"error"/"cancelled"
+   for on_end. span_json is a JSON object; see Par.Tracing.span_to_yojson. */
+typedef void (*par_trace_callback)(const char* span_json, const char* status);
+void par_store_trace_handler(int handler_id, par_trace_callback fn);
+void par_set_tracer_callbacks(par_runtime_t* rt, int start_id, int end_id);
+
 /* Agent registration */
 int par_register_agent(par_runtime_t* rt, const char* config_json);
 int par_register_agent_as_tool(par_runtime_t* rt, const char* config_json);

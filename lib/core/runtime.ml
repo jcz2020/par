@@ -76,6 +76,9 @@ type runtime = {
   runtime_id : string;
   parallel_tool_execution : bool;
   publish_event_fn : event -> unit;
+  (* v0.18: span producer. Noop by default; see [Tracing]. Mutable so the
+     FFI can install a Python tracer after [par_init] returned. *)
+  mutable tracer : Tracing.tracer;
   mutable last_llm_call_at : float option;
   mutable last_llm_call_status : [ `Success | `Error of error_category | `Never_called ];
   mutable metrics : Metrics.counters;
@@ -1276,7 +1279,7 @@ let with_bus_session rt ~prepare f =
       | None -> rt.services.event_bus.set_session_id_fn "")
     (fun () -> f state)
 
-let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token ?conversation
+let invoke_content_impl rt ~agent_id ~content ?workspace ?cancellation_token ?conversation
     ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix
     ?(skills : string list option)
     ?(context : Invoke_context.invoke_context option)
@@ -1727,6 +1730,30 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
 
 (* The public entry point hides [~resume]: resuming from an arbitrary
    checkpoint would bypass the orphan and in-flight guards in [recover_invoke]. *)
+(* v0.18 W2: root span for every invoke path. The implementation stays
+   untouched; the wrapper only adds the fiber-local tracing context and reports
+   the terminal status to the host tracer. *)
+let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token ?conversation
+    ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix
+    ?(skills : string list option)
+    ?(context : Invoke_context.invoke_context option)
+    ?(update_current = true) ?(save = false)
+    ?(durable = false) ?invoke_id
+    ?(resume : invoke_checkpoint option)
+    () =
+  Tracing.with_root rt.tracer ~name:"invoke"
+    ~attributes:[("par.agent_id", agent_id)]
+    ~status:(fun (r : (Types.invoke_result, Types.error_category * Types.conversation) result) ->
+      match r with
+      | Ok _ -> `Ok
+      | Error (Types.Cancelled _, _) -> `Cancelled
+      | Error _ -> `Error)
+    (fun () ->
+       invoke_content_impl rt ~agent_id ~content ?workspace ?cancellation_token
+         ?conversation ?on_tool_event ?on_chunk ?enable_handoff
+         ?system_prompt_appendix ?skills ?context ~update_current ~save ~durable
+         ?invoke_id ?resume ())
+
 let invoke_content rt ~agent_id ~content ?workspace ?cancellation_token ?conversation
     ?on_tool_event ?on_chunk ?enable_handoff ?system_prompt_appendix
     ?(skills : string list option)
@@ -2386,7 +2413,12 @@ let submit_workflow rt ?workspace ?(inputs = []) wf =
     on_approval_pending = Some (parallel_approval_cb rt);
       net = rt.net;
   } in
-  (match Workflow_engine.execute_workflow ctx wf with
+  (match
+     Tracing.with_root rt.tracer ~name:"workflow.run"
+       ~attributes:[("par.workflow.id", wf.def.id)]
+       ~status:(function Ok _ -> `Ok | Error _ -> `Error)
+       (fun () -> Workflow_engine.execute_workflow ctx wf)
+   with
    | Ok result ->
      htbl_set rt.workflows id (Wf_completed result);
       (match rt.services.persistence.save_workflow_state_fn id (Wf_completed result) None with
@@ -2495,7 +2527,12 @@ let submit_workflow_async rt ?workspace ?(inputs = []) wf =
   } in
   ignore (Eio.Fiber.fork ~sw:rt.cancellation_root (fun () ->
     (try
-       (match Workflow_engine.execute_workflow ctx wf with
+       (match
+     Tracing.with_root rt.tracer ~name:"workflow.run"
+       ~attributes:[("par.workflow.id", wf.def.id)]
+       ~status:(function Ok _ -> `Ok | Error _ -> `Error)
+       (fun () -> Workflow_engine.execute_workflow ctx wf)
+   with
         | Ok result ->
           htbl_set rt.workflows id (Wf_completed result);
           (match rt.services.persistence.save_workflow_state_fn id (Wf_completed result) None with
@@ -2776,7 +2813,12 @@ let run_from_checkpoint rt ~(wf_id : Workflow_run_id.t) ~(wf : workflow)
    | Error e -> Logs.err (fun m -> m "save_workflow_state failed: %s" (string_of_error_category e)));
   let start_time = Unix.gettimeofday () in
   try
-    (match Workflow_engine.resume_from_checkpoint ctx wf.def.steps checkpoint with
+    (match
+       Tracing.with_root rt.tracer ~name:"workflow.resume"
+         ~attributes:[("par.workflow.id", checkpoint.workflow_id)]
+         ~status:(function Ok _ -> `Ok | Error _ -> `Error)
+         (fun () -> Workflow_engine.resume_from_checkpoint ctx wf.def.steps checkpoint)
+     with
      | Ok value ->
        let elapsed = Unix.gettimeofday () -. start_time in
        let wf_result = {
@@ -3063,6 +3105,7 @@ let noop_event_bus_service : Types.event_bus_service = {
 }
 
 let create ?(persistence = noop_persistence)
+           ?(tracer = Tracing.noop)
            ?(event_bus = noop_event_bus_service)
            ?(llm = { complete_fn = (fun _ _tools _ -> Result.Error (Internal "LLM not initialized"));
                      stream_fn = (fun _ _tools _ _ _ -> Result.Error (Internal "LLM not initialized"));
@@ -3194,6 +3237,7 @@ let create ?(persistence = noop_persistence)
       runtime_id = Session_id.to_string (Session_id.create ());
       parallel_tool_execution = config.parallel_tool_execution;
       publish_event_fn;
+      tracer;
       bash_policy;
       bash_installed = ref false;
       bash_rebuild = None;
@@ -3361,6 +3405,8 @@ let drain_steering rt = Steering_queue.drain_all rt.steering_queue
 let drain_followup rt = Steering_queue.drain_all rt.followup_queue
 let has_pending_steering rt = Steering_queue.has_items rt.steering_queue
 let has_pending_followup rt = Steering_queue.has_items rt.followup_queue
+
+let set_tracer rt tracer = rt.tracer <- tracer
 
 let close rt =
   Types.htbl_iter rt.mcp_servers (fun _id server ->
