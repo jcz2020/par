@@ -29,6 +29,17 @@ from par_runtime.content import (
     text,
     tool_content,
 )
+from par_runtime.models import (
+    AgentConfig,
+    Error,
+    InvokeResult,
+    ModelConfig,
+    RuntimeConfig,
+    Sqlite,
+    ToolCall,
+    ToolSpec,
+    Usage,
+)
 
 __version__ = "0.17.3-beta.20261118"
 
@@ -52,6 +63,15 @@ __all__ = [
     "ToolCallStart",
     "ToolCallDelta",
     "UsageUpdate",
+    "AgentConfig",
+    "Error",
+    "InvokeResult",
+    "ModelConfig",
+    "RuntimeConfig",
+    "Sqlite",
+    "ToolCall",
+    "ToolSpec",
+    "Usage",
     "PARError",
     "PARInitError",
     "PARInvokeError",
