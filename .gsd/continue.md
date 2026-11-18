@@ -1,21 +1,22 @@
 # Continue — Next Session
 
-## Current state (2026-11-17)
+## Current state (2026-11-18)
 
-- `v0.17.1-beta.20261117` is released and pushed: GitHub pre-release with the
+- `v0.17.2-beta.20261118` is released and pushed: GitHub pre-release with the
   source tarball + `par.opam`, both wheels, and checksums; the two wheels are
-  on PyPI as `0.17.1b20261117`. Tag `v0.17.1-beta.20261117` points at
-  `f618c6a`. Release, opam publish, PyPI publish, CI, CodeQL, Docs and the
+  on PyPI as `0.17.2b20261118`. Tag `v0.17.2-beta.20261118` points at
+  `f11a4ee`. Release, opam publish, PyPI publish, CI, CodeQL, Docs and the
   three-container release dry-run passed; a fresh venv install from PyPI
-  reports `0.17.1-beta.20261117` and imports `Runtime`.
-- `v0.17.0-beta.20261117` (tag `fa567ef`) shipped runtime reload for MCP
-  servers and skills (#35); `v0.16.3-beta.20261115` (tag `993af51`, merged as
-  `6fd8cfb`) was the HTTP transport hotfix; `v0.16.2-beta.20261114` the GitHub
-  #33 security patch; `v0.16.1` the GitHub #32 `grep` follow-up and `v0.16.0`
-  the vision/lease/approval/TLS release.
-- Main is at the v0.17.1 release commit plus unreleased bash fixes (GitHub
-  #40/#41, no version bump yet); GitHub issues #35, #38 and #39 are closed.
-  The stable line remains `v0.10.0`.
+  reports `0.17.2-beta.20261118` and imports `Runtime`.
+- `v0.17.1-beta.20261117` (tag `f618c6a`) shipped MCP JSON-RPC 2.0 conformance
+  and `mcp_tool_bindings`; `v0.17.0-beta.20261117` (tag `fa567ef`) shipped
+  runtime reload for MCP servers and skills (#35);
+  `v0.16.3-beta.20261115` (tag `993af51`, merged as `6fd8cfb`) was the HTTP
+  transport hotfix; `v0.16.2-beta.20261114` the GitHub #33 security patch;
+  `v0.16.1` the GitHub #32 `grep` follow-up and `v0.16.0` the
+  vision/lease/approval/TLS release.
+- Main is at the v0.17.2 release commit with nothing unreleased; GitHub issues
+  #35, #38, #39, #40 and #41 are closed. The stable line remains `v0.10.0`.
 - OCaml: 1807 tests, 0 failures. Python: 221 passed / 20 skipped.
 - Local switch upgraded on 2026-11-11: sqlite3 5.4.2 (GC-rooting fix), tls /
   tls-eio 2.1.5, x509 1.2.0, mirage-crypto* 2.4.1 (security/stability fixes),
@@ -23,8 +24,8 @@
   5.4.1. Re-verified after every batch: 1752 OCaml tests / 0 failures, then
   1764 after the review fixes, 1767 after the grep follow-up, 1776 after the
   hook-coverage patch, 1787 after the MCP reload work, 1779 at the v0.16.3
-  tag, 1790 on main after the hotfix and 1798 at v0.17.1; Python 209 → 216
-  passed / 20 skipped.
+  tag, 1790 on main after the hotfix, 1798 at v0.17.1 and 1807 at v0.17.2;
+  Python 209 → 216 → 221 passed / 20 skipped.
 - Lessons recorded on 2026-11-14: `.gsd/KNOWLEDGE.md` (TLS/HTTP, event bus,
   glob, dependency and PyPI traps), `docs/STRATEGY.md` §11.5, and
   `docs/rules/release.md` post-publish verification. Decisions #17 (TLS entry
@@ -109,14 +110,14 @@
     Seven wire-format cases, a strict-400 HTTP fixture and one reload-merge
     test. Shipped as a PATCH (finishing the v0.17.0 reload surface) in
     **v0.17.1-beta.20261117**.
-20. **GitHub #40/#41 + Python config integers (unreleased)** — integer
-    `timeout` is accepted at both bash handler sites (JSON has one number
-    type), and the three substitution blacklist rules apply only when argv
-    invokes a shell with `-c`, so literal `$(...)`/backticks under direct exec
-    pass. The same `to_float_option` misuse in the C bridge was fixed with one
-    helper across seven float config fields; `temperature=1` now registers.
-    Nine new OCaml cases and five Python cases. **Do not release without user
-    instruction.**
+20. **GitHub #40/#41 + Python config integers (v0.17.2-beta.20261118)** —
+    integer `timeout` is accepted at both bash handler sites (JSON has one
+    number type), and the three substitution blacklist rules apply only when
+    argv invokes a shell with `-c`, so literal `$(...)`/backticks under direct
+    exec pass. The same `to_float_option` misuse in the C bridge was fixed with
+    one helper across seven float config fields; `temperature=1` now registers.
+    Nine new OCaml cases and five Python cases. Shipped in
+    **v0.17.2-beta.20261118**.
 
 ## Next directions
 
