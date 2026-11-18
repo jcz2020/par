@@ -46,6 +46,7 @@ Python 可用 `pip install --index-url https://pypi.org/simple par-runtime==0.11
 | 文档 | 内容 |
 |------|------|
 | [SDK 概览](sdk/overview.md) | SDK 模块索引与文档导航 |
+| [Python API](sdk/python.md) | 类型化模型、`invoke_result()`、`AsyncRuntime`，以及从 JSON 字符串迁移 |
 | [Agent API](sdk/agent.md) | Agent 配置、Runtime API、工具注册、ReAct 循环 |
 | [HITL API](sdk/hitl.md) | 人在环路审批（挂起-恢复、持久化、跨进程） |
 | [并行分发](sdk/parallel.md) | 并行多 Agent 分发，类型化合并 |

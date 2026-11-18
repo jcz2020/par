@@ -1,5 +1,40 @@
 # CHANGES
 
+## Unreleased — v0.18.0-beta: Python native API, tracing, MCP sampling
+
+> In progress. The section is filled slice by slice; test totals and the
+> release date are recorded when the version is cut.
+
+### Added — typed Python API (W1-S1/S2)
+
+- `par_runtime.models`: `RuntimeConfig`, `Sqlite`, `ModelConfig`, `ToolSpec`,
+  `AgentConfig`, `InvokeResult`, `Usage`, `ToolCall` and `Error` as stdlib
+  dataclasses with explicit `to_json` / `from_json`. No new dependency.
+- `Runtime(...)` and `Runtime.register_agent(...)` accept a typed model, a
+  dict, or the legacy JSON string.
+- `Runtime.invoke_result()` returns the decoded `InvokeResult`; `Runtime.invoke()`
+  keeps returning the raw envelope and now emits a `DeprecationWarning`
+  (removal in v1.0).
+- Defaults are locked by equivalence tests: `RuntimeConfig().to_json()`
+  normalizes to the same OCaml config as a hand-written minimal JSON object.
+
+### Added — `AsyncRuntime` (W1-S3)
+
+- `AsyncRuntime` offers `register_agent`, `register_tool`,
+  `register_tool_with_handler`, `invoke`, `stream`, lazy `async with` startup
+  and deterministic `close()`.
+- `invoke` drives the existing `invoke_start` / `invoke_poll` /
+  `invoke_cancel` handle trio; cancelling the task sets the runtime cancel
+  flag and drains the C-side slot in the background.
+- `stream` polls the per-stream handle without a worker thread, so the event
+  loop is never blocked longer than one 10 ms C poll.
+
+### Changed — type checking and docs (W1-S4)
+
+- `mypy --strict par_runtime` is clean and runs as its own CI job.
+- New `docs/sdk/python.md` + Chinese mirror; README Python section and the
+  bundled example use the typed API.
+
 ## v0.17.3-beta.20261118 — model discovery for OpenAI-compatible and Anthropic providers (GitHub #42)
 
 > `Runtime.list_models` always returned `Internal "list_models not supported for this provider"` because only the mock provider supplied `list_models_fn`; neither built-in HTTP provider had a model-listing function, so hosts could not build a model picker. Both providers now implement the endpoint and expose `to_llm_service`, which makes `list_models_fn` part of the complete service record. **1815 OCaml tests, 0 failures; 221 Python passed / 20 skipped.** Beta-first: the stable line remains v0.10.0.

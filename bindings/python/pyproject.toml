@@ -14,3 +14,6 @@ where = ["."]
 
 [tool.setuptools.package-data]
 par_runtime = ["lib/*.so", "lib/vec0.*", "py.typed"]
+
+[tool.mypy]
+strict = true

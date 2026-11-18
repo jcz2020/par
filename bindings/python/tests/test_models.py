@@ -143,6 +143,25 @@ def test_invoke_result_decodes_the_llm_response_envelope():
     assert InvokeResult.from_json(result.to_json()).to_dict() == result.to_dict()
 
 
+def test_invoke_result_decodes_the_ffi_status_envelope():
+    envelope = {
+        "status": "ok",
+        "content": {
+            "text": "hello",
+            "reasoning": [],
+            "tool_calls": None,
+            "finish_reason": ["Stop"],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+            "model": "gpt-4o",
+        },
+        "invoke_id": None,
+    }
+    result = InvokeResult.from_json(envelope)
+    assert result.text == "hello"
+    assert result.finish_reason == "stop"
+    assert result.usage.total_tokens == 2
+
+
 def test_invoke_result_rejects_an_error_envelope():
     with pytest.raises(ValueError):
         InvokeResult.from_json({"error": "provider exploded"})

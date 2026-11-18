@@ -53,6 +53,7 @@ The SDK is the canonical surface. Every page below is marked **PRIMARY** because
 | Document | Description |
 |----------|-------------|
 | [SDK overview](sdk/overview.md) | **PRIMARY**: the SDK hub (architecture, five-minute tour, module map) |
+| [Python API](sdk/python.md) | **PRIMARY**: typed models, `invoke_result()`, `AsyncRuntime`, migration from JSON strings |
 | [Agent API](sdk/agent.md) | **PRIMARY**: Agent config, Runtime API, tool registration, ReAct loop |
 | [HITL API](sdk/hitl.md) | **PRIMARY**: Human-in-the-Loop approval (suspend-resume, persistent, cross-process) |
 | [Parallel Dispatch](sdk/parallel.md) | **PRIMARY**: parallel multi-agent dispatch with typed merge |

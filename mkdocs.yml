@@ -146,6 +146,7 @@ nav:
       - Plan-then-Execute: howto/plan-then-execute.md
   - Reference:
       - SDK Overview: sdk/overview.md
+      - Python API: sdk/python.md
       - Agent API: sdk/agent.md
       - HITL API: sdk/hitl.md
       - Parallel Dispatch: sdk/parallel.md

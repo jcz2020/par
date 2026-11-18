@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""Example: Using PAR Runtime from Python.
+"""Example: Using PAR Runtime from Python with the typed API.
 
-This demonstrates the basic workflow:
-1. Initialize runtime with SQLite persistence
-2. Register a tool
-3. Register an agent
-4. Invoke the agent
+This demonstrates the v0.18 workflow:
+1. Initialize the runtime with a typed RuntimeConfig
+2. Register tools
+3. Register a typed AgentConfig
+4. Invoke with invoke_result() (needs an LLM provider)
 
 Prerequisites:
   - Build the shared library: dune build lib/ffi/par_capi.so
   - Set PAR_RUNTIME_LIB or run from project root
+  - Set an LLM provider (for example OPENAI_API_KEY) before invoking
 
 Usage:
   python3 examples/basic_agent.py
@@ -22,35 +23,21 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from par_runtime import Runtime, PARError
+from par_runtime import (
+    AgentConfig,
+    ModelConfig,
+    PARError,
+    Runtime,
+    RuntimeConfig,
+    ToolSpec,
+)
 
 
 def main():
-    config = json.dumps({
-        "persistence": {"tag": "sqlite", "contents": "par_agent.db"},
-        "event_bus": {
-            "max_queue_size": 100,
-            "dlq_enabled": False,
-            "dlq_max_size": 10,
-        },
-        "default_quota": {
-            "max_tokens": 4096,
-            "max_iterations": 10,
-            "timeout_seconds": 30.0,
-        },
-        "shutdown": {
-            "grace_period_seconds": 5.0,
-            "force_after_seconds": 10.0,
-        },
-        "llm_providers": [],
-        "eval_limits": {
-            "max_depth": 10,
-            "max_node_visits": 1000,
-        },
-    })
+    config = RuntimeConfig(persistence="par_agent.db")
 
     print("=== P-A-R Python Example ===\n")
-    print(f"Initializing runtime with SQLite persistence...")
+    print("Initializing runtime with typed RuntimeConfig + SQLite persistence...")
 
     try:
         with Runtime(config) as rt:
@@ -83,11 +70,26 @@ def main():
             )
             print("  [+] echo tool registered")
 
-            print(f"\n  Runtime state: {rt}")
+            agent = AgentConfig(
+                id="example-agent",
+                system_prompt="You are a concise assistant. Use tools when useful.",
+                model=ModelConfig(
+                    provider="openai",
+                    model_name="gpt-4o-mini",
+                    temperature=0.2,
+                ),
+                tools=[
+                    ToolSpec(name="calculator", description="Evaluate arithmetic"),
+                    ToolSpec(name="echo", description="Echo back the input"),
+                ],
+            )
+            rt.register_agent(agent)
+            print("  [+] typed agent registered")
 
             print("\n=== Done ===")
-            print("Note: Agent invocation requires an LLM provider.")
-            print("Set environment variables (e.g. OPENAI_API_KEY) or export PAR_RUNTIME_LIB.")
+            print("Agent invocation requires an LLM provider:")
+            print("  result = rt.invoke_result('example-agent', 'Hello!')")
+            print("Set OPENAI_API_KEY (or another configured provider) to run it.")
 
     except PARError as e:
         print(f"\nPAR Error: {e}")

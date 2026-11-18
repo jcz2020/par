@@ -454,8 +454,17 @@ class InvokeResult:
         raw = _load(data)
         if "error" in raw:
             raise ValueError(str(raw["error"]))
-        if "response" in raw and isinstance(raw["response"], dict):
-            raw = raw["response"]
+        status = raw.get("status")
+        if status == "cancelled":
+            raise ValueError(f"invoke was cancelled: {raw.get('reason')}")
+        # The FFI envelope is {"status": "ok", "content": <llm_response>}.
+        # Accept the bare llm_response too so callers can decode a persisted
+        # envelope or a raw provider fixture with the same class.
+        for wrapper in ("content", "response"):
+            inner = raw.get(wrapper)
+            if isinstance(inner, dict):
+                raw = inner
+                break
         calls = [
             ToolCall.from_json(call) if isinstance(call, dict) else ToolCall(id="", name="", arguments=call)
             for call in (raw.get("tool_calls") or [])

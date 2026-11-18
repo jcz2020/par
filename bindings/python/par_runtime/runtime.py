@@ -4,10 +4,24 @@ import itertools
 import json
 import queue
 import threading
+import warnings
 from dataclasses import dataclass
-from typing import Any, Callable, Iterator, Optional, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    Iterator,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    cast,
+)
 
 from par_runtime.content import ContentBlock
+from par_runtime.models import AgentConfig, InvokeResult, RuntimeConfig
 
 from par_runtime._ffi import (
     _lib,
@@ -74,7 +88,13 @@ Event = Union[TextDelta, ReasoningDelta, ReasoningSignature, ToolCallStart,
               ToolCallDelta, UsageUpdate, Done]
 
 
-def _decode_event(payload) -> Event:
+
+def _c_char_p_value(ptr: Any) -> str:
+    """Decode a ``char*`` returned by the FFI (NULL becomes "")."""
+    value = ctypes.cast(ptr, ctypes.c_char_p).value
+    return value.decode("utf-8") if value else ""
+
+def _decode_event(payload: Any) -> Event:
     """Decode a JSON-decoded llm_response_chunk payload into an Event.
 
     ppx_deriving_yojson (the version in this repo) encodes variants as
@@ -139,14 +159,11 @@ class _StreamReader:
 
     _POLL_TIMEOUT_MS = 100
 
-    def __init__(self, rt_handle: Any, agent_id: str, message: str):
-        self._handle = _lib.par_stream_start(
-            rt_handle, _c_str(agent_id), _c_str(message))
-        if not self._handle:
-            raise PARInvokeError("par_stream_start returned NULL")
-        self._rt = rt_handle
-        self._cancel_called = False
-        self._completed = False
+    _handle: Optional[int]
+    _rt: Any
+    _cancel_called: bool
+    _completed: bool
+    _gen: Optional[Generator[Event, None, None]]
 
     def cancel(self) -> None:
         if self._cancel_called or self._completed or not self._handle:
@@ -157,7 +174,7 @@ class _StreamReader:
         except Exception:
             pass
 
-    def __del__(self):
+    def __del__(self) -> None:
         try:
             self.cancel()
         except Exception:
@@ -167,37 +184,79 @@ class _StreamReader:
         return self
 
     def __next__(self) -> Event:
+        if self._gen is None:
+            raise StopIteration
         return next(self._gen)
 
-    def _gen_body(self):
+    @property
+    def is_done(self) -> bool:
+        """True once the stream completed or its handle was released."""
+        return self._handle is None or self._completed
+
+    def _poll_once(self, timeout_ms: int) -> Tuple[str, Optional[Event]]:
+        """One poll. Returns ("event", Event) / ("pending", None) / ("done", None)."""
+        ptr = _lib.par_stream_poll(self._handle, timeout_ms)
+        if ptr == 1:  # PAR_STREAM_DONE sentinel (cffi returns int for c_void_p)
+            self._completed = True
+            final_raw = _lib.par_stream_take_final(self._handle)
+            if final_raw:
+                final = json.loads(_py_str(final_raw))
+                status = final.get("status")
+                if status == "cancelled":
+                    return ("done", None)
+                if status != "ok":
+                    err = final.get("error", "stream failed")
+                    raise PARInvokeError(f"invoke_stream failed: {err}")
+            return ("done", None)
+        if not ptr:
+            return ("pending", None)
+        raw = _py_str(ptr)
+        payload = json.loads(raw)
+        return (
+            "event",
+            _decode_event(
+                payload["chunk"]
+                if isinstance(payload, dict) and "chunk" in payload
+                else payload
+            ),
+        )
+
+    def poll_chunk(self, timeout_ms: int = 0) -> Optional[Event]:
+        """Poll without entering the blocking iterator protocol.
+
+        ``None`` means "nothing available right now"; ``is_done`` says
+        whether the stream ended. Returns the next :class:`Event` otherwise.
+        Used by :class:`~par_runtime.async_runtime.AsyncRuntime`.
+        """
+        if self._handle is None or self._completed:
+            return None
+        kind, event = self._poll_once(timeout_ms)
+        if kind == "done":
+            self.close()
+            return None
+        return event
+
+    def close(self) -> None:
+        """Cancel (if needed) and free the stream handle. Idempotent."""
+        if not self._handle:
+            return
+        if not self._completed:
+            _lib.par_stream_cancel(self._handle)
+            while _lib.par_stream_poll(self._handle, 1000) != 1:
+                pass
+        _lib.par_stream_free(self._handle)
+        self._handle = None
+
+    def _gen_body(self) -> Generator[Event, None, None]:
         try:
             while True:
-                ptr = _lib.par_stream_poll(self._handle, self._POLL_TIMEOUT_MS)
-                if ptr == 1:  # PAR_STREAM_DONE sentinel (cffi returns int for c_void_p)
-                    self._completed = True
-                    final_raw = _lib.par_stream_take_final(self._handle)
-                    if final_raw:
-                        final = json.loads(_py_str(final_raw))
-                        status = final.get("status")
-                        if status == "cancelled":
-                            return
-                        if status != "ok":
-                            err = final.get("error", "stream failed")
-                            raise PARInvokeError(f"invoke_stream failed: {err}")
+                kind, event = self._poll_once(self._POLL_TIMEOUT_MS)
+                if kind == "done":
                     return
-                if not ptr:
-                    continue
-                raw = _py_str(ptr)
-                payload = json.loads(raw)
-                yield _decode_event(payload["chunk"] if isinstance(payload, dict) and "chunk" in payload else payload)
+                if event is not None:
+                    yield event
         finally:
-            if self._handle:
-                if not self._completed:
-                    _lib.par_stream_cancel(self._handle)
-                    while _lib.par_stream_poll(self._handle, 1000) != 1:
-                        pass
-                _lib.par_stream_free(self._handle)
-                self._handle = None
+            self.close()
 
     _gen = None
 
@@ -224,24 +283,45 @@ class Runtime:
 
     __slots__ = ("_handle", "_callback_ids")
 
-    _callbacks: dict = {}
+    _handle: Any
+    _callback_ids: Set[int]
+    _callbacks: Dict[int, Any] = {}
     _callback_counter = itertools.count()
 
-    def __init__(self, config_json: str):
-        """Initialize PAR runtime from JSON config string.
+    def __init__(self, config_json: Union[str, Dict[str, Any], RuntimeConfig]):
+        """Initialize PAR runtime.
 
         Args:
-            config_json: Runtime configuration as JSON string.
+            config_json: A :class:`RuntimeConfig`, a config dict, or a JSON
+                string. The typed object is converted at the FFI boundary, so
+                the legacy string form keeps working unchanged.
 
         Raises:
             PARInitError: If initialization fails.
         """
-        normalized = self._normalize_config(config_json)
+        normalized = self._normalize_config(self._coerce_json(config_json, "config"))
         handle = _lib.par_init(_c_str(normalized))
         if not handle:
             raise PARInitError("Failed to initialize PAR runtime")
         self._handle: Any = handle
-        self._callback_ids: set = set()
+        self._callback_ids = set()
+
+    @staticmethod
+    def _coerce_json(value: Any, what: str) -> str:
+        """Convert a typed model, dict or JSON string to the FFI string form."""
+        if isinstance(value, str):
+            return value
+        to_json = getattr(value, "to_json", None)
+        if callable(to_json):
+            return cast(str, to_json())
+        if isinstance(value, dict):
+            try:
+                return json.dumps(value)
+            except (TypeError, ValueError) as exc:
+                raise PARInitError(f"{what} is not JSON-serializable: {exc}")
+        raise PARInitError(
+            f"{what} must be a typed model, a dict, or a JSON string"
+        )
 
     @staticmethod
     def _normalize_config(config_json: str) -> str:
@@ -323,15 +403,14 @@ class Runtime:
     def __enter__(self) -> "Runtime":
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.close()
-        return False
 
-    def __del__(self):
+    def __del__(self) -> None:
         if hasattr(self, "_handle"):
             self.close()
 
-    def close(self):
+    def close(self) -> None:
         """Shut down the runtime and release resources."""
         if getattr(self, "_handle", None):
             _lib.par_shutdown(self._handle)
@@ -341,7 +420,7 @@ class Runtime:
         if hasattr(self, "_callback_ids"):
             self._callback_ids.clear()
 
-    def _check_handle(self):
+    def _check_handle(self) -> None:
         if not self._handle:
             raise PARError("Runtime has been shut down")
 
@@ -367,7 +446,8 @@ class Runtime:
             raise PARToolError(f"Failed to register tool: {name}")
 
     def register_tool_with_handler(self, name: str, description: str,
-                                   input_schema: str, handler) -> None:
+                                   input_schema: str,
+                                   handler: Callable[[str], str]) -> None:
         """Register a tool with a Python callback handler.
 
         Args:
@@ -424,17 +504,21 @@ class Runtime:
         if result != 0:
             raise PARToolError(f"Failed to set layer for tool: {name}")
 
-    def register_agent(self, config_json: str) -> None:
-        """Register an agent from JSON config.
+    def register_agent(
+        self, config_json: Union[str, Dict[str, Any], AgentConfig]
+    ) -> None:
+        """Register an agent from an :class:`AgentConfig`, dict or JSON string.
 
         Args:
-            config_json: Agent configuration as JSON string.
+            config_json: Agent definition. Typed objects are converted at the
+                FFI boundary; the legacy JSON-string form is unchanged.
 
         Raises:
             PARError: If registration fails.
         """
+        normalized = self._coerce_json(config_json, "agent config")
         self._check_handle()
-        result = _lib.par_register_agent(self._handle, _c_str(config_json))
+        result = _lib.par_register_agent(self._handle, _c_str(normalized))
         if result != 0:
             raise PARError("Failed to register agent")
 
@@ -460,7 +544,7 @@ class Runtime:
             PARError: If the agent is not found or registration fails.
         """
         self._check_handle()
-        payload: dict = {"agent_id": agent_id}
+        payload: Dict[str, Any] = {"agent_id": agent_id}
         if tool_name is not None:
             payload["tool_name"] = tool_name
         if description is not None:
@@ -506,13 +590,13 @@ class Runtime:
         if result != 0:
             raise PARError(f"Failed to unregister skill (code {result})")
 
-    def list_skills(self) -> list:
+    def list_skills(self) -> List[Any]:
         self._check_handle()
         ptr = _lib.par_list_skills(self._handle)
         if not ptr:
             return []
         try:
-            raw = ctypes.cast(ptr, ctypes.c_char_p).value.decode("utf-8")
+            raw = _c_char_p_value(ptr)
             return json.loads(raw) if raw else []
         finally:
             _free(ptr)
@@ -533,7 +617,7 @@ class Runtime:
         if not ptr:
             return []
         try:
-            raw = ctypes.cast(ptr, ctypes.c_char_p).value.decode("utf-8")
+            raw = _c_char_p_value(ptr)
             return json.loads(raw) if raw else []
         finally:
             _free(ptr)
@@ -545,7 +629,7 @@ class Runtime:
         if not ptr:
             return []
         try:
-            raw = ctypes.cast(ptr, ctypes.c_char_p).value.decode("utf-8")
+            raw = _c_char_p_value(ptr)
             return json.loads(raw) if raw else []
         finally:
             _free(ptr)
@@ -574,7 +658,7 @@ class Runtime:
         if not ptr:
             return ""
         try:
-            return ctypes.cast(ptr, ctypes.c_char_p).value.decode("utf-8")
+            return _c_char_p_value(ptr)
         finally:
             _free(ptr)
 
@@ -591,9 +675,9 @@ class Runtime:
         self._check_handle()
         # ctypes.c_char_p marshals Python None to C NULL → OCaml None.
         scope_bytes = _c_str(scope) if scope is not None else None
-        return _lib.par_save_conversation(self._handle, scope_bytes)
+        return int(_lib.par_save_conversation(self._handle, scope_bytes))
 
-    def load_conversation(self, session_id: str):
+    def load_conversation(self, session_id: str) -> Optional[bool]:
         """Load a conversation by session id. Returns None if not found."""
         self._check_handle()
         rc = _lib.par_load_conversation(
@@ -603,7 +687,7 @@ class Runtime:
         return None
 
     def list_conversations(self, *, scope: Optional[str] = None,
-                           limit: int = 50) -> list:
+                           limit: int = 50) -> List[Dict[str, Any]]:
         """List sessions from the conversations table, newest first.
 
         Unlike event-based session listing, this includes sessions that were
@@ -627,26 +711,12 @@ class Runtime:
         parsed = json.loads(raw)
         if isinstance(parsed, dict) and "error" in parsed:
             raise PARError(parsed["error"])
-        return parsed.get("conversations", [])
+        return cast(List[Dict[str, Any]], parsed.get("conversations", []))
 
-    def invoke(self, agent_id: str, message: str,
-               *, save: bool = None, update_current: bool = None,
-               durable: bool = False, invoke_id: str = None) -> str:
-        """Invoke an agent.
-
-        ``durable=True`` (or naming the run with ``invoke_id``) checkpoints the
-        invoke after every completed tool batch and removes the checkpoint on
-        every terminal outcome. Supply ``invoke_id`` when the run must be
-        recoverable after a crash: read the id back from the envelope's
-        ``invoke_id`` field, or pass your own business key here. Durability
-        requires a real persistence backend and is rejected on the noop one.
-
-        ``save`` and ``update_current`` are independent of durability and are
-        forwarded to the runtime when supplied (the runtime defaults are
-        ``save=False`` and ``update_current=True``). The Python binding does
-        not expose ``cancellation_token``, ``on_chunk`` or ``on_tool_event`` on
-        this method; use :meth:`invoke_stream` for incremental output.
-        """
+    def _invoke_json(self, agent_id: str, message: str,
+                     *, save: Optional[bool] = None, update_current: Optional[bool] = None,
+                     durable: bool = False, invoke_id: Optional[str] = None) -> str:
+        """Run an invoke and return the raw JSON envelope."""
         self._check_handle()
         save_flag = bool(save) if save is not None else False
         update_flag = bool(update_current) if update_current is not None else True
@@ -684,8 +754,60 @@ class Runtime:
             pass
         return result
 
+    def invoke(self, agent_id: str, message: str,
+               *, save: Optional[bool] = None, update_current: Optional[bool] = None,
+               durable: bool = False, invoke_id: Optional[str] = None) -> str:
+        """Invoke an agent and return the raw JSON envelope.
+
+        .. deprecated::
+            Returns the ``llm_response`` JSON as a string and is scheduled for
+            removal in v1.0. Use :meth:`invoke_result` for the typed
+            :class:`~par_runtime.models.InvokeResult`.
+
+        ``durable=True`` (or naming the run with ``invoke_id``) checkpoints the
+        invoke after every completed tool batch and removes the checkpoint on
+        every terminal outcome. Supply ``invoke_id`` when the run must be
+        recoverable after a crash: read the id back from the envelope's
+        ``invoke_id`` field, or pass your own business key here. Durability
+        requires a real persistence backend and is rejected on the noop one.
+
+        ``save`` and ``update_current`` are independent of durability and are
+        forwarded to the runtime when supplied (the runtime defaults are
+        ``save=False`` and ``update_current=True``). The Python binding does
+        not expose ``cancellation_token``, ``on_chunk`` or ``on_tool_event`` on
+        this method; use :meth:`invoke_stream` for incremental output.
+        """
+        warnings.warn(
+            "Runtime.invoke() returns the raw JSON envelope and will be "
+            "removed in v1.0; use Runtime.invoke_result() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self._invoke_json(
+            agent_id, message, save=save, update_current=update_current,
+            durable=durable, invoke_id=invoke_id,
+        )
+
+    def invoke_result(self, agent_id: str, message: str,
+                      *, save: Optional[bool] = None, update_current: Optional[bool] = None,
+                      durable: bool = False, invoke_id: Optional[str] = None
+                      ) -> InvokeResult:
+        """Invoke an agent and return a typed :class:`InvokeResult`.
+
+        Same runtime semantics and keyword arguments as :meth:`invoke`;
+        the envelope is decoded into ``text`` / ``tool_calls`` /
+        ``finish_reason`` / ``usage`` / ``model``.
+        """
+        return InvokeResult.from_json(
+            self._invoke_json(
+                agent_id, message, save=save,
+                update_current=update_current, durable=durable,
+                invoke_id=invoke_id,
+            )
+        )
+
     def recover_invoke(self, invoke_id: str, *,
-                       save: bool = None, update_current: bool = None) -> str:
+                       save: Optional[bool] = None, update_current: Optional[bool] = None) -> str:
         """Resume a durable invoke that was interrupted by a crash.
 
         Only ids rehydrated at runtime startup are eligible, and a run still in
@@ -723,7 +845,7 @@ class Runtime:
             raise PARInvokeError(parsed["error"])
         return result
 
-    def list_orphaned_invokes(self) -> list[dict]:
+    def list_orphaned_invokes(self) -> List[Dict[str, Any]]:
         """Durable invokes rehydrated at startup as orphans.
 
         Each entry is ``{"invoke_id": ..., "agent_id": ...}``. These are the
@@ -734,7 +856,7 @@ class Runtime:
         raw = _py_str(result_ptr)
         if not raw:
             raise PARInvokeError("list_orphaned_invokes failed")
-        return json.loads(raw)
+        return cast(List[Dict[str, Any]], json.loads(raw))
 
     def invoke_content(
         self, agent_id: str, content: list[ContentBlock], *,
@@ -760,7 +882,7 @@ class Runtime:
         return result
 
     def invoke_start(self, agent_id: str, message: str,
-                     *, save: bool = None, update_current: bool = None) -> str:
+                     *, save: Optional[bool] = None, update_current: Optional[bool] = None) -> str:
         self._check_handle()
         handle_id = _lib.par_invoke_start(
             self._handle, _c_str(agent_id), _c_str(message),
@@ -771,7 +893,7 @@ class Runtime:
             raise PARInvokeError("invoke_start failed (handle registry full or OCaml error)")
         return str(handle_id)
 
-    def invoke_poll(self, handle_id: str, timeout_ms: int = 0) -> dict:
+    def invoke_poll(self, handle_id: str, timeout_ms: int = 0) -> Dict[str, Any]:
         self._check_handle()
         result_ptr = _lib.par_invoke_poll(int(handle_id), timeout_ms)
         if not result_ptr:
@@ -783,7 +905,7 @@ class Runtime:
             parsed = json.loads(raw)
             if isinstance(parsed, dict) and "error" in parsed and "status" not in parsed:
                 return {"status": "error", "error": parsed["error"]}
-            return parsed
+            return cast(Dict[str, Any], parsed)
         except json.JSONDecodeError:
             return {"status": "error", "error": f"invalid JSON from poll: {raw[:200]}"}
 
@@ -796,9 +918,9 @@ class Runtime:
         agent_id: str,
         message: str,
         *,
-        save: bool = None,
-        update_current: bool = None,
-    ) -> dict:
+        save: Optional[bool] = None,
+        update_current: Optional[bool] = None,
+    ) -> Dict[str, Any]:
         self._check_handle()
         if save is not None or update_current is not None:
             result_ptr = _lib.par_generate_ext(
@@ -820,10 +942,10 @@ class Runtime:
         if isinstance(parsed, dict) and "error" in parsed:
             raise PARInvokeError(parsed["error"])
         if isinstance(parsed, dict) and parsed.get("status") == "ok":
-            return parsed["result"]
+            return cast(Dict[str, Any], parsed["result"])
         raise PARInvokeError(f"Unexpected generate response: {result[:200]}")
 
-    def embed(self, messages: list[str]) -> list[list[float]]:
+    def embed(self, messages: List[str]) -> List[List[float]]:
         """Embed a batch of texts.
 
         Args:
@@ -846,7 +968,7 @@ class Runtime:
             raise PARError(parsed["error"])
         return [[float(x) for x in vec] for vec in parsed]
 
-    def add_documents(self, documents: list[str | dict]) -> int:
+    def add_documents(self, documents: List[Union[str, Dict[str, Any]]]) -> int:
         """Add documents to the runtime's internal vector store for RAG.
 
         Documents are embedded via the configured provider and stored
@@ -874,9 +996,9 @@ class Runtime:
         result = _lib.par_add_documents(self._handle, _c_str(docs_json))
         if result < 0:
             raise PARError(f"add_documents failed with code {result}")
-        return result
+        return int(result)
 
-    def load_document(self, path: str) -> list[dict]:
+    def load_document(self, path: str) -> List[Dict[str, Any]]:
         """Load a single document file. Extension auto-detects loader.
 
         Supported extensions: .txt, .md, .html/.htm, .csv, .pdf.
@@ -898,9 +1020,9 @@ class Runtime:
         result = json.loads(raw)
         if isinstance(result, dict) and "error" in result:
             raise RuntimeError(result["error"])
-        return result
+        return cast(List[Dict[str, Any]], result)
 
-    def load_directory(self, path: str, loaders: dict[str, str] | None = None) -> list[dict]:
+    def load_directory(self, path: str, loaders: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]:
         """Recursively load all supported files in a directory.
 
         Args:
@@ -926,7 +1048,7 @@ class Runtime:
         result = json.loads(raw)
         if isinstance(result, dict) and "error" in result:
             raise RuntimeError(result["error"])
-        return result
+        return cast(List[Dict[str, Any]], result)
 
     def invoke_with_rag(self, agent_id: str, message: str, k: int = 4) -> str:
         """Invoke an agent with RAG-augmented context.
@@ -961,7 +1083,7 @@ class Runtime:
             pass
         return result
 
-    def invoke_stream(self, agent_id: str, message: str) -> Iterator[Event]:
+    def invoke_stream(self, agent_id: str, message: str) -> "_StreamReader":
         """Invoke an agent and yield each LLM response chunk as an Event.
 
         v0.7.10: No background thread. ``par_stream_start`` enqueues work
@@ -1015,7 +1137,7 @@ class Runtime:
         _lib.par_cancel_stream(self._handle)
 
     def invoke_structured(self, agent_id: str, message: str,
-                          response_schema: dict) -> dict:
+                          response_schema: Dict[str, Any]) -> Dict[str, Any]:
         """Invoke an agent with structured output constraint.
 
         Args:
@@ -1053,7 +1175,7 @@ class Runtime:
 
     def register_approval_handler(
         self,
-        handler: Union[Callable[[dict], Union[dict, str]], str],
+        handler: Union[Callable[[Dict[str, Any]], Union[Dict[str, Any], str]], str],
         *,
         secret: str = "",
         timeout: float = 300.0,
@@ -1124,7 +1246,7 @@ class Runtime:
     def resume_approval(
         self,
         run_id: str,
-        outcome: Union[dict, str],
+        outcome: Union[Dict[str, Any], str],
         *,
         approver: str = "python",
     ) -> None:
@@ -1181,11 +1303,11 @@ class Runtime:
 
     def invoke_parallel(
         self,
-        specs: list[dict],
+        specs: List[Dict[str, Any]],
         *,
         parallel_limit: int = 4,
         failure_policy: Optional[str] = None,
-    ) -> dict:
+    ) -> Dict[str, Any]:
         """Invoke multiple agents in parallel and collect results.
 
         Args:
@@ -1221,7 +1343,7 @@ class Runtime:
             parsed = json.loads(result)
             if isinstance(parsed, dict) and "error" in parsed:
                 raise PARError(parsed["error"])
-            return parsed
+            return cast(Dict[str, Any], parsed)
         except json.JSONDecodeError as e:
             raise PARError(f"invoke_parallel returned invalid JSON: {e}")
 
@@ -1285,7 +1407,7 @@ class Runtime:
         )
         return _py_str(result_ptr)
 
-    def health(self) -> dict:
+    def health(self) -> Dict[str, Any]:
         """Return runtime health status.
 
         Returns:
@@ -1301,11 +1423,11 @@ class Runtime:
             parsed = json.loads(result)
             if "error" in parsed:
                 raise PARError(parsed["error"])
-            return parsed
+            return cast(Dict[str, Any], parsed)
         except json.JSONDecodeError as e:
             raise PARError(f"Invalid health JSON: {e}")
 
-    def metrics(self) -> dict:
+    def metrics(self) -> Dict[str, Any]:
         """Return runtime metrics snapshot.
 
         Returns:
@@ -1322,7 +1444,7 @@ class Runtime:
             parsed = json.loads(result)
             if "error" in parsed:
                 raise PARError(parsed["error"])
-            return parsed.get("metrics", parsed)
+            return cast(Dict[str, Any], parsed.get("metrics", parsed))
         except json.JSONDecodeError as e:
             raise PARError(f"Invalid metrics JSON: {e}")
 
@@ -1347,7 +1469,7 @@ class Runtime:
         if rc != 0:
             raise PARError(f"follow_up() failed with code {rc}")
 
-    def mcp_server(self, server_id: str) -> dict:
+    def mcp_server(self, server_id: str) -> Dict[str, Any]:
         """Query an MCP server's tools by server ID.
 
         Args:
@@ -1365,9 +1487,9 @@ class Runtime:
         parsed = json.loads(result)
         if "error" in parsed:
             raise PARError(parsed["error"])
-        return parsed
+        return cast(Dict[str, Any], parsed)
 
-    def mcp_list_tools(self, server_id: str) -> list:
+    def mcp_list_tools(self, server_id: str) -> List[Any]:
         """List tools available on an MCP server.
 
         Args:
@@ -1385,9 +1507,9 @@ class Runtime:
         parsed = json.loads(result)
         if "error" in parsed:
             raise PARError(parsed["error"])
-        return parsed.get("tools", [])
+        return cast(List[Any], parsed.get("tools", []))
 
-    def mcp_tool_descriptors(self) -> list:
+    def mcp_tool_descriptors(self) -> List[Any]:
         """Tool descriptors for every MCP server this runtime was created with.
 
         The dicts use the same shape ``register_agent`` accepts, so the whole
@@ -1410,9 +1532,9 @@ class Runtime:
         parsed = json.loads(result)
         if "error" in parsed:
             raise PARError(parsed["error"])
-        return parsed.get("tools", [])
+        return cast(List[Any], parsed.get("tools", []))
 
-    def reload_mcp_servers(self, servers: list) -> list:
+    def reload_mcp_servers(self, servers: List[Any]) -> List[Any]:
         """Reconcile the managed MCP server set with ``servers``.
 
         Servers are keyed by their ``name``. Unchanged configs keep running;
@@ -1442,9 +1564,9 @@ class Runtime:
         parsed = json.loads(result)
         if "error" in parsed:
             raise PARError(parsed["error"])
-        return parsed.get("tools", [])
+        return cast(List[Any], parsed.get("tools", []))
 
-    def workflow_status(self, run_id: str) -> dict:
+    def workflow_status(self, run_id: str) -> Dict[str, Any]:
         """Query the status of a workflow run.
 
         Args:
@@ -1462,7 +1584,7 @@ class Runtime:
         parsed = json.loads(result)
         if "error" in parsed:
             raise PARError(parsed["error"])
-        return parsed
+        return cast(Dict[str, Any], parsed)
 
     def workflow_cancel(self, run_id: str) -> None:
         """Cancel a running workflow.

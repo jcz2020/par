@@ -17,6 +17,7 @@ from par_runtime.runtime import (
     ToolCallDelta,
     UsageUpdate,
 )
+from par_runtime.async_runtime import AsyncRuntime
 from par_runtime.content import (
     MAX_IMAGE_BYTES,
     SUPPORTED_IMAGE_MEDIA_TYPES,
@@ -45,6 +46,7 @@ __version__ = "0.17.3-beta.20261118"
 
 __all__ = [
     "Runtime",
+    "AsyncRuntime",
     "ContentBlock",
     "ImageDetail",
     "ImageError",

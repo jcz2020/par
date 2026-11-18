@@ -82,6 +82,8 @@ make install-dev   # builds library + installs .so + syncs Python version
 Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**):
 
 - [Quickstart](docs/quickstart.md) — 30-minute tutorial, first agent with tool calls
+- [SDK Overview](docs/sdk/overview.md) — the SDK hub (architecture, five-minute tour, module map)
+- [Python API](docs/sdk/python.md) — typed models, `invoke_result()`, `AsyncRuntime`, JSON migration
 - [Agent API](docs/sdk/agent.md) — `agent_config`, `Runtime.invoke`, tool handlers
 - [HITL API](docs/sdk/hitl.md) — suspend-resume approval, cross-process persistence
 - [Parallel Dispatch](docs/sdk/parallel.md) — parallel multi-agent dispatch, typed merge
@@ -124,18 +126,23 @@ Full docs live in [`docs/`](docs/) (also published at **jcz2020.github.io/par**)
 
 ### Python binding
 ```python
-from par_runtime import Runtime
-import json
+from par_runtime import AgentConfig, ModelConfig, Runtime, RuntimeConfig
 
-config = json.dumps({
-    "persistence": {"tag": "sqlite", "contents": ":memory:"},
-    "default_quota": {"max_tokens": 4096, "max_iterations": 10, "timeout_seconds": 30.0},
-})
+agent = AgentConfig(
+    id="assistant",
+    system_prompt="You are helpful.",
+    model=ModelConfig(provider="openai", model_name="gpt-4o", temperature=0.2),
+)
 
-with Runtime(config) as rt:
-    rt.register_tool("echo", "Echo tool", '{"type": "object"}')
+with Runtime(RuntimeConfig(persistence="par.db")) as rt:
+    rt.register_agent(agent)
+    result = rt.invoke_result("assistant", "hello")
+    print(result.text, result.usage.total_tokens)
 ```
-See [`bindings/python/examples/basic_agent.py`](bindings/python/examples/basic_agent.py) and [`bindings/python/tests/`](bindings/python/tests/).
+
+Typed models, `invoke_result()` and `AsyncRuntime` land in v0.18; the legacy
+JSON-string API still works. See [Python API](docs/sdk/python.md) and
+[`bindings/python/examples/basic_agent.py`](bindings/python/examples/basic_agent.py).
 
 ### OCaml SDK
 ```ocaml

@@ -152,3 +152,19 @@ jobs:
             python3 -m pytest "$f" -v --tb=short || FAILED=1
           done
           exit $FAILED
+
+  python-types:
+    name: Python type check (mypy strict)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install mypy==2.4.1
+
+      - run: |
+          cd bindings/python
+          mypy --strict par_runtime
