@@ -1,8 +1,8 @@
 # CHANGES
 
-## Unreleased — bash and Python accept integer numbers; literal substitutions (GitHub #40, #41)
+## v0.17.2-beta.20261118 — bash and Python accept integer numbers; literal substitutions (GitHub #40, #41)
 
-> A model sending `{"timeout": 30}` crashed the bash handler before spawning: JSON has one number type, and Yojson's `to_float_option` raises on `Int`. The same misuse in the Python C bridge made `temperature=1` fail to register an agent. Separately, the blacklist rejected literal `$(...)` and backticks even though argv is executed without a shell. All three are fixed. **1807 OCaml tests, 0 failures; 221 Python passed / 20 skipped.** No version bump yet.
+> A model sending `{"timeout": 30}` crashed the bash handler before spawning: JSON has one number type, and Yojson's `to_float_option` raises on `Int`. The same misuse in the Python C bridge made `temperature=1` fail to register an agent. Separately, the blacklist rejected literal `$(...)` and backticks even though argv is executed without a shell. All three are fixed. **1807 OCaml tests, 0 failures; 221 Python passed / 20 skipped.** Beta-first: the stable line remains v0.10.0.
 
 ### Fixed — integer timeout (GitHub #40)
 
@@ -25,6 +25,15 @@
 
 - OCaml totals are **1807 tests**, 0 failures.
 - Python totals are **221 passed / 20 skipped** (+5 cases).
+
+### Known issues
+
+- A completely stalled HTTP read cannot be interrupted on the cohttp-eio transport; cancellation takes effect on the next chunk. The owned-socket transport (`PAR-9km`) is deferred past this release.
+- `Ca_certs.authenticator ()` failure still falls back to `no_auth` in the provider/MCP/builtin TLS configs (`PAR-is4`, P1).
+- `blocking_approval` in `agent_dispatch_spec` remains an unimplemented field (`PAR-e68`).
+- Recovery replays the system prompt, static tool set, workspace/appendix and skill snapshot, but not `tool_search` promotions or steering queues.
+- `list_orphaned_invokes` still returns only `(invoke_id, agent_id)`.
+- `test_http_timeout.py` can segfault when the Python suite runs in one process; it passes alone.
 
 ## v0.17.1-beta.20261117 — MCP JSON-RPC conformance and tool bindings (GitHub #38, #39)
 
