@@ -17,6 +17,10 @@
   vision/lease/approval/TLS release.
 - Main is at the v0.17.2 release commit with nothing unreleased; GitHub issues
   #35, #38, #39, #40 and #41 are closed. The stable line remains `v0.10.0`.
+- `docs/v0.18-ROADMAP.md` is planned (2026-11-18), bd epic `PAR-ga4q`:
+  W1 Python native API (typed + async), W2 typed tracing + OTel adapter,
+  W3 MCP sampling routing on stdio and HTTP; W4 `PAR-9km` runs in parallel and
+  does not block the version. No code started.
 - OCaml: 1807 tests, 0 failures. Python: 221 passed / 20 skipped.
 - Local switch upgraded on 2026-11-11: sqlite3 5.4.2 (GC-rooting fix), tls /
   tls-eio 2.1.5, x509 1.2.0, mirage-crypto* 2.4.1 (security/stability fixes),
@@ -121,20 +125,19 @@
 
 ## Next directions
 
-1. **`PAR-9km` (next feature train)** — the owned-socket HTTP transport:
-   `lib/providers/http_transport.ml` on `Eio.Net` + `tls-eio`,
-   `Connection: close` only; migrate provider non-stream → provider stream →
-   MCP transport → fetch_url, keeping a cohttp-eio fallback until the last
-   step. Must beat the reverted raw path on TLS, chunked bodies, SSE and
-   timeout cancellation. Wait for explicit user direction on the version.
-2. **`PAR-is4` (P1)** — `Ca_certs.authenticator ()` failure still falls back
-   to `no_auth` in provider/MCP/builtin TLS configs. Change it to fail closed,
-   then verify the three wrappers still construct `Tls.Config`.
+1. **v0.18.0 feature train (planned, not started)** — `docs/v0.18-ROADMAP.md`,
+   bd epic `PAR-ga4q`. Order: W1 Python native API (typed + async,
+   `PAR-ga4q.1`) → W2 typed tracing + OTel adapter (`PAR-ga4q.2`) → W3 MCP
+   sampling routing (`PAR-wn7`) on stdio and HTTP. W4 `PAR-9km` (owned-socket
+   HTTP) runs in parallel and does not block the version. Wait for explicit
+   user direction on the version.
+2. **`PAR-is4` (P1, do before W1)** — `Ca_certs.authenticator ()` failure still
+   falls back to `no_auth` in provider/MCP/builtin TLS configs. Change it to
+   fail closed, then verify the three wrappers still construct `Tls.Config`.
 3. **`PAR-tgy`** — the `?sandbox` mechanism (design is in
    `docs/explanation/sandbox-model.md`).
 4. Remaining P2 feature backlog (`bd ready`) is `out-of-par` per DECISIONS #6
-   except MCP sampling routing (`PAR-wn7`) and the Python FFI gaps
-   (`PAR-h4m`, `PAR-0ls`).
+   except the Python FFI gaps (`PAR-h4m`, `PAR-0ls`).
 5. Watch cohttp 6.4 — its unreleased `dev` fixes cohttp-eio body chunks that are
    replayed from offset 0 when a chunk needs three or more partial
    `single_read`s. A local spike (100 KB header, 64 KB chunk, 4096-byte reader)
