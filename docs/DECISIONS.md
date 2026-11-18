@@ -621,6 +621,33 @@ MCP server 目前**不能**让模型直接调用其工具：`tool_registry.ml` �
 
 **回退方式**: 恢复调用方捕获 `previous_session`，或让 generate/structured 回到「只设置不恢复」的旧行为（不建议，会重新引入错误事件归属）。
 
+## #19: v0.18 SDK 体验列车——Python 原生 API、类型化 tracing、MCP sampling
+
+**日期**: 2026-11-18
+**触发**: 连续 6 个版本（v0.16.0 → v0.17.3）都在补可靠性/安全欠账，backlog 中没有面向体验的大功能。三个真实缺口：Python 仍在拼 JSON 字符串、生产没有调用链、MCP sampling 只有未暴露的底层钩子。按 `DECISIONS #6`，产品层功能仍 `out-of-par`。
+
+### 决策
+
+1. **W1 Python 原生 API**：`par_runtime.models` dataclass + `invoke_result()` + `AsyncRuntime`；JSON 只保留在 FFI 边界；旧 `invoke()` 弃用，v1.0 删除。第一批覆盖 invoke 主路径与 agent/tool 配置，workflow/skill/approval 的 typed 化延后（R2）。
+2. **W2 类型化 tracing**：runtime 只产生 span，导出交给宿主；出站 HTTP/MCP 注入 W3C `traceparent`；Python 提供可选 `par-runtime[otel]`，OCaml 提供 adapter 示例，不内置 OTLP exporter（R2）。
+3. **W3 MCP sampling**：补 stdio server→client 请求；`mcp_sampling` 默认 `Disabled`，显式 `Auto` 带 `max_tokens` / `max_requests_per_invoke` / `timeout`；默认路由只做一次内部 LLM 调用，不进入 ReAct、不递归注册工具。
+4. **W4 `PAR-9km`**：自持 socket HTTP 并行推进，不阻塞 v0.18。
+
+### 理由
+
+Python 是目标用户的一半，typed + async 是最高杠杆的开发者体验改进；生产团队上线 agent 的第一诉求是“出问题能查”，而 runtime 产生 span、宿主导出 span 的分层避免了把 PAR 绑定到某个后端；MCP sampling 能解锁一整类需要 LLM 的 MCP 工具，但必须默认关闭并设硬上限，防止 MCP server 静默消耗 token。三项都落在 runtime/SDK 层，符合 `DECISIONS #6`。
+
+**§11 R1 标注**: **架构正确**——typed 模型只加在 FFI 边界，不改变 OCaml 核心类型；span 的产生与导出职责分离；sampling 复用现有 LLM 调用，不新造 ReAct 循环或第二套 provider 栈。
+
+**§11 R2 范围妥协**:
+- **D5**：Python typed 第一批不覆盖 workflow/skill/approval。长期方案 = 同一套 `par_runtime.models` 覆盖全部公开 JSON 入口；退役触发 = 发布后 2 个版本内无进展或 3+ 用户请求。
+- **D9**：不内置 OCaml OTLP exporter。长期方案 = `par_otel` 子库；退役触发 = 首个生产 OCaml 用户需要零配置 OTLP，或 opam 出现 maintained 客户端。
+- **D13**：MCP sampling 的 `modelPreferences` 只做简单选择。长期方案 = provider 能力表 + 偏好打分；退役触发 = 多 provider 且需要按偏好路由的生产用户。
+
+**影响范围**: `docs/v0.18-ROADMAP.md`（本地规划文档，.gitignore）、bd epic `PAR-ga4q` 及子项 `PAR-ga4q.1` / `PAR-ga4q.2` / `PAR-wn7`。暂未改代码。
+
+**回退方式**: 仅规划，无代码可回退；取消 epic 与 roadmap 即可。
+
 ---
 
 ## Phase 2 / Deferred Items
@@ -658,4 +685,4 @@ MCP server 目前**不能**让模型直接调用其工具：`tool_registry.ml` �
 
 ---
 
-**最后更新**: 2026-11-14
+**最后更新**: 2026-11-19

@@ -22,6 +22,12 @@
 - **Oracle mock server tests need `mcp_mock_server.exe`** — not built in all environments. Pre-existing.
 - **Mutate the implementation, not just the test.** Every fix in v0.16 was checked by removing the implementation and watching the new case fail. A test that passes both before and after the fix proves nothing; the session-restore, lease, approval-terminal, TLS-classification and glob changes were all mutation-checked.
 - **Tests that only assert `Success` hide wrong output.** The find/grep bug survived because the old cases checked `Success _`, not a non-empty or exact result. Assert the value, and use a fixture tree whose depth makes the semantics observable.
+- **A round-trip test cannot catch a mandatory field missing on both sides.** MCP v0.17.1: the request/notification/response writers all omitted `"jsonrpc":"2.0"` and the parsers accepted it, so round-trips passed while every strict HTTP server answered 400. Pin the exact wire JSON and make the parsers reject a missing/other version.
+
+## JSON / provider capabilities
+
+- **JSON has one number type.** `Yojson.Safe.Util.to_float_option` accepts only `` `Float`` and `` `Null`` and **raises** on `` `Int``. A model sending `{"timeout": 30}`, or Python config with `temperature=1`, hit this. Any number parsed from model/Python input must accept `Int` and `Float`; scan every `to_float_option` call site, not just the reported one. v0.17.2 fixed the bash handlers and seven C-bridge fields with one helper.
+- **Do not hand-build `llm_service` records.** They drift silently: the OpenAI/Anthropic/custom services in `par_capi.ml` all left `list_models_fn = None`, so `Runtime.list_models` returned "not supported" even though the providers could implement it. Use `Openai_provider.to_llm_service` / `Anthropic_provider.to_llm_service`; when adding a capability, add it to the provider constructor so every caller gets it (v0.17.3).
 
 ## TLS / HTTP
 
@@ -32,6 +38,7 @@
 - **cohttp-eio 6.3.0 body-chunk trap:** `Reader_flow.send` copies from offset 0 on the second and later partial `single_read` in a chunk. Corruption needs a chunk more than twice the reader's free buffer; PAR's 4096-byte readers normally avoid it. The fix is in cohttp's unreleased `dev`; upgrade when 6.4 ships. A local spike with a 100 KB header and 64 KB chunk read every byte correctly.
 - **Never trust a hand-written HTTP client without a wire test.** The 2026-06 raw `Http_timeout.raw_request` put the terminating CRLF right after `Host`, so every other header and the body were dropped (no `Content-Length`); it also rejected TLS and never decoded chunked bodies. MCP HTTP and three web builtins were unusable for months. A local server that records the raw request, plus JSON/SSE/HTTPS cases, catches this class before merge. The path was reverted to cohttp-eio in v0.16.3; the owned-socket replacement (`PAR-9km`) must pass those tests first.
 - **Hotfix a released defect from a branch cut at the tag.** v0.16.3 was made on `release/v0.16.3` from the v0.16.2 tag (no unreleased #35 in the artifact), then merged back to main. Do not tag a hotfix from main when main already carries unreleased features.
+- **The request verb is part of the wire contract.** `Http_client.parse_raw_request` originally returned only path/headers/body, and `do_request` / `do_request_streaming` hardcoded `` `POST``. A new GET builder would have been silently sent as POST. Parse the method from the request line and pin it in a recording-server test (v0.17.3).
 
 ## Event bus / sessions
 
@@ -53,6 +60,10 @@
 - **`exec_context` is the workflow's per-run carrier.** Workflow hooks belong there next to `registry` and `workspace`, seeded from the runtime when the context is built, so every step type inherits them.
 - **Hook regression tests must assert the handler did not run.** A returned-error assertion can pass while the tool still executed; assert the side effect directly.
 
+## Bash tool
+
+- **The blacklist must know whether a shell evaluates the text.** The bash tool runs `Bash_safe_command.Exec` directly (no shell), so `$(...)`/backticks in an argument are literal. The `bash-eval` / `backtick-subst` / `dollar-paren` rules are only meaningful when argv invokes a shell with a `-c` short-option cluster (`bash -c`, `sh -ec`, `/bin/sh -c`; wrappers like `env bash -c` are covered). `sh -c '...$(...)...'` is **not** a false positive — that shell really evaluates it (v0.17.2).
+
 ## Dependencies / release
 
 - **CI installs latest dependencies; a long-lived local switch can lag.** Upgrade the switch to the CI-resolved versions and re-run the full suites; otherwise local green and CI green are proving different dependency sets.
@@ -61,4 +72,5 @@
 - **Pre-release PyPI verification:** `pip` may use a mirror that lags PyPI (this machine defaults to Aliyun). Install from `--index-url https://pypi.org/simple` in a fresh venv. Also, PyPI's `info.version` stays on the last stable when only a pre-release is uploaded; inspect `releases["<version>"]` instead.
 - **Verify published assets, not workflow conclusions.** `gh release view TAG --json isPrerelease,assets` must show the tarball, `par.opam`, every wheel and checksums; then install the wheel from PyPI and print the version.
 - **`make release-beta` does not forward `FORCE`.** The target calls `scripts/release-bump.sh beta $(BUMP_TYPE)` without `--force`, so a same-day patch whose version is not in a roadmap file must run `bash scripts/release-bump.sh beta patch --force` and then `make install-dev` (the recipe does that step after the script). Record the reason in the release commit.
+- **A failed build-matrix leg skips the publish jobs; it does not fail them.** `gh-release-upload` and `pypi-upload` use `needs: build-wheel`, so one cancelled leg (e.g. GitHub hosted macOS arm64 capacity: "not acquired by Runner of type hosted") leaves the release with only the opam tarball, no wheels and no PyPI upload. Inspect the run's jobs, not just the release conclusion. Rerun the failed jobs (`gh api -X POST repos/OWNER/REPO/actions/runs/RUN/rerun-failed-jobs`); never re-tag the same version. v0.17.3 needed two reruns before the macOS runner was acquired.
 

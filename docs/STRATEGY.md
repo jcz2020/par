@@ -444,3 +444,11 @@ or input-entry design. No additional version bump or tag is authorized here.
 3. **只断言 `Success` 的测试会放过「返回空结果」的缺陷。** `find`/`grep` 的 glob 完全匹配不到任何文件，旧测试只检查 handler 返回 `Success` 所以一直绿。新测试用临时目录树断言**精确结果集**；修复逻辑做变异验证（删掉实现，用例必须失败）。
 4. **全局可变状态要有显式契约和并发限制。** 事件总线的 session 是 runtime 级单值；恢复契约、捕获顺序（`prepare` 回调）和「并发运行不按 run 归属事件」必须写进文档，否则下一个入口会重新引入 PAR-48p 的排序 bug。
 5. **review 要覆盖「没有 diff 的变更」。** 本次两批依赖升级没有代码 diff，但 review 从 TLS 调用点里挖出了 HIGH 级证书身份缺口。review 的输入是行为，不是 `git diff`。
+
+### 11.6 历史教训(2026-11 v0.17 补丁列车)
+
+1. **修一类，不修一处。** #40 的整数 `timeout` 只是 `Yojson` `to_float_option` 误用的一个实例；同一类问题在 Python C bridge 还有 7 个浮点字段（`temperature=1` 直接注册失败）。修复前先 `grep` 全部调用点，用一个 helper 收口，否则下一个字段还会复现。
+2. **协议字段要有 wire-level 测试。** MCP JSON-RPC 2.0 的 round-trip 测试在 writer 和 parser 同时漏掉 `"jsonrpc":"2.0"` 时仍然全绿，但严格 streamable-HTTP server 全部返回 400。必须断言精确的线上 JSON，并让 parser 拒绝缺失/错误版本。
+3. **能力字段不能靠每个调用点手写。** `llm_service.list_models_fn` 在四个手写记录里都是 `None`，导致 `Runtime.list_models` 对所有真实 provider 永远不可用。把“构造完整服务”收敛到 provider 的 `to_llm_service`，新增能力只改一个地方。
+4. **发布矩阵的失败可能表现为“跳过”。** 一个 build-wheel leg 失败/取消时，PyPI 与 GitHub Release 上传 job 会因为 `needs` 直接 skip；`continue-on-error` 只作用于上传 job。发布验证必须查看每个矩阵 leg 和 Release assets，必要时 rerun failed jobs，不能因为 tag 存在就认为发布完成。
+5. **直接 exec 的工具，黑名单要按执行模型判断。** bash 工具不经过 shell，普通 argv 里的 `$(...)` / 反引号是字面量；只有显式 `shell -c` 才需要拦截命令替换。安全规则如果不和执行模型对齐，就会把合法调用当成攻击，模型只能反复重试。
