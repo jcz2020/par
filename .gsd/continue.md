@@ -1,23 +1,23 @@
 # Continue — Next Session
 
-## Current state (2026-11-18)
+## Current state (2026-11-19)
 
-- `v0.17.2-beta.20261118` is released and pushed: GitHub pre-release with the
+- `v0.17.3-beta.20261118` is released and pushed: GitHub pre-release with the
   source tarball + `par.opam`, both wheels, and checksums; the two wheels are
-  on PyPI as `0.17.2b20261118`. Tag `v0.17.2-beta.20261118` points at
-  `f11a4ee`. Release, opam publish, PyPI publish, CI, CodeQL, Docs and the
-  three-container release dry-run passed; a fresh venv install from PyPI
-  reports `0.17.2-beta.20261118` and imports `Runtime`.
-- `v0.17.1-beta.20261117` (tag `f618c6a`) shipped MCP JSON-RPC 2.0 conformance
-  and `mcp_tool_bindings`; `v0.17.0-beta.20261117` (tag `fa567ef`) shipped
-  runtime reload for MCP servers and skills (#35);
-  `v0.16.3-beta.20261115` (tag `993af51`, merged as `6fd8cfb`) was the HTTP
-  transport hotfix; `v0.16.2-beta.20261114` the GitHub #33 security patch;
-  `v0.16.1` the GitHub #32 `grep` follow-up and `v0.16.0` the
-  vision/lease/approval/TLS release.
-- Main is at the v0.17.2 release commit plus an unreleased model-discovery fix
-  (GitHub #42, no version bump yet); GitHub issues #35, #38, #39, #40 and #41
-  are closed. The stable line remains `v0.10.0`.
+  on PyPI as `0.17.3b20261118`. Tag `v0.17.3-beta.20261118` points at
+  `50e1263`. Release, opam publish, PyPI publish, CI, CodeQL, Docs, Release
+  acceptance and the three-container release dry-run passed; a fresh venv
+  install from PyPI reports `0.17.3-beta.20261118` and imports `Runtime`.
+- `v0.17.2-beta.20261118` (tag `f11a4ee`) shipped the bash/Python integer
+  fixes; `v0.17.1-beta.20261117` (tag `f618c6a`) MCP JSON-RPC 2.0 and
+  `mcp_tool_bindings`; `v0.17.0-beta.20261117` (tag `fa567ef`) runtime reload
+  for MCP servers and skills (#35); `v0.16.3-beta.20261115` (tag `993af51`,
+  merged as `6fd8cfb`) the HTTP transport hotfix; `v0.16.2-beta.20261114` the
+  GitHub #33 security patch; `v0.16.1` the GitHub #32 `grep` follow-up and
+  `v0.16.0` the vision/lease/approval/TLS release.
+- Main is at the v0.17.3 release commit with nothing unreleased; GitHub issues
+  #35, #38, #39, #40, #41 and #42 are closed. The stable line remains
+  `v0.10.0`.
 - `docs/v0.18-ROADMAP.md` is planned (2026-11-18), bd epic `PAR-ga4q`:
   W1 Python native API (typed + async), W2 typed tracing + OTel adapter,
   W3 MCP sampling routing on stdio and HTTP; W4 `PAR-9km` runs in parallel and
@@ -29,8 +29,8 @@
   5.4.1. Re-verified after every batch: 1752 OCaml tests / 0 failures, then
   1764 after the review fixes, 1767 after the grep follow-up, 1776 after the
   hook-coverage patch, 1787 after the MCP reload work, 1779 at the v0.16.3
-  tag, 1790 on main after the hotfix, 1798 at v0.17.1 and 1807 at v0.17.2;
-  Python 209 → 216 → 221 passed / 20 skipped.
+  tag, 1790 on main after the hotfix, 1798 at v0.17.1, 1807 at v0.17.2 and
+  1815 at v0.17.3; Python 209 → 216 → 221 passed / 20 skipped.
 - Lessons recorded on 2026-11-14: `.gsd/KNOWLEDGE.md` (TLS/HTTP, event bus,
   glob, dependency and PyPI traps), `docs/STRATEGY.md` §11.5, and
   `docs/rules/release.md` post-publish verification. Decisions #17 (TLS entry
@@ -123,12 +123,14 @@
     one helper across seven float config fields; `temperature=1` now registers.
     Nine new OCaml cases and five Python cases. Shipped in
     **v0.17.2-beta.20261118**.
-21. **GitHub #42 model discovery (unreleased)** — `Openai_provider.list_models`
-    (GET `/models`, also Ollama/Custom) and `Anthropic_provider.list_models`
-    (GET `/v1/models?limit=1000`) plus `to_llm_service` constructors that include
-    `list_models_fn`; the C bridge uses them. `Http_client` now honors the
-    request verb instead of hardcoding POST. Eight new provider/runtime cases.
-    **Do not release without user instruction.**
+21. **GitHub #42 model discovery (v0.17.3-beta.20261118)** —
+    `Openai_provider.list_models` (GET `/models`, also Ollama/Custom) and
+    `Anthropic_provider.list_models` (GET `/v1/models?limit=1000`) plus
+    `to_llm_service` constructors that include `list_models_fn`; the C bridge
+    uses them. `Http_client` now honors the request verb instead of hardcoding
+    POST. Eight new provider/runtime cases. Shipped in
+    **v0.17.3-beta.20261118** after the macOS arm64 runner queue cleared (the
+    publish workflow was re-run; Release acceptance then passed).
 
 ## Next directions
 
