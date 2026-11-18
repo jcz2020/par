@@ -30,7 +30,7 @@ from par_runtime.content import (
     tool_content,
 )
 
-__version__ = "0.17.2-beta.20261118"
+__version__ = "0.17.3-beta.20261118"
 
 __all__ = [
     "Runtime",

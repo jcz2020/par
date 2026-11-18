@@ -1,8 +1,8 @@
 # CHANGES
 
-## Unreleased — model discovery for OpenAI-compatible and Anthropic providers (GitHub #42)
+## v0.17.3-beta.20261118 — model discovery for OpenAI-compatible and Anthropic providers (GitHub #42)
 
-> `Runtime.list_models` always returned `Internal "list_models not supported for this provider"` because only the mock provider supplied `list_models_fn`; neither built-in HTTP provider had a model-listing function, so hosts could not build a model picker. Both providers now implement the endpoint and expose `to_llm_service`, which makes `list_models_fn` part of the complete service record. **1815 OCaml tests, 0 failures; 221 Python passed / 20 skipped.** No version bump yet.
+> `Runtime.list_models` always returned `Internal "list_models not supported for this provider"` because only the mock provider supplied `list_models_fn`; neither built-in HTTP provider had a model-listing function, so hosts could not build a model picker. Both providers now implement the endpoint and expose `to_llm_service`, which makes `list_models_fn` part of the complete service record. **1815 OCaml tests, 0 failures; 221 Python passed / 20 skipped.** Beta-first: the stable line remains v0.10.0.
 
 ### Added — `list_models` on the built-in providers
 
@@ -21,6 +21,15 @@
 - OCaml totals are **1815 tests**, 0 failures (+8).
 - `test_providers.ml` covers both parsers, `GET /models` / `GET /v1/models?limit=1000` (verb and path pinned), 401 mapping, and `Runtime.list_models` through `to_llm_service`.
 - Docs: provider model-discovery subsection added to `docs/sdk/agent.md` + zh.
+
+### Known issues
+
+- A completely stalled HTTP read cannot be interrupted on the cohttp-eio transport; cancellation takes effect on the next chunk. The owned-socket transport (`PAR-9km`) is deferred past this release.
+- `Ca_certs.authenticator ()` failure still falls back to `no_auth` in the provider/MCP/builtin TLS configs (`PAR-is4`, P1).
+- `blocking_approval` in `agent_dispatch_spec` remains an unimplemented field (`PAR-e68`).
+- Recovery replays the system prompt, static tool set, workspace/appendix and skill snapshot, but not `tool_search` promotions or steering queues.
+- `list_orphaned_invokes` still returns only `(invoke_id, agent_id)`.
+- `test_http_timeout.py` can segfault when the Python suite runs in one process; it passes alone.
 
 ## v0.17.2-beta.20261118 — bash and Python accept integer numbers; literal substitutions (GitHub #40, #41)
 
