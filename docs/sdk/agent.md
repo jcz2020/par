@@ -239,6 +239,18 @@ type llm_provider_config =
                 request_format : [ `Openai_compatible | `Anthropic_compatible ] }
 ```
 
+### Model discovery
+
+`Openai_provider.to_llm_service` and `Anthropic_provider.to_llm_service` build a complete `llm_service`, including `list_models_fn`. Pass it to `Runtime.create ~llm` (or `Runtime.register_llm_provider`), then:
+
+```ocaml
+match Runtime.list_models rt () with
+| Ok models -> List.iter print_endline models
+| Error e -> ...
+```
+
+The OpenAI path uses `GET {base_url}/models` and also works for Ollama (`/v1/models`) and OpenAI-compatible gateways; Anthropic uses `GET {base_url}/v1/models?limit=1000`. The mock provider returns `["mock-model"]`. A hand-built `llm_service` must set `list_models_fn` itself; otherwise `Runtime.list_models` returns `Internal "list_models not supported for this provider"`.
+
 ## Multimodal user input
 
 Use `Runtime.invoke_content rt ~agent_id ~content ()` for mixed text and image

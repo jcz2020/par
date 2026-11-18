@@ -11,6 +11,13 @@ val complete :
 val embed :
   t -> string list -> (float array list, error_category) result
 
+val list_models : t -> (string list, error_category) result
+(** [GET {base_url}/v1/models?limit=1000]. Model discovery for
+    {!Runtime.list_models}. *)
+
+(** Parse an Anthropic /v1/models response body. Exposed for unit testing. *)
+val parse_models_response : Yojson.Safe.t -> (string list, error_category) result
+
 val complete_structured :
   t -> model_config -> tool_descriptor list -> conversation -> Yojson.Safe.t ->
   (llm_response, error_category) result
@@ -43,6 +50,10 @@ val check_thinking : model_config -> (unit, error_category) result
     network. *)
 
 val close : t -> unit
+
+val to_llm_service : t -> llm_service
+(** Complete [llm_service] for [Runtime.create] / [Runtime.register_llm_provider].
+    Includes [list_models_fn] and [complete_structured_fn] (GitHub #42). *)
 
 val set_network : t -> [ `Generic] Eio.Net.ty Eio.Net.t -> unit
 

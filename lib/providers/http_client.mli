@@ -12,6 +12,10 @@ val parse_url : string -> parsed_url
 val build_http_request :
   host:string -> path:string -> headers:(string * string) list -> body:string -> string
 
+val build_http_get :
+  host:string -> path:string -> headers:(string * string) list -> string
+(** Build a bodyless GET request. Used by model discovery ([GET /models]). *)
+
 val split_response : string -> string * string
 
 val parse_status_line : string -> int

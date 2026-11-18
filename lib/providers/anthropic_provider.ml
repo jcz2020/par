@@ -469,6 +469,49 @@ let process_stream_event (evt_type, data_str) callback usage finish chunks curre
 (* LLM_SERVICE implementation                                            *)
 (* -------------------------------------------------------------------------- *)
 
+(* [GET {base_url}/v1/models] — used by Runtime.list_models. The API paginates
+   (default limit 20); request 1000 so one call returns the practical set. *)
+let parse_models_response json =
+  let open Yojson.Safe.Util in
+  match json |> member "data" with
+  | `List items ->
+    Ok
+      (List.filter_map
+         (fun item ->
+           match item |> member "id" with
+           | `String id -> Some id
+           | _ -> None)
+         items)
+  | _ -> Result.Error (Invalid_input "Anthropic models response is missing the data array")
+
+let list_models t =
+  match t.net with
+  | None -> Result.Error (Internal "Network not initialized; call set_network first")
+  | Some net ->
+    let url = Http_client.parse_url t.base_url in
+    let headers = auth_headers t in
+    let request =
+      Http_client.build_http_get
+        ~host:url.Http_client.host
+        ~path:(url.Http_client.path ^ "v1/models?limit=1000")
+        ~headers
+    in
+    ( try
+        let raw = Http_client.do_request net url request in
+        let headers, raw_body = Http_client.split_response raw in
+        let status = Http_client.parse_status_line headers in
+        let resp_body = Http_client.decode_body headers raw_body in
+        if status <> 200 then
+          Result.Error
+            (http_error_to_error_category
+               (Http_client.map_http_status status resp_body))
+        else parse_models_response (Yojson.Safe.from_string resp_body)
+      with
+      | Eio.Io _ -> Result.Error (External_failure "Network error during Anthropic models request")
+      | Failure msg when (try Str.search_forward (Str.regexp "timed out") msg 0 >= 0 with _ -> false) -> Result.Error Timeout
+      | Failure msg -> Result.Error (Invalid_input msg)
+      | exn -> Result.Error (Internal (Printexc.to_string exn)) )
+
 let complete t model_config tools conversation =
   match check_thinking model_config with
   | Error _ as e -> e
@@ -613,3 +656,17 @@ let stream t model_config tools conversation _stream_config callback =
 let embed _t _messages = Result.Error Embedding_unsupported
 
 let close _t = ()
+
+(* See [Openai_provider.to_llm_service] — the Anthropic counterpart includes
+   [list_models_fn] so Runtime.list_models works without hand-built records. *)
+let to_llm_service t : llm_service = {
+  complete_fn = (fun mc tools conv -> complete t mc tools conv);
+  stream_fn = (fun mc tools conv sc cb -> stream t mc tools conv sc cb);
+  close_fn = (fun () -> close t);
+  complete_structured_fn =
+    Some (fun mc tools conv schema -> complete_structured t mc tools conv schema);
+  list_models_fn = Some (fun () -> list_models t);
+  supports_native_tools_fn = None;
+  context_window_fn = None;
+  cache_control_fn = None;
+}

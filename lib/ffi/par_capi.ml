@@ -187,60 +187,28 @@ let build_llm_from_provider provider_cfg net =
     (match Par.Openai_provider.create (Par.Types.Openai { api_key; base_url; organization; embedding_model = None; prompt_cache_key = None }) with
      | Ok t ->
        Par.Openai_provider.set_network t net_gen;
-Some {
-          Par.Types.complete_fn = (fun mc tools conv -> Par.Openai_provider.complete t mc tools conv);
-          stream_fn = (fun mc tools conv sc cb -> Par.Openai_provider.stream t mc tools conv sc cb);
-          close_fn = (fun () -> Par.Openai_provider.close t);
-          complete_structured_fn = Some (fun mc tools conv schema -> Par.Openai_provider.complete_structured t mc tools conv schema);
-          list_models_fn = None;
-  supports_native_tools_fn = None;
-  context_window_fn = None; cache_control_fn = None;
-        }
+       Some (Par.Openai_provider.to_llm_service t)
       | Error _ -> None)
   | Par.Types.Ollama { base_url } ->
     let cfg = Par.Types.Openai { api_key = "ollama-no-auth"; base_url = Some (base_url ^ "/v1"); organization = None; embedding_model = None; prompt_cache_key = None } in
     (match Par.Openai_provider.create cfg with
      | Ok t ->
        Par.Openai_provider.set_network t net_gen;
-       Some {
-         Par.Types.complete_fn = (fun mc tools conv -> Par.Openai_provider.complete t mc tools conv);
-         stream_fn = (fun mc tools conv sc cb -> Par.Openai_provider.stream t mc tools conv sc cb);
-         close_fn = (fun () -> Par.Openai_provider.close t);
-         complete_structured_fn = None;
-         list_models_fn = None;
-  supports_native_tools_fn = None;
-  context_window_fn = None; cache_control_fn = None;
-       }
+       Some { (Par.Openai_provider.to_llm_service t) with complete_structured_fn = None }
      | Error _ -> None)
   | Par.Types.Anthropic { api_key; base_url } ->
     let cfg = Par.Types.Anthropic { api_key; base_url } in
     (match Par.Anthropic_provider.create cfg with
      | Ok t ->
        Par.Anthropic_provider.set_network t net_gen;
-       Some {
-          Par.Types.complete_fn = (fun mc tools conv -> Par.Anthropic_provider.complete t mc tools conv);
-          stream_fn = (fun mc tools conv sc cb -> Par.Anthropic_provider.stream t mc tools conv sc cb);
-          close_fn = (fun () -> Par.Anthropic_provider.close t);
-          complete_structured_fn = Some (fun mc tools conv schema -> Par.Anthropic_provider.complete_structured t mc tools conv schema);
-          list_models_fn = None;
-  supports_native_tools_fn = None;
-  context_window_fn = None; cache_control_fn = None;
-        }
+       Some (Par.Anthropic_provider.to_llm_service t)
       | Error _ -> None)
   | Par.Types.Custom { base_url = base_url_for_custom; _ } ->
        let cfg = Par.Types.Openai { api_key = "par-custom-no-auth"; base_url = Some base_url_for_custom; organization = None; embedding_model = None; prompt_cache_key = None } in
        (match Par.Openai_provider.create cfg with
         | Ok t ->
           Par.Openai_provider.set_network t net_gen;
-          Some {
-            Par.Types.complete_fn = (fun mc tools conv -> Par.Openai_provider.complete t mc tools conv);
-            stream_fn = (fun mc tools conv sc cb -> Par.Openai_provider.stream t mc tools conv sc cb);
-            close_fn = (fun () -> Par.Openai_provider.close t);
-            complete_structured_fn = None;
-            list_models_fn = None;
-  supports_native_tools_fn = None;
-  context_window_fn = None; cache_control_fn = None;
-          }
+          Some { (Par.Openai_provider.to_llm_service t) with complete_structured_fn = None }
         | Error _ -> None)
 
 let build_embed_from_provider provider_cfg net =

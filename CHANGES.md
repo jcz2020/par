@@ -1,5 +1,27 @@
 # CHANGES
 
+## Unreleased — model discovery for OpenAI-compatible and Anthropic providers (GitHub #42)
+
+> `Runtime.list_models` always returned `Internal "list_models not supported for this provider"` because only the mock provider supplied `list_models_fn`; neither built-in HTTP provider had a model-listing function, so hosts could not build a model picker. Both providers now implement the endpoint and expose `to_llm_service`, which makes `list_models_fn` part of the complete service record. **1815 OCaml tests, 0 failures; 221 Python passed / 20 skipped.** No version bump yet.
+
+### Added — `list_models` on the built-in providers
+
+- `Openai_provider.list_models` issues `GET {base_url}/models`; works for OpenAI, Ollama (`/v1/models`) and OpenAI-compatible gateways. `parse_models_response` maps `data[].id` and is exposed for unit testing.
+- `Anthropic_provider.list_models` issues `GET {base_url}/v1/models?limit=1000` (the API paginates; 1000 covers the practical set). `parse_models_response` is exposed for unit testing.
+- `Openai_provider.to_llm_service` and `Anthropic_provider.to_llm_service` build the complete `llm_service` — including `list_models_fn` and `complete_structured_fn` — so hosts stop hand-building the record and forgetting capabilities.
+- The C bridge now uses those constructors for Openai/Ollama/Custom/Anthropic, so provider services created through `lib/ffi` also carry `list_models_fn`.
+- Parity note: the Python binding does not expose `list_models` yet (`PAR-xmap`, P3). The C-bridge services already hold the capability, so the binding only needs the FFI entry and a wrapper.
+
+### Fixed — GET requests were silently sent as POST
+
+- `Http_client` parsed only the path from the raw request; `do_request` / `do_request_streaming` hardcoded `` `POST``. A new `build_http_get` plus method-aware dispatch makes the verb part of the request. Existing POST callers are unchanged.
+
+### Tests
+
+- OCaml totals are **1815 tests**, 0 failures (+8).
+- `test_providers.ml` covers both parsers, `GET /models` / `GET /v1/models?limit=1000` (verb and path pinned), 401 mapping, and `Runtime.list_models` through `to_llm_service`.
+- Docs: provider model-discovery subsection added to `docs/sdk/agent.md` + zh.
+
 ## v0.17.2-beta.20261118 — bash and Python accept integer numbers; literal substitutions (GitHub #40, #41)
 
 > A model sending `{"timeout": 30}` crashed the bash handler before spawning: JSON has one number type, and Yojson's `to_float_option` raises on `Int`. The same misuse in the Python C bridge made `temperature=1` fail to register an agent. Separately, the blacklist rejected literal `$(...)` and backticks even though argv is executed without a shell. All three are fixed. **1807 OCaml tests, 0 failures; 221 Python passed / 20 skipped.** Beta-first: the stable line remains v0.10.0.

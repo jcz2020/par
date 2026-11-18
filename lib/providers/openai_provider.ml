@@ -760,6 +760,50 @@ let stream t model_config tools conversation _stream_config callback =
        let sorted = List.sort (fun (a, _) (b, _) -> compare a b) indexed in
        Ok (List.map snd sorted)
 
+(* [GET {base_url}/models] — used by Runtime.list_models so hosts can build a
+   model picker. Works for OpenAI and any OpenAI-compatible endpoint (Ollama's
+   /v1/models, gateways, etc.). *)
+let parse_models_response json =
+  let open Yojson.Safe.Util in
+  match json |> member "data" with
+  | `List items ->
+    Ok
+      (List.filter_map
+         (fun item ->
+           match item |> member "id" with
+           | `String id -> Some id
+           | _ -> None)
+         items)
+  | _ -> Result.Error (Invalid_input "OpenAI models response is missing the data array")
+
+let list_models t =
+  match t.net with
+  | None -> Result.Error (Internal "Network not initialized; call set_network first")
+  | Some net ->
+    let url = Http_client.parse_url t.base_url in
+    let headers = build_auth_headers t in
+    let request =
+      Http_client.build_http_get
+        ~host:url.Http_client.host
+        ~path:(url.Http_client.path ^ "models")
+        ~headers
+    in
+    ( try
+        let raw = Http_client.do_request net url request in
+        let headers, raw_body = Http_client.split_response raw in
+        let status = Http_client.parse_status_line headers in
+        let resp_body = Http_client.decode_body headers raw_body in
+        if status <> 200 then
+          Result.Error
+            (http_error_to_error_category
+               (Http_client.map_http_status status resp_body))
+        else parse_models_response (Yojson.Safe.from_string resp_body)
+      with
+      | Eio.Io _ -> Result.Error (External_failure "Network error during OpenAI models request")
+      | Failure msg when (try Str.search_forward (Str.regexp "timed out") msg 0 >= 0 with _ -> false) -> Result.Error Timeout
+      | Failure msg -> Result.Error (Invalid_input msg)
+      | exn -> Result.Error (Internal (Printexc.to_string exn)) )
+
 let embed t messages =
   match t.net with
   | None -> Result.Error (Internal "Network not initialized; call set_network first")
@@ -799,3 +843,19 @@ let embed t messages =
       | exn -> Result.Error (Internal (Printexc.to_string exn)) )
 
 let close _t = ()
+
+(* One complete [llm_service] for [Runtime.create] / [register_llm_provider].
+   Keeping this next to the provider avoids the capability drift that caused
+   GitHub #42: every caller previously hand-built the record and forgot
+   [list_models_fn]. *)
+let to_llm_service t : llm_service = {
+  complete_fn = (fun mc tools conv -> complete t mc tools conv);
+  stream_fn = (fun mc tools conv sc cb -> stream t mc tools conv sc cb);
+  close_fn = (fun () -> close t);
+  complete_structured_fn =
+    Some (fun mc tools conv schema -> complete_structured t mc tools conv schema);
+  list_models_fn = Some (fun () -> list_models t);
+  supports_native_tools_fn = None;
+  context_window_fn = None;
+  cache_control_fn = None;
+}

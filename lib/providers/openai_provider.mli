@@ -11,6 +11,14 @@ val complete :
 val embed :
   t -> string list -> (float array list, error_category) result
 
+val list_models : t -> (string list, error_category) result
+(** [GET {base_url}/models]. Works for OpenAI and OpenAI-compatible endpoints
+    (including Ollama's [/v1/models]). Model discovery for
+    {!Runtime.list_models}. *)
+
+(** Parse an OpenAI /models response body. Exposed for unit testing. *)
+val parse_models_response : Yojson.Safe.t -> (string list, error_category) result
+
 (** Parse an OpenAI /embeddings response body. Exposed for unit testing. *)
 val parse_embeddings_response : Yojson.Safe.t -> (float array list, error_category) result
 
@@ -25,6 +33,11 @@ val stream :
   (stream_complete, error_category) result
 
 val close : t -> unit
+
+val to_llm_service : t -> llm_service
+(** Complete [llm_service] for [Runtime.create] / [Runtime.register_llm_provider].
+    Includes [list_models_fn] and [complete_structured_fn], so a host does not
+    have to hand-build the record (GitHub #42). *)
 
 val set_network : t -> [ `Generic] Eio.Net.ty Eio.Net.t -> unit
 

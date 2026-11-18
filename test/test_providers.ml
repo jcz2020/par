@@ -924,6 +924,200 @@ let test_edge_openai_request_body_max_tokens_omitted () =
     (not (List.mem "max_tokens" keys))
 
 (* -------------------------------------------------------------------------- *)
+(* Model discovery                                                           *)
+(* -------------------------------------------------------------------------- *)
+
+(* Same mock server as above, but records the request line so the tests can
+   pin the verb and path ([GET /v1/models]) instead of only the response. *)
+let with_recording_http_server env ~response f =
+  Eio.Switch.run @@ fun sw ->
+  let net = Eio.Stdenv.net env in
+  let addr = `Tcp (Eio.Net.Ipaddr.V4.loopback, 0) in
+  let server_sock = Eio.Net.listen net ~sw ~reuse_addr:true ~backlog:5 addr in
+  let port =
+    match Eio.Net.listening_addr server_sock with
+    | `Tcp (_, p) -> p
+    | _ -> Alcotest.fail "expected TCP listening address"
+  in
+  let request_line = ref None in
+  Eio.Fiber.fork_daemon ~sw (fun () ->
+    while true do
+      Eio.Net.accept_fork server_sock ~sw ~on_error:(fun _ -> ())
+        (fun flow _addr ->
+          try
+            let buf = Eio.Buf_read.of_flow flow
+              ~initial_size:4096 ~max_size:65536 in
+            request_line := Some (Eio.Buf_read.line buf);
+            let rec drain_headers () =
+              let line = Eio.Buf_read.line buf in
+              if String.trim line <> "" then drain_headers ()
+            in
+            drain_headers ();
+            Eio.Flow.copy (Eio.Flow.string_source response) flow
+          with _ -> ())
+    done);
+  f (Printf.sprintf "http://127.0.0.1:%d/" port) request_line
+
+let http_json_response body =
+  Printf.sprintf
+    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: %d\r\nConnection: close\r\n\r\n%s"
+    (String.length body) body
+
+let test_openai_parse_models_response () =
+  let json =
+    Yojson.Safe.from_string
+      {|{"object":"list","data":[{"id":"gpt-4o"},{"id":"gpt-4o-mini"},{"object":"model"}]}|}
+  in
+  match Openai_provider.parse_models_response json with
+  | Ok ids -> Alcotest.(check (list string)) "ids" ["gpt-4o"; "gpt-4o-mini"] ids
+  | Error e -> Alcotest.failf "parse failed: %s" (show_error e)
+
+let test_openai_parse_models_missing_data () =
+  match Openai_provider.parse_models_response (`Assoc []) with
+  | Error (Invalid_input _) -> ()
+  | Ok _ -> Alcotest.fail "expected Invalid_input"
+  | Error e -> Alcotest.failf "expected Invalid_input, got %s" (show_error e)
+
+let test_openai_list_models_roundtrip () =
+  Mirage_crypto_rng_unix.use_default ();
+  Eio_main.run @@ fun env ->
+  let body = {|{"object":"list","data":[{"id":"gpt-4o"},{"id":"gpt-4o-mini"}]}|} in
+  with_recording_http_server env ~response:(http_json_response body)
+    (fun url request_line ->
+      let net = (Eio.Stdenv.net env :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
+      match
+        Openai_provider.create
+          (Openai { api_key = "sk-test"
+                  ; base_url = Some (url ^ "v1")
+                  ; organization = None; embedding_model = None; prompt_cache_key = None })
+      with
+      | Error e -> Alcotest.failf "create failed: %s" (show_error e)
+      | Ok t ->
+        Openai_provider.set_network t net;
+        (match Openai_provider.list_models t with
+         | Ok ids ->
+           Alcotest.(check (list string)) "ids" ["gpt-4o"; "gpt-4o-mini"] ids
+         | Error e -> Alcotest.failf "list_models failed: %s" (show_error e));
+        (match !request_line with
+         | Some line ->
+           Alcotest.(check string) "request line" "GET /v1/models HTTP/1.1" line
+         | None -> Alcotest.fail "request line not recorded"))
+
+let test_openai_list_models_http_error () =
+  Mirage_crypto_rng_unix.use_default ();
+  Eio_main.run @@ fun env ->
+  let body = {|{"error":"bad key"}|} in
+  let response =
+    Printf.sprintf
+      "HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\nContent-Length: %d\r\nConnection: close\r\n\r\n%s"
+      (String.length body) body
+  in
+  with_recording_http_server env ~response (fun url _request_line ->
+    let net = (Eio.Stdenv.net env :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
+    match
+      Openai_provider.create
+        (Openai { api_key = "sk-test"
+                ; base_url = Some url
+                ; organization = None; embedding_model = None; prompt_cache_key = None })
+    with
+    | Error e -> Alcotest.failf "create failed: %s" (show_error e)
+    | Ok t ->
+      Openai_provider.set_network t net;
+      match Openai_provider.list_models t with
+      | Error (Permission_denied _) -> ()
+      | Ok _ -> Alcotest.fail "expected Permission_denied"
+      | Error e -> Alcotest.failf "expected Permission_denied, got %s" (show_error e))
+
+let test_anthropic_parse_models_response () =
+  let json =
+    Yojson.Safe.from_string
+      {|{"data":[{"id":"claude-3-5-sonnet-latest"},{"id":"claude-3-haiku"}],"has_more":false}|}
+  in
+  match Anthropic_provider.parse_models_response json with
+  | Ok ids ->
+    Alcotest.(check (list string)) "ids"
+      ["claude-3-5-sonnet-latest"; "claude-3-haiku"] ids
+  | Error e -> Alcotest.failf "parse failed: %s" (show_error e)
+
+let test_anthropic_list_models_roundtrip () =
+  Mirage_crypto_rng_unix.use_default ();
+  Eio_main.run @@ fun env ->
+  let body =
+    {|{"data":[{"id":"claude-3-5-sonnet-latest"}],"has_more":false,"last_id":"x"}|}
+  in
+  with_recording_http_server env ~response:(http_json_response body)
+    (fun url request_line ->
+      let net = (Eio.Stdenv.net env :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
+      match
+        Anthropic_provider.create
+          (Anthropic { api_key = "sk-ant-test"; base_url = Some url })
+      with
+      | Error e -> Alcotest.failf "create failed: %s" (show_error e)
+      | Ok t ->
+        Anthropic_provider.set_network t net;
+        (match Anthropic_provider.list_models t with
+         | Ok ids ->
+           Alcotest.(check (list string)) "ids"
+             ["claude-3-5-sonnet-latest"] ids
+         | Error e -> Alcotest.failf "list_models failed: %s" (show_error e));
+        (match !request_line with
+         | Some line ->
+           Alcotest.(check string) "request line"
+             "GET /v1/models?limit=1000 HTTP/1.1" line
+         | None -> Alcotest.fail "request line not recorded"))
+
+let test_anthropic_parse_models_missing_data () =
+  match Anthropic_provider.parse_models_response (`Assoc []) with
+  | Error (Invalid_input _) -> ()
+  | Ok _ -> Alcotest.fail "expected Invalid_input"
+  | Error e -> Alcotest.failf "expected Invalid_input, got %s" (show_error e)
+
+(* The user-visible regression: Runtime.list_models must return the provider's
+   models when the service came from the provider (not a hand-built record with
+   list_models_fn = None). *)
+let test_runtime_list_models_uses_provider_service () =
+  Mirage_crypto_rng_unix.use_default ();
+  Eio_main.run @@ fun env ->
+  let body = {|{"object":"list","data":[{"id":"gpt-4o"},{"id":"gpt-4o-mini"}]}|} in
+  with_recording_http_server env ~response:(http_json_response body)
+    (fun url _request_line ->
+      let net = (Eio.Stdenv.net env :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
+      match
+        Openai_provider.create
+          (Openai { api_key = "sk-test"
+                  ; base_url = Some (url ^ "v1")
+                  ; organization = None; embedding_model = None; prompt_cache_key = None })
+      with
+      | Error e -> Alcotest.failf "create failed: %s" (show_error e)
+      | Ok t ->
+        Openai_provider.set_network t net;
+        Eio.Switch.run @@ fun sw ->
+        let config : runtime_config = {
+          persistence = `Sqlite ":memory:";
+          event_bus = Runtime.default_event_bus_config;
+          default_quota = Runtime.default_quota;
+          shutdown = Runtime.default_shutdown_config;
+          llm_providers = [];
+          eval_limits = { max_depth = 10; max_node_visits = 1000 };
+          parallel_tool_execution = true;
+          bash_confirm = Runtime.default_bash_confirm;
+          event_retention_seconds = 604800.0;
+          max_tool_schema_tokens = None;
+        } in
+        match Runtime.create ~config ~llm:(Openai_provider.to_llm_service t) sw with
+        | Error e -> Alcotest.failf "Runtime.create failed: %s" (show_error e)
+        | Ok rt ->
+          Fun.protect
+            ~finally:(fun () -> ignore (Runtime.close rt))
+            (fun () ->
+               match Runtime.list_models rt () with
+               | Ok ids ->
+                 Alcotest.(check (list string)) "models"
+                   ["gpt-4o"; "gpt-4o-mini"] ids
+               | Error e ->
+                 Alcotest.failf "Runtime.list_models failed: %s" (show_error e)))
+
+(* -------------------------------------------------------------------------- *)
 (* Test runner                                                                *)
 (* -------------------------------------------------------------------------- *)
 
@@ -1000,6 +1194,24 @@ let () =
        Alcotest.test_case "stream 500 → External_failure with body (regression)" `Quick
          test_anthropic_stream_surfaces_500_with_body;
      ];
+    "model_discovery", [
+      Alcotest.test_case "OpenAI parse models data[].id" `Quick
+        test_openai_parse_models_response;
+      Alcotest.test_case "OpenAI parse models rejects missing data" `Quick
+        test_openai_parse_models_missing_data;
+      Alcotest.test_case "OpenAI list_models GET /v1/models" `Quick
+        test_openai_list_models_roundtrip;
+      Alcotest.test_case "OpenAI list_models surfaces 401" `Quick
+        test_openai_list_models_http_error;
+      Alcotest.test_case "Anthropic parse models data[].id" `Quick
+        test_anthropic_parse_models_response;
+      Alcotest.test_case "Anthropic parse models rejects missing data" `Quick
+        test_anthropic_parse_models_missing_data;
+      Alcotest.test_case "Anthropic list_models GET /v1/models?limit=1000" `Quick
+        test_anthropic_list_models_roundtrip;
+      Alcotest.test_case "Runtime.list_models uses the provider service" `Quick
+        test_runtime_list_models_uses_provider_service;
+    ];
     "edge_cases", [
       Alcotest.test_case "OpenAI Unicode in user message" `Quick
         test_edge_openai_unicode_in_message;

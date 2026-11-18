@@ -228,6 +228,18 @@ type llm_provider_config =
                 request_format : [ `Openai_compatible | `Anthropic_compatible ] }
 ```
 
+### 模型发现
+
+`Openai_provider.to_llm_service` 与 `Anthropic_provider.to_llm_service` 会构造完整的 `llm_service`，其中包含 `list_models_fn`。把它传给 `Runtime.create ~llm`（或 `Runtime.register_llm_provider`），然后：
+
+```ocaml
+match Runtime.list_models rt () with
+| Ok models -> List.iter print_endline models
+| Error e -> ...
+```
+
+OpenAI 路径使用 `GET {base_url}/models`，也适用于 Ollama（`/v1/models`）与 OpenAI 兼容网关；Anthropic 使用 `GET {base_url}/v1/models?limit=1000`。Mock provider 返回 `["mock-model"]`。手工构造 `llm_service` 时必须自行设置 `list_models_fn`，否则 `Runtime.list_models` 返回 `Internal "list_models not supported for this provider"`。
+
 ## 多模态用户输入
 
 混合文本和图像块时使用 `Runtime.invoke_content rt ~agent_id ~content ()`。

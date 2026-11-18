@@ -53,6 +53,20 @@ let build_http_request ~host ~path ~headers ~body =
      %s"
     path host custom_headers (String.length body) body
 
+let build_http_get ~host ~path ~headers =
+  let custom_headers =
+    List.map (fun (k, v) -> Printf.sprintf "%s: %s\r\n" k v) headers
+    |> String.concat ""
+  in
+  Printf.sprintf
+    "GET %s HTTP/1.1\r\n\
+     Host: %s\r\n\
+     %s\
+     Accept: application/json\r\n\
+     Connection: close\r\n\
+     \r\n"
+    path host custom_headers
+
 (* -------------------------------------------------------------------------- *)
 (* HTTP response parsing                                                      *)
 (* -------------------------------------------------------------------------- *)
@@ -258,13 +272,13 @@ let parse_raw_request request =
       if String.length l > 0 && l.[String.length l - 1] = '\r' then
         String.sub l 0 (String.length l - 1) else l)
   in
-  let path =
+  let method_, path =
     match lines with
     | first :: _ ->
       (match String.split_on_char ' ' first with
-       | _ :: p :: _ -> p
-       | _ -> "/")
-    | [] -> "/"
+       | m :: p :: _ -> (m, p)
+       | _ -> ("POST", "/"))
+    | [] -> ("POST", "/")
   in
   let headers =
     List.filter_map (fun line ->
@@ -276,7 +290,7 @@ let parse_raw_request request =
       | None -> None
     ) (List.tl lines)
   in
-  (path, headers, body)
+  (method_, path, headers, body)
 
 let format_raw_response status_code reason headers body =
   let status_line = Printf.sprintf "HTTP/1.1 %d %s\r\n" status_code reason in
@@ -287,7 +301,7 @@ let format_raw_response status_code reason headers body =
   Printf.sprintf "%s%sContent-Length: %d\r\n\r\n%s" status_line header_str (String.length body) body
 
 let do_request net url request =
-  let (req_path, req_headers, req_body) = parse_raw_request request in
+  let (req_method, req_path, req_headers, req_body) = parse_raw_request request in
   let scheme = if url.use_tls then "https" else "http" in
   let uri_str = Printf.sprintf "%s://%s:%d%s" scheme url.host url.port req_path in
   let uri = Uri.of_string uri_str in
@@ -296,8 +310,9 @@ let do_request net url request =
       let client = cohttp_client_of_net net in
       let cohttp_headers = Cohttp.Header.of_list req_headers in
       let body = Cohttp_eio.Body.of_string req_body in
+      let method_ = Cohttp.Code.method_of_string req_method in
       let resp, resp_body = Cohttp_eio.Client.call ~sw
-        ~headers:cohttp_headers ~body client `POST uri in
+        ~headers:cohttp_headers ~body client method_ uri in
       let status_code = Cohttp.Code.code_of_status (Http.Response.status resp) in
       let body_string =
         Eio.Buf_read.parse_exn ~max_size:(100 * 1024 * 1024) Eio.Buf_read.take_all resp_body
@@ -439,7 +454,7 @@ let do_request_streaming_with_flow flow k =
   k ~status ~headers ~read_line
 
 let do_request_streaming net url request k =
-  let (req_path, req_headers, req_body) = parse_raw_request request in
+  let (req_method, req_path, req_headers, req_body) = parse_raw_request request in
   let scheme = if url.use_tls then "https" else "http" in
   let uri_str = Printf.sprintf "%s://%s:%d%s" scheme url.host url.port req_path in
   let uri = Uri.of_string uri_str in
@@ -448,8 +463,9 @@ let do_request_streaming net url request k =
       let client = cohttp_client_of_net net in
       let cohttp_headers = Cohttp.Header.of_list req_headers in
       let body = Cohttp_eio.Body.of_string req_body in
+      let method_ = Cohttp.Code.method_of_string req_method in
       let resp, resp_body = Cohttp_eio.Client.call ~sw
-        ~headers:cohttp_headers ~body client `POST uri in
+        ~headers:cohttp_headers ~body client method_ uri in
       let status = Cohttp.Code.code_of_status (Http.Response.status resp) in
       let headers_str = String.concat "\r\n" (
         List.map (fun (k,v) -> k ^ ": " ^ v) (Cohttp.Header.to_list (Http.Response.headers resp))
