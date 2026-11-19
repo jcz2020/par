@@ -133,6 +133,7 @@ let suite = [
           default_quota = Par.Runtime.default_quota;
           shutdown = Par.Runtime.default_shutdown_config;
           llm_providers = [];
+          mcp_sampling = Disabled;
           eval_limits = { max_depth = 10; max_node_visits = 1000 };
   parallel_tool_execution = true;
           bash_confirm = Par.Runtime.default_bash_confirm;

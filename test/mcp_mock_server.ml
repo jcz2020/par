@@ -46,15 +46,17 @@ let parse_flags () =
   let no_init = ref false in
   let garbage = ref false in
   let slow = ref false in
+  let sampling = ref false in
   Array.iter (fun arg ->
     match arg with
     | "--crash-on-startup" -> crash := true
     | "--no-initialize-response" -> no_init := true
     | "--garbage-on-stderr" -> garbage := true
     | "--slow-tools-list" -> slow := true
+    | "--sampling-on-tool-call" -> sampling := true
     | _ -> ()
   ) Sys.argv;
-  !crash, !no_init, !garbage, !slow
+  !crash, !no_init, !garbage, !slow, !sampling
 
 (* ---------- JSON helpers ---------- *)
 
@@ -86,7 +88,7 @@ let ok_content s =
 
 (* ---------- Method dispatch ---------- *)
 
-let handle ~slow_tools_list (json : Yojson.Safe.t) : Yojson.Safe.t option =
+let handle ~slow_tools_list ~sampling_text (json : Yojson.Safe.t) : Yojson.Safe.t option =
   let open Yojson.Safe.Util in
   let id = json |> member "id" in
          let method_ = json |> member "method" |> to_string_option in
@@ -119,6 +121,10 @@ let handle ~slow_tools_list (json : Yojson.Safe.t) : Yojson.Safe.t option =
       (match name with
        | Some "echo" ->
            let msg = json |> member "params" |> member "arguments" |> member "message" |> to_string_option |> Option.value ~default:"" in
+           let msg = match sampling_text with
+             | Some sampled -> msg ^ " | sampled:" ^ sampled
+             | None -> msg
+           in
            Some (jsonrpc_response ~id (ok_content msg))
        | Some "add" ->
            let a = json |> member "params" |> member "arguments" |> member "a" |> to_int_option |> Option.value ~default:0 in
@@ -195,7 +201,7 @@ let read_line_opt in_ =
   try Some (Eio.Buf_read.line in_)
   with End_of_file -> None
 
-let rec handle_request env in_ out clock slow_tools_list no_init_response =
+let rec handle_request env in_ out clock slow_tools_list no_init_response sampling =
   match read_line_opt in_ with
   | None -> ()
   | Some raw ->
@@ -212,18 +218,54 @@ let rec handle_request env in_ out clock slow_tools_list no_init_response =
                    Eio.Time.sleep clock (delay_ms /. 1000.0)
                | _ -> ())
           | _ -> ());
+         (* Optional server->client sampling round trip before answering a
+            tools/call. The test fixture verifies the client dispatch path. *)
+         let sampling_text =
+           if sampling && method_ = Some "tools/call" then begin
+             let request = `Assoc [
+               "jsonrpc", `String "2.0";
+               "id", `Int 900;
+               "method", `String "sampling/createMessage";
+               "params", `Assoc [
+                 "messages", `List [
+                   `Assoc [
+                     "role", `String "user";
+                     "content", `Assoc [
+                       "type", `String "text";
+                       "text", `String "fixture request";
+                     ];
+                   ];
+                 ];
+                 "maxTokens", `Int 16;
+               ];
+             ] in
+             write_line out (Yojson.Safe.to_string request);
+             match read_line_opt in_ with
+             | Some raw ->
+               (try
+                  let response = Yojson.Safe.from_string raw in
+                  let open Yojson.Safe.Util in
+                  let text =
+                    response |> member "result" |> member "content"
+                    |> member "text" |> to_string_option
+                  in
+                  text
+                with _ -> None)
+             | None -> None
+           end else None
+         in
          (* Skip initialize response if --no-initialize-response *)
          let skip = (no_init_response && method_ = Some "initialize") in
          if not skip then begin
-           match handle ~slow_tools_list json with
+           match handle ~slow_tools_list ~sampling_text json with
            | Some resp -> write_line out (Yojson.Safe.to_string resp)
            | None -> ()
          end;
          (* Stop after shutdown *)
          if method_ = Some "shutdown" then ()
-         else handle_request env in_ out clock slow_tools_list no_init_response
+         else handle_request env in_ out clock slow_tools_list no_init_response sampling
        with Yojson.Json_error _ ->
-         handle_request env in_ out clock slow_tools_list no_init_response)
+         handle_request env in_ out clock slow_tools_list no_init_response sampling)
 
 let garbage_fiber clock stderr =
   let i = ref 0 in
@@ -236,7 +278,7 @@ let garbage_fiber clock stderr =
   loop ()
 
 let () =
-  let crash, no_init_response, garbage, slow_tools_list = parse_flags () in
+  let crash, no_init_response, garbage, slow_tools_list, sampling = parse_flags () in
   if crash then begin
     prerr_endline "mock: crashing on startup";
     exit 1
@@ -248,4 +290,4 @@ let () =
       (* Treat stdin as a Buf_read; stdout as a sink. *)
       let in_ = Eio.Buf_read.of_flow env#stdin ~max_size:1_048_576 in
       let out = env#stdout in
-      handle_request env in_ out env#clock slow_tools_list no_init_response
+      handle_request env in_ out env#clock slow_tools_list no_init_response sampling

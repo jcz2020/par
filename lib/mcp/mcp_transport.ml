@@ -11,4 +11,6 @@ type t = {
     Mcp_types.jsonrpc_request -> (Mcp_types.jsonrpc_response, Types.error_category) result;
   notify : Mcp_types.jsonrpc_notification -> (unit, Types.error_category) result;
   close : unit -> unit;
+  set_sampling_handler :
+    (Yojson.Safe.t -> (Yojson.Safe.t, Types.error_category) result) -> unit;
 }

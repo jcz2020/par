@@ -38,6 +38,8 @@ type invoke_context = private {
   depth : int;
   on_tool_event : (Types.event -> unit) option;
   promoted_tools : Types.tool_descriptor list ref;
+  (** Number of MCP sampling requests served by this invoke. *)
+  mcp_sampling_requests : int ref;
 }
 
 (** The fiber-local key. Exported so callers (e.g. Engine) can read the

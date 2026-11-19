@@ -239,4 +239,5 @@ let to_transport (t : t) : Mcp_transport.t = {
   request_response = request_response t;
   notify = notify t;
   close = (fun () -> close t);
+  set_sampling_handler = (fun handler -> set_sampling_handler t handler);
 }

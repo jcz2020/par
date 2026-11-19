@@ -670,6 +670,38 @@ MCP 子进程**不会**经过 PAR 的 `Bash_policy.sanitize_env` 脱敏。`env` 
 
 安装 tracer 后（`Runtime.create ?tracer`），每次 MCP `tools/call` 都会产生一个 `mcp.call` client span，属性为 `mcp.server` 与 `mcp.tool`，作为外层 `tool.call` 的子 span。出站 MCP HTTP 请求会携带由当前 span 派生的 W3C `traceparent` 头。参见[可观测性](observability.md)。
 
+## Sampling
+
+MCP server 可以请求客户端模型生成文本（`sampling/createMessage`）。只有配置了策略时 PAR 才会回答；默认是 `Disabled`，server 无法静默消耗 token。
+
+```ocaml
+let config = { config with
+  mcp_sampling = Auto {
+    model = (* 任意 model_config *);
+    max_tokens = 1024;              (* 硬上限，同时限制请求 *)
+    max_requests_per_invoke = 8;    (* 每次 invoke 的预算 *)
+    timeout = 60.0;
+  }
+}
+```
+
+```python
+from par_runtime import MCPSampling, ModelConfig, RuntimeConfig
+
+config = RuntimeConfig(mcp_sampling=MCPSampling(
+    model=ModelConfig(provider="openai", model_name="gpt-4o-mini"),
+    max_tokens=512,
+    max_requests_per_invoke=4,
+))
+```
+
+- 路由器只发起**一次普通 LLM 调用**，使用 server 的 `systemPrompt` 与 `messages`；不进入 ReAct 循环，也不注册工具，因此 sampling 请求不会递归触发另一个 sampling。
+- 每次 invoke 的计数器存放在 invoke context 中：新 invoke 从零开始。`max_requests_per_invoke = 0` 等于本次运行禁用 sampling。
+- `maxTokens` 取 `min(请求值, policy.max_tokens)`；invoke 之外的请求会被拒绝（没有预算可计）。
+- 拒绝时 server 收到 JSON-RPC 错误（`Rate_limited` / `Invalid_input`）。`Disabled` 时 transport 返回 `-32601 Method not found`，server 可自行降级。
+- stdio 在客户端等待自身响应时分派 server 请求；HTTP 处理 SSE 流上到达的 sampling 请求。
+- 追踪：`invoke` 下产生 `mcp.sampling` server span，属性为 `mcp.server` 与 `gen_ai.request.model`。
+
 ## 当前限制
 
 v0.3.1 是 MCP 集成的最小可用版本。下列能力**尚未实现**：

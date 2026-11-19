@@ -16,6 +16,8 @@ type t = {
   mu        : Eio.Mutex.t;
   closed    : bool ref;
   read_done : bool ref;
+  sampling_handler :
+    (Yojson.Safe.t -> (Yojson.Safe.t, Types.error_category) result) option ref;
 }
 
 let strip_cr s =
@@ -46,6 +48,7 @@ let is_response_shape (j : Yojson.Safe.t) : bool =
 
 let classify json :
     ([> `Response of Mcp_types.jsonrpc_response
+     | `Request of Mcp_types.jsonrpc_request
      | `Notification of Mcp_types.jsonrpc_notification ], string) result =
   if is_response_shape json then begin
     match Mcp_types.response_of_yojson json with
@@ -53,7 +56,9 @@ let classify json :
     | Error e -> Error e
   end else if has_method_ json then begin
     if is_request_to_server json then
-      Error "MCP server-to-client requests not supported in v0.3.1"
+      match Mcp_types.jsonrpc_request_of_yojson json with
+      | Ok v -> Ok (`Request v)
+      | Error e -> Error e
     else
       match Mcp_types.notification_of_yojson json with
       | Ok v -> Ok (`Notification v)
@@ -74,6 +79,7 @@ let create_internal ~sink:(sink : [> Eio.Flow.sink_ty] Eio.Resource.t)
     mu = Eio.Mutex.create ();
     closed = ref false;
     read_done = ref false;
+    sampling_handler = ref None;
   }
 
 let create ~sink ~source =
@@ -133,6 +139,7 @@ let read_one_line t : (string, Types.error_category) result =
 
 let parse_one (line : string) :
     (([> `Response of Mcp_types.jsonrpc_response
+      | `Request of Mcp_types.jsonrpc_request
       | `Notification of Mcp_types.jsonrpc_notification ] as 'a),
      Types.error_category) result =
   match Yojson.Safe.from_string line with
@@ -150,6 +157,7 @@ let parse_one (line : string) :
 
 let rec recv_message t :
     ([ `Response of Mcp_types.jsonrpc_response
+     | `Request of Mcp_types.jsonrpc_request
      | `Notification of Mcp_types.jsonrpc_notification ],
      Types.error_category) result =
   match read_one_line t with
@@ -223,6 +231,50 @@ let spawn_with ~sw ~process_mgr ~command ~args ?env ?cwd ?stdin_timeout
     Error (Types.External_failure msg)
   )
 
+let request_id_to_json (id : Mcp_types.request_id) : Yojson.Safe.t =
+  match id with
+  | Mcp_types.Int_id n -> `Int n
+  | Mcp_types.String_id s -> `String s
+
+(* Server-to-client request (MCP sampling and future server features). Without
+   a handler we answer with JSON-RPC "method not found" so a server fails fast
+   instead of waiting for a response that never comes. *)
+let answer_server_request t (req : Mcp_types.jsonrpc_request) =
+  let reply =
+    match !(t.sampling_handler) with
+    | Some handler when req.Mcp_types.method_ = Mcp_types.method_sampling_create ->
+      (match handler (Option.value req.Mcp_types.params ~default:`Null) with
+       | Ok result ->
+         `Assoc [
+           "jsonrpc", `String "2.0";
+           "id", request_id_to_json req.Mcp_types.id;
+           "result", result;
+         ]
+       | Error err ->
+         `Assoc [
+           "jsonrpc", `String "2.0";
+           "id", request_id_to_json req.Mcp_types.id;
+           "error", `Assoc [
+             "code", `Int (-32603);
+             "message", `String (Types.string_of_error_category err);
+           ];
+         ])
+    | _ ->
+      `Assoc [
+        "jsonrpc", `String "2.0";
+        "id", request_id_to_json req.Mcp_types.id;
+        "error", `Assoc [
+          "code", `Int (-32601);
+          "message", `String (Printf.sprintf "Method not found: %s" req.Mcp_types.method_);
+        ];
+      ]
+  in
+  match write_with_lock t (Printf.sprintf "%s\n" (Yojson.Safe.to_string reply)) with
+  | Ok () -> ()
+  | Error e ->
+    Logs.warn (fun m -> m "MCP stdio: failed to answer server request: %s"
+                  (Types.string_of_error_category e))
+
 let to_transport (t : t) : Mcp_transport.t = {
   request_response = (fun req ->
     match send_request t req with
@@ -232,12 +284,16 @@ let to_transport (t : t) : Mcp_transport.t = {
         match recv_message t with
         | Ok (`Response r) when Mcp_types.request_id_matches r.Mcp_types.id req.Mcp_types.id ->
           Ok r
+        | Ok (`Request server_req) ->
+          answer_server_request t server_req;
+          loop ()
         | Ok _ -> loop ()
         | Error _ as e -> e
       in
       loop ());
   notify = (fun notif -> send_notification t notif);
   close = (fun () -> close t);
+  set_sampling_handler = (fun handler -> t.sampling_handler := Some handler);
 }
 
 module Test = struct

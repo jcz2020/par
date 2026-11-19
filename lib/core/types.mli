@@ -303,6 +303,16 @@ type model_config = {
 }
 [@@deriving yojson]
 
+type mcp_sampling_policy =
+  | Disabled
+  | Auto of {
+      model : model_config;
+      max_tokens : int;
+      max_requests_per_invoke : int;
+      timeout : float;
+    }
+[@@deriving yojson]
+
 (* Forward declaration — expression defined in *)
 type expression =
   | Literal of Yojson.Safe.t
@@ -948,6 +958,7 @@ type runtime_config = {
   bash_confirm : bash_confirm_config;
   event_retention_seconds : float;
   max_tool_schema_tokens : int option;
+  mcp_sampling : mcp_sampling_policy;
 }
 [@@deriving yojson]
 

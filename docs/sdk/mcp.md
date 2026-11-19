@@ -691,6 +691,48 @@ as a child of the enclosing `tool.call`. Outbound MCP HTTP requests carry a W3C
 `traceparent` header derived from the active span. See
 [Observability](observability.md#distributed-tracing).
 
+## Sampling
+
+MCP servers can ask the client's model to generate text (`sampling/createMessage`).
+PAR answers only when a policy is configured; the default is `Disabled` so a
+server cannot spend tokens silently.
+
+```ocaml
+let config = { config with
+  mcp_sampling = Auto {
+    model = (* any model_config *);
+    max_tokens = 1024;              (* hard cap, also caps the request *)
+    max_requests_per_invoke = 8;    (* per-invoke budget *)
+    timeout = 60.0;
+  }
+}
+```
+
+```python
+from par_runtime import MCPSampling, ModelConfig, RuntimeConfig
+
+config = RuntimeConfig(mcp_sampling=MCPSampling(
+    model=ModelConfig(provider="openai", model_name="gpt-4o-mini"),
+    max_tokens=512,
+    max_requests_per_invoke=4,
+))
+```
+
+- The router makes **one plain LLM call** with the server's `systemPrompt` and
+  `messages`; it does not enter the ReAct loop and registers no tools, so a
+  sampling request cannot recurse into another one.
+- The per-invoke counter lives in the invoke context: a new invoke starts at
+  zero. `max_requests_per_invoke = 0` disables sampling for the run.
+- `maxTokens` is `min(request, policy.max_tokens)`; requests outside an invoke
+  are refused (there is no budget to charge).
+- The server sees a JSON-RPC error on refusal (`Rate_limited` / `Invalid_input`).
+  With `Disabled`, the transport answers `-32601 Method not found` and the
+  server can fall back.
+- stdio dispatches server requests while the client waits for its own response;
+  HTTP answers sampling requests that arrive on the SSE stream.
+- Traces: a `mcp.sampling` server span under `invoke`, with `mcp.server` and
+  `gen_ai.request.model`.
+
 ## Current Limitations
 
 v0.3.1 is the minimum viable MCP integration. The following capabilities are **not yet implemented**:

@@ -15,6 +15,7 @@ from par_runtime import (
     AgentConfig,
     Error,
     InvokeResult,
+    MCPSampling,
     ModelConfig,
     Runtime,
     RuntimeConfig,
@@ -175,3 +176,32 @@ def test_error_decodes_both_shapes():
     assert Error.from_json(Error(message="boom", category="internal").to_json()) == Error(
         message="boom", category="internal"
     )
+
+
+def test_mcp_sampling_policy_round_trip():
+    policy = MCPSampling(
+        model=ModelConfig(model_name="gpt-4o-mini", temperature=0.0),
+        max_tokens=256,
+        max_requests_per_invoke=2,
+        timeout=15.0,
+    )
+    assert MCPSampling.from_json(policy.to_json()).to_dict() == policy.to_dict()
+    assert policy.to_dict()[0] == "Auto"
+
+
+def test_runtime_config_emits_mcp_sampling_only_when_set():
+    base = RuntimeConfig().to_dict()
+    assert "mcp_sampling" not in base
+    policy = MCPSampling(model=ModelConfig(model_name="gpt-4o-mini"))
+    cfg = RuntimeConfig(mcp_sampling=policy).to_dict()
+    assert cfg["mcp_sampling"][0] == "Auto"
+
+
+def test_runtime_accepts_an_mcp_sampling_config():
+    policy = MCPSampling(model=ModelConfig(model_name="gpt-4o-mini"))
+    with Runtime(RuntimeConfig(mcp_sampling=policy)) as rt:
+        rt.register_agent(AgentConfig(
+            id="sampling-fixture",
+            model=ModelConfig(model_name="gpt-4o-mini"),
+            system_prompt="sampling fixture",
+        ))

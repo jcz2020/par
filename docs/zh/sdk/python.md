@@ -70,6 +70,9 @@ config = RuntimeConfig(
 
 这些默认值不是装饰。它们与两个真正消费 payload 的解码器一致：`Runtime._normalize_config` 和 `lib/ffi/par_capi.ml`。测试会断言 `RuntimeConfig().to_json()` 规范化后的 OCaml 配置，与手写的最小 JSON 对象完全一致。
 
+`RuntimeConfig` 还接受 `mcp_sampling=MCPSampling(model=..., max_tokens=...,
+max_requests_per_invoke=..., timeout=...)`；默认 `None`（禁用）。参见 [MCP Client](mcp.md)。
+
 四个尚无类型化表面的配置块（`event_bus`、`default_quota`、`shutdown`、`eval_limits`）接受 dict 覆盖，并与默认值合并：
 
 ```python

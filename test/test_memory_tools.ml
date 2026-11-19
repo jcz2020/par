@@ -59,6 +59,7 @@ let make_test_config () = Types.{
   shutdown = { drain_timeout = 1.0; cancel_grace_period = 0.1;
                flush_batch_size = 10 };
   llm_providers = [];
+  mcp_sampling = Disabled;
   eval_limits = { max_depth = 10; max_node_visits = 100 };
   parallel_tool_execution = true;
   bash_confirm = Runtime.default_bash_confirm;

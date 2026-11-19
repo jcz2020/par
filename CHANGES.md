@@ -43,6 +43,17 @@
   `par-runtime[otel]` extra (`OTelTracer`) with trace-id and parent-link
   preservation. The base package stays dependency-free.
 
+### Added — MCP sampling routing (W3)
+
+- `runtime_config.mcp_sampling`: `Disabled` (default) or `Auto { model;
+  max_tokens; max_requests_per_invoke; timeout }`. Python mirrors it as
+  `MCPSampling` on `RuntimeConfig`.
+- stdio dispatches server-to-client requests instead of rejecting them; with
+  no handler (or `Disabled`) it answers JSON-RPC -32601, so a server fails fast.
+- `Auto` maps `sampling/createMessage` to one plain LLM call (no ReAct loop,
+  no tool registration, no recursion), caps `maxTokens`, enforces a per-invoke
+  request budget, and emits an `mcp.sampling` span.
+
 ### Changed — type checking and docs (W1-S4)
 
 - `mypy --strict par_runtime` is clean and runs as its own CI job.

@@ -13,6 +13,7 @@ type invoke_context = {
   depth : int;
   on_tool_event : (Types.event -> unit) option;
   promoted_tools : Types.tool_descriptor list ref;
+  mcp_sampling_requests : int ref;
 }
 
 let invoke_context_key : invoke_context Eio.Fiber.key =
@@ -41,6 +42,7 @@ let create
     depth;
     on_tool_event;
     promoted_tools = ref promoted_tools;
+    mcp_sampling_requests = ref 0;
   }
 
 let get_current () = Eio.Fiber.get invoke_context_key

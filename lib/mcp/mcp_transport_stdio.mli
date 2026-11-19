@@ -39,12 +39,14 @@ val send_notification :
     Strips a single trailing '\r' from each line before parsing.
 
     @return [`Response _] for a JSON-RPC response,
+            [`Request _] for a server-to-client request (sampling),
             [`Notification _] for a JSON-RPC notification,
             or [Error (Invalid_input "...")] for a malformed / hybrid message,
             or [Error (External_failure "MCP server closed connection")] on EOF. *)
 val recv_message :
   t ->
   ([ `Response of Mcp_types.jsonrpc_response
+   | `Request of Mcp_types.jsonrpc_request
    | `Notification of Mcp_types.jsonrpc_notification ],
    Types.error_category) result
 

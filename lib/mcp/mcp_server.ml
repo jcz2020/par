@@ -32,6 +32,9 @@ let name t = t.name
 let pid t = Option.value t.pid ~default:0
 let http_transport t = t.http_transport
 let capabilities t = !(t.capabilities)
+let set_sampling_handler t handler =
+  t.transport.set_sampling_handler handler
+
 let status t = t.status
 
 let lib_version = "0.3.0"

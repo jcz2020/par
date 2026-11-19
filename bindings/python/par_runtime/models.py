@@ -19,6 +19,7 @@ __all__ = [
     "ToolSpec",
     "AgentConfig",
     "RuntimeConfig",
+    "MCPSampling",
     "Usage",
     "ToolCall",
     "InvokeResult",
@@ -279,6 +280,47 @@ class AgentConfig:
 
 
 @dataclass
+class MCPSampling:
+    """Opt-in MCP sampling policy (v0.18 W3).
+
+    ``Disabled`` is the runtime default. ``MCPSampling`` corresponds to the
+    ``Auto`` variant: the server's ``sampling/createMessage`` is answered by one
+    plain LLM call using ``model``, with hard per-invoke and token limits.
+    """
+
+    model: ModelConfig
+    max_tokens: int = 1024
+    max_requests_per_invoke: int = 8
+    timeout: float = 60.0
+
+    def to_dict(self) -> List[Any]:
+        return ["Auto", {
+            "model": self.model.to_dict(),
+            "max_tokens": self.max_tokens,
+            "max_requests_per_invoke": self.max_requests_per_invoke,
+            "timeout": self.timeout,
+        }]
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, data: Union[str, Dict[str, Any], List[Any]]) -> "MCPSampling":
+        raw = json.loads(data) if isinstance(data, str) else data
+        if isinstance(raw, list) and len(raw) == 2 and raw[0] == "Auto":
+            fields = raw[1]
+            if not isinstance(fields, dict):
+                raise ValueError("Auto sampling policy requires an object")
+            return cls(
+                model=ModelConfig.from_json(fields["model"]),
+                max_tokens=int(fields.get("max_tokens", 1024)),
+                max_requests_per_invoke=int(fields.get("max_requests_per_invoke", 8)),
+                timeout=float(fields.get("timeout", 60.0)),
+            )
+        raise ValueError("only the Auto sampling policy can be constructed")
+
+
+@dataclass
 class RuntimeConfig:
     """Runtime configuration accepted by ``Runtime``.
 
@@ -297,6 +339,7 @@ class RuntimeConfig:
     event_retention_seconds: float = 604800.0
     max_tool_schema_tokens: Optional[int] = None
     bash_confirm: Optional[Dict[str, Any]] = None
+    mcp_sampling: Optional[MCPSampling] = None
 
     def _persistence_dict(self) -> List[str]:
         if isinstance(self.persistence, Sqlite):
@@ -322,6 +365,8 @@ class RuntimeConfig:
             cfg["max_tool_schema_tokens"] = self.max_tool_schema_tokens
         if self.bash_confirm is not None:
             cfg["bash_confirm"] = dict(self.bash_confirm)
+        if self.mcp_sampling is not None:
+            cfg["mcp_sampling"] = self.mcp_sampling.to_dict()
         return cfg
 
     def to_json(self) -> str:
@@ -346,6 +391,11 @@ class RuntimeConfig:
             event_retention_seconds=float(raw.get("event_retention_seconds", 604800.0)),
             max_tool_schema_tokens=raw.get("max_tool_schema_tokens"),
             bash_confirm=raw.get("bash_confirm"),
+            mcp_sampling=(
+                MCPSampling.from_json(raw["mcp_sampling"])
+                if isinstance(raw.get("mcp_sampling"), list)
+                else None
+            ),
         )
 
 

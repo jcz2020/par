@@ -54,3 +54,7 @@ val get_prompt :
 (** {2 Utility} *)
 
 val ping : t -> (Yojson.Safe.t, Types.error_category) result
+
+val set_sampling_handler :
+  t -> (Yojson.Safe.t -> (Yojson.Safe.t, Types.error_category) result) -> unit
+(** Install the server-to-client sampling handler for this client. *)

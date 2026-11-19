@@ -1010,6 +1010,7 @@ let runtime_config () : runtime_config =
     default_quota = Runtime.default_quota;
     shutdown = Runtime.default_shutdown_config;
     llm_providers = [];
+    mcp_sampling = Disabled;
     eval_limits = { max_depth = 10; max_node_visits = 1000 };
     parallel_tool_execution = true;
      bash_confirm = Runtime.default_bash_confirm;
@@ -1043,6 +1044,7 @@ let rehydration_runtime_config db_path : runtime_config =
     default_quota = Runtime.default_quota;
     shutdown = Runtime.default_shutdown_config;
     llm_providers = [];
+    mcp_sampling = Disabled;
     eval_limits = { max_depth = 10; max_node_visits = 1000 };
     parallel_tool_execution = true;
     bash_confirm = Runtime.default_bash_confirm;

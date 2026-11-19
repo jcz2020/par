@@ -84,6 +84,10 @@ payloads — `Runtime._normalize_config` and `lib/ffi/par_capi.ml` — and the t
 suite asserts that `RuntimeConfig().to_json()` normalizes to exactly the same
 OCaml configuration as a hand-written minimal JSON object.
 
+`RuntimeConfig` also accepts `mcp_sampling=MCPSampling(model=..., max_tokens=...,
+max_requests_per_invoke=..., timeout=...)`; it is `None` (disabled) by default.
+See [MCP Client](mcp.md#sampling).
+
 The four config blocks without a typed surface yet (`event_bus`,
 `default_quota`, `shutdown`, `eval_limits`) accept dict overrides merged over
 their defaults:

@@ -407,6 +407,16 @@ type model_config = {
 }
 [@@deriving yojson]
 
+type mcp_sampling_policy =
+  | Disabled
+  | Auto of {
+      model : model_config;
+      max_tokens : int;
+      max_requests_per_invoke : int;
+      timeout : float;
+    }
+[@@deriving yojson]
+
 type expression =
   | Literal of Yojson.Safe.t
   | Variable of string
@@ -1141,6 +1151,7 @@ type runtime_config = {
   bash_confirm : bash_confirm_config;
   event_retention_seconds : float;
   max_tool_schema_tokens : int option;
+  mcp_sampling : mcp_sampling_policy;
 }
 [@@deriving yojson]
 
@@ -1170,6 +1181,14 @@ let runtime_config_of_yojson (j : Yojson.Safe.t) :
     | `Int n -> Some n
     | _ -> None
   in
+  let mcp_sampling =
+    match member "mcp_sampling" j with
+    | `Null -> Disabled
+    | value ->
+      (match mcp_sampling_policy_of_yojson value with
+       | Ok policy -> policy
+       | Error _ -> Disabled)
+  in
   match _runtime_config_base_of_yojson j with
   | Ok base ->
     Ok {
@@ -1183,6 +1202,7 @@ let runtime_config_of_yojson (j : Yojson.Safe.t) :
       bash_confirm;
       event_retention_seconds;
       max_tool_schema_tokens;
+      mcp_sampling;
     }
   | Error e -> Error e
 

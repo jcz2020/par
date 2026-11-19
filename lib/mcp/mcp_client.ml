@@ -13,6 +13,9 @@ let server t = t.server
 let id t = Mcp_server.id t.server
 let name t = Mcp_server.name t.server
 let capabilities t = Mcp_server.capabilities t.server
+let set_sampling_handler t handler =
+  Mcp_server.set_sampling_handler t.server handler
+
 let status t = Mcp_server.status t.server
 
 let connect ~sw ~process_mgr ~clock (config : Mcp_types.server_config) :

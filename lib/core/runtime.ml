@@ -848,6 +848,117 @@ let mcp_tool_bindings rt =
 
    In-flight invokes keep the registry snapshot they started with; tools that
    belong to a stopped server fail through the MCP transport error path. *)
+(* -------------------------------------------------------------------------- *)
+(* MCP sampling router (v0.18 W3)                                             *)
+(* -------------------------------------------------------------------------- *)
+
+let sampling_text_of_content (json : Yojson.Safe.t) : string option =
+  match json with
+  | `String text -> Some text
+  | `Assoc fields ->
+    (match List.assoc_opt "text" fields with
+     | Some (`String text) -> Some text
+     | _ -> None)
+  | _ -> None
+
+let sampling_message (role : message_role) (text : string) : message =
+  { role;
+    content_blocks = Message.content_of_string text;
+    tool_calls = None;
+    tool_call_id = None;
+    name = None;
+  }
+
+let conversation_of_sampling_params (params : Yojson.Safe.t) : conversation =
+  let open Yojson.Safe.Util in
+  let system =
+    match member "systemPrompt" params with
+    | `String prompt when prompt <> "" -> [sampling_message System prompt]
+    | _ -> []
+  in
+  let messages =
+    match member "messages" params with
+    | `List items ->
+      List.filter_map (fun item ->
+        let role = member "role" item |> to_string_option in
+        let text = member "content" item |> sampling_text_of_content in
+        match role, text with
+        | Some "user", Some text -> Some (sampling_message User text)
+        | Some "assistant", Some text -> Some (sampling_message Assistant text)
+        | _ -> None) items
+    | _ -> []
+  in
+  { messages = system @ messages; metadata = [] }
+
+(* D12: one plain LLM call, no ReAct loop and no tool registration, so a
+   sampling request can never recurse into another sampling request. *)
+let handle_sampling_request rt ~model:policy_model ~max_tokens:policy_max_tokens
+    ~max_requests_per_invoke ~timeout:policy_timeout ~server_id
+    (params : Yojson.Safe.t) : (Yojson.Safe.t, error_category) result =
+  match Invoke_context.get_current () with
+  | None ->
+    Result.Error (Invalid_input
+      "MCP sampling is disabled outside an invoke (no per-invoke budget)")
+  | Some ctx ->
+    if !(ctx.Invoke_context.mcp_sampling_requests) >= max_requests_per_invoke
+    then
+      Result.Error (Rate_limited)
+    else begin
+      incr ctx.Invoke_context.mcp_sampling_requests;
+      let open Yojson.Safe.Util in
+      let requested =
+        match member "maxTokens" params with
+        | `Int n -> Some n
+        | _ -> None
+      in
+      let cap =
+        match requested with
+        | Some n -> min policy_max_tokens n
+        | None -> policy_max_tokens
+      in
+      let model = { policy_model with max_tokens = Some cap } in
+      let conv = conversation_of_sampling_params params in
+      let token = Cancellation.create_token rt.cancellation_root in
+      Tracing.with_span ~kind:`Server ~name:"mcp.sampling"
+        ~attributes:[
+          ("mcp.server", server_id);
+          ("gen_ai.request.model", model.model_name);
+        ]
+        ~status:(function Ok _ -> `Ok | Error _ -> `Error)
+        (fun () ->
+           match Cancellation.with_timeout policy_timeout token (fun _ ->
+             rt.services.llm.complete_fn model [] conv) with
+           | Ok (Ok response) ->
+             let text = Option.value response.text ~default:"" in
+             let stop_reason =
+               match response.finish_reason with
+               | Max_tokens -> "maxTokens"
+               | _ -> "endTurn"
+             in
+             Result.Ok (`Assoc [
+               "role", `String "assistant";
+               "content", `Assoc [
+                 "type", `String "text";
+                 "text", `String text;
+               ];
+               "model", `String response.model;
+               "stopReason", `String stop_reason;
+             ])
+           | Ok (Error err) -> Result.Error err
+           | Error `Timeout ->
+             Result.Error (Timeout)
+           | Error `Cancelled ->
+             Result.Error (Cancelled User_cancelled))
+    end
+
+let install_sampling_handler rt (server : Mcp_server.t) =
+  match rt.services.config.mcp_sampling with
+  | Disabled -> ()
+  | Auto { model; max_tokens; max_requests_per_invoke; timeout } ->
+    Mcp_server.set_sampling_handler server (fun params ->
+      handle_sampling_request rt ~model ~max_tokens ~max_requests_per_invoke
+        ~timeout ~server_id:(Mcp_server.name server) params)
+
 let reload_mcp_servers rt ~(servers : Mcp_types.server_config list) :
     (Types.tool_descriptor list, error_category) result =
   Eio.Mutex.use_rw rt.mcp_reload_mu ~protect:true (fun () ->
@@ -915,6 +1026,7 @@ let reload_mcp_servers rt ~(servers : Mcp_types.server_config list) :
             match Mcp_server.spawn ~sw:rt.mcp_switch
                     ?process_mgr ?net ~clock cfg with
             | Ok server ->
+              install_sampling_handler rt server;
               spawned := (cfg, server) :: !spawned;
               spawn_all rest
             | Error e ->
@@ -3379,6 +3491,7 @@ let create ?(persistence = noop_persistence)
             | Ok server ->
               let sid = Mcp_server.id server in
               Types.htbl_set rt.mcp_servers sid server;
+              install_sampling_handler rt server;
               spawned := (cfg, server) :: !spawned;
               publish_event rt (Mcp_server_started { server_id = Mcp_types.server_id_to_string sid; server_name = Mcp_server.name server });
               loop rest

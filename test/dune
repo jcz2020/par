@@ -285,8 +285,9 @@
 
 (test
  (name test_mcp_sampling)
- (libraries par alcotest)
- (modules test_mcp_sampling))
+ (libraries par eio_main alcotest str yojson logs)
+ (modules test_mcp_sampling)
+ (deps mcp_mock_server.exe))
 
 (test
  (name test_context_manager)

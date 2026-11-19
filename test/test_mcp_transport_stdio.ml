@@ -2,11 +2,10 @@
    Tests use [T.Test.pair] for in-memory duplex pipes (no real process spawn).
    Frame injection via [T.Test.write_raw] simulates server-side writes.
 
-   IMPORTANT: The transport's [recv_message] returns [`Response | `Notification]
-   only — it does NOT return [`Request]. So tests that simulate a client
-   sending a request must NOT try to recv_message on the server side.
-   Instead, tests inject server-side frames via [write_raw] and recv_message
-   on the client. This matches the v0.3.1 design (no bidirectional RPC). *)
+   [recv_message] returns [`Response | `Request | `Notification]. A
+   server-to-client request (sampling) is dispatched to the installed handler
+   by [to_transport.request_response], which writes the response back on the
+   same stream. *)
 
 open Par
 module T = Par__Mcp_transport_stdio
@@ -152,6 +151,7 @@ let test_recv_response_with_result_ok () =
     (match r.id with MT.Int_id 1 -> () | _ -> Alcotest.fail "expected Int_id 1");
     (match r.result with Ok _ -> () | Error _ -> Alcotest.fail "expected Ok result")
   | Ok `Notification _ -> Alcotest.fail "expected Response, got Notification"
+  | Ok (`Request _) -> Alcotest.fail "expected Response, got Request"
   | Error e -> Alcotest.failf "recv failed: %s" (string_of_error_category e)
 
 let test_recv_response_with_error () =
@@ -240,16 +240,20 @@ let test_skips_multiple_garbage_lines () =
   | Ok (`Response _) -> ()
   | _ -> Alcotest.fail "expected Response after multi-garbage"
 
-let test_rejects_request_from_server () =
+let test_delivers_request_from_server () =
   Eio_main.run @@ fun env ->
   let mgr = Eio.Stdenv.process_mgr env in
   Eio.Switch.run @@ fun sw ->
   let client, server = T.Test.pair ~sw ~mgr () in
-  T.Test.write_raw server "{\"id\":99,\"method\":\"sampling/createMessage\"}\n";
-  T.Test.write_raw server ((response_to_json response_ok) ^ "\n");
+  T.Test.write_raw server
+    "{\"jsonrpc\":\"2.0\",\"id\":99,\"method\":\"sampling/createMessage\"}\n";
   match T.recv_message client with
-  | Ok (`Response _) -> ()
-  | _ -> Alcotest.fail "expected Response after unsupported request"
+  | Ok (`Request r) ->
+    Alcotest.(check string) "method" MT.method_sampling_create r.MT.method_;
+    (match r.MT.id with
+     | MT.Int_id 99 -> ()
+     | _ -> Alcotest.fail "request id")
+  | _ -> Alcotest.fail "expected the server request to be delivered"
 
 (* ============================================================ *)
 (* \r stripping tests (2)                                          *)
@@ -415,6 +419,94 @@ let test_default_env_excludes_secrets () =
 (* Main                                                             *)
 (* ============================================================ *)
 
+(* ---------- Server-to-client requests ---------- *)
+
+let test_server_request_with_handler () =
+  Eio_main.run (fun env ->
+    let mgr = Eio.Stdenv.process_mgr env in
+    Eio.Switch.run (fun sw ->
+      let client, server = T.Test.pair ~sw ~mgr () in
+      let tr = T.to_transport client in
+      let calls = ref 0 in
+      tr.set_sampling_handler (fun _params ->
+        incr calls;
+        Ok (`Assoc [
+          "role", `String "assistant";
+          "content", `Assoc ["type", `String "text"; "text", `String "sampled"];
+        ]));
+      let client_result = ref None in
+      let sampling_response = ref None in
+      Eio.Fiber.both
+        (fun () -> client_result := Some (tr.request_response req_int))
+        (fun () ->
+          (match T.recv_message server with
+           | Ok (`Request r) ->
+             Alcotest.(check string) "client method" "tools/list" r.MT.method_
+           | _ -> ());
+          let sampling_req : MT.jsonrpc_request = {
+            id = MT.Int_id 7;
+            method_ = MT.method_sampling_create;
+            params = Some (`Assoc ["messages", `List []]);
+          } in
+          (match T.send_request server sampling_req with
+           | Ok () -> ()
+           | Error _ -> ());
+          (match T.recv_message server with
+           | Ok (`Response r) -> sampling_response := Some r.MT.result
+           | _ -> ());
+          (* Always answer the outer request so the other fiber can finish. *)
+          T.Test.write_raw server ((response_to_json response_ok) ^ "\n"));
+      Alcotest.(check int) "handler called once" 1 !calls;
+      (match !sampling_response with
+       | Some (Ok json) ->
+         Alcotest.(check bool) "sampled text" true
+           (contains_substring ~needle:"sampled"
+              (Yojson.Safe.to_string json))
+       | Some (Error _) -> Alcotest.fail "sampling returned an error"
+       | None -> Alcotest.fail "no sampling response");
+      match !client_result with
+      | Some (Ok _) -> ()
+      | Some (Error e) -> Alcotest.failf "request_response: %s"
+                            (string_of_error_category e)
+      | None -> Alcotest.fail "client request did not run"))
+
+let test_server_request_without_handler_gets_method_not_found () =
+  Eio_main.run (fun env ->
+    let mgr = Eio.Stdenv.process_mgr env in
+    Eio.Switch.run (fun sw ->
+      let client, server = T.Test.pair ~sw ~mgr () in
+      let tr = T.to_transport client in
+      let client_result = ref None in
+      let sampling_response = ref None in
+      Eio.Fiber.both
+        (fun () -> client_result := Some (tr.request_response req_int))
+        (fun () ->
+          (match T.recv_message server with
+           | Ok (`Request _) -> ()
+           | _ -> ());
+          let sampling_req : MT.jsonrpc_request = {
+            id = MT.Int_id 8;
+            method_ = MT.method_sampling_create;
+            params = Some (`Assoc ["messages", `List []]);
+          } in
+          (match T.send_request server sampling_req with
+           | Ok () -> ()
+           | Error _ -> ());
+          (match T.recv_message server with
+           | Ok (`Response r) -> sampling_response := Some r.MT.result
+           | _ -> ());
+          T.Test.write_raw server ((response_to_json response_ok) ^ "\n"));
+      (match !sampling_response with
+       | Some (Error { MT.code = -32601; _ }) -> ()
+       | Some (Error _) -> Alcotest.fail "expected -32601"
+       | Some (Ok _) -> Alcotest.fail "unexpected success without a handler"
+       | None -> Alcotest.fail "no sampling response");
+      match !client_result with
+      | Some (Ok _) -> ()
+      | Some (Error e) -> Alcotest.failf "outer request failed: %s"
+                            (string_of_error_category e)
+      | None -> Alcotest.fail "client request did not run"))
+
 let () =
   let open Alcotest in
   run "mcp_transport_stdio" [
@@ -431,12 +523,18 @@ let () =
       test_case "notification"          `Quick test_recv_notification;
       test_case "progress notification" `Quick test_recv_progress_notification;
     ];
+    "sampling", [
+      test_case "handler answers a server request" `Quick
+        test_server_request_with_handler;
+      test_case "no handler answers -32601" `Quick
+        test_server_request_without_handler_gets_method_not_found;
+    ];
     "frame_skip", [
       test_case "skips # comment"       `Quick test_skips_comment_line;
       test_case "skips garbage"         `Quick test_skips_garbage_line;
       test_case "skips missing fields"  `Quick test_skips_missing_method;
       test_case "multi-garbage mix"     `Quick test_skips_multiple_garbage_lines;
-      test_case "rejects server req"    `Quick test_rejects_request_from_server;
+      test_case "delivers server req"   `Quick test_delivers_request_from_server;
     ];
     "cr_stripping", [
       test_case "single CRLF"           `Quick test_cr_lf_terminator;

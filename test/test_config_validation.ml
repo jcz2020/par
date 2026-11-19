@@ -40,6 +40,7 @@ let make_config ?(persistence = `Sqlite ":memory:") ?(llm_providers = []) () = {
   default_quota = valid_quota;
   shutdown = valid_shutdown;
   llm_providers;
+  mcp_sampling = Types.Disabled;
   eval_limits = valid_eval_limits;
   parallel_tool_execution = true;
   bash_confirm = valid_bash_confirm;

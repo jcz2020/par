@@ -47,3 +47,8 @@ val notify :
 (** Send shutdown request, wait 2s for graceful exit, then SIGTERM (killpg),
     then wait 2s, then SIGKILL. Idempotent. *)
 val stop : t -> (unit, Types.error_category) result
+
+val set_sampling_handler :
+  t -> (Yojson.Safe.t -> (Yojson.Safe.t, Types.error_category) result) -> unit
+(** Install the handler for server-to-client [sampling/createMessage] requests.
+    Without one, the transport answers JSON-RPC -32601. *)
