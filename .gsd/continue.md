@@ -15,14 +15,17 @@
   merged as `6fd8cfb`) the HTTP transport hotfix; `v0.16.2-beta.20261114` the
   GitHub #33 security patch; `v0.16.1` the GitHub #32 `grep` follow-up and
   `v0.16.0` the vision/lease/approval/TLS release.
-- Main is at the v0.17.3 release commit with nothing unreleased; GitHub issues
-  #35, #38, #39, #40, #41 and #42 are closed. The stable line remains
-  `v0.10.0`.
-- `docs/v0.18-ROADMAP.md` is planned (2026-11-18), bd epic `PAR-ga4q`:
-  W1 Python native API (typed + async), W2 typed tracing + OTel adapter,
-  W3 MCP sampling routing on stdio and HTTP; W4 `PAR-9km` runs in parallel and
-  does not block the version. No code started.
-- OCaml: 1815 tests, 0 failures. Python: 221 passed / 20 skipped.
+- Main carries the v0.18 work: `PAR-is4` (TLS fail-closed) plus W1 (typed
+  Python API + `AsyncRuntime` + `mypy --strict`), W2 (typed tracing, W3C
+  propagation, Python OTel adapter) and W3 (MCP sampling routing). W4
+  `PAR-9km` (owned-socket HTTP) is still open and does not block the version.
+- `docs/v0.18-ROADMAP.md` is in progress (2026-11-19): W1/W2/W3 slices done
+  and pushed; bd `PAR-ga4q.1`, `PAR-ga4q.2`, `PAR-wn7` closed. Remaining for
+  a release: sampling events + a limit regression test, a Noop-tracing
+  performance check, full Python matrix, docs/build gate, version bump.
+- OCaml: 1831 tests, 0 failures. Python: 247 passed / 22 skipped (per-file
+  matrix; the two skips are the gated native-cancel test and the OTel file on
+  installs without the extra).
 - Local switch upgraded on 2026-11-11: sqlite3 5.4.2 (GC-rooting fix), tls /
   tls-eio 2.1.5, x509 1.2.0, mirage-crypto* 2.4.1 (security/stability fixes),
   then eio 1.6, cohttp / cohttp-eio 6.3.0 and dune 3.24.2. OCaml stays at
@@ -134,17 +137,16 @@
 
 ## Next directions
 
-1. **v0.18.0 feature train (planned, not started)** — `docs/v0.18-ROADMAP.md`,
-   bd epic `PAR-ga4q`. Order: W1 Python native API (typed + async,
-   `PAR-ga4q.1`) → W2 typed tracing + OTel adapter (`PAR-ga4q.2`) → W3 MCP
-   sampling routing (`PAR-wn7`) on stdio and HTTP. W4 `PAR-9km` (owned-socket
-   HTTP) runs in parallel and does not block the version. Wait for explicit
-   user direction on the version.
+1. **v0.18.0 release prep** — W1/W2/W3 are on main. Before tagging:
+   decide whether `PAR-is4` ships as a v0.17.4 patch or with v0.18, add the
+   sampling limit regression + sampling event (W3-S3 remainder), benchmark the
+   Noop tracer, run the full Python matrix and `mkdocs build --strict`, then
+   ask the user for the version bump (beta-first).
 2. **`PAR-is4` (P1) — fixed 2026-11-19.** The three TLS configs
    (provider/MCP/builtin) now share `Par.Tls_client.config`; a failed
    `Ca_certs.authenticator ()` raises instead of falling back to `no_auth`.
    `test_tls_client.ml` pins both branches. Not released yet at the time of
-   this note.
+   this note; the roadmap suggested a patch release.
 3. **`PAR-tgy`** — the `?sandbox` mechanism (design is in
    `docs/explanation/sandbox-model.md`).
 4. Remaining P2 feature backlog (`bd ready`) is `out-of-par` per DECISIONS #6
@@ -157,7 +159,8 @@
    is needed; upgrade when 6.4 ships.
 6. OCaml 5.5.2 stays a separate trial-switch project; the pinned
    `ppx_deriving_jsonschema 0.0.1` is the compatibility risk.
-   `Eio.Net.connect ?options` (new in 1.6) is available for `PAR-9km`.
+   `Eio.Net.connect ?options` (new in 1.6) is available for `PAR-9km`,
+   which remains the only v0.18 parallel item.
 
 ## Do not
 
