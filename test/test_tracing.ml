@@ -115,6 +115,19 @@ let test_noop_skips_context () =
     Alcotest.(check bool) "recording tracer is not noop" false
       (Tracing.is_noop tracer))
 
+let test_nested_entry_point_joins_the_trace () =
+  Eio_main.run (fun _env ->
+    let tracer, events = record () in
+    Tracing.with_root tracer ~name:"outer" (fun () ->
+      Tracing.with_root_or_span tracer ~name:"invoke" (fun () -> ()));
+    let spans = starts events in
+    Alcotest.(check int) "two spans" 2 (List.length spans);
+    let outer = List.hd spans in
+    let inner = List.nth spans 1 in
+    Alcotest.(check string) "same trace" outer.Tracing.trace_id inner.Tracing.trace_id;
+    Alcotest.(check (option string)) "inner is a child"
+      (Some outer.Tracing.span_id) inner.Tracing.parent_span_id)
+
 let test_trace_context_helpers () =
   Eio_main.run (fun _env ->
     Alcotest.(check (option string)) "no trace outside" None
@@ -308,6 +321,8 @@ let () =
       Alcotest.test_case "no root, no span" `Quick test_child_outside_root_has_no_span;
       Alcotest.test_case "noop fast path" `Quick test_noop_skips_context;
       Alcotest.test_case "context helpers" `Quick test_trace_context_helpers;
+      Alcotest.test_case "nested entry point joins trace" `Quick
+        test_nested_entry_point_joins_the_trace;
     ]);
     ("propagation", [
       Alcotest.test_case "traceparent round trip" `Quick

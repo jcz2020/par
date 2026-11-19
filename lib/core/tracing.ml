@@ -157,3 +157,11 @@ let with_root tracer ?(kind : span_kind = `Internal) ?(attributes = [])
      | Eio.Cancel.Cancelled _ as exn -> finish `Cancelled; raise exn
      | exn -> finish `Error; raise exn)
   end
+
+(* Used by runtime entry points: a nested invoke (agent-as-tool, parallel
+   branch, workflow) joins the caller's trace instead of starting a new one.
+   A top-level call has no context and gets a fresh trace. *)
+let with_root_or_span tracer ?kind ?attributes ?status ~name f =
+  match current () with
+  | Some _ -> with_span ?kind ?attributes ?status ~name f
+  | None -> with_root tracer ?kind ?attributes ?status ~name f

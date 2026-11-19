@@ -77,6 +77,18 @@ val with_span :
     root span it just runs [f] (there is no tracer to report to). Exceptions
     end the span with ["error"]; Eio cancellation ends it with ["cancelled"]. *)
 
+val with_root_or_span :
+  tracer ->
+  ?kind:span_kind ->
+  ?attributes:(string * string) list ->
+  ?status:('a -> [ `Ok | `Error | `Cancelled ]) ->
+  name:string ->
+  (unit -> 'a) ->
+  'a
+(** Like {!with_root}, but if the current fiber already has a span it creates a
+    child instead. Runtime entry points use this so a nested invoke joins the
+    caller's trace. *)
+
 val with_root :
   tracer ->
   ?kind:span_kind ->

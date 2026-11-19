@@ -1853,7 +1853,7 @@ let invoke_content_internal rt ~agent_id ~content ?workspace ?cancellation_token
     ?(durable = false) ?invoke_id
     ?(resume : invoke_checkpoint option)
     () =
-  Tracing.with_root rt.tracer ~name:"invoke"
+  Tracing.with_root_or_span rt.tracer ~name:"invoke"
     ~attributes:[("par.agent_id", agent_id)]
     ~status:(fun (r : (Types.invoke_result, Types.error_category * Types.conversation) result) ->
       match r with
@@ -2526,7 +2526,7 @@ let submit_workflow rt ?workspace ?(inputs = []) wf =
       net = rt.net;
   } in
   (match
-     Tracing.with_root rt.tracer ~name:"workflow.run"
+     Tracing.with_root_or_span rt.tracer ~name:"workflow.run"
        ~attributes:[("par.workflow.id", wf.def.id)]
        ~status:(function Ok _ -> `Ok | Error _ -> `Error)
        (fun () -> Workflow_engine.execute_workflow ctx wf)
@@ -2926,7 +2926,7 @@ let run_from_checkpoint rt ~(wf_id : Workflow_run_id.t) ~(wf : workflow)
   let start_time = Unix.gettimeofday () in
   try
     (match
-       Tracing.with_root rt.tracer ~name:"workflow.resume"
+       Tracing.with_root_or_span rt.tracer ~name:"workflow.resume"
          ~attributes:[("par.workflow.id", checkpoint.workflow_id)]
          ~status:(function Ok _ -> `Ok | Error _ -> `Error)
          (fun () -> Workflow_engine.resume_from_checkpoint ctx wf.def.steps checkpoint)
