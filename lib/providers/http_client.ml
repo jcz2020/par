@@ -217,19 +217,14 @@ let uri_of_url url path =
   let scheme = if url.use_tls then "https" else "http" in
   Uri.of_string (Printf.sprintf "%s://%s:%d%s" scheme url.host url.port path)
 
-let connect_owned ~sw net url =
+let connect_tcp ~sw net url =
   let service = string_of_int url.port in
   let addrs = Eio.Net.getaddrinfo_stream net url.host ~service in
   let addr = match addrs with
     | addr :: _ -> addr
     | [] -> failwith (Printf.sprintf "HTTP: no address for %s:%d" url.host url.port)
   in
-  let socket = Eio.Net.connect ~sw net addr in
-  if url.use_tls then
-    (Tls_client.connect ~cfg:(Lazy.force tls_config)
-       (uri_of_url url "/") socket
-     :> [ Eio.Flow.two_way_ty | `Close ] Eio.Resource.t)
-  else (socket :> [ Eio.Flow.two_way_ty | `Close ] Eio.Resource.t)
+  Eio.Net.connect ~sw net addr
 
 let shutdown_quietly flow =
   try Eio.Flow.shutdown flow `All with _ -> ()
@@ -238,7 +233,7 @@ let shutdown_quietly flow =
    socket down when it expires; a registered cancel hook does the same when
    the invoke token is cancelled. *)
 let with_owned_exchange ~sw ~net ~url ~request ~timeout f =
-  let flow = connect_owned ~sw net url in
+  let raw_socket = connect_tcp ~sw net url in
   let token =
     match Invoke_context.get_current () with
     | Some ctx -> ctx.Invoke_context.cancellation_token
@@ -247,7 +242,7 @@ let with_owned_exchange ~sw ~net ~url ~request ~timeout f =
   let unregister =
     match token with
     | Some tok ->
-      Some (Cancellation.register_cancel_hook tok (fun () -> shutdown_quietly flow))
+      Some (Cancellation.register_cancel_hook tok (fun () -> shutdown_quietly raw_socket))
     | None -> None
   in
   let timed_out = ref false in
@@ -257,16 +252,31 @@ let with_owned_exchange ~sw ~net ~url ~request ~timeout f =
      ignore (Eio.Fiber.fork_daemon ~sw (fun () ->
        Eio.Time.sleep clock seconds;
        timed_out := true;
-       shutdown_quietly flow;
+       shutdown_quietly raw_socket;
        `Stop_daemon))
    | _ -> ());
+  let flow = ref None in
   Fun.protect
     ~finally:(fun () ->
       (match unregister with Some f -> f () | None -> ());
-      (try Eio.Flow.close flow with _ -> ()))
+      (match !flow with
+       | Some flow -> (try Eio.Flow.close flow with _ -> ())
+       | None -> ());
+      (try Eio.Flow.close raw_socket with _ -> ()))
     (fun () ->
-       Eio.Flow.copy_string request flow;
-       let result = f flow in
+       (* TLS handshake is itself a blocking read; register cancellation and the
+          timeout before it. *)
+       let connection =
+         if url.use_tls then
+           (Tls_client.connect ~cfg:(Lazy.force tls_config)
+              (uri_of_url url "/") raw_socket
+            :> [ Eio.Flow.two_way_ty | `Close ] Eio.Resource.t)
+         else
+           (raw_socket :> [ Eio.Flow.two_way_ty | `Close ] Eio.Resource.t)
+       in
+       flow := Some connection;
+       Eio.Flow.copy_string request connection;
+       let result = f connection in
        (match timeout with
         | Some seconds when !timed_out ->
           failwith (Printf.sprintf "HTTP request timed out after %.0fs" seconds)
