@@ -23,7 +23,7 @@
 - `docs/v0.18-ROADMAP.md`: W1-W4 done; bd `PAR-ga4q.1`, `PAR-ga4q.2`,
   `PAR-wn7`, `PAR-9km`, `PAR-p7lj`, `PAR-xmap` closed. Remaining before a
   release: Noop-tracing benchmark (`PAR-8a41`), final gates, version bump.
-- OCaml: 1843 tests, 0 failures. Python: 247 passed / 22 skipped (per-file
+- OCaml: 1843 tests, 0 failures. Python: 252 passed / 22 skipped (per-file
   matrix; the two skips are the gated native-cancel test and the OTel file on
   installs without the extra).
 - Local switch upgraded on 2026-11-11: sqlite3 5.4.2 (GC-rooting fix), tls /
