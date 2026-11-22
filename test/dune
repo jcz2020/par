@@ -758,5 +758,5 @@
 
 (test
   (name test_http_cancel)
-  (libraries par eio_main alcotest)
+  (libraries par eio_main mirage-crypto-rng.unix alcotest)
   (modules test_http_cancel))

@@ -39,8 +39,8 @@ let with_hanging_server env f =
       List.iter (fun flow -> try Eio.Flow.close flow with _ -> ()) !accepted)
       (fun () -> f sw net port))
 
-let with_provider env _sw port f =
-  let url = Printf.sprintf "http://127.0.0.1:%d/v1" port in
+let with_provider ?(scheme = "http") env _sw port f =
+  let url = Printf.sprintf "%s://127.0.0.1:%d/v1" scheme port in
   match Openai_provider.create (Types.Openai {
     api_key = "sk-test"; base_url = Some url; organization = None;
     embedding_model = None; prompt_cache_key = None }) with
@@ -55,8 +55,8 @@ let cancel_after env sw seconds token =
     Eio.Time.sleep (Eio.Stdenv.clock env) seconds;
     Cancellation.request_cancel token User_cancelled)
 
-let run_case env sw net port ~stream =
-  with_provider env sw port (fun llm ->
+let run_case ?(scheme = "http") env sw net port ~stream =
+  with_provider ~scheme env sw port (fun llm ->
     let token = Cancellation.create_token sw in
     cancel_after env sw 0.2 token;
     let ctx = Invoke_context.create
@@ -95,6 +95,14 @@ let runtime_config : runtime_config = {
   max_tool_schema_tokens = None;
   max_tool_result_chars = 100_000;
 }
+
+let test_tls_handshake_cancels () =
+  Mirage_crypto_rng_unix.use_default ();
+  Eio_main.run (fun env ->
+    with_hanging_server env (fun sw net port ->
+      Http_client.set_clock (Eio.Stdenv.clock env);
+      Http_client.set_request_timeout 60.0;
+      run_case ~scheme:"https" env sw net port ~stream:false))
 
 let test_runtime_invoke_reports_cancelled () =
   Eio_main.run (fun env ->
@@ -147,6 +155,8 @@ let () =
         test_complete_cancels;
       Alcotest.test_case "streaming silent provider" `Quick
         test_stream_cancels;
+      Alcotest.test_case "TLS handshake cancel" `Quick
+        test_tls_handshake_cancels;
       Alcotest.test_case "Runtime.invoke reports Cancelled" `Quick
         test_runtime_invoke_reports_cancelled;
     ]);
