@@ -57,6 +57,9 @@
 - Python: `Runtime.set_trace_callbacks`, plus the optional
   `par-runtime[otel]` extra (`OTelTracer`) with trace-id and parent-link
   preservation. The base package stays dependency-free.
+- `make bench-tracing`: Noop-path microbenchmark (manual, not a CI test).
+  Reference result: ~10 ns per `with_root noop` and ~80 ns per span-boundary
+  lookup, with no allocation on the Noop branch.
 
 ### Fixed — bounded tool results (GitHub #44, W3)
 

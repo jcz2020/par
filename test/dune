@@ -765,3 +765,8 @@
   (name test_trace_propagation)
   (libraries par eio_main alcotest yojson)
   (modules test_trace_propagation))
+
+(executable
+  (name bench_tracing)
+  (libraries par eio_main)
+  (modules bench_tracing))

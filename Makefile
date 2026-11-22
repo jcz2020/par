@@ -103,6 +103,9 @@ test-count: ## Run tests and output total count
 	if [ -z "$$COUNT" ]; then COUNT=unknown; fi; \
 	echo ""; echo "TEST_COUNT=$$COUNT"
 
+bench-tracing: ## Run the Noop tracing microbenchmark (manual)
+	dune exec test/bench_tracing.exe
+
 python-test: ## Run Python binding tests via pytest
 	cd bindings/python && python3 -m pytest tests/ -v
 
