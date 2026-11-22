@@ -555,18 +555,8 @@ let builtin_tools ~switch ~net ~workspace =
      memory, so the cap is enforced on the read, not afterwards. *)
   let max_download_size = 10 * 1024 * 1024 in
 
-  let default_headers = Http.Header.of_list [("user-agent", "P-A-R/0.1 (OCaml agent runtime)")] in
-
-  (* The trust store is loaded by [Tls_client.config], which fails closed: a
-     missing or unreadable CA bundle aborts the fetch instead of silently
-     accepting any certificate. *)
-  let tls_config = Tls_client.config in
-
-  let https_fn uri flow =
-    Tls_client.connect ~cfg:(Lazy.force tls_config) uri flow
-  in
-
-  let http_client = Cohttp_eio.Client.make ~https:(Some https_fn) net in
+  let default_headers = [("user-agent", "P-A-R/0.1 (OCaml agent runtime)")] in
+  let generic_net = (net :> [ `Generic ] Eio.Net.ty Eio.Net.t) in
 
   let validate_url url =
     let uri = Uri.of_string url in
@@ -576,36 +566,38 @@ let builtin_tools ~switch ~net ~workspace =
     | None -> Error "URL must include a scheme (http:// or https://)"
   in
 
+  let parsed_url uri =
+    let use_tls = match Uri.scheme uri with Some "https" -> true | _ -> false in
+    let host = Option.value (Uri.host uri) ~default:"" in
+    let port = match Uri.port uri with
+      | Some port -> port
+      | None -> if use_tls then 443 else 80
+    in
+    let path = match Uri.path_and_query uri with "" -> "/" | path -> path in
+    { Http_client.host; port; path; use_tls }
+  in
+
   let http_get url : ((int * string), string) result =
     match validate_url url with
     | Error msg -> Error msg
     | Ok uri ->
       (try
-         Eio.Switch.run (fun sw_inner ->
-           Http_client.with_timeout_for ~timeout:15.0 sw_inner (fun () ->
-             let headers =
-               Http.Header.add_list default_headers
-                 (Tracing.outgoing_headers ())
-             in
-             let resp, body =
-               Cohttp_eio.Client.get http_client ~sw:sw_inner
-                 ~headers uri
-             in
-             let status =
-               (resp.Http.Response.status :> Cohttp.Code.status_code)
-               |> Cohttp.Code.code_of_status
-             in
-             let body_str =
-               Eio.Buf_read.parse_exn ~max_size:max_download_size
-                 Eio.Buf_read.take_all body
-             in
-             Ok (status, body_str)))
+         let url = parsed_url uri in
+         let request =
+           Http_client.build_http_get ~host:url.Http_client.host
+             ~path:url.Http_client.path
+             ~headers:(default_headers @ Tracing.outgoing_headers ())
+         in
+         let response =
+           Http_client.do_request_to_buffer generic_net url request ~timeout:15.0
+         in
+         if String.length response.Http_client.body > max_download_size then
+           Error (Printf.sprintf
+                    "Response body exceeds the %d MB download limit. \
+                     Fetch a smaller resource, or use a tool that can page through \
+                     the content." (max_download_size / (1024 * 1024)))
+         else Ok (response.Http_client.status, response.Http_client.body)
        with
-       | Eio.Buf_read.Buffer_limit_exceeded ->
-         Error (Printf.sprintf
-                  "Response body exceeds the %d MB download limit. \
-                   Fetch a smaller resource, or use a tool that can page through \
-                   the content." (max_download_size / (1024 * 1024)))
        | exn -> Error ("HTTP request failed: " ^ Printexc.to_string exn))
   in
 

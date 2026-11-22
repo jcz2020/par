@@ -10,7 +10,7 @@
  (flags (:standard))
 (libraries base yojson eio uuidm unix str sexplib0 ppx_sexp_conv.runtime-lib
              ppx_deriving_jsonschema.runtime
-               sqlite3 csv logs tls-eio cohttp-eio lambdasoup omd yaml camlpdf
+               sqlite3 csv logs tls-eio uri lambdasoup omd yaml camlpdf
               zip xmlm ipaddr
               ca-certs x509 mirage-crypto-rng.unix base64 digestif)
   (preprocess

@@ -68,8 +68,9 @@
 - `test_http_cancel.ml` proves non-streaming, streaming and full
   `Runtime.invoke` cancellation against a server that accepts and never
   replies, each under 2 seconds.
-- Remaining cohttp-eio users: MCP HTTP and the web builtins. They keep their
-  existing timeouts until the remaining migration steps.
+- MCP HTTP (JSON and SSE), approval webhooks and `fetch_url` /
+  `read_webpage` / `web_search` now use the same owned transport. `cohttp-eio`
+  is no longer a PAR dependency.
 
 ### Added — MCP sampling routing (W3)
 

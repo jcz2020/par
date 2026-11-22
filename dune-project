@@ -35,7 +35,7 @@
     sqlite3
     logs
   (tls-eio (>= "2.1.5"))
-  cohttp-eio
+  uri
   lambdasoup
   ca-certs
   x509

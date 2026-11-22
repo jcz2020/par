@@ -141,6 +141,61 @@ let test_runtime_invoke_reports_cancelled () =
              | Ok _ -> Alcotest.fail "expected Cancelled, got Ok"))))
   )
 
+let test_do_stream_idle_timeout () =
+  Eio_main.run (fun env ->
+    with_hanging_server env (fun sw net port ->
+      Http_client.set_clock (Eio.Stdenv.clock env);
+      let parsed : Http_client.parsed_url = {
+        host = "127.0.0.1"; port; path = "/"; use_tls = false;
+      } in
+      let request =
+        Http_client.build_http_get ~host:"127.0.0.1" ~path:"/"
+          ~headers:[]
+      in
+      let started = Unix.gettimeofday () in
+      let raised =
+        try
+          ignore (Http_client.do_stream (net :> [ `Generic ] Eio.Net.ty Eio.Net.t) parsed request ~idle_timeout:1.0
+                    (fun ~status:_ ~headers:_ ~read_line:_ -> ()));
+          false
+        with _ -> true
+      in
+      let elapsed = Unix.gettimeofday () -. started in
+      Alcotest.(check bool) "raised" true raised;
+      Alcotest.(check bool) "within 4s" true (elapsed < 4.0);
+      ignore sw)
+  )
+
+let test_mcp_request_cancels () =
+  Eio_main.run (fun env ->
+    with_hanging_server env (fun sw net port ->
+      let url = Printf.sprintf "http://127.0.0.1:%d/mcp" port in
+      let transport =
+        Mcp_transport_http.create ~url ~net ~sw
+      in
+      let token = Cancellation.create_token sw in
+      cancel_after env sw 0.2 token;
+      let ctx = Invoke_context.create
+          ~cancellation_token:token
+          ~session_id:"cancel-mcp"
+          () in
+      let req : Mcp_types.jsonrpc_request = {
+        id = Mcp_types.Int_id 1;
+        method_ = Mcp_types.method_tools_list;
+        params = Some (`Assoc []);
+      } in
+      let started = Unix.gettimeofday () in
+      let result =
+        Invoke_context.with_context ctx (fun () ->
+          Mcp_transport_http.request_response transport req)
+      in
+      let elapsed = Unix.gettimeofday () -. started in
+      Alcotest.(check bool) "returns within 2s" true (elapsed < 2.0);
+      (match result with
+       | Error _ -> ()
+       | Ok _ -> Alcotest.fail "expected an error after cancellation"))
+  )
+
 let test_stream_cancels () =
   Eio_main.run (fun env ->
     with_hanging_server env (fun sw net port ->
@@ -157,6 +212,10 @@ let () =
         test_stream_cancels;
       Alcotest.test_case "TLS handshake cancel" `Quick
         test_tls_handshake_cancels;
+      Alcotest.test_case "MCP request cancel" `Quick
+        test_mcp_request_cancels;
+      Alcotest.test_case "do_stream idle timeout" `Quick
+        test_do_stream_idle_timeout;
       Alcotest.test_case "Runtime.invoke reports Cancelled" `Quick
         test_runtime_invoke_reports_cancelled;
     ]);

@@ -23,50 +23,43 @@ let send_webhook_approval
   let signature = hmac_sha256_hex ~secret body_str in
   let uri = Uri.of_string url in
   try
-    let clock = Http_timeout.get_clock () in
-    let result =
-      Eio.Fiber.first
-        (fun () ->
-          `Ok (Eio.Switch.run (fun sw ->
-            let client = Cohttp_eio.Client.make ~https:None net in
-            let headers = Cohttp.Header.of_list
-              (Tracing.outgoing_headers () @ [
-              ("Content-Type", "application/json");
-              ("X-PAR-Signature", Printf.sprintf "sha256=%s" signature);
-              ("Content-Length", string_of_int (String.length body_str));
-            ]) in
-            let body = Cohttp_eio.Body.of_string body_str in
-            let resp, resp_body = Cohttp_eio.Client.call ~sw
-              ~headers ~body client `POST uri in
-            let status_code = Cohttp.Code.code_of_status
-              (Http.Response.status resp) in
-            let resp_str =
-              Eio.Buf_read.parse_exn ~max_size:(1024 * 1024)
-                Eio.Buf_read.take_all resp_body in
-            (status_code, resp_str))))
-        (fun () ->
-          Eio.Time.sleep clock timeout_sec;
-          `Timeout)
+    let parsed = Http_client.parsed_url_of_uri uri in
+    let request =
+      Http_client.build_http_request ~host:parsed.Http_client.host
+        ~path:parsed.Http_client.path
+        ~headers:[("X-PAR-Signature", Printf.sprintf "sha256=%s" signature)]
+        ~body:body_str
     in
-    match result with
-    | `Timeout -> Approval.Timeout
-    | `Ok (status_code, resp_str) ->
-      if status_code = 200 then
-        (try
-           let json = Yojson.Safe.from_string resp_str in
-           match Approval.outcome_of_json json with
-           | Ok outcome -> outcome
-           | Error msg ->
-             Logs.warn (fun m -> m "[webhook] invalid outcome JSON: %s" msg);
-             Approval.Timeout
-         with _ ->
-           Logs.warn (fun m -> m "[webhook] non-JSON 200 response");
-           Approval.Timeout)
-      else
-        Approval.Rejected {
-          reason = Printf.sprintf "webhook returned HTTP %d" status_code;
-        }
+    let response =
+      Http_client.do_request_to_buffer
+        (net :> [ `Generic ] Eio.Net.ty Eio.Net.t)
+        parsed request ~timeout:timeout_sec
+    in
+    let status_code = response.Http_client.status in
+    let resp_str = response.Http_client.body in
+    if String.length resp_str > 1024 * 1024 then begin
+      Logs.warn (fun m -> m "[webhook] response body exceeds 1 MB");
+      Approval.Timeout
+    end else if status_code = 200 then
+      (try
+         let json = Yojson.Safe.from_string resp_str in
+         match Approval.outcome_of_json json with
+         | Ok outcome -> outcome
+         | Error msg ->
+           Logs.warn (fun m -> m "[webhook] invalid outcome JSON: %s" msg);
+           Approval.Timeout
+       with _ ->
+         Logs.warn (fun m -> m "[webhook] non-JSON 200 response");
+         Approval.Timeout)
+    else
+      Approval.Rejected {
+        reason = Printf.sprintf "webhook returned HTTP %d" status_code;
+      }
   with
+  | Failure msg when
+      (try ignore (Str.search_forward (Str.regexp "timed out") msg 0); true
+       with Not_found -> false) ->
+    Approval.Timeout
   | Eio.Exn.Io _ as exn ->
     Approval.Rejected {
       reason = Printf.sprintf "webhook I/O error: %s"

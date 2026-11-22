@@ -9,6 +9,10 @@ type http_error =
 
 val parse_url : string -> parsed_url
 
+val parsed_url_of_uri : Uri.t -> parsed_url
+(** Exact host/port/path form, without [parse_url]'s trailing-slash
+    normalization. *)
+
 val build_http_request :
   host:string -> path:string -> headers:(string * string) list -> body:string -> string
 
@@ -29,6 +33,36 @@ val decode_body : string -> string -> string
 val map_http_status : int -> string -> http_error
 
 val tls_config : Tls.Config.client lazy_t
+
+type owned_response = {
+  status : int;
+  headers : (string * string) list;
+  body : string;
+}
+
+val do_request_to_buffer :
+  [ `Generic ] Eio.Net.ty Eio.Net.t ->
+  parsed_url ->
+  string ->
+  timeout:float ->
+  owned_response
+(** One owned-socket exchange. Returns the decoded body (Content-Length or
+    chunked), the header list, and the status. Registers the invoke's
+    cancellation hook. Raises [Failure "HTTP request timed out..."] on the
+    timeout. *)
+
+val do_stream :
+  [ `Generic ] Eio.Net.ty Eio.Net.t ->
+  parsed_url ->
+  string ->
+  idle_timeout:float ->
+  (status:int ->
+   headers:(string * string) list ->
+   read_line:(unit -> string option) ->
+   'a) ->
+  'a
+(** Streaming variant: status and headers are parsed before the body; the
+    callback pulls decoded lines. Used by MCP HTTP for JSON and SSE bodies. *)
 
 val do_request :
   [ `Generic] Eio.Net.ty Eio.Net.t -> parsed_url -> string -> string

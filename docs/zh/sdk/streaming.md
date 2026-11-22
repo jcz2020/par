@@ -332,7 +332,7 @@ finally:
 - provider 会重新抛出取消异常，而不是把它记成 malformed SSE chunk；OpenAI/Anthropic 的流循环都把回调调用移到了 JSON 解析错误处理之外。
 - assistant 消息被原子物化：要么完整的流式内容出现在对话中，要么什么都不出现。不存在部分 assistant 消息。
 
-保护在每个 chunk 触发，不是每个 token，因此取消延迟通常不超过一个 chunk 间隔（典型 50-300 ms）。Provider HTTP 已迁移到自有 socket（PAR-9km）：取消 invoke 会 shutdown socket，因此即使 provider 完全静默、没有 chunk，也能被打断（回归测试断言 <2s）。MCP HTTP 与内置 web 工具在剩余迁移步骤完成前仍使用 cohttp-eio，其卡死读由各自超时兜底。
+保护在每个 chunk 触发，不是每个 token，因此取消延迟通常不超过一个 chunk 间隔（典型 50-300 ms）。Provider、MCP HTTP、审批 webhook 与内置 web 工具的 HTTP 都已迁移到自有 socket（PAR-9km）：取消 invoke 会 shutdown socket，因此即使对端完全静默、没有 chunk，也能被打断（回归测试断言 <2s）。cohttp-eio 不再是 PAR 的依赖。
 
 ### Python 端
 

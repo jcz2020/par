@@ -37,6 +37,18 @@ let parse_url url =
 (* HTTP request building                                                      *)
 (* -------------------------------------------------------------------------- *)
 
+(* Exact URL form: unlike [parse_url], [path_and_query] is not normalized
+   with a trailing slash. User-supplied endpoints (MCP, webhooks) need this. *)
+let parsed_url_of_uri (uri : Uri.t) : parsed_url =
+  let use_tls = match Uri.scheme uri with Some "https" -> true | _ -> false in
+  let host = Option.value (Uri.host uri) ~default:"" in
+  let port = match Uri.port uri with
+    | Some port -> port
+    | None -> if use_tls then 443 else 80
+  in
+  let path = match Uri.path_and_query uri with "" -> "/" | path -> path in
+  { host; port; path; use_tls }
+
 let build_http_request ~host ~path ~headers ~body =
   (* W3C propagation: every provider request carries the active span. Absent
      (empty list) when the host injected no tracer. *)
@@ -276,22 +288,76 @@ let with_owned_exchange ~sw ~net ~url ~request ~timeout f =
        in
        flow := Some connection;
        Eio.Flow.copy_string request connection;
-       let result = f connection in
-       (match timeout with
-        | Some seconds when !timed_out ->
-          failwith (Printf.sprintf "HTTP request timed out after %.0fs" seconds)
-        | _ -> result))
+       let timeout_message () =
+         match timeout with
+         | Some seconds ->
+           Printf.sprintf "HTTP request timed out after %.0fs" seconds
+         | None -> "HTTP request timed out"
+       in
+       let result =
+         try f connection with exn ->
+           if !timed_out then failwith (timeout_message ()) else raise exn
+       in
+       if !timed_out then failwith (timeout_message ()) else result)
 
-let do_request net url request =
+type owned_response = {
+  status : int;
+  headers : (string * string) list;
+  body : string;
+}
+
+let strip_cr s =
+  let n = String.length s in
+  if n > 0 && s.[n - 1] = '\r' then String.sub s 0 (n - 1) else s
+
+let read_header_list buf =
+  let rec loop acc =
+    let line = strip_cr (Eio.Buf_read.line buf) in
+    if line = "" then List.rev acc
+    else
+      match String.index_opt line ':' with
+      | Some i ->
+        let k = String.trim (String.sub line 0 i) in
+        let v = String.trim (String.sub line (i + 1) (String.length line - i - 1)) in
+        if k = "" then loop acc else loop ((k, v) :: acc)
+      | None -> loop acc
+  in
+  loop []
+
+let header_value headers name =
+  let name = String.lowercase_ascii name in
+  List.find_map (fun (k, v) ->
+    if String.lowercase_ascii k = name then Some v else None) headers
+
+let read_owned_response flow =
+  let buf = Eio.Buf_read.of_flow ~initial_size:65536
+      ~max_size:(100 * 1024 * 1024) flow in
+  let status = parse_status_line (strip_cr (Eio.Buf_read.line buf)) in
+  let headers = read_header_list buf in
+  let chunked =
+    match header_value headers "transfer-encoding" with
+    | Some v -> String.lowercase_ascii v |> fun v ->
+      (try ignore (Str.search_forward (Str.regexp_string "chunked") v 0); true
+       with Not_found -> false)
+    | None -> false
+  in
+  let body =
+    if status = 204 || status = 304 then ""
+    else if chunked then decode_chunked (Eio.Buf_read.take_all buf)
+    else match header_value headers "content-length" with
+      | Some v ->
+        (match int_of_string_opt (String.trim v) with
+         | Some n when n >= 0 -> Eio.Buf_read.take n buf
+         | _ -> Eio.Buf_read.take_all buf)
+      | None -> Eio.Buf_read.take_all buf
+  in
+  { status; headers; body }
+
+let do_request_to_buffer net url request ~timeout =
   Eio.Switch.run (fun sw ->
-    with_owned_exchange ~sw ~net ~url ~request
-      ~timeout:(Some !request_timeout) (fun flow ->
-        let buf = Eio.Buf_read.of_flow ~initial_size:65536
-            ~max_size:(100 * 1024 * 1024) flow in
-        Eio.Buf_read.take_all buf))
+    with_owned_exchange ~sw ~net ~url ~request ~timeout:(Some timeout)
+      read_owned_response)
 
-(* -------------------------------------------------------------------------- *)
-(* Incremental streaming response                                              *)
 (* -------------------------------------------------------------------------- *)
 
 exception Http_status_error of int * string
@@ -380,6 +446,78 @@ let read_unchunked_line buf : string option =
   | End_of_file -> None
   | Eio.Buf_read.Buffer_limit_exceeded as ex -> raise ex
   | Eio.Io _ as ex -> raise ex
+
+(* Streaming variant for MCP HTTP: the caller gets the parsed status and header
+   list before the body is consumed. Non-2xx is not special-cased; the caller
+   decides. *)
+let do_stream net url request ~idle_timeout k =
+  Eio.Switch.run (fun sw ->
+    with_owned_exchange ~sw ~net ~url ~request ~timeout:None (fun flow ->
+      let buf = Eio.Buf_read.of_flow ~initial_size:4096
+          ~max_size:(100 * 1024 * 1024) flow in
+      let activity = ref false in
+      let idle_fired = ref false in
+      let timed_out_message () =
+        Printf.sprintf "HTTP stream timed out after %.0fs of inactivity" idle_timeout
+      in
+      (* Arm the idle timeout before the status line: a silent server never
+         reaches the body read. *)
+      (match !clock_ref with
+       | Some clock_obj ->
+         let clock = (Obj.obj clock_obj : _ Eio.Time.clock_ty Eio.Resource.t) in
+         ignore (Eio.Fiber.fork_daemon ~sw (fun () ->
+           let rec loop () =
+             Eio.Time.sleep clock idle_timeout;
+             if !activity then begin activity := false; loop () end
+             else begin
+               idle_fired := true;
+               shutdown_quietly flow;
+               `Stop_daemon
+             end
+           in
+           loop ()))
+       | None -> ());
+      let finish result =
+        if !idle_fired then failwith (timed_out_message ());
+        result
+      in
+      try
+        let status = parse_status_line (strip_cr (Eio.Buf_read.line buf)) in
+        let headers = read_header_list buf in
+        (* A stream that produced headers has shown liveness; start the idle
+           window from here. *)
+        activity := true;
+        let chunked =
+          match header_value headers "transfer-encoding" with
+          | Some v -> String.lowercase_ascii v |> fun v ->
+            (try ignore (Str.search_forward (Str.regexp_string "chunked") v 0); true
+             with Not_found -> false)
+          | None -> false
+        in
+        let pending = Buffer.create 4096 in
+        let done_ref = ref false in
+        let read_line =
+          if chunked then (fun () -> read_chunked_line buf pending done_ref)
+          else (fun () -> read_unchunked_line buf)
+        in
+        let result =
+          k ~status ~headers
+            ~read_line:(fun () ->
+              let line = read_line () in
+              activity := true;
+              line)
+        in
+        finish result
+      with exn ->
+        if !idle_fired then failwith (timed_out_message ()) else raise exn))
+
+let do_request net url request =
+  Eio.Switch.run (fun sw ->
+    with_owned_exchange ~sw ~net ~url ~request
+      ~timeout:(Some !request_timeout) (fun flow ->
+        let buf = Eio.Buf_read.of_flow ~initial_size:65536
+            ~max_size:(100 * 1024 * 1024) flow in
+        Eio.Buf_read.take_all buf))
 
 let read_response_headers buf =
   let status_line = Eio.Buf_read.line buf in
