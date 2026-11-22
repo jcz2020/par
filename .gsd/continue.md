@@ -15,14 +15,14 @@
   merged as `6fd8cfb`) the HTTP transport hotfix; `v0.16.2-beta.20261114` the
   GitHub #33 security patch; `v0.16.1` the GitHub #32 `grep` follow-up and
   `v0.16.0` the vision/lease/approval/TLS release.
-- Main carries the v0.18 work: `PAR-is4` (TLS fail-closed) plus W1 (typed
-  Python API + `AsyncRuntime` + `mypy --strict`), W2 (typed tracing, W3C
-  propagation, Python OTel adapter) and W3 (MCP sampling routing). W4
-  `PAR-9km` (owned-socket HTTP) is still open and does not block the version.
-- `docs/v0.18-ROADMAP.md` is in progress (2026-11-19): W1/W2/W3 slices done
-  and pushed; bd `PAR-ga4q.1`, `PAR-ga4q.2`, `PAR-wn7` closed. Remaining for
-  a release: sampling events + a limit regression test, a Noop-tracing
-  performance check, full Python matrix, docs/build gate, version bump.
+- Main carries the v0.18 work: `PAR-is4` (TLS fail-closed), W1 (typed Python
+  API + `AsyncRuntime` + `mypy --strict` + `list_models`), W2 (typed tracing,
+  W3C propagation, Python OTel adapter), W3 (MCP sampling routing + events)
+  and W4 (`PAR-9km`: provider/MCP/webhook/web-builtin HTTP on an owned socket;
+  cohttp-eio removed).
+- `docs/v0.18-ROADMAP.md`: W1-W4 done; bd `PAR-ga4q.1`, `PAR-ga4q.2`,
+  `PAR-wn7`, `PAR-9km`, `PAR-p7lj`, `PAR-xmap` closed. Remaining before a
+  release: Noop-tracing benchmark (`PAR-8a41`), final gates, version bump.
 - OCaml: 1843 tests, 0 failures. Python: 247 passed / 22 skipped (per-file
   matrix; the two skips are the gated native-cancel test and the OTel file on
   installs without the extra).
