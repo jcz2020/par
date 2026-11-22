@@ -23,7 +23,7 @@
   and pushed; bd `PAR-ga4q.1`, `PAR-ga4q.2`, `PAR-wn7` closed. Remaining for
   a release: sampling events + a limit regression test, a Noop-tracing
   performance check, full Python matrix, docs/build gate, version bump.
-- OCaml: 1832 tests, 0 failures. Python: 247 passed / 22 skipped (per-file
+- OCaml: 1836 tests, 0 failures. Python: 247 passed / 22 skipped (per-file
   matrix; the two skips are the gated native-cancel test and the OTel file on
   installs without the extra).
 - Local switch upgraded on 2026-11-11: sqlite3 5.4.2 (GC-rooting fix), tls /
@@ -134,6 +134,17 @@
     POST. Eight new provider/runtime cases. Shipped in
     **v0.17.3-beta.20261118** after the macOS arm64 runner queue cleared (the
     publish workflow was re-run; Release acceptance then passed).
+
+## 2026-11-22: GitHub #44 triage
+
+- **Fixed (316e70f)**: bounded tool results. `max_tool_result_chars` (default
+  100_000) caps the text a tool adds to the conversation; builtin `grep` skips
+  binary-looking files, truncates lines >2,000 chars and stops after 1,000
+  matches. bd `PAR-t60u` closed.
+- **Not fixed**: cancellation of a silent provider read. `PAR-9km` promoted to
+  P1. An empirical wrapper (`Cancellation` promise + `Eio.Fiber.first`) still
+  hangs: cohttp-eio's wrapped socket read ignores Eio cancellation, and switch
+  cleanup waits for the fiber. Only the owned-socket transport can fix it.
 
 ## Next directions
 
