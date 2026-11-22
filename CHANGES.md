@@ -18,6 +18,13 @@
 - Defaults are locked by equivalence tests: `RuntimeConfig().to_json()`
   normalizes to the same OCaml config as a hand-written minimal JSON object.
 
+### Added — Python model discovery (PAR-xmap)
+
+- `Runtime.list_models(provider_id=None)` and `AsyncRuntime.list_models`
+  expose the existing C-bridge capability; without a provider id they use the
+  default provider. Unknown providers raise `PARError`.
+- `test_list_models.py` covers a mock `/models` endpoint and the error path.
+
 ### Added — `AsyncRuntime` (W1-S3)
 
 - `AsyncRuntime` offers `register_agent`, `register_tool`,

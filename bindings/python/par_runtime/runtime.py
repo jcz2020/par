@@ -674,6 +674,23 @@ class Runtime:
         finally:
             _free(ptr)
 
+    def list_models(self, provider_id: Optional[str] = None) -> List[str]:
+        """List models exposed by a provider (default: the current default).
+
+        Raises:
+            PARError: If the provider is unknown or does not support listing.
+        """
+        self._check_handle()
+        result_ptr = _lib.par_list_models(
+            self._handle, _c_str(provider_id or ""))
+        raw = _py_str(result_ptr)
+        if not raw:
+            raise PARError("list_models returned empty result")
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict) and "error" in parsed:
+            raise PARError(parsed["error"])
+        return [str(model) for model in parsed]
+
     def set_default_llm_provider(self, provider_id: str) -> None:
         """Switch the default LLM provider (v0.5.4 PAR-tiu).
 

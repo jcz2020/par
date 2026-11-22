@@ -519,6 +519,18 @@ char* par_list_llm_providers(par_runtime_t* rt) {
     return ret;
 }
 
+char* par_list_models(par_runtime_t* rt, const char* provider_id) {
+    CAMLparam0();
+    CAMLlocal1(c_id);
+    c_id = caml_copy_string(provider_id ? provider_id : "");
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value result = call2_exn("par_list_models", rt->_ocaml_value, c_id);
+    char* ret = extract_string(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLdrop;
+    return ret;
+}
+
 int par_set_default_llm_provider(par_runtime_t* rt, const char* provider_id) {
     CAMLparam0();
     CAMLlocal1(c_id);

@@ -18,7 +18,7 @@ Nothing blocks the event loop for longer than the C-side call itself (a poll
 with timeout 0).
 """
 import asyncio
-from typing import Any, AsyncIterator, Callable, Dict, Optional, Set, Union
+from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Set, Union
 
 from par_runtime._errors import PARError, PARInvokeError
 from par_runtime.models import AgentConfig, InvokeResult, RuntimeConfig
@@ -96,6 +96,11 @@ class AsyncRuntime:
     ) -> None:
         runtime = await self._ensure()
         runtime.register_tool_with_handler(name, description, input_schema, handler)
+
+    async def list_models(self, provider_id: Optional[str] = None) -> List[str]:
+        """List models from a provider; see :meth:`Runtime.list_models`."""
+        runtime = await self._ensure()
+        return runtime.list_models(provider_id)
 
     async def set_trace_callbacks(
         self,

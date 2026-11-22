@@ -149,6 +149,16 @@ with Runtime(RuntimeConfig()) as rt:
 
 `Runtime(...)` 与 `register_agent(...)` 接受类型化模型、dict 或 JSON 字符串，三种形式产生相同的 runtime 行为。
 
+## 列出模型
+
+```python
+with Runtime(RuntimeConfig(...)) as rt:
+    models = rt.list_models()              # 默认 provider
+    models = rt.list_models("anthropic")   # 指定 provider
+```
+
+`AsyncRuntime.list_models` 提供对应的异步版本。不支持列出的 provider 会抛出 `PARError`。
+
 ## 类型检查
 
 包内置 `py.typed`，并在 CI 中通过 `mypy --strict par_runtime`。Python 3.10+ 用户可获得上表所有字段的补全。

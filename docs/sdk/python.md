@@ -177,6 +177,17 @@ with Runtime(RuntimeConfig()) as rt:
 `Runtime(...)` and `register_agent(...)` accept a typed model, a dict, or a
 JSON string, and the three forms produce the same runtime behavior.
 
+## Listing models
+
+```python
+with Runtime(RuntimeConfig(...)) as rt:
+    models = rt.list_models()              # default provider
+    models = rt.list_models("anthropic")   # named provider
+```
+
+`AsyncRuntime.list_models` awaits the same call. Providers that do not support
+listing raise `PARError`.
+
 ## Type checking
 
 The package ships `py.typed` and passes `mypy --strict par_runtime` in CI.

@@ -2157,6 +2157,23 @@ let do_list_llm_providers (state_id : int) : string =
     ) in
     Obj.obj result
 
+let do_list_models (state_id : int) (provider_id : string) : string =
+  match get_state state_id with
+  | None -> error_json "Invalid runtime handle"
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      try
+        let id = if provider_id = "" then None else Some provider_id in
+        match Par.Runtime.list_models rt ?id () with
+        | Ok models ->
+          Obj.repr (Yojson.Safe.to_string
+                      (`List (List.map (fun model -> `String model) models)))
+        | Error e ->
+          Obj.repr (error_json (Par.Types.string_of_error_category e))
+      with exn -> Obj.repr (error_json (Printexc.to_string exn)))
+    in
+    Obj.obj result
+
 let do_set_default_llm_provider (state_id : int) (provider_id : string) : int =
   match get_state state_id with
   | None -> -1
@@ -2207,6 +2224,12 @@ let () =
     (fun (state_id_obj : Obj.t) ->
       let state_id : int = Obj.magic state_id_obj in
       do_list_llm_providers state_id)
+
+let () =
+  Callback.register "par_list_models"
+    (fun (state_id_obj : Obj.t) (provider_id : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_list_models state_id provider_id)
 
 let () =
   Callback.register "par_set_default_llm_provider"
