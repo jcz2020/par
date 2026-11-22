@@ -54,12 +54,20 @@ let test_sampling_policy_round_trips () =
      | Types.Disabled -> Alcotest.fail "Auto policy decoded as Disabled")
   | Error e -> Alcotest.failf "config decode: %s" e
 
-let test_sampling_router_answers_the_server () =
+let run_router ~max_requests_per_invoke ~expect_sampled () =
   Eio_main.run (fun env ->
     Eio.Switch.run (fun sw ->
       let tool_name = "echo" in
       let calls = ref 0 in
       let saw_sampled_text = ref false in
+      let events = ref [] in
+      let bus : Types.event_bus_service = {
+        publish_fn = (fun event -> events := event :: !events);
+        subscribe_fn = (fun _ -> "");
+        unsubscribe_fn = (fun _ -> ());
+        set_session_id_fn = (fun _ -> ());
+        start_dispatcher_fn = (fun _ -> ());
+      } in
       let llm : Types.llm_service = {
         complete_fn = (fun _model _tools conv ->
           incr calls;
@@ -97,7 +105,14 @@ let test_sampling_router_answers_the_server () =
         cwd = None;
         startup_timeout = 5.0;
       } in
-      match Runtime.create ~llm ~config:test_runtime_config ~mcp_servers:[server]
+      let config = { test_runtime_config with
+                       mcp_sampling = Types.Auto {
+                         model = sampling_model;
+                         max_tokens = 64;
+                         max_requests_per_invoke;
+                         timeout = 5.0;
+                       } } in
+      match Runtime.create ~event_bus:bus ~llm ~config ~mcp_servers:[server]
               ~mcp_clock:(Eio.Stdenv.clock env)
               ~mcp_process_mgr:(Eio.Stdenv.process_mgr env)
               ~mcp_net:(Eio.Stdenv.net env) sw with
@@ -131,10 +146,41 @@ let test_sampling_router_answers_the_server () =
           | Error (e, _) -> Alcotest.failf "invoke: %s"
                               (Types.string_of_error_category e)
           | Ok _ ->
-            Alcotest.(check int) "engine calls + one sampling call" 3 !calls;
-            Alcotest.(check bool) "sampled text reached the model" true
-              !saw_sampled_text))
+            let requested =
+              List.exists (function
+                | Types.Mcp_sampling_requested _ -> true
+                | _ -> false) !events
+            in
+            let completed =
+              List.exists (function
+                | Types.Mcp_sampling_completed _ -> true
+                | _ -> false) !events
+            in
+            let failed =
+              List.exists (function
+                | Types.Mcp_sampling_failed _ -> true
+                | _ -> false) !events
+            in
+            if expect_sampled then begin
+              Alcotest.(check int) "engine calls + one sampling call" 3 !calls;
+              Alcotest.(check bool) "sampled text reached the model" true
+                !saw_sampled_text;
+              Alcotest.(check bool) "requested event" true requested;
+              Alcotest.(check bool) "completed event" true completed;
+              Alcotest.(check bool) "no failure event" false failed
+            end else begin
+              Alcotest.(check int) "no sampling LLM call" 2 !calls;
+              Alcotest.(check bool) "no sampled text" false !saw_sampled_text;
+              Alcotest.(check bool) "failure event" true failed;
+              Alcotest.(check bool) "no completed event" false completed
+            end))
   )
+
+let test_sampling_router_answers_the_server () =
+  run_router ~max_requests_per_invoke:2 ~expect_sampled:true ()
+
+let test_sampling_budget_rejects_the_request () =
+  run_router ~max_requests_per_invoke:0 ~expect_sampled:false ()
 
 let () =
   Alcotest.run "mcp_sampling" [
@@ -197,6 +243,8 @@ let () =
         test_sampling_policy_round_trips;
       Alcotest.test_case "stdio server receives a sampled answer" `Quick
         test_sampling_router_answers_the_server;
+      Alcotest.test_case "budget rejects the request" `Quick
+        test_sampling_budget_rejects_the_request;
     ];
 
     "sampling_response", [

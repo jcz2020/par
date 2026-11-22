@@ -701,6 +701,7 @@ config = RuntimeConfig(mcp_sampling=MCPSampling(
 - 拒绝时 server 收到 JSON-RPC 错误（`Rate_limited` / `Invalid_input`）。`Disabled` 时 transport 返回 `-32601 Method not found`，server 可自行降级。
 - stdio 在客户端等待自身响应时分派 server 请求；HTTP 处理 SSE 流上到达的 sampling 请求。
 - 追踪：`invoke` 下产生 `mcp.sampling` server span，属性为 `mcp.server` 与 `gen_ai.request.model`。
+- 事件：`Mcp_sampling_requested`、`Mcp_sampling_completed`（tokens 与耗时）以及 `Mcp_sampling_failed`（错误类别）。
 
 ## 当前限制
 

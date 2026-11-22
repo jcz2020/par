@@ -882,6 +882,14 @@ type event =
   | Mcp_tool_completed of { server_id : string; tool_name : string; duration_ms : float }
   | Mcp_resource_read of { server_id : string; uri : string }
   | Mcp_prompt_rendered of { server_id : string; prompt_name : string }
+  (* v0.18 W3: one sampling round trip, logged for cost visibility. *)
+  | Mcp_sampling_requested of { server_id : string; max_tokens : int }
+  | Mcp_sampling_completed of {
+      server_id : string;
+      tokens : int;
+      duration_ms : float;
+    }
+  | Mcp_sampling_failed of { server_id : string; error : error_category }
   | Agent_handoff of { from_agent : string; to_agent : string; task_id : Task_id.t }
   | Structured_output_completed of {
       attempts : int;

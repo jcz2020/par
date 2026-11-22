@@ -39,6 +39,9 @@ let extract_task_id : event -> string = function
   | Mcp_tool_completed _ -> ""
   | Mcp_resource_read _ -> ""
   | Mcp_prompt_rendered _ -> ""
+  | Mcp_sampling_requested _ -> ""
+  | Mcp_sampling_completed _ -> ""
+  | Mcp_sampling_failed _ -> ""
   | Agent_handoff { task_id; _ } -> Task_id.to_string task_id
   | Structured_output_completed { task_id; _ } -> Task_id.to_string task_id
   | Embedding_request_sent _ -> ""

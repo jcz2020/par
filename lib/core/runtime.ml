@@ -895,14 +895,17 @@ let conversation_of_sampling_params (params : Yojson.Safe.t) : conversation =
 let handle_sampling_request rt ~model:policy_model ~max_tokens:policy_max_tokens
     ~max_requests_per_invoke ~timeout:policy_timeout ~server_id
     (params : Yojson.Safe.t) : (Yojson.Safe.t, error_category) result =
+  let fail error =
+    publish_event rt (Mcp_sampling_failed { server_id; error });
+    Result.Error error
+  in
   match Invoke_context.get_current () with
   | None ->
-    Result.Error (Invalid_input
+    fail (Invalid_input
       "MCP sampling is disabled outside an invoke (no per-invoke budget)")
   | Some ctx ->
     if !(ctx.Invoke_context.mcp_sampling_requests) >= max_requests_per_invoke
-    then
-      Result.Error (Rate_limited)
+    then fail (Invalid_input "MCP sampling request budget exhausted")
     else begin
       incr ctx.Invoke_context.mcp_sampling_requests;
       let open Yojson.Safe.Util in
@@ -916,6 +919,9 @@ let handle_sampling_request rt ~model:policy_model ~max_tokens:policy_max_tokens
         | Some n -> min policy_max_tokens n
         | None -> policy_max_tokens
       in
+      let cap = max 1 cap in
+      publish_event rt (Mcp_sampling_requested { server_id; max_tokens = cap });
+      let started_at = Unix.gettimeofday () in
       let model = { policy_model with max_tokens = Some cap } in
       let conv = conversation_of_sampling_params params in
       let token = Cancellation.create_token rt.cancellation_root in
@@ -929,6 +935,11 @@ let handle_sampling_request rt ~model:policy_model ~max_tokens:policy_max_tokens
            match Cancellation.with_timeout policy_timeout token (fun _ ->
              rt.services.llm.complete_fn model [] conv) with
            | Ok (Ok response) ->
+             publish_event rt (Mcp_sampling_completed {
+               server_id;
+               tokens = response.usage.total_tokens;
+               duration_ms = (Unix.gettimeofday () -. started_at) *. 1000.0;
+             });
              let text = Option.value response.text ~default:"" in
              let stop_reason =
                match response.finish_reason with
@@ -944,11 +955,9 @@ let handle_sampling_request rt ~model:policy_model ~max_tokens:policy_max_tokens
                "model", `String response.model;
                "stopReason", `String stop_reason;
              ])
-           | Ok (Error err) -> Result.Error err
-           | Error `Timeout ->
-             Result.Error (Timeout)
-           | Error `Cancelled ->
-             Result.Error (Cancelled User_cancelled))
+           | Ok (Error err) -> fail err
+           | Error `Timeout -> fail Timeout
+           | Error `Cancelled -> fail (Cancelled User_cancelled))
     end
 
 let install_sampling_handler rt (server : Mcp_server.t) =

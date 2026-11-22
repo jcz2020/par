@@ -732,6 +732,8 @@ config = RuntimeConfig(mcp_sampling=MCPSampling(
   HTTP answers sampling requests that arrive on the SSE stream.
 - Traces: a `mcp.sampling` server span under `invoke`, with `mcp.server` and
   `gen_ai.request.model`.
+- Events: `Mcp_sampling_requested`, `Mcp_sampling_completed` (tokens and
+  duration) and `Mcp_sampling_failed` (error category).
 
 ## Current Limitations
 
