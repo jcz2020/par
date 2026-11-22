@@ -441,17 +441,25 @@ let do_request_streaming net url request k =
            in
            loop ()))
        | None -> ());
-      let result =
-        do_request_streaming_with_flow flow
-          (fun ~status ~headers ~read_line ->
-             k ~status ~headers
-               ~read_line:(fun () ->
-                 let line = read_line () in
-                 activity := true;
-                 line))
+      let timed_out_message () =
+        Printf.sprintf "HTTP stream timed out after %.0fs of inactivity" idle
       in
-      if !idle_fired then
-        failwith (Printf.sprintf "HTTP stream timed out after %.0fs of inactivity" idle);
+      let result =
+        try
+          do_request_streaming_with_flow flow
+            (fun ~status ~headers ~read_line ->
+               k ~status ~headers
+                 ~read_line:(fun () ->
+                   let line = read_line () in
+                   activity := true;
+                   line))
+        with exn ->
+          (* The idle daemon shuts the socket down, which surfaces as
+             End_of_file/again in the middle of the status line, headers or a
+             body read. Report the timeout, not the shutdown artefact. *)
+          if !idle_fired then failwith (timed_out_message ()) else raise exn
+      in
+      if !idle_fired then failwith (timed_out_message ());
       result))
 
 type _exec_result = {
