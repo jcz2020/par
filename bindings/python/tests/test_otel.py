@@ -9,7 +9,13 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-pytest.importorskip("opentelemetry.sdk")
+try:
+    import opentelemetry.sdk  # noqa: F401
+except ImportError:  # pragma: no cover - exercised in the base CI matrix
+    pytest.skip(
+        'requires the optional extra: pip install "par-runtime[otel]"',
+        allow_module_level=True,
+    )
 
 from par_runtime import (  # noqa: E402
     AgentConfig,

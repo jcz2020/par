@@ -149,7 +149,14 @@ jobs:
           FAILED=0
           for f in tests/test_*.py; do
             echo "=== $(basename $f) ==="
-            python3 -m pytest "$f" -v --tb=short || FAILED=1
+            rc=0
+            python3 -m pytest "$f" -v --tb=short || rc=$?
+            # 5 = no tests ran (e.g. test_otel.py skips without the optional
+            # extra). Every other non-zero code is a real failure.
+            if [ "$rc" -ne 0 ] && [ "$rc" -ne 5 ]; then
+              echo "FAILED $f (pytest rc=$rc)"
+              FAILED=1
+            fi
           done
           exit $FAILED
 
