@@ -1161,14 +1161,15 @@ let register_agent_as_tool rt ~agent_id ?(tool_name = "agent_" ^ agent_id) ?desc
              skipped just because the parent run was started by a workflow. *)
           | None -> rt.tool_call_hooks
         in
+        let child_token = Cancellation.create_token token.switch in
         let child_ctx = Invoke_context.create
           ~session_id:child_session_id
           ~metrics:child_metrics
           ~hooks:parent_hooks
           ~skills:[]
           ~depth:(parent_depth + 1)
+          ~cancellation_token:child_token
           () in
-        let child_token = Cancellation.create_token token.switch in
         let child_registry = per_call_registry ~rt ~workspace:rt.workspace in
         let usage_ref = ref {
           prompt_tokens = 0; completion_tokens = 0; total_tokens = 0;
@@ -1501,6 +1502,10 @@ let invoke_content_impl rt ~agent_id ~content ?workspace ?cancellation_token ?co
     (fun () ->
   let text_part = Message.string_of_content content in
   let effective_workspace = Option.value workspace ~default:rt.workspace in
+  let token = match cancellation_token with
+    | Some t -> t
+    | None -> Cancellation.create_token rt.cancellation_root
+  in
   with_bus_session rt
     ~prepare:(fun previous ->
       let ctx = match context with
@@ -1527,6 +1532,7 @@ let invoke_content_impl rt ~agent_id ~content ?workspace ?cancellation_token ?co
             ~skills:(Option.value skills ~default:rt.user_activated_skills)
             ?system_prompt_appendix
             ?on_tool_event
+            ~cancellation_token:token
             ()
       in
       (ctx.session_id, ctx))
@@ -1541,10 +1547,6 @@ let invoke_content_impl rt ~agent_id ~content ?workspace ?cancellation_token ?co
     let base_elapsed = match resume with
       | Some cp -> cp.elapsed
       | None -> 0.0
-    in
-    let token = match cancellation_token with
-      | Some t -> t
-      | None -> Cancellation.create_token rt.cancellation_root
     in
     let on_tool_progress msg =
       let evt = Tool_progress {
@@ -1971,6 +1973,7 @@ let invoke_generate rt ~agent_id ~message ?max_output_tokens ?total_timeout
       ~session_id
       ~metrics:(Metrics.empty ())
       ?system_prompt_appendix
+      ~cancellation_token:(Cancellation.create_token rt.cancellation_root)
       () in
     Invoke_context.with_context ctx (fun () ->
     match Provider_registry.get_default rt.llm_providers with

@@ -342,6 +342,10 @@ type cancellation_token = {
   switch : Eio.Switch.t;
   cancelled : bool Atomic.t;
   reason : cancel_reason option Atomic.t;
+  (* Shutdown hooks for owned resources (GitHub #44 / PAR-9km). Guarded by a
+     Mutex because request_cancel may run on another domain. *)
+  cancel_hooks : (unit -> unit) list ref;
+  cancel_hooks_mutex : Mutex.t;
 }
 
 type tool_descriptor = {

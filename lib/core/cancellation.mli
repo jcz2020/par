@@ -12,6 +12,11 @@ val check_cancel : cancellation_token -> unit
 
 val request_cancel : cancellation_token -> cancel_reason -> unit
 
+val register_cancel_hook :
+  cancellation_token -> (unit -> unit) -> (unit -> unit)
+(** Register a best-effort shutdown hook (e.g. socket shutdown) and return its
+    unregister function. Hooks run inside [request_cancel]. *)
+
 val reason : cancellation_token -> cancel_reason option
 
 val with_timeout :

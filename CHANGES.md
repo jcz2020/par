@@ -51,9 +51,25 @@
 - Builtin `grep` skips binary-looking files, truncates lines over 2,000 chars
   and stops after 1,000 matches, so it cannot build a multi-hundred-MB result
   before the engine cap applies.
-- The silent-provider cancellation half of #44 is not fixed here: cohttp-eio's
-  wrapped socket read ignores Eio cancellation, and a `Fiber.first` wrapper
-  still waits for it. It remains on `PAR-9km` (owned-socket transport).
+- The silent-provider cancellation half of #44 is fixed by the owned-socket
+  provider transport (PAR-9km, below).
+
+### Fixed — cancellable provider HTTP (PAR-9km, GitHub #44)
+
+- Provider requests now use an owned `Eio.Net` socket with optional `tls-eio`
+  wrapping instead of cohttp-eio. `Cancellation.request_cancel` runs registered
+  shutdown hooks, and `Eio.Flow.shutdown flow `All` wakes a blocked read even
+  when the provider sends nothing.
+- Request timeouts and streaming idle timeouts shut the socket down the same
+  way; the old `Switch.fail` path (which could not finish cleaning up) is gone
+  from the provider path.
+- A cancelled provider attempt is reported as `Cancelled` even if the provider
+  surfaces a generic parse/network error after the shutdown.
+- `test_http_cancel.ml` proves non-streaming, streaming and full
+  `Runtime.invoke` cancellation against a server that accepts and never
+  replies, each under 2 seconds.
+- Remaining cohttp-eio users: MCP HTTP and the web builtins. They keep their
+  existing timeouts until the remaining migration steps.
 
 ### Added — MCP sampling routing (W3)
 

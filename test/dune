@@ -755,3 +755,8 @@
   (name test_tracing)
   (libraries par eio_main alcotest)
   (modules test_tracing))
+
+(test
+  (name test_http_cancel)
+  (libraries par eio_main alcotest)
+  (modules test_http_cancel))

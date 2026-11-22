@@ -74,7 +74,10 @@ let span_to_yojson (s : span) : Yojson.Safe.t =
     ("attributes", `Assoc (List.map (fun (k, v) -> (k, `String v)) s.attributes));
   ]
 
-let current () = Eio.Fiber.get context_key
+(* Outside an Eio fiber there is no binding; [Fiber.get] raises an
+   unhandled-effect exception, so treat that as "no trace". *)
+let current () =
+  try Eio.Fiber.get context_key with _ -> None
 
 (* S3 consumes these to inject W3C [traceparent] on outbound HTTP. *)
 let current_trace_id () = Option.map (fun c -> c.span.trace_id) (current ())

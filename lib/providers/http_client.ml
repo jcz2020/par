@@ -185,18 +185,6 @@ let request_timeout = ref 60.0
 
 let set_request_timeout s = request_timeout := s
 
-(* Total timeout: one-shot countdown. Used by non-streaming do_request. *)
-let with_timeout sw f =
-  match !clock_ref with
-  | None -> f ()
-  | Some clock_obj ->
-    let clock = (Obj.obj clock_obj : _ Eio.Time.clock_ty Eio.Resource.t) in
-    Eio.Fiber.fork_daemon ~sw (fun () ->
-      Eio.Time.sleep clock !request_timeout;
-      Eio.Switch.fail sw (Failure (Printf.sprintf "HTTP request timed out after %.0fs" !request_timeout));
-      `Stop_daemon);
-    f ()
-
 (* Per-call total timeout. Same cancellation mechanism as [with_timeout], but
    the timeout is supplied by the caller instead of the global
    [request_timeout]. This lets modules that don't own the global setting
@@ -215,110 +203,82 @@ let with_timeout_for ~timeout sw f =
       `Stop_daemon);
     f ()
 
-(* Idle timeout for streaming: daemon sleeps for [idle] seconds, then checks
-   if any read activity occurred during that period. If yes, sleeps again.
-   If no, fires Switch.fail. No Eio.Time.now calls — same cancellation
-   path as with_timeout. *)
-let with_idle_timeout sw f =
-  match !clock_ref with
-  | None -> f None
-  | Some clock_obj ->
-    let clock = (Obj.obj clock_obj : _ Eio.Time.clock_ty Eio.Resource.t) in
-    let idle = !request_timeout in
-    let activity = ref false in
-    let reset () = activity := true in
-    Eio.Fiber.fork_daemon ~sw (fun () ->
-      let rec loop () =
-        Eio.Time.sleep clock idle;
-        if !activity then begin
-          activity := false;
-          loop ()
-        end else begin
-          Eio.Switch.fail sw (Failure (Printf.sprintf "HTTP stream timed out after %.0fs of inactivity" idle));
-          `Stop_daemon
-        end
-      in
-      loop ());
-    f (Some reset)
+(* -------------------------------------------------------------------------- *)
+(* Owned-socket HTTP transport (PAR-9km)                                      *)
+(*                                                                            *)
+(* cohttp-eio's wrapped socket read ignores Eio cancellation, so a stalled    *)
+(* provider cannot be interrupted. We own the socket here: cancellation and   *)
+(* timeouts call [Eio.Flow.shutdown flow `All], which wakes the blocked read. *)
+(* Requests already send [Connection: close], so one exchange per socket is   *)
+(* all the providers need; no pool is kept.                                   *)
+(* -------------------------------------------------------------------------- *)
 
-let tls_https_wrapper ?(cfg = Lazy.force tls_config) uri raw_flow =
-  Tls_client.connect ~cfg uri raw_flow
+let uri_of_url url path =
+  let scheme = if url.use_tls then "https" else "http" in
+  Uri.of_string (Printf.sprintf "%s://%s:%d%s" scheme url.host url.port path)
 
-let cohttp_client_of_net net =
-  Cohttp_eio.Client.make ~https:(Some (tls_https_wrapper)) net
+let connect_owned ~sw net url =
+  let service = string_of_int url.port in
+  let addrs = Eio.Net.getaddrinfo_stream net url.host ~service in
+  let addr = match addrs with
+    | addr :: _ -> addr
+    | [] -> failwith (Printf.sprintf "HTTP: no address for %s:%d" url.host url.port)
+  in
+  let socket = Eio.Net.connect ~sw net addr in
+  if url.use_tls then
+    (Tls_client.connect ~cfg:(Lazy.force tls_config)
+       (uri_of_url url "/") socket
+     :> [ Eio.Flow.two_way_ty | `Close ] Eio.Resource.t)
+  else (socket :> [ Eio.Flow.two_way_ty | `Close ] Eio.Resource.t)
 
-let parse_raw_request request =
-  let header_end =
-    let rec find i =
-      if i + 4 > String.length request then String.length request
-      else if String.sub request i 4 = "\r\n\r\n" then i
-      else find (i + 1)
-    in
-    find 0
-  in
-  let header_block = String.sub request 0 header_end in
-  let body =
-    if header_end + 4 <= String.length request then
-      String.sub request (header_end + 4) (String.length request - header_end - 4)
-    else ""
-  in
-  let lines = String.split_on_char '\n' header_block
-    |> List.map (fun l ->
-      if String.length l > 0 && l.[String.length l - 1] = '\r' then
-        String.sub l 0 (String.length l - 1) else l)
-  in
-  let method_, path =
-    match lines with
-    | first :: _ ->
-      (match String.split_on_char ' ' first with
-       | m :: p :: _ -> (m, p)
-       | _ -> ("POST", "/"))
-    | [] -> ("POST", "/")
-  in
-  let headers =
-    List.filter_map (fun line ->
-      match String.index_opt line ':' with
-      | Some i ->
-        let k = String.sub line 0 i |> String.trim in
-        let v = String.sub line (i + 1) (String.length line - i - 1) |> String.trim in
-        if k = "" then None else Some (k, v)
-      | None -> None
-    ) (List.tl lines)
-  in
-  (method_, path, headers, body)
+let shutdown_quietly flow =
+  try Eio.Flow.shutdown flow `All with _ -> ()
 
-let format_raw_response status_code reason headers body =
-  let status_line = Printf.sprintf "HTTP/1.1 %d %s\r\n" status_code reason in
-  let header_str =
-    List.map (fun (k, v) -> Printf.sprintf "%s: %s\r\n" k v) headers
-    |> String.concat ""
+(* Run one request/response exchange on a socket we own. [timeout] shuts the
+   socket down when it expires; a registered cancel hook does the same when
+   the invoke token is cancelled. *)
+let with_owned_exchange ~sw ~net ~url ~request ~timeout f =
+  let flow = connect_owned ~sw net url in
+  let token =
+    match Invoke_context.get_current () with
+    | Some ctx -> ctx.Invoke_context.cancellation_token
+    | None -> None
   in
-  Printf.sprintf "%s%sContent-Length: %d\r\n\r\n%s" status_line header_str (String.length body) body
+  let unregister =
+    match token with
+    | Some tok ->
+      Some (Cancellation.register_cancel_hook tok (fun () -> shutdown_quietly flow))
+    | None -> None
+  in
+  let timed_out = ref false in
+  (match !clock_ref, timeout with
+   | Some clock_obj, Some seconds ->
+     let clock = (Obj.obj clock_obj : _ Eio.Time.clock_ty Eio.Resource.t) in
+     ignore (Eio.Fiber.fork_daemon ~sw (fun () ->
+       Eio.Time.sleep clock seconds;
+       timed_out := true;
+       shutdown_quietly flow;
+       `Stop_daemon))
+   | _ -> ());
+  Fun.protect
+    ~finally:(fun () ->
+      (match unregister with Some f -> f () | None -> ());
+      (try Eio.Flow.close flow with _ -> ()))
+    (fun () ->
+       Eio.Flow.copy_string request flow;
+       let result = f flow in
+       (match timeout with
+        | Some seconds when !timed_out ->
+          failwith (Printf.sprintf "HTTP request timed out after %.0fs" seconds)
+        | _ -> result))
 
 let do_request net url request =
-  let (req_method, req_path, req_headers, req_body) = parse_raw_request request in
-  let scheme = if url.use_tls then "https" else "http" in
-  let uri_str = Printf.sprintf "%s://%s:%d%s" scheme url.host url.port req_path in
-  let uri = Uri.of_string uri_str in
   Eio.Switch.run (fun sw ->
-    with_timeout sw (fun () ->
-      let client = cohttp_client_of_net net in
-      let cohttp_headers = Cohttp.Header.of_list req_headers in
-      let body = Cohttp_eio.Body.of_string req_body in
-      let method_ = Cohttp.Code.method_of_string req_method in
-      let resp, resp_body = Cohttp_eio.Client.call ~sw
-        ~headers:cohttp_headers ~body client method_ uri in
-      let status_code = Cohttp.Code.code_of_status (Http.Response.status resp) in
-      let body_string =
-        Eio.Buf_read.parse_exn ~max_size:(100 * 1024 * 1024) Eio.Buf_read.take_all resp_body
-      in
-      let resp_headers =
-        Cohttp.Header.to_list (Http.Response.headers resp)
-        |> List.filter (fun (k, _) ->
-          let lower = String.lowercase_ascii k in
-          lower <> "content-length" && lower <> "transfer-encoding")
-      in
-      format_raw_response status_code "OK" resp_headers body_string))
+    with_owned_exchange ~sw ~net ~url ~request
+      ~timeout:(Some !request_timeout) (fun flow ->
+        let buf = Eio.Buf_read.of_flow ~initial_size:65536
+            ~max_size:(100 * 1024 * 1024) flow in
+        Eio.Buf_read.take_all buf))
 
 (* -------------------------------------------------------------------------- *)
 (* Incremental streaming response                                              *)
@@ -449,44 +409,40 @@ let do_request_streaming_with_flow flow k =
   k ~status ~headers ~read_line
 
 let do_request_streaming net url request k =
-  let (req_method, req_path, req_headers, req_body) = parse_raw_request request in
-  let scheme = if url.use_tls then "https" else "http" in
-  let uri_str = Printf.sprintf "%s://%s:%d%s" scheme url.host url.port req_path in
-  let uri = Uri.of_string uri_str in
   Eio.Switch.run (fun sw ->
-    with_idle_timeout sw (fun reset_opt ->
-      let client = cohttp_client_of_net net in
-      let cohttp_headers = Cohttp.Header.of_list req_headers in
-      let body = Cohttp_eio.Body.of_string req_body in
-      let method_ = Cohttp.Code.method_of_string req_method in
-      let resp, resp_body = Cohttp_eio.Client.call ~sw
-        ~headers:cohttp_headers ~body client method_ uri in
-      let status = Cohttp.Code.code_of_status (Http.Response.status resp) in
-      let headers_str = String.concat "\r\n" (
-        List.map (fun (k,v) -> k ^ ": " ^ v) (Cohttp.Header.to_list (Http.Response.headers resp))
-      ) in
-      let r = Eio.Buf_read.of_flow ~max_size:(100 * 1024 * 1024) resp_body in
-      (* Surface non-2xx streaming responses as Http_status_error so providers
-         can map them to error_category. Without this check, error bodies
-         (JSON, not SSE) get parsed as SSE and silently discarded, returning
-         Ok { chunks_received = 0; ... } and swallowing the real cause.
-         Mirrors do_request_streaming_with_flow above (line 442-446). *)
-      if status < 200 || status >= 300 then begin
-        let body = try Eio.Buf_read.line r with _ -> "" in
-        raise (Http_status_error (status, body))
-      end;
-      k ~status ~headers:headers_str ~read_line:(fun () ->
-        let result =
-          try Some (Eio.Buf_read.line r)
-          with
-          | Failure msg when (try Str.search_forward (Str.regexp "timed out") msg 0 >= 0 with _ -> false) ->
-            raise (Failure msg)
-          | Eio.Cancel.Cancelled _ as exn -> raise exn
-          | Eio.Io _ as exn -> raise exn
-          | _ -> None
-        in
-        (match reset_opt with Some reset -> reset () | None -> ());
-        result)))
+    with_owned_exchange ~sw ~net ~url ~request ~timeout:None (fun flow ->
+      let idle = !request_timeout in
+      let activity = ref true in
+      let idle_fired = ref false in
+      (match !clock_ref with
+       | Some clock_obj ->
+         let clock = (Obj.obj clock_obj : _ Eio.Time.clock_ty Eio.Resource.t) in
+         ignore (Eio.Fiber.fork_daemon ~sw (fun () ->
+           let rec loop () =
+             Eio.Time.sleep clock idle;
+             if !activity then begin
+               activity := false;
+               loop ()
+             end else begin
+               idle_fired := true;
+               shutdown_quietly flow;
+               `Stop_daemon
+             end
+           in
+           loop ()))
+       | None -> ());
+      let result =
+        do_request_streaming_with_flow flow
+          (fun ~status ~headers ~read_line ->
+             k ~status ~headers
+               ~read_line:(fun () ->
+                 let line = read_line () in
+                 activity := true;
+                 line))
+      in
+      if !idle_fired then
+        failwith (Printf.sprintf "HTTP stream timed out after %.0fs of inactivity" idle);
+      result))
 
 type _exec_result = {
   status : int;

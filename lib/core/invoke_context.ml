@@ -14,6 +14,7 @@ type invoke_context = {
   on_tool_event : (Types.event -> unit) option;
   promoted_tools : Types.tool_descriptor list ref;
   mcp_sampling_requests : int ref;
+  cancellation_token : Types.cancellation_token option;
 }
 
 let invoke_context_key : invoke_context Eio.Fiber.key =
@@ -29,6 +30,7 @@ let create
     ?system_prompt_appendix
     ?(depth = 0)
     ?on_tool_event
+    ?cancellation_token
     ?(promoted_tools = [])
     () =
   {
@@ -43,6 +45,7 @@ let create
     on_tool_event;
     promoted_tools = ref promoted_tools;
     mcp_sampling_requests = ref 0;
+    cancellation_token;
   }
 
 let get_current () = Eio.Fiber.get invoke_context_key

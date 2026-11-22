@@ -322,8 +322,19 @@ let run_llm_with_optional_streaming ?token llm (agent_model : model_config) agen
       | Error (Cancelled _) -> `Cancelled
       | Error _ -> `Error)
     (fun () ->
-       run_llm_with_optional_streaming_impl ?token llm agent_model agent_tools
-         conv user_cb)
+       let result =
+         run_llm_with_optional_streaming_impl ?token llm agent_model agent_tools
+           conv user_cb
+       in
+       (* The owned HTTP transport shuts a blocked read down on cancel; the
+          provider then reports a generic error or partial result. The intent
+          is cancellation, so report that instead of the artefact. *)
+       match token with
+       | Some tok when Cancellation.is_cancelled tok ->
+         Result.Error
+           (Cancelled (Option.value (Cancellation.reason tok)
+                         ~default:User_cancelled))
+       | _ -> result)
 
 let make_conversation ?(user_content = []) system_prompt user_message =
   let sys = { role = System; content_blocks = Message.content_of_string system_prompt; tool_calls = None; tool_call_id = None; name = None } in

@@ -40,6 +40,9 @@ type invoke_context = private {
   promoted_tools : Types.tool_descriptor list ref;
   (** Number of MCP sampling requests served by this invoke. *)
   mcp_sampling_requests : int ref;
+  (** The token for the current run, when one exists. Owned HTTP transports
+      register socket-shutdown hooks on it. *)
+  cancellation_token : Types.cancellation_token option;
 }
 
 (** The fiber-local key. Exported so callers (e.g. Engine) can read the
@@ -58,6 +61,7 @@ val create :
   ?system_prompt_appendix:string ->
   ?depth:int ->
   ?on_tool_event:(Types.event -> unit) ->
+  ?cancellation_token:Types.cancellation_token ->
   ?promoted_tools:Types.tool_descriptor list ->
   unit ->
   invoke_context

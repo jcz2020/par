@@ -8,7 +8,8 @@ exception Stream_cancelled_by_token
 type t = cancellation_token
 
 let create_token switch =
-  { switch; cancelled = Atomic.make false; reason = Atomic.make None }
+  { switch; cancelled = Atomic.make false; reason = Atomic.make None;
+    cancel_hooks = ref []; cancel_hooks_mutex = Mutex.create () }
 
 let is_cancelled token = Atomic.get token.cancelled
 
@@ -25,9 +26,28 @@ let request_cancel token reason =
       Atomic.set token.reason (Some reason)
     else publish ()
   in
-  publish ()
+  publish ();
+  let hooks =
+    Mutex.lock token.cancel_hooks_mutex;
+    let hooks = !(token.cancel_hooks) in
+    Mutex.unlock token.cancel_hooks_mutex;
+    hooks
+  in
+  List.iter (fun hook -> try hook () with _ -> ()) hooks
 
 let reason token = Atomic.get token.reason
+
+(* Register a shutdown hook (e.g. [Eio.Flow.shutdown flow `All]) so a blocked
+   socket read can be interrupted. Returns an unregister function. Hooks run in
+   the fiber that calls [request_cancel]; failures are ignored. *)
+let register_cancel_hook token hook =
+  Mutex.lock token.cancel_hooks_mutex;
+  token.cancel_hooks := hook :: !(token.cancel_hooks);
+  Mutex.unlock token.cancel_hooks_mutex;
+  fun () ->
+    Mutex.lock token.cancel_hooks_mutex;
+    token.cancel_hooks := List.filter (fun h -> h != hook) !(token.cancel_hooks);
+    Mutex.unlock token.cancel_hooks_mutex
 
 let with_timeout seconds token f =
   let result = ref None in
