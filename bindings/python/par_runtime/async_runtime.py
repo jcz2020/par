@@ -97,6 +97,13 @@ class AsyncRuntime:
         runtime = await self._ensure()
         runtime.register_tool_with_handler(name, description, input_schema, handler)
 
+    async def load_most_recent_conversation(
+        self, *, scope: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Return the newest conversation; see :meth:`Runtime`."""
+        runtime = await self._ensure()
+        return runtime.load_most_recent_conversation(scope=scope)
+
     async def list_models(self, provider_id: Optional[str] = None) -> List[str]:
         """List models from a provider; see :meth:`Runtime.list_models`."""
         runtime = await self._ensure()

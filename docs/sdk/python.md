@@ -188,6 +188,18 @@ with Runtime(RuntimeConfig(...)) as rt:
 `AsyncRuntime.list_models` awaits the same call. Providers that do not support
 listing raise `PARError`.
 
+## Sessions
+
+`save_conversation()` / `load_conversation(session_id)` are joined by
+`load_most_recent_conversation(scope=None)`, which returns
+`{"session_id", "conversation"}` or `None`:
+
+```python
+row = rt.load_most_recent_conversation()
+if row is not None:
+    print(row["session_id"], len(row["conversation"]["messages"]))
+```
+
 ## Type checking
 
 The package ships `py.typed` and passes `mypy --strict par_runtime` in CI.

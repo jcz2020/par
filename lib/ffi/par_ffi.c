@@ -531,6 +531,19 @@ char* par_list_models(par_runtime_t* rt, const char* provider_id) {
     return ret;
 }
 
+char* par_load_most_recent_conversation(par_runtime_t* rt, const char* scope) {
+    CAMLparam0();
+    CAMLlocal1(c_scope);
+    c_scope = caml_copy_string(scope ? scope : "");
+    PAR_MUTEX_LOCK(ocaml_lock);
+    value result = call2_exn("par_load_most_recent_conversation",
+                              rt->_ocaml_value, c_scope);
+    char* ret = extract_string(result);
+    PAR_MUTEX_UNLOCK(ocaml_lock);
+    CAMLdrop;
+    return ret;
+}
+
 int par_set_default_llm_provider(par_runtime_t* rt, const char* provider_id) {
     CAMLparam0();
     CAMLlocal1(c_id);

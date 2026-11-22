@@ -51,6 +51,7 @@ char* par_get_user_activated_skills(par_runtime_t* rt);
 /* LLM provider registry (v0.5.4 PAR-tiu) */
 char* par_list_llm_providers(par_runtime_t* rt);
 char* par_list_models(par_runtime_t* rt, const char* provider_id);
+char* par_load_most_recent_conversation(par_runtime_t* rt, const char* scope);
 int par_set_default_llm_provider(par_runtime_t* rt, const char* provider_id);
 
 /* Session resume (v0.5.4 PAR-mkm) */

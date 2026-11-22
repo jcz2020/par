@@ -18,6 +18,12 @@
 - Defaults are locked by equivalence tests: `RuntimeConfig().to_json()`
   normalizes to the same OCaml config as a hand-written minimal JSON object.
 
+### Added — Python most-recent conversation (PAR-h4m)
+
+- `Runtime.load_most_recent_conversation(scope=None)` and the async variant
+  return `{"session_id", "conversation"}` or `None`; the C bridge now exposes
+  the OCaml `load_most_recent_conversation` capability.
+
 ### Added — Python model discovery (PAR-xmap)
 
 - `Runtime.list_models(provider_id=None)` and `AsyncRuntime.list_models`

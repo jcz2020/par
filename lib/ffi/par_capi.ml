@@ -2157,6 +2157,26 @@ let do_list_llm_providers (state_id : int) : string =
     ) in
     Obj.obj result
 
+let do_load_most_recent_conversation (state_id : int) (scope : string) : string =
+  match get_state state_id with
+  | None -> error_json "Invalid runtime handle"
+  | Some _ ->
+    let result = dispatch state_id (fun rt _env ->
+      try
+        let scope = if scope = "" then None else Some scope in
+        match Par.Runtime.load_most_recent_conversation rt ?scope () with
+        | Ok None -> Obj.repr "null"
+        | Ok (Some (session_id, conversation)) ->
+          Obj.repr (Yojson.Safe.to_string (`Assoc [
+            "session_id", `String session_id;
+            "conversation", Par.Types.conversation_to_yojson conversation;
+          ]))
+        | Error e ->
+          Obj.repr (error_json (Par.Types.string_of_error_category e))
+      with exn -> Obj.repr (error_json (Printexc.to_string exn)))
+    in
+    Obj.obj result
+
 let do_list_models (state_id : int) (provider_id : string) : string =
   match get_state state_id with
   | None -> error_json "Invalid runtime handle"
@@ -2224,6 +2244,12 @@ let () =
     (fun (state_id_obj : Obj.t) ->
       let state_id : int = Obj.magic state_id_obj in
       do_list_llm_providers state_id)
+
+let () =
+  Callback.register "par_load_most_recent_conversation"
+    (fun (state_id_obj : Obj.t) (scope : string) ->
+      let state_id : int = Obj.magic state_id_obj in
+      do_load_most_recent_conversation state_id scope)
 
 let () =
   Callback.register "par_list_models"

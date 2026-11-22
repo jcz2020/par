@@ -159,6 +159,18 @@ with Runtime(RuntimeConfig(...)) as rt:
 
 `AsyncRuntime.list_models` 提供对应的异步版本。不支持列出的 provider 会抛出 `PARError`。
 
+## 会话
+
+在 `save_conversation()` / `load_conversation(session_id)` 之外，
+`load_most_recent_conversation(scope=None)` 返回
+`{"session_id", "conversation"}` 或 `None`：
+
+```python
+row = rt.load_most_recent_conversation()
+if row is not None:
+    print(row["session_id"], len(row["conversation"]["messages"]))
+```
+
 ## 类型检查
 
 包内置 `py.typed`，并在 CI 中通过 `mypy --strict par_runtime`。Python 3.10+ 用户可获得上表所有字段的补全。

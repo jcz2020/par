@@ -743,6 +743,25 @@ class Runtime:
             return True
         return None
 
+    def load_most_recent_conversation(
+        self, *, scope: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Return the newest conversation, or ``None`` when the store is empty.
+
+        The result is ``{"session_id": str, "conversation": dict}``. ``scope``
+        filters exactly like :meth:`save_conversation`.
+        """
+        self._check_handle()
+        result_ptr = _lib.par_load_most_recent_conversation(
+            self._handle, _c_str(scope) if scope is not None else None)
+        raw = _py_str(result_ptr)
+        if not raw or raw == "null":
+            return None
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict) and "error" in parsed:
+            raise PARError(parsed["error"])
+        return cast(Dict[str, Any], parsed)
+
     def list_conversations(self, *, scope: Optional[str] = None,
                            limit: int = 50) -> List[Dict[str, Any]]:
         """List sessions from the conversations table, newest first.
