@@ -142,7 +142,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - run: pip install pytest
+      - run: pip install pytest pytest-asyncio
 
       - run: |
           cd bindings/python
