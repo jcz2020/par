@@ -39,6 +39,8 @@
   `gen_ai.request.model`, `tool.name`, `mcp.server`).
 - Outbound provider HTTP, MCP HTTP, approval webhooks and the built-in web
   tools inject `traceparent`; malformed inbound headers are ignored.
+  `test_trace_propagation.ml` records a real provider request and asserts the
+  header's trace/span ids match the `llm.complete` span.
 - Python: `Runtime.set_trace_callbacks`, plus the optional
   `par-runtime[otel]` extra (`OTelTracer`) with trace-id and parent-link
   preservation. The base package stays dependency-free.

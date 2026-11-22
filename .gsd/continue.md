@@ -23,7 +23,7 @@
   and pushed; bd `PAR-ga4q.1`, `PAR-ga4q.2`, `PAR-wn7` closed. Remaining for
   a release: sampling events + a limit regression test, a Noop-tracing
   performance check, full Python matrix, docs/build gate, version bump.
-- OCaml: 1842 tests, 0 failures. Python: 247 passed / 22 skipped (per-file
+- OCaml: 1843 tests, 0 failures. Python: 247 passed / 22 skipped (per-file
   matrix; the two skips are the gated native-cancel test and the OTel file on
   installs without the extra).
 - Local switch upgraded on 2026-11-11: sqlite3 5.4.2 (GC-rooting fix), tls /
