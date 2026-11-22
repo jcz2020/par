@@ -154,6 +154,7 @@ val run_agent_structured :
   ?tool_call_hooks:Hook.tool_call_hook list option ->
   ?quota:Eio.Semaphore.t option ->
   ?parallel:bool ->
+  ?max_tool_result_chars:int ->
   ?on_progress:(string -> unit) option ->
   ?on_tool_event:(event -> unit) option ->
   ?conversation:conversation ->
@@ -182,6 +183,7 @@ val run_agent :
   ?tool_call_hooks:Hook.tool_call_hook list option ->
   ?quota:Eio.Semaphore.t option ->
   ?parallel:bool ->
+  ?max_tool_result_chars:int ->
   ?on_progress:(string -> unit) option ->
   ?on_tool_event:(event -> unit) option ->
   ?on_chunk:(llm_response_chunk -> unit) option ->

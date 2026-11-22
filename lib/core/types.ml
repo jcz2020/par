@@ -1159,6 +1159,9 @@ type runtime_config = {
   bash_confirm : bash_confirm_config;
   event_retention_seconds : float;
   max_tool_schema_tokens : int option;
+  (* v0.18 GitHub #44: cap on the text a tool can add to the conversation.
+     <= 0 disables the cap; the default is 100_000 characters. *)
+  max_tool_result_chars : int;
   mcp_sampling : mcp_sampling_policy;
 }
 [@@deriving yojson]
@@ -1189,6 +1192,11 @@ let runtime_config_of_yojson (j : Yojson.Safe.t) :
     | `Int n -> Some n
     | _ -> None
   in
+  let max_tool_result_chars =
+    match member "max_tool_result_chars" j with
+    | `Int n -> n
+    | _ -> 100_000
+  in
   let mcp_sampling =
     match member "mcp_sampling" j with
     | `Null -> Disabled
@@ -1210,6 +1218,7 @@ let runtime_config_of_yojson (j : Yojson.Safe.t) :
       bash_confirm;
       event_retention_seconds;
       max_tool_schema_tokens;
+      max_tool_result_chars;
       mcp_sampling;
     }
   | Error e -> Error e

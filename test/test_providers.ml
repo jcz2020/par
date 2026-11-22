@@ -1104,6 +1104,7 @@ let test_runtime_list_models_uses_provider_service () =
           bash_confirm = Runtime.default_bash_confirm;
           event_retention_seconds = 604800.0;
           max_tool_schema_tokens = None;
+          max_tool_result_chars = 100_000;
         } in
         match Runtime.create ~config ~llm:(Openai_provider.to_llm_service t) sw with
         | Error e -> Alcotest.failf "Runtime.create failed: %s" (show_error e)

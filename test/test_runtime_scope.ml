@@ -89,6 +89,7 @@ let test_runtime_config : runtime_config = {
   bash_confirm = Runtime.default_bash_confirm;
   event_retention_seconds = 604800.0;
     max_tool_schema_tokens = None;
+    max_tool_result_chars = 100_000;
   }
 
 (* Build a Runtime backed by an in-memory SQLite handle so that

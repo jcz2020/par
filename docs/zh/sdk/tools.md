@@ -745,6 +745,19 @@ let tb = Runtime.register_tool rt
 
 ---
 
+## 工具结果大小上限（v0.18.0 新增）
+
+单个工具结果不能撑满上下文窗口或宿主内存。引擎在结果变成 `Tool` 消息时执行 `runtime_config.max_tool_result_chars`（默认 **100_000**，`0` 表示关闭上限）：
+
+- `Success` JSON 与错误消息会被截断，并带
+  `[par: tool result truncated: N chars total, kept M]` 标记。
+- 富文本块按整个结果累计截断；图片与其他非文本块保持不变。
+- 中间件与 `on_progress` 仍能看到原始结果，日志和校验不受影响。
+
+Python 侧对应字段为 `RuntimeConfig(max_tool_result_chars=...)`。
+
+内置 `grep` 也会限制自身工作量：跳过看起来是二进制的文件（前 4KB 含 NUL 字节），超过 2,000 字符的匹配行会截断，匹配达到 1,000 条后停止并追加标记行。看到标记时请缩小 `glob` 或 `path`。
+
 ## 注册自定义工具
 
 工具是简单的 `{ descriptor; handler }` 二元组。`Runtime.register_tool` 是便利函数；底层可通过 `Tool_registry.register` 直接注册：

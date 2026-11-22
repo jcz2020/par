@@ -65,7 +65,8 @@ let runtime_config () : runtime_config =
     parallel_tool_execution = true;
     bash_confirm = Runtime.default_bash_confirm;
     event_retention_seconds = 604800.0;
-    max_tool_schema_tokens = None }
+    max_tool_schema_tokens = None;
+    max_tool_result_chars = 100_000 }
 
 let with_switch f = Eio_main.run (fun _env -> Eio.Switch.run f)
 

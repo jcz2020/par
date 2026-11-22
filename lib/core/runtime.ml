@@ -1221,7 +1221,7 @@ let register_agent_as_tool rt ~agent_id ?(tool_name = "agent_" ^ agent_id) ?desc
         let on_progress_counter _msg = incr iterations_ref in
         let run_child () =
           Invoke_context.with_context child_ctx (fun () ->
-            Engine.run_agent
+            Engine.run_agent ~max_tool_result_chars:rt.services.config.max_tool_result_chars
               ~quota:None
               ~parallel:rt.parallel_tool_execution
               ~tool_call_hooks:(Some child_ctx.Invoke_context.tool_call_hooks_snapshot)
@@ -1683,7 +1683,8 @@ let invoke_content_impl rt ~agent_id ~content ?workspace ?cancellation_token ?co
              publish_event rt (Invoke_checkpoint_failed { invoke_id = id; error = e }))
       in
       let result =
-        (try Engine.run_agent ~steering:(Some ctx.steering_queue)
+        (try Engine.run_agent ~max_tool_result_chars:rt.services.config.max_tool_result_chars
+               ~steering:(Some ctx.steering_queue)
             ~followup:(Some ctx.followup_queue)
             ~runtime_id:rt.runtime_id
             ~tool_call_hooks:(Some ctx.tool_call_hooks_snapshot)
@@ -2049,6 +2050,7 @@ let invoke_structured rt ~agent_id ~message ~response_schema
         if config.tools <> [] then
           let call_registry = per_call_registry ~rt ~workspace:rt.workspace in
           Engine.run_agent_structured
+            ~max_tool_result_chars:rt.services.config.max_tool_result_chars
             ~max_repair_attempts
             ~on_before_llm:(Some on_before_llm_hook)
             ~on_after_llm:(Some on_after_llm_hook)
@@ -2338,8 +2340,7 @@ let resume_approval ~rt ~run_id ~outcome ~approver =
              before adding one). We inject a synthetic tool_result whose
              content mirrors what execute_approval would have produced for a
              synchronous outcome. Without this, the LLM loses ALL original
-             context (user request, prior tool calls) because Engine.run_agent
-             would start a fresh conversation with only the continue message. *)
+             context (user request, prior tool calls) because Engine.run_agent would start a fresh conversation with only the continue message. *)
           let resumed_conv =
             (* The engine raises Approval_pending after appending any normal
                tool results from the same batch, so the snapshot's last message
@@ -2399,7 +2400,7 @@ let resume_approval ~rt ~run_id ~outcome ~approver =
               messages = conv_snapshot.messages @ [ tool_msg ] }
           in
           let result =
-            try Engine.run_agent
+            try Engine.run_agent ~max_tool_result_chars:rt.services.config.max_tool_result_chars
               ~runtime_id:rt.runtime_id
               ~quota:(Some rt.task_semaphore)
               ~parallel:rt.parallel_tool_execution

@@ -205,3 +205,10 @@ def test_runtime_accepts_an_mcp_sampling_config():
             model=ModelConfig(model_name="gpt-4o-mini"),
             system_prompt="sampling fixture",
         ))
+
+
+def test_max_tool_result_chars_is_emitted_only_when_changed():
+    assert "max_tool_result_chars" not in RuntimeConfig().to_dict()
+    cfg = RuntimeConfig(max_tool_result_chars=4096).to_dict()
+    assert cfg["max_tool_result_chars"] == 4096
+    assert RuntimeConfig.from_json(cfg).to_dict() == cfg

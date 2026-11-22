@@ -43,6 +43,18 @@
   `par-runtime[otel]` extra (`OTelTracer`) with trace-id and parent-link
   preservation. The base package stays dependency-free.
 
+### Fixed — bounded tool results (GitHub #44, W3)
+
+- `runtime_config.max_tool_result_chars` (default 100_000) caps the text a
+  tool contributes to the conversation, preserving middleware/progress input
+  and non-text blocks. Python mirrors it on `RuntimeConfig`.
+- Builtin `grep` skips binary-looking files, truncates lines over 2,000 chars
+  and stops after 1,000 matches, so it cannot build a multi-hundred-MB result
+  before the engine cap applies.
+- The silent-provider cancellation half of #44 is not fixed here: cohttp-eio's
+  wrapped socket read ignores Eio cancellation, and a `Fiber.first` wrapper
+  still waits for it. It remains on `PAR-9km` (owned-socket transport).
+
 ### Added — MCP sampling routing (W3)
 
 - `runtime_config.mcp_sampling`: `Disabled` (default) or `Auto { model;

@@ -1057,12 +1057,28 @@ let builtin_tools ~switch ~net ~workspace =
             try Str.regexp pattern
             with _ -> raise (Invalid_argument "Invalid regex pattern")
           in
+          (* GitHub #44: a directory-wide grep must not build an unbounded
+             result list. Cap matches and per-line length here, on top of the
+             engine's conversation-level cap. *)
+          let max_grep_matches = 1000 in
+          let max_grep_line_chars = 2000 in
+          let limit_hit = ref false in
+          let looks_binary path =
+            try
+              let ic = open_in_bin path in
+              Fun.protect ~finally:(fun () -> close_in ic) (fun () ->
+                let buf = Bytes.create 4096 in
+                let n = Stdlib.input ic buf 0 4096 in
+                String.contains (String.sub (Bytes.to_string buf) 0 n) '\000')
+            with _ -> false
+          in
           let results = ref [] in
           let rec search rel dir =
             try
               let entries = Sys.readdir dir in
               Array.iter (fun name ->
-                if not (List.mem name [".git"; "node_modules"; "_build"; "_opam"]) then begin
+                if not !limit_hit
+                && not (List.mem name [".git"; "node_modules"; "_build"; "_opam"]) then begin
                   let full = Filename.concat dir name in
                   let rel' = if rel = "" then name else rel ^ "/" ^ name in
                   let is_dir = try
@@ -1070,13 +1086,13 @@ let builtin_tools ~switch ~net ~workspace =
                     stat.Unix.LargeFile.st_kind = Unix.S_DIR
                   with _ -> false in
                   if is_dir then search rel' full
-                  else if glob_matches_file glob rel' then begin
+                  else if glob_matches_file glob rel' && not (looks_binary full) then begin
                     try
                       let ic = open_in full in
                       Fun.protect (fun () ->
                         let line_no = ref 0 in
                         (try
-                           while true do
+                           while not !limit_hit do
                              incr line_no;
                              let line = input_line ic in
                               (* `Str.string_match` anchors at offset 0, so it
@@ -1087,6 +1103,15 @@ let builtin_tools ~switch ~net ~workspace =
                                 with Not_found -> false
                               in
                               if matches then begin
+                                let line =
+                                  if String.length line > max_grep_line_chars then
+                                    String.sub line 0 max_grep_line_chars
+                                    ^ " …[truncated line]"
+                                  else line
+                                in
+                                if List.length !results >= max_grep_matches then
+                                  limit_hit := true
+                                else begin
                                 let prefix = Filename.concat root_prefix "" in
                                 let prefix_len = String.length prefix in
                                 let display_path =
@@ -1097,6 +1122,7 @@ let builtin_tools ~switch ~net ~workspace =
                                   else full
                                 in
                                results := Printf.sprintf "%s:%d:%s" display_path (!line_no) line :: !results
+                                end
                               end
                             done
                           with End_of_file -> ());
@@ -1114,6 +1140,10 @@ let builtin_tools ~switch ~net ~workspace =
                    (Printexc.to_string e))
            in
           search "" full_path;
+          if !limit_hit then
+            results := Printf.sprintf
+              "[par: grep stopped after %d matches; narrow the pattern or path]"
+              max_grep_matches :: !results;
           let sorted = List.rev (List.sort compare !results) in
           Success (`List (List.map (fun s -> `String s) sorted))
         )

@@ -164,7 +164,8 @@ let create_runtime env sw ?(mcp_servers = []) () =
       parallel_tool_execution = true;
       bash_confirm = Runtime.default_bash_confirm;
       event_retention_seconds = 604800.0;
-      max_tool_schema_tokens = None }
+      max_tool_schema_tokens = None;
+      max_tool_result_chars = 100_000 }
   in
   match Runtime.create ~config ~mcp_servers
           ~mcp_net:net ~mcp_clock:clock sw with

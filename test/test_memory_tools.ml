@@ -65,6 +65,7 @@ let make_test_config () = Types.{
   bash_confirm = Runtime.default_bash_confirm;
   event_retention_seconds = 60.0;
     max_tool_schema_tokens = None;
+    max_tool_result_chars = 100_000;
   }
 
 let run_handler handler input rt =

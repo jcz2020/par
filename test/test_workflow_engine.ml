@@ -1016,6 +1016,7 @@ let runtime_config () : runtime_config =
      bash_confirm = Runtime.default_bash_confirm;
     event_retention_seconds = 604800.0;
     max_tool_schema_tokens = None;
+    max_tool_result_chars = 100_000;
   }
 
 let dummy_workflow ?(id = "wf-test") ?(name = "Workflow Test")
@@ -1050,6 +1051,7 @@ let rehydration_runtime_config db_path : runtime_config =
     bash_confirm = Runtime.default_bash_confirm;
     event_retention_seconds = 604800.0;
     max_tool_schema_tokens = None;
+    max_tool_result_chars = 100_000;
   }
 
 let make_rehydration_persist (sqlt : Sqlite_persistence.t) : persistence_service =

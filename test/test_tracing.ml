@@ -254,6 +254,7 @@ let runtime_config : Types.runtime_config = {
   bash_confirm = Runtime.default_bash_confirm;
   event_retention_seconds = 604800.0;
   max_tool_schema_tokens = None;
+  max_tool_result_chars = 100_000;
 }
 
 let echo_descriptor : Types.tool_descriptor = {
@@ -312,6 +313,65 @@ let test_invoke_produces_the_expected_tree () =
             Alcotest.(check (list (pair string string))) "all spans end ok"
               expected_ends (ends events))))
 
+let test_tool_result_is_capped () =
+  Eio_main.run (fun _env ->
+    Eio.Switch.run (fun sw ->
+      let tracer, _events = record () in
+      let calls = ref 0 in
+      let seen = ref "" in
+      let llm : Types.llm_service = {
+        Types.complete_fn = (fun _model _tools conv ->
+          incr calls;
+          if !calls = 1 then Ok (tool_call_response ())
+          else begin
+            seen := Yojson.Safe.to_string (Types.conversation_to_yojson conv);
+            Ok (text_response "done")
+          end);
+        stream_fn = (fun _ _ _ _ _ ->
+          Ok { Types.final_usage = dummy_usage; finish_reason = Types.Stop;
+               chunks_received = 0 });
+        close_fn = (fun () -> ());
+        complete_structured_fn = None;
+        list_models_fn = None;
+        supports_native_tools_fn = None;
+        context_window_fn = None;
+        cache_control_fn = None;
+      } in
+      let config = { runtime_config with Types.max_tool_result_chars = 64 } in
+      match Runtime.create ~tracer ~llm ~config sw with
+      | Error e -> Alcotest.failf "create: %s" (Types.string_of_error_category e)
+      | Ok rt ->
+        Fun.protect ~finally:(fun () -> ignore (Runtime.close rt)) (fun () ->
+          let handler _input _token =
+            Types.Success (`String (String.make 1000 'x'))
+          in
+          (match Runtime.register_tool rt ~name:"echo" ~description:"Echo"
+                   ~input_schema:(`Assoc ["type", `String "object"]) ~handler () with
+           | Ok _ -> ()
+           | Error e -> Alcotest.failf "register_tool: %s"
+                          (Types.string_of_error_category e));
+          let agent =
+            match Runtime.make_agent ~id:"cap-agent"
+                    ~system_prompt:(Types.stable_prompt "cap fixture")
+                    ~model:dummy_model ~tools:[echo_descriptor] () with
+            | Ok a -> a
+            | Error e -> Alcotest.failf "make_agent: %s"
+                           (Types.string_of_error_category e)
+          in
+          (match Runtime.register_agent rt agent with
+           | Ok () -> ()
+           | Error e -> Alcotest.failf "register_agent: %s"
+                          (Types.string_of_error_category e));
+          match Runtime.invoke rt ~agent_id:"cap-agent" ~message:"hi" () with
+          | Error (e, _) -> Alcotest.failf "invoke: %s"
+                              (Types.string_of_error_category e)
+          | Ok _ ->
+            Alcotest.(check bool) "conversation bounded" true
+              (String.length !seen < 2000);
+            Alcotest.(check bool) "truncation marker" true
+              (contains !seen "tool result truncated")))
+  )
+
 let () =
   Alcotest.run "test_tracing" [
     ("spans", [
@@ -335,5 +395,7 @@ let () =
     ("runtime", [
       Alcotest.test_case "invoke span tree" `Quick
         test_invoke_produces_the_expected_tree;
+      Alcotest.test_case "tool result cap" `Quick
+        test_tool_result_is_capped;
     ]);
   ]

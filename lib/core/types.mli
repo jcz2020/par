@@ -965,6 +965,7 @@ type runtime_config = {
   bash_confirm : bash_confirm_config;
   event_retention_seconds : float;
   max_tool_schema_tokens : int option;
+  max_tool_result_chars : int;
   mcp_sampling : mcp_sampling_policy;
 }
 [@@deriving yojson]

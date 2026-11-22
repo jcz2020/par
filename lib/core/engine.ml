@@ -358,15 +358,47 @@ let response_has_content (resp : llm_response) =
 let add_assistant_message_if_nonempty conv resp =
   if response_has_content resp then add_assistant_message conv resp else conv
 
-let add_tool_result_message conv (call : tool_call) result =
+(* GitHub #44: a single tool result must not be able to fill the context
+   window (or the host's memory) by itself. The engine caps the text it puts
+   into the conversation; the original result still reaches middleware and
+   progress callbacks. *)
+let tool_result_truncation_marker original kept =
+  Printf.sprintf
+    "\n\n[par: tool result truncated: %d chars total, kept %d]" original kept
+
+let cap_tool_text ~max_chars text =
+  if max_chars <= 0 || String.length text <= max_chars then text
+  else
+    String.sub text 0 max_chars
+    ^ tool_result_truncation_marker (String.length text) max_chars
+
+let cap_tool_blocks ~max_chars blocks =
+  if max_chars <= 0 then blocks
+  else begin
+    let remaining = ref max_chars in
+    List.map (fun block ->
+      match block with
+      | Text_block b ->
+        let allowed = max 0 !remaining in
+        let text = cap_tool_text ~max_chars:allowed b.text in
+        remaining := !remaining - min allowed (String.length b.text);
+        Text_block { b with text }
+      | other -> other) blocks
+  end
+
+let add_tool_result_message ?(max_chars = 100_000) conv (call : tool_call) result =
   (* Rich content goes into the conversation as blocks, so the model can look
      at what the tool produced instead of reading a flattened string. *)
   let content_blocks =
     match result with
-    | Success json -> Message.content_of_string (Yojson.Safe.to_string json)
+    | Success json ->
+      Message.content_of_string
+        (cap_tool_text ~max_chars (Yojson.Safe.to_string json))
     | Success_content blocks ->
-      (match blocks with [] -> Message.content_of_string "" | _ -> blocks)
-    | Error e -> Message.content_of_string e.message
+      (match cap_tool_blocks ~max_chars blocks with
+       | [] -> Message.content_of_string ""
+       | blocks -> blocks)
+    | Error e -> Message.content_of_string (cap_tool_text ~max_chars e.message)
     | Handoff _ -> Message.content_of_string "<handoff>"
     | Approval_required _ -> Message.content_of_string "<approval_required>"
   in
@@ -725,6 +757,7 @@ let recover_on_cancel (conv : conversation) ~(dispatched : string list) : conver
 let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     ?(runtime_id = "unknown") ?(steering = None) ?(followup = None)
     ?(tool_call_hooks = None) ?(quota = None) ?(parallel = false)
+    ?(max_tool_result_chars = 100_000)
     ?(on_progress = None) ?(on_tool_event = None) ?(on_chunk = None)
     ?(on_step_complete = None)
     ?(resume = false) ?(resume_iteration = 0) ?(resume_elapsed = 0.0)
@@ -733,6 +766,9 @@ let run_agent ?(tool_mode : Types.tool_mode = `Auto)
     ?(budget_threshold : int option)
     ?(user_content : Types.content_block list = [])
     token agent user_message llm registry =
+  let add_tool_result_message conv call result =
+    add_tool_result_message ~max_chars:max_tool_result_chars conv call result
+  in
   (* PAR-k38 T3.1: resolve effective tool mode.
      - `Auto (default): consult [llm.supports_native_tools_fn].
        [Some true] or [None] → `Native (backwards compat: every provider
@@ -1815,6 +1851,7 @@ let run_agent_structured
     ?(on_before_llm : (conversation -> conversation option) option = None)
     ?(on_after_llm : (llm_response -> llm_response option) option = None)
     ?tool_call_hooks ?quota ?parallel
+    ?(max_tool_result_chars = 100_000)
     ?on_progress ?on_tool_event
     ?conversation ?agent_resolver ?enable_handoff
     ?net
@@ -1824,7 +1861,7 @@ let run_agent_structured
     (llm : llm_service) token (agent : agent_config) message
     (registry : Tool_registry.t) =
   match run_agent
-    ?tool_call_hooks ?quota ?parallel
+    ?tool_call_hooks ?quota ?parallel ~max_tool_result_chars
     ?on_progress ?on_tool_event
     ?conversation ?agent_resolver ?enable_handoff
     ?net

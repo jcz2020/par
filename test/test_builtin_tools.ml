@@ -706,6 +706,48 @@ let grep_suite =
       Alcotest.(check (list string)) "only sub/c.ml"
         ["sub/c.ml:1:needle sub"] (list_of_success result));
 
+    Alcotest.test_case "skips binary files" `Quick (fun () ->
+      with_temp_tree @@ fun dir ->
+      let path = Filename.concat dir "blob.bin" in
+      let oc = open_out_bin path in
+      output_string oc "needle\000binary payload";
+      close_out oc;
+      with_tools_in dir @@ fun tools token ->
+      let handler = find_tool "grep" tools in
+      let result = handler (`Assoc [
+        ("pattern", `String "needle");
+        ("path", `String ".");
+        ("glob", `String "*.bin");
+      ]) token in
+      Alcotest.(check (list string)) "binary file skipped" []
+        (list_of_success result));
+
+    Alcotest.test_case "truncates oversized matching lines" `Quick (fun () ->
+      with_temp_tree @@ fun dir ->
+      let path = Filename.concat dir "long.txt" in
+      let oc = open_out path in
+      output_string oc ("needle " ^ String.make 5000 'x' ^ "\n");
+      close_out oc;
+      with_tools_in dir @@ fun tools token ->
+      let handler = find_tool "grep" tools in
+      let result = handler (`Assoc [
+        ("pattern", `String "needle");
+        ("path", `String ".");
+        ("glob", `String "long.txt");
+      ]) token in
+      match list_of_success result with
+      | [line] ->
+        Alcotest.(check bool) "line marker" true
+          (let needle = "[truncated line]" in
+           let n = String.length needle in
+           let rec go i =
+             i + n <= String.length line
+             && (String.sub line i n = needle || go (i + 1))
+           in go 0);
+        Alcotest.(check bool) "bounded length" true
+          (String.length line < 2100)
+      | other -> Alcotest.failf "expected one line, got %d" (List.length other));
+
     Alcotest.test_case "double-star glob matches at every depth" `Quick (fun () ->
       with_temp_tree @@ fun dir ->
       with_tools_in dir @@ fun tools token ->

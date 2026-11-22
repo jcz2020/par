@@ -338,6 +338,7 @@ class RuntimeConfig:
     parallel_tool_execution: bool = True
     event_retention_seconds: float = 604800.0
     max_tool_schema_tokens: Optional[int] = None
+    max_tool_result_chars: int = 100_000
     bash_confirm: Optional[Dict[str, Any]] = None
     mcp_sampling: Optional[MCPSampling] = None
 
@@ -363,6 +364,8 @@ class RuntimeConfig:
         }
         if self.max_tool_schema_tokens is not None:
             cfg["max_tool_schema_tokens"] = self.max_tool_schema_tokens
+        if self.max_tool_result_chars != 100_000:
+            cfg["max_tool_result_chars"] = self.max_tool_result_chars
         if self.bash_confirm is not None:
             cfg["bash_confirm"] = dict(self.bash_confirm)
         if self.mcp_sampling is not None:
@@ -390,6 +393,7 @@ class RuntimeConfig:
             parallel_tool_execution=bool(raw.get("parallel_tool_execution", True)),
             event_retention_seconds=float(raw.get("event_retention_seconds", 604800.0)),
             max_tool_schema_tokens=raw.get("max_tool_schema_tokens"),
+            max_tool_result_chars=int(raw.get("max_tool_result_chars", 100_000)),
             bash_confirm=raw.get("bash_confirm"),
             mcp_sampling=(
                 MCPSampling.from_json(raw["mcp_sampling"])

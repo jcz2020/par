@@ -37,6 +37,7 @@ let make_runtime_config db =
     bash_confirm = Types.default_bash_confirm_config;
     event_retention_seconds = 604800.0;
     max_tool_schema_tokens = None;
+    max_tool_result_chars = 100_000;
   }
 
 let with_runtime f =

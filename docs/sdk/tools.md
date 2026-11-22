@@ -754,6 +754,27 @@ Scoring is keyword-based: a name match weighs above a description match.
 
 ---
 
+## Tool result size cap (added in v0.18.0)
+
+A single tool result must not be able to fill the context window or the host's
+memory. `runtime_config.max_tool_result_chars` (default **100_000**, `0`
+disables the cap) is enforced in the engine when the result becomes a `Tool`
+message:
+
+- `Success` JSON and error messages are capped with a
+  `[par: tool result truncated: N chars total, kept M]` marker.
+- Rich text blocks are capped across the whole result; images and other
+  non-text blocks are preserved.
+- Middleware and `on_progress` still see the original result, so logging and
+  validation are unaffected.
+
+Python exposes the same field as `RuntimeConfig(max_tool_result_chars=...)`.
+
+The builtin `grep` also bounds its own work: it skips files that look binary
+(a NUL byte in the first 4 KB), truncates matching lines over 2,000
+characters, and stops after 1,000 matches with a marker line. Use a narrower
+`glob` or `path` when the marker appears.
+
 ## Registering a custom tool
 
 A tool is a simple `{ descriptor; handler }` pair. `Runtime.register_tool` is the convenience function; under the hood, you can register directly through `Tool_registry.register`:

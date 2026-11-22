@@ -42,6 +42,7 @@ let test_config : runtime_config = {
   bash_confirm = Runtime.default_bash_confirm;
   event_retention_seconds = 604800.0;
   max_tool_schema_tokens = None;
+  max_tool_result_chars = 100_000;
 }
 
 let mock_config ?(name = "test-server") () : Mcp_types.server_config =

@@ -37,6 +37,7 @@ let test_runtime_create_persists_published_events () =
         bash_confirm = Types.default_bash_confirm_config;
   event_retention_seconds = 604800.0;
     max_tool_schema_tokens = None;
+    max_tool_result_chars = 100_000;
   } in
       let mock_llm : Types.llm_service = {
         complete_fn = (fun _ _ _ ->
