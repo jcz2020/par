@@ -1,43 +1,26 @@
 # Continue — Next Session
 
-## Current state (2026-11-19)
+## Current state (2026-11-22)
 
-- `v0.17.3-beta.20261118` is released and pushed: GitHub pre-release with the
-  source tarball + `par.opam`, both wheels, and checksums; the two wheels are
-  on PyPI as `0.17.3b20261118`. Tag `v0.17.3-beta.20261118` points at
-  `50e1263`. Release, opam publish, PyPI publish, CI, CodeQL, Docs, Release
-  acceptance and the three-container release dry-run passed; a fresh venv
-  install from PyPI reports `0.17.3-beta.20261118` and imports `Runtime`.
-- `v0.17.2-beta.20261118` (tag `f11a4ee`) shipped the bash/Python integer
-  fixes; `v0.17.1-beta.20261117` (tag `f618c6a`) MCP JSON-RPC 2.0 and
-  `mcp_tool_bindings`; `v0.17.0-beta.20261117` (tag `fa567ef`) runtime reload
-  for MCP servers and skills (#35); `v0.16.3-beta.20261115` (tag `993af51`,
-  merged as `6fd8cfb`) the HTTP transport hotfix; `v0.16.2-beta.20261114` the
-  GitHub #33 security patch; `v0.16.1` the GitHub #32 `grep` follow-up and
-  `v0.16.0` the vision/lease/approval/TLS release.
-- Main carries the v0.18 work: `PAR-is4` (TLS fail-closed), W1 (typed Python
-  API + `AsyncRuntime` + `mypy --strict` + `list_models`), W2 (typed tracing,
-  W3C propagation, Python OTel adapter), W3 (MCP sampling routing + events)
-  and W4 (`PAR-9km`: provider/MCP/webhook/web-builtin HTTP on an owned socket;
-  cohttp-eio removed).
-- `docs/v0.18-ROADMAP.md`: W1-W4 done; bd `PAR-ga4q.1`, `PAR-ga4q.2`,
-  `PAR-wn7`, `PAR-9km`, `PAR-p7lj`, `PAR-xmap` closed. Remaining before a
-  release: Noop-tracing benchmark (`PAR-8a41`), final gates, version bump.
-- OCaml: 1843 tests, 0 failures. Python: 252 passed / 22 skipped (per-file
-  matrix; the two skips are the gated native-cancel test and the OTel file on
-  installs without the extra).
-- Local switch upgraded on 2026-11-11: sqlite3 5.4.2 (GC-rooting fix), tls /
-  tls-eio 2.1.5, x509 1.2.0, mirage-crypto* 2.4.1 (security/stability fixes),
-  then eio 1.6, cohttp / cohttp-eio 6.3.0 and dune 3.24.2. OCaml stays at
-  5.4.1. Re-verified after every batch: 1752 OCaml tests / 0 failures, then
-  1764 after the review fixes, 1767 after the grep follow-up, 1776 after the
-  hook-coverage patch, 1787 after the MCP reload work, 1779 at the v0.16.3
-  tag, 1790 on main after the hotfix, 1798 at v0.17.1, 1807 at v0.17.2 and
-  1815 at v0.17.3; Python 209 → 216 → 221 passed / 20 skipped.
-- Lessons recorded on 2026-11-14: `.gsd/KNOWLEDGE.md` (TLS/HTTP, event bus,
-  glob, dependency and PyPI traps), `docs/STRATEGY.md` §11.5, and
-  `docs/rules/release.md` post-publish verification. Decisions #17 (TLS entry
-  point) and #18 (bus-session contract) added to `docs/DECISIONS.md`.
+- `v0.18.0-beta.20261122` is released: tag `a1a66c4`, GitHub pre-release with
+  the source tarball + `par.opam` and both wheels, opam publish succeeded,
+  PyPI has `0.18.0b20261122` (verified in a fresh venv: version, AsyncRuntime
+  and MCPSampling import). GitHub #44 closed.
+- Main is at `d2704d2` with post-release CI fixes (`pytest-asyncio`, the test
+  wiring false positive from `bench_tracing`, rc=5 for all-skipped files, and
+  the gated native stream-cancel race). Main CI is green. The release tag's CI
+  was red because those CI-only fixes landed after the tag; release assets and
+  publishes were unaffected.
+- v0.18 scope is complete: W1 typed Python API/AsyncRuntime/mypy +
+  `list_models`/`load_most_recent_conversation`; W2 tracing/W3C/OTel;
+  W3 MCP sampling with events and per-invoke budget; W4 owned-socket HTTP for
+  provider/MCP/webhooks/web builtins (cohttp-eio removed); PAR-is4 TLS fails
+  closed; GitHub #44 tool-result cap and grep bounds.
+- OCaml: 1843 tests, 0 failures. Python: 252 passed / 22 skipped (per-file).
+  `mypy --strict` clean; docs-check and mkdocs --strict green;
+  release-local-test passed debian:12 / ubuntu:22.04 / ubuntu:24.04.
+- bd: `PAR-ga4q` epic and W1/W2/W3/W4 issues closed. Remaining P3:
+  `PAR-e68` (blocking_approval), `PAR-0ls` (memory FFI), `PAR-tgy` (sandbox).
 
 ## What shipped after v0.15
 
