@@ -144,7 +144,8 @@
 - **Cancellation fixed for providers (4f1d5c9)**: owned Eio.Net + tls-eio
   socket; cancellation hooks call `Eio.Flow.shutdown` and wake the blocked
   read. `test_http_cancel.ml` covers non-stream, stream, full `Runtime.invoke` and a
-  stalled TLS handshake against a silent server (<2s). MCP HTTP and web builtins still use
+  stalled TLS handshake against a silent server (<2s). The streaming idle
+  timeout reports Timeout rather than the socket-shutdown artefact. MCP HTTP and web builtins still use
   cohttp-eio (`PAR-p7lj`).
 
 ## Next directions
