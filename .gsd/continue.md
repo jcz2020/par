@@ -23,7 +23,7 @@
   and pushed; bd `PAR-ga4q.1`, `PAR-ga4q.2`, `PAR-wn7` closed. Remaining for
   a release: sampling events + a limit regression test, a Noop-tracing
   performance check, full Python matrix, docs/build gate, version bump.
-- OCaml: 1840 tests, 0 failures. Python: 247 passed / 22 skipped (per-file
+- OCaml: 1842 tests, 0 failures. Python: 247 passed / 22 skipped (per-file
   matrix; the two skips are the gated native-cancel test and the OTel file on
   installs without the extra).
 - Local switch upgraded on 2026-11-11: sqlite3 5.4.2 (GC-rooting fix), tls /
@@ -150,11 +150,11 @@
 
 ## Next directions
 
-1. **v0.18.0 release prep** — W1/W2/W3 are on main. Before tagging:
-   decide whether `PAR-is4` ships as a v0.17.4 patch or with v0.18, add the
-   sampling limit regression + sampling event (W3-S3 remainder), benchmark the
-   Noop tracer, run the full Python matrix and `mkdocs build --strict`, then
-   ask the user for the version bump (beta-first).
+1. **v0.18.0 release prep** — W1/W2/W3/W4 are on main; PAR-9km and PAR-p7lj
+   are closed. Before tagging: benchmark the Noop tracer (`PAR-8a41`), run the
+   full gates (`make test-count`, Python matrix, `mkdocs build --strict`), then
+   ask the user for the version bump (beta-first). Decide whether `PAR-is4`
+   ships as a v0.17.4 patch or with v0.18.
 2. **`PAR-is4` (P1) — fixed 2026-11-19.** The three TLS configs
    (provider/MCP/builtin) now share `Par.Tls_client.config`; a failed
    `Ca_certs.authenticator ()` raises instead of falling back to `no_auth`.
