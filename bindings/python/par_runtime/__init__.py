@@ -43,7 +43,7 @@ from par_runtime.models import (
     Usage,
 )
 
-__version__ = "0.17.3-beta.20261118"
+__version__ = "0.18.0-beta.20261122"
 
 __all__ = [
     "Runtime",

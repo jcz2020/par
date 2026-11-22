@@ -12,7 +12,7 @@ A modular, type-safe agent runtime. LangChain + LangGraph for OCaml — but you 
 [![OCaml](https://img.shields.io/badge/OCaml-5.4+-blue)]()
 
 > **Status**: v0.10.0 — first-class cancellation + actionable tool errors. 1551 tests passing.
-> **Latest pre-release**: [v0.17.3-beta.20261118](https://github.com/jcz2020/par/releases/tag/v0.17.3-beta.20261118) — `Runtime.list_models` now works on OpenAI-compatible and Anthropic providers (hosts can build a model picker), and the HTTP client honors GET instead of silently sending POST; 1815 OCaml tests at the tag. Install explicitly with `pip install --index-url https://pypi.org/simple par-runtime==0.17.3b20261118`.
+> **Latest pre-release**: [v0.18.0-beta.20261122](https://github.com/jcz2020/par/releases/tag/v0.18.0-beta.20261122) — typed Python API + `AsyncRuntime`, typed tracing with W3C propagation and an optional OTel adapter, MCP sampling with hard cost limits, owned-socket HTTP with cancellable stalled reads, and bounded tool results (#44); 1843 OCaml tests at the tag. Install explicitly with `pip install --index-url https://pypi.org/simple par-runtime==0.18.0b20261122`.
 
 ---
 
@@ -143,7 +143,7 @@ with Runtime(RuntimeConfig(persistence="par.db")) as rt:
     print(result.text, result.usage.total_tokens)
 ```
 
-Typed models, `invoke_result()` and `AsyncRuntime` land in v0.18; the legacy
+Typed models, `invoke_result()` and `AsyncRuntime` landed in v0.18; the legacy
 JSON-string API still works. See [Python API](docs/sdk/python.md) and
 [`bindings/python/examples/basic_agent.py`](bindings/python/examples/basic_agent.py).
 
@@ -162,11 +162,11 @@ See [`docs/quickstart.md`](docs/quickstart.md) for the full tutorial.
 
 **Current**: v0.10.0 — first-class cancellation (`cancel_reason` ADT, replay-valid recovery with synthetic tool results, dispatch/chunk-granularity cooperative checks, cancellable Python `invoke_start`/`invoke_poll`/`invoke_cancel`) + actionable tool validation errors (teach-at-rejection markers `[workspace]`/`[bash-policy]`, edit no-op fix).
 
-**Latest beta**: v0.17.3-beta.20261118 (GitHub pre-release and PyPI prerelease) completes model discovery. `Runtime.list_models` now returns the provider's models instead of an "unsupported" error: the OpenAI path uses `GET /models` and also covers Ollama and OpenAI-compatible gateways, Anthropic uses `GET /v1/models?limit=1000`, and `to_llm_service` builds a complete service including `list_models_fn`. The HTTP client also honors the request verb instead of silently sending GET as POST. It builds on v0.17.2 (bash/Python integer inputs), v0.17.1 (MCP JSON-RPC 2.0), v0.17.0 (runtime reload), and the v0.16.x fixes. 1815 OCaml tests and 221 Python tests pass. The stable default remains v0.10.0.
+**Latest beta**: v0.18.0-beta.20261122 (GitHub pre-release and PyPI prerelease) is the SDK experience release: `par_runtime` gains typed request/response models, `Runtime.invoke_result()`, `AsyncRuntime`, strict `mypy`, `list_models` and `load_most_recent_conversation`; `Par.Tracing` emits invoke/LLM/tool/MCP/workflow spans with W3C `traceparent` and an optional Python `[otel]` extra; MCP servers can use `sampling/createMessage` under a per-invoke budget; all provider/MCP/webhook/web HTTP runs on an owned socket, so stalled reads are cancellable; and tool results are bounded (`max_tool_result_chars`, grep caps; GitHub #44). It builds on v0.17.3 (model discovery), v0.17.2 (bash/Python integer inputs), v0.17.1 (MCP JSON-RPC 2.0), v0.17.0 (runtime reload), and the v0.16.x fixes. 1843 OCaml tests and 252 Python tests pass. The stable default remains v0.10.0.
 
-**In development**: v0.18 adds a native Python typed/async API, typed tracing with an OpenTelemetry adapter, MCP sampling routing, and an owned-socket provider HTTP transport that makes stalled reads cancellable (see `docs/v0.18-ROADMAP.md`). The OCaml 5.5 compiler upgrade remains a separate trial project.
+**In development**: no next milestone is scoped yet. The OCaml 5.5 compiler upgrade remains a separate trial project; the P3 backlog (`bd ready`) tracks smaller follow-ups.
 
-**Recent releases**: v0.8.4 (test_mcp_runtime mock-path portability fix) → v0.8.5 (test mock-path portability fix round 2) → v0.8.6 (Streaming HTTP error propagation fix) → v0.9.0 (Skill activation API completion) → v0.9.1 (tool_call_id correlation fixes) → v0.10.0 (first-class cancellation + actionable tool errors) → v0.15.0-beta (durable invokes, branch sessions) → v0.16.0-beta (vision tool results, invoke leases, approval recovery, TLS identity) → v0.16.1-beta (grep mid-line matches and directory globs) → v0.16.2-beta (tool-call hooks on every agent and tool path) → v0.16.3-beta (restored HTTP transport for MCP HTTP and the web builtins) → v0.17.0-beta (reload MCP servers and rewrite skills without a restart) → v0.17.1-beta (MCP JSON-RPC 2.0 conformance and `Runtime.mcp_tool_bindings`) → v0.17.2-beta (integer numbers for bash/Python inputs and literal substitution fixes) → v0.17.3-beta (model discovery for OpenAI-compatible and Anthropic providers).
+**Recent releases**: v0.8.4 (test_mcp_runtime mock-path portability fix) → v0.8.5 (test mock-path portability fix round 2) → v0.8.6 (Streaming HTTP error propagation fix) → v0.9.0 (Skill activation API completion) → v0.9.1 (tool_call_id correlation fixes) → v0.10.0 (first-class cancellation + actionable tool errors) → v0.15.0-beta (durable invokes, branch sessions) → v0.16.0-beta (vision tool results, invoke leases, approval recovery, TLS identity) → v0.16.1-beta (grep mid-line matches and directory globs) → v0.16.2-beta (tool-call hooks on every agent and tool path) → v0.16.3-beta (restored HTTP transport for MCP HTTP and the web builtins) → v0.17.0-beta (reload MCP servers and rewrite skills without a restart) → v0.17.1-beta (MCP JSON-RPC 2.0 conformance and `Runtime.mcp_tool_bindings`) → v0.17.2-beta (integer numbers for bash/Python inputs and literal substitution fixes) → v0.17.3-beta (model discovery for OpenAI-compatible and Anthropic providers) → v0.18.0-beta (typed Python API, tracing/OTel, MCP sampling, cancellable owned-socket HTTP, bounded tool results).
 
 ## Getting help
 

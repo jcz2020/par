@@ -1,9 +1,8 @@
 # CHANGES
 
-## Unreleased — v0.18.0-beta: Python native API, tracing, MCP sampling
+## v0.18.0-beta.20261122 — Python native API, typed tracing, MCP sampling, cancellable HTTP
 
-> In progress. The section is filled slice by slice; test totals and the
-> release date are recorded when the version is cut.
+> The SDK experience train: Python stops assembling JSON strings (typed models, `invoke_result`, `AsyncRuntime`, `mypy --strict`), production teams get a span tree with W3C propagation and an optional OTel adapter, MCP servers can ask the model for sampling with hard cost limits, and all HTTP now runs on an owned socket so a silent endpoint can be cancelled. This release also fixes GitHub #44's oversized tool results (649 MB grep evidence) and closes `PAR-9km`. **1843 OCaml tests, 0 failures; 252 Python passed / 22 skipped; `mypy --strict` clean.** Beta-first: the stable line remains v0.10.0.
 
 ### Added — typed Python API (W1-S1/S2)
 
@@ -108,6 +107,13 @@
 - `mypy --strict par_runtime` is clean and runs as its own CI job.
 - New `docs/sdk/python.md` + Chinese mirror; README Python section and the
   bundled example use the typed API.
+
+### Known issues
+
+- The Python `test_http_timeout.py` file can segfault when the entire suite runs in one process; the per-file matrix (the CI shape) is green.
+- MCP sampling is text-only and ignores `modelPreferences`; richer content and preference scoring are future work.
+- `agent_dispatch_spec.blocking_approval` remains a reserved field (`PAR-e68`).
+- OCaml has no built-in OTLP exporter by design; the Python extra is the supported exporter.
 
 ## v0.17.3-beta.20261118 — model discovery for OpenAI-compatible and Anthropic providers (GitHub #42)
 
