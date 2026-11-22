@@ -58,9 +58,9 @@ MISSING="$(comm -13 <(echo "$ON_DISK") <(echo "$IN_DUNE") || true)"
 # Test files on disk that dune never builds.
 UNWIRED="$(comm -23 <(echo "$ON_DISK") <(echo "$IN_DUNE") || true)"
 
-# Filter out non-test helpers referenced by dune stanzas (executables and
-# mock servers legitimately have no test_*.ml counterpart).
-MISSING_FILTERED="$(echo "$MISSING" | grep -v -E '^(manual_qa_assistant|mcp_mock_server)$' || true)"
+# Filter out non-test helpers referenced by dune stanzas (executables,
+# benchmarks and mock servers legitimately have no test_*.ml counterpart).
+MISSING_FILTERED="$(echo "$MISSING" | grep -v -E '^(manual_qa_assistant|mcp_mock_server|bench_tracing)$' || true)"
 
 status=0
 
