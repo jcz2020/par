@@ -753,6 +753,7 @@ let tb = Runtime.register_tool rt
   `[par: tool result truncated: N chars total, kept M]` 标记。
 - 富文本块按整个结果累计截断；图片与其他非文本块保持不变。
 - 中间件与 `on_progress` 仍能看到原始结果，日志和校验不受影响。
+- 上限在 registry 解析之后执行，因此每次 invoke 重建的 handler（内置 bash）和 MCP 工具 handler 同样生效，宿主无需包装它们。
 
 Python 侧对应字段为 `RuntimeConfig(max_tool_result_chars=...)`。
 

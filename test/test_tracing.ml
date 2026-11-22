@@ -345,11 +345,16 @@ let test_tool_result_is_capped () =
           let handler _input _token =
             Types.Success (`String (String.make 1000 'x'))
           in
+          (* GitHub #44 comment: the per-call registry rebuilds handlers after
+             host registration. Register a small handler first, then replace it
+             with a large one — the engine cap must still apply. *)
           (match Runtime.register_tool rt ~name:"echo" ~description:"Echo"
-                   ~input_schema:(`Assoc ["type", `String "object"]) ~handler () with
+                   ~input_schema:(`Assoc ["type", `String "object"])
+                   ~handler:(fun _ _ -> Types.Success (`String "small")) () with
            | Ok _ -> ()
            | Error e -> Alcotest.failf "register_tool: %s"
                           (Types.string_of_error_category e));
+          Tool_registry.replace (Runtime.tool_registry rt) "echo" handler;
           let agent =
             match Runtime.make_agent ~id:"cap-agent"
                     ~system_prompt:(Types.stable_prompt "cap fixture")

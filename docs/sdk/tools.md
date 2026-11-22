@@ -767,6 +767,9 @@ message:
   non-text blocks are preserved.
 - Middleware and `on_progress` still see the original result, so logging and
   validation are unaffected.
+- The cap runs after registry resolution, so handlers rebuilt per invoke
+  (builtin bash) and MCP tool handlers are covered too; hosts do not need to
+  wrap them.
 
 Python exposes the same field as `RuntimeConfig(max_tool_result_chars=...)`.
 

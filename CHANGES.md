@@ -66,6 +66,8 @@
 - Builtin `grep` skips binary-looking files, truncates lines over 2,000 chars
   and stops after 1,000 matches, so it cannot build a multi-hundred-MB result
   before the engine cap applies.
+- The cap runs after registry resolution, so per-invoke handler rebuilds
+  (builtin bash) and MCP handlers are covered; a host wrapper is not required.
 - The silent-provider cancellation half of #44 is fixed by the owned-socket
   provider transport (PAR-9km, below).
 
