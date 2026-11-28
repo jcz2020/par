@@ -1,5 +1,28 @@
 # CHANGES
 
+## Unreleased
+
+### Fixed — incremental conversation persistence (GitHub #45)
+
+- Saving a conversation no longer re-encodes and rewrites the entire message
+  history. SQLite stores one row per message in `conversation_messages` and
+  rewrites only the suffix that changed, so appending a turn costs O(new
+  messages) instead of O(total history) (GitHub #45).
+- A metadata-only save (same messages, new metadata) updates the
+  `conversations` row alone.
+- Context compression rewrites from the first changed message; an unchanged
+  prefix stays in place.
+- Each handle carries a writer epoch. If another process or handle wrote the
+  session since the last save, the next save rewrites the full list instead of
+  trusting a stale prefix.
+- Existing databases migrate lazily: legacy `messages_json` rows still load,
+  and the first save upgrades that session to per-message rows. Downgrading an
+  upgraded session is not supported — older builds cannot decode it.
+- The public `save_conversation_fn` / `Runtime.save_conversation` signature is
+  unchanged. New tests in `test/test_sqlite_conversation_store.ml` pin suffix
+  writes, prefix preservation on compression, metadata-only updates, legacy
+  migration and the epoch conflict path.
+
 ## v0.18.0-beta.20261122 — Python native API, typed tracing, MCP sampling, cancellable HTTP
 
 > The SDK experience train: Python stops assembling JSON strings (typed models, `invoke_result`, `AsyncRuntime`, `mypy --strict`), production teams get a span tree with W3C propagation and an optional OTel adapter, MCP servers can ask the model for sampling with hard cost limits, and all HTTP now runs on an owned socket so a silent endpoint can be cancelled. This release also fixes GitHub #44's oversized tool results (649 MB grep evidence) and closes `PAR-9km`. **1843 OCaml tests, 0 failures; 252 Python passed / 22 skipped; `mypy --strict` clean.** Beta-first: the stable line remains v0.10.0.

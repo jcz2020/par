@@ -5,9 +5,32 @@ open Types
 type t = {
   db : Sqlite3.db;
   mutex : Eio.Mutex.t;
+  (* Identifies this handle as the writer of the rows it saved. A save only
+     takes the incremental path when the stored row still carries this epoch,
+     so a second process (or a second handle in this process) that rewrote the
+     same session forces a full rewrite instead of appending onto a prefix we
+     no longer own. *)
+  writer_epoch : string;
+  (* Last message list this handle persisted, held weakly: while the caller
+     still owns the list (the runtime keeps the current conversation) the
+     prefix diff is O(delta); once the list is dropped the GC clears the slot
+     and the next save falls back to a full rewrite. *)
+  saved_messages : (string, Types.message list Weak.t) Hashtbl.t;
 }
 
 let raw_sqlite3_db t = t.db
+
+(* One epoch per handle. pid + a per-process counter + microseconds keeps
+   handles distinct within a process and across restarts. *)
+let epoch_counter = ref 0
+
+let new_writer_epoch () =
+  incr epoch_counter;
+  Printf.sprintf "%d-%d-%Ld" (Unix.getpid ()) !epoch_counter
+    (Int64.of_float (Unix.gettimeofday () *. 1_000_000.))
+
+(* Keep the cache bounded; weak slots also keep it from pinning payloads. *)
+let max_saved_sessions = 128
 
 (* -------------------------------------------------------------------------- *)
 (* Schema                                                                *)
@@ -73,6 +96,12 @@ let init_schema db =
          def_json     TEXT NOT NULL,
          updated_at   REAL NOT NULL
        )|};
+    {|CREATE TABLE IF NOT EXISTS conversation_messages (
+         session_id   TEXT NOT NULL,
+         seq          INTEGER NOT NULL,
+         message_json TEXT NOT NULL,
+         PRIMARY KEY (session_id, seq)
+       )|};
     {|CREATE TABLE IF NOT EXISTS approvals (
          run_id       TEXT PRIMARY KEY,
          agent_id     TEXT NOT NULL,
@@ -103,6 +132,8 @@ let init_schema db =
      add_column_if_missing db "events" "actions_json" "TEXT";
      add_column_if_missing db "events" "scope" "TEXT";
      add_column_if_missing db "conversations" "scope" "TEXT";
+     add_column_if_missing db "conversations" "storage_version" "INTEGER NOT NULL DEFAULT 1";
+     add_column_if_missing db "conversations" "writer_epoch" "TEXT";
       let indexes = [
         {|CREATE INDEX IF NOT EXISTS idx_events_task_id ON events(task_id, timestamp)|};
         {|CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id, timestamp)|};
@@ -129,6 +160,13 @@ let default_retention_ttl = 7. *. 24. *. 60. *. 60.
 (* Connection init                                                       *)
 (* -------------------------------------------------------------------------- *)
 
+let make_handle db = {
+  db;
+  mutex = Eio.Mutex.create ();
+  writer_epoch = new_writer_epoch ();
+  saved_messages = Hashtbl.create 8;
+}
+
 let create ?(retention_ttl = default_retention_ttl) db_path =
   let db = Sqlite3.db_open db_path in
   match init_schema db with
@@ -136,17 +174,18 @@ let create ?(retention_ttl = default_retention_ttl) db_path =
     (match retention_ttl with
      | ttl when ttl > 0.0 ->
        (match _prune_raw db ~ttl_seconds:ttl with
-        | Ok () -> Ok { db; mutex = Eio.Mutex.create () }
+        | Ok () -> Ok (make_handle db)
         | Result.Error e ->
           ignore (Sqlite3.db_close db);
           Result.Error e)
-     | _ -> Ok { db; mutex = Eio.Mutex.create () })
+     | _ -> Ok (make_handle db))
   | Result.Error e ->
     (if not (Sqlite3.db_close db) then
        Logs.err (fun m -> m "sqlite_persistence: db_close failed during create error path"));
     Result.Error e
 
 let close t =
+  Hashtbl.reset t.saved_messages;
   if not (Sqlite3.db_close t.db) then
     Logs.err (fun m -> m "sqlite_persistence: db_close failed")
 
@@ -963,13 +1002,12 @@ let transaction t f =
         Result.Error (Internal (Printexc.to_string ex))
   )
 
-let conversation_messages_to_json (msgs : Types.message list) : string =
-  Yojson.Safe.to_string
-    (`List (List.map Types.message_to_yojson msgs))
-
 let conversation_metadata_to_json (md : (string * Yojson.Safe.t) list) : string =
   Yojson.Safe.to_string
     (`Assoc (List.map (fun (k, v) -> (k, v)) md))
+
+let message_to_json (m : Types.message) : string =
+  Yojson.Safe.to_string (Types.message_to_yojson m)
 
 let json_to_messages (s : string) : (Types.message list, string) result =
   match Yojson.Safe.from_string s with
@@ -992,47 +1030,242 @@ let json_to_metadata (s : string) : ((string * Yojson.Safe.t) list, string) resu
   | `Assoc xs -> Ok (List.map (fun (k, v) -> (k, v)) xs)
   | _ -> Error "expected JSON object for metadata"
 
+(* -------------------------------------------------------------------------- *)
+(* Conversation storage                                               *)
+(* -------------------------------------------------------------------------- *)
+(* v2 layout: [conversations] holds only the metadata row, while each message
+   lives in its own [conversation_messages] row ordered by [seq]. Saving a
+   growing conversation writes just the suffix. [messages_json] stays in the
+   schema for v1 rows and for lazy migration; a v2 row stores ''. *)
+
+let conversation_storage_version = 2
+
+(* Physical identity is a sufficient, never necessary, equality check: the SDK
+   appends immutable message records, so a saved prefix is normally the very
+   same block. A miss (compaction, a decoded conversation, a new handle) only
+   means a larger rewrite, never a wrong write. *)
+let common_prefix_length (fresh : Types.message list)
+    (saved : Types.message list) =
+  let rec go n xs ys =
+    match xs, ys with
+    | x :: xs', y :: ys' when x == y -> go (n + 1) xs' ys'
+    | _ -> n
+  in
+  go 0 fresh saved
+
+let saved_prefix t session_id =
+  match Hashtbl.find_opt t.saved_messages session_id with
+  | Some slot -> Weak.get slot 0
+  | None -> None
+
+let remember_saved_prefix t session_id msgs =
+  let slot =
+    match Hashtbl.find_opt t.saved_messages session_id with
+    | Some slot -> slot
+    | None ->
+      let slot = Weak.create 1 in
+      Hashtbl.replace t.saved_messages session_id slot;
+      slot
+  in
+  Weak.set slot 0 (Some msgs);
+  if Hashtbl.length t.saved_messages > max_saved_sessions then
+    Hashtbl.filter_map_inplace
+      (fun _ slot ->
+         match Weak.get slot 0 with None -> None | Some _ -> Some slot)
+      t.saved_messages
+
+(* Mutex must already be held. Unlike [transaction], the body returns a result
+   so a failed statement rolls back instead of committing a partial write. *)
+let with_transaction t f =
+  match exec_sql t.db "BEGIN IMMEDIATE" with
+  | Result.Error e -> Result.Error e
+  | Ok () ->
+    (match f () with
+     | Ok v ->
+       (match exec_sql t.db "COMMIT" with
+        | Ok () -> Ok v
+        | Result.Error e ->
+          ignore (exec_sql t.db "ROLLBACK");
+          Result.Error e)
+     | Result.Error e ->
+       ignore (exec_sql t.db "ROLLBACK");
+       Result.Error e
+     | exception ex ->
+       ignore (exec_sql t.db "ROLLBACK");
+       Result.Error (Internal (Printexc.to_string ex)))
+
+(* The stored row still belongs to this handle when it carries our epoch and
+   the v2 layout; only then can the in-memory prefix be trusted. *)
+let stored_prefix_length t session_id (messages : Types.message list) =
+  let stmt =
+    Sqlite3.prepare t.db
+      "SELECT storage_version, writer_epoch FROM conversations \
+       WHERE session_id = ?"
+  in
+  let _ = Sqlite3.bind_text stmt 1 session_id in
+  let stored =
+    match Sqlite3.step stmt with
+    | Sqlite3.Rc.ROW ->
+      Some (Sqlite3.column_int stmt 0, Sqlite3.column_text stmt 1)
+    | _ -> None
+  in
+  let _ = Sqlite3.finalize stmt in
+  match stored with
+  | Some (v, epoch)
+    when v >= conversation_storage_version && epoch = t.writer_epoch ->
+    (match saved_prefix t session_id with
+     | Some saved -> common_prefix_length messages saved
+     | None -> 0)
+  | _ -> 0
+
 let save_conversation ?scope t session_id (conv : Types.conversation) =
   Eio.Mutex.use_rw ~protect:false t.mutex (fun () ->
-    let msgs_json = conversation_messages_to_json conv.Types.messages in
+    let messages = conv.Types.messages in
     let md_json = conversation_metadata_to_json conv.Types.metadata in
     let now = Unix.gettimeofday () in
-    let turn_count = List.length conv.Types.messages in
-    let stmt =
-      Sqlite3.prepare t.db
-        "INSERT OR REPLACE INTO conversations \
-         (session_id, messages_json, metadata_json, updated_at, turn_count, scope) \
-         VALUES (?, ?, ?, ?, ?, ?)"
+    let turn_count = List.length messages in
+    let rec drop n xs =
+      if n <= 0 then xs
+      else match xs with [] -> [] | _ :: rest -> drop (n - 1) rest
     in
-    let _ = Sqlite3.bind_text stmt 1 session_id in
-    let _ = Sqlite3.bind_text stmt 2 msgs_json in
-    let _ = Sqlite3.bind_text stmt 3 md_json in
-    let _ = Sqlite3.bind_double stmt 4 now in
-    let _ = Sqlite3.bind_int stmt 5 turn_count in
-    let _ = match scope with
-      | Some s -> Sqlite3.bind_text stmt 6 s
-      | None -> Sqlite3.bind stmt 6 Sqlite3.Data.NULL
+    let result =
+      with_transaction t (fun () ->
+        (* Read the epoch inside the write transaction: once BEGIN IMMEDIATE
+           has the lock, no other writer can swap the rows under us. *)
+        let prefix = stored_prefix_length t session_id messages in
+        let delete_stmt =
+          Sqlite3.prepare t.db
+            "DELETE FROM conversation_messages \
+             WHERE session_id = ? AND seq >= ?"
+        in
+        let _ = Sqlite3.bind_text delete_stmt 1 session_id in
+        let _ = Sqlite3.bind_int delete_stmt 2 prefix in
+        let delete_rc = Sqlite3.step delete_stmt in
+        let _ = Sqlite3.finalize delete_stmt in
+        match delete_rc with
+        | Sqlite3.Rc.DONE | Sqlite3.Rc.ROW ->
+          let insert_stmt =
+            Sqlite3.prepare t.db
+              "INSERT OR REPLACE INTO conversation_messages \
+               (session_id, seq, message_json) VALUES (?, ?, ?)"
+          in
+          let rec insert i = function
+            | [] -> Ok ()
+            | (m : Types.message) :: rest ->
+              let _ = Sqlite3.bind_text insert_stmt 1 session_id in
+              let _ = Sqlite3.bind_int insert_stmt 2 i in
+              let _ = Sqlite3.bind_text insert_stmt 3 (message_to_json m) in
+              let rc = Sqlite3.step insert_stmt in
+              match rc with
+              | Sqlite3.Rc.DONE | Sqlite3.Rc.ROW ->
+                ignore (Sqlite3.reset insert_stmt);
+                insert (i + 1) rest
+              | rc ->
+                Result.Error
+                  (Internal (Printf.sprintf "Conversation message insert: %s"
+                               (Sqlite3.Rc.to_string rc)))
+          in
+          let inserted = insert prefix (drop prefix messages) in
+          let _ = Sqlite3.finalize insert_stmt in
+          (match inserted with
+           | Result.Error _ as e -> e
+           | Ok () ->
+             let stmt =
+               Sqlite3.prepare t.db
+                 "INSERT OR REPLACE INTO conversations \
+                  (session_id, messages_json, metadata_json, updated_at, \
+                   turn_count, scope, storage_version, writer_epoch) \
+                  VALUES (?, '', ?, ?, ?, ?, ?, ?)"
+             in
+             let _ = Sqlite3.bind_text stmt 1 session_id in
+             let _ = Sqlite3.bind_text stmt 2 md_json in
+             let _ = Sqlite3.bind_double stmt 3 now in
+             let _ = Sqlite3.bind_int stmt 4 turn_count in
+             let _ = match scope with
+               | Some s -> Sqlite3.bind_text stmt 5 s
+               | None -> Sqlite3.bind stmt 5 Sqlite3.Data.NULL
+             in
+             let _ = Sqlite3.bind_int stmt 6 conversation_storage_version in
+             let _ = Sqlite3.bind_text stmt 7 t.writer_epoch in
+             let step_result = Sqlite3.step stmt in
+             let _ = Sqlite3.finalize stmt in
+             match step_result with
+             | Sqlite3.Rc.DONE | Sqlite3.Rc.ROW -> Ok ()
+             | rc ->
+               Result.Error
+                 (Internal (Printf.sprintf "Conversation save: %s"
+                              (Sqlite3.Rc.to_string rc))))
+        | rc ->
+          Result.Error
+            (Internal (Printf.sprintf "Conversation message prune: %s"
+                         (Sqlite3.Rc.to_string rc))))
     in
-    let step_result = Sqlite3.step stmt in
-    let _ = Sqlite3.finalize stmt in
-    match step_result with
-    | Sqlite3.Rc.DONE | Sqlite3.Rc.ROW -> Ok ()
-    | rc -> Result.Error (Internal (Printf.sprintf "Conversation save: %s" (Sqlite3.Rc.to_string rc)))
+    (match result with
+     | Ok () ->
+       remember_saved_prefix t session_id messages;
+       Ok ()
+     | Result.Error _ as e -> e)
   )
+
+(* Mutex held by the caller. *)
+let load_message_rows t session_id =
+  let stmt =
+    Sqlite3.prepare t.db
+      "SELECT message_json FROM conversation_messages \
+       WHERE session_id = ? ORDER BY seq ASC"
+  in
+  let _ = Sqlite3.bind_text stmt 1 session_id in
+  let acc = ref [] in
+  let error = ref None in
+  let stop = ref false in
+  while not !stop do
+    match Sqlite3.step stmt with
+    | Sqlite3.Rc.ROW ->
+      let raw = Sqlite3.column_text stmt 0 in
+      (try
+         match Types.message_of_yojson (Yojson.Safe.from_string raw) with
+         | Ok m -> acc := m :: !acc
+         | Error e ->
+           error := Some e;
+           stop := true
+       with exn ->
+         error := Some (Printf.sprintf "Conversation message decode: %s"
+                          (Printexc.to_string exn));
+         stop := true)
+    | Sqlite3.Rc.DONE -> stop := true
+    | rc ->
+      error := Some (Printf.sprintf "Conversation messages load: %s"
+                       (Sqlite3.Rc.to_string rc));
+      stop := true
+  done;
+  let _ = Sqlite3.finalize stmt in
+  match !error with
+  | Some e -> Result.Error e
+  | None -> Ok (List.rev !acc)
+
+(* Mutex held by the caller. *)
+let decode_stored_messages t session_id storage_version legacy_json =
+  if storage_version >= conversation_storage_version then
+    load_message_rows t session_id
+  else
+    json_to_messages legacy_json
 
 let load_conversation t session_id =
   Eio.Mutex.use_ro t.mutex (fun () ->
     let stmt =
       Sqlite3.prepare t.db
-        "SELECT messages_json, metadata_json FROM conversations WHERE session_id = ?"
+        "SELECT messages_json, metadata_json, storage_version \
+         FROM conversations WHERE session_id = ?"
     in
     let _ = Sqlite3.bind_text stmt 1 session_id in
     let result =
       match Sqlite3.step stmt with
       | Sqlite3.Rc.ROW ->
-        let msgs_raw = Sqlite3.column_text stmt 0 in
+        let legacy_json = Sqlite3.column_text stmt 0 in
         let md_raw = Sqlite3.column_text stmt 1 in
-        (match json_to_messages msgs_raw, json_to_metadata md_raw with
+        let storage_version = Sqlite3.column_int stmt 2 in
+        (match decode_stored_messages t session_id storage_version legacy_json,
+               json_to_metadata md_raw with
          | Ok msgs, Ok md -> Ok (Some { Types.messages = msgs; metadata = md })
          | Error msg, _ | _, Error msg ->
            Result.Error (Internal (Printf.sprintf "Conversation decode: %s" msg)))
@@ -1047,10 +1280,10 @@ let load_most_recent_conversation ?scope t =
   Eio.Mutex.use_ro t.mutex (fun () ->
     let sql = match scope with
       | Some _ ->
-        "SELECT session_id, messages_json, metadata_json \
+        "SELECT session_id, messages_json, metadata_json, storage_version \
          FROM conversations WHERE scope = ? ORDER BY updated_at DESC LIMIT 1"
       | None ->
-        "SELECT session_id, messages_json, metadata_json \
+        "SELECT session_id, messages_json, metadata_json, storage_version \
          FROM conversations ORDER BY updated_at DESC LIMIT 1"
     in
     let stmt = Sqlite3.prepare t.db sql in
@@ -1062,9 +1295,11 @@ let load_most_recent_conversation ?scope t =
       match Sqlite3.step stmt with
       | Sqlite3.Rc.ROW ->
         let session_id = Sqlite3.column_text stmt 0 in
-        let msgs_raw = Sqlite3.column_text stmt 1 in
+        let legacy_json = Sqlite3.column_text stmt 1 in
         let md_raw = Sqlite3.column_text stmt 2 in
-        (match json_to_messages msgs_raw, json_to_metadata md_raw with
+        let storage_version = Sqlite3.column_int stmt 3 in
+        (match decode_stored_messages t session_id storage_version legacy_json,
+               json_to_metadata md_raw with
          | Ok msgs, Ok md ->
            Ok (Some (session_id, { Types.messages = msgs; metadata = md }))
          | Error msg, _ | _, Error msg ->

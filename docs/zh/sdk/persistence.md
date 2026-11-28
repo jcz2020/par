@@ -153,7 +153,9 @@ runtime 持有该 invoke id 的租约，因此共用同一个数据库的另一�
 
 ### 对话历史
 
-对话存储一个 session id 的完整消息历史。每次保存会替换该 session id 之前的对话。
+对话存储一个 session id 的完整消息历史。保存是逻辑上的替换：该 session id 的对话就是刚保存的这一份。物理上，SQLite 后端每条消息一行（`conversation_messages`，以 `session_id` 和 `seq` 为键），只重写发生变化的后缀。追加一轮是 O(新增消息)，与历史总量无关；改写历史（例如上下文压缩用摘要替换前缀）会从第一条变化的消息开始重写。消息列表未变的纯元数据保存只更新 `conversations` 行。
+
+每个句柄带一个 writer epoch。如果另一个进程（或同一进程中的另一个句柄）在上次保存之后写过该 session，下一次保存会整表重写，而不是信任过期前缀。旧版本写入的行会惰性迁移：`load_conversation` 仍能读取遗留的 `messages_json` 值，首次保存会把该 session 升级为逐消息行。已升级的 session 不支持降级——旧版本无法解析该 session。
 
 | 函数 | Scope 参数 | 说明 |
 |------|-----------|------|

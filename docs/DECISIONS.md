@@ -25,6 +25,7 @@
 | 2026-11-09 | 13 | durable invoke 的跨 runtime 所有权（租约） | API 级 + 架构级 | 架构正确 |
 | 2026-11-09 | 14 | 审批挂起与崩溃恢复合流（一个恢复入口） | API 级 + 架构级 | 架构正确 |
 | 2026-11-09 | 15 | 可取消阻塞读：机制已验证，传输层重写推迟到 v0.17 | 范围级 | **范围妥协** |
+| 2026-11-28 | 20 | 对话持久化改为逐消息行（增量写入 + 压缩安全的前缀 diff） | 架构级 | 架构正确 |
 
 ---
 
@@ -650,6 +651,30 @@ Python 是目标用户的一半，typed + async 是最高杠杆的开发者体�
 
 ---
 
+## #20: 对话持久化改为逐消息行——增量写入 + 压缩安全的前缀 diff
+
+**日期**: 2026-11-28
+**触发**: GitHub #45。下游真实会话的 `messages_json` 达到 620 MB，手机上一次保存约 4.9 s：每次 save 重编码并 `INSERT OR REPLACE` 整行，成本 O(历史总量)。单行 620 MB 已逼近 SQLite 单值上限，反复重写还留下大量死页。
+
+### 决策
+
+1. **存储规范化**：`conversations` 只保留元数据行；消息进入 `conversation_messages(session_id, seq, message_json)`，按 `seq` 有序读取。
+2. **增量写入**：保存时用物理相等（`==`）比对「本句柄上次保存的消息列表」，公共前缀之前的行不重写，只 DELETE/INSERT 分歧点之后的后缀。物理相等是充分不必要条件——命中即增量，未命中（压缩改写、解码得到的对话、新句柄）退化为全量重写，永远不会写错。
+3. **压缩安全**：上下文压缩会把 `conv.messages` 改写为「摘要 + 保留消息」，因此不能用调用方传入的 `offset` 做纯追加；diff 从第一条变化的记录开始，前缀保留、后缀重写。
+4. **并发安全**：每个句柄生成 `writer_epoch` 写入 `conversations`。仅当库里的 epoch 仍是自己时才走增量，否则整表重写。两个进程或句柄交替写同一 session 时，不会把陈旧前缀拼到别人的历史上。
+5. **惰性迁移**：`storage_version=1` 的旧行仍按 `messages_json` 读取；首次 save 升级为 v2，并把 `messages_json` 置空。升级后不支持降级（旧版本无法解析该行）。
+6. **公开 API 不变**：`save_conversation_fn` / `Runtime.save_conversation` 签名不动；纯元数据保存（消息未变）自然只更新 `conversations` 行。
+
+**§11 R1 标注**: **架构正确**。修的是存储模型本身（单 blob → 逐消息行），不是给 O(history) 路径加缓存。压缩改写、跨进程写入、metadata-only 更新三个场景由同一套 diff 语义覆盖，没有特例分支。
+
+**§11 R2 范围妥协**: 无新增。相关但未做：SQLite 空闲页回收（`auto_vacuum`/`VACUUM`）不在本次范围内；增量写入已经消除了「每轮产生死页」的主因，整段删除后的空间回收仍是独立运维项。
+
+**影响范围**: `lib/persistence/sqlite_persistence.ml`（schema、save/load、writer epoch、弱引用前缀缓存）、`test/test_sqlite_conversation_store.ml`（新增 9 个用例）、`CHANGES.md`、`docs/sdk/persistence.md`、`docs/zh/sdk/persistence.md`。
+
+**回退方式**: revert 本次 commit。注意旧代码无法解析 v2 行的空 `messages_json`；回退前需先把 `conversation_messages` 拼回 `messages_json`，或接受已升级 session 不可读。
+
+---
+
 ## Phase 2 / Deferred Items
 
 以下项目在 v0.8.1/v0.8.2 中明确标注为延后，记录于此防止遗忘。每项含退役触发条件。
@@ -685,4 +710,4 @@ Python 是目标用户的一半，typed + async 是最高杠杆的开发者体�
 
 ---
 
-**最后更新**: 2026-11-19
+**最后更新**: 2026-11-28

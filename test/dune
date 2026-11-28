@@ -279,6 +279,11 @@
  (modules test_sessions))
 
 (test
+ (name test_sqlite_conversation_store)
+ (libraries par eio_main alcotest sqlite3)
+ (modules test_sqlite_conversation_store))
+
+(test
  (name test_mcp_transport_http)
  (libraries par alcotest)
  (modules test_mcp_transport_http))

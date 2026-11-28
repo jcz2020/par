@@ -145,20 +145,25 @@ def test_current_conversation_control_and_persistence(vision_runtime, tmp_path):
     runtime.invoke("vision", "keep this current")
     runtime.invoke_content("vision", [image_url("https://example.com/a.png")],
                            save=True, update_current=False)
-    with sqlite3.connect(tmp_path / "conversations.db") as database:
-        saved, = database.execute(
-            "SELECT messages_json FROM conversations WHERE session_id = ?", ("vision-flags",),
-        ).fetchone()
-        users = [message for message in json.loads(saved) if message["role"] == ["User"]]
-        assert users[0]["content_blocks"][0][0] == "Image_block"
-        assert runtime.save_conversation() == 0
-        saved, = database.execute(
-            "SELECT messages_json FROM conversations WHERE session_id = ?", ("vision-flags",),
-        ).fetchone()
-        users = [message for message in json.loads(saved) if message["role"] == ["User"]]
-        assert users[0]["content_blocks"][0] == [
-            "Text_block", {"text": "keep this current", "cache_control": None},
-        ]
+
+    def stored_users():
+        # Read the v2 message rows directly: load_most_recent_conversation is a
+        # resume API that also replaces the runtime's current conversation.
+        with sqlite3.connect(tmp_path / "conversations.db") as database:
+            rows = database.execute(
+                "SELECT message_json FROM conversation_messages "
+                "WHERE session_id = ? ORDER BY seq ASC", ("vision-flags",),
+            ).fetchall()
+        return [m for m in (json.loads(raw) for (raw,) in rows)
+                if m["role"] == ["User"]]
+
+    users = stored_users()
+    assert users[0]["content_blocks"][0][0] == "Image_block"
+    assert runtime.save_conversation() == 0
+    users = stored_users()
+    assert users[0]["content_blocks"][0] == [
+        "Text_block", {"text": "keep this current", "cache_control": None},
+    ]
 
 
 def test_saved_images_survive_loading_without_detail(vision_runtime, tmp_path):
@@ -167,17 +172,21 @@ def test_saved_images_survive_loading_without_detail(vision_runtime, tmp_path):
     runtime, _requests = vision_runtime
     runtime.set_session_id("legacy-image")
     runtime.invoke_content("vision", [image_url("https://example.com/legacy.png", detail="high")], save=True)
+    row = runtime.load_most_recent_conversation()
+    assert row is not None and row["session_id"] == "legacy-image"
+    messages = row["conversation"]["messages"]
+    for message in messages:
+        for tag, block in message["content_blocks"]:
+            if tag == "Image_block":
+                del block["detail"]
+    # Rewind the row to the pre-v2 layout: a legacy messages_json blob without
+    # the detail key must still load through the migration path.
     with sqlite3.connect(tmp_path / "conversations.db") as database:
-        saved, = database.execute(
-            "SELECT messages_json FROM conversations WHERE session_id = ?", ("legacy-image",),
-        ).fetchone()
-        messages = json.loads(saved)
-        for message in messages:
-            for tag, block in message["content_blocks"]:
-                if tag == "Image_block":
-                    del block["detail"]
         database.execute(
-            "UPDATE conversations SET messages_json = ? WHERE session_id = ?",
+            "DELETE FROM conversation_messages WHERE session_id = ?", ("legacy-image",))
+        database.execute(
+            "UPDATE conversations SET messages_json = ?, storage_version = 1 "
+            "WHERE session_id = ?",
             (json.dumps(messages), "legacy-image"),
         )
     assert runtime.load_conversation("legacy-image") is True

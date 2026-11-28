@@ -46,4 +46,9 @@ val raw_sqlite3_db : t -> Sqlite3.db
     if the runtime may be using [t] concurrently (e.g. via [save_events]).
     Use cases: creating FTS5 virtual tables, custom indexes, raw queries
     that the typed API above does not cover. Do NOT close the returned
-    handle; use [close] on [t] instead. *)
+    handle; use [close] on [t] instead.
+
+    Raw writes to [conversations] or [conversation_messages] bypass the
+    incremental-save bookkeeping. A later {!save_conversation} on the same
+    handle may then treat rows it wrote earlier as unchanged, so edit
+    conversations through {!save_conversation} rather than with SQL. *)

@@ -156,7 +156,9 @@ releases it.
 
 ### Conversation history
 
-Conversations store the full message history for a session. Each save replaces the previous conversation for that session id.
+Conversations store the full message history for a session. A save is a logical replace: the conversation for that session id becomes the one that was just saved. Physically, the SQLite backend stores one row per message (`conversation_messages`, keyed by `session_id` and `seq`) and rewrites only the suffix that changed. Appending a turn is O(new messages), not O(history); rewriting history (for example when context compression replaces a prefix with a summary) rewrites from the first changed message. A metadata-only save, where the message list is unchanged, updates just the `conversations` row.
+
+Each handle carries a writer epoch. If another process, or another handle in the same process, wrote the session since the last save, the next save rewrites the full message list instead of trusting a stale prefix. Rows written by earlier releases are migrated lazily: `load_conversation` still reads the legacy `messages_json` value, and the first save upgrades that session to per-message rows. Downgrading an upgraded session is not supported — older builds fail to decode it.
 
 | Function | Scope param | Description |
 |----------|-------------|-------------|
